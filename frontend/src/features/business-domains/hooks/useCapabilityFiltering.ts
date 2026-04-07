@@ -2,10 +2,7 @@ import { useMemo } from 'react';
 import type { Capability, CapabilityId } from '../../../api/types';
 import type { CapabilityTreeNode } from './useCapabilityTree';
 
-export function useCapabilityFiltering(
-  tree: CapabilityTreeNode[],
-  capabilities: Capability[]
-) {
+export function useCapabilityFiltering(tree: CapabilityTreeNode[], capabilities: Capability[]) {
   const allCapabilities = useMemo(() => {
     const flatten = (nodes: typeof tree): Capability[] => {
       return nodes.flatMap((node) => [node.capability, ...flatten(node.children)]);
@@ -13,10 +10,7 @@ export function useCapabilityFiltering(
     return flatten(tree);
   }, [tree]);
 
-  const assignedCapabilityIds = useMemo(
-    () => new Set<CapabilityId>(capabilities.map((c) => c.id)),
-    [capabilities]
-  );
+  const assignedCapabilityIds = useMemo(() => new Set<CapabilityId>(capabilities.map((c) => c.id)), [capabilities]);
 
   const capabilitiesWithDescendants = useMemo(() => {
     if (capabilities.length === 0 || tree.length === 0) return capabilities;
@@ -27,7 +21,7 @@ export function useCapabilityFiltering(
     const collectDescendants = (nodes: typeof tree) => {
       for (const node of nodes) {
         if (assignedL1Ids.has(node.capability.id)) {
-          const addAll = (n: typeof tree[0]) => {
+          const addAll = (n: (typeof tree)[0]) => {
             result.push(n.capability);
             n.children.forEach(addAll);
           };

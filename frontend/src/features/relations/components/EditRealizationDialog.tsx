@@ -1,11 +1,11 @@
-import React, { useLayoutEffect, useState } from 'react';
-import { Modal, Select, Textarea, Button, Group, Stack, Alert, Text, Box } from '@mantine/core';
-import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Alert, Box, Button, Group, Modal, Select, Stack, Text, Textarea } from '@mantine/core';
+import React, { useLayoutEffect, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import type { CapabilityRealization, RealizationLevel } from '../../../api/types';
+import { type EditRealizationFormData, editRealizationSchema } from '../../../lib/schemas';
 import { useCapabilities, useUpdateRealization } from '../../capabilities/hooks/useCapabilities';
 import { useComponents } from '../../components/hooks/useComponents';
-import { editRealizationSchema, type EditRealizationFormData } from '../../../lib/schemas';
-import type { CapabilityRealization, RealizationLevel } from '../../../api/types';
 
 interface EditRealizationDialogProps {
   isOpen: boolean;
@@ -24,23 +24,15 @@ const DEFAULT_VALUES: EditRealizationFormData = {
   notes: '',
 };
 
-export const EditRealizationDialog: React.FC<EditRealizationDialogProps> = ({
-  isOpen,
-  onClose,
-  realization,
-}) => {
+export const EditRealizationDialog: React.FC<EditRealizationDialogProps> = ({ isOpen, onClose, realization }) => {
   const [backendError, setBackendError] = useState<string | null>(null);
 
   const updateRealizationMutation = useUpdateRealization();
   const { data: capabilities = [] } = useCapabilities();
   const { data: components = [] } = useComponents();
 
-  const capability = realization
-    ? capabilities.find((c) => c.id === realization.capabilityId)
-    : null;
-  const component = realization
-    ? components.find((c) => c.id === realization.componentId)
-    : null;
+  const capability = realization ? capabilities.find((c) => c.id === realization.capabilityId) : null;
+  const component = realization ? components.find((c) => c.id === realization.componentId) : null;
 
   const {
     register,
@@ -86,12 +78,7 @@ export const EditRealizationDialog: React.FC<EditRealizationDialogProps> = ({
   };
 
   return (
-    <Modal
-      opened={isOpen}
-      onClose={handleClose}
-      title="Edit Realization"
-      centered
-    >
+    <Modal opened={isOpen} onClose={handleClose} title="Edit Realization" centered>
       <form onSubmit={handleSubmit(onSubmit)}>
         <Stack gap="md">
           <Box>
@@ -135,24 +122,13 @@ export const EditRealizationDialog: React.FC<EditRealizationDialogProps> = ({
             error={errors.notes?.message}
           />
 
-          {backendError && (
-            <Alert color="red">
-              {backendError}
-            </Alert>
-          )}
+          {backendError && <Alert color="red">{backendError}</Alert>}
 
           <Group justify="flex-end" gap="sm">
-            <Button
-              variant="default"
-              onClick={handleClose}
-              disabled={updateRealizationMutation.isPending}
-            >
+            <Button variant="default" onClick={handleClose} disabled={updateRealizationMutation.isPending}>
               Cancel
             </Button>
-            <Button
-              type="submit"
-              loading={updateRealizationMutation.isPending}
-            >
+            <Button type="submit" loading={updateRealizationMutation.isPending}>
               Update Realization
             </Button>
           </Group>

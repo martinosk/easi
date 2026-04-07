@@ -1,5 +1,5 @@
 import { httpClient } from '../../../api/core/httpClient';
-import type { EditGrant, CreateEditGrantRequest } from '../types';
+import type { CreateEditGrantRequest, EditGrant } from '../types';
 
 export const editGrantApi = {
   async getMyGrants(): Promise<EditGrant[]> {
@@ -14,7 +14,7 @@ export const editGrantApi = {
 
   async getForArtifact(artifactType: string, artifactId: string): Promise<EditGrant[]> {
     const response = await httpClient.get<{ data: EditGrant[] }>(
-      `/api/v1/edit-grants/artifact/${artifactType}/${artifactId}`
+      `/api/v1/edit-grants/artifact/${artifactType}/${artifactId}`,
     );
     return response.data.data || [];
   },

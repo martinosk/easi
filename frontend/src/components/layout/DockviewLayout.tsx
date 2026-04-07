@@ -1,17 +1,17 @@
+import type { DockviewReadyEvent, IDockviewPanelHeaderProps, IDockviewPanelProps } from 'dockview';
+import { DockviewDefaultTab, DockviewReact, themeLight } from 'dockview';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { DockviewReact, DockviewDefaultTab, themeLight } from 'dockview';
-import type { DockviewReadyEvent, IDockviewPanelProps, IDockviewPanelHeaderProps } from 'dockview';
-import { Toolbar } from './Toolbar';
+import type { Capability } from '../../api/types';
+import { ComponentCanvas, type ComponentCanvasRef } from '../../features/canvas';
+import { CanvasLayoutProvider } from '../../features/canvas/context/CanvasLayoutContext';
 import { NavigationTree } from '../../features/navigation';
 import { ViewSelector } from '../../features/views';
-import { ComponentCanvas, type ComponentCanvasRef } from '../../features/canvas';
-import { useAppStore } from '../../store/appStore';
-import { ErrorBoundary, FeatureErrorFallback } from '../shared/ErrorBoundary';
-import { DetailContentRendererWithPlaceholder } from '../shared/DetailContentRenderer';
-import { useRemoveCapabilityFromView } from '../../features/views/hooks/useViews';
 import { useCurrentView } from '../../features/views/hooks/useCurrentView';
-import { CanvasLayoutProvider } from '../../features/canvas/context/CanvasLayoutContext';
-import type { Capability } from '../../api/types';
+import { useRemoveCapabilityFromView } from '../../features/views/hooks/useViews';
+import { useAppStore } from '../../store/appStore';
+import { DetailContentRendererWithPlaceholder } from '../shared/DetailContentRenderer';
+import { ErrorBoundary, FeatureErrorFallback } from '../shared/ErrorBoundary';
+import { Toolbar } from './Toolbar';
 
 const NonClosableTab = (props: IDockviewPanelHeaderProps) => {
   return <DockviewDefaultTab hideClose={true} {...props} />;
@@ -36,7 +36,6 @@ interface DockviewLayoutProps {
   onEditCapability: (capability: Capability) => void;
   onRemoveFromView: () => void;
 }
-
 
 const LAYOUT_STORAGE_KEY = 'easi-canvas-dockview-layout';
 
@@ -77,53 +76,93 @@ function usePanelParams(props: DockviewLayoutProps) {
     }
   }, [selectedCapabilityId, currentViewId, removeCapabilityFromViewMutation]);
 
-  const navigation = useCallback(() => ({
-    onComponentSelect: props.onComponentSelect,
-    onCapabilitySelect: props.onCapabilitySelect,
-    onOriginEntitySelect: props.onOriginEntitySelect,
-    onViewSelect: props.onViewSelect,
-    onAddComponent: props.onAddComponent,
-    onAddCapability: props.onAddCapability,
-    onEditCapability: props.onEditCapability,
-    onEditComponent: props.onEditComponent,
-    canCreateView: props.canCreateView,
-    canCreateOriginEntity: props.canCreateOriginEntity,
-  }), [props.onComponentSelect, props.onCapabilitySelect, props.onOriginEntitySelect, props.onViewSelect, props.onAddComponent, props.onAddCapability, props.onEditCapability, props.onEditComponent, props.canCreateView, props.canCreateOriginEntity]);
+  const navigation = useCallback(
+    () => ({
+      onComponentSelect: props.onComponentSelect,
+      onCapabilitySelect: props.onCapabilitySelect,
+      onOriginEntitySelect: props.onOriginEntitySelect,
+      onViewSelect: props.onViewSelect,
+      onAddComponent: props.onAddComponent,
+      onAddCapability: props.onAddCapability,
+      onEditCapability: props.onEditCapability,
+      onEditComponent: props.onEditComponent,
+      canCreateView: props.canCreateView,
+      canCreateOriginEntity: props.canCreateOriginEntity,
+    }),
+    [
+      props.onComponentSelect,
+      props.onCapabilitySelect,
+      props.onOriginEntitySelect,
+      props.onViewSelect,
+      props.onAddComponent,
+      props.onAddCapability,
+      props.onEditCapability,
+      props.onEditComponent,
+      props.canCreateView,
+      props.canCreateOriginEntity,
+    ],
+  );
 
-  const details = useCallback(() => ({
-    selectedNodeId: props.selectedNodeId,
-    selectedEdgeId: props.selectedEdgeId,
-    selectedCapabilityId,
-    onEditComponent: props.onEditComponent,
-    onEditRelation: props.onEditRelation,
-    onRemoveFromView: props.onRemoveFromView,
-    onRemoveCapabilityFromView: handleRemoveCapabilityFromView,
-  }), [props.selectedNodeId, props.selectedEdgeId, selectedCapabilityId, props.onEditComponent, props.onEditRelation, props.onRemoveFromView, handleRemoveCapabilityFromView]);
+  const details = useCallback(
+    () => ({
+      selectedNodeId: props.selectedNodeId,
+      selectedEdgeId: props.selectedEdgeId,
+      selectedCapabilityId,
+      onEditComponent: props.onEditComponent,
+      onEditRelation: props.onEditRelation,
+      onRemoveFromView: props.onRemoveFromView,
+      onRemoveCapabilityFromView: handleRemoveCapabilityFromView,
+    }),
+    [
+      props.selectedNodeId,
+      props.selectedEdgeId,
+      selectedCapabilityId,
+      props.onEditComponent,
+      props.onEditRelation,
+      props.onRemoveFromView,
+      handleRemoveCapabilityFromView,
+    ],
+  );
 
-  const canvas = useCallback(() => ({
-    canvasRef: props.canvasRef,
-    onConnect: props.onConnect,
-    onComponentDrop: props.onComponentDrop,
-  }), [props.canvasRef, props.onConnect, props.onComponentDrop]);
+  const canvas = useCallback(
+    () => ({
+      canvasRef: props.canvasRef,
+      onConnect: props.onConnect,
+      onComponentDrop: props.onComponentDrop,
+    }),
+    [props.canvasRef, props.onConnect, props.onComponentDrop],
+  );
 
   return { navigation, details, canvas };
 }
 
-function initializeDefaultLayout(
-  api: DockviewReadyEvent['api'],
-  panelParams: ReturnType<typeof usePanelParams>
-) {
-  const canvasPanel = api.addPanel({ id: 'canvas', component: 'canvas', title: 'Canvas', tabComponent: 'nonClosable', params: panelParams.canvas() });
-  const navigationPanel = api.addPanel({ id: 'navigation', component: 'navigation', title: 'Explorer', position: { referencePanel: canvasPanel, direction: 'left' }, params: panelParams.navigation() });
-  const detailPanel = api.addPanel({ id: 'details', component: 'details', title: 'Details', position: { referencePanel: canvasPanel, direction: 'right' }, params: panelParams.details() });
+function initializeDefaultLayout(api: DockviewReadyEvent['api'], panelParams: ReturnType<typeof usePanelParams>) {
+  const canvasPanel = api.addPanel({
+    id: 'canvas',
+    component: 'canvas',
+    title: 'Canvas',
+    tabComponent: 'nonClosable',
+    params: panelParams.canvas(),
+  });
+  const navigationPanel = api.addPanel({
+    id: 'navigation',
+    component: 'navigation',
+    title: 'Explorer',
+    position: { referencePanel: canvasPanel, direction: 'left' },
+    params: panelParams.navigation(),
+  });
+  const detailPanel = api.addPanel({
+    id: 'details',
+    component: 'details',
+    title: 'Details',
+    position: { referencePanel: canvasPanel, direction: 'right' },
+    params: panelParams.details(),
+  });
   navigationPanel.api.setSize({ width: 280 });
   detailPanel.api.setSize({ width: 350 });
 }
 
-function restoreSavedLayout(
-  api: DockviewReadyEvent['api'],
-  panelParams: ReturnType<typeof usePanelParams>
-): boolean {
+function restoreSavedLayout(api: DockviewReadyEvent['api'], panelParams: ReturnType<typeof usePanelParams>): boolean {
   const savedLayout = localStorage.getItem(LAYOUT_STORAGE_KEY);
   if (!savedLayout) return false;
 
@@ -141,18 +180,26 @@ function restoreSavedLayout(
 
 function usePanelSync(
   apiRef: React.RefObject<DockviewReadyEvent['api'] | null>,
-  panelParams: ReturnType<typeof usePanelParams>
+  panelParams: ReturnType<typeof usePanelParams>,
 ) {
-  useEffect(() => { apiRef.current?.getPanel('details')?.api.updateParameters(panelParams.details()); }, [apiRef, panelParams]);
-  useEffect(() => { apiRef.current?.getPanel('canvas')?.api.updateParameters(panelParams.canvas()); }, [apiRef, panelParams]);
-  useEffect(() => { apiRef.current?.getPanel('navigation')?.api.updateParameters(panelParams.navigation()); }, [apiRef, panelParams]);
+  useEffect(() => {
+    apiRef.current?.getPanel('details')?.api.updateParameters(panelParams.details());
+  }, [apiRef, panelParams]);
+  useEffect(() => {
+    apiRef.current?.getPanel('canvas')?.api.updateParameters(panelParams.canvas());
+  }, [apiRef, panelParams]);
+  useEffect(() => {
+    apiRef.current?.getPanel('navigation')?.api.updateParameters(panelParams.navigation());
+  }, [apiRef, panelParams]);
 }
 
 function useLayoutPersistence(apiRef: React.RefObject<DockviewReadyEvent['api'] | null>) {
   useEffect(() => {
     const api = apiRef.current;
     if (!api) return;
-    const disposable = api.onDidLayoutChange(() => localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(api.toJSON())));
+    const disposable = api.onDidLayoutChange(() =>
+      localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(api.toJSON())),
+    );
     return () => disposable.dispose();
   }, [apiRef]);
 }
@@ -166,58 +213,64 @@ function useDockviewLayout(props: DockviewLayoutProps) {
   usePanelSync(dockviewApiRef, panelParams);
   useLayoutPersistence(dockviewApiRef);
 
-  const togglePanel = useCallback((panelId: PanelId) => {
-    const api = dockviewApiRef.current;
-    if (!api) return;
-    const panel = api.getPanel(panelId);
-    savePanelSizes(api, panelSizesRef);
+  const togglePanel = useCallback(
+    (panelId: PanelId) => {
+      const api = dockviewApiRef.current;
+      if (!api) return;
+      const panel = api.getPanel(panelId);
+      savePanelSizes(api, panelSizesRef);
 
-    if (panel) {
-      api.removePanel(panel);
-      setPanelVisibility(prev => ({ ...prev, [panelId]: false }));
-    } else {
-      const canvasPanel = api.getPanel('canvas');
-      const isNav = panelId === 'navigation';
-      api.addPanel({
-        id: panelId,
-        component: panelId,
-        title: isNav ? 'Explorer' : 'Details',
-        position: { referencePanel: canvasPanel!, direction: isNav ? 'left' : 'right' },
-        params: isNav ? panelParams.navigation() : panelParams.details(),
-      });
-      setPanelVisibility(prev => ({ ...prev, [panelId]: true }));
-    }
-    restorePanelSizes(api, panelSizesRef);
-  }, [panelParams]);
+      if (panel) {
+        api.removePanel(panel);
+        setPanelVisibility((prev) => ({ ...prev, [panelId]: false }));
+      } else {
+        const canvasPanel = api.getPanel('canvas');
+        const isNav = panelId === 'navigation';
+        api.addPanel({
+          id: panelId,
+          component: panelId,
+          title: isNav ? 'Explorer' : 'Details',
+          position: { referencePanel: canvasPanel!, direction: isNav ? 'left' : 'right' },
+          params: isNav ? panelParams.navigation() : panelParams.details(),
+        });
+        setPanelVisibility((prev) => ({ ...prev, [panelId]: true }));
+      }
+      restorePanelSizes(api, panelSizesRef);
+    },
+    [panelParams],
+  );
 
-  const onReady = useCallback((event: DockviewReadyEvent) => {
-    dockviewApiRef.current = event.api;
-    if (!restoreSavedLayout(event.api, panelParams)) {
-      initializeDefaultLayout(event.api, panelParams);
-    }
-  }, [panelParams]);
+  const onReady = useCallback(
+    (event: DockviewReadyEvent) => {
+      dockviewApiRef.current = event.api;
+      if (!restoreSavedLayout(event.api, panelParams)) {
+        initializeDefaultLayout(event.api, panelParams);
+      }
+    },
+    [panelParams],
+  );
 
   return { panelVisibility, togglePanel, onReady };
 }
 
-const NavigationTreePanel = (props: IDockviewPanelProps<{
-  onComponentSelect: (id: string) => void;
-  onCapabilitySelect: (id: string) => void;
-  onOriginEntitySelect?: (nodeId: string) => void;
-  onViewSelect: (id: string) => Promise<void>;
-  onAddComponent?: () => void;
-  onAddCapability?: () => void;
-  onEditCapability: (capability: Capability) => void;
-  onEditComponent: (componentId?: string) => void;
-  canCreateView?: boolean;
-  canCreateOriginEntity?: boolean;
-}>) => {
+const NavigationTreePanel = (
+  props: IDockviewPanelProps<{
+    onComponentSelect: (id: string) => void;
+    onCapabilitySelect: (id: string) => void;
+    onOriginEntitySelect?: (nodeId: string) => void;
+    onViewSelect: (id: string) => Promise<void>;
+    onAddComponent?: () => void;
+    onAddCapability?: () => void;
+    onEditCapability: (capability: Capability) => void;
+    onEditComponent: (componentId?: string) => void;
+    canCreateView?: boolean;
+    canCreateOriginEntity?: boolean;
+  }>,
+) => {
   return (
     <div style={{ height: '100%', width: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       <ErrorBoundary
-        fallback={(error, reset) => (
-          <FeatureErrorFallback featureName="Navigation" error={error} onReset={reset} />
-        )}
+        fallback={(error, reset) => <FeatureErrorFallback featureName="Navigation" error={error} onReset={reset} />}
       >
         <NavigationTree
           onComponentSelect={props.params.onComponentSelect}
@@ -236,47 +289,43 @@ const NavigationTreePanel = (props: IDockviewPanelProps<{
   );
 };
 
-const CanvasPanel = (props: IDockviewPanelProps<{
-  canvasRef: React.RefObject<ComponentCanvasRef | null>;
-  onConnect: (source: string, target: string) => void;
-  onComponentDrop: (componentId: string, x: number, y: number) => Promise<void>;
-}>) => {
+const CanvasPanel = (
+  props: IDockviewPanelProps<{
+    canvasRef: React.RefObject<ComponentCanvasRef | null>;
+    onConnect: (source: string, target: string) => void;
+    onComponentDrop: (componentId: string, x: number, y: number) => Promise<void>;
+  }>,
+) => {
   const { canvasRef, onConnect, onComponentDrop } = props.params;
   return (
     <div style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <ViewSelector />
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
         <ErrorBoundary
-          fallback={(error, reset) => (
-            <FeatureErrorFallback featureName="Canvas" error={error} onReset={reset} />
-          )}
+          fallback={(error, reset) => <FeatureErrorFallback featureName="Canvas" error={error} onReset={reset} />}
         >
-          <ComponentCanvas
-            ref={canvasRef}
-            onConnect={onConnect}
-            onComponentDrop={onComponentDrop}
-          />
+          <ComponentCanvas ref={canvasRef} onConnect={onConnect} onComponentDrop={onComponentDrop} />
         </ErrorBoundary>
       </div>
     </div>
   );
 };
 
-const DetailPanel = (props: IDockviewPanelProps<{
-  selectedNodeId: string | null;
-  selectedEdgeId: string | null;
-  selectedCapabilityId: string | null;
-  onEditComponent: (componentId?: string) => void;
-  onEditRelation: () => void;
-  onRemoveFromView: () => void;
-  onRemoveCapabilityFromView: () => void;
-}>) => {
+const DetailPanel = (
+  props: IDockviewPanelProps<{
+    selectedNodeId: string | null;
+    selectedEdgeId: string | null;
+    selectedCapabilityId: string | null;
+    onEditComponent: (componentId?: string) => void;
+    onEditRelation: () => void;
+    onRemoveFromView: () => void;
+    onRemoveCapabilityFromView: () => void;
+  }>,
+) => {
   return (
     <div style={{ height: '100%', width: '100%', overflow: 'auto', padding: '1rem' }}>
       <ErrorBoundary
-        fallback={(error, reset) => (
-          <FeatureErrorFallback featureName="Details" error={error} onReset={reset} />
-        )}
+        fallback={(error, reset) => <FeatureErrorFallback featureName="Details" error={error} onReset={reset} />}
       >
         <DetailContentRendererWithPlaceholder {...props.params} />
       </ErrorBoundary>
@@ -303,12 +352,7 @@ export const DockviewLayout: React.FC<DockviewLayoutProps> = (props) => {
         <Toolbar panelVisibility={panelVisibility} onTogglePanel={togglePanel} />
         <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
           <div className="dockview-theme-light" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
-            <DockviewReact
-              onReady={onReady}
-              components={components}
-              tabComponents={tabComponents}
-              theme={themeLight}
-            />
+            <DockviewReact onReady={onReady} components={components} tabComponents={tabComponents} theme={themeLight} />
           </div>
         </div>
       </div>

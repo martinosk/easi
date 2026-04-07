@@ -1,59 +1,59 @@
+import { businessDomainsApi } from '../features/business-domains/api';
+import { layoutsApi } from '../features/canvas/api';
+import { capabilitiesApi } from '../features/capabilities/api';
 import { componentsApi } from '../features/components/api';
 import { relationsApi } from '../features/relations/api';
 import { viewsApi } from '../features/views/api';
-import { capabilitiesApi } from '../features/capabilities/api';
-import { businessDomainsApi } from '../features/business-domains/api';
-import { layoutsApi } from '../features/canvas/api';
 import { metadataApi } from './metadata';
 import type {
+  AddCapabilityExpertRequest,
+  AddCapabilityTagRequest,
+  AddCapabilityToViewRequest,
+  AddComponentToViewRequest,
+  AssociateCapabilityRequest,
+  BatchUpdateItem,
+  BatchUpdateResponse,
+  BusinessDomain,
+  BusinessDomainId,
+  Capability,
+  CapabilityDependency,
+  CapabilityId,
+  CapabilityRealization,
+  CapabilityRealizationsGroup,
   Component,
   ComponentId,
-  Relation,
-  RelationId,
-  View,
-  ViewId,
-  ViewComponent,
+  CreateBusinessDomainRequest,
+  CreateCapabilityDependencyRequest,
+  CreateCapabilityRequest,
   CreateComponentRequest,
   CreateRelationRequest,
   CreateViewRequest,
-  AddComponentToViewRequest,
-  AddCapabilityToViewRequest,
-  UpdatePositionRequest,
-  UpdateMultiplePositionsRequest,
-  RenameViewRequest,
-  UpdateViewEdgeTypeRequest,
-  UpdateViewColorSchemeRequest,
-  Capability,
-  CapabilityId,
-  CapabilityDependency,
-  CapabilityRealization,
-  CapabilityRealizationsGroup,
-  CreateCapabilityRequest,
-  UpdateCapabilityRequest,
-  UpdateCapabilityMetadataRequest,
-  AddCapabilityExpertRequest,
-  AddCapabilityTagRequest,
-  CreateCapabilityDependencyRequest,
-  LinkSystemToCapabilityRequest,
-  UpdateRealizationRequest,
-  StatusOption,
-  OwnershipModelOption,
-  Release,
-  ReleaseVersion,
-  BusinessDomain,
-  BusinessDomainId,
-  CreateBusinessDomainRequest,
-  UpdateBusinessDomainRequest,
-  AssociateCapabilityRequest,
-  LayoutContextType,
+  ElementPosition,
+  ElementPositionInput,
   LayoutContainer,
   LayoutContainerSummary,
-  ElementPosition,
-  UpsertLayoutRequest,
-  ElementPositionInput,
-  BatchUpdateItem,
-  BatchUpdateResponse,
+  LayoutContextType,
+  LinkSystemToCapabilityRequest,
+  OwnershipModelOption,
   Position,
+  Relation,
+  RelationId,
+  Release,
+  ReleaseVersion,
+  RenameViewRequest,
+  StatusOption,
+  UpdateBusinessDomainRequest,
+  UpdateCapabilityMetadataRequest,
+  UpdateCapabilityRequest,
+  UpdateMultiplePositionsRequest,
+  UpdatePositionRequest,
+  UpdateRealizationRequest,
+  UpdateViewColorSchemeRequest,
+  UpdateViewEdgeTypeRequest,
+  UpsertLayoutRequest,
+  View,
+  ViewComponent,
+  ViewId,
 } from './types';
 
 class ApiClient {
@@ -120,7 +120,7 @@ class ApiClient {
   async updateComponentPosition(
     viewId: ViewId,
     componentId: ComponentId,
-    request: UpdatePositionRequest
+    request: UpdatePositionRequest,
   ): Promise<void> {
     return viewsApi.updateComponentPosition(viewId, componentId, request);
   }
@@ -159,7 +159,12 @@ class ApiClient {
 
   async updateCapabilityPositionInView(viewId: ViewId, capabilityId: CapabilityId, position: Position): Promise<void>;
   async updateCapabilityPositionInView(viewId: ViewId, capabilityId: CapabilityId, x: number, y: number): Promise<void>;
-  async updateCapabilityPositionInView(viewId: ViewId, capabilityId: CapabilityId, xOrPosition: number | Position, y?: number): Promise<void> {
+  async updateCapabilityPositionInView(
+    viewId: ViewId,
+    capabilityId: CapabilityId,
+    xOrPosition: number | Position,
+    y?: number,
+  ): Promise<void> {
     const position = typeof xOrPosition === 'number' ? { x: xOrPosition, y: y! } : xOrPosition;
     return viewsApi.updateCapabilityPosition(viewId, capabilityId, position);
   }
@@ -252,11 +257,17 @@ class ApiClient {
     return capabilitiesApi.getCapabilitiesByComponent(componentId);
   }
 
-  async linkSystemToCapability(capabilityId: CapabilityId, request: LinkSystemToCapabilityRequest): Promise<CapabilityRealization> {
+  async linkSystemToCapability(
+    capabilityId: CapabilityId,
+    request: LinkSystemToCapabilityRequest,
+  ): Promise<CapabilityRealization> {
     return capabilitiesApi.linkSystem(capabilityId, request);
   }
 
-  async updateRealization(realization: CapabilityRealization, request: UpdateRealizationRequest): Promise<CapabilityRealization> {
+  async updateRealization(
+    realization: CapabilityRealization,
+    request: UpdateRealizationRequest,
+  ): Promise<CapabilityRealization> {
     return capabilitiesApi.updateRealization(realization, request);
   }
 
@@ -327,7 +338,7 @@ class ApiClient {
 
   async getCapabilityRealizationsByDomain(
     domainId: BusinessDomainId,
-    depth: number = 4
+    depth: number = 4,
   ): Promise<CapabilityRealizationsGroup[]> {
     return businessDomainsApi.getCapabilityRealizations(domainId, depth);
   }
@@ -339,7 +350,7 @@ class ApiClient {
   async upsertLayout(
     contextType: LayoutContextType,
     contextRef: string,
-    request: UpsertLayoutRequest = {}
+    request: UpsertLayoutRequest = {},
   ): Promise<LayoutContainer> {
     return layoutsApi.upsert(contextType, contextRef, request);
   }
@@ -352,7 +363,7 @@ class ApiClient {
     contextType: LayoutContextType,
     contextRef: string,
     preferences: Record<string, unknown>,
-    version: number
+    version: number,
   ): Promise<LayoutContainerSummary> {
     return layoutsApi.updatePreferences(contextType, contextRef, preferences, version);
   }
@@ -361,23 +372,19 @@ class ApiClient {
     contextType: LayoutContextType,
     contextRef: string,
     elementId: string,
-    position: ElementPositionInput
+    position: ElementPositionInput,
   ): Promise<ElementPosition> {
     return layoutsApi.upsertElement(contextType, contextRef, elementId, position);
   }
 
-  async deleteElementPosition(
-    contextType: LayoutContextType,
-    contextRef: string,
-    elementId: string
-  ): Promise<void> {
+  async deleteElementPosition(contextType: LayoutContextType, contextRef: string, elementId: string): Promise<void> {
     return layoutsApi.deleteElement(contextType, contextRef, elementId);
   }
 
   async batchUpdateElements(
     contextType: LayoutContextType,
     contextRef: string,
-    updates: BatchUpdateItem[]
+    updates: BatchUpdateItem[],
   ): Promise<BatchUpdateResponse> {
     return layoutsApi.batchUpdateElements(contextType, contextRef, updates);
   }

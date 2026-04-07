@@ -1,12 +1,9 @@
-import { useLayoutEffect, useCallback, useState } from 'react';
-import type { ReactFlowInstance, Node } from '@xyflow/react';
+import type { Node, ReactFlowInstance } from '@xyflow/react';
+import { useCallback, useLayoutEffect, useState } from 'react';
 import { useAppStore } from '../../../store/appStore';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
 
-export const useCanvasViewport = (
-  reactFlowInstance: ReactFlowInstance | null,
-  nodes: Node[]
-) => {
+export const useCanvasViewport = (reactFlowInstance: ReactFlowInstance | null, nodes: Node[]) => {
   const { currentView } = useCurrentView();
   const saveViewportState = useAppStore((state) => state.saveViewportState);
   const getViewportState = useAppStore((state) => state.getViewportState);

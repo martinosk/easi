@@ -1,22 +1,22 @@
-import { useState, useCallback, useMemo } from 'react';
 import type { Edge } from '@xyflow/react';
-import { useCapabilities, useRealizations } from '../../capabilities/hooks/useCapabilities';
-import { useComponents } from '../../components/hooks/useComponents';
-import { useRelations } from '../../relations/hooks/useRelations';
-import { useOriginRelationshipsQuery } from '../../origin-entities/hooks/useOriginRelationships';
-import { ORIGIN_RELATIONSHIP_LABELS } from '../../../constants/entityIdentifiers';
+import { useCallback, useMemo, useState } from 'react';
 import type {
-  Component,
   Capability,
-  Relation,
-  CapabilityRealization,
-  ComponentId,
   CapabilityId,
+  CapabilityRealization,
+  Component,
+  ComponentId,
   HATEOASLinks,
   OriginRelationship,
   OriginRelationshipId,
   OriginRelationshipType,
+  Relation,
 } from '../../../api/types';
+import { ORIGIN_RELATIONSHIP_LABELS } from '../../../constants/entityIdentifiers';
+import { useCapabilities, useRealizations } from '../../capabilities/hooks/useCapabilities';
+import { useComponents } from '../../components/hooks/useComponents';
+import { useOriginRelationshipsQuery } from '../../origin-entities/hooks/useOriginRelationships';
+import { useRelations } from '../../relations/hooks/useRelations';
 
 export interface EdgeContextMenu {
   x: number;
@@ -59,7 +59,7 @@ function resolveParentEdge(edge: Edge, position: MenuPosition): EdgeContextMenu 
 function resolveRealizationEdge(
   edge: Edge,
   deps: EdgeLookupDependencies,
-  position: MenuPosition
+  position: MenuPosition,
 ): EdgeContextMenu | null {
   const realizationId = edge.id.replace('realization-', '');
   const realization = deps.capabilityRealizations.find((r) => r.id === realizationId);
@@ -82,11 +82,7 @@ function resolveRealizationEdge(
   };
 }
 
-function resolveRelationEdge(
-  edge: Edge,
-  relations: Relation[],
-  position: MenuPosition
-): EdgeContextMenu | null {
+function resolveRelationEdge(edge: Edge, relations: Relation[], position: MenuPosition): EdgeContextMenu | null {
   const relation = relations.find((r) => r.id === edge.id);
   if (!relation) return null;
 
@@ -103,7 +99,7 @@ function resolveOriginRelationshipEdge(
   edge: Edge,
   originRelationships: OriginRelationship[],
   components: Component[],
-  position: MenuPosition
+  position: MenuPosition,
 ): EdgeContextMenu | null {
   const relationshipId = edge.id.replace('origin-', '');
   const relationship = originRelationships.find((r) => r.id === relationshipId);
@@ -129,7 +125,7 @@ function resolveOriginRelationshipEdge(
 function resolveEdgeContextMenu(
   edge: Edge,
   deps: EdgeLookupDependencies,
-  position: MenuPosition
+  position: MenuPosition,
 ): EdgeContextMenu | null {
   if (edge.id.startsWith('parent-')) {
     return resolveParentEdge(edge, position);
@@ -154,7 +150,7 @@ export const useEdgeContextMenu = () => {
 
   const edgeLookupDeps = useMemo<EdgeLookupDependencies>(
     () => ({ relations, capabilityRealizations, capabilities, components, originRelationships }),
-    [relations, capabilityRealizations, capabilities, components, originRelationships]
+    [relations, capabilityRealizations, capabilities, components, originRelationships],
   );
 
   const onEdgeContextMenu = useCallback(
@@ -167,7 +163,7 @@ export const useEdgeContextMenu = () => {
         setEdgeContextMenu(menu);
       }
     },
-    [edgeLookupDeps]
+    [edgeLookupDeps],
   );
 
   const closeEdgeMenu = useCallback(() => {

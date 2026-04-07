@@ -1,7 +1,7 @@
-import { useState, useCallback, useMemo } from 'react';
-import { useCapabilityTree } from '../../business-domains/hooks/useCapabilityTree';
-import type { CapabilityTreeNode } from '../../business-domains/hooks/useCapabilityTree';
+import { useCallback, useMemo, useState } from 'react';
 import type { Capability } from '../../../api/types';
+import type { CapabilityTreeNode } from '../../business-domains/hooks/useCapabilityTree';
+import { useCapabilityTree } from '../../business-domains/hooks/useCapabilityTree';
 
 interface CapabilitySidebarProps {
   mappedCapabilityIds: Set<string>;
@@ -17,12 +17,12 @@ export function CapabilitySidebar({ mappedCapabilityIds, onDragCapability }: Cap
       if (!filter) return true;
       const lower = filter.toLowerCase();
       if (node.capability.name.toLowerCase().includes(lower)) return true;
-      return node.children.some(child => check(child));
+      return node.children.some((child) => check(child));
     };
     return check;
   }, [filter]);
 
-  const filteredTree = filter ? tree.filter(node => matchesFilter(node)) : tree;
+  const filteredTree = filter ? tree.filter((node) => matchesFilter(node)) : tree;
 
   if (isLoading) {
     return (
@@ -107,14 +107,28 @@ function TreeNodeItem({ node, isMapped, hasChildren, expanded, onToggle, onDragS
     >
       {hasChildren ? (
         <button type="button" className="cap-tree-toggle" onClick={onToggle}>
-          <svg viewBox="0 0 24 24" fill="none" width="12" height="12" style={{ transform: expanded ? 'rotate(90deg)' : undefined, transition: 'transform 0.15s ease' }}>
-            <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            width="12"
+            height="12"
+            style={{ transform: expanded ? 'rotate(90deg)' : undefined, transition: 'transform 0.15s ease' }}
+          >
+            <path
+              d="M9 18l6-6-6-6"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
         </button>
       ) : (
         <span className="cap-tree-toggle" />
       )}
-      <span className="cap-tree-level" style={{ color: LEVEL_COLORS[level] }}>{level}</span>
+      <span className="cap-tree-level" style={{ color: LEVEL_COLORS[level] }}>
+        {level}
+      </span>
       <span className="cap-tree-name">{node.capability.name}</span>
       {isMapped && <span className="cap-tree-badge">Mapped</span>}
     </div>
@@ -125,13 +139,16 @@ function TreeNode({ node, mappedCapabilityIds, onDragCapability, filter, matches
   const [expanded, setExpanded] = useState(depth === 0);
   const isMapped = mappedCapabilityIds.has(node.capability.id);
   const hasChildren = node.children.length > 0;
-  const visibleChildren = filter ? node.children.filter(child => matchesFilter(child)) : node.children;
+  const visibleChildren = filter ? node.children.filter((child) => matchesFilter(child)) : node.children;
 
-  const handleDragStart = useCallback((e: React.DragEvent) => {
-    e.dataTransfer.setData('application/json', JSON.stringify(node.capability));
-    e.dataTransfer.effectAllowed = 'copy';
-    onDragCapability?.(node.capability);
-  }, [node.capability, onDragCapability]);
+  const handleDragStart = useCallback(
+    (e: React.DragEvent) => {
+      e.dataTransfer.setData('application/json', JSON.stringify(node.capability));
+      e.dataTransfer.effectAllowed = 'copy';
+      onDragCapability?.(node.capability);
+    },
+    [node.capability, onDragCapability],
+  );
 
   return (
     <div className="cap-tree-node" style={{ paddingLeft: depth > 0 ? `${depth * 12}px` : undefined }}>
@@ -143,17 +160,19 @@ function TreeNode({ node, mappedCapabilityIds, onDragCapability, filter, matches
         onToggle={() => setExpanded(!expanded)}
         onDragStart={handleDragStart}
       />
-      {expanded && hasChildren && visibleChildren.map((child) => (
-        <TreeNode
-          key={child.capability.id}
-          node={child}
-          mappedCapabilityIds={mappedCapabilityIds}
-          onDragCapability={onDragCapability}
-          filter={filter}
-          matchesFilter={matchesFilter}
-          depth={depth + 1}
-        />
-      ))}
+      {expanded &&
+        hasChildren &&
+        visibleChildren.map((child) => (
+          <TreeNode
+            key={child.capability.id}
+            node={child}
+            mappedCapabilityIds={mappedCapabilityIds}
+            onDragCapability={onDragCapability}
+            filter={filter}
+            matchesFilter={matchesFilter}
+            depth={depth + 1}
+          />
+        ))}
     </div>
   );
 }

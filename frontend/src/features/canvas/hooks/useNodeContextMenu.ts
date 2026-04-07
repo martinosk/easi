@@ -1,14 +1,14 @@
-import { useState, useCallback, useMemo } from 'react';
 import type { Node } from '@xyflow/react';
-import { useCurrentView } from '../../views/hooks/useCurrentView';
+import { useCallback, useMemo, useState } from 'react';
+import type { Capability, Component, HATEOASLinks } from '../../../api/types';
+import type { OriginEntityType } from '../../../constants/entityIdentifiers';
 import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
 import { useComponents } from '../../components/hooks/useComponents';
 import { useAcquiredEntitiesQuery } from '../../origin-entities/hooks/useAcquiredEntities';
-import { useVendorsQuery } from '../../origin-entities/hooks/useVendors';
 import { useInternalTeamsQuery } from '../../origin-entities/hooks/useInternalTeams';
-import { getOriginEntityTypeFromNodeId, extractOriginEntityId } from '../utils/nodeFactory';
-import type { OriginEntityType } from '../../../constants/entityIdentifiers';
-import type { Component, Capability, HATEOASLinks } from '../../../api/types';
+import { useVendorsQuery } from '../../origin-entities/hooks/useVendors';
+import { useCurrentView } from '../../views/hooks/useCurrentView';
+import { extractOriginEntityId, getOriginEntityTypeFromNodeId } from '../utils/nodeFactory';
 
 export interface NodeContextMenu {
   x: number;
@@ -34,7 +34,7 @@ export interface OriginEntityLookups {
 
 function findOriginEntity(
   nodeId: string,
-  lookups: OriginEntityLookups
+  lookups: OriginEntityLookups,
 ): { entity: { name: string; _links?: HATEOASLinks }; originEntityType: OriginEntityType } | null {
   const originEntityType = getOriginEntityTypeFromNodeId(nodeId);
   const entityId = extractOriginEntityId(nodeId);
@@ -54,7 +54,7 @@ function resolveOriginEntityNode(
   node: Node,
   lookups: OriginEntityLookups,
   position: MenuPosition,
-  viewElementLinks?: HATEOASLinks
+  viewElementLinks?: HATEOASLinks,
 ): NodeContextMenu | null {
   const result = findOriginEntity(node.id, lookups);
   const entityId = extractOriginEntityId(node.id);
@@ -75,7 +75,7 @@ function resolveCapabilityNode(
   node: Node,
   capabilities: Capability[],
   position: MenuPosition,
-  viewElementLinks?: HATEOASLinks
+  viewElementLinks?: HATEOASLinks,
 ): NodeContextMenu | null {
   const capId = node.id.replace('cap-', '');
   const capability = capabilities.find((c) => c.id === capId);
@@ -95,7 +95,7 @@ function resolveComponentNode(
   node: Node,
   components: Component[],
   position: MenuPosition,
-  viewElementLinks?: HATEOASLinks
+  viewElementLinks?: HATEOASLinks,
 ): NodeContextMenu | null {
   const component = components.find((c) => c.id === node.id);
   if (!component) return null;
@@ -122,7 +122,7 @@ export interface NodeContextMenuDependencies {
 export function resolveNodeMenu(
   node: Node,
   position: MenuPosition,
-  deps: NodeContextMenuDependencies
+  deps: NodeContextMenuDependencies,
 ): NodeContextMenu | null {
   if (node.type === 'capability') {
     const capId = node.id.replace('cap-', '');
@@ -132,7 +132,9 @@ export function resolveNodeMenu(
 
   if (node.type === 'originEntity') {
     const entityId = extractOriginEntityId(node.id);
-    const viewElement = entityId ? deps.currentViewOriginEntities.find((vo) => vo.originEntityId === entityId) : undefined;
+    const viewElement = entityId
+      ? deps.currentViewOriginEntities.find((vo) => vo.originEntityId === entityId)
+      : undefined;
     return resolveOriginEntityNode(node, deps.originEntityLookups, position, viewElement?._links);
   }
 
@@ -150,14 +152,26 @@ export const useNodeContextMenu = () => {
 
   const [nodeContextMenu, setNodeContextMenu] = useState<NodeContextMenu | null>(null);
 
-  const deps = useMemo<NodeContextMenuDependencies>(() => ({
-    components,
-    capabilities,
-    originEntityLookups: { acquiredEntities, vendors, internalTeams },
-    currentViewComponents: currentView?.components ?? [],
-    currentViewCapabilities: currentView?.capabilities ?? [],
-    currentViewOriginEntities: currentView?.originEntities ?? [],
-  }), [components, capabilities, acquiredEntities, vendors, internalTeams, currentView?.components, currentView?.capabilities, currentView?.originEntities]);
+  const deps = useMemo<NodeContextMenuDependencies>(
+    () => ({
+      components,
+      capabilities,
+      originEntityLookups: { acquiredEntities, vendors, internalTeams },
+      currentViewComponents: currentView?.components ?? [],
+      currentViewCapabilities: currentView?.capabilities ?? [],
+      currentViewOriginEntities: currentView?.originEntities ?? [],
+    }),
+    [
+      components,
+      capabilities,
+      acquiredEntities,
+      vendors,
+      internalTeams,
+      currentView?.components,
+      currentView?.capabilities,
+      currentView?.originEntities,
+    ],
+  );
 
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: Node) => {
@@ -168,7 +182,7 @@ export const useNodeContextMenu = () => {
         setNodeContextMenu(menu);
       }
     },
-    [deps]
+    [deps],
   );
 
   const closeNodeMenu = useCallback(() => {

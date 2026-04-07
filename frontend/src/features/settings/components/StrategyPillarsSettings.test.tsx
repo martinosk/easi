@@ -1,11 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MantineProvider } from '@mantine/core';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
-import { StrategyPillarsSettings } from './StrategyPillarsSettings';
-import { strategyPillarsApi, type StrategyPillarsConfigurationWithVersion } from '../../../api/metadata';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { type StrategyPillarsConfigurationWithVersion, strategyPillarsApi } from '../../../api/metadata';
 import { ApiError } from '../../../api/types';
+import { StrategyPillarsSettings } from './StrategyPillarsSettings';
 
 vi.mock('../../../api/metadata', () => ({
   strategyPillarsApi: {
@@ -34,18 +34,43 @@ function renderWithProviders(ui: React.ReactElement, queryClient?: QueryClient) 
   const client = queryClient || createQueryClient();
   return render(
     <QueryClientProvider client={client}>
-      <MantineProvider>
-        {ui}
-      </MantineProvider>
-    </QueryClientProvider>
+      <MantineProvider>{ui}</MantineProvider>
+    </QueryClientProvider>,
   );
 }
 
 const mockPillarsConfig: StrategyPillarsConfigurationWithVersion = {
   data: [
-    { id: 'pillar-1', name: 'Always On', description: 'Core capabilities', active: true, fitScoringEnabled: false, fitCriteria: '', fitType: '', _links: {} },
-    { id: 'pillar-2', name: 'Grow', description: 'Growth initiatives', active: true, fitScoringEnabled: false, fitCriteria: '', fitType: '', _links: {} },
-    { id: 'pillar-3', name: 'Transform', description: 'Transformation projects', active: true, fitScoringEnabled: false, fitCriteria: '', fitType: '', _links: {} },
+    {
+      id: 'pillar-1',
+      name: 'Always On',
+      description: 'Core capabilities',
+      active: true,
+      fitScoringEnabled: false,
+      fitCriteria: '',
+      fitType: '',
+      _links: {},
+    },
+    {
+      id: 'pillar-2',
+      name: 'Grow',
+      description: 'Growth initiatives',
+      active: true,
+      fitScoringEnabled: false,
+      fitCriteria: '',
+      fitType: '',
+      _links: {},
+    },
+    {
+      id: 'pillar-3',
+      name: 'Transform',
+      description: 'Transformation projects',
+      active: true,
+      fitScoringEnabled: false,
+      fitCriteria: '',
+      fitType: '',
+      _links: {},
+    },
   ],
   _links: {},
   version: 1,
@@ -58,9 +83,7 @@ describe('StrategyPillarsSettings', () => {
   });
 
   it('renders loading state initially', () => {
-    vi.mocked(strategyPillarsApi.getConfiguration).mockImplementation(
-      () => new Promise(() => {})
-    );
+    vi.mocked(strategyPillarsApi.getConfiguration).mockImplementation(() => new Promise(() => {}));
 
     renderWithProviders(<StrategyPillarsSettings />);
 
@@ -262,7 +285,16 @@ describe('StrategyPillarsSettings', () => {
   it('disables delete button when only one active pillar remains', async () => {
     const singlePillarConfig: StrategyPillarsConfigurationWithVersion = {
       data: [
-        { id: 'pillar-1', name: 'Always On', description: '', active: true, fitScoringEnabled: false, fitCriteria: '', fitType: '', _links: {} },
+        {
+          id: 'pillar-1',
+          name: 'Always On',
+          description: '',
+          active: true,
+          fitScoringEnabled: false,
+          fitCriteria: '',
+          fitType: '',
+          _links: {},
+        },
       ],
       _links: {},
       version: 1,
@@ -281,9 +313,7 @@ describe('StrategyPillarsSettings', () => {
   });
 
   it('shows error state when loading fails', async () => {
-    vi.mocked(strategyPillarsApi.getConfiguration).mockRejectedValue(
-      new Error('Failed to load')
-    );
+    vi.mocked(strategyPillarsApi.getConfiguration).mockRejectedValue(new Error('Failed to load'));
 
     renderWithProviders(<StrategyPillarsSettings />);
 
@@ -294,9 +324,7 @@ describe('StrategyPillarsSettings', () => {
 
   it('shows conflict dialog when concurrent modification detected', async () => {
     vi.mocked(strategyPillarsApi.getConfiguration).mockResolvedValue(mockPillarsConfig);
-    vi.mocked(strategyPillarsApi.batchUpdate).mockRejectedValue(
-      new ApiError('Conflict', 409)
-    );
+    vi.mocked(strategyPillarsApi.batchUpdate).mockRejectedValue(new ApiError('Conflict', 409));
 
     renderWithProviders(<StrategyPillarsSettings />);
 
@@ -330,9 +358,36 @@ describe('StrategyPillarsSettings', () => {
   it('filters out inactive pillars in view mode by default', async () => {
     const configWithInactive: StrategyPillarsConfigurationWithVersion = {
       data: [
-        { id: 'pillar-1', name: 'Always On', description: '', active: true, fitScoringEnabled: false, fitCriteria: '', fitType: '', _links: {} },
-        { id: 'pillar-2', name: 'Grow', description: '', active: false, fitScoringEnabled: false, fitCriteria: '', fitType: '', _links: {} },
-        { id: 'pillar-3', name: 'Transform', description: '', active: true, fitScoringEnabled: false, fitCriteria: '', fitType: '', _links: {} },
+        {
+          id: 'pillar-1',
+          name: 'Always On',
+          description: '',
+          active: true,
+          fitScoringEnabled: false,
+          fitCriteria: '',
+          fitType: '',
+          _links: {},
+        },
+        {
+          id: 'pillar-2',
+          name: 'Grow',
+          description: '',
+          active: false,
+          fitScoringEnabled: false,
+          fitCriteria: '',
+          fitType: '',
+          _links: {},
+        },
+        {
+          id: 'pillar-3',
+          name: 'Transform',
+          description: '',
+          active: true,
+          fitScoringEnabled: false,
+          fitCriteria: '',
+          fitType: '',
+          _links: {},
+        },
       ],
       _links: {},
       version: 1,

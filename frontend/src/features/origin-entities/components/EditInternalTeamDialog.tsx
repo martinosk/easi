@@ -1,10 +1,10 @@
-import React, { useLayoutEffect, useState } from 'react';
-import { Modal, TextInput, Textarea, Button, Group, Stack, Alert } from '@mantine/core';
-import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useUpdateInternalTeam } from '../hooks/useInternalTeams';
-import { editInternalTeamSchema, type EditInternalTeamFormData } from '../../../lib/schemas';
+import { Alert, Button, Group, Modal, Stack, Textarea, TextInput } from '@mantine/core';
+import React, { useLayoutEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import type { InternalTeam, InternalTeamId } from '../../../api/types';
+import { type EditInternalTeamFormData, editInternalTeamSchema } from '../../../lib/schemas';
+import { useUpdateInternalTeam } from '../hooks/useInternalTeams';
 
 interface EditInternalTeamDialogProps {
   isOpen: boolean;
@@ -12,11 +12,7 @@ interface EditInternalTeamDialogProps {
   team: InternalTeam | null;
 }
 
-export const EditInternalTeamDialog: React.FC<EditInternalTeamDialogProps> = ({
-  isOpen,
-  onClose,
-  team,
-}) => {
+export const EditInternalTeamDialog: React.FC<EditInternalTeamDialogProps> = ({ isOpen, onClose, team }) => {
   const [backendError, setBackendError] = useState<string | null>(null);
   const updateMutation = useUpdateInternalTeam();
 

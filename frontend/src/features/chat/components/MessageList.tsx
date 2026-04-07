@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
-import { ChatMessage } from './ChatMessage';
-import { ToolCallIndicator } from './ToolCallIndicator';
 import type { ChatMessage as ChatMessageType } from '../api/types';
 import type { ToolCallState } from '../hooks/useChat';
+import { ChatMessage } from './ChatMessage';
+import { ToolCallIndicator } from './ToolCallIndicator';
 
 const PROMPT_SUGGESTIONS = [
   'What applications are in the Finance domain?',
@@ -62,7 +62,7 @@ export function MessageList({ messages, toolCalls, isStreaming, error, onSuggest
         />
       ))}
 
-      {toolCalls.map(tc => (
+      {toolCalls.map((tc) => (
         <ToolCallIndicator
           key={tc.id}
           status={tc.status}
@@ -72,11 +72,7 @@ export function MessageList({ messages, toolCalls, isStreaming, error, onSuggest
         />
       ))}
 
-      {error && (
-        <div className="chat-error">
-          {error}
-        </div>
-      )}
+      {error && <div className="chat-error">{error}</div>}
 
       <div ref={messagesEndRef} />
     </div>

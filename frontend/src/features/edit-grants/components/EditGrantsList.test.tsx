@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { EditGrantsList } from './EditGrantsList';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MantineTestWrapper } from '../../../test/helpers/mantineTestWrapper';
 import type { EditGrant } from '../types';
+import { EditGrantsList } from './EditGrantsList';
 
 vi.mock('../hooks/useEditGrants', () => ({
   useEditGrantsForArtifact: vi.fn(),
@@ -50,7 +50,7 @@ describe('EditGrantsList', () => {
     return render(
       <MantineTestWrapper>
         <EditGrantsList artifactType="capability" artifactId="cap-123" />
-      </MantineTestWrapper>
+      </MantineTestWrapper>,
     );
   }
 
@@ -94,7 +94,12 @@ describe('EditGrantsList', () => {
     it('should render grants in a table', () => {
       const grants = [
         createGrant({ id: 'g1', granteeEmail: 'alice@example.com', grantorEmail: 'bob@example.com' }),
-        createGrant({ id: 'g2', granteeEmail: 'charlie@example.com', grantorEmail: 'bob@example.com', status: 'revoked' }),
+        createGrant({
+          id: 'g2',
+          granteeEmail: 'charlie@example.com',
+          grantorEmail: 'bob@example.com',
+          status: 'revoked',
+        }),
       ];
 
       vi.mocked(useEditGrantsForArtifact).mockReturnValue({

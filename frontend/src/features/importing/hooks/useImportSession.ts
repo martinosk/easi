@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { httpClient } from '../../../api/core/httpClient';
 import { invalidateFor } from '../../../lib/invalidateFor';
 import { importsMutationEffects } from '../mutationEffects';
-import type { ImportSession, CreateImportSessionRequest, ImportSessionId } from '../types';
+import type { CreateImportSessionRequest, ImportSession, ImportSessionId } from '../types';
 
 interface UseImportSessionReturn {
   session: ImportSession | null;
@@ -51,7 +51,7 @@ function processPollResult(data: ImportSession, handlers: PollHandlers): void {
 
 function useSessionPolling(
   setSession: React.Dispatch<React.SetStateAction<ImportSession | null>>,
-  setError: React.Dispatch<React.SetStateAction<string | null>>
+  setError: React.Dispatch<React.SetStateAction<string | null>>,
 ) {
   const queryClient = useQueryClient();
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -66,35 +66,48 @@ function useSessionPolling(
 
   const pollSessionRef = useRef<(sessionId: ImportSessionId) => Promise<void>>();
 
-  const pollSession = useCallback(async (sessionId: ImportSessionId) => {
-    if (!isMountedRef.current) return;
-    try {
-      const { data } = await httpClient.get<ImportSession>(`/api/v1/imports/${sessionId}`);
+  const pollSession = useCallback(
+    async (sessionId: ImportSessionId) => {
       if (!isMountedRef.current) return;
-      setSession(data);
-      processPollResult(data, {
-        onImporting: () => { pollTimerRef.current = setTimeout(() => pollSessionRef.current?.(sessionId), POLL_INTERVAL); },
-        onCompleted: () => invalidateFor(queryClient, importsMutationEffects.completed()),
-        onFinished: stopPolling,
-      });
-    } catch (err) {
-      if (!isMountedRef.current) return;
-      setError(toErrorMessage(err, 'Failed to fetch session status'));
-      stopPolling();
-    }
-  }, [setSession, setError, stopPolling, queryClient]);
+      try {
+        const { data } = await httpClient.get<ImportSession>(`/api/v1/imports/${sessionId}`);
+        if (!isMountedRef.current) return;
+        setSession(data);
+        processPollResult(data, {
+          onImporting: () => {
+            pollTimerRef.current = setTimeout(() => pollSessionRef.current?.(sessionId), POLL_INTERVAL);
+          },
+          onCompleted: () => invalidateFor(queryClient, importsMutationEffects.completed()),
+          onFinished: stopPolling,
+        });
+      } catch (err) {
+        if (!isMountedRef.current) return;
+        setError(toErrorMessage(err, 'Failed to fetch session status'));
+        stopPolling();
+      }
+    },
+    [setSession, setError, stopPolling, queryClient],
+  );
 
-  useEffect(() => { pollSessionRef.current = pollSession; });
+  useEffect(() => {
+    pollSessionRef.current = pollSession;
+  });
 
-  const startPollingIfImporting = useCallback((data: ImportSession) => {
-    if (isStillImporting(data)) {
-      pollTimerRef.current = setTimeout(() => pollSession(data.id), POLL_INTERVAL);
-    }
-  }, [pollSession]);
+  const startPollingIfImporting = useCallback(
+    (data: ImportSession) => {
+      if (isStillImporting(data)) {
+        pollTimerRef.current = setTimeout(() => pollSession(data.id), POLL_INTERVAL);
+      }
+    },
+    [pollSession],
+  );
 
   useEffect(() => {
     isMountedRef.current = true;
-    return () => { isMountedRef.current = false; stopPolling(); };
+    return () => {
+      isMountedRef.current = false;
+      stopPolling();
+    };
   }, [stopPolling]);
 
   return { stopPolling, startPollingIfImporting };

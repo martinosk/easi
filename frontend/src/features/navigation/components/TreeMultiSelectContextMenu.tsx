@@ -1,6 +1,6 @@
 import { ContextMenu, type ContextMenuItem } from '../../../components/shared/ContextMenu';
-import type { TreeMultiSelectMenuState, TreeBulkAction } from '../hooks/useTreeMultiSelectMenu';
 import type { TreeSelectedItem } from '../hooks/useTreeMultiSelect';
+import type { TreeBulkAction, TreeMultiSelectMenuState } from '../hooks/useTreeMultiSelectMenu';
 
 export interface TreeBulkOperationRequest {
   type: TreeBulkAction['type'];
@@ -34,12 +34,5 @@ export const TreeMultiSelectContextMenu = ({
 
   if (items.length === 0) return null;
 
-  return (
-    <ContextMenu
-      x={menu.x}
-      y={menu.y}
-      items={items}
-      onClose={onClose}
-    />
-  );
+  return <ContextMenu x={menu.x} y={menu.y} items={items} onClose={onClose} />;
 };

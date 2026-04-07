@@ -1,10 +1,10 @@
-import React, { useLayoutEffect, useState } from 'react';
-import { Modal, TextInput, Button, Group, Stack, Alert, Autocomplete } from '@mantine/core';
-import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useAddCapabilityExpert, useCapabilityExpertRoles } from '../hooks/useCapabilities';
-import { addExpertSchema, type AddExpertFormData } from '../../../lib/schemas';
+import { Alert, Autocomplete, Button, Group, Modal, Stack, TextInput } from '@mantine/core';
+import React, { useLayoutEffect, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
 import { toCapabilityId } from '../../../api/types';
+import { type AddExpertFormData, addExpertSchema } from '../../../lib/schemas';
+import { useAddCapabilityExpert, useCapabilityExpertRoles } from '../hooks/useCapabilities';
 
 interface AddExpertDialogProps {
   isOpen: boolean;
@@ -14,11 +14,7 @@ interface AddExpertDialogProps {
 
 const DEFAULT_VALUES: AddExpertFormData = { name: '', role: '', contact: '' };
 
-export const AddExpertDialog: React.FC<AddExpertDialogProps> = ({
-  isOpen,
-  onClose,
-  capabilityId,
-}) => {
+export const AddExpertDialog: React.FC<AddExpertDialogProps> = ({ isOpen, onClose, capabilityId }) => {
   const [backendError, setBackendError] = useState<string | null>(null);
   const addExpertMutation = useAddCapabilityExpert();
   const { data: expertRoles = [] } = useCapabilityExpertRoles();
@@ -64,13 +60,7 @@ export const AddExpertDialog: React.FC<AddExpertDialogProps> = ({
   };
 
   return (
-    <Modal
-      opened={isOpen}
-      onClose={handleClose}
-      title="Add Expert"
-      centered
-      data-testid="add-expert-dialog"
-    >
+    <Modal opened={isOpen} onClose={handleClose} title="Add Expert" centered data-testid="add-expert-dialog">
       <form onSubmit={handleSubmit(onSubmit)}>
         <Stack gap="md">
           <TextInput

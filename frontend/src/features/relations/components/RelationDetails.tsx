@@ -1,9 +1,9 @@
 import React from 'react';
+import type { Component, Relation } from '../../../api/types';
 import { useAppStore } from '../../../store/appStore';
 import { AuditHistorySection } from '../../audit';
-import { useRelations } from '../hooks/useRelations';
 import { useComponents } from '../../components/hooks/useComponents';
-import type { Relation, Component } from '../../../api/types';
+import { useRelations } from '../hooks/useRelations';
 
 interface RelationDetailsProps {
   onEdit: () => void;
@@ -84,16 +84,12 @@ export const RelationDetails: React.FC<RelationDetailsProps> = ({ onEdit }) => {
 
         <div className="detail-field">
           <label className="detail-label">Source</label>
-          <div className="detail-value">
-            {sourceComponent?.name || relation.sourceComponentId}
-          </div>
+          <div className="detail-value">{sourceComponent?.name || relation.sourceComponentId}</div>
         </div>
 
         <div className="detail-field">
           <label className="detail-label">Target</label>
-          <div className="detail-value">
-            {targetComponent?.name || relation.targetComponentId}
-          </div>
+          <div className="detail-value">{targetComponent?.name || relation.targetComponentId}</div>
         </div>
 
         {relation.description && (
@@ -115,12 +111,7 @@ export const RelationDetails: React.FC<RelationDetailsProps> = ({ onEdit }) => {
 
         {referenceLink && (
           <div className="detail-reference">
-            <a
-              href={referenceLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="reference-link"
-            >
+            <a href={referenceLink} target="_blank" rel="noopener noreferrer" className="reference-link">
               <span className="reference-icon">📚</span>
               Reference Documentation
             </a>

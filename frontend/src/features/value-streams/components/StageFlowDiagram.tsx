@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react';
-import type { ValueStreamStage, StageCapabilityMapping } from '../../../api/types';
-import { StageColumn } from './StageColumn';
-import { AddStageButton } from './AddStageButton';
+import type { StageCapabilityMapping, ValueStreamStage } from '../../../api/types';
 import { useRemoveStageCapability } from '../hooks/useValueStreamStages';
+import { AddStageButton } from './AddStageButton';
+import { StageColumn } from './StageColumn';
 import './StageFlowDiagram.css';
 
 interface StageFlowDiagramProps {
@@ -30,12 +30,14 @@ function tryHandleCapabilityDrop(
       onAddCapability(targetStageId, capability.id);
       return true;
     }
-  } catch { /* not a capability drop */ }
+  } catch {
+    /* not a capability drop */
+  }
   return false;
 }
 
 function reorderStageIds(sortedStages: ValueStreamStage[], draggedId: string, targetId: string): string[] | null {
-  const ordered: string[] = sortedStages.map(s => s.id);
+  const ordered: string[] = sortedStages.map((s) => s.id);
   const fromIndex = ordered.indexOf(draggedId);
   const toIndex = ordered.indexOf(targetId);
   if (fromIndex < 0 || toIndex < 0) return null;
@@ -85,7 +87,13 @@ function StageConnector({ canWrite, position, onInsert, index }: StageConnectorP
           title="Insert stage here"
         >
           <svg viewBox="0 0 24 24" fill="none" width="14" height="14">
-            <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path
+              d="M12 5V19M5 12H19"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
         </button>
       )}
@@ -97,7 +105,13 @@ function EmptyStages({ canWrite, onAddStage }: { canWrite: boolean; onAddStage: 
   return (
     <div className="stage-flow-empty" data-testid="empty-stages">
       <svg viewBox="0 0 24 24" fill="none" width="48" height="48">
-        <path d="M22 12H18L15 21L9 3L6 12H2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path
+          d="M22 12H18L15 21L9 3L6 12H2"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
       </svg>
       <h3>No stages yet</h3>
       <p>Add stages to model the flow of this value stream.</p>
@@ -133,17 +147,23 @@ export function StageFlowDiagram({
     e.dataTransfer.dropEffect = e.dataTransfer.effectAllowed === 'copy' ? 'copy' : 'move';
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent, targetStageId: string) => {
-    e.preventDefault();
-    if (!tryHandleCapabilityDrop(e, targetStageId, onAddCapability)) {
-      applyStageReorder(draggedStageId, targetStageId, sortedStages, onReorder);
-    }
-    setDraggedStageId(null);
-  }, [draggedStageId, sortedStages, onReorder, onAddCapability]);
+  const handleDrop = useCallback(
+    (e: React.DragEvent, targetStageId: string) => {
+      e.preventDefault();
+      if (!tryHandleCapabilityDrop(e, targetStageId, onAddCapability)) {
+        applyStageReorder(draggedStageId, targetStageId, sortedStages, onReorder);
+      }
+      setDraggedStageId(null);
+    },
+    [draggedStageId, sortedStages, onReorder, onAddCapability],
+  );
 
-  const handleRemoveCapability = useCallback(async (mapping: StageCapabilityMapping) => {
-    await removeCapMutation.mutateAsync({ mapping, valueStreamId });
-  }, [removeCapMutation, valueStreamId]);
+  const handleRemoveCapability = useCallback(
+    async (mapping: StageCapabilityMapping) => {
+      await removeCapMutation.mutateAsync({ mapping, valueStreamId });
+    },
+    [removeCapMutation, valueStreamId],
+  );
 
   if (stages.length === 0) {
     return <EmptyStages canWrite={canWrite} onAddStage={onAddStage} />;

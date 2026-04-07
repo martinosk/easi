@@ -1,19 +1,27 @@
 import React, { useMemo, useState } from 'react';
-import { useAppStore } from '../../../store/appStore';
-import { DetailField } from '../../../components/shared/DetailField';
+import toast from 'react-hot-toast';
+import type {
+  Capability,
+  CapabilityRealization,
+  Component,
+  ComponentId,
+  View,
+  ViewComponent,
+  ViewId,
+} from '../../../api/types';
 import { ColorPicker } from '../../../components/shared/ColorPicker';
-import { ComponentFitScores } from './ComponentFitScores';
-import { ComponentExpertsList } from './ComponentExpertsList';
-import { AddComponentExpertDialog } from './AddComponentExpertDialog';
-import { ComponentOriginsSection } from './ComponentOriginsSection';
+import { DetailField } from '../../../components/shared/DetailField';
+import { useAppStore } from '../../../store/appStore';
+import { hasLink } from '../../../utils/hateoas';
 import { AuditHistorySection } from '../../audit';
 import { useCapabilities, useCapabilitiesByComponent } from '../../capabilities/hooks/useCapabilities';
-import { useComponents } from '../hooks/useComponents';
-import { useUpdateComponentColor, useClearComponentColor } from '../../views/hooks/useViews';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
-import { hasLink } from '../../../utils/hateoas';
-import type { CapabilityRealization, Capability, ViewComponent, Component, View, ViewId, ComponentId } from '../../../api/types';
-import toast from 'react-hot-toast';
+import { useClearComponentColor, useUpdateComponentColor } from '../../views/hooks/useViews';
+import { useComponents } from '../hooks/useComponents';
+import { AddComponentExpertDialog } from './AddComponentExpertDialog';
+import { ComponentExpertsList } from './ComponentExpertsList';
+import { ComponentFitScores } from './ComponentFitScores';
+import { ComponentOriginsSection } from './ComponentOriginsSection';
 
 interface ComponentDetailsProps {
   onEdit: (componentId: string) => void;
@@ -110,11 +118,7 @@ const ColorPickerField: React.FC<ColorPickerFieldProps> = ({
           disabledTooltip="Switch to custom color scheme to assign colors"
         />
         {currentColor && canClearColor && (
-          <button
-            className="btn btn-secondary btn-small"
-            onClick={onClearColor}
-            style={{ marginTop: '8px' }}
-          >
+          <button className="btn btn-secondary btn-small" onClick={onClearColor} style={{ marginTop: '8px' }}>
             Clear Color
           </button>
         )}
@@ -172,14 +176,26 @@ interface ActionButtonsProps {
   onRemoveFromView?: () => void;
 }
 
-const ActionButtons: React.FC<ActionButtonsProps> = ({ componentId, canEdit, canRemoveFromView, onEdit, onRemoveFromView }) => {
+const ActionButtons: React.FC<ActionButtonsProps> = ({
+  componentId,
+  canEdit,
+  canRemoveFromView,
+  onEdit,
+  onRemoveFromView,
+}) => {
   if (!canEdit && !canRemoveFromView) return null;
 
   return (
     <div className="detail-actions">
-      {canEdit && <button className="btn btn-secondary btn-small" onClick={() => onEdit(componentId)}>Edit</button>}
+      {canEdit && (
+        <button className="btn btn-secondary btn-small" onClick={() => onEdit(componentId)}>
+          Edit
+        </button>
+      )}
       {canRemoveFromView && onRemoveFromView && (
-        <button className="btn btn-secondary btn-small" onClick={onRemoveFromView}>Remove from View</button>
+        <button className="btn btn-secondary btn-small" onClick={onRemoveFromView}>
+          Remove from View
+        </button>
       )}
     </div>
   );
@@ -273,7 +289,9 @@ const ComponentContentInternal: React.FC<ComponentContentProps> = ({
         />
       )}
 
-      <DetailField label="Created"><span className="detail-date">{formattedDate}</span></DetailField>
+      <DetailField label="Created">
+        <span className="detail-date">{formattedDate}</span>
+      </DetailField>
       <TypeField referenceUrl={component._links.describedby?.href} />
 
       <ConditionalColorPicker
@@ -330,11 +348,7 @@ export const ComponentDetailsContent: React.FC<ComponentDetailsContentProps> = (
       />
 
       {isAddExpertOpen !== undefined && onCloseAddExpert && (
-        <AddComponentExpertDialog
-          isOpen={isAddExpertOpen}
-          onClose={onCloseAddExpert}
-          componentId={component.id}
-        />
+        <AddComponentExpertDialog isOpen={isAddExpertOpen} onClose={onCloseAddExpert} componentId={component.id} />
       )}
     </div>
   );
@@ -374,10 +388,7 @@ export const ComponentDetails: React.FC<ComponentDetailsProps> = ({ onEdit, onRe
   const { handleColorChange, handleClearColor } = useComponentColorHandlers(currentView?.id, selectedNodeId);
   const [isAddExpertOpen, setIsAddExpertOpen] = useState(false);
 
-  const component = useMemo(() =>
-    components.find((c) => c.id === selectedNodeId),
-    [components, selectedNodeId]
-  );
+  const component = useMemo(() => components.find((c) => c.id === selectedNodeId), [components, selectedNodeId]);
   if (!selectedNodeId || !component) return null;
 
   const componentInView = currentView?.components.find((vc) => vc.componentId === selectedNodeId);

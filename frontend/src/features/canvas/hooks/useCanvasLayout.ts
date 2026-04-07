@@ -1,7 +1,6 @@
 import { useCallback, useMemo } from 'react';
+import type { BatchUpdateItem, CapabilityId, ComponentId, Position, ViewId } from '../../../api/types';
 import { useLayout } from '../../../hooks/useLayout';
-import type { ViewId, ComponentId, CapabilityId, Position } from '../../../api/types';
-import type { BatchUpdateItem } from '../../../api/types';
 
 export interface CanvasPositionMap {
   [elementId: string]: Position;
@@ -19,34 +18,30 @@ export interface UseCanvasLayoutResult {
 }
 
 export function useCanvasLayout(viewId: ViewId | null): UseCanvasLayoutResult {
-  const {
-    positions,
-    isLoading,
-    error,
-    updateElementPosition,
-    batchUpdatePositions,
-    refetch,
-  } = useLayout('architecture-canvas', viewId);
+  const { positions, isLoading, error, updateElementPosition, batchUpdatePositions, refetch } = useLayout(
+    'architecture-canvas',
+    viewId,
+  );
 
   const updateComponentPosition = useCallback(
     async (componentId: ComponentId, x: number, y: number) => {
       await updateElementPosition(componentId, x, y);
     },
-    [updateElementPosition]
+    [updateElementPosition],
   );
 
   const updateCapabilityPosition = useCallback(
     async (capabilityId: CapabilityId, x: number, y: number) => {
       await updateElementPosition(capabilityId, x, y);
     },
-    [updateElementPosition]
+    [updateElementPosition],
   );
 
   const getPositionForElement = useCallback(
     (elementId: string): Position | null => {
       return positions[elementId] || null;
     },
-    [positions]
+    [positions],
   );
 
   return useMemo(
@@ -69,6 +64,6 @@ export function useCanvasLayout(viewId: ViewId | null): UseCanvasLayoutResult {
       batchUpdatePositions,
       getPositionForElement,
       refetch,
-    ]
+    ],
   );
 }

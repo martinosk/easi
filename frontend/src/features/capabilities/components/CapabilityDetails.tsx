@@ -1,22 +1,30 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
+import type {
+  Capability,
+  CapabilityId,
+  CapabilityRealization,
+  Component,
+  StrategyImportance,
+  View,
+  ViewCapability,
+} from '../../../api/types';
+import { ColorPicker } from '../../../components/shared/ColorPicker';
+import { DetailField } from '../../../components/shared/DetailField';
+import { useMaturityScale } from '../../../hooks/useMaturityScale';
 import { useAppStore } from '../../../store/appStore';
-import { EditCapabilityDialog } from './EditCapabilityDialog';
+import { hasLink } from '../../../utils/hateoas';
+import { deriveLegacyMaturityValue, getDefaultSections } from '../../../utils/maturity';
+import { AuditHistorySection } from '../../audit';
+import { useStrategyImportanceByCapability } from '../../business-domains/hooks/useStrategyImportance';
+import { useComponents } from '../../components/hooks/useComponents';
+import { useCurrentView } from '../../views/hooks/useCurrentView';
+import { useUpdateCapabilityColor } from '../../views/hooks/useViews';
+import { useCapabilities, useCapabilityRealizations } from '../hooks/useCapabilities';
 import { AddExpertDialog } from './AddExpertDialog';
 import { CapabilityExpertsList } from './CapabilityExpertsList';
-import { DetailField } from '../../../components/shared/DetailField';
-import { ColorPicker } from '../../../components/shared/ColorPicker';
+import { EditCapabilityDialog } from './EditCapabilityDialog';
 import { RealizationFitContext } from './RealizationFitContext';
-import { AuditHistorySection } from '../../audit';
-import { useCapabilities, useCapabilityRealizations } from '../hooks/useCapabilities';
-import { useComponents } from '../../components/hooks/useComponents';
-import { useUpdateCapabilityColor } from '../../views/hooks/useViews';
-import { useCurrentView } from '../../views/hooks/useCurrentView';
-import { useMaturityScale } from '../../../hooks/useMaturityScale';
-import { useStrategyImportanceByCapability } from '../../business-domains/hooks/useStrategyImportance';
-import { deriveLegacyMaturityValue, getDefaultSections } from '../../../utils/maturity';
-import { hasLink } from '../../../utils/hateoas';
-import type { Capability, Component, CapabilityRealization, View, ViewCapability, CapabilityId, StrategyImportance } from '../../../api/types';
-import toast from 'react-hot-toast';
 
 interface CapabilityDetailsProps {
   onRemoveFromView: () => void;
@@ -25,11 +33,11 @@ interface CapabilityDetailsProps {
 const getMaturityBadgeClass = (maturityLevel?: string): string => {
   const level = maturityLevel?.toLowerCase();
   const maturityClasses: Record<string, string> = {
-    'genesis': 'badge-genesis',
+    genesis: 'badge-genesis',
     'custom build': 'badge-custom-build',
     'custom built': 'badge-custom-build',
-    'product': 'badge-product',
-    'commodity': 'badge-commodity',
+    product: 'badge-product',
+    commodity: 'badge-commodity',
   };
   return maturityClasses[level || ''] || 'badge-default';
 };
@@ -50,7 +58,11 @@ const getComponentName = (components: Component[], componentId: string): string 
 
 const TagList: React.FC<{ tags: string[] }> = ({ tags }) => (
   <div className="tag-list">
-    {tags.map((tag, idx) => <span key={idx} className="tag-badge">{tag}</span>)}
+    {tags.map((tag, idx) => (
+      <span key={idx} className="tag-badge">
+        {tag}
+      </span>
+    ))}
   </div>
 );
 
@@ -127,36 +139,12 @@ interface CapabilityFieldsProps {
 
 const CapabilityOptionalFields: React.FC<CapabilityFieldsProps> = ({ capability }) => (
   <>
-    <OptionalField
-      value={capability.description}
-      label="Description"
-      render={(desc) => desc}
-    />
-    <OptionalField
-      value={capability.status}
-      label="Status"
-      render={(status) => status}
-    />
-    <OptionalField
-      value={capability.ownershipModel}
-      label="Ownership Model"
-      render={(model) => model}
-    />
-    <OptionalField
-      value={capability.primaryOwner}
-      label="Primary Owner"
-      render={(owner) => owner}
-    />
-    <OptionalField
-      value={capability.eaOwner}
-      label="EA Owner"
-      render={(owner) => owner}
-    />
-    <OptionalField
-      value={capability.tags}
-      label="Tags"
-      render={(tags) => <TagList tags={tags} />}
-    />
+    <OptionalField value={capability.description} label="Description" render={(desc) => desc} />
+    <OptionalField value={capability.status} label="Status" render={(status) => status} />
+    <OptionalField value={capability.ownershipModel} label="Ownership Model" render={(model) => model} />
+    <OptionalField value={capability.primaryOwner} label="Primary Owner" render={(owner) => owner} />
+    <OptionalField value={capability.eaOwner} label="EA Owner" render={(owner) => owner} />
+    <OptionalField value={capability.tags} label="Tags" render={(tags) => <TagList tags={tags} />} />
   </>
 );
 
@@ -239,9 +227,11 @@ const CapabilityContent: React.FC<CapabilityContentProps> = ({
   const { data: maturityScale } = useMaturityScale();
   const sections = maturityScale?.sections ?? getDefaultSections();
 
-  const effectiveMaturityValue = capability.maturityValue ??
+  const effectiveMaturityValue =
+    capability.maturityValue ??
     (capability.maturityLevel ? deriveLegacyMaturityValue(capability.maturityLevel, sections) : 12);
-  const sectionName = sections.find(s => effectiveMaturityValue >= s.minValue && effectiveMaturityValue <= s.maxValue)?.name ||
+  const sectionName =
+    sections.find((s) => effectiveMaturityValue >= s.minValue && effectiveMaturityValue <= s.maxValue)?.name ||
     'Unknown';
   const maturityDisplay = `${sectionName} (${effectiveMaturityValue})`;
 
@@ -254,21 +244,33 @@ const CapabilityContent: React.FC<CapabilityContentProps> = ({
     <div className="detail-content">
       {showActionButtons && (
         <div className="detail-actions">
-          {canEdit && <button className="btn btn-secondary btn-small" onClick={onEdit}>Edit</button>}
-          {canRemoveFromView && <button className="btn btn-secondary btn-small" onClick={onRemoveFromView}>Remove from View</button>}
+          {canEdit && (
+            <button className="btn btn-secondary btn-small" onClick={onEdit}>
+              Edit
+            </button>
+          )}
+          {canRemoveFromView && (
+            <button className="btn btn-secondary btn-small" onClick={onRemoveFromView}>
+              Remove from View
+            </button>
+          )}
         </div>
       )}
 
       <DetailField label="Name">{capability.name}</DetailField>
-      <DetailField label="Level"><span className="level-badge">{capability.level}</span></DetailField>
+      <DetailField label="Level">
+        <span className="level-badge">{capability.level}</span>
+      </DetailField>
       <CapabilityOptionalFields capability={capability} />
       <DetailField label="Maturity Level">
-        <span className={`maturity-badge ${getMaturityBadgeClass(sectionName)}`}>
-          {maturityDisplay}
-        </span>
+        <span className={`maturity-badge ${getMaturityBadgeClass(sectionName)}`}>{maturityDisplay}</span>
       </DetailField>
-      <DetailField label="Created"><span className="detail-date">{formattedDate}</span></DetailField>
-      <DetailField label="ID"><span className="detail-id">{capability.id}</span></DetailField>
+      <DetailField label="Created">
+        <span className="detail-date">{formattedDate}</span>
+      </DetailField>
+      <DetailField label="ID">
+        <span className="detail-id">{capability.id}</span>
+      </DetailField>
 
       <CapabilityExpertsList
         capabilityId={capability.id}
@@ -278,11 +280,7 @@ const CapabilityContent: React.FC<CapabilityContentProps> = ({
       />
 
       {capabilityInView && currentView && (
-        <ColorPickerField
-          capabilityInView={capabilityInView}
-          currentView={currentView}
-          onColorChange={onColorChange}
-        />
+        <ColorPickerField capabilityInView={capabilityInView} currentView={currentView} onColorChange={onColorChange} />
       )}
 
       <RealizationsField
@@ -311,9 +309,7 @@ export const CapabilityDetails: React.FC<CapabilityDetailsProps> = ({ onRemoveFr
   const capability = capabilities.find((c) => c.id === selectedCapabilityId);
   if (!selectedCapabilityId || !capability) return null;
 
-  const capabilityInView = currentView?.capabilities.find(
-    (vc) => vc.capabilityId === selectedCapabilityId
-  );
+  const capabilityInView = currentView?.capabilities.find((vc) => vc.capabilityId === selectedCapabilityId);
 
   const handleColorChange = async (color: string) => {
     if (!currentView || !selectedCapabilityId) return;
@@ -322,7 +318,7 @@ export const CapabilityDetails: React.FC<CapabilityDetailsProps> = ({ onRemoveFr
       await updateCapabilityColorMutation.mutateAsync({
         viewId: currentView.id,
         capabilityId: selectedCapabilityId,
-        color
+        color,
       });
     } catch {
       toast.error('Failed to update color');
@@ -349,7 +345,11 @@ export const CapabilityDetails: React.FC<CapabilityDetailsProps> = ({ onRemoveFr
       />
 
       <EditCapabilityDialog isOpen={showEditDialog} onClose={() => setShowEditDialog(false)} capability={capability} />
-      <AddExpertDialog isOpen={showAddExpertDialog} onClose={() => setShowAddExpertDialog(false)} capabilityId={capability.id} />
+      <AddExpertDialog
+        isOpen={showAddExpertDialog}
+        onClose={() => setShowAddExpertDialog(false)}
+        capabilityId={capability.id}
+      />
     </div>
   );
 };

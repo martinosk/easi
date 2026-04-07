@@ -1,12 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within, fireEvent, waitFor } from '@testing-library/react';
-import { NavigationTree } from './NavigationTree';
-import { createMantineTestWrapper, seedDb } from '../../../test/helpers';
-import { useAppStore } from '../../../store/appStore';
-import { useCurrentView } from '../../views/hooks/useCurrentView';
-import type { View, ComponentId, CapabilityId } from '../../../api/types';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { CapabilityId, ComponentId, View } from '../../../api/types';
 import { toViewId } from '../../../api/types';
 import type { AppStore } from '../../../store/appStore';
+import { useAppStore } from '../../../store/appStore';
+import { createMantineTestWrapper, seedDb } from '../../../test/helpers';
+import { useCurrentView } from '../../views/hooks/useCurrentView';
+import { NavigationTree } from './NavigationTree';
 
 vi.mock('../../../store/appStore', () => ({
   useAppStore: vi.fn(),
@@ -80,7 +80,7 @@ const mockCapabilities = [
 const createViewWithColorScheme = (
   colorScheme: string,
   components: Array<{ componentId: string; customColor?: string }>,
-  capabilities: Array<{ capabilityId: string; customColor?: string }>
+  capabilities: Array<{ capabilityId: string; customColor?: string }>,
 ): View => ({
   id: toViewId('view-1'),
   name: 'Architecture View',
@@ -88,13 +88,13 @@ const createViewWithColorScheme = (
   isDefault: true,
   isPrivate: false,
   colorScheme,
-  components: components.map(c => ({
+  components: components.map((c) => ({
     componentId: c.componentId as ComponentId,
     x: 100,
     y: 200,
     customColor: c.customColor,
   })),
-  capabilities: capabilities.map(c => ({
+  capabilities: capabilities.map((c) => ({
     capabilityId: c.capabilityId as CapabilityId,
     x: 150,
     y: 250,
@@ -119,7 +119,9 @@ describe('NavigationTree - Custom Color Indicators', () => {
   });
 
   const renderNavigationTree = (currentView: View | null) => {
-    vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) => selector(createMockStore() as unknown as AppStore));
+    vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
+      selector(createMockStore() as unknown as AppStore),
+    );
     vi.mocked(useCurrentView).mockReturnValue({
       currentView,
       currentViewId: currentView?.id ?? null,
@@ -133,7 +135,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
   const renderWithRerender = (currentView: View) => {
     const { Wrapper } = createMantineTestWrapper();
     vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
-      selector(createMockStore() as unknown as AppStore)
+      selector(createMockStore() as unknown as AppStore),
     );
     vi.mocked(useCurrentView).mockReturnValue({
       currentView,
@@ -159,8 +161,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
     });
   };
 
-  const findTreeItem = (text: string, selector: string) =>
-    screen.getByText(text).closest(selector) as HTMLElement;
+  const findTreeItem = (text: string, selector: string) => screen.getByText(text).closest(selector) as HTMLElement;
 
   const expectIndicatorWithColor = (container: HTMLElement, color: string) => {
     const indicator = within(container).getByTestId('custom-color-indicator');
@@ -180,8 +181,12 @@ describe('NavigationTree - Custom Color Indicators', () => {
   describe('Component Color Indicators', () => {
     it('should show custom color indicator when colorScheme is "custom" and component has customColor', async () => {
       await renderAndWait(
-        createViewWithColorScheme('custom', [{ componentId: 'comp-1', customColor: '#FF5733' }, { componentId: 'comp-2' }], []),
-        'Payment Service'
+        createViewWithColorScheme(
+          'custom',
+          [{ componentId: 'comp-1', customColor: '#FF5733' }, { componentId: 'comp-2' }],
+          [],
+        ),
+        'Payment Service',
       );
       expectIndicatorWithColor(findTreeItem('Payment Service', '.tree-item'), '#FF5733');
     });
@@ -189,8 +194,14 @@ describe('NavigationTree - Custom Color Indicators', () => {
     it.each([
       { scheme: 'maturity', color: '#FF5733' },
       { scheme: 'classic', color: '#00AA00' },
-    ])('should NOT show color indicator when colorScheme is "$scheme" even if customColor exists', async ({ scheme, color }) => {
-      await renderAndWait(createViewWithColorScheme(scheme, [{ componentId: 'comp-1', customColor: color }], []), 'Payment Service');
+    ])('should NOT show color indicator when colorScheme is "$scheme" even if customColor exists', async ({
+      scheme,
+      color,
+    }) => {
+      await renderAndWait(
+        createViewWithColorScheme(scheme, [{ componentId: 'comp-1', customColor: color }], []),
+        'Payment Service',
+      );
       expectNoIndicator(findTreeItem('Payment Service', '.tree-item'));
     });
 
@@ -201,8 +212,15 @@ describe('NavigationTree - Custom Color Indicators', () => {
 
     it('should show correct color for each component with custom colors', async () => {
       await renderAndWait(
-        createViewWithColorScheme('custom', [{ componentId: 'comp-1', customColor: '#FF5733' }, { componentId: 'comp-2', customColor: '#33AAFF' }], []),
-        'Payment Service'
+        createViewWithColorScheme(
+          'custom',
+          [
+            { componentId: 'comp-1', customColor: '#FF5733' },
+            { componentId: 'comp-2', customColor: '#33AAFF' },
+          ],
+          [],
+        ),
+        'Payment Service',
       );
       expectIndicatorWithColor(findTreeItem('Payment Service', '.tree-item'), '#FF5733');
       expectIndicatorWithColor(findTreeItem('Order Service', '.tree-item'), '#33AAFF');
@@ -212,14 +230,21 @@ describe('NavigationTree - Custom Color Indicators', () => {
   describe('Capability Color Indicators', () => {
     it('should show custom color indicator when colorScheme is "custom" and capability has customColor', async () => {
       await renderAndWait(
-        createViewWithColorScheme('custom', [], [{ capabilityId: 'cap-1', customColor: '#AA00FF' }, { capabilityId: 'cap-3' }]),
-        'Customer Management'
+        createViewWithColorScheme(
+          'custom',
+          [],
+          [{ capabilityId: 'cap-1', customColor: '#AA00FF' }, { capabilityId: 'cap-3' }],
+        ),
+        'Customer Management',
       );
       expectIndicatorWithColor(findTreeItem('Customer Management', '.capability-tree-item'), '#AA00FF');
     });
 
     it('should NOT show color indicator when colorScheme is "maturity" even if customColor exists', async () => {
-      await renderAndWait(createViewWithColorScheme('maturity', [], [{ capabilityId: 'cap-1', customColor: '#AA00FF' }]), 'Customer Management');
+      await renderAndWait(
+        createViewWithColorScheme('maturity', [], [{ capabilityId: 'cap-1', customColor: '#AA00FF' }]),
+        'Customer Management',
+      );
       expectNoIndicator(findTreeItem('Customer Management', '.capability-tree-item'));
     });
 
@@ -230,8 +255,15 @@ describe('NavigationTree - Custom Color Indicators', () => {
 
     it('should show correct color for each capability with custom colors', async () => {
       await renderAndWait(
-        createViewWithColorScheme('custom', [], [{ capabilityId: 'cap-1', customColor: '#FF00AA' }, { capabilityId: 'cap-3', customColor: '#00FFAA' }]),
-        'Customer Management'
+        createViewWithColorScheme(
+          'custom',
+          [],
+          [
+            { capabilityId: 'cap-1', customColor: '#FF00AA' },
+            { capabilityId: 'cap-3', customColor: '#00FFAA' },
+          ],
+        ),
+        'Customer Management',
       );
       expectIndicatorWithColor(findTreeItem('Customer Management', '.capability-tree-item'), '#FF00AA');
       expectIndicatorWithColor(findTreeItem('Shipping', '.capability-tree-item'), '#00FFAA');
@@ -239,8 +271,12 @@ describe('NavigationTree - Custom Color Indicators', () => {
 
     it('should show color indicator for child capabilities with custom colors', async () => {
       await renderAndWait(
-        createViewWithColorScheme('custom', [], [{ capabilityId: 'cap-1' }, { capabilityId: 'cap-2', customColor: '#AABBCC' }]),
-        'Customer Management'
+        createViewWithColorScheme(
+          'custom',
+          [],
+          [{ capabilityId: 'cap-1' }, { capabilityId: 'cap-2', customColor: '#AABBCC' }],
+        ),
+        'Customer Management',
       );
       fireEvent.click(within(findTreeItem('Customer Management', '.capability-tree-item')).getByRole('button'));
       expectIndicatorWithColor(findTreeItem('Order Processing', '.capability-tree-item'), '#AABBCC');
@@ -249,7 +285,11 @@ describe('NavigationTree - Custom Color Indicators', () => {
 
   describe('Color Scheme Switching', () => {
     it('should show indicators when switching from maturity to custom scheme', async () => {
-      const initialView = createViewWithColorScheme('maturity', [{ componentId: 'comp-1', customColor: '#FF5733' }], []);
+      const initialView = createViewWithColorScheme(
+        'maturity',
+        [{ componentId: 'comp-1', customColor: '#FF5733' }],
+        [],
+      );
       const { rerender } = renderWithRerender(initialView);
       await waitForText('Payment Service');
 
@@ -284,7 +324,11 @@ describe('NavigationTree - Custom Color Indicators', () => {
     });
 
     it('should handle undefined colorScheme gracefully', async () => {
-      const currentView = createViewWithColorScheme('maturity', [{ componentId: 'comp-1', customColor: '#FF5733' }], []);
+      const currentView = createViewWithColorScheme(
+        'maturity',
+        [{ componentId: 'comp-1', customColor: '#FF5733' }],
+        [],
+      );
       currentView.colorScheme = undefined;
       await renderAndWait(currentView, 'Payment Service');
       expectNoIndicator(findTreeItem('Payment Service', '.tree-item'));
@@ -295,9 +339,9 @@ describe('NavigationTree - Custom Color Indicators', () => {
         createViewWithColorScheme(
           'custom',
           [{ componentId: 'comp-1', customColor: '#FF5733' }, { componentId: 'comp-2' }],
-          [{ capabilityId: 'cap-1', customColor: '#AA00FF' }, { capabilityId: 'cap-3' }]
+          [{ capabilityId: 'cap-1', customColor: '#AA00FF' }, { capabilityId: 'cap-3' }],
         ),
-        'Payment Service'
+        'Payment Service',
       );
       expectIndicatorWithColor(findTreeItem('Payment Service', '.tree-item'), '#FF5733');
       expectNoIndicator(findTreeItem('Order Service', '.tree-item'));

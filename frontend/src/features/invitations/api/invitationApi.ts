@@ -1,6 +1,6 @@
 import { httpClient } from '../../../api/core/httpClient';
 import { fetchAllPaginated } from '../../../api/core/pagination';
-import type { Invitation, CreateInvitationRequest, UpdateInvitationRequest } from '../types';
+import type { CreateInvitationRequest, Invitation, UpdateInvitationRequest } from '../types';
 
 export const invitationApi = {
   async getAll(): Promise<Invitation[]> {

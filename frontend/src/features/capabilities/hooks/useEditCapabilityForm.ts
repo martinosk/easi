@@ -1,17 +1,13 @@
-import { useState, useLayoutEffect, useMemo } from 'react';
-import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import {
-  useCapabilities,
-  useUpdateCapability,
-  useUpdateCapabilityMetadata,
-} from './useCapabilities';
-import { useStatuses, useOwnershipModels } from '../../../hooks/useMetadata';
-import { useMaturityScale } from '../../../hooks/useMaturityScale';
-import { useEAOwnerCandidates } from '../../users/hooks/useUsers';
-import { editCapabilitySchema, type EditCapabilityFormData } from '../../../lib/schemas';
+import { useLayoutEffect, useMemo, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import type { Capability } from '../../../api/types';
+import { useMaturityScale } from '../../../hooks/useMaturityScale';
+import { useOwnershipModels, useStatuses } from '../../../hooks/useMetadata';
+import { type EditCapabilityFormData, editCapabilitySchema } from '../../../lib/schemas';
 import { deriveLegacyMaturityValue, getDefaultSections, getMaturityBounds } from '../../../utils/maturity';
+import { useEAOwnerCandidates } from '../../users/hooks/useUsers';
+import { useCapabilities, useUpdateCapability, useUpdateCapabilityMetadata } from './useCapabilities';
 
 const DEFAULT_STATUSES = [
   { value: 'Active', displayName: 'Active', sortOrder: 1 },
@@ -31,10 +27,7 @@ interface SelectOption {
   label: string;
 }
 
-const createDefaultValues = (
-  cap?: Capability,
-  sections = getDefaultSections()
-): EditCapabilityFormData => {
+const createDefaultValues = (cap?: Capability, sections = getDefaultSections()): EditCapabilityFormData => {
   if (!cap) {
     return {
       name: '',
@@ -79,7 +72,7 @@ export interface UseEditCapabilityFormResult {
 export function useEditCapabilityForm(
   capability: Capability | null,
   isOpen: boolean,
-  onSuccess: () => void
+  onSuccess: () => void,
 ): UseEditCapabilityFormResult {
   const [backendError, setBackendError] = useState<string | null>(null);
   const [currentCapability, setCurrentCapability] = useState<Capability | null>(null);
@@ -122,20 +115,18 @@ export function useEditCapabilityForm(
 
   const statusOptions = useMemo(
     () =>
-      [...statuses]
-        .sort((a, b) => a.sortOrder - b.sortOrder)
-        .map((s) => ({ value: s.value, label: s.displayName })),
-    [statuses]
+      [...statuses].sort((a, b) => a.sortOrder - b.sortOrder).map((s) => ({ value: s.value, label: s.displayName })),
+    [statuses],
   );
 
   const ownershipOptions = useMemo(
     () => ownershipModels.map((om) => ({ value: om.value, label: om.displayName })),
-    [ownershipModels]
+    [ownershipModels],
   );
 
   const userOptions = useMemo(
     () => (usersData ?? []).map((u) => ({ value: u.id, label: u.name || u.email })),
-    [usersData]
+    [usersData],
   );
 
   const handleSubmit = async (data: EditCapabilityFormData) => {

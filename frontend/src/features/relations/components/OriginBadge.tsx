@@ -8,8 +8,6 @@ interface OriginBadgeProps {
 
 export const OriginBadge: React.FC<OriginBadgeProps> = ({ origin, isInherited }) => (
   <DetailField label="Origin">
-    <span className={`origin-badge ${isInherited ? 'origin-inherited' : 'origin-direct'}`}>
-      {origin}
-    </span>
+    <span className={`origin-badge ${isInherited ? 'origin-inherited' : 'origin-direct'}`}>{origin}</span>
   </DetailField>
 );

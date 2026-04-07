@@ -1,5 +1,5 @@
+import type { BusinessDomainId, CapabilityId, ComponentId, FitCategory, FitComparison } from '../../../api/types';
 import { useFitComparisons } from '../../components/hooks/useFitScores';
-import type { ComponentId, CapabilityId, BusinessDomainId, FitComparison, FitCategory } from '../../../api/types';
 import './RealizationFitContext.css';
 
 interface FitComparisonDisplayProps {
@@ -43,11 +43,7 @@ interface RealizationFitContextProps {
   businessDomainId: BusinessDomainId;
 }
 
-export function RealizationFitContext({
-  componentId,
-  capabilityId,
-  businessDomainId,
-}: RealizationFitContextProps) {
+export function RealizationFitContext({ componentId, capabilityId, businessDomainId }: RealizationFitContextProps) {
   const { data: comparisons = [] } = useFitComparisons(componentId, capabilityId, businessDomainId);
 
   const validComparisons = comparisons.filter((c) => c.importance > 0 && c.fitScore > 0);

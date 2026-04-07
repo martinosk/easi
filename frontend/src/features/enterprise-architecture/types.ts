@@ -1,9 +1,9 @@
 import type {
+  CapabilityId,
   EnterpriseCapabilityId,
   EnterpriseCapabilityLinkId,
   EnterpriseStrategicImportanceId,
-  CapabilityId,
-  HATEOASLink
+  HATEOASLink,
 } from '../../api/types';
 
 export type { EnterpriseCapabilityId, EnterpriseCapabilityLinkId, EnterpriseStrategicImportanceId };
@@ -208,4 +208,3 @@ export interface TimeSuggestionsResponse {
     self: HATEOASLink;
   };
 }
-

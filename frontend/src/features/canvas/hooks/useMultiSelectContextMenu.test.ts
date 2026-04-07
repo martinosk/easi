@@ -1,7 +1,7 @@
-import { describe, it, expect } from 'vitest';
-import type { NodeContextMenu } from './useNodeContextMenu';
-import { computeAvailableActions } from './useMultiSelectContextMenu';
+import { describe, expect, it } from 'vitest';
 import type { HATEOASLinks } from '../../../api/types';
+import { computeAvailableActions } from './useMultiSelectContextMenu';
+import type { NodeContextMenu } from './useNodeContextMenu';
 
 function makeNode(overrides: Partial<NodeContextMenu> = {}): NodeContextMenu {
   const nodeId = overrides.nodeId ?? 'test-id';
@@ -101,10 +101,7 @@ describe('computeAvailableActions', () => {
   });
 
   it('returns empty when one node has no links', () => {
-    const nodes = [
-      makeNode({ nodeId: '1', ...linksWithRemoveAndDelete() }),
-      makeNode({ nodeId: '2', ...noLinks() }),
-    ];
+    const nodes = [makeNode({ nodeId: '1', ...linksWithRemoveAndDelete() }), makeNode({ nodeId: '2', ...noLinks() })];
     const actions = computeAvailableActions(nodes);
     expect(actions).toHaveLength(0);
   });

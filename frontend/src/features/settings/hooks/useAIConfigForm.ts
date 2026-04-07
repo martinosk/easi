@@ -1,13 +1,6 @@
-import { useState, useLayoutEffect } from 'react';
-import {
-  useUpdateAIConfiguration,
-  useTestAIConnection,
-} from './useAIConfiguration';
-import type {
-  LLMProvider,
-  AIConfigurationResponse,
-  TestConnectionResponse,
-} from '../../../api/assistant/types';
+import { useLayoutEffect, useState } from 'react';
+import type { AIConfigurationResponse, LLMProvider, TestConnectionResponse } from '../../../api/assistant/types';
+import { useTestAIConnection, useUpdateAIConfiguration } from './useAIConfiguration';
 
 interface FormFields {
   provider: LLMProvider;
@@ -20,8 +13,13 @@ interface FormFields {
 }
 
 const DEFAULT_FIELDS: FormFields = {
-  provider: 'openai', endpoint: '', apiKey: '', model: '',
-  maxTokens: 4096, temperature: 0.3, systemPromptOverride: '',
+  provider: 'openai',
+  endpoint: '',
+  apiKey: '',
+  model: '',
+  maxTokens: 4096,
+  temperature: 0.3,
+  systemPromptOverride: '',
 };
 
 function deriveFieldsFromConfig(config: AIConfigurationResponse): FormFields {
@@ -85,7 +83,8 @@ export function useAIConfigForm(config: AIConfigurationResponse | undefined) {
   const isSaveDisabled = !fields.provider || !fields.model || needsApiKey;
 
   return {
-    fields, updateField,
+    fields,
+    updateField,
     advanced: { showAdvanced, setShowAdvanced },
     apiKeyInput: { showApiKeyInput, setShowApiKeyInput },
     testResult,

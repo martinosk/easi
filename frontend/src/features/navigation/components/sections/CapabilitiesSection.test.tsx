@@ -1,7 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { CapabilitiesSection } from './CapabilitiesSection';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import type { Capability, CapabilityId, HATEOASLinks } from '../../../../api/types';
+import { CapabilitiesSection } from './CapabilitiesSection';
 
 vi.mock('../../../../hooks/useMaturityColorScale', () => ({
   useMaturityColorScale: () => ({
@@ -53,7 +53,7 @@ describe('CapabilitiesSection', () => {
         {...defaultProps}
         capabilities={capabilities}
         expandedCapabilities={expandedCapabilities ?? defaultProps.expandedCapabilities}
-      />
+      />,
     );
   }
 
@@ -66,7 +66,12 @@ describe('CapabilitiesSection', () => {
   function parentChildPair() {
     return [
       createCapability({ id: 'cap-parent' as CapabilityId, name: 'Parent', level: 'L1' }),
-      createCapability({ id: 'cap-child' as CapabilityId, name: 'Child', level: 'L2', parentId: 'cap-parent' as CapabilityId }),
+      createCapability({
+        id: 'cap-child' as CapabilityId,
+        name: 'Child',
+        level: 'L2',
+        parentId: 'cap-parent' as CapabilityId,
+      }),
     ];
   }
 
@@ -107,7 +112,12 @@ describe('CapabilitiesSection', () => {
     it('should show nested child when child matches search', () => {
       renderWithCapabilities([
         createCapability({ id: 'cap-parent' as CapabilityId, name: 'Business', level: 'L1' }),
-        createCapability({ id: 'cap-child' as CapabilityId, name: 'Invoicing', level: 'L2', parentId: 'cap-parent' as CapabilityId }),
+        createCapability({
+          id: 'cap-child' as CapabilityId,
+          name: 'Invoicing',
+          level: 'L2',
+          parentId: 'cap-parent' as CapabilityId,
+        }),
       ]);
 
       typeSearch('invoicing');
@@ -127,11 +137,24 @@ describe('CapabilitiesSection', () => {
     });
 
     it('should show deeply nested child when it matches search', () => {
-      renderWithCapabilities([
-        createCapability({ id: 'cap-l1' as CapabilityId, name: 'Enterprise', level: 'L1' }),
-        createCapability({ id: 'cap-l2' as CapabilityId, name: 'Finance', level: 'L2', parentId: 'cap-l1' as CapabilityId }),
-        createCapability({ id: 'cap-l3' as CapabilityId, name: 'Tax Reporting', level: 'L3', parentId: 'cap-l2' as CapabilityId }),
-      ], new Set());
+      renderWithCapabilities(
+        [
+          createCapability({ id: 'cap-l1' as CapabilityId, name: 'Enterprise', level: 'L1' }),
+          createCapability({
+            id: 'cap-l2' as CapabilityId,
+            name: 'Finance',
+            level: 'L2',
+            parentId: 'cap-l1' as CapabilityId,
+          }),
+          createCapability({
+            id: 'cap-l3' as CapabilityId,
+            name: 'Tax Reporting',
+            level: 'L3',
+            parentId: 'cap-l2' as CapabilityId,
+          }),
+        ],
+        new Set(),
+      );
 
       typeSearch('tax');
 
@@ -143,9 +166,19 @@ describe('CapabilitiesSection', () => {
     it('should hide non-matching branches entirely', () => {
       renderWithCapabilities([
         createCapability({ id: 'cap-a' as CapabilityId, name: 'Branch A', level: 'L1' }),
-        createCapability({ id: 'cap-a1' as CapabilityId, name: 'Match Here', level: 'L2', parentId: 'cap-a' as CapabilityId }),
+        createCapability({
+          id: 'cap-a1' as CapabilityId,
+          name: 'Match Here',
+          level: 'L2',
+          parentId: 'cap-a' as CapabilityId,
+        }),
         createCapability({ id: 'cap-b' as CapabilityId, name: 'Branch B', level: 'L1' }),
-        createCapability({ id: 'cap-b1' as CapabilityId, name: 'No Match', level: 'L2', parentId: 'cap-b' as CapabilityId }),
+        createCapability({
+          id: 'cap-b1' as CapabilityId,
+          name: 'No Match',
+          level: 'L2',
+          parentId: 'cap-b' as CapabilityId,
+        }),
       ]);
 
       typeSearch('match here');
@@ -159,7 +192,12 @@ describe('CapabilitiesSection', () => {
     it('should show parent match without requiring children to match', () => {
       renderWithCapabilities([
         createCapability({ id: 'cap-parent' as CapabilityId, name: 'Matching Parent', level: 'L1' }),
-        createCapability({ id: 'cap-child' as CapabilityId, name: 'Unrelated Child', level: 'L2', parentId: 'cap-parent' as CapabilityId }),
+        createCapability({
+          id: 'cap-child' as CapabilityId,
+          name: 'Unrelated Child',
+          level: 'L2',
+          parentId: 'cap-parent' as CapabilityId,
+        }),
       ]);
 
       typeSearch('matching parent');
@@ -168,9 +206,7 @@ describe('CapabilitiesSection', () => {
     });
 
     it('should be case-insensitive', () => {
-      renderWithCapabilities([
-        createCapability({ id: 'cap-1' as CapabilityId, name: 'Payment Processing' }),
-      ]);
+      renderWithCapabilities([createCapability({ id: 'cap-1' as CapabilityId, name: 'Payment Processing' })]);
 
       typeSearch('PAYMENT');
 

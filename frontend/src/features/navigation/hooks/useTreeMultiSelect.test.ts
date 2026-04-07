@@ -1,8 +1,8 @@
-import { describe, it, expect, vi } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import { useTreeMultiSelect } from './useTreeMultiSelect';
-import type { TreeSelectedItem, MultiDragPayload } from './useTreeMultiSelect';
+import { act, renderHook } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import type { HATEOASLinks } from '../../../api/types';
+import type { MultiDragPayload, TreeSelectedItem } from './useTreeMultiSelect';
+import { useTreeMultiSelect } from './useTreeMultiSelect';
 
 const deleteLinks: HATEOASLinks = {
   self: { href: '/test', method: 'GET' },
@@ -31,7 +31,7 @@ function makeMouseEvent(overrides: Partial<React.MouseEvent> = {}): React.MouseE
 function expectSelected(
   hook: { current: ReturnType<typeof useTreeMultiSelect> },
   selectedIds: string[],
-  notSelectedIds: string[] = []
+  notSelectedIds: string[] = [],
 ) {
   for (const id of selectedIds) {
     expect(hook.current.isMultiSelected(id)).toBe(true);
@@ -45,16 +45,22 @@ function setup() {
   const { result } = renderHook(() => useTreeMultiSelect());
 
   const ctrlClick = (item: TreeSelectedItem, sectionId: string, visible: TreeSelectedItem[]) => {
-    act(() => { result.current.handleItemClick(item, sectionId, visible, makeMouseEvent({ ctrlKey: true })); });
+    act(() => {
+      result.current.handleItemClick(item, sectionId, visible, makeMouseEvent({ ctrlKey: true }));
+    });
   };
 
   const shiftClick = (item: TreeSelectedItem, sectionId: string, visible: TreeSelectedItem[]) => {
-    act(() => { result.current.handleItemClick(item, sectionId, visible, makeMouseEvent({ shiftKey: true })); });
+    act(() => {
+      result.current.handleItemClick(item, sectionId, visible, makeMouseEvent({ shiftKey: true }));
+    });
   };
 
   const plainClick = (item: TreeSelectedItem, sectionId: string, visible: TreeSelectedItem[]) => {
     let outcome: 'multi' | 'single' = 'multi';
-    act(() => { outcome = result.current.handleItemClick(item, sectionId, visible, makeMouseEvent()); });
+    act(() => {
+      outcome = result.current.handleItemClick(item, sectionId, visible, makeMouseEvent());
+    });
     return outcome;
   };
 
@@ -93,7 +99,9 @@ describe('useTreeMultiSelect', () => {
     const visible = makeVisibleItems(['a', 'b']);
 
     let outcome: 'multi' | 'single' = 'single';
-    act(() => { outcome = result.current.handleItemClick(makeItem('a'), 'apps', visible, makeMouseEvent({ ctrlKey: true })); });
+    act(() => {
+      outcome = result.current.handleItemClick(makeItem('a'), 'apps', visible, makeMouseEvent({ ctrlKey: true }));
+    });
 
     expect(outcome).toBe('multi');
     expect(result.current.selectionCount).toBe(1);
@@ -127,7 +135,11 @@ describe('useTreeMultiSelect', () => {
     const { result, ctrlClick, shiftClick } = setup();
 
     ctrlClick(makeItem('app-a', 'component'), 'apps', makeVisibleItems(['app-a', 'app-b']));
-    shiftClick(makeItem('cap-x', 'capability'), 'capabilities', makeVisibleItems(['cap-x', 'cap-y', 'cap-z'], 'capability'));
+    shiftClick(
+      makeItem('cap-x', 'capability'),
+      'capabilities',
+      makeVisibleItems(['cap-x', 'cap-y', 'cap-z'], 'capability'),
+    );
 
     expectSelected(result, ['app-a', 'cap-x']);
   });
@@ -158,7 +170,9 @@ describe('useTreeMultiSelect', () => {
     ctrlClickTwo(makeVisibleItems(['a', 'b']));
     expect(result.current.selectionCount).toBe(2);
 
-    act(() => { result.current.clearMultiSelection(); });
+    act(() => {
+      result.current.clearMultiSelection();
+    });
 
     expect(result.current.selectionCount).toBe(0);
   });
@@ -191,7 +205,14 @@ describe('useTreeMultiSelect', () => {
     const { result } = setup();
 
     let outcome: 'multi' | 'single' = 'single';
-    act(() => { outcome = result.current.handleItemClick(makeItem('a'), 'apps', makeVisibleItems(['a']), makeMouseEvent({ metaKey: true })); });
+    act(() => {
+      outcome = result.current.handleItemClick(
+        makeItem('a'),
+        'apps',
+        makeVisibleItems(['a']),
+        makeMouseEvent({ metaKey: true }),
+      );
+    });
 
     expect(outcome).toBe('multi');
     expectSelected(result, ['a']);
@@ -235,13 +256,15 @@ describe('useTreeMultiSelect', () => {
 
       const event = makeDragEvent();
       let handled = false;
-      act(() => { handled = result.current.handleDragStart(event, 'a'); });
+      act(() => {
+        handled = result.current.handleDragStart(event, 'a');
+      });
 
       expect(handled).toBe(true);
       expect(event.dataTransfer.setData).toHaveBeenCalledWith('multiDragItems', expect.any(String));
 
       const payload: MultiDragPayload = JSON.parse(
-        (event.dataTransfer.setData as ReturnType<typeof vi.fn>).mock.calls[0][1]
+        (event.dataTransfer.setData as ReturnType<typeof vi.fn>).mock.calls[0][1],
       );
       expect(payload.items).toHaveLength(2);
     });
@@ -253,7 +276,9 @@ describe('useTreeMultiSelect', () => {
 
       const event = makeDragEvent();
       let handled = false;
-      act(() => { handled = result.current.handleDragStart(event, 'a'); });
+      act(() => {
+        handled = result.current.handleDragStart(event, 'a');
+      });
 
       expect(handled).toBe(false);
       expect(event.dataTransfer.setData).not.toHaveBeenCalled();
@@ -266,7 +291,9 @@ describe('useTreeMultiSelect', () => {
 
       const event = makeDragEvent();
       let handled = false;
-      act(() => { handled = result.current.handleDragStart(event, 'c'); });
+      act(() => {
+        handled = result.current.handleDragStart(event, 'c');
+      });
 
       expect(handled).toBe(false);
       expect(event.dataTransfer.setData).not.toHaveBeenCalled();

@@ -1,7 +1,15 @@
 import type { Edge, Node } from '@xyflow/react';
 import { MarkerType } from '@xyflow/react';
+import type {
+  Capability,
+  CapabilityRealization,
+  OriginRelationship,
+  OriginRelationshipType,
+  Relation,
+  ViewCapability,
+  ViewComponent,
+} from '../../../api/types';
 import { getBestHandles } from './handleCalculation';
-import type { Capability, CapabilityRealization, Relation, ViewCapability, ViewComponent, OriginRelationship, OriginRelationshipType } from '../../../api/types';
 import { ORIGIN_ENTITY_PREFIXES } from './nodeFactory';
 
 export interface EdgeCreationContext {
@@ -11,19 +19,16 @@ export interface EdgeCreationContext {
   isClassicScheme: boolean;
 }
 
-export function createRelationEdges(
-  relations: Relation[],
-  ctx: EdgeCreationContext
-): Edge[] {
+export function createRelationEdges(relations: Relation[], ctx: EdgeCreationContext): Edge[] {
   return relations.map((relation) => {
     const isSelected = ctx.selectedEdgeId === relation.id;
     const isTriggers = relation.relationType === 'Triggers';
 
-    const sourceNode = ctx.nodes.find(n => n.id === relation.sourceComponentId);
-    const targetNode = ctx.nodes.find(n => n.id === relation.targetComponentId);
+    const sourceNode = ctx.nodes.find((n) => n.id === relation.sourceComponentId);
+    const targetNode = ctx.nodes.find((n) => n.id === relation.targetComponentId);
     const { sourceHandle, targetHandle } = getBestHandles(sourceNode, targetNode);
 
-    const edgeColor = ctx.isClassicScheme ? '#000000' : (isTriggers ? '#f97316' : '#3b82f6');
+    const edgeColor = ctx.isClassicScheme ? '#000000' : isTriggers ? '#f97316' : '#3b82f6';
 
     return {
       id: relation.id,
@@ -45,7 +50,7 @@ export function createRelationEdges(
 export function createParentEdges(
   viewCapabilities: ViewCapability[],
   capabilities: Capability[],
-  ctx: EdgeCreationContext
+  ctx: EdgeCreationContext,
 ): Edge[] {
   const canvasCapabilityIds = new Set(viewCapabilities.map((vc) => vc.capabilityId));
 
@@ -91,10 +96,7 @@ interface RealizationVisibility {
   allRealizations: CapabilityRealization[];
 }
 
-function isRealizationVisible(
-  realization: CapabilityRealization,
-  visibility: RealizationVisibility
-): boolean {
+function isRealizationVisible(realization: CapabilityRealization, visibility: RealizationVisibility): boolean {
   const { visibleCapabilityIds, componentIdsOnCanvas, allRealizations } = visibility;
 
   if (!componentIdsOnCanvas.has(realization.componentId)) return false;
@@ -108,10 +110,7 @@ function isRealizationVisible(
   return false;
 }
 
-function buildRealizationEdge(
-  realization: CapabilityRealization,
-  ctx: EdgeCreationContext
-): Edge {
+function buildRealizationEdge(realization: CapabilityRealization, ctx: EdgeCreationContext): Edge {
   const edgeId = `realization-${realization.id}`;
   const isSelected = ctx.selectedEdgeId === edgeId;
   const isInherited = realization.origin === 'Inherited';
@@ -151,7 +150,7 @@ export function createRealizationEdges(
   capabilityRealizations: CapabilityRealization[],
   viewCapabilities: ViewCapability[],
   viewComponents: ViewComponent[],
-  ctx: EdgeCreationContext
+  ctx: EdgeCreationContext,
 ): Edge[] {
   const visibility: RealizationVisibility = {
     visibleCapabilityIds: new Set(viewCapabilities.map((vc) => vc.capabilityId)),
@@ -193,7 +192,7 @@ export function createOriginRelationshipEdges(
   originRelationships: OriginRelationship[],
   originEntityNodeIds: Set<string>,
   componentIdsOnCanvas: Set<string>,
-  ctx: EdgeCreationContext
+  ctx: EdgeCreationContext,
 ): Edge[] {
   return originRelationships
     .filter((rel) => {

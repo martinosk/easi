@@ -1,15 +1,15 @@
-import { useParams, useNavigate } from 'react-router-dom';
 import { useMemo } from 'react';
-import { useValueStreamDetail } from '../hooks/useValueStreamStages';
-import { useStageOperations } from '../hooks/useStageOperations';
-import { useUserStore } from '../../../store/userStore';
-import { hasLink } from '../../../utils/hateoas';
-import { StageFlowDiagram } from '../components/StageFlowDiagram';
-import { StageFormOverlay } from '../components/StageFormOverlay';
-import { CapabilitySidebar } from '../components/CapabilitySidebar';
-import { SummaryBar } from '../components/SummaryBar';
+import { useNavigate, useParams } from 'react-router-dom';
 import type { ValueStreamDetail } from '../../../api/types';
 import { toValueStreamId } from '../../../api/types';
+import { useUserStore } from '../../../store/userStore';
+import { hasLink } from '../../../utils/hateoas';
+import { CapabilitySidebar } from '../components/CapabilitySidebar';
+import { StageFlowDiagram } from '../components/StageFlowDiagram';
+import { StageFormOverlay } from '../components/StageFormOverlay';
+import { SummaryBar } from '../components/SummaryBar';
+import { useStageOperations } from '../hooks/useStageOperations';
+import { useValueStreamDetail } from '../hooks/useValueStreamStages';
 import './ValueStreamDetailPage.css';
 
 function LoadingState() {
@@ -38,11 +38,11 @@ function DetailContent({ detail, canWrite }: DetailContentProps) {
   const ops = useStageOperations(detail);
 
   const mappedCapabilityIds = useMemo(
-    () => new Set((detail.stageCapabilities ?? []).map(c => c.capabilityId as string)),
+    () => new Set((detail.stageCapabilities ?? []).map((c) => c.capabilityId as string)),
     [detail.stageCapabilities],
   );
 
-  const uniqueCapCount = new Set(detail.stageCapabilities.map(c => c.capabilityId)).size;
+  const uniqueCapCount = new Set(detail.stageCapabilities.map((c) => c.capabilityId)).size;
   const canAddStage = canWrite && hasLink(detail, 'x-add-stage');
 
   return (
@@ -50,7 +50,13 @@ function DetailContent({ detail, canWrite }: DetailContentProps) {
       <div className="vsd-header">
         <button type="button" className="vsd-back-btn" onClick={() => navigate('/value-streams')}>
           <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
-            <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path
+              d="M19 12H5M12 19l-7-7 7-7"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
           Back to Value Streams
         </button>
@@ -87,11 +93,7 @@ function DetailContent({ detail, canWrite }: DetailContentProps) {
             onAddCapability={canWrite ? ops.addCapability : undefined}
           />
         </div>
-        {canWrite && (
-          <CapabilitySidebar
-            mappedCapabilityIds={mappedCapabilityIds}
-          />
-        )}
+        {canWrite && <CapabilitySidebar mappedCapabilityIds={mappedCapabilityIds} />}
       </div>
     </div>
   );

@@ -1,13 +1,10 @@
-import React, { useLayoutEffect, useState } from 'react';
-import { Modal, TextInput, Button, Group, Stack, Alert, Autocomplete } from '@mantine/core';
-import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useAddComponentExpert, useComponentExpertRoles } from '../hooks/useComponents';
-import {
-  addComponentExpertSchema,
-  type AddComponentExpertFormData,
-} from '../../../lib/schemas/component';
+import { Alert, Autocomplete, Button, Group, Modal, Stack, TextInput } from '@mantine/core';
+import React, { useLayoutEffect, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
 import { toComponentId } from '../../../api/types';
+import { type AddComponentExpertFormData, addComponentExpertSchema } from '../../../lib/schemas/component';
+import { useAddComponentExpert, useComponentExpertRoles } from '../hooks/useComponents';
 
 interface AddComponentExpertDialogProps {
   isOpen: boolean;
@@ -17,11 +14,7 @@ interface AddComponentExpertDialogProps {
 
 const DEFAULT_VALUES: AddComponentExpertFormData = { name: '', role: '', contact: '' };
 
-export const AddComponentExpertDialog: React.FC<AddComponentExpertDialogProps> = ({
-  isOpen,
-  onClose,
-  componentId,
-}) => {
+export const AddComponentExpertDialog: React.FC<AddComponentExpertDialogProps> = ({ isOpen, onClose, componentId }) => {
   const [backendError, setBackendError] = useState<string | null>(null);
   const addExpertMutation = useAddComponentExpert();
   const { data: expertRoles = [] } = useComponentExpertRoles();
@@ -59,13 +52,7 @@ export const AddComponentExpertDialog: React.FC<AddComponentExpertDialogProps> =
   };
 
   return (
-    <Modal
-      opened={isOpen}
-      onClose={onClose}
-      title="Add Expert"
-      centered
-      data-testid="add-component-expert-dialog"
-    >
+    <Modal opened={isOpen} onClose={onClose} title="Add Expert" centered data-testid="add-component-expert-dialog">
       <form onSubmit={handleSubmit(onSubmit)}>
         <Stack gap="md">
           <TextInput

@@ -1,9 +1,9 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { maturityScaleApi } from '../api/metadata';
+import type { UpdateMaturityScaleRequest } from '../api/types';
 import { metadataQueryKeys } from '../lib/appQueryKeys';
 import { invalidateFor } from '../lib/invalidateFor';
-import type { UpdateMaturityScaleRequest } from '../api/types';
 
 export function useMaturityScale() {
   return useQuery({
@@ -17,13 +17,9 @@ export function useUpdateMaturityScale() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (request: UpdateMaturityScaleRequest) =>
-      maturityScaleApi.updateConfiguration(request),
+    mutationFn: (request: UpdateMaturityScaleRequest) => maturityScaleApi.updateConfiguration(request),
     onSuccess: () => {
-      invalidateFor(queryClient, [
-        metadataQueryKeys.maturityScale(),
-        metadataQueryKeys.maturityLevels(),
-      ]);
+      invalidateFor(queryClient, [metadataQueryKeys.maturityScale(), metadataQueryKeys.maturityLevels()]);
       toast.success('Maturity scale updated successfully');
     },
     onError: (error: Error) => {
@@ -38,10 +34,7 @@ export function useResetMaturityScale() {
   return useMutation({
     mutationFn: () => maturityScaleApi.resetToDefaults(),
     onSuccess: () => {
-      invalidateFor(queryClient, [
-        metadataQueryKeys.maturityScale(),
-        metadataQueryKeys.maturityLevels(),
-      ]);
+      invalidateFor(queryClient, [metadataQueryKeys.maturityScale(), metadataQueryKeys.maturityLevels()]);
       toast.success('Maturity scale reset to defaults');
     },
     onError: (error: Error) => {

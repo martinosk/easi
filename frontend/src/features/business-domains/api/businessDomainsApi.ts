@@ -1,16 +1,16 @@
 import { httpClient } from '../../../api/core/httpClient';
-import { followLink } from '../../../utils/hateoas';
 import type {
+  AssociateCapabilityRequest,
   BusinessDomain,
   BusinessDomainId,
+  BusinessDomainsResponse,
   Capability,
   CapabilityRealizationsGroup,
+  CollectionResponse,
   CreateBusinessDomainRequest,
   UpdateBusinessDomainRequest,
-  AssociateCapabilityRequest,
-  BusinessDomainsResponse,
-  CollectionResponse,
 } from '../../../api/types';
+import { followLink } from '../../../utils/hateoas';
 
 export const businessDomainsApi = {
   async getAll(): Promise<BusinessDomainsResponse> {
@@ -44,7 +44,7 @@ export const businessDomainsApi = {
 
   async getCapabilitiesByDomainId(domainId: BusinessDomainId): Promise<Capability[]> {
     const response = await httpClient.get<CollectionResponse<Capability>>(
-      `/api/v1/business-domains/${domainId}/capabilities`
+      `/api/v1/business-domains/${domainId}/capabilities`,
     );
     return response.data.data || [];
   },
@@ -67,10 +67,10 @@ export const businessDomainsApi = {
 
   async getCapabilityRealizations(
     domainId: BusinessDomainId,
-    depth: number = 4
+    depth: number = 4,
   ): Promise<CapabilityRealizationsGroup[]> {
     const response = await httpClient.get<CollectionResponse<CapabilityRealizationsGroup>>(
-      `/api/v1/business-domains/${domainId}/capability-realizations?depth=${depth}`
+      `/api/v1/business-domains/${domainId}/capability-realizations?depth=${depth}`,
     );
     return response.data.data || [];
   },

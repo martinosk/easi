@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import { ReleaseNotesBrowser } from './ReleaseNotesBrowser';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiClient } from '../../../api/client';
 import type { Release } from '../../../api/types';
 import { toReleaseVersion } from '../../../api/types';
+import { ReleaseNotesBrowser } from './ReleaseNotesBrowser';
 
 vi.mock('../../../api/client', () => ({
   apiClient: {
@@ -70,9 +70,9 @@ describe('ReleaseNotesBrowser', () => {
       render(<ReleaseNotesBrowser isOpen={true} onClose={mockOnClose} />);
 
       await waitFor(() => {
-        const releaseItems = screen.getAllByRole('button', { hidden: true }).filter(
-          btn => btn.classList.contains('release-browser-item')
-        );
+        const releaseItems = screen
+          .getAllByRole('button', { hidden: true })
+          .filter((btn) => btn.classList.contains('release-browser-item'));
         expect(releaseItems[0]).toHaveTextContent('v0.20.10');
         expect(releaseItems[1]).toHaveTextContent('v0.20.3');
         expect(releaseItems[2]).toHaveTextContent('v0.20.2');

@@ -1,17 +1,12 @@
 import { useCallback } from 'react';
+import toast from 'react-hot-toast';
+import { toAcquiredEntityId, toComponentId, toInternalTeamId, toVendorId } from '../../../api/types';
 import {
   useLinkComponentToAcquiredEntity,
-  useLinkComponentToVendor,
   useLinkComponentToInternalTeam,
+  useLinkComponentToVendor,
 } from '../../origin-entities/hooks';
-import {
-  toComponentId,
-  toAcquiredEntityId,
-  toVendorId,
-  toInternalTeamId,
-} from '../../../api/types';
-import { isOriginEntityNode, getOriginEntityTypeFromNodeId, extractOriginEntityId } from '../utils/nodeFactory';
-import toast from 'react-hot-toast';
+import { extractOriginEntityId, getOriginEntityTypeFromNodeId, isOriginEntityNode } from '../utils/nodeFactory';
 
 const getErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message : fallback;
@@ -26,7 +21,7 @@ export const useOriginConnection = () => {
       originEntityType: 'acquired' | 'vendor' | 'team',
       componentId: ReturnType<typeof toComponentId>,
       entityId: string,
-      notes?: string
+      notes?: string,
     ) => {
       const mutations = {
         acquired: () =>
@@ -50,7 +45,7 @@ export const useOriginConnection = () => {
       };
       await mutations[originEntityType]();
     },
-    [linkComponentToAcquiredEntityMutation, linkComponentToVendorMutation, linkComponentToInternalTeamMutation]
+    [linkComponentToAcquiredEntityMutation, linkComponentToVendorMutation, linkComponentToInternalTeamMutation],
   );
 
   const handleOriginComponentConnection = useCallback(
@@ -75,7 +70,7 @@ export const useOriginConnection = () => {
         toast.error(errorMessage);
       }
     },
-    [linkOriginEntity]
+    [linkOriginEntity],
   );
 
   return { handleOriginComponentConnection };

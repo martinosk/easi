@@ -1,22 +1,47 @@
-import { createTheme } from '@mantine/core';
 import type { MantineColorsTuple } from '@mantine/core';
+import { createTheme } from '@mantine/core';
 
 const blue: MantineColorsTuple = [
-  '#eff6ff', '#dbeafe', '#bfdbfe', '#93c5fd', '#60a5fa',
-  '#3b82f6', '#2563eb', '#1e40af', '#1e3a8a', '#172554',
+  '#eff6ff',
+  '#dbeafe',
+  '#bfdbfe',
+  '#93c5fd',
+  '#60a5fa',
+  '#3b82f6',
+  '#2563eb',
+  '#1e40af',
+  '#1e3a8a',
+  '#172554',
 ];
 
 const purple: MantineColorsTuple = [
-  '#faf5ff', '#f3e8ff', '#e9d5ff', '#d8b4fe', '#c084fc',
-  '#a855f7', '#9333ea', '#7e22ce', '#6b21a8', '#581c87',
+  '#faf5ff',
+  '#f3e8ff',
+  '#e9d5ff',
+  '#d8b4fe',
+  '#c084fc',
+  '#a855f7',
+  '#9333ea',
+  '#7e22ce',
+  '#6b21a8',
+  '#581c87',
 ];
 
 const gray: MantineColorsTuple = [
-  '#f9fafb', '#f3f4f6', '#e5e7eb', '#d1d5db', '#9ca3af',
-  '#6b7280', '#4b5563', '#374151', '#1f2937', '#111827',
+  '#f9fafb',
+  '#f3f4f6',
+  '#e5e7eb',
+  '#d1d5db',
+  '#9ca3af',
+  '#6b7280',
+  '#4b5563',
+  '#374151',
+  '#1f2937',
+  '#111827',
 ];
 
-const systemFontStack = '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif';
+const systemFontStack =
+  '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif';
 
 const spacing = { xs: '0.25rem', sm: '0.5rem', md: '1rem', lg: '1.5rem', xl: '2rem', xxl: '3rem' };
 

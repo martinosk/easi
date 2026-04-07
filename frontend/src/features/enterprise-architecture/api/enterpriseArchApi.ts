@@ -1,26 +1,29 @@
 import { httpClient } from '../../../api/core/httpClient';
 import type { CapabilityId, StrategicFitAnalysis } from '../../../api/types';
 import type {
+  CapabilityLinkStatusResponse,
+  CreateEnterpriseCapabilityRequest,
+  DomainCapabilityLinkStatus,
+  EnterpriseCapabilitiesListResponse,
   EnterpriseCapability,
   EnterpriseCapabilityId,
   EnterpriseCapabilityLink,
   EnterpriseCapabilityLinkId,
   EnterpriseStrategicImportanceId,
-  StrategicImportance,
-  CreateEnterpriseCapabilityRequest,
-  UpdateEnterpriseCapabilityRequest,
   LinkCapabilityRequest,
-  SetStrategicImportanceRequest,
-  UpdateStrategicImportanceRequest,
-  EnterpriseCapabilitiesListResponse,
-  DomainCapabilityLinkStatus,
-  CapabilityLinkStatusResponse,
   MaturityAnalysisResponse,
   MaturityGapDetail,
+  SetStrategicImportanceRequest,
+  StrategicImportance,
   TimeSuggestionsResponse,
+  UpdateEnterpriseCapabilityRequest,
+  UpdateStrategicImportanceRequest,
 } from '../types';
 
-function strategicImportanceUrl(capabilityId: EnterpriseCapabilityId, importanceId?: EnterpriseStrategicImportanceId): string {
+function strategicImportanceUrl(
+  capabilityId: EnterpriseCapabilityId,
+  importanceId?: EnterpriseStrategicImportanceId,
+): string {
   const base = `/api/v1/enterprise-capabilities/${capabilityId}/strategic-importance`;
   return importanceId ? `${base}/${importanceId}` : base;
 }
@@ -52,96 +55,110 @@ export const enterpriseArchApi = {
 
   async getLinks(enterpriseCapabilityId: EnterpriseCapabilityId): Promise<EnterpriseCapabilityLink[]> {
     const response = await httpClient.get<{ data: EnterpriseCapabilityLink[] }>(
-      `/api/v1/enterprise-capabilities/${enterpriseCapabilityId}/links`
+      `/api/v1/enterprise-capabilities/${enterpriseCapabilityId}/links`,
     );
     return response.data.data;
   },
 
-  async linkDomainCapability(enterpriseCapabilityId: EnterpriseCapabilityId, request: LinkCapabilityRequest): Promise<EnterpriseCapabilityLink> {
+  async linkDomainCapability(
+    enterpriseCapabilityId: EnterpriseCapabilityId,
+    request: LinkCapabilityRequest,
+  ): Promise<EnterpriseCapabilityLink> {
     const response = await httpClient.post<EnterpriseCapabilityLink>(
       `/api/v1/enterprise-capabilities/${enterpriseCapabilityId}/links`,
-      request
+      request,
     );
     return response.data;
   },
 
-  async unlinkDomainCapability(enterpriseCapabilityId: EnterpriseCapabilityId, linkId: EnterpriseCapabilityLinkId): Promise<void> {
+  async unlinkDomainCapability(
+    enterpriseCapabilityId: EnterpriseCapabilityId,
+    linkId: EnterpriseCapabilityLinkId,
+  ): Promise<void> {
     await httpClient.delete(`/api/v1/enterprise-capabilities/${enterpriseCapabilityId}/links/${linkId}`);
   },
 
   async getStrategicImportance(enterpriseCapabilityId: EnterpriseCapabilityId): Promise<StrategicImportance[]> {
-    const response = await httpClient.get<{ data: StrategicImportance[] }>(strategicImportanceUrl(enterpriseCapabilityId));
+    const response = await httpClient.get<{ data: StrategicImportance[] }>(
+      strategicImportanceUrl(enterpriseCapabilityId),
+    );
     return response.data.data;
   },
 
   async setStrategicImportance(
     enterpriseCapabilityId: EnterpriseCapabilityId,
-    request: SetStrategicImportanceRequest
+    request: SetStrategicImportanceRequest,
   ): Promise<StrategicImportance> {
-    const response = await httpClient.post<StrategicImportance>(strategicImportanceUrl(enterpriseCapabilityId), request);
+    const response = await httpClient.post<StrategicImportance>(
+      strategicImportanceUrl(enterpriseCapabilityId),
+      request,
+    );
     return response.data;
   },
 
   async updateStrategicImportance(
     enterpriseCapabilityId: EnterpriseCapabilityId,
     importanceId: EnterpriseStrategicImportanceId,
-    request: UpdateStrategicImportanceRequest
+    request: UpdateStrategicImportanceRequest,
   ): Promise<StrategicImportance> {
-    const response = await httpClient.put<StrategicImportance>(strategicImportanceUrl(enterpriseCapabilityId, importanceId), request);
+    const response = await httpClient.put<StrategicImportance>(
+      strategicImportanceUrl(enterpriseCapabilityId, importanceId),
+      request,
+    );
     return response.data;
   },
 
-  async removeStrategicImportance(enterpriseCapabilityId: EnterpriseCapabilityId, importanceId: EnterpriseStrategicImportanceId): Promise<void> {
+  async removeStrategicImportance(
+    enterpriseCapabilityId: EnterpriseCapabilityId,
+    importanceId: EnterpriseStrategicImportanceId,
+  ): Promise<void> {
     await httpClient.delete(strategicImportanceUrl(enterpriseCapabilityId, importanceId));
   },
 
   async getDomainCapabilityLinkStatus(domainCapabilityId: CapabilityId): Promise<DomainCapabilityLinkStatus> {
     const response = await httpClient.get<DomainCapabilityLinkStatus>(
-      `/api/v1/domain-capabilities/${domainCapabilityId}/enterprise-capability`
+      `/api/v1/domain-capabilities/${domainCapabilityId}/enterprise-capability`,
     );
     return response.data;
   },
 
   async getLinkStatus(capabilityId: string): Promise<CapabilityLinkStatusResponse> {
     const response = await httpClient.get<CapabilityLinkStatusResponse>(
-      `/api/v1/domain-capabilities/${capabilityId}/enterprise-link-status`
+      `/api/v1/domain-capabilities/${capabilityId}/enterprise-link-status`,
     );
     return response.data;
   },
 
   async getBatchLinkStatus(capabilityIds: string[]): Promise<CapabilityLinkStatusResponse[]> {
     const response = await httpClient.get<{ data: CapabilityLinkStatusResponse[] }>(
-      `/api/v1/domain-capabilities/enterprise-link-status?capabilityIds=${capabilityIds.join(',')}`
+      `/api/v1/domain-capabilities/enterprise-link-status?capabilityIds=${capabilityIds.join(',')}`,
     );
     return response.data.data;
   },
 
   async setTargetMaturity(enterpriseCapabilityId: EnterpriseCapabilityId, targetMaturity: number): Promise<void> {
-    await httpClient.put(
-      `/api/v1/enterprise-capabilities/${enterpriseCapabilityId}/target-maturity`,
-      { targetMaturity }
-    );
+    await httpClient.put(`/api/v1/enterprise-capabilities/${enterpriseCapabilityId}/target-maturity`, {
+      targetMaturity,
+    });
   },
 
   async getMaturityAnalysisCandidates(sortBy?: string): Promise<MaturityAnalysisResponse> {
     const params = sortBy ? `?sortBy=${sortBy}` : '';
     const response = await httpClient.get<MaturityAnalysisResponse>(
-      `/api/v1/enterprise-capabilities/maturity-analysis${params}`
+      `/api/v1/enterprise-capabilities/maturity-analysis${params}`,
     );
     return response.data;
   },
 
   async getMaturityGapDetail(enterpriseCapabilityId: EnterpriseCapabilityId): Promise<MaturityGapDetail> {
     const response = await httpClient.get<MaturityGapDetail>(
-      `/api/v1/enterprise-capabilities/${enterpriseCapabilityId}/maturity-gap`
+      `/api/v1/enterprise-capabilities/${enterpriseCapabilityId}/maturity-gap`,
     );
     return response.data;
   },
 
   async getStrategicFitAnalysis(pillarId: string): Promise<StrategicFitAnalysis> {
-    const response = await httpClient.get<StrategicFitAnalysis>(
-      `/api/v1/strategic-fit-analysis/${pillarId}`
-    );
+    const response = await httpClient.get<StrategicFitAnalysis>(`/api/v1/strategic-fit-analysis/${pillarId}`);
     return response.data;
   },
 

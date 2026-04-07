@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { DomainForm } from '../components/DomainForm';
-import { CapabilityAssociationManager } from '../components/CapabilityAssociationManager';
-import { AuditHistorySection } from '../../audit';
+import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../../api/client';
-import { ROUTES } from '../../../routes/routePaths';
 import type { BusinessDomain, BusinessDomainId } from '../../../api/types';
+import { ROUTES } from '../../../routes/routePaths';
+import { AuditHistorySection } from '../../audit';
+import { CapabilityAssociationManager } from '../components/CapabilityAssociationManager';
+import { DomainForm } from '../components/DomainForm';
 
 interface DomainDetailPageProps {
   domainId: BusinessDomainId;
@@ -102,12 +102,7 @@ export function DomainDetailPage({ domainId }: DomainDetailPageProps) {
       {isEditing ? (
         <div className="domain-edit-section" data-testid="domain-edit-section">
           <h2>Edit Domain</h2>
-          <DomainForm
-            mode="edit"
-            domain={domain}
-            onSubmit={handleUpdateDomain}
-            onCancel={() => setIsEditing(false)}
-          />
+          <DomainForm mode="edit" domain={domain} onSubmit={handleUpdateDomain} onCancel={() => setIsEditing(false)} />
         </div>
       ) : (
         <div className="domain-info-section" data-testid="domain-info-section">

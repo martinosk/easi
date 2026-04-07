@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
-import { useAppInitialization } from './useAppInitialization';
-import { useAppStore } from '../store/appStore';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { View, ViewId } from '../api/types';
+import { useAppStore } from '../store/appStore';
+import { useAppInitialization } from './useAppInitialization';
 
 const mockCreateViewMutateAsync = vi.fn();
 const mockGetParamValue = vi.fn();
@@ -33,7 +33,7 @@ vi.mock('../lib/deepLinks', () => ({
 
 const { useViews } = await import('../features/views/hooks/useViews');
 const mockUseViews = vi.mocked(useViews);
-const mockToast = await import('react-hot-toast').then(m => m.default);
+const mockToast = await import('react-hot-toast').then((m) => m.default);
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -256,9 +256,7 @@ describe('useAppInitialization', () => {
     });
 
     it('should show error and fall back to default when view ID is invalid', async () => {
-      const views = [
-        createMockView({ id: 'view-default' as ViewId, isDefault: true }),
-      ];
+      const views = [createMockView({ id: 'view-default' as ViewId, isDefault: true })];
       mockGetParamValue.mockReturnValue('non-existent-view');
       mockUseViewsReturn({ views });
 

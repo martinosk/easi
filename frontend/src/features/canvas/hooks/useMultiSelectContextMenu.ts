@@ -1,11 +1,11 @@
-import { useState, useCallback } from 'react';
 import type { Node } from '@xyflow/react';
+import { useCallback, useState } from 'react';
 import { hasLink } from '../../../utils/hateoas';
 import {
-  resolveNodeMenu,
   type MenuPosition,
-  type NodeContextMenuDependencies,
   type NodeContextMenu,
+  type NodeContextMenuDependencies,
+  resolveNodeMenu,
 } from './useNodeContextMenu';
 
 export interface MultiSelectAction {
@@ -21,21 +21,15 @@ export interface MultiSelectMenuState {
   actions: MultiSelectAction[];
 }
 
-export function computeAvailableActions(
-  resolvedNodes: NodeContextMenu[]
-): MultiSelectAction[] {
+export function computeAvailableActions(resolvedNodes: NodeContextMenu[]): MultiSelectAction[] {
   if (resolvedNodes.length < 2) return [];
 
   const actions: MultiSelectAction[] = [];
   const count = resolvedNodes.length;
 
-  const allCanRemoveFromView = resolvedNodes.every((n) =>
-    hasLink({ _links: n.viewElementLinks }, 'x-remove')
-  );
+  const allCanRemoveFromView = resolvedNodes.every((n) => hasLink({ _links: n.viewElementLinks }, 'x-remove'));
 
-  const allCanDeleteFromModel = resolvedNodes.every((n) =>
-    hasLink({ _links: n.modelLinks }, 'delete')
-  );
+  const allCanDeleteFromModel = resolvedNodes.every((n) => hasLink({ _links: n.modelLinks }, 'delete'));
 
   if (allCanRemoveFromView) {
     actions.push({
@@ -74,7 +68,7 @@ export const useMultiSelectContextMenu = (deps: NodeContextMenuDependencies) => 
         actions,
       });
     },
-    [deps]
+    [deps],
   );
 
   const closeMultiSelectMenu = useCallback(() => {

@@ -1,7 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
+import { fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
+import { describe, expect, it, vi } from 'vitest';
 import { APIKeyField } from './APIKeyField';
 
 function renderWithMantine(ui: React.ReactElement) {
@@ -17,7 +17,7 @@ describe('APIKeyField', () => {
         onApiKeyChange={vi.fn()}
         showInput={false}
         onShowInput={vi.fn()}
-      />
+      />,
     );
 
     expect(screen.getByText('API key configured')).toBeInTheDocument();
@@ -34,7 +34,7 @@ describe('APIKeyField', () => {
         onApiKeyChange={vi.fn()}
         showInput={false}
         onShowInput={onShowInput}
-      />
+      />,
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Change' }));
@@ -49,7 +49,7 @@ describe('APIKeyField', () => {
         onApiKeyChange={vi.fn()}
         showInput={true}
         onShowInput={vi.fn()}
-      />
+      />,
     );
 
     expect(screen.getByLabelText(/^API Key/)).toBeInTheDocument();
@@ -63,7 +63,7 @@ describe('APIKeyField', () => {
         onApiKeyChange={vi.fn()}
         showInput={true}
         onShowInput={vi.fn()}
-      />
+      />,
     );
 
     expect(screen.getByLabelText(/^API Key/)).toBeInTheDocument();
@@ -79,7 +79,7 @@ describe('APIKeyField', () => {
         onApiKeyChange={onApiKeyChange}
         showInput={true}
         onShowInput={vi.fn()}
-      />
+      />,
     );
 
     fireEvent.change(screen.getByLabelText(/^API Key/), { target: { value: 'sk-new-key' } });
@@ -96,7 +96,7 @@ describe('APIKeyField', () => {
         onApiKeyChange={onApiKeyChange}
         showInput={true}
         onShowInput={onShowInput}
-      />
+      />,
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));

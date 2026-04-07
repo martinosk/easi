@@ -48,8 +48,11 @@ export const toRealizationId = createBrandedFactory<RealizationId>('RealizationI
 export const toReleaseVersion = createBrandedFactory<ReleaseVersion>('ReleaseVersion');
 export const toBusinessDomainId = createBrandedFactory<BusinessDomainId>('BusinessDomainId');
 export const toEnterpriseCapabilityId = createBrandedFactory<EnterpriseCapabilityId>('EnterpriseCapabilityId');
-export const toEnterpriseCapabilityLinkId = createBrandedFactory<EnterpriseCapabilityLinkId>('EnterpriseCapabilityLinkId');
-export const toEnterpriseStrategicImportanceId = createBrandedFactory<EnterpriseStrategicImportanceId>('EnterpriseStrategicImportanceId');
+export const toEnterpriseCapabilityLinkId =
+  createBrandedFactory<EnterpriseCapabilityLinkId>('EnterpriseCapabilityLinkId');
+export const toEnterpriseStrategicImportanceId = createBrandedFactory<EnterpriseStrategicImportanceId>(
+  'EnterpriseStrategicImportanceId',
+);
 export const toLayoutContainerId = createBrandedFactory<LayoutContainerId>('LayoutContainerId');
 export const toStrategyImportanceId = createBrandedFactory<StrategyImportanceId>('StrategyImportanceId');
 export const toAcquiredEntityId = createBrandedFactory<AcquiredEntityId>('AcquiredEntityId');
@@ -431,7 +434,6 @@ export interface OwnershipModelOption {
   displayName: string;
 }
 
-
 export interface MaturityScaleSection {
   name: string;
   order: number;
@@ -801,9 +803,7 @@ export interface StrategicFitAnalysis {
   _links: HATEOASLinks;
 }
 
-export type InheritanceAuditEventType =
-  | 'CapabilityRealizationsInherited'
-  | 'CapabilityRealizationsUninherited';
+export type InheritanceAuditEventType = 'CapabilityRealizationsInherited' | 'CapabilityRealizationsUninherited';
 
 export interface AuditEntry {
   eventId: number;

@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { renderHook } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { type ComponentId, type OriginRelationship, toOriginRelationshipId } from '../../../api/types';
 import { useCanvasNodes } from './useCanvasNodes';
-import { toOriginRelationshipId, type OriginRelationship, type ComponentId } from '../../../api/types';
 
 const createWrapper = () => {
   const queryClient = new QueryClient({
@@ -79,7 +79,7 @@ vi.mock('../../origin-entities/hooks/useOriginRelationships', () => ({
 function createMockRelationship(
   componentId: string,
   originEntityId: string,
-  originEntityName: string
+  originEntityName: string,
 ): OriginRelationship {
   return {
     id: toOriginRelationshipId(`rel-${originEntityId}`),
@@ -162,9 +162,7 @@ describe('useCanvasNodes', () => {
         wrapper: createWrapper(),
       });
 
-      const componentNodes = result.current.filter(
-        (n) => !n.id.startsWith('acq-') && !n.id.startsWith('cap-')
-      );
+      const componentNodes = result.current.filter((n) => !n.id.startsWith('acq-') && !n.id.startsWith('cap-'));
       expect(componentNodes).toHaveLength(2);
       expect(componentNodes.map((n) => n.id).sort()).toEqual(['comp-1', 'comp-2']);
     });

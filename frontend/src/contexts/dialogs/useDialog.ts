@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
+import type { DialogDataMap, DialogId } from './types';
 import { useDialogContext } from './useDialogContext';
-import type { DialogId, DialogDataMap } from './types';
 
 export interface UseDialogReturn<T extends DialogId> {
   isOpen: boolean;
@@ -19,7 +19,7 @@ export function useDialog<T extends DialogId>(id: T): UseDialogReturn<T> {
     (dialogData?: DialogDataMap[T]) => {
       openDialog(id, dialogData);
     },
-    [id, openDialog]
+    [id, openDialog],
   );
 
   const close = useCallback(() => {
@@ -33,6 +33,6 @@ export function useDialog<T extends DialogId>(id: T): UseDialogReturn<T> {
       open,
       close,
     }),
-    [isOpen, data, open, close]
+    [isOpen, data, open, close],
   );
 }

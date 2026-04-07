@@ -1,17 +1,9 @@
-import React, { useState, useMemo } from "react";
-import {
-  useComponentFitScores,
-  useSetFitScore,
-  useDeleteFitScore,
-} from "../hooks/useFitScores";
-import { useStrategyPillarsConfig } from "../../../hooks/useStrategyPillarsSettings";
-import { canEdit, canDelete, canCreate } from "../../../utils/hateoas";
-import type {
-  ComponentId,
-  StrategyPillar,
-  ApplicationFitScore,
-} from "../../../api/types";
-import "./ComponentFitScores.css";
+import React, { useMemo, useState } from 'react';
+import type { ApplicationFitScore, ComponentId, StrategyPillar } from '../../../api/types';
+import { useStrategyPillarsConfig } from '../../../hooks/useStrategyPillarsSettings';
+import { canCreate, canDelete, canEdit } from '../../../utils/hateoas';
+import { useComponentFitScores, useDeleteFitScore, useSetFitScore } from '../hooks/useFitScores';
+import './ComponentFitScores.css';
 
 interface ComponentFitScoresProps {
   componentId: ComponentId;
@@ -20,11 +12,11 @@ interface ComponentFitScoresProps {
 const SCORE_RANGE = [1, 2, 3, 4, 5] as const;
 
 const SCORE_LABELS: Record<number, string> = {
-  1: "Critical",
-  2: "Poor",
-  3: "Adequate",
-  4: "Good",
-  5: "Excellent",
+  1: 'Critical',
+  2: 'Poor',
+  3: 'Adequate',
+  4: 'Good',
+  5: 'Excellent',
 };
 // Note: Labels must match backend FitScore.GetLabel() for consistency.
 // Used only during editing; API response scoreLabel is authoritative for display.
@@ -72,7 +64,7 @@ const FitScoreEditForm: React.FC<FitScoreEditFormProps> = ({
         <button
           key={s}
           type="button"
-          className={`fit-score-btn ${editScore === s ? "selected" : ""}`}
+          className={`fit-score-btn ${editScore === s ? 'selected' : ''}`}
           onClick={() => onScoreChange(s)}
           disabled={isSaving}
           data-testid={`fit-score-btn-${s}`}
@@ -81,9 +73,7 @@ const FitScoreEditForm: React.FC<FitScoreEditFormProps> = ({
         </button>
       ))}
     </div>
-    <span className="fit-score-label">
-      {editScore ? SCORE_LABELS[editScore] : "Select score"}
-    </span>
+    <span className="fit-score-label">{editScore ? SCORE_LABELS[editScore] : 'Select score'}</span>
     <textarea
       className="fit-score-rationale-input"
       placeholder="Rationale (optional)"
@@ -94,21 +84,11 @@ const FitScoreEditForm: React.FC<FitScoreEditFormProps> = ({
       data-testid="fit-score-rationale-input"
     />
     <div className="fit-score-edit-actions">
-      <button
-        type="button"
-        className="btn btn-secondary btn-small"
-        onClick={onCancel}
-        disabled={isSaving}
-      >
+      <button type="button" className="btn btn-secondary btn-small" onClick={onCancel} disabled={isSaving}>
         Cancel
       </button>
-      <button
-        type="button"
-        className="btn btn-primary btn-small"
-        onClick={onSave}
-        disabled={!editScore || isSaving}
-      >
-        {isSaving ? "Saving..." : "Save"}
+      <button type="button" className="btn btn-primary btn-small" onClick={onSave} disabled={!editScore || isSaving}>
+        {isSaving ? 'Saving...' : 'Save'}
       </button>
     </div>
   </div>
@@ -139,35 +119,22 @@ const FitScoreDisplay: React.FC<FitScoreDisplayProps> = ({
         <div className="fit-score-value">
           <span className="fit-score-dots">
             {SCORE_RANGE.map((s) => (
-              <span
-                key={s}
-                className={`fit-score-dot ${s <= score.score ? "filled" : ""}`}
-              />
+              <span key={s} className={`fit-score-dot ${s <= score.score ? 'filled' : ''}`} />
             ))}
           </span>
           <span className="fit-score-number">{score.score}/5</span>
           <span className="fit-score-label">{score.scoreLabel}</span>
         </div>
-        {score.rationale && (
-          <span className="fit-score-rationale">"{score.rationale}"</span>
-        )}
+        {score.rationale && <span className="fit-score-rationale">"{score.rationale}"</span>}
         {(canEditScore || canDeleteScore) && (
           <div className="fit-score-actions">
             {canEditScore && (
-              <button
-                type="button"
-                className="btn btn-link btn-small"
-                onClick={onEdit}
-              >
+              <button type="button" className="btn btn-link btn-small" onClick={onEdit}>
                 Edit
               </button>
             )}
             {canDeleteScore && (
-              <button
-                type="button"
-                className="btn btn-link btn-small btn-danger"
-                onClick={onDelete}
-              >
+              <button type="button" className="btn btn-link btn-small btn-danger" onClick={onDelete}>
                 Remove
               </button>
             )}
@@ -207,9 +174,7 @@ const FitScoreRow: React.FC<FitScoreRowProps> = ({
   <div className="fit-score-row" data-testid={`fit-score-row-${pillar.id}`}>
     <div className="fit-score-pillar">
       <span className="fit-score-pillar-name">{pillar.name}</span>
-      {pillar.fitCriteria && (
-        <span className="fit-score-criteria">{pillar.fitCriteria}</span>
-      )}
+      {pillar.fitCriteria && <span className="fit-score-criteria">{pillar.fitCriteria}</span>}
     </div>
     {isEditing ? (
       <FitScoreEditForm
@@ -235,9 +200,7 @@ const FitScoreRow: React.FC<FitScoreRowProps> = ({
   </div>
 );
 
-export const ComponentFitScores: React.FC<ComponentFitScoresProps> = ({
-  componentId,
-}) => {
+export const ComponentFitScores: React.FC<ComponentFitScoresProps> = ({ componentId }) => {
   const { data: pillarsConfig } = useStrategyPillarsConfig();
   const { data: fitScoresResponse } = useComponentFitScores(componentId);
   const setFitScoreMutation = useSetFitScore();
@@ -245,7 +208,7 @@ export const ComponentFitScores: React.FC<ComponentFitScoresProps> = ({
 
   const [editingPillarId, setEditingPillarId] = useState<string | null>(null);
   const [editScore, setEditScore] = useState<number | null>(null);
-  const [editRationale, setEditRationale] = useState("");
+  const [editRationale, setEditRationale] = useState('');
 
   const collectionLinks = fitScoresResponse?._links;
 
@@ -259,9 +222,7 @@ export const ComponentFitScores: React.FC<ComponentFitScoresProps> = ({
     return new Map(fitScores.map((s) => [s.pillarId, s]));
   }, [fitScoresResponse?.data]);
 
-  const getScoreForPillar = (
-    pillarId: string,
-  ): ApplicationFitScore | undefined => {
+  const getScoreForPillar = (pillarId: string): ApplicationFitScore | undefined => {
     return scoresByPillar.get(pillarId);
   };
 
@@ -269,13 +230,13 @@ export const ComponentFitScores: React.FC<ComponentFitScoresProps> = ({
     const existingScore = getScoreForPillar(pillar.id);
     setEditingPillarId(pillar.id);
     setEditScore(existingScore?.score ?? null);
-    setEditRationale(existingScore?.rationale ?? "");
+    setEditRationale(existingScore?.rationale ?? '');
   };
 
   const handleCancel = () => {
     setEditingPillarId(null);
     setEditScore(null);
-    setEditRationale("");
+    setEditRationale('');
   };
 
   const handleSave = async (pillarId: string) => {
@@ -295,7 +256,7 @@ export const ComponentFitScores: React.FC<ComponentFitScoresProps> = ({
   const handleDelete = async (pillarId: string) => {
     const pillar = enabledPillars.find((p) => p.id === pillarId);
     const confirmed = window.confirm(
-      `Are you sure you want to remove the fit score for "${pillar?.name || "this pillar"}"?`,
+      `Are you sure you want to remove the fit score for "${pillar?.name || 'this pillar'}"?`,
     );
     if (!confirmed) return;
 
@@ -312,9 +273,7 @@ export const ComponentFitScores: React.FC<ComponentFitScoresProps> = ({
   return (
     <div className="component-fit-scores">
       <h4 className="fit-scores-title">Strategic Fit Scores</h4>
-      <p className="fit-scores-description">
-        Rate how well this application supports each strategic pillar
-      </p>
+      <p className="fit-scores-description">Rate how well this application supports each strategic pillar</p>
       <div className="fit-scores-list">
         {enabledPillars.map((pillar) => {
           const score = getScoreForPillar(pillar.id);

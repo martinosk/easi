@@ -1,15 +1,15 @@
-import React, { useMemo, useRef, useCallback } from 'react';
-import { NavigationContext } from './context';
-import type { NavigationContextValue, NavigationActions, DialogActions, ViewActions, Permissions } from './types';
-import type { ComponentCanvasRef } from '../../features/canvas/components/ComponentCanvas';
+import React, { useCallback, useMemo, useRef } from 'react';
 import type { ViewId } from '../../api/types';
-import { useCanvasNavigation } from '../../features/canvas/hooks/useCanvasNavigation';
-import { useViewOperations } from '../../features/views/hooks/useViewOperations';
+import type { ComponentCanvasRef } from '../../features/canvas/components/ComponentCanvas';
 import { useCanvasDialogs } from '../../features/canvas/hooks/useCanvasDialogs';
-import { useUserStore } from '../../store/userStore';
-import { useAppStore } from '../../store/appStore';
-import { useRelations } from '../../features/relations/hooks/useRelations';
+import { useCanvasNavigation } from '../../features/canvas/hooks/useCanvasNavigation';
 import { useComponents } from '../../features/components/hooks/useComponents';
+import { useRelations } from '../../features/relations/hooks/useRelations';
+import { useViewOperations } from '../../features/views/hooks/useViewOperations';
+import { useAppStore } from '../../store/appStore';
+import { useUserStore } from '../../store/userStore';
+import { NavigationContext } from './context';
+import type { DialogActions, NavigationActions, NavigationContextValue, Permissions, ViewActions } from './types';
 
 interface NavigationProviderProps {
   children: React.ReactNode;
@@ -28,26 +28,37 @@ export const NavigationProvider: React.FC<NavigationProviderProps> = ({ children
   const { removeComponentFromView, switchView } = useViewOperations();
   const canvasDialogs = useCanvasDialogs(selectedEdgeId, relations, components);
 
-  const permissions = useMemo<Permissions>(() => ({
-    canCreateComponent: hasPermission('components:write'),
-    canCreateCapability: hasPermission('capabilities:write'),
-    canCreateView: hasPermission('views:write'),
-    canCreateOriginEntity: hasPermission('components:write'),
-  }), [hasPermission]);
+  const permissions = useMemo<Permissions>(
+    () => ({
+      canCreateComponent: hasPermission('components:write'),
+      canCreateCapability: hasPermission('capabilities:write'),
+      canCreateView: hasPermission('views:write'),
+      canCreateOriginEntity: hasPermission('components:write'),
+    }),
+    [hasPermission],
+  );
 
-  const navigationActions = useMemo<NavigationActions>(() => ({
-    navigateToComponent,
-    navigateToCapability,
-    navigateToOriginEntity,
-    switchView: async (viewId: ViewId) => { await switchView(viewId); },
-  }), [navigateToComponent, navigateToCapability, navigateToOriginEntity, switchView]);
+  const navigationActions = useMemo<NavigationActions>(
+    () => ({
+      navigateToComponent,
+      navigateToCapability,
+      navigateToOriginEntity,
+      switchView: async (viewId: ViewId) => {
+        await switchView(viewId);
+      },
+    }),
+    [navigateToComponent, navigateToCapability, navigateToOriginEntity, switchView],
+  );
 
-  const dialogActions = useMemo<DialogActions>(() => ({
-    addComponent: permissions.canCreateComponent ? canvasDialogs.openComponentDialog : () => {},
-    addCapability: permissions.canCreateCapability ? canvasDialogs.openCapabilityDialog : () => {},
-    editComponent: canvasDialogs.openEditComponentDialog,
-    editCapability: canvasDialogs.openEditCapabilityDialog,
-  }), [permissions.canCreateComponent, permissions.canCreateCapability, canvasDialogs]);
+  const dialogActions = useMemo<DialogActions>(
+    () => ({
+      addComponent: permissions.canCreateComponent ? canvasDialogs.openComponentDialog : () => {},
+      addCapability: permissions.canCreateCapability ? canvasDialogs.openCapabilityDialog : () => {},
+      editComponent: canvasDialogs.openEditComponentDialog,
+      editCapability: canvasDialogs.openEditCapabilityDialog,
+    }),
+    [permissions.canCreateComponent, permissions.canCreateCapability, canvasDialogs],
+  );
 
   const handleRemoveFromView = useCallback(() => {
     if (selectedNodeId) {
@@ -55,21 +66,23 @@ export const NavigationProvider: React.FC<NavigationProviderProps> = ({ children
     }
   }, [selectedNodeId, removeComponentFromView]);
 
-  const viewActions = useMemo<ViewActions>(() => ({
-    removeFromView: handleRemoveFromView,
-  }), [handleRemoveFromView]);
-
-  const value = useMemo<NavigationContextValue>(() => ({
-    navigationActions,
-    dialogActions,
-    viewActions,
-    permissions,
-    canvasRef,
-  }), [navigationActions, dialogActions, viewActions, permissions]);
-
-  return (
-    <NavigationContext.Provider value={value}>
-      {children}
-    </NavigationContext.Provider>
+  const viewActions = useMemo<ViewActions>(
+    () => ({
+      removeFromView: handleRemoveFromView,
+    }),
+    [handleRemoveFromView],
   );
+
+  const value = useMemo<NavigationContextValue>(
+    () => ({
+      navigationActions,
+      dialogActions,
+      viewActions,
+      permissions,
+      canvasRef,
+    }),
+    [navigationActions, dialogActions, viewActions, permissions],
+  );
+
+  return <NavigationContext.Provider value={value}>{children}</NavigationContext.Provider>;
 };

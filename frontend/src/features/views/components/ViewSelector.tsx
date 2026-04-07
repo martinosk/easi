@@ -1,9 +1,9 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
+import type { View, ViewId } from '../../../api/types';
 import { useAppStore } from '../../../store/appStore';
-import { useViews } from '../hooks/useViews';
-import { useCurrentView } from '../hooks/useCurrentView';
 import { useActiveUsers } from '../../users/hooks/useUsers';
-import type { ViewId, View } from '../../../api/types';
+import { useCurrentView } from '../hooks/useCurrentView';
+import { useViews } from '../hooks/useViews';
 
 export const ViewSelector: React.FC = () => {
   const { data: views } = useViews();
@@ -21,14 +21,17 @@ export const ViewSelector: React.FC = () => {
     return map;
   }, [users]);
 
-  const getOwnerDisplayName = useCallback((view: View): string => {
-    if (!view.isPrivate) return '';
-    if (view.ownerUserId) {
-      const name = userNameMap.get(view.ownerUserId);
-      if (name) return name;
-    }
-    return view.ownerEmail?.split('@')[0] || 'unknown';
-  }, [userNameMap]);
+  const getOwnerDisplayName = useCallback(
+    (view: View): string => {
+      if (!view.isPrivate) return '';
+      if (view.ownerUserId) {
+        const name = userNameMap.get(view.ownerUserId);
+        if (name) return name;
+      }
+      return view.ownerEmail?.split('@')[0] || 'unknown';
+    },
+    [userNameMap],
+  );
 
   const handleViewClick = (viewId: ViewId) => {
     if (currentView?.id !== viewId) {
@@ -48,11 +51,7 @@ export const ViewSelector: React.FC = () => {
             key={view.id}
             className={`view-tab ${currentView?.id === view.id ? 'active' : ''}`}
             onClick={() => handleViewClick(view.id)}
-            title={
-              view.isPrivate
-                ? `Private view by ${getOwnerDisplayName(view)}`
-                : view.description || view.name
-            }
+            title={view.isPrivate ? `Private view by ${getOwnerDisplayName(view)}` : view.description || view.name}
           >
             {view.isPrivate && <span className="private-indicator">🔒</span>}
             <span className="view-tab-name">

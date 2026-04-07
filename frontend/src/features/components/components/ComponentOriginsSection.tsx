@@ -1,9 +1,9 @@
-import React from 'react';
 import { useQuery } from '@tanstack/react-query';
+import React from 'react';
 import { httpClient } from '../../../api/core/httpClient';
+import type { ComponentId, HATEOASLinks, OriginRelationshipType } from '../../../api/types';
 import { DetailField } from '../../../components/shared/DetailField';
 import { componentsQueryKeys } from '../queryKeys';
-import type { ComponentId, OriginRelationshipType, HATEOASLinks } from '../../../api/types';
 
 interface ComponentOriginsSectionProps {
   componentId: ComponentId;
@@ -87,9 +87,7 @@ const transformToOriginItems = (response: ComponentOriginsResponse): OriginItem[
 };
 
 const fetchComponentOrigins = async (componentId: ComponentId): Promise<OriginItem[]> => {
-  const response = await httpClient.get<ComponentOriginsResponse>(
-    `/api/v1/components/${componentId}/origins`
-  );
+  const response = await httpClient.get<ComponentOriginsResponse>(`/api/v1/components/${componentId}/origins`);
   return transformToOriginItems(response.data);
 };
 
@@ -120,9 +118,7 @@ const getRelationshipTypeColor = (type: OriginRelationshipType): string => {
   return colors[type] || '#6b7280';
 };
 
-export const ComponentOriginsSection: React.FC<ComponentOriginsSectionProps> = ({
-  componentId,
-}) => {
+export const ComponentOriginsSection: React.FC<ComponentOriginsSectionProps> = ({ componentId }) => {
   const { data: origins = [], isLoading } = useQuery({
     queryKey: componentsQueryKeys.origins(componentId),
     queryFn: () => fetchComponentOrigins(componentId),
@@ -156,9 +152,7 @@ export const ComponentOriginsSection: React.FC<ComponentOriginsSectionProps> = (
               borderBottom: '1px solid #e5e7eb',
             }}
           >
-            <span style={{ fontSize: '16px' }}>
-              {getRelationshipTypeIcon(origin.relationshipType)}
-            </span>
+            <span style={{ fontSize: '16px' }}>{getRelationshipTypeIcon(origin.relationshipType)}</span>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 500 }}>{origin.originEntityName}</div>
               <div

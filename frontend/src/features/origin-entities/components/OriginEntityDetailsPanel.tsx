@@ -1,27 +1,27 @@
 import React, { useState } from 'react';
-import { useAcquiredEntity } from '../hooks/useAcquiredEntities';
-import { useVendor } from '../hooks/useVendors';
-import { useInternalTeam } from '../hooks/useInternalTeams';
-import { useOriginRelationshipsQuery } from '../hooks/useOriginRelationships';
-import { useRemoveOriginEntityFromView } from '../../views/hooks/useViews';
-import { useCurrentView } from '../../views/hooks/useCurrentView';
-import { AcquiredEntityDetails } from './AcquiredEntityDetails';
-import { VendorDetails } from './VendorDetails';
-import { InternalTeamDetails } from './InternalTeamDetails';
-import { EditAcquiredEntityDialog } from './EditAcquiredEntityDialog';
-import { EditVendorDialog } from './EditVendorDialog';
-import { EditInternalTeamDialog } from './EditInternalTeamDialog';
-import { type OriginEntityType } from '../../../constants/entityIdentifiers';
 import type {
   AcquiredEntity,
   AcquiredEntityId,
-  Vendor,
-  VendorId,
   InternalTeam,
   InternalTeamId,
   OriginRelationship,
   OriginRelationshipType,
+  Vendor,
+  VendorId,
 } from '../../../api/types';
+import { type OriginEntityType } from '../../../constants/entityIdentifiers';
+import { useCurrentView } from '../../views/hooks/useCurrentView';
+import { useRemoveOriginEntityFromView } from '../../views/hooks/useViews';
+import { useAcquiredEntity } from '../hooks/useAcquiredEntities';
+import { useInternalTeam } from '../hooks/useInternalTeams';
+import { useOriginRelationshipsQuery } from '../hooks/useOriginRelationships';
+import { useVendor } from '../hooks/useVendors';
+import { AcquiredEntityDetails } from './AcquiredEntityDetails';
+import { EditAcquiredEntityDialog } from './EditAcquiredEntityDialog';
+import { EditInternalTeamDialog } from './EditInternalTeamDialog';
+import { EditVendorDialog } from './EditVendorDialog';
+import { InternalTeamDetails } from './InternalTeamDetails';
+import { VendorDetails } from './VendorDetails';
 
 type EntityMap = {
   acquired: AcquiredEntity;
@@ -41,19 +41,10 @@ interface UseOriginEntityResult<T extends OriginEntityType> {
   error: Error | null;
 }
 
-function useOriginEntity<T extends OriginEntityType>(
-  entityType: T,
-  entityId: string
-): UseOriginEntityResult<T> {
-  const acquiredQuery = useAcquiredEntity(
-    entityType === 'acquired' ? (entityId as AcquiredEntityId) : undefined
-  );
-  const vendorQuery = useVendor(
-    entityType === 'vendor' ? (entityId as VendorId) : undefined
-  );
-  const teamQuery = useInternalTeam(
-    entityType === 'team' ? (entityId as InternalTeamId) : undefined
-  );
+function useOriginEntity<T extends OriginEntityType>(entityType: T, entityId: string): UseOriginEntityResult<T> {
+  const acquiredQuery = useAcquiredEntity(entityType === 'acquired' ? (entityId as AcquiredEntityId) : undefined);
+  const vendorQuery = useVendor(entityType === 'vendor' ? (entityId as VendorId) : undefined);
+  const teamQuery = useInternalTeam(entityType === 'team' ? (entityId as InternalTeamId) : undefined);
 
   if (entityType === 'acquired') {
     return {
@@ -81,10 +72,7 @@ interface OriginEntityDetailsPanelProps {
   entityId: string;
 }
 
-export const OriginEntityDetailsPanel: React.FC<OriginEntityDetailsPanelProps> = ({
-  entityType,
-  entityId,
-}) => {
+export const OriginEntityDetailsPanel: React.FC<OriginEntityDetailsPanelProps> = ({ entityType, entityId }) => {
   const { entity, isLoading, error } = useOriginEntity(entityType, entityId);
   const { data: allRelationships = [] } = useOriginRelationshipsQuery();
   const { currentView } = useCurrentView();
@@ -109,13 +97,10 @@ export const OriginEntityDetailsPanel: React.FC<OriginEntityDetailsPanelProps> =
   }
 
   const relationships = allRelationships.filter(
-    (rel) =>
-      rel.relationshipType === RELATIONSHIP_TYPES[entityType] && rel.originEntityId === entityId
+    (rel) => rel.relationshipType === RELATIONSHIP_TYPES[entityType] && rel.originEntityId === entityId,
   );
 
-  const entityInView = currentView?.originEntities.find(
-    (oe) => oe.originEntityId === entityId
-  );
+  const entityInView = currentView?.originEntities.find((oe) => oe.originEntityId === entityId);
   const canRemoveFromView = entityInView?._links?.['x-remove'] !== undefined;
 
   const handleEdit = () => setShowEditDialog(true);
@@ -204,32 +189,13 @@ interface EntityEditDialogProps {
   onClose: () => void;
 }
 
-const EntityEditDialog: React.FC<EntityEditDialogProps> = ({
-  entityType,
-  entity,
-  isOpen,
-  onClose,
-}) => {
+const EntityEditDialog: React.FC<EntityEditDialogProps> = ({ entityType, entity, isOpen, onClose }) => {
   switch (entityType) {
     case 'acquired':
-      return (
-        <EditAcquiredEntityDialog
-          isOpen={isOpen}
-          onClose={onClose}
-          entity={entity as AcquiredEntity}
-        />
-      );
+      return <EditAcquiredEntityDialog isOpen={isOpen} onClose={onClose} entity={entity as AcquiredEntity} />;
     case 'vendor':
-      return (
-        <EditVendorDialog isOpen={isOpen} onClose={onClose} vendor={entity as Vendor} />
-      );
+      return <EditVendorDialog isOpen={isOpen} onClose={onClose} vendor={entity as Vendor} />;
     case 'team':
-      return (
-        <EditInternalTeamDialog
-          isOpen={isOpen}
-          onClose={onClose}
-          team={entity as InternalTeam}
-        />
-      );
+      return <EditInternalTeamDialog isOpen={isOpen} onClose={onClose} team={entity as InternalTeam} />;
   }
 };

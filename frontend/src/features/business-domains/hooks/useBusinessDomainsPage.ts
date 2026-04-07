@@ -1,30 +1,26 @@
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { useBusinessDomains } from './useBusinessDomains';
-import { useDomainCapabilities } from './useDomainCapabilities';
-import { useCapabilityTree } from './useCapabilityTree';
-import { useGridPositions } from './useGridPositions';
-import { usePersistedDepth } from './usePersistedDepth';
-import { useSidebarState } from './useSidebarState';
-import { useDomainDialogManager } from './useDomainDialogManager';
-import { useDragHandlers } from './useDragHandlers';
-import { useCapabilityFiltering } from './useCapabilityFiltering';
-import { useDomainContextMenu } from './useDomainContextMenu';
+import type { BusinessDomain, Capability, ComponentId } from '../../../api/types';
+import { clearParams, deepLinkParams, getParamValue } from '../../../lib/deepLinks';
+import { canCreate } from '../../../utils/hateoas';
+import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
 import { useApplicationSettings } from './useApplicationSettings';
+import { useBusinessDomains } from './useBusinessDomains';
+import { useCapabilityContextMenu } from './useCapabilityContextMenu';
+import { useCapabilityFiltering } from './useCapabilityFiltering';
 import { useCapabilityRealizations } from './useCapabilityRealizations';
 import { useCapabilitySelection } from './useCapabilitySelection';
-import { useCapabilityContextMenu } from './useCapabilityContextMenu';
+import { useCapabilityTree } from './useCapabilityTree';
+import { useDomainCapabilities } from './useDomainCapabilities';
+import { useDomainContextMenu } from './useDomainContextMenu';
+import { useDomainDialogManager } from './useDomainDialogManager';
+import { useDragHandlers } from './useDragHandlers';
+import { useGridPositions } from './useGridPositions';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
-import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
-import { getParamValue, clearParams, deepLinkParams } from '../../../lib/deepLinks';
-import { canCreate } from '../../../utils/hateoas';
-import type { BusinessDomain, Capability, ComponentId } from '../../../api/types';
+import { usePersistedDepth } from './usePersistedDepth';
+import { useSidebarState } from './useSidebarState';
 
-function useDomainDeepLink(
-  domains: BusinessDomain[],
-  isLoading: boolean,
-  onFound: (domain: BusinessDomain) => void
-) {
+function useDomainDeepLink(domains: BusinessDomain[], isLoading: boolean, onFound: (domain: BusinessDomain) => void) {
   const processedRef = useRef(false);
 
   useEffect(() => {
@@ -34,7 +30,7 @@ function useDomainDeepLink(
     if (!domainIdFromUrl) return;
 
     processedRef.current = true;
-    const linkedDomain = domains.find(d => d.id === domainIdFromUrl);
+    const linkedDomain = domains.find((d) => d.id === domainIdFromUrl);
 
     if (linkedDomain) {
       onFound(linkedDomain);
@@ -49,7 +45,7 @@ function useDomainDeepLink(
 function useCapabilityDeepLink(
   allCapabilities: Capability[],
   isLoading: boolean,
-  onFound: (capability: Capability) => void
+  onFound: (capability: Capability) => void,
 ) {
   const processedRef = useRef(false);
 
@@ -61,7 +57,7 @@ function useCapabilityDeepLink(
     if (!capabilityIdFromUrl) return;
 
     processedRef.current = true;
-    const linkedCapability = allCapabilities.find(c => c.id === capabilityIdFromUrl);
+    const linkedCapability = allCapabilities.find((c) => c.id === capabilityIdFromUrl);
 
     if (linkedCapability) {
       onFound(linkedCapability);
@@ -78,10 +74,7 @@ export function useBusinessDomainsPage() {
   const [selectedCapability, setSelectedCapability] = useState<Capability | null>(null);
   const [selectedComponentId, setSelectedComponentId] = useState<ComponentId | null>(null);
   const [depth, setDepth] = usePersistedDepth();
-  const {
-    showApplications,
-    setShowApplications,
-  } = useApplicationSettings();
+  const { showApplications, setShowApplications } = useApplicationSettings();
 
   const { domains, collectionLinks, isLoading, error, createDomain, updateDomain, deleteDomain } = useBusinessDomains();
   const { tree, isLoading: treeLoading } = useCapabilityTree();
@@ -116,19 +109,20 @@ export function useBusinessDomainsPage() {
   const filtering = useCapabilityFiltering(tree, capabilities);
 
   const visibleCapabilityIds = useMemo(
-    () => new Set(
-      filtering.capabilitiesWithDescendants
-        .filter((capability) => Number(capability.level.substring(1)) <= depth)
-        .map((capability) => capability.id)
-    ),
-    [filtering.capabilitiesWithDescendants, depth]
+    () =>
+      new Set(
+        filtering.capabilitiesWithDescendants
+          .filter((capability) => Number(capability.level.substring(1)) <= depth)
+          .map((capability) => capability.id),
+      ),
+    [filtering.capabilitiesWithDescendants, depth],
   );
 
   const { getRealizationsForCapability, refetch: refetchRealizations } = useCapabilityRealizations(
     showApplications,
     visualizedDomain?.id ?? null,
     depth,
-    visibleCapabilityIds
+    visibleCapabilityIds,
   );
 
   const handleApplicationClick = useCallback((componentId: ComponentId) => {

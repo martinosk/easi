@@ -1,9 +1,9 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { NodeContextMenu, type GenerateViewTarget } from './NodeContextMenu';
-import type { NodeContextMenu as NodeContextMenuType } from '../../hooks/useContextMenu';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import type { HATEOASLinks, ViewId } from '../../../../api/types';
+import type { NodeContextMenu as NodeContextMenuType } from '../../hooks/useContextMenu';
+import { type GenerateViewTarget, NodeContextMenu } from './NodeContextMenu';
 
 vi.mock('../../../views/hooks/useCurrentView', () => ({
   useCurrentView: () => ({ currentViewId: 'view-1' as ViewId }),
@@ -49,7 +49,7 @@ function renderMenu(props: {
         canCreateView={props.canCreateView}
         onRequestGenerateView={props.onRequestGenerateView}
       />
-    </QueryClientProvider>
+    </QueryClientProvider>,
   );
 }
 

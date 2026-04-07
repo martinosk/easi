@@ -1,15 +1,15 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { originEntitiesApi } from '../api/originEntitiesApi';
-import { acquiredEntitiesQueryKeys } from '../queryKeys';
-import { invalidateFor } from '../../../lib/invalidateFor';
-import { acquiredEntitiesMutationEffects } from '../mutationEffects';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import type {
   AcquiredEntityId,
+  ComponentId,
   CreateAcquiredEntityRequest,
   UpdateAcquiredEntityRequest,
-  ComponentId,
 } from '../../../api/types';
-import toast from 'react-hot-toast';
+import { invalidateFor } from '../../../lib/invalidateFor';
+import { originEntitiesApi } from '../api/originEntitiesApi';
+import { acquiredEntitiesMutationEffects } from '../mutationEffects';
+import { acquiredEntitiesQueryKeys } from '../queryKeys';
 
 export function useAcquiredEntitiesQuery() {
   return useQuery({
@@ -75,8 +75,15 @@ export function useDeleteAcquiredEntity() {
 
 export function useLinkComponentToAcquiredEntity() {
   return useEntityMutation({
-    mutationFn: ({ componentId, entityId, notes }: { componentId: ComponentId; entityId: AcquiredEntityId; notes?: string }) =>
-      originEntitiesApi.acquiredEntities.linkComponent(componentId, entityId, notes),
+    mutationFn: ({
+      componentId,
+      entityId,
+      notes,
+    }: {
+      componentId: ComponentId;
+      entityId: AcquiredEntityId;
+      notes?: string;
+    }) => originEntitiesApi.acquiredEntities.linkComponent(componentId, entityId, notes),
     effects: (_, { entityId, componentId }) => acquiredEntitiesMutationEffects.linkComponent(entityId, componentId),
     successMessage: () => 'Component linked to acquired entity',
     errorMessage: 'Failed to link component to acquired entity',

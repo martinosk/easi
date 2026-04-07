@@ -1,8 +1,8 @@
 import '@testing-library/jest-dom/vitest';
-import { afterEach, beforeAll, afterAll, beforeEach, expect } from 'vitest';
-import { cleanup, act } from '@testing-library/react';
-import { server } from './mocks/server';
+import { act, cleanup } from '@testing-library/react';
+import { afterAll, afterEach, beforeAll, beforeEach, expect } from 'vitest';
 import { resetDb } from './mocks/db';
+import { server } from './mocks/server';
 
 const originalConsoleError = console.error;
 let actWarnings: string[] = [];
@@ -18,19 +18,19 @@ console.error = (...args: unknown[]) => {
 beforeAll(() => {
   server.listen({ onUnhandledRequest: 'error' });
   if (!HTMLDialogElement.prototype.showModal) {
-    HTMLDialogElement.prototype.showModal = function() {
+    HTMLDialogElement.prototype.showModal = function () {
       this.open = true;
     };
   }
 
   if (!HTMLDialogElement.prototype.close) {
-    HTMLDialogElement.prototype.close = function() {
+    HTMLDialogElement.prototype.close = function () {
       this.open = false;
     };
   }
 
   if (!HTMLDialogElement.prototype.show) {
-    HTMLDialogElement.prototype.show = function() {
+    HTMLDialogElement.prototype.show = function () {
       this.open = true;
     };
   }
@@ -78,8 +78,8 @@ afterEach(async () => {
     actWarnings = [];
     throw new Error(
       `Test "${testName}" caused ${warningCount} act warning(s). ` +
-      'State updates must be wrapped in act(). First warning:\n' +
-      capturedWarnings[0].substring(0, 200)
+        'State updates must be wrapped in act(). First warning:\n' +
+        capturedWarnings[0].substring(0, 200),
     );
   }
 });

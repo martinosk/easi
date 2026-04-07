@@ -1,7 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { ConversationList } from './ConversationList';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import type { Conversation } from '../api/types';
+import { ConversationList } from './ConversationList';
 
 function buildConversation(overrides: Partial<Conversation> = {}): Conversation {
   return {
@@ -27,7 +27,7 @@ describe('ConversationList', () => {
         onSelect={vi.fn()}
         onDelete={vi.fn()}
         onNewConversation={vi.fn()}
-      />
+      />,
     );
 
     expect(screen.getByText('Architecture review')).toBeInTheDocument();
@@ -36,9 +36,7 @@ describe('ConversationList', () => {
 
   it('should call onSelect when a conversation is clicked', () => {
     const onSelect = vi.fn();
-    const conversations = [
-      buildConversation({ id: 'conv-1', title: 'Architecture review' }),
-    ];
+    const conversations = [buildConversation({ id: 'conv-1', title: 'Architecture review' })];
 
     render(
       <ConversationList
@@ -47,7 +45,7 @@ describe('ConversationList', () => {
         onSelect={onSelect}
         onDelete={vi.fn()}
         onNewConversation={vi.fn()}
-      />
+      />,
     );
 
     fireEvent.click(screen.getByText('Architecture review'));
@@ -67,7 +65,7 @@ describe('ConversationList', () => {
         onSelect={vi.fn()}
         onDelete={vi.fn()}
         onNewConversation={vi.fn()}
-      />
+      />,
     );
 
     const activeItem = screen.getByText('Active chat').closest('.conversation-item');
@@ -76,9 +74,7 @@ describe('ConversationList', () => {
 
   it('should call onDelete when delete button is clicked', () => {
     const onDelete = vi.fn();
-    const conversations = [
-      buildConversation({ id: 'conv-1', title: 'Delete me' }),
-    ];
+    const conversations = [buildConversation({ id: 'conv-1', title: 'Delete me' })];
 
     render(
       <ConversationList
@@ -87,7 +83,7 @@ describe('ConversationList', () => {
         onSelect={vi.fn()}
         onDelete={onDelete}
         onNewConversation={vi.fn()}
-      />
+      />,
     );
 
     fireEvent.click(screen.getByLabelText('Delete conversation'));
@@ -96,9 +92,7 @@ describe('ConversationList', () => {
 
   it('should not trigger onSelect when delete button is clicked', () => {
     const onSelect = vi.fn();
-    const conversations = [
-      buildConversation({ id: 'conv-1', title: 'Test' }),
-    ];
+    const conversations = [buildConversation({ id: 'conv-1', title: 'Test' })];
 
     render(
       <ConversationList
@@ -107,7 +101,7 @@ describe('ConversationList', () => {
         onSelect={onSelect}
         onDelete={vi.fn()}
         onNewConversation={vi.fn()}
-      />
+      />,
     );
 
     fireEvent.click(screen.getByLabelText('Delete conversation'));
@@ -122,7 +116,7 @@ describe('ConversationList', () => {
         onSelect={vi.fn()}
         onDelete={vi.fn()}
         onNewConversation={vi.fn()}
-      />
+      />,
     );
 
     expect(screen.getByLabelText('New conversation')).toBeInTheDocument();
@@ -138,7 +132,7 @@ describe('ConversationList', () => {
         onSelect={vi.fn()}
         onDelete={vi.fn()}
         onNewConversation={onNew}
-      />
+      />,
     );
 
     fireEvent.click(screen.getByLabelText('New conversation'));
@@ -153,7 +147,7 @@ describe('ConversationList', () => {
         onSelect={vi.fn()}
         onDelete={vi.fn()}
         onNewConversation={vi.fn()}
-      />
+      />,
     );
 
     expect(screen.getByText('No conversations yet')).toBeInTheDocument();

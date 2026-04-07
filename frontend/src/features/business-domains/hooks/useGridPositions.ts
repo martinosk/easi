@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
-import { useLayout } from '../../../hooks/useLayout';
 import type { BusinessDomainId, CapabilityId, Position } from '../../../api/types';
+import { useLayout } from '../../../hooks/useLayout';
 
 export interface PositionMap {
   [capabilityId: string]: Position;
@@ -16,26 +16,20 @@ export interface UseGridPositionsResult {
 }
 
 export function useGridPositions(domainId: BusinessDomainId | null): UseGridPositionsResult {
-  const {
-    positions,
-    isLoading,
-    error,
-    updateElementPosition,
-    refetch,
-  } = useLayout('business-domain-grid', domainId);
+  const { positions, isLoading, error, updateElementPosition, refetch } = useLayout('business-domain-grid', domainId);
 
   const updatePosition = useCallback(
     async (capabilityId: CapabilityId, x: number, y: number) => {
       await updateElementPosition(capabilityId, x, y);
     },
-    [updateElementPosition]
+    [updateElementPosition],
   );
 
   const getPositionForCapability = useCallback(
     (capabilityId: CapabilityId): Position | null => {
       return positions[capabilityId] || null;
     },
-    [positions]
+    [positions],
   );
 
   return useMemo(
@@ -47,6 +41,6 @@ export function useGridPositions(domainId: BusinessDomainId | null): UseGridPosi
       getPositionForCapability,
       refetch,
     }),
-    [positions, isLoading, error, updatePosition, getPositionForCapability, refetch]
+    [positions, isLoading, error, updatePosition, getPositionForCapability, refetch],
   );
 }

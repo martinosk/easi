@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import { CapabilityTagList } from './CapabilityTagList';
-import { CapabilitySelectorModal } from './CapabilitySelectorModal';
-import { useDomainCapabilities } from '../hooks/useDomainCapabilities';
 import type { BusinessDomainId, Capability } from '../../../api/types';
+import { useDomainCapabilities } from '../hooks/useDomainCapabilities';
+import { CapabilitySelectorModal } from './CapabilitySelectorModal';
+import { CapabilityTagList } from './CapabilityTagList';
 
 interface CapabilityAssociationManagerProps {
   domainId?: BusinessDomainId;
@@ -11,16 +11,16 @@ interface CapabilityAssociationManagerProps {
 
 export function CapabilityAssociationManager({ domainId }: CapabilityAssociationManagerProps) {
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
-  const { capabilities, isLoading, error, associateCapability, dissociateCapability } = useDomainCapabilities(
-    domainId
-  );
+  const { capabilities, isLoading, error, associateCapability, dissociateCapability } = useDomainCapabilities(domainId);
 
   const handleAddCapabilities = async (selectedCapabilities: Capability[]) => {
     try {
       for (const capability of selectedCapabilities) {
         await associateCapability(capability.id);
       }
-      toast.success(`Added ${selectedCapabilities.length} ${selectedCapabilities.length === 1 ? 'capability' : 'capabilities'}`);
+      toast.success(
+        `Added ${selectedCapabilities.length} ${selectedCapabilities.length === 1 ? 'capability' : 'capabilities'}`,
+      );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to add capabilities');
       throw err;

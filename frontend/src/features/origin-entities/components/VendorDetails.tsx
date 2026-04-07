@@ -1,8 +1,8 @@
 import React from 'react';
+import type { OriginRelationship, Vendor } from '../../../api/types';
 import { DetailField } from '../../../components/shared/DetailField';
-import { AuditHistorySection } from '../../audit';
 import { hasLink } from '../../../utils/hateoas';
-import type { Vendor, OriginRelationship } from '../../../api/types';
+import { AuditHistorySection } from '../../audit';
 
 interface VendorDetailsProps {
   vendor: Vendor;
@@ -48,9 +48,7 @@ export const VendorDetails: React.FC<VendorDetailsProps> = ({
         <DetailField label="Name">{vendor.name}</DetailField>
 
         {vendor.implementationPartner && (
-          <DetailField label="Implementation Partner">
-            {vendor.implementationPartner}
-          </DetailField>
+          <DetailField label="Implementation Partner">{vendor.implementationPartner}</DetailField>
         )}
 
         {vendor.notes && <DetailField label="Notes">{vendor.notes}</DetailField>}

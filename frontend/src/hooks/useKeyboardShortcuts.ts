@@ -1,7 +1,7 @@
-import { useEffect, useCallback } from 'react';
-import { useAppStore } from '../store/appStore';
-import { useCurrentView } from '../features/views/hooks/useCurrentView';
+import { useCallback, useEffect } from 'react';
 import type { ViewComponent } from '../api/types';
+import { useCurrentView } from '../features/views/hooks/useCurrentView';
+import { useAppStore } from '../store/appStore';
 
 export interface KeyboardShortcutHandlers {
   onDelete?: () => void;

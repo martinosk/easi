@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
-import { NestedCapabilityGrid } from './NestedCapabilityGrid';
+import { describe, expect, it, vi } from 'vitest';
 import type { Capability, CapabilityId } from '../../../api/types';
 import { MantineTestWrapper } from '../../../test/helpers/mantineTestWrapper';
+import { NestedCapabilityGrid } from './NestedCapabilityGrid';
 
 const renderWithMantine = (ui: React.ReactElement) => render(<MantineTestWrapper>{ui}</MantineTestWrapper>);
 
@@ -26,7 +26,7 @@ describe('NestedCapabilityGrid', () => {
     id: string,
     name: string,
     level: 'L1' | 'L2' | 'L3' | 'L4',
-    parentId?: string
+    parentId?: string,
   ): Capability => ({
     id: id as CapabilityId,
     name,
@@ -50,11 +50,7 @@ describe('NestedCapabilityGrid', () => {
     it('should only show L1 capabilities', () => {
       const onCapabilityClick = vi.fn();
       renderWithMantine(
-        <NestedCapabilityGrid
-          capabilities={mockCapabilities}
-          depth={1}
-          onCapabilityClick={onCapabilityClick}
-        />
+        <NestedCapabilityGrid capabilities={mockCapabilities} depth={1} onCapabilityClick={onCapabilityClick} />,
       );
 
       expect(screen.getByText('Finance')).toBeInTheDocument();
@@ -68,11 +64,7 @@ describe('NestedCapabilityGrid', () => {
     it('should show L1 and L2 capabilities', () => {
       const onCapabilityClick = vi.fn();
       renderWithMantine(
-        <NestedCapabilityGrid
-          capabilities={mockCapabilities}
-          depth={2}
-          onCapabilityClick={onCapabilityClick}
-        />
+        <NestedCapabilityGrid capabilities={mockCapabilities} depth={2} onCapabilityClick={onCapabilityClick} />,
       );
 
       expect(screen.getByText('Finance')).toBeInTheDocument();
@@ -87,11 +79,7 @@ describe('NestedCapabilityGrid', () => {
     it('should show L1, L2 and L3 capabilities', () => {
       const onCapabilityClick = vi.fn();
       renderWithMantine(
-        <NestedCapabilityGrid
-          capabilities={mockCapabilities}
-          depth={3}
-          onCapabilityClick={onCapabilityClick}
-        />
+        <NestedCapabilityGrid capabilities={mockCapabilities} depth={3} onCapabilityClick={onCapabilityClick} />,
       );
 
       expect(screen.getByText('Finance')).toBeInTheDocument();
@@ -105,11 +93,7 @@ describe('NestedCapabilityGrid', () => {
     it('should show all capabilities', () => {
       const onCapabilityClick = vi.fn();
       renderWithMantine(
-        <NestedCapabilityGrid
-          capabilities={mockCapabilities}
-          depth={4}
-          onCapabilityClick={onCapabilityClick}
-        />
+        <NestedCapabilityGrid capabilities={mockCapabilities} depth={4} onCapabilityClick={onCapabilityClick} />,
       );
 
       expect(screen.getByText('Finance')).toBeInTheDocument();
@@ -123,11 +107,7 @@ describe('NestedCapabilityGrid', () => {
     it('should apply correct colors for each level', () => {
       const onCapabilityClick = vi.fn();
       renderWithMantine(
-        <NestedCapabilityGrid
-          capabilities={mockCapabilities}
-          depth={4}
-          onCapabilityClick={onCapabilityClick}
-        />
+        <NestedCapabilityGrid capabilities={mockCapabilities} depth={4} onCapabilityClick={onCapabilityClick} />,
       );
 
       const l1Element = screen.getByTestId('capability-l1-1');
@@ -146,18 +126,14 @@ describe('NestedCapabilityGrid', () => {
     it('should call onCapabilityClick when capability is clicked', () => {
       const onCapabilityClick = vi.fn();
       renderWithMantine(
-        <NestedCapabilityGrid
-          capabilities={mockCapabilities}
-          depth={2}
-          onCapabilityClick={onCapabilityClick}
-        />
+        <NestedCapabilityGrid capabilities={mockCapabilities} depth={2} onCapabilityClick={onCapabilityClick} />,
       );
 
       screen.getByText('Accounting').click();
 
       expect(onCapabilityClick).toHaveBeenCalledWith(
         expect.objectContaining({ id: 'l2-1', name: 'Accounting' }),
-        expect.anything()
+        expect.anything(),
       );
     });
   });
@@ -166,11 +142,7 @@ describe('NestedCapabilityGrid', () => {
     it('should nest L2 inside L1 container', () => {
       const onCapabilityClick = vi.fn();
       const { container } = renderWithMantine(
-        <NestedCapabilityGrid
-          capabilities={mockCapabilities}
-          depth={2}
-          onCapabilityClick={onCapabilityClick}
-        />
+        <NestedCapabilityGrid capabilities={mockCapabilities} depth={2} onCapabilityClick={onCapabilityClick} />,
       );
 
       const l1Container = container.querySelector('[data-testid="capability-l1-1"]');
@@ -189,7 +161,7 @@ describe('NestedCapabilityGrid', () => {
           depth={2}
           onCapabilityClick={onCapabilityClick}
           isDragOver={true}
-        />
+        />,
       );
 
       const grid = container.querySelector('.nested-capability-grid') as HTMLElement;

@@ -1,4 +1,4 @@
-import type { Component, Capability, AcquiredEntity, Vendor, InternalTeam } from '../../../api/types';
+import type { AcquiredEntity, Capability, Component, InternalTeam, Vendor } from '../../../api/types';
 
 export interface ArtifactCreator {
   aggregateId: string;
@@ -18,7 +18,7 @@ export type FilteredArtifacts = FilterableArtifacts;
 function filterById<T extends { id: string }>(
   items: T[],
   selectedCreatorIds: string[],
-  creatorMap: Map<string, string>
+  creatorMap: Map<string, string>,
 ): T[] {
   const selectedSet = new Set(selectedCreatorIds);
   return items.filter((item) => {
@@ -30,7 +30,7 @@ function filterById<T extends { id: string }>(
 export function filterByCreator(
   artifacts: FilterableArtifacts,
   selectedCreatorIds: string[],
-  creatorMap: Map<string, string>
+  creatorMap: Map<string, string>,
 ): FilteredArtifacts {
   if (selectedCreatorIds.length === 0) {
     return artifacts;

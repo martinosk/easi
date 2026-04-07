@@ -1,7 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import type { ComponentId, HATEOASLinks, InternalTeam, InternalTeamId, ViewId } from '../../../../api/types';
 import { InternalTeamsSection } from './InternalTeamsSection';
-import type { InternalTeam, InternalTeamId, HATEOASLinks, ViewId, ComponentId } from '../../../../api/types';
 
 describe('InternalTeamsSection', () => {
   const mockLinks: HATEOASLinks = { self: { href: '/test', method: 'GET' } };
@@ -37,7 +37,6 @@ describe('InternalTeamsSection', () => {
     onTeamContextMenu: vi.fn(),
     multiSelect: mockMultiSelect,
   };
-
 
   describe('rendering', () => {
     it('should display section label with count', () => {
@@ -89,9 +88,27 @@ describe('InternalTeamsSection', () => {
 
     it('should filter teams by name', () => {
       const teams = [
-        createMockTeam({ id: 'it-1', name: 'Platform Engineering', department: 'Engineering', contactPerson: 'Jane Doe', notes: 'Core services' }),
-        createMockTeam({ id: 'it-2', name: 'Data Team', department: 'Analytics', contactPerson: 'John Smith', notes: 'Data services' }),
-        createMockTeam({ id: 'it-3', name: 'Finance IT', department: 'Finance', contactPerson: 'Bob Wilson', notes: 'Financial systems' }),
+        createMockTeam({
+          id: 'it-1',
+          name: 'Platform Engineering',
+          department: 'Engineering',
+          contactPerson: 'Jane Doe',
+          notes: 'Core services',
+        }),
+        createMockTeam({
+          id: 'it-2',
+          name: 'Data Team',
+          department: 'Analytics',
+          contactPerson: 'John Smith',
+          notes: 'Data services',
+        }),
+        createMockTeam({
+          id: 'it-3',
+          name: 'Finance IT',
+          department: 'Finance',
+          contactPerson: 'Bob Wilson',
+          notes: 'Financial systems',
+        }),
       ];
       render(<InternalTeamsSection {...defaultProps} internalTeams={teams} />);
 
@@ -171,13 +188,7 @@ describe('InternalTeamsSection', () => {
     it('should call onTeamSelect when team is clicked', () => {
       const onTeamSelect = vi.fn();
       const team = createMockTeam({ id: 'it-123' as InternalTeamId });
-      render(
-        <InternalTeamsSection
-          {...defaultProps}
-          internalTeams={[team]}
-          onTeamSelect={onTeamSelect}
-        />
-      );
+      render(<InternalTeamsSection {...defaultProps} internalTeams={[team]} onTeamSelect={onTeamSelect} />);
 
       fireEvent.click(screen.getByTitle('Platform Engineering'));
 
@@ -186,13 +197,7 @@ describe('InternalTeamsSection', () => {
 
     it('should apply selected class when team is selected', () => {
       const team = createMockTeam({ id: 'it-123' as InternalTeamId });
-      render(
-        <InternalTeamsSection
-          {...defaultProps}
-          internalTeams={[team]}
-          selectedTeamId="it-123"
-        />
-      );
+      render(<InternalTeamsSection {...defaultProps} internalTeams={[team]} selectedTeamId="it-123" />);
 
       const teamButton = screen.getByTitle('Platform Engineering');
       expect(teamButton).toHaveClass('selected');
@@ -203,13 +208,7 @@ describe('InternalTeamsSection', () => {
     it('should call onTeamContextMenu on right click', () => {
       const onTeamContextMenu = vi.fn();
       const team = createMockTeam();
-      render(
-        <InternalTeamsSection
-          {...defaultProps}
-          internalTeams={[team]}
-          onTeamContextMenu={onTeamContextMenu}
-        />
-      );
+      render(<InternalTeamsSection {...defaultProps} internalTeams={[team]} onTeamContextMenu={onTeamContextMenu} />);
 
       fireEvent.contextMenu(screen.getByTitle('Platform Engineering'));
 
@@ -220,12 +219,7 @@ describe('InternalTeamsSection', () => {
   describe('drag and drop', () => {
     it('should always be draggable', () => {
       const team = createMockTeam({ id: 'it-123' as InternalTeamId });
-      render(
-        <InternalTeamsSection
-          {...defaultProps}
-          internalTeams={[team]}
-        />
-      );
+      render(<InternalTeamsSection {...defaultProps} internalTeams={[team]} />);
 
       const teamButton = screen.getByTitle('Platform Engineering');
       expect(teamButton).toHaveAttribute('draggable', 'true');
@@ -233,12 +227,7 @@ describe('InternalTeamsSection', () => {
 
     it('should set internalTeamId on drag start', () => {
       const team = createMockTeam({ id: 'it-123' as InternalTeamId });
-      render(
-        <InternalTeamsSection
-          {...defaultProps}
-          internalTeams={[team]}
-        />
-      );
+      render(<InternalTeamsSection {...defaultProps} internalTeams={[team]} />);
 
       const teamButton = screen.getByTitle('Platform Engineering');
       const mockDataTransfer = {
@@ -286,9 +275,9 @@ describe('InternalTeamsSection', () => {
       name: 'Test View',
       isDefault: false,
       isPrivate: false,
-      components: componentIds.map(cid => ({ componentId: cid as ComponentId, x: 0, y: 0 })),
+      components: componentIds.map((cid) => ({ componentId: cid as ComponentId, x: 0, y: 0 })),
       capabilities: [],
-      originEntities: originEntityIds.map(oeId => ({ originEntityId: oeId, x: 0, y: 0 })),
+      originEntities: originEntityIds.map((oeId) => ({ originEntityId: oeId, x: 0, y: 0 })),
       createdAt: '2021-01-01T00:00:00Z',
       _links: mockLinks,
     });
@@ -297,13 +286,7 @@ describe('InternalTeamsSection', () => {
       const team = createMockTeam({ id: 'it-123' as InternalTeamId, name: 'Platform Engineering' });
       const currentView = createMockView('view-1', ['comp-456'], ['team-it-123']);
 
-      render(
-        <InternalTeamsSection
-          {...defaultProps}
-          internalTeams={[team]}
-          currentView={currentView}
-        />
-      );
+      render(<InternalTeamsSection {...defaultProps} internalTeams={[team]} currentView={currentView} />);
 
       const teamButton = screen.getByTitle('Platform Engineering');
       expect(teamButton).not.toHaveClass('not-in-view');
@@ -313,13 +296,7 @@ describe('InternalTeamsSection', () => {
       const team = createMockTeam({ id: 'it-123' as InternalTeamId, name: 'Platform Engineering' });
       const currentView = createMockView('view-1', ['comp-456'], []);
 
-      render(
-        <InternalTeamsSection
-          {...defaultProps}
-          internalTeams={[team]}
-          currentView={currentView}
-        />
-      );
+      render(<InternalTeamsSection {...defaultProps} internalTeams={[team]} currentView={currentView} />);
 
       const teamButton = screen.getByTitle('Platform Engineering (not on canvas)');
       expect(teamButton).toHaveClass('not-in-view');
@@ -328,13 +305,7 @@ describe('InternalTeamsSection', () => {
     it('should show all teams as on-canvas when no current view is selected', () => {
       const team = createMockTeam({ id: 'it-123' as InternalTeamId, name: 'Platform Engineering' });
 
-      render(
-        <InternalTeamsSection
-          {...defaultProps}
-          internalTeams={[team]}
-          currentView={null}
-        />
-      );
+      render(<InternalTeamsSection {...defaultProps} internalTeams={[team]} currentView={null} />);
 
       const teamButton = screen.getByTitle('Platform Engineering');
       expect(teamButton).not.toHaveClass('not-in-view');

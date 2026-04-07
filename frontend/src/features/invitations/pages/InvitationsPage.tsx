@@ -1,12 +1,12 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
+import { useUserStore } from '../../../store/userStore';
 import { invitationApi } from '../api/invitationApi';
-import { InviteUserModal } from '../components/InviteUserModal';
-import { InvitationsTable } from '../components/InvitationsTable';
 import { InvitationsEmptyState } from '../components/InvitationsEmptyState';
 import { InvitationsFilters } from '../components/InvitationsFilters';
-import type { Invitation, InvitationStatus, CreateInvitationRequest } from '../types';
-import { useUserStore } from '../../../store/userStore';
+import { InvitationsTable } from '../components/InvitationsTable';
+import { InviteUserModal } from '../components/InviteUserModal';
+import type { CreateInvitationRequest, Invitation, InvitationStatus } from '../types';
 import './InvitationsPage.css';
 
 export function InvitationsPage() {
@@ -87,11 +87,7 @@ export function InvitationsPage() {
           onRevoke={handleRevokeInvitation}
         />
       </div>
-      <InviteUserModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSubmit={handleCreateInvitation}
-      />
+      <InviteUserModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSubmit={handleCreateInvitation} />
     </div>
   );
 }
@@ -111,7 +107,13 @@ function InvitationsHeader({ onInvite }: InvitationsHeaderProps) {
       </div>
       <button type="button" className="btn btn-primary" onClick={onInvite} data-testid="invite-user-btn">
         <svg className="btn-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          <path
+            d="M12 5V19M5 12H19"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
         Invite User
       </button>
@@ -128,7 +130,14 @@ interface InvitationsContentProps {
   onRevoke: (invitation: Invitation) => void;
 }
 
-function InvitationsContent({ isLoading, error, invitations, statusFilter, onInvite, onRevoke }: InvitationsContentProps) {
+function InvitationsContent({
+  isLoading,
+  error,
+  invitations,
+  statusFilter,
+  onInvite,
+  onRevoke,
+}: InvitationsContentProps) {
   if (isLoading) {
     return (
       <div className="loading-state">
@@ -139,7 +148,11 @@ function InvitationsContent({ isLoading, error, invitations, statusFilter, onInv
   }
 
   if (error) {
-    return <div className="error-message" data-testid="invitations-error">{error}</div>;
+    return (
+      <div className="error-message" data-testid="invitations-error">
+        {error}
+      </div>
+    );
   }
 
   if (invitations.length === 0) {

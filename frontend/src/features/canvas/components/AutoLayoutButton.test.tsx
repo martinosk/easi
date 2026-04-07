@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AutoLayoutButton } from './AutoLayoutButton';
 
 const mockApplyAutoLayout = vi.fn();
@@ -42,9 +42,7 @@ describe('AutoLayoutButton', () => {
 
     expect(screen.getByRole('alertdialog')).toBeDefined();
     expect(
-      screen.getByText(
-        'Auto layout is an experimental feature that will completely re-arrange your view.'
-      )
+      screen.getByText('Auto layout is an experimental feature that will completely re-arrange your view.'),
     ).toBeDefined();
     expect(mockApplyAutoLayout).not.toHaveBeenCalled();
   });

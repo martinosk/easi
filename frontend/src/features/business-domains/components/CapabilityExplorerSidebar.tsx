@@ -1,4 +1,4 @@
-import type { Capability, CapabilityId, BusinessDomain } from '../../../api/types';
+import type { BusinessDomain, Capability, CapabilityId } from '../../../api/types';
 import { CapabilityExplorer } from './CapabilityExplorer';
 
 interface CapabilityExplorerSidebarProps {

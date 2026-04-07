@@ -1,17 +1,11 @@
-import { renderHook, waitFor, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
-import {
-  useRelations,
-  useRelation,
-  useCreateRelation,
-  useUpdateRelation,
-  useDeleteRelation,
-} from './useRelations';
-import { relationsQueryKeys } from '../queryKeys';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ComponentId, RelationId } from '../../../api/types';
 import { buildRelation } from '../../../test/helpers/entityBuilders';
-import type { RelationId, ComponentId } from '../../../api/types';
+import { relationsQueryKeys } from '../queryKeys';
+import { useCreateRelation, useDeleteRelation, useRelation, useRelations, useUpdateRelation } from './useRelations';
 
 vi.mock('../api', () => ({
   relationsApi: {
@@ -30,8 +24,8 @@ vi.mock('react-hot-toast', () => ({
   },
 }));
 
-import { relationsApi } from '../api';
 import toast from 'react-hot-toast';
+import { relationsApi } from '../api';
 
 function createWrapper(queryClient: QueryClient) {
   return ({ children }: { children: React.ReactNode }) =>

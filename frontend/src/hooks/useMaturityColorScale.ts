@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
+import type { MaturityBounds, MaturityScaleSection } from '../api/types';
 import { DEFAULT_MATURITY_COLOR, SECTION_COLORS } from '../constants/maturityColors';
-import { interpolateHsl, clampMaturityValue } from '../utils/colorInterpolation';
+import { clampMaturityValue, interpolateHsl } from '../utils/colorInterpolation';
+import { getDefaultSections, getMaturityBounds } from '../utils/maturity';
 import { useMaturityScale } from './useMaturityScale';
-import { getMaturityBounds, getDefaultSections } from '../utils/maturity';
-import type { MaturityScaleSection, MaturityBounds } from '../api/types';
 
 interface MaturityColorScale {
   getColorForValue: (maturityValue: number) => string;
@@ -18,14 +18,14 @@ interface ColoredSection extends MaturityScaleSection {
 }
 
 const addColorsToSections = (sections: MaturityScaleSection[]): ColoredSection[] => {
-  return sections.map(section => {
+  return sections.map((section) => {
     const colors = SECTION_COLORS[section.order] || { lightColor: '#E5E7EB', saturatedColor: '#6B7280' };
     return { ...section, ...colors };
   });
 };
 
 const findSectionForValue = (value: number, sections: ColoredSection[]): ColoredSection | undefined => {
-  return sections.find(section => value >= section.minValue && value <= section.maxValue);
+  return sections.find((section) => value >= section.minValue && value <= section.maxValue);
 };
 
 const calculatePositionInSection = (value: number, section: ColoredSection): number => {
@@ -63,7 +63,7 @@ export const useMaturityColorScale = (): MaturityColorScale => {
 
   const sectionByOrder = useMemo(() => {
     const map = new Map<number, ColoredSection>();
-    sections.forEach(section => map.set(section.order, section));
+    sections.forEach((section) => map.set(section.order, section));
     return map;
   }, [sections]);
 

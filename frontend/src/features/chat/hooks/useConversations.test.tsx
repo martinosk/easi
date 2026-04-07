@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import type { QueryClient } from '@tanstack/react-query';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import type { ReactNode } from 'react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestQueryClient, TestProviders } from '../../../test/helpers/renderWithProviders';
 import { useConversations } from './useConversations';
-import type { ReactNode } from 'react';
-import type { QueryClient } from '@tanstack/react-query';
 
 vi.mock('../api/chatApi', () => ({
   chatApi: {
@@ -68,9 +68,7 @@ describe('useConversations', () => {
   });
 
   it('should delete conversation and invalidate list', async () => {
-    const mockConversations = [
-      { id: 'conv-1', title: 'First chat', createdAt: '2026-01-01T00:00:00Z', _links: {} },
-    ];
+    const mockConversations = [{ id: 'conv-1', title: 'First chat', createdAt: '2026-01-01T00:00:00Z', _links: {} }];
     vi.mocked(chatApi.listConversations).mockResolvedValue({ data: mockConversations, _links: {} });
     vi.mocked(chatApi.deleteConversation).mockResolvedValue();
 

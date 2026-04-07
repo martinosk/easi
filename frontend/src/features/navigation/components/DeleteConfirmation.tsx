@@ -1,6 +1,6 @@
 import React from 'react';
+import type { AcquiredEntity, Component, InternalTeam, Vendor, View } from '../../../api/types';
 import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
-import type { View, Component, AcquiredEntity, Vendor, InternalTeam } from '../../../api/types';
 
 export type DeleteTarget =
   | { type: 'view'; view: View }
@@ -27,7 +27,8 @@ function getDeleteInfo(target: DeleteTarget): { title: string; message: string; 
     case 'component':
       return {
         title: 'Delete Application',
-        message: 'This will delete the application from the entire model, remove it from ALL views, and delete ALL relations involving this application.',
+        message:
+          'This will delete the application from the entire model, remove it from ALL views, and delete ALL relations involving this application.',
         itemName: target.component.name,
       };
     case 'acquired':

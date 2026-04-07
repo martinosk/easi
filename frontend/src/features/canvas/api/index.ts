@@ -1,1 +1,1 @@
-export { layoutsApi, default } from './layoutsApi';
+export { default, layoutsApi } from './layoutsApi';

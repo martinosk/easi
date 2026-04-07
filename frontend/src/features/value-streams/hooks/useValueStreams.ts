@@ -1,19 +1,19 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
-import { valueStreamsApi } from '../api';
-import { valueStreamsQueryKeys } from '../queryKeys';
-import { valueStreamsMutationEffects } from '../mutationEffects';
-import { invalidateFor } from '../../../lib/invalidateFor';
-import type {
-  ValueStream,
-  ValueStreamId,
-  ValueStreamDetail,
-  CreateValueStreamRequest,
-  UpdateValueStreamRequest,
-  ValueStreamsResponse,
-  HATEOASLinks,
-} from '../../../api/types';
 import toast from 'react-hot-toast';
+import type {
+  CreateValueStreamRequest,
+  HATEOASLinks,
+  UpdateValueStreamRequest,
+  ValueStream,
+  ValueStreamDetail,
+  ValueStreamId,
+  ValueStreamsResponse,
+} from '../../../api/types';
+import { invalidateFor } from '../../../lib/invalidateFor';
+import { valueStreamsApi } from '../api';
+import { valueStreamsMutationEffects } from '../mutationEffects';
+import { valueStreamsQueryKeys } from '../queryKeys';
 
 export interface UseValueStreamsResult {
   valueStreams: ValueStream[];
@@ -36,21 +36,21 @@ export function useValueStreams(): UseValueStreamsResult {
     async (name: string, description?: string): Promise<ValueStream> => {
       return createMutation.mutateAsync({ name, description });
     },
-    [createMutation]
+    [createMutation],
   );
 
   const updateValueStream = useCallback(
     async (valueStream: ValueStream, name: string, description?: string): Promise<ValueStream> => {
       return updateMutation.mutateAsync({ valueStream, request: { name, description } });
     },
-    [updateMutation]
+    [updateMutation],
   );
 
   const deleteValueStream = useCallback(
     async (valueStream: ValueStream): Promise<void> => {
       await deleteMutation.mutateAsync(valueStream);
     },
-    [deleteMutation]
+    [deleteMutation],
   );
 
   const refetch = useCallback(async () => {
@@ -87,7 +87,7 @@ export function useValueStream(id: ValueStreamId | undefined) {
 function useValueStreamMutation<TArgs, TResult>(
   mutationFn: (args: TArgs) => Promise<TResult>,
   onMutationSuccess: (queryClient: ReturnType<typeof useQueryClient>, result: TResult, args: TArgs) => void,
-  errorMessage: string
+  errorMessage: string,
 ) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -104,7 +104,7 @@ export function useCreateValueStream() {
       invalidateFor(qc, valueStreamsMutationEffects.create());
       toast.success(`Value stream "${newValueStream.name}" created`);
     },
-    'Failed to create value stream'
+    'Failed to create value stream',
   );
 }
 
@@ -116,7 +116,7 @@ export function useUpdateValueStream() {
       invalidateFor(qc, valueStreamsMutationEffects.update(updatedValueStream.id));
       toast.success(`Value stream "${updatedValueStream.name}" updated`);
     },
-    'Failed to update value stream'
+    'Failed to update value stream',
   );
 }
 
@@ -127,6 +127,6 @@ export function useDeleteValueStream() {
       invalidateFor(qc, valueStreamsMutationEffects.delete(deletedValueStream.id));
       toast.success('Value stream deleted');
     },
-    'Failed to delete value stream'
+    'Failed to delete value stream',
   );
 }

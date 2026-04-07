@@ -1,12 +1,6 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiClient } from '../api/client';
-import type {
-  LayoutContainer,
-  LayoutContextType,
-  ElementPositionInput,
-  BatchUpdateItem,
-  Position,
-} from '../api/types';
+import type { BatchUpdateItem, ElementPositionInput, LayoutContainer, LayoutContextType, Position } from '../api/types';
 
 export interface PositionMap {
   [elementId: string]: Position;
@@ -22,7 +16,7 @@ export interface UseLayoutResult {
     elementId: string,
     x: number,
     y: number,
-    options?: Partial<ElementPositionInput>
+    options?: Partial<ElementPositionInput>,
   ) => Promise<void>;
   batchUpdatePositions: (updates: BatchUpdateItem[]) => Promise<void>;
   updatePreferences: (preferences: Record<string, unknown>) => Promise<void>;
@@ -88,8 +82,10 @@ function useLayoutInitializer(contextType: LayoutContextType, contextRef: string
 }
 
 function useElementPositionUpdater(
-  contextType: LayoutContextType, contextRef: string | null,
-  layout: LayoutContainer | null, setPositions: React.Dispatch<React.SetStateAction<PositionMap>>
+  contextType: LayoutContextType,
+  contextRef: string | null,
+  layout: LayoutContainer | null,
+  setPositions: React.Dispatch<React.SetStateAction<PositionMap>>,
 ) {
   return useCallback(
     async (elementId: string, x: number, y: number, options?: Partial<ElementPositionInput>) => {
@@ -106,13 +102,15 @@ function useElementPositionUpdater(
         throw err;
       }
     },
-    [contextType, contextRef, layout, setPositions]
+    [contextType, contextRef, layout, setPositions],
   );
 }
 
 function useBatchPositionUpdater(
-  contextType: LayoutContextType, contextRef: string | null,
-  layout: LayoutContainer | null, setPositions: React.Dispatch<React.SetStateAction<PositionMap>>
+  contextType: LayoutContextType,
+  contextRef: string | null,
+  layout: LayoutContainer | null,
+  setPositions: React.Dispatch<React.SetStateAction<PositionMap>>,
 ) {
   return useCallback(
     async (updates: BatchUpdateItem[]) => {
@@ -129,16 +127,15 @@ function useBatchPositionUpdater(
         throw err;
       }
     },
-    [contextType, contextRef, layout, setPositions]
+    [contextType, contextRef, layout, setPositions],
   );
 }
 
-export function useLayout(
-  contextType: LayoutContextType,
-  contextRef: string | null
-): UseLayoutResult {
-  const { layout, setLayout, positions, setPositions, isLoading, error, initializeLayout } =
-    useLayoutInitializer(contextType, contextRef);
+export function useLayout(contextType: LayoutContextType, contextRef: string | null): UseLayoutResult {
+  const { layout, setLayout, positions, setPositions, isLoading, error, initializeLayout } = useLayoutInitializer(
+    contextType,
+    contextRef,
+  );
   const preferences = useMemo(() => layout?.preferences ?? {}, [layout?.preferences]);
   const updateElementPosition = useElementPositionUpdater(contextType, contextRef, layout, setPositions);
   const batchUpdatePositions = useBatchPositionUpdater(contextType, contextRef, layout, setPositions);
@@ -147,9 +144,7 @@ export function useLayout(
     async (newPreferences: Record<string, unknown>) => {
       if (!contextRef || !layout) return;
       const previousLayout = layout;
-      setLayout((prev) =>
-        prev ? { ...prev, preferences: { ...prev.preferences, ...newPreferences } } : prev
-      );
+      setLayout((prev) => (prev ? { ...prev, preferences: { ...prev.preferences, ...newPreferences } } : prev));
       try {
         await apiClient.updateLayoutPreferences(contextType, contextRef, newPreferences, layout.version);
       } catch (err) {
@@ -157,16 +152,31 @@ export function useLayout(
         throw err;
       }
     },
-    [contextType, contextRef, layout, setLayout]
+    [contextType, contextRef, layout, setLayout],
   );
 
   return useMemo(
     () => ({
-      layout, positions, preferences, isLoading, error,
-      updateElementPosition, batchUpdatePositions, updatePreferences,
+      layout,
+      positions,
+      preferences,
+      isLoading,
+      error,
+      updateElementPosition,
+      batchUpdatePositions,
+      updatePreferences,
       refetch: initializeLayout,
     }),
-    [layout, positions, preferences, isLoading, error,
-     updateElementPosition, batchUpdatePositions, updatePreferences, initializeLayout]
+    [
+      layout,
+      positions,
+      preferences,
+      isLoading,
+      error,
+      updateElementPosition,
+      batchUpdatePositions,
+      updatePreferences,
+      initializeLayout,
+    ],
   );
 }

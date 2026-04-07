@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useUserStore } from '../store/userStore';
 
 function shouldRedirectToLogin(isLoading: boolean, isAuthenticated: boolean, pathname: string): boolean {

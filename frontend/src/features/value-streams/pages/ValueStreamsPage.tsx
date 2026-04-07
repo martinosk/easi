@@ -1,9 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useValueStreams } from '../hooks/useValueStreams';
+import type { HATEOASLinks, ValueStream } from '../../../api/types';
 import { useUserStore } from '../../../store/userStore';
 import { hasLink } from '../../../utils/hateoas';
-import type { ValueStream, HATEOASLinks } from '../../../api/types';
+import { useValueStreams } from '../hooks/useValueStreams';
 import './ValueStreamsPage.css';
 
 interface ValueStreamFormData {
@@ -21,7 +21,13 @@ interface ValueStreamFormOverlayProps {
   onCancel: () => void;
 }
 
-function ValueStreamFormOverlay({ isEditing, formData, onFormDataChange, onSubmit, onCancel }: ValueStreamFormOverlayProps) {
+function ValueStreamFormOverlay({
+  isEditing,
+  formData,
+  onFormDataChange,
+  onSubmit,
+  onCancel,
+}: ValueStreamFormOverlayProps) {
   return (
     <div className="vs-form-overlay" data-testid="value-stream-form">
       <div className="vs-form">
@@ -50,7 +56,9 @@ function ValueStreamFormOverlay({ isEditing, formData, onFormDataChange, onSubmi
           />
         </div>
         <div className="vs-form-actions">
-          <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
+          <button type="button" className="btn btn-secondary" onClick={onCancel}>
+            Cancel
+          </button>
           <button type="button" className="btn btn-primary" onClick={onSubmit} disabled={!formData.name.trim()}>
             {isEditing ? 'Save' : 'Create'}
           </button>
@@ -75,8 +83,12 @@ function DeleteConfirmOverlay({ streamName, onConfirm, onCancel }: DeleteConfirm
           Are you sure you want to delete &ldquo;{streamName}&rdquo;? This will also remove all its stages and mappings.
         </p>
         <div className="vs-form-actions">
-          <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
-          <button type="button" className="btn btn-danger" onClick={onConfirm}>Delete</button>
+          <button type="button" className="btn btn-secondary" onClick={onCancel}>
+            Cancel
+          </button>
+          <button type="button" className="btn btn-danger" onClick={onConfirm}>
+            Delete
+          </button>
         </div>
       </div>
     </div>
@@ -112,12 +124,28 @@ function ValueStreamCard({ stream, canWrite, canDelete, onNavigate, onEdit, onDe
       </div>
       <div className="vs-card-actions">
         {canWrite && hasLink(stream, 'edit') && (
-          <button type="button" className="btn-small" onClick={(e) => { e.stopPropagation(); onEdit(stream); }} data-testid={`edit-${stream.id}`}>
+          <button
+            type="button"
+            className="btn-small"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(stream);
+            }}
+            data-testid={`edit-${stream.id}`}
+          >
             Edit
           </button>
         )}
         {canDelete && hasLink(stream, 'delete') && (
-          <button type="button" className="btn-small btn-danger" onClick={(e) => { e.stopPropagation(); onDelete(stream); }} data-testid={`delete-${stream.id}`}>
+          <button
+            type="button"
+            className="btn-small btn-danger"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(stream);
+            }}
+            data-testid={`delete-${stream.id}`}
+          >
             Delete
           </button>
         )}
@@ -174,8 +202,14 @@ function useValueStreamFormState(
   return {
     isFormOpen: showCreateForm || editingStream !== null,
     isEditing: editingStream !== null,
-    deletingStream, formData, setFormData,
-    handleSubmit, handleDelete, startEdit, closeForm, openCreateForm,
+    deletingStream,
+    formData,
+    setFormData,
+    handleSubmit,
+    handleDelete,
+    startEdit,
+    closeForm,
+    openCreateForm,
     setDeletingStream,
   };
 }
@@ -185,7 +219,8 @@ function checkCanCreate(canWrite: boolean, collectionLinks: HATEOASLinks | undef
 }
 
 export function ValueStreamsPage() {
-  const { valueStreams, isLoading, error, createValueStream, updateValueStream, deleteValueStream, collectionLinks } = useValueStreams();
+  const { valueStreams, isLoading, error, createValueStream, updateValueStream, deleteValueStream, collectionLinks } =
+    useValueStreams();
   const hasPermission = useUserStore((state) => state.hasPermission);
   const navigate = useNavigate();
   const canWrite = hasPermission('valuestreams:write');
@@ -226,9 +261,20 @@ export function ValueStreamsPage() {
             <p className="vs-subtitle">Model how your organization delivers value end-to-end.</p>
           </div>
           {canCreate && (
-            <button type="button" className="btn btn-primary" onClick={form.openCreateForm} data-testid="create-value-stream-btn">
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={form.openCreateForm}
+              data-testid="create-value-stream-btn"
+            >
               <svg className="btn-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path
+                  d="M12 5V19M5 12H19"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
               Create Value Stream
             </button>
@@ -256,10 +302,19 @@ export function ValueStreamsPage() {
         {valueStreams.length === 0 ? (
           <div className="vs-empty" data-testid="empty-state">
             <svg className="vs-empty-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M22 12H18L15 21L9 3L6 12H2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path
+                d="M22 12H18L15 21L9 3L6 12H2"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
             <h3>No value streams yet</h3>
-            <p>Value streams model how your organization delivers value end-to-end. Create your first value stream to get started.</p>
+            <p>
+              Value streams model how your organization delivers value end-to-end. Create your first value stream to get
+              started.
+            </p>
             {canCreate && (
               <button type="button" className="btn btn-primary" onClick={form.openCreateForm}>
                 Create your first value stream

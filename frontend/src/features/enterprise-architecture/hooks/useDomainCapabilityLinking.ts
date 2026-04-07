@@ -1,12 +1,12 @@
-import { useCallback, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { enterpriseArchApi } from '../api/enterpriseArchApi';
-import { capabilitiesApi } from '../../capabilities/api/capabilitiesApi';
-import { enterpriseCapabilitiesQueryKeys } from '../queryKeys';
-import { capabilitiesQueryKeys } from '../../capabilities/queryKeys';
-import { useLinkDomainCapability } from './useEnterpriseCapabilities';
-import type { EnterpriseCapabilityId, CapabilityLinkStatusResponse } from '../types';
+import { useCallback, useMemo } from 'react';
 import type { Capability } from '../../../api/types';
+import { capabilitiesApi } from '../../capabilities/api/capabilitiesApi';
+import { capabilitiesQueryKeys } from '../../capabilities/queryKeys';
+import { enterpriseArchApi } from '../api/enterpriseArchApi';
+import { enterpriseCapabilitiesQueryKeys } from '../queryKeys';
+import type { CapabilityLinkStatusResponse, EnterpriseCapabilityId } from '../types';
+import { useLinkDomainCapability } from './useEnterpriseCapabilities';
 
 export interface UseDomainCapabilityLinkingResult {
   domainCapabilities: Capability[];
@@ -62,7 +62,7 @@ export function useDomainCapabilityLinking(enabled: boolean): UseDomainCapabilit
       });
       queryClient.invalidateQueries({ queryKey: enterpriseCapabilitiesQueryKeys.linkStatuses() });
     },
-    [linkMutation, queryClient]
+    [linkMutation, queryClient],
   );
 
   return {

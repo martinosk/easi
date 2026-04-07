@@ -1,9 +1,9 @@
 import { Button } from '@mantine/core';
-import { useAIConfiguration } from '../hooks/useAIConfiguration';
-import { useAIConfigForm } from '../hooks/useAIConfigForm';
 import type { AIConfigurationResponse, LLMProvider, TestConnectionResponse } from '../../../api/assistant/types';
-import { APIKeyField } from './APIKeyField';
+import { useAIConfigForm } from '../hooks/useAIConfigForm';
+import { useAIConfiguration } from '../hooks/useAIConfiguration';
 import { AdvancedSettings } from './AdvancedSettings';
+import { APIKeyField } from './APIKeyField';
 import './AIConfigurationSettings.css';
 
 const PROVIDER_DEFAULTS: Record<LLMProvider, string> = {
@@ -29,7 +29,9 @@ function AIConfigForm({ config }: { config: AIConfigurationResponse | undefined 
   return (
     <div className="ai-config-form">
       <div className="ai-config-field">
-        <label htmlFor="ai-provider">Provider <span className="ai-config-required">*</span></label>
+        <label htmlFor="ai-provider">
+          Provider <span className="ai-config-required">*</span>
+        </label>
         <select
           id="ai-provider"
           value={form.fields.provider}
@@ -49,9 +51,7 @@ function AIConfigForm({ config }: { config: AIConfigurationResponse | undefined 
           onChange={(e) => form.updateField('endpoint', e.target.value)}
           placeholder={PROVIDER_DEFAULTS[form.fields.provider]}
         />
-        <p className="ai-config-field-hint">
-          Leave empty to use the default provider endpoint
-        </p>
+        <p className="ai-config-field-hint">Leave empty to use the default provider endpoint</p>
       </div>
 
       <APIKeyField
@@ -63,7 +63,9 @@ function AIConfigForm({ config }: { config: AIConfigurationResponse | undefined 
       />
 
       <div className="ai-config-field">
-        <label htmlFor="ai-model">Model <span className="ai-config-required">*</span></label>
+        <label htmlFor="ai-model">
+          Model <span className="ai-config-required">*</span>
+        </label>
         <input
           id="ai-model"
           type="text"
@@ -105,11 +107,7 @@ function AIConfigForm({ config }: { config: AIConfigurationResponse | undefined 
             Test Connection
           </Button>
         )}
-        <Button
-          onClick={form.handleSave}
-          loading={form.isSaving}
-          disabled={form.isSaveDisabled}
-        >
+        <Button onClick={form.handleSave} loading={form.isSaving} disabled={form.isSaveDisabled}>
           Save
         </Button>
       </div>
@@ -151,8 +149,8 @@ export function AIConfigurationSettings() {
       </div>
 
       <div className="ai-config-banner">
-        Architecture data will be sent to the configured LLM endpoint.
-        Ensure compliance with your organization&apos;s data handling requirements.
+        Architecture data will be sent to the configured LLM endpoint. Ensure compliance with your organization&apos;s
+        data handling requirements.
       </div>
 
       <AIConfigForm config={config} />

@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
+import type { Capability, CapabilityRealization, Component } from '../../../api/types';
 import { useAppStore } from '../../../store/appStore';
 import { useCapabilities, useRealizations } from '../../capabilities/hooks/useCapabilities';
 import { useComponents } from '../../components/hooks/useComponents';
-import type { CapabilityRealization, Capability, Component } from '../../../api/types';
 
 const REALIZATION_PREFIX = 'realization-';
 
@@ -14,17 +14,15 @@ export interface RealizationData {
   isInherited: boolean;
 }
 
-const isRealizationEdge = (edgeId: string | null): boolean =>
-  edgeId !== null && edgeId.startsWith(REALIZATION_PREFIX);
+const isRealizationEdge = (edgeId: string | null): boolean => edgeId !== null && edgeId.startsWith(REALIZATION_PREFIX);
 
-const extractRealizationId = (edgeId: string): string =>
-  edgeId.replace(REALIZATION_PREFIX, '');
+const extractRealizationId = (edgeId: string): string => edgeId.replace(REALIZATION_PREFIX, '');
 
 const getRealizationData = (
   selectedEdgeId: string | null,
   capabilityRealizations: CapabilityRealization[],
   capabilities: Capability[],
-  components: Component[]
+  components: Component[],
 ): RealizationData | null => {
   if (!isRealizationEdge(selectedEdgeId)) {
     return null;
@@ -54,6 +52,6 @@ export const useRealizationDetails = (): RealizationData | null => {
 
   return useMemo(
     () => getRealizationData(selectedEdgeId, capabilityRealizations, capabilities, components),
-    [selectedEdgeId, capabilityRealizations, capabilities, components]
+    [selectedEdgeId, capabilityRealizations, capabilities, components],
   );
 };

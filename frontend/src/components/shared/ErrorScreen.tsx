@@ -11,7 +11,7 @@ export const ErrorScreen: React.FC<ErrorScreenProps> = ({
   error,
   onRetry,
   retryLabel = 'Retry',
-  title = 'Error Loading Data'
+  title = 'Error Loading Data',
 }) => {
   return (
     <div className="error-container">

@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMantineTestWrapper } from '../../../test/helpers';
-import { CreatedByFilter } from './CreatedByFilter';
 import type { ArtifactCreator } from '../utils/filterByCreator';
+import { CreatedByFilter } from './CreatedByFilter';
 
 describe('CreatedByFilter', () => {
   const onSelectionChange = vi.fn();
@@ -17,11 +17,13 @@ describe('CreatedByFilter', () => {
     { id: 'user-carol', email: 'carol@example.com' },
   ];
 
-  function renderFilter(props: {
-    artifactCreators?: ArtifactCreator[];
-    users?: Array<{ id: string; name?: string; email: string }>;
-    selectedCreatorIds?: string[];
-  } = {}) {
+  function renderFilter(
+    props: {
+      artifactCreators?: ArtifactCreator[];
+      users?: Array<{ id: string; name?: string; email: string }>;
+      selectedCreatorIds?: string[];
+    } = {},
+  ) {
     const { Wrapper } = createMantineTestWrapper();
     return render(
       <CreatedByFilter
@@ -30,15 +32,13 @@ describe('CreatedByFilter', () => {
         selectedCreatorIds={props.selectedCreatorIds ?? []}
         onSelectionChange={onSelectionChange}
       />,
-      { wrapper: Wrapper }
+      { wrapper: Wrapper },
     );
   }
 
   it('should render the filter with a label', () => {
     renderFilter({
-      artifactCreators: [
-        { aggregateId: 'comp-1', creatorId: 'user-alice' },
-      ],
+      artifactCreators: [{ aggregateId: 'comp-1', creatorId: 'user-alice' }],
     });
 
     expect(screen.getByText(/created by/i)).toBeInTheDocument();
@@ -77,9 +77,7 @@ describe('CreatedByFilter', () => {
   });
 
   it('should call onSelectionChange with empty array when selection is cleared', () => {
-    const artifactCreators: ArtifactCreator[] = [
-      { aggregateId: 'comp-1', creatorId: 'user-alice' },
-    ];
+    const artifactCreators: ArtifactCreator[] = [{ aggregateId: 'comp-1', creatorId: 'user-alice' }];
 
     renderFilter({
       artifactCreators,
@@ -93,9 +91,7 @@ describe('CreatedByFilter', () => {
   });
 
   it('should display email as fallback when user has no name', () => {
-    const artifactCreators: ArtifactCreator[] = [
-      { aggregateId: 'comp-1', creatorId: 'user-carol' },
-    ];
+    const artifactCreators: ArtifactCreator[] = [{ aggregateId: 'comp-1', creatorId: 'user-carol' }];
 
     renderFilter({ artifactCreators });
 

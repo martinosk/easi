@@ -1,4 +1,4 @@
 export { DialogProvider } from './DialogContext';
-export { useDialogContext } from './useDialogContext';
+export type { DialogContextValue, DialogDataMap, DialogId } from './types';
 export { useDialog } from './useDialog';
-export type { DialogId, DialogDataMap, DialogContextValue } from './types';
+export { useDialogContext } from './useDialogContext';

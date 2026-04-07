@@ -13,14 +13,7 @@ export function HelpTooltip({ content, label, iconOnly = false, position = 'top'
   return (
     <span className="help-tooltip-wrapper">
       {label && !iconOnly && <span className="help-tooltip-label">{label}</span>}
-      <Tooltip
-        label={content}
-        position={position}
-        withArrow
-        multiline
-        w={280}
-        className="help-tooltip"
-      >
+      <Tooltip label={content} position={position} withArrow multiline w={280} className="help-tooltip">
         <span className="help-tooltip-icon" role="img" aria-label="Help">
           <svg
             width="14"

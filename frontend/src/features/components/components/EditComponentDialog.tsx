@@ -1,15 +1,15 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { Modal, TextInput, Textarea, Button, Group, Stack, Alert } from '@mantine/core';
-import { useForm } from 'react-hook-form';
-import type { UseFormRegister, FieldErrors, UseFormReset } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useUpdateComponent, useComponent } from '../hooks/useComponents';
-import { editComponentSchema, type EditComponentFormData } from '../../../lib/schemas';
-import { hasLink } from '../../../utils/hateoas';
+import { Alert, Button, Group, Modal, Stack, Textarea, TextInput } from '@mantine/core';
+import React, { useCallback, useEffect, useState } from 'react';
+import type { FieldErrors, UseFormRegister, UseFormReset } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import type { Component } from '../../../api/types';
-import { ComponentExpertsList } from './ComponentExpertsList';
-import { AddComponentExpertDialog } from './AddComponentExpertDialog';
 import { toComponentId } from '../../../api/types';
+import { type EditComponentFormData, editComponentSchema } from '../../../lib/schemas';
+import { hasLink } from '../../../utils/hateoas';
+import { useComponent, useUpdateComponent } from '../hooks/useComponents';
+import { AddComponentExpertDialog } from './AddComponentExpertDialog';
+import { ComponentExpertsList } from './ComponentExpertsList';
 
 interface EditComponentDialogProps {
   isOpen: boolean;
@@ -91,7 +91,12 @@ export const EditComponentDialog: React.FC<EditComponentDialogProps> = ({
   const { data: freshComponent } = useComponent(componentId);
   const component = freshComponent ?? componentProp;
 
-  const { register, handleSubmit, reset, formState: { errors, isValid } } = useForm<EditComponentFormData>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isValid },
+  } = useForm<EditComponentFormData>({
     resolver: zodResolver(editComponentSchema),
     defaultValues: DEFAULT_VALUES,
     mode: 'onChange',
@@ -99,19 +104,22 @@ export const EditComponentDialog: React.FC<EditComponentDialogProps> = ({
 
   useFormReset(isOpen, componentProp, reset, setBackendError);
 
-  const onSubmit = useCallback(async (data: EditComponentFormData) => {
-    if (!component) return setBackendError('No application selected');
-    setBackendError(null);
-    try {
-      await updateComponentMutation.mutateAsync({
-        component,
-        request: { name: data.name, description: data.description || undefined },
-      });
-      onClose();
-    } catch (err) {
-      setBackendError(err instanceof Error ? err.message : 'Failed to update application');
-    }
-  }, [component, updateComponentMutation, onClose]);
+  const onSubmit = useCallback(
+    async (data: EditComponentFormData) => {
+      if (!component) return setBackendError('No application selected');
+      setBackendError(null);
+      try {
+        await updateComponentMutation.mutateAsync({
+          component,
+          request: { name: data.name, description: data.description || undefined },
+        });
+        onClose();
+      } catch (err) {
+        setBackendError(err instanceof Error ? err.message : 'Failed to update application');
+      }
+    },
+    [component, updateComponentMutation, onClose],
+  );
 
   const canAddExpert = component ? hasLink(component, 'x-add-expert') : false;
   const openAddExpert = useCallback(() => setIsAddExpertOpen(true), []);
@@ -137,7 +145,9 @@ export const EditComponentDialog: React.FC<EditComponentDialogProps> = ({
           </Stack>
         </form>
       </Modal>
-      {component && <AddComponentExpertDialog isOpen={isAddExpertOpen} onClose={closeAddExpert} componentId={component.id} />}
+      {component && (
+        <AddComponentExpertDialog isOpen={isAddExpertOpen} onClose={closeAddExpert} componentId={component.id} />
+      )}
     </>
   );
 };

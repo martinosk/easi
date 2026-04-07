@@ -1,10 +1,7 @@
 import toast from 'react-hot-toast';
 import { ApiError } from '../../api/types';
 
-export async function handleApiCall<T>(
-  apiCall: () => Promise<T>,
-  errorMessage: string
-): Promise<T> {
+export async function handleApiCall<T>(apiCall: () => Promise<T>, errorMessage: string): Promise<T> {
   try {
     return await apiCall();
   } catch (error) {
@@ -22,9 +19,7 @@ interface OptimisticUpdateOptions<T> {
   errorMessage: string;
 }
 
-export async function optimisticUpdate<T>(
-  options: OptimisticUpdateOptions<T>
-): Promise<T> {
+export async function optimisticUpdate<T>(options: OptimisticUpdateOptions<T>): Promise<T> {
   const { apiCall, onSuccess, onError, successMessage, errorMessage } = options;
 
   try {

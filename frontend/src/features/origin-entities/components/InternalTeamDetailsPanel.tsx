@@ -5,8 +5,6 @@ interface InternalTeamDetailsPanelProps {
   entityId: string;
 }
 
-export const InternalTeamDetailsPanel: React.FC<InternalTeamDetailsPanelProps> = ({
-  entityId,
-}) => {
+export const InternalTeamDetailsPanel: React.FC<InternalTeamDetailsPanelProps> = ({ entityId }) => {
   return <OriginEntityDetailsPanel entityType="team" entityId={entityId} />;
 };

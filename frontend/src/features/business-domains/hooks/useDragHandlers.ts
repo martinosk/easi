@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import toast from 'react-hot-toast';
-import type { Capability, CapabilityId, BusinessDomainId } from '../../../api/types';
+import type { BusinessDomainId, Capability, CapabilityId } from '../../../api/types';
 
 export interface PendingReassignment {
   capability: Capability;
@@ -76,7 +76,7 @@ export function useDragHandlers(props: UseDragHandlersProps) {
         setActiveCapability(null);
       }
     },
-    [props]
+    [props],
   );
 
   return {

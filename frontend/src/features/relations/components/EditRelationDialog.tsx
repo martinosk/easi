@@ -1,10 +1,10 @@
-import React, { useLayoutEffect, useState } from 'react';
-import { Modal, TextInput, Textarea, Button, Group, Stack, Alert } from '@mantine/core';
-import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useUpdateRelation } from '../hooks/useRelations';
-import { editRelationSchema, type EditRelationFormData } from '../../../lib/schemas';
+import { Alert, Button, Group, Modal, Stack, Textarea, TextInput } from '@mantine/core';
+import React, { useLayoutEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import type { Relation } from '../../../api/types';
+import { type EditRelationFormData, editRelationSchema } from '../../../lib/schemas';
+import { useUpdateRelation } from '../hooks/useRelations';
 
 interface EditRelationDialogProps {
   isOpen: boolean;
@@ -14,11 +14,7 @@ interface EditRelationDialogProps {
 
 const DEFAULT_VALUES: EditRelationFormData = { name: '', description: '' };
 
-export const EditRelationDialog: React.FC<EditRelationDialogProps> = ({
-  isOpen,
-  onClose,
-  relation,
-}) => {
+export const EditRelationDialog: React.FC<EditRelationDialogProps> = ({ isOpen, onClose, relation }) => {
   const [backendError, setBackendError] = useState<string | null>(null);
   const updateRelationMutation = useUpdateRelation();
 
@@ -65,12 +61,7 @@ export const EditRelationDialog: React.FC<EditRelationDialogProps> = ({
   };
 
   return (
-    <Modal
-      opened={isOpen}
-      onClose={handleClose}
-      title="Edit Relation"
-      centered
-    >
+    <Modal opened={isOpen} onClose={handleClose} title="Edit Relation" centered>
       <form onSubmit={handleSubmit(onSubmit)}>
         <Stack gap="md">
           <TextInput
@@ -91,24 +82,13 @@ export const EditRelationDialog: React.FC<EditRelationDialogProps> = ({
             error={errors.description?.message}
           />
 
-          {backendError && (
-            <Alert color="red">
-              {backendError}
-            </Alert>
-          )}
+          {backendError && <Alert color="red">{backendError}</Alert>}
 
           <Group justify="flex-end" gap="sm">
-            <Button
-              variant="default"
-              onClick={handleClose}
-              disabled={updateRelationMutation.isPending}
-            >
+            <Button variant="default" onClick={handleClose} disabled={updateRelationMutation.isPending}>
               Cancel
             </Button>
-            <Button
-              type="submit"
-              loading={updateRelationMutation.isPending}
-            >
+            <Button type="submit" loading={updateRelationMutation.isPending}>
               Save Changes
             </Button>
           </Group>

@@ -1,17 +1,17 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fitScoresApi } from '../api';
-import { fitScoresQueryKeys, fitComparisonsQueryKeys } from '../queryKeys';
-import { invalidateFor } from '../../../lib/invalidateFor';
-import { fitScoresMutationEffects } from '../mutationEffects';
-import type {
-  ComponentId,
-  CapabilityId,
-  BusinessDomainId,
-  SetApplicationFitScoreRequest,
-  ApplicationFitScoresResponse,
-  ApiError,
-} from '../../../api/types';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
+import type {
+  ApiError,
+  ApplicationFitScoresResponse,
+  BusinessDomainId,
+  CapabilityId,
+  ComponentId,
+  SetApplicationFitScoreRequest,
+} from '../../../api/types';
+import { invalidateFor } from '../../../lib/invalidateFor';
+import { fitScoresApi } from '../api';
+import { fitScoresMutationEffects } from '../mutationEffects';
+import { fitComparisonsQueryKeys, fitScoresQueryKeys } from '../queryKeys';
 
 const fitScoreErrorMessages: Record<number, string> = {
   400: 'Invalid input. Please check the score value.',
@@ -64,13 +64,8 @@ export function useDeleteFitScore() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      componentId,
-      pillarId,
-    }: {
-      componentId: ComponentId;
-      pillarId: string;
-    }) => fitScoresApi.deleteScore(componentId, pillarId),
+    mutationFn: ({ componentId, pillarId }: { componentId: ComponentId; pillarId: string }) =>
+      fitScoresApi.deleteScore(componentId, pillarId),
     onSuccess: (_, { componentId }) => {
       invalidateFor(queryClient, fitScoresMutationEffects.delete(componentId));
       toast.success('Fit score removed');
@@ -84,14 +79,10 @@ export function useDeleteFitScore() {
 export function useFitComparisons(
   componentId: ComponentId | undefined,
   capabilityId: CapabilityId | undefined,
-  businessDomainId: BusinessDomainId | undefined
+  businessDomainId: BusinessDomainId | undefined,
 ) {
   return useQuery({
-    queryKey: fitComparisonsQueryKeys.byContext(
-      componentId!,
-      capabilityId!,
-      businessDomainId!
-    ),
+    queryKey: fitComparisonsQueryKeys.byContext(componentId!, capabilityId!, businessDomainId!),
     queryFn: () => fitScoresApi.getFitComparisons(componentId!, capabilityId!, businessDomainId!),
     enabled: !!componentId && !!capabilityId && !!businessDomainId,
   });

@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import type { BusinessDomain } from '../../../api/types';
 import type { ContextMenuItem } from '../../../components/shared/ContextMenu';
-import type { ArtifactType } from '../../edit-grants/types';
 import { copyToClipboard, generateDomainShareUrl } from '../../../utils/clipboard';
 import { hasLink } from '../../../utils/hateoas';
+import type { ArtifactType } from '../../edit-grants/types';
 
 interface DomainContextMenuState {
   x: number;

@@ -6,11 +6,7 @@ interface UseKeyboardShortcutsProps {
   onClearSelection: () => void;
 }
 
-export function useKeyboardShortcuts({
-  hasSelection,
-  onSelectAll,
-  onClearSelection,
-}: UseKeyboardShortcutsProps): void {
+export function useKeyboardShortcuts({ hasSelection, onSelectAll, onClearSelection }: UseKeyboardShortcutsProps): void {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const isSelectAllShortcut = (e.ctrlKey || e.metaKey) && e.key === 'a';

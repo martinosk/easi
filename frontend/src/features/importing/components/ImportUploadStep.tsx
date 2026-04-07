@@ -64,9 +64,7 @@ const DomainSelect: React.FC<{
         </option>
       ))}
     </select>
-    <div className="field-help">
-      If selected, L1 capabilities will be assigned to this business domain.
-    </div>
+    <div className="field-help">If selected, L1 capabilities will be assigned to this business domain.</div>
   </div>
 );
 
@@ -95,9 +93,7 @@ const EAOwnerSelect: React.FC<{
         </option>
       ))}
     </select>
-    <div className="field-help">
-      If selected, this user will be assigned as EA Owner to all imported capabilities.
-    </div>
+    <div className="field-help">If selected, this user will be assigned as EA Owner to all imported capabilities.</div>
   </div>
 );
 

@@ -1,15 +1,10 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { originEntitiesApi } from '../api/originEntitiesApi';
-import { vendorsQueryKeys } from '../queryKeys';
-import { invalidateFor } from '../../../lib/invalidateFor';
-import { vendorsMutationEffects } from '../mutationEffects';
-import type {
-  VendorId,
-  CreateVendorRequest,
-  UpdateVendorRequest,
-  ComponentId,
-} from '../../../api/types';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
+import type { ComponentId, CreateVendorRequest, UpdateVendorRequest, VendorId } from '../../../api/types';
+import { invalidateFor } from '../../../lib/invalidateFor';
+import { originEntitiesApi } from '../api/originEntitiesApi';
+import { vendorsMutationEffects } from '../mutationEffects';
+import { vendorsQueryKeys } from '../queryKeys';
 
 export function useVendorsQuery() {
   return useQuery({

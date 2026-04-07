@@ -34,7 +34,9 @@ export function DomainCard({ domain, onVisualize, onContextMenu, isSelected }: D
         transition: 'all 0.15s ease',
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.25rem' }}>
+      <div
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.25rem' }}
+      >
         <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: '#111827' }}>{domain.name}</h3>
         <span style={{ fontSize: '0.75rem', color: '#6b7280', whiteSpace: 'nowrap', marginLeft: '0.5rem' }}>
           {domain.capabilityCount} {domain.capabilityCount === 1 ? 'capability' : 'capabilities'}

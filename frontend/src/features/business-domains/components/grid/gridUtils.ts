@@ -37,9 +37,7 @@ export function buildTree(capabilities: Capability[]): CapabilityNode[] {
   }
 
   function buildNode(cap: Capability): CapabilityNode {
-    const children = (childrenMap.get(cap.id) || [])
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .map(buildNode);
+    const children = (childrenMap.get(cap.id) || []).sort((a, b) => a.name.localeCompare(b.name)).map(buildNode);
     return { capability: cap, children };
   }
 
@@ -51,11 +49,7 @@ export function levelToNumber(level: Capability['level']): number {
   return parseInt(level.substring(1), 10);
 }
 
-export function compareNodesByPosition(
-  a: CapabilityNode,
-  b: CapabilityNode,
-  positions: PositionMap
-): number {
+export function compareNodesByPosition(a: CapabilityNode, b: CapabilityNode, positions: PositionMap): number {
   const posA = positions[a.capability.id];
   const posB = positions[b.capability.id];
 

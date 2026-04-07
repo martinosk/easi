@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { buildCapability, resetIdCounter } from '../../../test/helpers';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { toCapabilityId } from '../../../api/types';
+import { buildCapability, resetIdCounter } from '../../../test/helpers';
 import { preserveCapabilityHierarchy } from './preserveCapabilityHierarchy';
 
 describe('preserveCapabilityHierarchy', () => {

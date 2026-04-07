@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { createUserSlice, type UserState, type UserActions } from './slices/userSlice';
+import { createUserSlice, type UserActions, type UserState } from './slices/userSlice';
 
 export type UserStore = UserState & UserActions;
 
@@ -7,4 +7,4 @@ export const useUserStore = create<UserStore>()((...args) => ({
   ...createUserSlice(...args),
 }));
 
-export type { SessionUser, SessionTenant, SessionLinks, UserRole } from '../features/auth/types';
+export type { SessionLinks, SessionTenant, SessionUser, UserRole } from '../features/auth/types';

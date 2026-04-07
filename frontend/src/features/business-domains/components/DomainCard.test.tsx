@@ -1,7 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { DomainCard } from './DomainCard';
+import { describe, expect, it, vi } from 'vitest';
 import type { BusinessDomain, BusinessDomainId } from '../../../api/types';
+import { DomainCard } from './DomainCard';
 
 describe('DomainCard', () => {
   const mockDomain: BusinessDomain = {

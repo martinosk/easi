@@ -1,5 +1,8 @@
 .capability-item {
-  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    filter 0.15s ease;
 }
 
 .capability-item:hover {
@@ -18,7 +21,9 @@
 }
 
 .nested-children {
-  transition: opacity 0.2s ease, max-height 0.3s ease;
+  transition:
+    opacity 0.2s ease,
+    max-height 0.3s ease;
 }
 
 .depth-transition {

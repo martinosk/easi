@@ -1,21 +1,21 @@
-import { renderHook, waitFor, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { CapabilityDependencyId, CapabilityId } from '../../../api/types';
+import { buildCapability, buildCapabilityDependency } from '../../../test/helpers/entityBuilders';
+import { businessDomainsQueryKeys } from '../../business-domains/queryKeys';
+import { capabilitiesQueryKeys } from '../queryKeys';
 import {
   useCapabilities,
   useCapability,
-  useCreateCapability,
-  useUpdateCapability,
-  useDeleteCapability,
   useCapabilityDependencies,
+  useCreateCapability,
   useCreateCapabilityDependency,
+  useDeleteCapability,
   useDeleteCapabilityDependency,
+  useUpdateCapability,
 } from './useCapabilities';
-import { capabilitiesQueryKeys } from '../queryKeys';
-import { businessDomainsQueryKeys } from '../../business-domains/queryKeys';
-import { buildCapability, buildCapabilityDependency } from '../../../test/helpers/entityBuilders';
-import type { CapabilityId, CapabilityDependencyId } from '../../../api/types';
 
 vi.mock('../api', () => ({
   capabilitiesApi: {
@@ -49,8 +49,8 @@ vi.mock('react-hot-toast', () => ({
   },
 }));
 
-import { capabilitiesApi } from '../api';
 import toast from 'react-hot-toast';
+import { capabilitiesApi } from '../api';
 
 function createWrapper(queryClient: QueryClient) {
   return ({ children }: { children: React.ReactNode }) =>

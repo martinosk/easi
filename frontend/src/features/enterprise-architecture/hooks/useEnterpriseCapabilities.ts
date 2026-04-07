@@ -1,18 +1,18 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
-import { enterpriseArchApi } from '../api/enterpriseArchApi';
-import { enterpriseCapabilitiesQueryKeys } from '../queryKeys';
-import { enterpriseCapabilitiesMutationEffects } from '../mutationEffects';
+import toast from 'react-hot-toast';
 import { invalidateFor } from '../../../lib/invalidateFor';
-import { getErrorMessage } from '../utils/errorMessages';
+import { enterpriseArchApi } from '../api/enterpriseArchApi';
+import { enterpriseCapabilitiesMutationEffects } from '../mutationEffects';
+import { enterpriseCapabilitiesQueryKeys } from '../queryKeys';
 import type {
+  CreateEnterpriseCapabilityRequest,
   EnterpriseCapability,
   EnterpriseCapabilityId,
   EnterpriseCapabilityLinkId,
-  CreateEnterpriseCapabilityRequest,
   LinkCapabilityRequest,
 } from '../types';
-import toast from 'react-hot-toast';
+import { getErrorMessage } from '../utils/errorMessages';
 
 export interface UseEnterpriseCapabilitiesResult {
   capabilities: EnterpriseCapability[];
@@ -30,12 +30,14 @@ export function useEnterpriseCapabilities(): UseEnterpriseCapabilitiesResult {
 
   const createCapability = useCallback(
     (request: CreateEnterpriseCapabilityRequest) => createMutation.mutateAsync(request),
-    [createMutation]
+    [createMutation],
   );
 
   const deleteCapability = useCallback(
-    async (id: EnterpriseCapabilityId, name: string) => { await deleteMutation.mutateAsync({ id, name }); },
-    [deleteMutation]
+    async (id: EnterpriseCapabilityId, name: string) => {
+      await deleteMutation.mutateAsync({ id, name });
+    },
+    [deleteMutation],
   );
 
   const refetch = useCallback(async () => {
@@ -114,8 +116,13 @@ export function useEnterpriseCapabilityLinks(enterpriseCapabilityId: EnterpriseC
 
 export function useLinkDomainCapability() {
   return useEnterpriseMutation({
-    mutationFn: ({ enterpriseCapabilityId, request }: { enterpriseCapabilityId: EnterpriseCapabilityId; request: LinkCapabilityRequest }) =>
-      enterpriseArchApi.linkDomainCapability(enterpriseCapabilityId, request),
+    mutationFn: ({
+      enterpriseCapabilityId,
+      request,
+    }: {
+      enterpriseCapabilityId: EnterpriseCapabilityId;
+      request: LinkCapabilityRequest;
+    }) => enterpriseArchApi.linkDomainCapability(enterpriseCapabilityId, request),
     effects: (_, { enterpriseCapabilityId }) => enterpriseCapabilitiesMutationEffects.link(enterpriseCapabilityId),
     successMessage: () => 'Capability linked successfully',
     errorMessage: 'Failed to link capability',
@@ -124,8 +131,13 @@ export function useLinkDomainCapability() {
 
 export function useUnlinkDomainCapability() {
   return useEnterpriseMutation({
-    mutationFn: ({ enterpriseCapabilityId, linkId }: { enterpriseCapabilityId: EnterpriseCapabilityId; linkId: EnterpriseCapabilityLinkId }) =>
-      enterpriseArchApi.unlinkDomainCapability(enterpriseCapabilityId, linkId),
+    mutationFn: ({
+      enterpriseCapabilityId,
+      linkId,
+    }: {
+      enterpriseCapabilityId: EnterpriseCapabilityId;
+      linkId: EnterpriseCapabilityLinkId;
+    }) => enterpriseArchApi.unlinkDomainCapability(enterpriseCapabilityId, linkId),
     effects: (_, { enterpriseCapabilityId }) => enterpriseCapabilitiesMutationEffects.unlink(enterpriseCapabilityId),
     successMessage: () => 'Capability unlinked successfully',
     errorMessage: 'Failed to unlink capability',

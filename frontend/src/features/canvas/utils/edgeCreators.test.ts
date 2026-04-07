@@ -1,8 +1,8 @@
-import { describe, it, expect } from 'vitest';
 import type { Node } from '@xyflow/react';
 import { MarkerType } from '@xyflow/react';
+import { describe, expect, it } from 'vitest';
+import type { ComponentId, HATEOASLinks, OriginRelationship, OriginRelationshipId } from '../../../api/types';
 import { createOriginRelationshipEdges, type EdgeCreationContext } from './edgeCreators';
-import type { OriginRelationship, OriginRelationshipId, ComponentId, HATEOASLinks } from '../../../api/types';
 
 describe('createOriginRelationshipEdges', () => {
   const mockLinks: HATEOASLinks = { self: { href: '/test', method: 'GET' } };
@@ -48,7 +48,7 @@ describe('createOriginRelationshipEdges', () => {
     { type: 'BuiltBy', prefix: 'team', entityId: 'it-789', label: 'Built by', color: '#14b8a6' },
   ] as const;
 
-  const callWithRelType = (config: typeof relationshipTypeConfig[number], ctxOverrides = {}) => {
+  const callWithRelType = (config: (typeof relationshipTypeConfig)[number], ctxOverrides = {}) => {
     const relationship = createMockOriginRelationship({
       relationshipType: config.type,
       originEntityId: config.entityId,
@@ -77,7 +77,7 @@ describe('createOriginRelationshipEdges', () => {
         componentId: 'comp-456',
         ...scenario.relOverrides,
       });
-      const nodes = scenario.nodeIds.map(id => createMockNode(id));
+      const nodes = scenario.nodeIds.map((id) => createMockNode(id));
       const ctx = createEdgeContext(nodes);
       return createOriginRelationshipEdges(
         [relationship],
@@ -138,33 +138,24 @@ describe('createOriginRelationshipEdges', () => {
   });
 
   describe('relationship type to node ID mapping', () => {
-    it.each(relationshipTypeConfig)(
-      'should map $type to $prefix- prefix',
-      (config) => {
-        const edges = callWithRelType(config);
-        expect(edges[0].target).toBe(`${config.prefix}-${config.entityId}`);
-      }
-    );
+    it.each(relationshipTypeConfig)('should map $type to $prefix- prefix', (config) => {
+      const edges = callWithRelType(config);
+      expect(edges[0].target).toBe(`${config.prefix}-${config.entityId}`);
+    });
   });
 
   describe('edge labels', () => {
-    it.each(relationshipTypeConfig)(
-      'should use "$label" label for $type relationships',
-      (config) => {
-        const edges = callWithRelType(config);
-        expect(edges[0].label).toBe(config.label);
-      }
-    );
+    it.each(relationshipTypeConfig)('should use "$label" label for $type relationships', (config) => {
+      const edges = callWithRelType(config);
+      expect(edges[0].label).toBe(config.label);
+    });
   });
 
   describe('edge colors', () => {
-    it.each(relationshipTypeConfig)(
-      'should use correct color for $type relationships',
-      (config) => {
-        const edges = callWithRelType(config);
-        expect(edges[0].style?.stroke).toBe(config.color);
-      }
-    );
+    it.each(relationshipTypeConfig)('should use correct color for $type relationships', (config) => {
+      const edges = callWithRelType(config);
+      expect(edges[0].style?.stroke).toBe(config.color);
+    });
 
     it('should use black color in classic scheme', () => {
       const edges = callWithDefaults({ isClassicScheme: true });

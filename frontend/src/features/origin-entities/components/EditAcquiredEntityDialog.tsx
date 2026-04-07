@@ -1,10 +1,10 @@
-import React, { useLayoutEffect, useState } from 'react';
-import { Modal, TextInput, Textarea, Button, Group, Stack, Alert, Select } from '@mantine/core';
-import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useUpdateAcquiredEntity } from '../hooks/useAcquiredEntities';
-import { editAcquiredEntitySchema, type EditAcquiredEntityFormData } from '../../../lib/schemas';
+import { Alert, Button, Group, Modal, Select, Stack, Textarea, TextInput } from '@mantine/core';
+import React, { useLayoutEffect, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
 import type { AcquiredEntity, AcquiredEntityId, IntegrationStatus } from '../../../api/types';
+import { type EditAcquiredEntityFormData, editAcquiredEntitySchema } from '../../../lib/schemas';
+import { useUpdateAcquiredEntity } from '../hooks/useAcquiredEntities';
 
 interface EditAcquiredEntityDialogProps {
   isOpen: boolean;
@@ -30,11 +30,7 @@ const integrationStatusFromApi: Record<IntegrationStatus, string> = {
   COMPLETED: 'Completed',
 };
 
-export const EditAcquiredEntityDialog: React.FC<EditAcquiredEntityDialogProps> = ({
-  isOpen,
-  onClose,
-  entity,
-}) => {
+export const EditAcquiredEntityDialog: React.FC<EditAcquiredEntityDialogProps> = ({ isOpen, onClose, entity }) => {
   const [backendError, setBackendError] = useState<string | null>(null);
   const updateMutation = useUpdateAcquiredEntity();
 

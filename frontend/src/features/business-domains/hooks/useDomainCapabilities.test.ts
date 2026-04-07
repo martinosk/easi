@@ -1,10 +1,10 @@
-import { renderHook, waitFor, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
-import { useDomainCapabilities } from './useDomainCapabilities';
-import { businessDomainsQueryKeys } from '../queryKeys';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BusinessDomainId, Capability, CapabilityId } from '../../../api/types';
+import { businessDomainsQueryKeys } from '../queryKeys';
+import { useDomainCapabilities } from './useDomainCapabilities';
 
 vi.mock('../api', () => ({
   businessDomainsApi: {
@@ -176,10 +176,7 @@ describe('useDomainCapabilities - Business Domain Query Invalidation', () => {
         await result.current.dissociateCapability(capability);
       });
 
-      expect(businessDomainsApi.dissociateCapabilityByDomainId).toHaveBeenCalledWith(
-        domainId,
-        'cap-1'
-      );
+      expect(businessDomainsApi.dissociateCapabilityByDomainId).toHaveBeenCalledWith(domainId, 'cap-1');
     });
   });
 });

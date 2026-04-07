@@ -1,15 +1,24 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import type {
+  AcquiredEntity,
+  AcquiredEntityId,
+  HATEOASLinks,
+  IntegrationStatus,
+  InternalTeam,
+  InternalTeamId,
+  Vendor,
+  VendorId,
+} from '../../../api/types';
 import {
-  isOriginEntityNode,
-  getOriginEntityTypeFromNodeId,
-  extractOriginEntityId,
-  ORIGIN_ENTITY_PREFIXES,
-  createOriginEntityNode,
   createAcquiredEntityNode,
-  createVendorNode,
   createInternalTeamNode,
+  createOriginEntityNode,
+  createVendorNode,
+  extractOriginEntityId,
+  getOriginEntityTypeFromNodeId,
+  isOriginEntityNode,
+  ORIGIN_ENTITY_PREFIXES,
 } from './nodeFactory';
-import type { AcquiredEntity, Vendor, InternalTeam, AcquiredEntityId, VendorId, InternalTeamId, HATEOASLinks, IntegrationStatus } from '../../../api/types';
 
 describe('ORIGIN_ENTITY_PREFIXES', () => {
   it('should have correct prefix for acquired entities', () => {

@@ -1,7 +1,7 @@
-import { renderHook, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { act, renderHook } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { HttpMethod, StageId, ValueStreamDetail, ValueStreamId } from '../../../api/types';
 import { useStageOperations } from './useStageOperations';
-import type { ValueStreamDetail, ValueStreamId, StageId, HttpMethod } from '../../../api/types';
 
 const mockAddStageMutateAsync = vi.fn();
 const mockUpdateStageMutateAsync = vi.fn();
@@ -71,7 +71,13 @@ describe('useStageOperations', () => {
 
   it.each([
     { scenario: 'appending', position: undefined, name: 'New Stage', description: '', expectedPosition: undefined },
-    { scenario: 'inserting between stages', position: 2, name: 'Inserted Stage', description: 'desc', expectedPosition: 2 },
+    {
+      scenario: 'inserting between stages',
+      position: 2,
+      name: 'Inserted Stage',
+      description: 'desc',
+      expectedPosition: 2,
+    },
   ])('should submit correctly when $scenario', async ({ position, name, description, expectedPosition }) => {
     const detail = createDetail();
     const { result } = renderHook(() => useStageOperations(detail));

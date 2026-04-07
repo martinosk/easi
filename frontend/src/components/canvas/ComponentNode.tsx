@@ -1,5 +1,5 @@
-import React from 'react';
 import { Handle, Position } from '@xyflow/react';
+import React from 'react';
 import { useCurrentView } from '../../features/views/hooks/useCurrentView';
 
 type HexColor = string;
@@ -13,9 +13,9 @@ export interface ComponentNodeData {
 }
 
 const COMPONENT_COLORS: Record<ColorScheme, HexColor> = {
-  'maturity': '#3b82f6',
-  'classic': '#bfd9f0',
-  'custom': '#3b82f6',
+  maturity: '#3b82f6',
+  classic: '#bfd9f0',
+  custom: '#3b82f6',
 };
 
 const DEFAULT_CUSTOM_COLOR: HexColor = '#E0E0E0';
@@ -49,7 +49,11 @@ const resolveBorderColor = (isSelected: boolean, baseColor: HexColor): HexColor 
   return isSelected ? SELECTED_BORDER_COLOR : baseColor;
 };
 
-export const ComponentNode: React.FC<{ data: ComponentNodeData; id: string; selected?: boolean }> = ({ data, id, selected }) => {
+export const ComponentNode: React.FC<{ data: ComponentNodeData; id: string; selected?: boolean }> = ({
+  data,
+  id,
+  selected,
+}) => {
   const { currentView } = useCurrentView();
   const colorScheme = (currentView?.colorScheme || 'maturity') as ColorScheme;
   const isSelected = data.isSelected || !!selected;
@@ -68,51 +72,19 @@ export const ComponentNode: React.FC<{ data: ComponentNodeData; id: string; sele
       }}
       data-component-id={id}
     >
-      <Handle
-        type="source"
-        position={Position.Top}
-        id="top"
-        className="component-handle component-handle-top"
-      />
-      <Handle
-        type="target"
-        position={Position.Top}
-        id="top"
-        className="component-handle component-handle-top"
-      />
+      <Handle type="source" position={Position.Top} id="top" className="component-handle component-handle-top" />
+      <Handle type="target" position={Position.Top} id="top" className="component-handle component-handle-top" />
 
-      <Handle
-        type="source"
-        position={Position.Left}
-        id="left"
-        className="component-handle component-handle-left"
-      />
-      <Handle
-        type="target"
-        position={Position.Left}
-        id="left"
-        className="component-handle component-handle-left"
-      />
+      <Handle type="source" position={Position.Left} id="left" className="component-handle component-handle-left" />
+      <Handle type="target" position={Position.Left} id="left" className="component-handle component-handle-left" />
 
       <div className="component-node-content">
         <div className="component-node-header">{data.label}</div>
-        {data.description && (
-          <div className="component-node-description">{data.description}</div>
-        )}
+        {data.description && <div className="component-node-description">{data.description}</div>}
       </div>
 
-      <Handle
-        type="source"
-        position={Position.Right}
-        id="right"
-        className="component-handle component-handle-right"
-      />
-      <Handle
-        type="target"
-        position={Position.Right}
-        id="right"
-        className="component-handle component-handle-right"
-      />
+      <Handle type="source" position={Position.Right} id="right" className="component-handle component-handle-right" />
+      <Handle type="target" position={Position.Right} id="right" className="component-handle component-handle-right" />
 
       <Handle
         type="source"

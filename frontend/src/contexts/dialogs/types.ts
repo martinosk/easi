@@ -1,4 +1,4 @@
-import type { Component, Relation, Capability } from '../../api/types';
+import type { Capability, Component, Relation } from '../../api/types';
 
 export type DialogId =
   | 'create-component'

@@ -1,9 +1,4 @@
-import type {
-  Relation,
-  Capability,
-  CapabilityRealization,
-  OriginRelationship,
-} from '../../../api/types';
+import type { Capability, CapabilityRealization, OriginRelationship, Relation } from '../../../api/types';
 
 export type EntityType = 'component' | 'capability' | 'originEntity';
 
@@ -63,16 +58,16 @@ function buildAdjacency(data: TraversalData): AdjacencyMap {
   return adj;
 }
 
-const resultSetKey: Record<EntityType, keyof Pick<CollectedEntities, 'componentIds' | 'capabilityIds' | 'originEntityIds'>> = {
+const resultSetKey: Record<
+  EntityType,
+  keyof Pick<CollectedEntities, 'componentIds' | 'capabilityIds' | 'originEntityIds'>
+> = {
   component: 'componentIds',
   capability: 'capabilityIds',
   originEntity: 'originEntityIds',
 };
 
-export function collectRelatedEntities(
-  startEntity: EntityRef,
-  data: TraversalData
-): CollectedEntities {
+export function collectRelatedEntities(startEntity: EntityRef, data: TraversalData): CollectedEntities {
   const adj = buildAdjacency(data);
   const visited = new Set<string>();
   const queue: EntityRef[] = [];

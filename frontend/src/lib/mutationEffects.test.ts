@@ -1,25 +1,25 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { auditQueryKeys } from '../features/audit/queryKeys';
-import { layoutsQueryKeys } from '../features/canvas/queryKeys';
-import { capabilitiesQueryKeys } from '../features/capabilities/queryKeys';
-import { capabilitiesMutationEffects } from '../features/capabilities/mutationEffects';
 import { businessDomainsQueryKeys } from '../features/business-domains/queryKeys';
+import { layoutsQueryKeys } from '../features/canvas/queryKeys';
+import { capabilitiesMutationEffects } from '../features/capabilities/mutationEffects';
+import { capabilitiesQueryKeys } from '../features/capabilities/queryKeys';
+import { componentsMutationEffects } from '../features/components/mutationEffects';
 import { componentsQueryKeys } from '../features/components/queryKeys';
-import {
-  acquiredEntitiesQueryKeys,
-  vendorsQueryKeys,
-  internalTeamsQueryKeys,
-  originRelationshipsQueryKeys,
-} from '../features/origin-entities/queryKeys';
+import { editGrantsMutationEffects } from '../features/edit-grants/mutationEffects';
+import { editGrantsQueryKeys } from '../features/edit-grants/queryKeys';
+import { artifactCreatorsQueryKeys } from '../features/navigation/hooks/useArtifactCreators';
 import {
   acquiredEntitiesMutationEffects,
-  vendorsMutationEffects,
   internalTeamsMutationEffects,
+  vendorsMutationEffects,
 } from '../features/origin-entities/mutationEffects';
-import { editGrantsQueryKeys } from '../features/edit-grants/queryKeys';
-import { editGrantsMutationEffects } from '../features/edit-grants/mutationEffects';
-import { componentsMutationEffects } from '../features/components/mutationEffects';
-import { artifactCreatorsQueryKeys } from '../features/navigation/hooks/useArtifactCreators';
+import {
+  acquiredEntitiesQueryKeys,
+  internalTeamsQueryKeys,
+  originRelationshipsQueryKeys,
+  vendorsQueryKeys,
+} from '../features/origin-entities/queryKeys';
 
 describe('mutationEffects', () => {
   describe('capabilitiesMutationEffects.linkSystem', () => {
@@ -57,7 +57,10 @@ describe('mutationEffects', () => {
     });
 
     it('should invalidate ancestor capability details so inherited realizations refresh after cascade deletion', () => {
-      const effects = capabilitiesMutationEffects.deleteRealization({ capabilityId: 'any-cap', componentId: 'deleted-comp' });
+      const effects = capabilitiesMutationEffects.deleteRealization({
+        capabilityId: 'any-cap',
+        componentId: 'deleted-comp',
+      });
 
       expect(effects).toContainEqual(capabilitiesQueryKeys.details());
       expect(effects).toContainEqual(businessDomainsQueryKeys.details());

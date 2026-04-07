@@ -1,9 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Capability, CapabilityId, Component, ComponentId, HATEOASLinks } from '../../../api/types';
 import { useTreeBulkDelete } from './useTreeBulkDelete';
 import type { TreeSelectedItem } from './useTreeMultiSelect';
-import type { HATEOASLinks, Component, ComponentId, Capability, CapabilityId } from '../../../api/types';
-
 
 const deleteLinks: HATEOASLinks = {
   self: { href: '/test', method: 'GET' },
@@ -77,10 +76,7 @@ describe('useTreeBulkDelete', () => {
   it('requestBulkDelete sets bulk items', () => {
     const { result } = renderHook(() => useTreeBulkDelete());
 
-    const items = [
-      makeSelectedItem('comp-1', 'component', 'App A'),
-      makeSelectedItem('comp-2', 'component', 'App B'),
-    ];
+    const items = [makeSelectedItem('comp-1', 'component', 'App A'), makeSelectedItem('comp-2', 'component', 'App B')];
 
     act(() => {
       result.current.requestBulkDelete(items);
@@ -107,10 +103,7 @@ describe('useTreeBulkDelete', () => {
   it('successful bulk delete clears bulk items', async () => {
     const { result } = renderHook(() => useTreeBulkDelete());
 
-    const items = [
-      makeSelectedItem('comp-1', 'component', 'App A'),
-      makeSelectedItem('comp-2', 'component', 'App B'),
-    ];
+    const items = [makeSelectedItem('comp-1', 'component', 'App A'), makeSelectedItem('comp-2', 'component', 'App B')];
 
     act(() => {
       result.current.requestBulkDelete(items);

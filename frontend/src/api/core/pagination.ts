@@ -1,14 +1,11 @@
-import { httpClient } from './httpClient';
 import type { PaginatedResponse } from '../types';
+import { httpClient } from './httpClient';
 
 export interface FetchAllOptions {
   queryParams?: Record<string, string | undefined>;
 }
 
-export async function fetchAllPaginated<T>(
-  baseUrl: string,
-  options: FetchAllOptions = {}
-): Promise<T[]> {
+export async function fetchAllPaginated<T>(baseUrl: string, options: FetchAllOptions = {}): Promise<T[]> {
   const allItems: T[] = [];
   let cursor: string | undefined;
 

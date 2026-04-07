@@ -53,7 +53,10 @@
   padding: 0;
   margin-top: 4px;
   opacity: 0;
-  transition: opacity 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .stage-connector-group:hover .stage-insert-btn {
@@ -72,15 +75,17 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   padding: var(--spacing-md);
-  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  transition:
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
   cursor: default;
 }
 
-.stage-column[draggable='true'] {
+.stage-column[draggable="true"] {
   cursor: grab;
 }
 
-.stage-column[draggable='true']:active {
+.stage-column[draggable="true"]:active {
   cursor: grabbing;
 }
 
@@ -143,7 +148,9 @@
   color: var(--color-gray-600);
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
 .stage-action-btn:hover {
@@ -233,7 +240,10 @@
   cursor: pointer;
   font-size: var(--font-size-sm);
   font-weight: 500;
-  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    background 0.15s ease;
 }
 
 .stage-add-btn:hover {

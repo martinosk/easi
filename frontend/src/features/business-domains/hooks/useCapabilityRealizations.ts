@@ -1,8 +1,14 @@
-import { useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useCallback, useMemo } from 'react';
 import { apiClient } from '../../../api/client';
+import type {
+  BusinessDomainId,
+  CapabilityId,
+  CapabilityLevel,
+  CapabilityRealization,
+  CapabilityRealizationsGroup,
+} from '../../../api/types';
 import { businessDomainsQueryKeys } from '../queryKeys';
-import type { BusinessDomainId, CapabilityId, CapabilityLevel, CapabilityRealization, CapabilityRealizationsGroup } from '../../../api/types';
 
 export interface UseCapabilityRealizationsResult {
   realizations: CapabilityRealization[];
@@ -20,19 +26,14 @@ function isDirectRealization(r: CapabilityRealization): boolean {
   return r.origin === 'Direct';
 }
 
-function isInheritedWithHiddenSource(
-  r: CapabilityRealization,
-  visibleCapabilityIds: Set<CapabilityId>
-): boolean {
-  return r.origin === 'Inherited' &&
-         !!r.sourceCapabilityId &&
-         !visibleCapabilityIds.has(r.sourceCapabilityId);
+function isInheritedWithHiddenSource(r: CapabilityRealization, visibleCapabilityIds: Set<CapabilityId>): boolean {
+  return r.origin === 'Inherited' && !!r.sourceCapabilityId && !visibleCapabilityIds.has(r.sourceCapabilityId);
 }
 
 function selectDeepestInherited(
   existing: CapabilityRealization,
   candidate: CapabilityRealization,
-  levelMap: Map<CapabilityId, number>
+  levelMap: Map<CapabilityId, number>,
 ): CapabilityRealization {
   const existingLevel = levelMap.get(existing.capabilityId) ?? 0;
   const candidateLevel = levelMap.get(candidate.capabilityId) ?? 0;
@@ -42,7 +43,7 @@ function selectDeepestInherited(
 export function filterVisibleRealizations(
   realizations: CapabilityRealization[],
   capabilityLevels: Map<CapabilityId, number>,
-  visibleCapabilityIds?: Set<CapabilityId>
+  visibleCapabilityIds?: Set<CapabilityId>,
 ): CapabilityRealization[] {
   const visibleIds = visibleCapabilityIds ?? new Set(capabilityLevels.keys());
   const directRealizations: CapabilityRealization[] = [];
@@ -88,36 +89,36 @@ export function useCapabilityRealizations(
   enabled: boolean,
   domainId: BusinessDomainId | null,
   depth: number,
-  visibleCapabilityIds?: Set<CapabilityId> | CapabilityId[]
+  visibleCapabilityIds?: Set<CapabilityId> | CapabilityId[],
 ): UseCapabilityRealizationsResult {
-  const { data: groups, isLoading, error, refetch } = useQuery({
+  const {
+    data: groups,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: businessDomainsQueryKeys.realizations(domainId ?? '', depth),
     queryFn: () => apiClient.getCapabilityRealizationsByDomain(domainId!, depth),
     enabled: enabled && !!domainId,
   });
 
-  const { realizations, capabilityLevels } = useMemo(
-    () => flattenGroups(groups ?? []),
-    [groups]
-  );
+  const { realizations, capabilityLevels } = useMemo(() => flattenGroups(groups ?? []), [groups]);
 
   const visibleIds = useMemo(() => {
     if (!visibleCapabilityIds) return undefined;
-    return visibleCapabilityIds instanceof Set
-      ? visibleCapabilityIds
-      : new Set(visibleCapabilityIds);
+    return visibleCapabilityIds instanceof Set ? visibleCapabilityIds : new Set(visibleCapabilityIds);
   }, [visibleCapabilityIds]);
 
   const filteredRealizations = useMemo(
     () => filterVisibleRealizations(realizations, capabilityLevels, visibleIds),
-    [realizations, capabilityLevels, visibleIds]
+    [realizations, capabilityLevels, visibleIds],
   );
 
   const getRealizationsForCapability = useCallback(
     (capabilityId: CapabilityId): CapabilityRealization[] => {
       return filteredRealizations.filter((r) => r.capabilityId === capabilityId);
     },
-    [filteredRealizations]
+    [filteredRealizations],
   );
 
   return {
@@ -125,6 +126,8 @@ export function useCapabilityRealizations(
     isLoading,
     error: error ?? null,
     getRealizationsForCapability,
-    refetch: async () => { await refetch(); },
+    refetch: async () => {
+      await refetch();
+    },
   };
 }

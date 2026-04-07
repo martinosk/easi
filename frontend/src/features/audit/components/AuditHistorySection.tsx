@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useAuditHistory } from '../hooks/useAuditHistory';
 import type { AuditEntry } from '../../../api/types';
+import { useAuditHistory } from '../hooks/useAuditHistory';
 import './AuditHistorySection.css';
 
 interface AuditHistorySectionProps {
@@ -60,7 +60,9 @@ function AuditEntryCard({ entry }: AuditEntryCardProps) {
           </span>
         </div>
         {eventDataEntries.length > 0 && (
-          <span className={`audit-expand-icon ${isExpanded ? 'expanded' : ''}`} aria-hidden="true">▸</span>
+          <span className={`audit-expand-icon ${isExpanded ? 'expanded' : ''}`} aria-hidden="true">
+            ▸
+          </span>
         )}
       </button>
       {isExpanded && eventDataEntries.length > 0 && (
@@ -96,7 +98,9 @@ export function AuditHistorySection({ aggregateId }: AuditHistorySectionProps) {
         <span className="audit-section-title">
           History {entryCount > 0 && <span className="audit-count">({entryCount})</span>}
         </span>
-        <span className={`audit-expand-icon ${isExpanded ? 'expanded' : ''}`} aria-hidden="true">▸</span>
+        <span className={`audit-expand-icon ${isExpanded ? 'expanded' : ''}`} aria-hidden="true">
+          ▸
+        </span>
       </button>
 
       {isExpanded && (

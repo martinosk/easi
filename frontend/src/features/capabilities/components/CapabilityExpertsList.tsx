@@ -1,6 +1,6 @@
+import { Box, Button, CloseButton, Group, Stack, Text } from '@mantine/core';
 import React from 'react';
-import { Box, Text, Stack, Button, Group, CloseButton } from '@mantine/core';
-import type { Expert, CapabilityId } from '../../../api/types';
+import type { CapabilityId, Expert } from '../../../api/types';
 import { hasLink } from '../../../utils/hateoas';
 import { useRemoveCapabilityExpert } from '../hooks/useCapabilities';
 

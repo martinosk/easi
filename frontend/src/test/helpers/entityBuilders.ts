@@ -1,38 +1,38 @@
-import {
-  toComponentId,
-  toRelationId,
-  toViewId,
-  toCapabilityId,
-  toCapabilityDependencyId,
-  toRealizationId,
-  toBusinessDomainId,
-  toReleaseVersion,
-  toAcquiredEntityId,
-  toVendorId,
-  toInternalTeamId,
-  toOriginRelationshipId,
-} from '../../api/types';
 import type {
-  Component,
-  Relation,
-  View,
-  ViewComponent,
-  ViewCapability,
+  AcquiredEntity,
+  BusinessDomain,
   Capability,
   CapabilityDependency,
-  CapabilityRealization,
-  BusinessDomain,
-  HATEOASLinks,
-  HATEOASLink,
   CapabilityLevel,
+  CapabilityRealization,
+  Component,
   DependencyType,
-  RealizationLevel,
   Expert,
-  Release,
-  AcquiredEntity,
-  Vendor,
+  HATEOASLink,
+  HATEOASLinks,
   InternalTeam,
   OriginRelationship,
+  RealizationLevel,
+  Relation,
+  Release,
+  Vendor,
+  View,
+  ViewCapability,
+  ViewComponent,
+} from '../../api/types';
+import {
+  toAcquiredEntityId,
+  toBusinessDomainId,
+  toCapabilityDependencyId,
+  toCapabilityId,
+  toComponentId,
+  toInternalTeamId,
+  toOriginRelationshipId,
+  toRealizationId,
+  toRelationId,
+  toReleaseVersion,
+  toVendorId,
+  toViewId,
 } from '../../api/types';
 
 let idCounter = 0;
@@ -143,9 +143,7 @@ export function buildCapability(overrides: Partial<Capability> = {}): Capability
   };
 }
 
-export function buildCapabilityDependency(
-  overrides: Partial<CapabilityDependency> = {}
-): CapabilityDependency {
+export function buildCapabilityDependency(overrides: Partial<CapabilityDependency> = {}): CapabilityDependency {
   const id = overrides.id ?? toCapabilityDependencyId(nextId('dep'));
   return {
     id,
@@ -159,9 +157,7 @@ export function buildCapabilityDependency(
   };
 }
 
-export function buildCapabilityRealization(
-  overrides: Partial<CapabilityRealization> = {}
-): CapabilityRealization {
+export function buildCapabilityRealization(overrides: Partial<CapabilityRealization> = {}): CapabilityRealization {
   const id = overrides.id ?? toRealizationId(nextId('real'));
   return {
     id,

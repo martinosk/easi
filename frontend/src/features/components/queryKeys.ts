@@ -1,8 +1,7 @@
 export const componentsQueryKeys = {
   all: ['components'] as const,
   lists: () => [...componentsQueryKeys.all, 'list'] as const,
-  list: (filters?: Record<string, unknown>) =>
-    [...componentsQueryKeys.lists(), filters] as const,
+  list: (filters?: Record<string, unknown>) => [...componentsQueryKeys.lists(), filters] as const,
   details: () => [...componentsQueryKeys.all, 'detail'] as const,
   detail: (id: string) => [...componentsQueryKeys.details(), id] as const,
   origins: (id: string) => [...componentsQueryKeys.detail(id), 'origins'] as const,
@@ -11,8 +10,7 @@ export const componentsQueryKeys = {
 
 export const fitScoresQueryKeys = {
   all: ['fitScores'] as const,
-  byComponent: (componentId: string) =>
-    [...fitScoresQueryKeys.all, 'byComponent', componentId] as const,
+  byComponent: (componentId: string) => [...fitScoresQueryKeys.all, 'byComponent', componentId] as const,
 };
 
 export const fitComparisonsQueryKeys = {

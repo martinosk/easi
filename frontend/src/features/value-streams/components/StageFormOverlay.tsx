@@ -38,12 +38,7 @@ export function StageFormOverlay({ isEditing, formData, onFormDataChange, onSubm
           <button type="button" className="btn btn-secondary" onClick={onCancel}>
             Cancel
           </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={onSubmit}
-            disabled={!formData.name.trim()}
-          >
+          <button type="button" className="btn btn-primary" onClick={onSubmit} disabled={!formData.name.trim()}>
             {isEditing ? 'Save' : 'Add'}
           </button>
         </div>

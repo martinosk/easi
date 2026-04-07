@@ -1,7 +1,11 @@
 import { useCallback } from 'react';
-import { useCapabilities, useChangeCapabilityParent, useLinkSystemToCapability } from '../../capabilities/hooks/useCapabilities';
-import { toComponentId, toCapabilityId } from '../../../api/types';
 import toast from 'react-hot-toast';
+import { toCapabilityId, toComponentId } from '../../../api/types';
+import {
+  useCapabilities,
+  useChangeCapabilityParent,
+  useLinkSystemToCapability,
+} from '../../capabilities/hooks/useCapabilities';
 
 const CAPABILITY_PREFIX = 'cap-';
 
@@ -12,8 +16,7 @@ export const extractCapabilityId = (nodeId: string): string => nodeId.replace(CA
 const getErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message : fallback;
 
-const isHierarchyDepthError = (message: string): boolean =>
-  message.includes('depth') || message.includes('L5');
+const isHierarchyDepthError = (message: string): boolean => message.includes('depth') || message.includes('L5');
 
 export const useCapabilityConnection = () => {
   const changeCapabilityParentMutation = useChangeCapabilityParent();
@@ -39,14 +42,14 @@ export const useCapabilityConnection = () => {
         }
       }
     },
-    [capabilities, changeCapabilityParentMutation]
+    [capabilities, changeCapabilityParentMutation],
   );
 
   const handleCapabilityComponentConnection = useCallback(
     async (source: string, target: string) => {
       const sourceIsCapability = isCapabilityNode(source);
       const capabilityId = toCapabilityId(
-        sourceIsCapability ? extractCapabilityId(source) : extractCapabilityId(target)
+        sourceIsCapability ? extractCapabilityId(source) : extractCapabilityId(target),
       );
       const componentId = toComponentId(sourceIsCapability ? target : source);
 
@@ -63,7 +66,7 @@ export const useCapabilityConnection = () => {
         toast.error(errorMessage);
       }
     },
-    [linkSystemToCapabilityMutation]
+    [linkSystemToCapabilityMutation],
   );
 
   return { handleCapabilityParentConnection, handleCapabilityComponentConnection };

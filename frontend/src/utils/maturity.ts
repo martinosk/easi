@@ -1,4 +1,4 @@
-import type { MaturityScaleSection, MaturityBounds } from '../api/types';
+import type { MaturityBounds, MaturityScaleSection } from '../api/types';
 
 const DEFAULT_SECTIONS: MaturityScaleSection[] = [
   { name: 'Genesis', order: 1, minValue: 0, maxValue: 24 },
@@ -11,13 +11,8 @@ export function getDefaultSections(): MaturityScaleSection[] {
   return DEFAULT_SECTIONS;
 }
 
-export function deriveLegacyMaturityValue(
-  maturityLevel: string,
-  sections: MaturityScaleSection[]
-): number {
-  const section = sections.find(
-    (s) => s.name.toLowerCase() === maturityLevel.toLowerCase()
-  );
+export function deriveLegacyMaturityValue(maturityLevel: string, sections: MaturityScaleSection[]): number {
+  const section = sections.find((s) => s.name.toLowerCase() === maturityLevel.toLowerCase());
 
   if (!section) {
     return 12;
@@ -26,10 +21,7 @@ export function deriveLegacyMaturityValue(
   return Math.floor((section.minValue + section.maxValue) / 2);
 }
 
-export function getSectionForValue(
-  value: number,
-  sections: MaturityScaleSection[]
-): MaturityScaleSection | undefined {
+export function getSectionForValue(value: number, sections: MaturityScaleSection[]): MaturityScaleSection | undefined {
   return sections.find((s) => value >= s.minValue && value <= s.maxValue);
 }
 

@@ -1,8 +1,8 @@
 import React from 'react';
-import { DetailField } from '../../../components/shared/DetailField';
-import { AuditHistorySection } from '../../audit';
-import { hasLink } from '../../../utils/hateoas';
 import type { InternalTeam, OriginRelationship } from '../../../api/types';
+import { DetailField } from '../../../components/shared/DetailField';
+import { hasLink } from '../../../utils/hateoas';
+import { AuditHistorySection } from '../../audit';
 
 interface InternalTeamDetailsProps {
   team: InternalTeam;
@@ -47,13 +47,9 @@ export const InternalTeamDetails: React.FC<InternalTeamDetailsProps> = ({
 
         <DetailField label="Name">{team.name}</DetailField>
 
-        {team.department && (
-          <DetailField label="Department">{team.department}</DetailField>
-        )}
+        {team.department && <DetailField label="Department">{team.department}</DetailField>}
 
-        {team.contactPerson && (
-          <DetailField label="Contact Person">{team.contactPerson}</DetailField>
-        )}
+        {team.contactPerson && <DetailField label="Contact Person">{team.contactPerson}</DetailField>}
 
         {team.notes && <DetailField label="Notes">{team.notes}</DetailField>}
 

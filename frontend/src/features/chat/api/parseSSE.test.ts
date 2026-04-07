@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { parseSSEChunk } from './parseSSE';
 
 describe('parseSSEChunk', () => {
@@ -59,8 +59,16 @@ describe('parseSSEChunk', () => {
     },
     {
       desc: 'tool_call_result',
-      chunk: 'event: tool_call_result\ndata: {"toolCallId":"tc-1","name":"list_applications","resultPreview":"Found 3 applications"}\n\n',
-      expected: [{ type: 'tool_call_result', toolCallId: 'tc-1', name: 'list_applications', resultPreview: 'Found 3 applications' }],
+      chunk:
+        'event: tool_call_result\ndata: {"toolCallId":"tc-1","name":"list_applications","resultPreview":"Found 3 applications"}\n\n',
+      expected: [
+        {
+          type: 'tool_call_result',
+          toolCallId: 'tc-1',
+          name: 'list_applications',
+          resultPreview: 'Found 3 applications',
+        },
+      ],
     },
   ])('should parse a $desc event', ({ chunk, expected }) => {
     const events = parseSSEChunk(chunk);
@@ -70,10 +78,12 @@ describe('parseSSEChunk', () => {
   it('should parse a thinking event', () => {
     const chunk = 'event: thinking\ndata: {"message":"Analyzing the architecture..."}\n\n';
     const events = parseSSEChunk(chunk);
-    expect(events).toEqual([{
-      type: 'thinking',
-      message: 'Analyzing the architecture...',
-    }]);
+    expect(events).toEqual([
+      {
+        type: 'thinking',
+        message: 'Analyzing the architecture...',
+      },
+    ]);
   });
 
   it('should not parse incomplete trailing block after complete events', () => {

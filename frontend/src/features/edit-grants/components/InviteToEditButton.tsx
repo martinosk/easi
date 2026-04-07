@@ -1,8 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { hasLink, type ResourceWithLinks } from '../../../utils/hateoas';
-import { InviteToEditDialog } from './InviteToEditDialog';
 import { useCreateEditGrant } from '../hooks/useEditGrants';
 import type { ArtifactType, CreateEditGrantRequest } from '../types';
+import { InviteToEditDialog } from './InviteToEditDialog';
 
 interface InviteToEditButtonProps {
   resource: ResourceWithLinks;
@@ -11,12 +11,7 @@ interface InviteToEditButtonProps {
   className?: string;
 }
 
-export function InviteToEditButton({
-  resource,
-  artifactType,
-  artifactId,
-  className,
-}: InviteToEditButtonProps) {
+export function InviteToEditButton({ resource, artifactType, artifactId, className }: InviteToEditButtonProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const createGrant = useCreateEditGrant();
 
@@ -24,7 +19,7 @@ export function InviteToEditButton({
     async (request: CreateEditGrantRequest) => {
       await createGrant.mutateAsync(request);
     },
-    [createGrant]
+    [createGrant],
   );
 
   if (!hasLink(resource, 'x-edit-grants')) {

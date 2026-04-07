@@ -1,18 +1,18 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
-import { businessDomainsApi } from '../api';
-import { businessDomainsQueryKeys } from '../queryKeys';
-import { businessDomainsMutationEffects } from '../mutationEffects';
-import { invalidateFor } from '../../../lib/invalidateFor';
+import toast from 'react-hot-toast';
 import type {
   BusinessDomain,
   BusinessDomainId,
-  CreateBusinessDomainRequest,
-  UpdateBusinessDomainRequest,
   BusinessDomainsResponse,
+  CreateBusinessDomainRequest,
   HATEOASLinks,
+  UpdateBusinessDomainRequest,
 } from '../../../api/types';
-import toast from 'react-hot-toast';
+import { invalidateFor } from '../../../lib/invalidateFor';
+import { businessDomainsApi } from '../api';
+import { businessDomainsMutationEffects } from '../mutationEffects';
+import { businessDomainsQueryKeys } from '../queryKeys';
 
 export interface UseBusinessDomainsResult {
   domains: BusinessDomain[];
@@ -21,7 +21,12 @@ export interface UseBusinessDomainsResult {
   error: Error | null;
   refetch: () => Promise<void>;
   createDomain: (name: string, description?: string, domainArchitectId?: string) => Promise<BusinessDomain>;
-  updateDomain: (domain: BusinessDomain, name: string, description?: string, domainArchitectId?: string) => Promise<BusinessDomain>;
+  updateDomain: (
+    domain: BusinessDomain,
+    name: string,
+    description?: string,
+    domainArchitectId?: string,
+  ) => Promise<BusinessDomain>;
   deleteDomain: (domain: BusinessDomain) => Promise<void>;
 }
 
@@ -34,18 +39,20 @@ export function useBusinessDomains(): UseBusinessDomainsResult {
   const createDomain = useCallback(
     (name: string, description?: string, domainArchitectId?: string) =>
       createMutation.mutateAsync({ name, description, domainArchitectId }),
-    [createMutation]
+    [createMutation],
   );
 
   const updateDomain = useCallback(
     (domain: BusinessDomain, name: string, description?: string, domainArchitectId?: string) =>
       updateMutation.mutateAsync({ domain, request: { name, description, domainArchitectId } }),
-    [updateMutation]
+    [updateMutation],
   );
 
   const deleteDomain = useCallback(
-    async (domain: BusinessDomain) => { await deleteMutation.mutateAsync(domain); },
-    [deleteMutation]
+    async (domain: BusinessDomain) => {
+      await deleteMutation.mutateAsync(domain);
+    },
+    [deleteMutation],
   );
 
   const refetch = useCallback(async () => {
@@ -87,10 +94,7 @@ export function useDomainCapabilities(capabilitiesLink: string | undefined) {
   });
 }
 
-export function useCapabilityRealizationsByDomain(
-  domainId: BusinessDomainId | undefined,
-  depth: number = 4
-) {
+export function useCapabilityRealizationsByDomain(domainId: BusinessDomainId | undefined, depth: number = 4) {
   return useQuery({
     queryKey: businessDomainsQueryKeys.realizations(domainId!, depth),
     queryFn: () => businessDomainsApi.getCapabilityRealizations(domainId!, depth),
@@ -144,4 +148,3 @@ export function useDeleteBusinessDomain() {
     errorMessage: 'Failed to delete business domain',
   });
 }
-

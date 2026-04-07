@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { MyEditGrants } from './MyEditGrants';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MantineTestWrapper } from '../../../test/helpers/mantineTestWrapper';
 import type { EditGrant } from '../types';
+import { MyEditGrants } from './MyEditGrants';
 
 vi.mock('../hooks/useEditGrants', () => ({
   useMyEditGrants: vi.fn(),
@@ -48,7 +48,7 @@ describe('MyEditGrants', () => {
     return render(
       <MantineTestWrapper>
         <MyEditGrants />
-      </MantineTestWrapper>
+      </MantineTestWrapper>,
     );
   }
 

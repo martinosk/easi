@@ -1,26 +1,26 @@
-import { useQuery, useMutation, useQueryClient, QueryClient } from '@tanstack/react-query';
-import { viewsApi } from '../api';
-import { viewsQueryKeys } from '../queryKeys';
-import { viewsMutationEffects } from '../mutationEffects';
-import { invalidateFor } from '../../../lib/invalidateFor';
+import { QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import {
+  type AddCapabilityToViewRequest,
+  type AddComponentToViewRequest,
+  type AddOriginEntityToViewRequest,
   ApiError,
+  type CapabilityId,
+  type ComponentId,
+  type CreateViewRequest,
+  type Position,
+  type RenameViewRequest,
+  type UpdateMultiplePositionsRequest,
+  type UpdatePositionRequest,
+  type UpdateViewColorSchemeRequest,
+  type UpdateViewEdgeTypeRequest,
   type View,
   type ViewId,
-  type CreateViewRequest,
-  type AddComponentToViewRequest,
-  type AddCapabilityToViewRequest,
-  type AddOriginEntityToViewRequest,
-  type UpdatePositionRequest,
-  type UpdateMultiplePositionsRequest,
-  type RenameViewRequest,
-  type UpdateViewEdgeTypeRequest,
-  type UpdateViewColorSchemeRequest,
-  type ComponentId,
-  type CapabilityId,
-  type Position,
 } from '../../../api/types';
-import toast from 'react-hot-toast';
+import { invalidateFor } from '../../../lib/invalidateFor';
+import { viewsApi } from '../api';
+import { viewsMutationEffects } from '../mutationEffects';
+import { viewsQueryKeys } from '../queryKeys';
 
 const MAX_CONCURRENCY_RETRIES = 3;
 
@@ -52,16 +52,14 @@ type ViewMutationOptions<TVariables extends { viewId: ViewId }, TData = void> = 
 };
 
 function useViewMutation<TVariables extends { viewId: ViewId }, TData = void>(
-  options: ViewMutationOptions<TVariables, TData>
+  options: ViewMutationOptions<TVariables, TData>,
 ) {
   const queryClient = useQueryClient();
   const { mutationFn, errorMessage, showErrorToast = true } = options;
   return useMutation({
     mutationFn,
-    retry: (failureCount, error) =>
-      isConcurrencyConflict(error) && failureCount < MAX_CONCURRENCY_RETRIES,
-    retryDelay: (attempt) =>
-      Math.min(100 * 2 ** attempt, 1000) + Math.random() * 100,
+    retry: (failureCount, error) => isConcurrencyConflict(error) && failureCount < MAX_CONCURRENCY_RETRIES,
+    retryDelay: (attempt) => Math.min(100 * 2 ** attempt, 1000) + Math.random() * 100,
     onSuccess: (_, variables) => {
       invalidateFor(queryClient, viewsMutationEffects.updateDetail(variables.viewId));
     },
@@ -200,7 +198,8 @@ export function useRemoveCapabilityFromView() {
 
 export function useUpdateCapabilityPosition() {
   return useViewMutation<{ viewId: ViewId; capabilityId: CapabilityId; position: Position }>({
-    mutationFn: ({ viewId, capabilityId, position }) => viewsApi.updateCapabilityPosition(viewId, capabilityId, position),
+    mutationFn: ({ viewId, capabilityId, position }) =>
+      viewsApi.updateCapabilityPosition(viewId, capabilityId, position),
     errorMessage: 'Failed to update position',
     showErrorToast: false,
   });
@@ -250,7 +249,8 @@ export function useRemoveOriginEntityFromView() {
 
 export function useUpdateOriginEntityPosition() {
   return useViewMutation<{ viewId: ViewId; originEntityId: string; position: Position }>({
-    mutationFn: ({ viewId, originEntityId, position }) => viewsApi.updateOriginEntityPosition(viewId, originEntityId, position),
+    mutationFn: ({ viewId, originEntityId, position }) =>
+      viewsApi.updateOriginEntityPosition(viewId, originEntityId, position),
     errorMessage: 'Failed to update position',
     showErrorToast: false,
   });

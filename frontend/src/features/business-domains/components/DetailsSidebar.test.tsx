@@ -1,10 +1,10 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { http, HttpResponse } from 'msw';
-import { DetailsSidebar } from './DetailsSidebar';
-import { useAppStore, type AppStore } from '../../../store/appStore';
-import { createMantineTestWrapper, seedDb, server } from '../../../test/helpers';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { HttpResponse, http } from 'msw';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Capability, CapabilityId, ComponentId } from '../../../api/types';
+import { type AppStore, useAppStore } from '../../../store/appStore';
+import { createMantineTestWrapper, seedDb, server } from '../../../test/helpers';
+import { DetailsSidebar } from './DetailsSidebar';
 
 const API_BASE = 'http://localhost:8080';
 
@@ -44,7 +44,10 @@ const mockComponent = {
   name: 'SAP Finance',
   description: 'Financial system',
   createdAt: '2024-01-01T00:00:00Z',
-  _links: { self: { href: '/api/v1/components/comp-1', method: 'GET' as const }, edit: { href: '/api/v1/components/comp-1', method: 'PUT' as const } },
+  _links: {
+    self: { href: '/api/v1/components/comp-1', method: 'GET' as const },
+    edit: { href: '/api/v1/components/comp-1', method: 'PUT' as const },
+  },
 };
 
 const createMockStore = (overrides: Record<string, unknown> = {}) => ({
@@ -66,15 +69,17 @@ describe('DetailsSidebar', () => {
       capabilities: [mockCapability],
     });
     vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
-      selector(createMockStore() as unknown as AppStore)
+      selector(createMockStore() as unknown as AppStore),
     );
   });
 
-  const renderSidebar = (props: {
-    selectedCapability: Capability | null;
-    selectedComponentId: ComponentId | null;
-    visualizedDomain: null;
-  } = defaultProps) => {
+  const renderSidebar = (
+    props: {
+      selectedCapability: Capability | null;
+      selectedComponentId: ComponentId | null;
+      visualizedDomain: null;
+    } = defaultProps,
+  ) => {
     const { Wrapper } = createMantineTestWrapper();
     return render(<DetailsSidebar {...props} />, { wrapper: Wrapper });
   };
@@ -145,7 +150,7 @@ describe('DetailsSidebar', () => {
         http.get(`${API_BASE}/api/v1/components`, async () => {
           await new Promise((resolve) => setTimeout(resolve, 100));
           return HttpResponse.json({ data: [], _links: { self: '/api/v1/components' } });
-        })
+        }),
       );
 
       renderSidebar({ ...defaultProps, selectedComponentId: 'comp-2' as ComponentId });
@@ -157,7 +162,7 @@ describe('DetailsSidebar', () => {
       server.use(
         http.get(`${API_BASE}/api/v1/components`, () => {
           return HttpResponse.json({ error: 'Network error' }, { status: 500 });
-        })
+        }),
       );
 
       renderSidebar({ ...defaultProps, selectedComponentId: 'comp-2' as ComponentId });

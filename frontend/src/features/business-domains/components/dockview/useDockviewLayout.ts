@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
-import type { DockviewReadyEvent, DockviewApi } from 'dockview';
-import type { useBusinessDomainsPage } from '../../hooks/useBusinessDomainsPage';
-import { buildDomainsParams, buildVisualizationParams, buildExplorerParams, buildDetailsParams } from './panelParams';
+import type { DockviewApi, DockviewReadyEvent } from 'dockview';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useUserStore } from '../../../../store/userStore';
+import type { useBusinessDomainsPage } from '../../hooks/useBusinessDomainsPage';
+import { buildDetailsParams, buildDomainsParams, buildExplorerParams, buildVisualizationParams } from './panelParams';
 
 const LAYOUT_STORAGE_KEY = 'easi-business-domains-dockview-layout';
 
@@ -10,12 +10,15 @@ type BusinessDomainsHookReturn = ReturnType<typeof useBusinessDomainsPage>;
 type PanelId = 'domains' | 'explorer' | 'details';
 type PanelSizes = { domains: number; explorer: number; details: number };
 
-const PANEL_DEFINITIONS: Record<PanelId, {
-  component: string;
-  title: string;
-  buildParams: (hookData: BusinessDomainsHookReturn) => Record<string, unknown>;
-  position: (api: DockviewApi) => { referencePanel: ReturnType<DockviewApi['getPanel']>; direction: string };
-}> = {
+const PANEL_DEFINITIONS: Record<
+  PanelId,
+  {
+    component: string;
+    title: string;
+    buildParams: (hookData: BusinessDomainsHookReturn) => Record<string, unknown>;
+    position: (api: DockviewApi) => { referencePanel: ReturnType<DockviewApi['getPanel']>; direction: string };
+  }
+> = {
   domains: {
     component: 'domains',
     title: 'Business Domains',
@@ -95,7 +98,11 @@ function removeExplorerPanel(api: DockviewApi, panelSizesRef: React.MutableRefOb
   api.removePanel(explorerPanel);
 }
 
-function restoreExplorerPanel(api: DockviewApi, hookData: BusinessDomainsHookReturn, panelSizesRef: React.MutableRefObject<PanelSizes>) {
+function restoreExplorerPanel(
+  api: DockviewApi,
+  hookData: BusinessDomainsHookReturn,
+  panelSizesRef: React.MutableRefObject<PanelSizes>,
+) {
   addSidePanel(api, 'explorer', hookData);
   setTimeout(() => {
     api.getPanel('explorer')?.api.setSize({ width: panelSizesRef.current.explorer });
@@ -120,7 +127,7 @@ function useExplorerSync(
 
     if (!showExplorer) {
       removeExplorerPanel(api, deps.panelSizesRef);
-      deps.setPanelVisibility(prev => (prev.explorer ? { ...prev, explorer: false } : prev));
+      deps.setPanelVisibility((prev) => (prev.explorer ? { ...prev, explorer: false } : prev));
       return;
     }
 
@@ -182,37 +189,45 @@ export function useDockviewLayout(hookData: BusinessDomainsHookReturn) {
   const showExplorer = userRole !== 'stakeholder';
   const dockviewApiRef = useRef<DockviewApi | null>(null);
   const hookDataRef = useRef(hookData);
-  useEffect(() => { hookDataRef.current = hookData; });
+  useEffect(() => {
+    hookDataRef.current = hookData;
+  });
   const [panelVisibility, setPanelVisibility] = useState({ domains: true, explorer: showExplorer, details: true });
   const panelSizesRef = useRef<PanelSizes>({ domains: 320, explorer: 320, details: 300 });
   const explorerSyncDeps: ExplorerSyncDeps = { dockviewApiRef, panelSizesRef, setPanelVisibility };
 
-  const onReady = useCallback((event: DockviewReadyEvent) => {
-    dockviewApiRef.current = event.api;
-    initializePanels(event.api, hookDataRef.current, showExplorer);
-  }, [showExplorer]);
+  const onReady = useCallback(
+    (event: DockviewReadyEvent) => {
+      dockviewApiRef.current = event.api;
+      initializePanels(event.api, hookDataRef.current, showExplorer);
+    },
+    [showExplorer],
+  );
 
   useSyncPanelParams(dockviewApiRef, hookData, showExplorer);
   useExplorerSync(explorerSyncDeps, hookData, showExplorer, panelVisibility.explorer);
   useLayoutPersistence(dockviewApiRef);
 
-  const togglePanel = useCallback((panelId: PanelId) => {
-    const api = dockviewApiRef.current;
-    if (!canTogglePanel(api, panelId, showExplorer)) return;
+  const togglePanel = useCallback(
+    (panelId: PanelId) => {
+      const api = dockviewApiRef.current;
+      if (!canTogglePanel(api, panelId, showExplorer)) return;
 
-    snapshotPanelSizes(api, panelSizesRef);
+      snapshotPanelSizes(api, panelSizesRef);
 
-    const panel = api.getPanel(panelId);
-    if (panel) {
-      api.removePanel(panel);
-      setPanelVisibility(prev => ({ ...prev, [panelId]: false }));
-    } else {
-      addSidePanel(api, panelId, hookDataRef.current);
-      setPanelVisibility(prev => ({ ...prev, [panelId]: true }));
-    }
+      const panel = api.getPanel(panelId);
+      if (panel) {
+        api.removePanel(panel);
+        setPanelVisibility((prev) => ({ ...prev, [panelId]: false }));
+      } else {
+        addSidePanel(api, panelId, hookDataRef.current);
+        setPanelVisibility((prev) => ({ ...prev, [panelId]: true }));
+      }
 
-    restoreAllSizes(api, panelSizesRef.current);
-  }, [showExplorer]);
+      restoreAllSizes(api, panelSizesRef.current);
+    },
+    [showExplorer],
+  );
 
   return {
     onReady,

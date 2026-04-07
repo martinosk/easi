@@ -1,9 +1,9 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { strategyPillarsApi, type BatchUpdateRequest } from '../api/metadata';
+import { type BatchUpdateRequest, strategyPillarsApi } from '../api/metadata';
+import { ApiError } from '../api/types';
 import { metadataQueryKeys } from '../lib/appQueryKeys';
 import { invalidateFor } from '../lib/invalidateFor';
-import { ApiError } from '../api/types';
 
 export function useStrategyPillarsConfig() {
   return useQuery({
@@ -24,9 +24,7 @@ export function useBatchUpdateStrategyPillars() {
     mutationFn: ({ request, version }: { request: BatchUpdateRequest; version: number }) =>
       strategyPillarsApi.batchUpdate(request, version),
     onSuccess: () => {
-      invalidateFor(queryClient, [
-        metadataQueryKeys.strategyPillarsConfig(),
-      ]);
+      invalidateFor(queryClient, [metadataQueryKeys.strategyPillarsConfig()]);
       toast.success('Strategy pillars updated successfully');
     },
     onError: (error: unknown) => {

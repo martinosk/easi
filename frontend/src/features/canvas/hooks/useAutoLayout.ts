@@ -1,12 +1,12 @@
-import { useCallback, useState } from 'react';
 import type { Node } from '@xyflow/react';
 import { useReactFlow } from '@xyflow/react';
+import { useCallback, useState } from 'react';
 import toast from 'react-hot-toast';
 import { calculateAutoLayout } from '../../../utils/autoLayout';
-import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
-import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { canEdit } from '../../../utils/hateoas';
+import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { useUpdateOriginEntityPosition } from '../../views/hooks/useViews';
+import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
 
 function toLayoutUpdate(node: Node) {
   return {
@@ -53,13 +53,15 @@ export function useAutoLayout() {
       }
 
       if (origin.length > 0) {
-        await Promise.all(origin.map((node) =>
-          updateOriginEntityPositionMutation.mutateAsync({
-            viewId: currentViewId,
-            originEntityId: node.id,
-            position: { x: node.position.x, y: node.position.y },
-          })
-        ));
+        await Promise.all(
+          origin.map((node) =>
+            updateOriginEntityPositionMutation.mutateAsync({
+              viewId: currentViewId,
+              originEntityId: node.id,
+              position: { x: node.position.x, y: node.position.y },
+            }),
+          ),
+        );
       }
 
       const { zoom } = reactFlowInstance.getViewport();

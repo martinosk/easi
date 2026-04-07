@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, type FormEvent } from 'react';
-import type { CreateEditGrantRequest, ArtifactType } from '../types';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
+import type { ArtifactType, CreateEditGrantRequest } from '../types';
 
 const artifactTypeLabels: Record<ArtifactType, string> = {
   capability: 'capability',
@@ -19,13 +19,7 @@ interface InviteToEditDialogProps {
   artifactId: string;
 }
 
-export function InviteToEditDialog({
-  isOpen,
-  onClose,
-  onSubmit,
-  artifactType,
-  artifactId,
-}: InviteToEditDialogProps) {
+export function InviteToEditDialog({ isOpen, onClose, onSubmit, artifactType, artifactId }: InviteToEditDialogProps) {
   const [granteeEmail, setGranteeEmail] = useState('');
   const [reason, setReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -130,12 +124,7 @@ export function InviteToEditDialog({
             >
               Cancel
             </button>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={isSubmitting}
-              data-testid="grant-submit-btn"
-            >
+            <button type="submit" className="btn btn-primary" disabled={isSubmitting} data-testid="grant-submit-btn">
               {isSubmitting ? 'Granting...' : 'Grant Edit Access'}
             </button>
           </div>

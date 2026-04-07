@@ -1,8 +1,8 @@
 import React from 'react';
-import { ContextMenu } from '../../../components/shared/ContextMenu';
-import type { ViewContextMenuState, ComponentContextMenuState, CapabilityContextMenuState } from '../types';
-import type { OriginEntityContextMenuState } from '../hooks/useTreeContextMenus';
 import type { ContextMenuItem } from '../../../components/shared/ContextMenu';
+import { ContextMenu } from '../../../components/shared/ContextMenu';
+import type { OriginEntityContextMenuState } from '../hooks/useTreeContextMenus';
+import type { CapabilityContextMenuState, ComponentContextMenuState, ViewContextMenuState } from '../types';
 
 interface TreeContextMenusProps {
   viewContextMenu: ViewContextMenuState | null;

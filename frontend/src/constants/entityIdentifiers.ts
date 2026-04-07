@@ -1,9 +1,4 @@
-import type {
-  AcquiredEntityId,
-  VendorId,
-  InternalTeamId,
-  OriginRelationshipType,
-} from '../api/types';
+import type { AcquiredEntityId, InternalTeamId, OriginRelationshipType, VendorId } from '../api/types';
 
 export type NodeId = string & { readonly __brand: 'NodeId' };
 export type EdgeId = string & { readonly __brand: 'EdgeId' };
@@ -92,10 +87,7 @@ export type OriginEntityIdMap = {
   team: InternalTeamId;
 };
 
-export function toTypedEntityId<T extends OriginEntityType>(
-  _type: T,
-  id: string
-): OriginEntityIdMap[T] {
+export function toTypedEntityId<T extends OriginEntityType>(_type: T, id: string): OriginEntityIdMap[T] {
   return id as OriginEntityIdMap[T];
 }
 

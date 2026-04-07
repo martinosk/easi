@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { InviteToEditDialog } from './InviteToEditDialog';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MantineTestWrapper } from '../../../test/helpers/mantineTestWrapper';
+import { InviteToEditDialog } from './InviteToEditDialog';
 
 describe('InviteToEditDialog', () => {
   const mockOnClose = vi.fn();
@@ -11,10 +11,8 @@ describe('InviteToEditDialog', () => {
     vi.clearAllMocks();
     mockOnSubmit.mockResolvedValue(undefined);
 
-    HTMLDialogElement.prototype.showModal =
-      HTMLDialogElement.prototype.showModal || vi.fn();
-    HTMLDialogElement.prototype.close =
-      HTMLDialogElement.prototype.close || vi.fn();
+    HTMLDialogElement.prototype.showModal = HTMLDialogElement.prototype.showModal || vi.fn();
+    HTMLDialogElement.prototype.close = HTMLDialogElement.prototype.close || vi.fn();
   });
 
   function renderDialog(isOpen = true) {
@@ -27,7 +25,7 @@ describe('InviteToEditDialog', () => {
           artifactType="capability"
           artifactId="cap-123"
         />
-      </MantineTestWrapper>
+      </MantineTestWrapper>,
     );
   }
 
@@ -36,9 +34,7 @@ describe('InviteToEditDialog', () => {
       renderDialog();
 
       expect(screen.getByText('Invite to Edit...')).toBeInTheDocument();
-      expect(
-        screen.getByText('Grant temporary edit access for this capability to a stakeholder.')
-      ).toBeInTheDocument();
+      expect(screen.getByText('Grant temporary edit access for this capability to a stakeholder.')).toBeInTheDocument();
     });
 
     it('should render email and reason form fields', () => {
@@ -113,9 +109,7 @@ describe('InviteToEditDialog', () => {
         expect(mockOnClose).toHaveBeenCalled();
       });
 
-      expect(
-        (screen.getByTestId('grantee-email-input') as HTMLInputElement).value
-      ).toBe('');
+      expect((screen.getByTestId('grantee-email-input') as HTMLInputElement).value).toBe('');
     });
   });
 
@@ -132,9 +126,7 @@ describe('InviteToEditDialog', () => {
       fireEvent.submit(screen.getByTestId('grant-submit-btn').closest('form')!);
 
       await waitFor(() => {
-        expect(screen.getByTestId('grant-error-message')).toHaveTextContent(
-          'Cannot grant edit access to yourself'
-        );
+        expect(screen.getByTestId('grant-error-message')).toHaveTextContent('Cannot grant edit access to yourself');
       });
 
       expect(mockOnClose).not.toHaveBeenCalled();
@@ -152,9 +144,7 @@ describe('InviteToEditDialog', () => {
       fireEvent.submit(screen.getByTestId('grant-submit-btn').closest('form')!);
 
       await waitFor(() => {
-        expect(screen.getByTestId('grant-error-message')).toHaveTextContent(
-          'Failed to grant edit access'
-        );
+        expect(screen.getByTestId('grant-error-message')).toHaveTextContent('Failed to grant edit access');
       });
     });
   });
@@ -173,12 +163,8 @@ describe('InviteToEditDialog', () => {
       fireEvent.click(screen.getByTestId('grant-cancel-btn'));
 
       expect(mockOnClose).toHaveBeenCalled();
-      expect(
-        (screen.getByTestId('grantee-email-input') as HTMLInputElement).value
-      ).toBe('');
-      expect(
-        (screen.getByTestId('grant-reason-input') as HTMLInputElement).value
-      ).toBe('');
+      expect((screen.getByTestId('grantee-email-input') as HTMLInputElement).value).toBe('');
+      expect((screen.getByTestId('grant-reason-input') as HTMLInputElement).value).toBe('');
     });
   });
 });

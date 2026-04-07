@@ -1,13 +1,13 @@
 import { httpClient } from '../../../api/core/httpClient';
 import { fetchAllPaginated } from '../../../api/core/pagination';
-import { followLink } from '../../../utils/hateoas';
 import type {
+  AddComponentExpertRequest,
   Component,
   ComponentId,
   CreateComponentRequest,
-  AddComponentExpertRequest,
   Expert,
 } from '../../../api/types';
+import { followLink } from '../../../utils/hateoas';
 
 export const componentsApi = {
   async getAll(): Promise<Component[]> {

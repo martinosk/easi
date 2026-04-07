@@ -1,10 +1,10 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { relationsApi } from '../api';
-import { relationsQueryKeys } from '../queryKeys';
-import { relationsMutationEffects } from '../mutationEffects';
-import { invalidateFor } from '../../../lib/invalidateFor';
-import type { Relation, RelationId, CreateRelationRequest } from '../../../api/types';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
+import type { CreateRelationRequest, Relation, RelationId } from '../../../api/types';
+import { invalidateFor } from '../../../lib/invalidateFor';
+import { relationsApi } from '../api';
+import { relationsMutationEffects } from '../mutationEffects';
+import { relationsQueryKeys } from '../queryKeys';
 
 export function useRelations() {
   return useQuery({
@@ -40,13 +40,8 @@ export function useUpdateRelation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      relation,
-      request,
-    }: {
-      relation: Relation;
-      request: Partial<CreateRelationRequest>;
-    }) => relationsApi.update(relation, request),
+    mutationFn: ({ relation, request }: { relation: Relation; request: Partial<CreateRelationRequest> }) =>
+      relationsApi.update(relation, request),
     onSuccess: (updatedRelation) => {
       invalidateFor(queryClient, relationsMutationEffects.update(updatedRelation.id));
       toast.success('Relation updated');

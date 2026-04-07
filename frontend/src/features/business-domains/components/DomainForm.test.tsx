@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, fireEvent, waitFor } from '@testing-library/react';
-import { DomainForm } from './DomainForm';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BusinessDomain, BusinessDomainId } from '../../../api/types';
 import { renderWithProviders } from '../../../test/helpers/renderWithProviders';
 import * as useUsersModule from '../../users/hooks/useUsers';
+import { DomainForm } from './DomainForm';
 
 vi.mock('../../users/hooks/useUsers', () => ({
   useEAOwnerCandidates: vi.fn(),
@@ -37,7 +37,9 @@ describe('DomainForm', () => {
     },
   };
 
-  let onSubmit: ReturnType<typeof vi.fn<(name: string, description: string, domainArchitectId?: string) => Promise<void>>>;
+  let onSubmit: ReturnType<
+    typeof vi.fn<(name: string, description: string, domainArchitectId?: string) => Promise<void>>
+  >;
   let onCancel: ReturnType<typeof vi.fn<() => void>>;
 
   beforeEach(() => {
@@ -53,9 +55,7 @@ describe('DomainForm', () => {
   });
 
   function renderCreateForm(submitOverride?: typeof onSubmit) {
-    renderWithProviders(
-      <DomainForm mode="create" onSubmit={submitOverride ?? onSubmit} onCancel={onCancel} />,
-    );
+    renderWithProviders(<DomainForm mode="create" onSubmit={submitOverride ?? onSubmit} onCancel={onCancel} />);
   }
 
   function renderEditForm(domain: BusinessDomain, submitOverride?: typeof onSubmit) {
@@ -78,11 +78,13 @@ describe('DomainForm', () => {
   }
 
   function mockLoadingUsers() {
-    vi.mocked(useUsersModule.useEAOwnerCandidates).mockReturnValue(createEAOwnerCandidatesResult({
-      data: [],
-      isLoading: true,
-      error: null,
-    }));
+    vi.mocked(useUsersModule.useEAOwnerCandidates).mockReturnValue(
+      createEAOwnerCandidatesResult({
+        data: [],
+        isLoading: true,
+        error: null,
+      }),
+    );
   }
 
   describe('Create mode', () => {
@@ -125,7 +127,9 @@ describe('DomainForm', () => {
       fillAndSubmit({ name: 'Valid Name', description: 'a'.repeat(501) });
 
       await waitFor(() => {
-        expect(screen.getByTestId('domain-description-error')).toHaveTextContent('Description must be 500 characters or less');
+        expect(screen.getByTestId('domain-description-error')).toHaveTextContent(
+          'Description must be 500 characters or less',
+        );
       });
 
       expect(onSubmit).not.toHaveBeenCalled();

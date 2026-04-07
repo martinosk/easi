@@ -1,36 +1,30 @@
 import { httpClient } from '../core';
 import type {
-  StatusOption,
-  OwnershipModelOption,
   MaturityLevelsResponse,
-  StatusesResponse,
+  MaturityScale,
+  OwnershipModelOption,
   OwnershipModelsResponse,
-  VersionResponse,
   Release,
   ReleasesResponse,
   ReleaseVersion,
-  MaturityScale,
+  StatusesResponse,
+  StatusOption,
+  VersionResponse,
 } from '../types';
 
 export const metadataApi = {
   async getMaturityLevels(): Promise<string[]> {
-    const response = await httpClient.get<MaturityLevelsResponse>(
-      '/api/v1/capabilities/metadata/maturity-levels'
-    );
+    const response = await httpClient.get<MaturityLevelsResponse>('/api/v1/capabilities/metadata/maturity-levels');
     return response.data.data.map((level) => level.value);
   },
 
   async getStatuses(): Promise<StatusOption[]> {
-    const response = await httpClient.get<StatusesResponse>(
-      '/api/v1/capabilities/metadata/statuses'
-    );
+    const response = await httpClient.get<StatusesResponse>('/api/v1/capabilities/metadata/statuses');
     return response.data.data;
   },
 
   async getOwnershipModels(): Promise<OwnershipModelOption[]> {
-    const response = await httpClient.get<OwnershipModelsResponse>(
-      '/api/v1/capabilities/metadata/ownership-models'
-    );
+    const response = await httpClient.get<OwnershipModelsResponse>('/api/v1/capabilities/metadata/ownership-models');
     return response.data.data;
   },
 

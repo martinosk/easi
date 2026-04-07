@@ -1,15 +1,15 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { originEntitiesApi } from '../api/originEntitiesApi';
-import { internalTeamsQueryKeys } from '../queryKeys';
-import { invalidateFor } from '../../../lib/invalidateFor';
-import { internalTeamsMutationEffects } from '../mutationEffects';
-import type {
-  InternalTeamId,
-  CreateInternalTeamRequest,
-  UpdateInternalTeamRequest,
-  ComponentId,
-} from '../../../api/types';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
+import type {
+  ComponentId,
+  CreateInternalTeamRequest,
+  InternalTeamId,
+  UpdateInternalTeamRequest,
+} from '../../../api/types';
+import { invalidateFor } from '../../../lib/invalidateFor';
+import { originEntitiesApi } from '../api/originEntitiesApi';
+import { internalTeamsMutationEffects } from '../mutationEffects';
+import { internalTeamsQueryKeys } from '../queryKeys';
 
 export function useInternalTeamsQuery() {
   return useQuery({
@@ -75,8 +75,15 @@ export function useDeleteInternalTeam() {
 
 export function useLinkComponentToInternalTeam() {
   return useTeamMutation({
-    mutationFn: ({ componentId, teamId, notes }: { componentId: ComponentId; teamId: InternalTeamId; notes?: string }) =>
-      originEntitiesApi.internalTeams.linkComponent(componentId, teamId, notes),
+    mutationFn: ({
+      componentId,
+      teamId,
+      notes,
+    }: {
+      componentId: ComponentId;
+      teamId: InternalTeamId;
+      notes?: string;
+    }) => originEntitiesApi.internalTeams.linkComponent(componentId, teamId, notes),
     effects: (_, { teamId, componentId }) => internalTeamsMutationEffects.linkComponent(teamId, componentId),
     successMessage: () => 'Component linked to internal team',
     errorMessage: 'Failed to link component to internal team',

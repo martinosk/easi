@@ -72,12 +72,7 @@ export const ImportResultsStep: React.FC<ImportResultsStepProps> = ({ result, on
       </div>
 
       <div className="dialog-actions">
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={onClose}
-          data-testid="close-button"
-        >
+        <button type="button" className="btn btn-primary" onClick={onClose} data-testid="close-button">
           Close
         </button>
       </div>

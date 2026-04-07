@@ -13,6 +13,6 @@ export function getParamValue(param: string): string | null {
 
 export function clearParams(paramsToClear: string[]): void {
   const url = new URL(window.location.href);
-  paramsToClear.forEach(param => url.searchParams.delete(param));
+  paramsToClear.forEach((param) => url.searchParams.delete(param));
   window.history.replaceState({}, '', url.toString());
 }

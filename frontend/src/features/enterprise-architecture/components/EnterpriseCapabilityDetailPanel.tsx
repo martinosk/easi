@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import type { EnterpriseCapability, EnterpriseCapabilityLink } from '../types';
 import { useEnterpriseCapabilityLinks, useUnlinkDomainCapability } from '../hooks/useEnterpriseCapabilities';
+import type { EnterpriseCapability, EnterpriseCapabilityLink } from '../types';
 
 interface EnterpriseCapabilityDetailPanelProps {
   capability: EnterpriseCapability;
@@ -46,9 +46,7 @@ function DomainGroup({ domainName, links, onUnlink, isUnlinking }: DomainGroupPr
       <ul className="link-list">
         {links.map((link) => (
           <li key={link.id} className="link-item">
-            <span className="link-name">
-              {link.domainCapabilityName || link.domainCapabilityId}
-            </span>
+            <span className="link-name">{link.domainCapabilityName || link.domainCapabilityId}</span>
             {link._links?.delete && (
               <button
                 type="button"
@@ -67,13 +65,19 @@ function DomainGroup({ domainName, links, onUnlink, isUnlinking }: DomainGroupPr
   );
 }
 
-function LinkedCapabilitiesSection({ groups, onUnlink, isUnlinking }: {
+function LinkedCapabilitiesSection({
+  groups,
+  onUnlink,
+  isUnlinking,
+}: {
   groups: GroupedDomain[];
   onUnlink: (link: EnterpriseCapabilityLink) => void;
   isUnlinking: boolean;
 }) {
   if (groups.length === 0) {
-    return <p className="empty-state">No capabilities linked yet. Use the Manage Links page to link domain capabilities.</p>;
+    return (
+      <p className="empty-state">No capabilities linked yet. Use the Manage Links page to link domain capabilities.</p>
+    );
   }
 
   return (
@@ -91,10 +95,7 @@ function LinkedCapabilitiesSection({ groups, onUnlink, isUnlinking }: {
   );
 }
 
-export function EnterpriseCapabilityDetailPanel({
-  capability,
-  onClose,
-}: EnterpriseCapabilityDetailPanelProps) {
+export function EnterpriseCapabilityDetailPanel({ capability, onClose }: EnterpriseCapabilityDetailPanelProps) {
   const { data: links, isLoading } = useEnterpriseCapabilityLinks(capability.id);
   const unlinkMutation = useUnlinkDomainCapability();
 
@@ -115,25 +116,22 @@ export function EnterpriseCapabilityDetailPanel({
       <div className="detail-panel-header">
         <div className="detail-panel-title">
           <h2>{capability.name}</h2>
-          {capability.category && (
-            <span className="category-badge">{capability.category}</span>
-          )}
+          {capability.category && <span className="category-badge">{capability.category}</span>}
         </div>
-        <button
-          type="button"
-          className="btn-close"
-          onClick={onClose}
-          aria-label="Close detail panel"
-        >
+        <button type="button" className="btn-close" onClick={onClose} aria-label="Close detail panel">
           <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="20" height="20">
-            <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path
+              d="M18 6L6 18M6 6L18 18"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
         </button>
       </div>
 
-      {capability.description && (
-        <p className="detail-panel-description">{capability.description}</p>
-      )}
+      {capability.description && <p className="detail-panel-description">{capability.description}</p>}
 
       <div className="detail-panel-stats">
         <div className="stat">

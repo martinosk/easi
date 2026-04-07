@@ -1,7 +1,7 @@
+import { Alert, Badge, Button, Checkbox, Group, Modal, ScrollArea, Skeleton, Stack, Text } from '@mantine/core';
 import React, { useState } from 'react';
-import { Modal, Text, Button, Group, Stack, Alert, Checkbox, Skeleton, ScrollArea, Badge } from '@mantine/core';
-import { useDeleteCapability, useDeleteImpact, useCascadeDeleteCapability } from '../hooks/useCapabilities';
 import type { Capability, CapabilityId } from '../../../api/types';
+import { useCascadeDeleteCapability, useDeleteCapability, useDeleteImpact } from '../hooks/useCapabilities';
 
 interface DeleteCapabilityDialogProps {
   isOpen: boolean;
@@ -28,9 +28,7 @@ export const DeleteCapabilityDialog: React.FC<DeleteCapabilityDialogProps> = ({
   const cascadeDeleteMutation = useCascadeDeleteCapability();
 
   const capabilityId = capability?.id as CapabilityId | undefined;
-  const { data: impact, isLoading: impactLoading } = useDeleteImpact(
-    isOpen ? capabilityId : undefined
-  );
+  const { data: impact, isLoading: impactLoading } = useDeleteImpact(isOpen ? capabilityId : undefined);
 
   const handleClose = () => {
     setBackendError(null);
@@ -110,18 +108,29 @@ export const DeleteCapabilityDialog: React.FC<DeleteCapabilityDialogProps> = ({
         ) : hasCascade ? (
           <>
             <Alert color="orange" data-testid="cascade-warning">
-              This will delete <Text span fw={600}>"{capability.name}"</Text> and{' '}
-              <Text span fw={600}>{affectedCount} child {affectedCount === 1 ? 'capability' : 'capabilities'}</Text>.
+              This will delete{' '}
+              <Text span fw={600}>
+                "{capability.name}"
+              </Text>{' '}
+              and{' '}
+              <Text span fw={600}>
+                {affectedCount} child {affectedCount === 1 ? 'capability' : 'capabilities'}
+              </Text>
+              .
             </Alert>
 
             {affectedCount > 0 && (
               <Stack gap="xs">
-                <Text fw={600} size="sm">Affected Capabilities ({affectedCount})</Text>
+                <Text fw={600} size="sm">
+                  Affected Capabilities ({affectedCount})
+                </Text>
                 <ScrollArea.Autosize mah={150}>
                   <Stack gap={4}>
                     {impact!.affectedCapabilities.map((cap) => (
                       <Group key={cap.id} gap="xs">
-                        <Badge size="xs" variant="light">{cap.level}</Badge>
+                        <Badge size="xs" variant="light">
+                          {cap.level}
+                        </Badge>
                         <Text size="sm">{cap.name}</Text>
                       </Group>
                     ))}
@@ -141,18 +150,23 @@ export const DeleteCapabilityDialog: React.FC<DeleteCapabilityDialogProps> = ({
 
             {retainedRealizations.length > 0 && (
               <Text size="sm" c="dimmed">
-                {retainedRealizations.length} {retainedRealizations.length === 1 ? 'realization' : 'realizations'} will be retained (applications also realise other capabilities).
+                {retainedRealizations.length} {retainedRealizations.length === 1 ? 'realization' : 'realizations'} will
+                be retained (applications also realise other capabilities).
               </Text>
             )}
           </>
         ) : (
           <>
             <Text>Are you sure you want to delete</Text>
-            <Text fw={600} size="lg">"{capability.name}"</Text>
+            <Text fw={600} size="lg">
+              "{capability.name}"
+            </Text>
           </>
         )}
 
-        <Text c="orange" size="sm">This action cannot be undone.</Text>
+        <Text c="orange" size="sm">
+          This action cannot be undone.
+        </Text>
 
         {backendError && (
           <Alert color="red" data-testid="delete-capability-error">
@@ -161,12 +175,7 @@ export const DeleteCapabilityDialog: React.FC<DeleteCapabilityDialogProps> = ({
         )}
 
         <Group justify="flex-end" gap="sm">
-          <Button
-            variant="default"
-            onClick={handleClose}
-            disabled={isDeleting}
-            data-testid="delete-capability-cancel"
-          >
+          <Button variant="default" onClick={handleClose} disabled={isDeleting} data-testid="delete-capability-cancel">
             Cancel
           </Button>
           <Button

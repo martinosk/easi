@@ -1,13 +1,13 @@
+import { auditQueryKeys } from '../audit/queryKeys';
+import { layoutsQueryKeys } from '../canvas/queryKeys';
+import { componentsQueryKeys } from '../components/queryKeys';
+import { artifactCreatorsQueryKeys } from '../navigation/hooks/useArtifactCreators';
 import {
   acquiredEntitiesQueryKeys,
-  vendorsQueryKeys,
   internalTeamsQueryKeys,
   originRelationshipsQueryKeys,
+  vendorsQueryKeys,
 } from './queryKeys';
-import { componentsQueryKeys } from '../components/queryKeys';
-import { layoutsQueryKeys } from '../canvas/queryKeys';
-import { auditQueryKeys } from '../audit/queryKeys';
-import { artifactCreatorsQueryKeys } from '../navigation/hooks/useArtifactCreators';
 
 interface OriginEntityQueryKeys {
   all: readonly [string];
@@ -19,16 +19,9 @@ interface OriginEntityQueryKeys {
 
 function createOriginEntityMutationEffects(entityQueryKeys: OriginEntityQueryKeys) {
   return {
-    create: () => [
-      entityQueryKeys.lists(),
-      artifactCreatorsQueryKeys.all,
-    ],
+    create: () => [entityQueryKeys.lists(), artifactCreatorsQueryKeys.all],
 
-    update: (id: string) => [
-      entityQueryKeys.lists(),
-      entityQueryKeys.detail(id),
-      auditQueryKeys.history(id),
-    ],
+    update: (id: string) => [entityQueryKeys.lists(), entityQueryKeys.detail(id), auditQueryKeys.history(id)],
 
     delete: (id: string) => [
       entityQueryKeys.lists(),

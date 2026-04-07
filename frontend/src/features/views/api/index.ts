@@ -1,1 +1,1 @@
-export { viewsApi, default } from './viewsApi';
+export { default, viewsApi } from './viewsApi';

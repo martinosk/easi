@@ -1,8 +1,8 @@
-import { Routes, Route, Navigate, NavLink } from 'react-router-dom';
+import { Navigate, NavLink, Route, Routes } from 'react-router-dom';
+import { useUserStore } from '../../../store/userStore';
+import { AIConfigurationSettings } from '../components/AIConfigurationSettings';
 import { MaturityScaleSettings } from '../components/MaturityScaleSettings';
 import { StrategyPillarsSettings } from '../components/StrategyPillarsSettings';
-import { AIConfigurationSettings } from '../components/AIConfigurationSettings';
-import { useUserStore } from '../../../store/userStore';
 import './SettingsPage.css';
 
 export function SettingsPage() {
@@ -13,9 +13,7 @@ export function SettingsPage() {
     return (
       <div className="settings-page">
         <div className="settings-container">
-          <div className="error-message">
-            You do not have permission to manage settings.
-          </div>
+          <div className="error-message">You do not have permission to manage settings.</div>
         </div>
       </div>
     );
@@ -26,33 +24,25 @@ export function SettingsPage() {
       <div className="settings-container">
         <div className="settings-header">
           <h1 className="settings-title">Settings</h1>
-          <p className="settings-subtitle">
-            Configure system-wide settings for your organization.
-          </p>
+          <p className="settings-subtitle">Configure system-wide settings for your organization.</p>
         </div>
 
         <nav className="settings-tabs">
           <NavLink
             to="/settings/maturity-scale"
-            className={({ isActive }) =>
-              `settings-tab ${isActive ? 'settings-tab-active' : ''}`
-            }
+            className={({ isActive }) => `settings-tab ${isActive ? 'settings-tab-active' : ''}`}
           >
             Maturity Scale
           </NavLink>
           <NavLink
             to="/settings/strategy-pillars"
-            className={({ isActive }) =>
-              `settings-tab ${isActive ? 'settings-tab-active' : ''}`
-            }
+            className={({ isActive }) => `settings-tab ${isActive ? 'settings-tab-active' : ''}`}
           >
             Strategy Pillars
           </NavLink>
           <NavLink
             to="/settings/ai-configuration"
-            className={({ isActive }) =>
-              `settings-tab ${isActive ? 'settings-tab-active' : ''}`
-            }
+            className={({ isActive }) => `settings-tab ${isActive ? 'settings-tab-active' : ''}`}
           >
             AI Configuration
           </NavLink>

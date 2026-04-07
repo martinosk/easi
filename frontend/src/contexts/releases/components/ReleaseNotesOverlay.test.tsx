@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { ReleaseNotesOverlay } from './ReleaseNotesOverlay';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Release } from '../../../api/types';
 import { toReleaseVersion } from '../../../api/types';
+import { ReleaseNotesOverlay } from './ReleaseNotesOverlay';
 
 describe('ReleaseNotesOverlay', () => {
   const mockOnDismiss = vi.fn();
@@ -27,13 +27,7 @@ describe('ReleaseNotesOverlay', () => {
         notes: '## Features\n- Added `new-feature` support',
       };
 
-      render(
-        <ReleaseNotesOverlay
-          isOpen={true}
-          release={releaseWithCode}
-          onDismiss={mockOnDismiss}
-        />
-      );
+      render(<ReleaseNotesOverlay isOpen={true} release={releaseWithCode} onDismiss={mockOnDismiss} />);
 
       const codeElement = screen.getByText('new-feature', {});
       expect(codeElement.tagName.toLowerCase()).toBe('code');
@@ -45,13 +39,7 @@ describe('ReleaseNotesOverlay', () => {
         notes: '## Features\n- **Important** new feature',
       };
 
-      render(
-        <ReleaseNotesOverlay
-          isOpen={true}
-          release={releaseWithBold}
-          onDismiss={mockOnDismiss}
-        />
-      );
+      render(<ReleaseNotesOverlay isOpen={true} release={releaseWithBold} onDismiss={mockOnDismiss} />);
 
       const boldElement = screen.getByText('Important', {});
       expect(boldElement.tagName.toLowerCase()).toBe('strong');
@@ -63,13 +51,7 @@ describe('ReleaseNotesOverlay', () => {
         notes: '## Features\n- *Slightly* improved',
       };
 
-      render(
-        <ReleaseNotesOverlay
-          isOpen={true}
-          release={releaseWithItalic}
-          onDismiss={mockOnDismiss}
-        />
-      );
+      render(<ReleaseNotesOverlay isOpen={true} release={releaseWithItalic} onDismiss={mockOnDismiss} />);
 
       const italicElement = screen.getByText('Slightly', {});
       expect(italicElement.tagName.toLowerCase()).toBe('em');
@@ -81,13 +63,7 @@ describe('ReleaseNotesOverlay', () => {
         notes: 'This is a plain text release note without sections.',
       };
 
-      render(
-        <ReleaseNotesOverlay
-          isOpen={true}
-          release={releaseWithPlainText}
-          onDismiss={mockOnDismiss}
-        />
-      );
+      render(<ReleaseNotesOverlay isOpen={true} release={releaseWithPlainText} onDismiss={mockOnDismiss} />);
 
       expect(screen.getByText(/This is a plain text release note/, {})).toBeInTheDocument();
     });
@@ -100,13 +76,7 @@ describe('ReleaseNotesOverlay', () => {
         notes: '## Major Features\n- New feature',
       };
 
-      render(
-        <ReleaseNotesOverlay
-          isOpen={true}
-          release={releaseWithFeatures}
-          onDismiss={mockOnDismiss}
-        />
-      );
+      render(<ReleaseNotesOverlay isOpen={true} release={releaseWithFeatures} onDismiss={mockOnDismiss} />);
 
       const iconElement = document.querySelector('.release-notes-section-icon');
       expect(iconElement?.textContent).toContain('★');
@@ -118,16 +88,10 @@ describe('ReleaseNotesOverlay', () => {
         notes: '## Bug Fixes\n- Fixed issue',
       };
 
-      render(
-        <ReleaseNotesOverlay
-          isOpen={true}
-          release={releaseWithBugFixes}
-          onDismiss={mockOnDismiss}
-        />
-      );
+      render(<ReleaseNotesOverlay isOpen={true} release={releaseWithBugFixes} onDismiss={mockOnDismiss} />);
 
       const sections = document.querySelectorAll('.release-notes-section-icon');
-      const bugFixSection = Array.from(sections).find(s => s.textContent?.includes('✓'));
+      const bugFixSection = Array.from(sections).find((s) => s.textContent?.includes('✓'));
       expect(bugFixSection).toBeDefined();
     });
 
@@ -137,16 +101,10 @@ describe('ReleaseNotesOverlay', () => {
         notes: '## Breaking Changes\n- API change',
       };
 
-      render(
-        <ReleaseNotesOverlay
-          isOpen={true}
-          release={releaseWithBreaking}
-          onDismiss={mockOnDismiss}
-        />
-      );
+      render(<ReleaseNotesOverlay isOpen={true} release={releaseWithBreaking} onDismiss={mockOnDismiss} />);
 
       const sections = document.querySelectorAll('.release-notes-section-icon');
-      const breakingSection = Array.from(sections).find(s => s.textContent?.includes('⚠'));
+      const breakingSection = Array.from(sections).find((s) => s.textContent?.includes('⚠'));
       expect(breakingSection).toBeDefined();
     });
 
@@ -156,16 +114,10 @@ describe('ReleaseNotesOverlay', () => {
         notes: '## API Changes\n- New endpoint',
       };
 
-      render(
-        <ReleaseNotesOverlay
-          isOpen={true}
-          release={releaseWithAPI}
-          onDismiss={mockOnDismiss}
-        />
-      );
+      render(<ReleaseNotesOverlay isOpen={true} release={releaseWithAPI} onDismiss={mockOnDismiss} />);
 
       const sections = document.querySelectorAll('.release-notes-section-icon');
-      const apiSection = Array.from(sections).find(s => s.textContent?.includes('⚡'));
+      const apiSection = Array.from(sections).find((s) => s.textContent?.includes('⚡'));
       expect(apiSection).toBeDefined();
     });
   });

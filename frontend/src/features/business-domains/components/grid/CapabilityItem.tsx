@@ -1,9 +1,9 @@
 import type { Capability, CapabilityId, CapabilityRealization, ComponentId } from '../../../../api/types';
-import type { DepthLevel } from '../DepthSelector';
 import type { Breakpoint } from '../../../../hooks/useResponsive';
-import { RESPONSIVE_GRID_COLUMNS, RESPONSIVE_SPACING, getResponsiveValue } from '../../../../hooks/useResponsive';
+import { getResponsiveValue, RESPONSIVE_GRID_COLUMNS, RESPONSIVE_SPACING } from '../../../../hooks/useResponsive';
 import { ApplicationChipList } from '../ApplicationChipList';
-import { LEVEL_COLORS, LEVEL_SIZES, levelToNumber, type CapabilityNode } from './gridUtils';
+import type { DepthLevel } from '../DepthSelector';
+import { type CapabilityNode, LEVEL_COLORS, LEVEL_SIZES, levelToNumber } from './gridUtils';
 
 function getResponsiveGridColumns(level: Capability['level'], breakpoint: Breakpoint): string {
   const columns = RESPONSIVE_GRID_COLUMNS[level] || RESPONSIVE_GRID_COLUMNS.L3;
@@ -17,7 +17,7 @@ function getVisibleChildren(children: CapabilityNode[], depth: DepthLevel): Capa
 function getCapabilityRealizations(
   showApplications: boolean,
   getRealizationsForCapability: ((id: CapabilityId) => CapabilityRealization[]) | undefined,
-  capabilityId: CapabilityId
+  capabilityId: CapabilityId,
 ): CapabilityRealization[] {
   if (!showApplications || !getRealizationsForCapability) return [];
   return getRealizationsForCapability(capabilityId);
@@ -151,9 +151,7 @@ export function CapabilityItem({
         ...selectionStyles,
       }}
     >
-      <div style={{ fontWeight: 500, marginBottom: hasContent ? '0.5rem' : 0 }}>
-        {capability.name}
-      </div>
+      <div style={{ fontWeight: 500, marginBottom: hasContent ? '0.5rem' : 0 }}>{capability.name}</div>
       {canShowRealizations && (
         <div style={{ marginBottom: visibleChildren.length > 0 ? '0.5rem' : 0 }}>
           <ApplicationChipList realizations={realizations} onApplicationClick={onApplicationClick!} />

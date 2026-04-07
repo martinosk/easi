@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { Modal, Select, TextInput, Textarea, Button, Group, Stack, Alert } from '@mantine/core';
-import { useForm, Controller, type Control, type FieldErrors, type UseFormRegister } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Alert, Button, Group, Modal, Select, Stack, Textarea, TextInput } from '@mantine/core';
+import React, { useEffect, useState } from 'react';
+import { type Control, Controller, type FieldErrors, type UseFormRegister, useForm } from 'react-hook-form';
+import { toComponentId } from '../../../api/types';
+import { type CreateRelationFormData, createRelationSchema } from '../../../lib/schemas';
 import { useComponents } from '../../components/hooks/useComponents';
 import { useCreateRelation } from '../hooks/useRelations';
-import { createRelationSchema, type CreateRelationFormData } from '../../../lib/schemas';
-import { toComponentId } from '../../../api/types';
 
 interface CreateRelationDialogProps {
   isOpen: boolean;
@@ -143,7 +143,12 @@ function RelationDetailFields({ control, register, errors, isPending }: Relation
   );
 }
 
-function FormActions({ isPending, isValid, hasSameSourceAndTarget, onCancel }: {
+function FormActions({
+  isPending,
+  isValid,
+  hasSameSourceAndTarget,
+  onCancel,
+}: {
   isPending: boolean;
   isValid: boolean;
   hasSameSourceAndTarget: boolean;
@@ -151,12 +156,7 @@ function FormActions({ isPending, isValid, hasSameSourceAndTarget, onCancel }: {
 }) {
   return (
     <Group justify="flex-end" gap="sm">
-      <Button
-        variant="default"
-        onClick={onCancel}
-        disabled={isPending}
-        data-testid="create-relation-cancel"
-      >
+      <Button variant="default" onClick={onCancel} disabled={isPending} data-testid="create-relation-cancel">
         Cancel
       </Button>
       <Button
@@ -226,17 +226,11 @@ export const CreateRelationDialog: React.FC<CreateRelationDialogProps> = ({
   const sourceComponentId = watch('sourceComponentId');
   const targetComponentId = watch('targetComponentId');
   const hasSameSourceAndTarget = Boolean(
-    sourceComponentId && targetComponentId && sourceComponentId === targetComponentId
+    sourceComponentId && targetComponentId && sourceComponentId === targetComponentId,
   );
 
   return (
-    <Modal
-      opened={isOpen}
-      onClose={onClose}
-      title="Create Relation"
-      centered
-      data-testid="create-relation-dialog"
-    >
+    <Modal opened={isOpen} onClose={onClose} title="Create Relation" centered data-testid="create-relation-dialog">
       <form onSubmit={handleSubmit(onSubmit)}>
         <Stack gap="md">
           <ComponentSelectFields

@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useChat } from './useChat';
 
 vi.mock('../api/chatApi', () => ({
@@ -32,14 +32,18 @@ function createMockSSEResponse(events: string): Response {
 async function sendWithSSE(sseData: string) {
   vi.mocked(chatApi.sendMessageStream).mockResolvedValue(createMockSSEResponse(sseData));
   const { result } = renderHook(() => useChat());
-  await act(async () => { await result.current.sendMessage('conv-1', 'Hi'); });
+  await act(async () => {
+    await result.current.sendMessage('conv-1', 'Hi');
+  });
   return result;
 }
 
 async function sendWithError(mockSetup: () => void) {
   mockSetup();
   const { result } = renderHook(() => useChat());
-  await act(async () => { await result.current.sendMessage('conv-1', 'Hi'); });
+  await act(async () => {
+    await result.current.sendMessage('conv-1', 'Hi');
+  });
   return result;
 }
 
@@ -56,17 +60,21 @@ describe('useChat', () => {
   });
 
   it('should add user message immediately on send', async () => {
-    const result = await sendWithSSE('event: token\ndata: {"content":"Hi"}\n\nevent: done\ndata: {"messageId":"msg-1","tokensUsed":5}\n\n');
+    const result = await sendWithSSE(
+      'event: token\ndata: {"content":"Hi"}\n\nevent: done\ndata: {"messageId":"msg-1","tokensUsed":5}\n\n',
+    );
 
-    const userMsg = result.current.messages.find(m => m.role === 'user');
+    const userMsg = result.current.messages.find((m) => m.role === 'user');
     expect(userMsg).toBeDefined();
     expect(userMsg!.content).toBe('Hi');
   });
 
   it('should stream assistant response from SSE tokens', async () => {
-    const result = await sendWithSSE('event: token\ndata: {"content":"Hello "}\n\nevent: token\ndata: {"content":"world"}\n\nevent: done\ndata: {"messageId":"msg-1","tokensUsed":10}\n\n');
+    const result = await sendWithSSE(
+      'event: token\ndata: {"content":"Hello "}\n\nevent: token\ndata: {"content":"world"}\n\nevent: done\ndata: {"messageId":"msg-1","tokensUsed":10}\n\n',
+    );
 
-    const assistantMsg = result.current.messages.find(m => m.role === 'assistant');
+    const assistantMsg = result.current.messages.find((m) => m.role === 'assistant');
     expect(assistantMsg).toBeDefined();
     expect(assistantMsg!.content).toBe('Hello world');
   });
@@ -78,9 +86,7 @@ describe('useChat', () => {
 
   it('should set error on non-200 response', async () => {
     const result = await sendWithError(() => {
-      vi.mocked(chatApi.sendMessageStream).mockResolvedValue(
-        new Response('Too Many Requests', { status: 429 })
-      );
+      vi.mocked(chatApi.sendMessageStream).mockResolvedValue(new Response('Too Many Requests', { status: 429 }));
     });
     expect(result.current.error).toBeTruthy();
   });
@@ -93,14 +99,20 @@ describe('useChat', () => {
   });
 
   it('should not be streaming after response completes', async () => {
-    const result = await sendWithSSE('event: token\ndata: {"content":"Done"}\n\nevent: done\ndata: {"messageId":"msg-1","tokensUsed":5}\n\n');
+    const result = await sendWithSSE(
+      'event: token\ndata: {"content":"Done"}\n\nevent: done\ndata: {"messageId":"msg-1","tokensUsed":5}\n\n',
+    );
     expect(result.current.isStreaming).toBe(false);
   });
 
   it('should clear error when sending new message', async () => {
     vi.mocked(chatApi.sendMessageStream)
       .mockRejectedValueOnce(new Error('Network error'))
-      .mockResolvedValueOnce(createMockSSEResponse('event: token\ndata: {"content":"ok"}\n\nevent: done\ndata: {"messageId":"msg-1","tokensUsed":1}\n\n'));
+      .mockResolvedValueOnce(
+        createMockSSEResponse(
+          'event: token\ndata: {"content":"ok"}\n\nevent: done\ndata: {"messageId":"msg-1","tokensUsed":1}\n\n',
+        ),
+      );
 
     const { result } = renderHook(() => useChat());
 
@@ -116,11 +128,31 @@ describe('useChat', () => {
   });
 
   it.each([
-    { desc: 'conversationId only', convId: 'my-conv-42', content: 'Hello', writeOps: undefined, expected: { content: 'Hello' } },
-    { desc: 'allowWriteOperations true', convId: 'conv-1', content: 'Create app', writeOps: true, expected: { content: 'Create app', allowWriteOperations: true } },
-    { desc: 'allowWriteOperations false', convId: 'conv-1', content: 'Read app', writeOps: false, expected: { content: 'Read app', allowWriteOperations: false } },
+    {
+      desc: 'conversationId only',
+      convId: 'my-conv-42',
+      content: 'Hello',
+      writeOps: undefined,
+      expected: { content: 'Hello' },
+    },
+    {
+      desc: 'allowWriteOperations true',
+      convId: 'conv-1',
+      content: 'Create app',
+      writeOps: true,
+      expected: { content: 'Create app', allowWriteOperations: true },
+    },
+    {
+      desc: 'allowWriteOperations false',
+      convId: 'conv-1',
+      content: 'Read app',
+      writeOps: false,
+      expected: { content: 'Read app', allowWriteOperations: false },
+    },
   ])('should pass $desc to sendMessageStream', async ({ convId, content, writeOps, expected }) => {
-    vi.mocked(chatApi.sendMessageStream).mockResolvedValue(createMockSSEResponse('event: done\ndata: {"messageId":"m1","tokensUsed":1}\n\n'));
+    vi.mocked(chatApi.sendMessageStream).mockResolvedValue(
+      createMockSSEResponse('event: done\ndata: {"messageId":"m1","tokensUsed":1}\n\n'),
+    );
     const { result } = renderHook(() => useChat());
 
     await act(async () => {
@@ -133,7 +165,9 @@ describe('useChat', () => {
   it('should call onDone callback when done event is received', async () => {
     const onDone = vi.fn();
     vi.mocked(chatApi.sendMessageStream).mockResolvedValue(
-      createMockSSEResponse('event: token\ndata: {"content":"ok"}\n\nevent: done\ndata: {"messageId":"msg-1","tokensUsed":5}\n\n')
+      createMockSSEResponse(
+        'event: token\ndata: {"content":"ok"}\n\nevent: done\ndata: {"messageId":"msg-1","tokensUsed":5}\n\n',
+      ),
     );
 
     const { result } = renderHook(() => useChat({ onDone }));
@@ -174,9 +208,7 @@ describe('useChat', () => {
 
     const result = await sendWithSSE(sseData);
 
-    expect(result.current.toolCalls).toEqual([
-      { id: 'tc-1', name: 'list_applications', status: 'running' },
-    ]);
+    expect(result.current.toolCalls).toEqual([{ id: 'tc-1', name: 'list_applications', status: 'running' }]);
   });
 
   it('should handle multi-chunk streaming without duplicate events', async () => {
@@ -184,7 +216,11 @@ describe('useChat', () => {
     const stream = new ReadableStream({
       start(controller) {
         controller.enqueue(encoder.encode('event: token\ndata: {"content":"Hello"}\n\nevent: tok'));
-        controller.enqueue(encoder.encode('en\ndata: {"content":" world"}\n\nevent: done\ndata: {"messageId":"msg-1","tokensUsed":5}\n\n'));
+        controller.enqueue(
+          encoder.encode(
+            'en\ndata: {"content":" world"}\n\nevent: done\ndata: {"messageId":"msg-1","tokensUsed":5}\n\n',
+          ),
+        );
         controller.close();
       },
     });
@@ -192,9 +228,11 @@ describe('useChat', () => {
     vi.mocked(chatApi.sendMessageStream).mockResolvedValue(response);
 
     const { result } = renderHook(() => useChat());
-    await act(async () => { await result.current.sendMessage('conv-1', 'Hi'); });
+    await act(async () => {
+      await result.current.sendMessage('conv-1', 'Hi');
+    });
 
-    const assistantMsg = result.current.messages.find(m => m.role === 'assistant');
+    const assistantMsg = result.current.messages.find((m) => m.role === 'assistant');
     expect(assistantMsg).toBeDefined();
     expect(assistantMsg!.content).toBe('Hello world');
   });
@@ -206,16 +244,22 @@ describe('useChat', () => {
       { id: 'msg-2', role: 'assistant' as const, content: 'Hi there' },
     ];
 
-    act(() => { result.current.resetMessages(initial); });
+    act(() => {
+      result.current.resetMessages(initial);
+    });
 
     expect(result.current.messages).toEqual(initial);
   });
 
   it('should clear messages when resetMessages is called without arguments', async () => {
-    const result = await sendWithSSE('event: token\ndata: {"content":"Hi"}\n\nevent: done\ndata: {"messageId":"msg-1","tokensUsed":5}\n\n');
+    const result = await sendWithSSE(
+      'event: token\ndata: {"content":"Hi"}\n\nevent: done\ndata: {"messageId":"msg-1","tokensUsed":5}\n\n',
+    );
     expect(result.current.messages.length).toBeGreaterThan(0);
 
-    act(() => { result.current.resetMessages(); });
+    act(() => {
+      result.current.resetMessages();
+    });
 
     expect(result.current.messages).toEqual([]);
     expect(result.current.toolCalls).toEqual([]);
@@ -230,7 +274,8 @@ describe('useChat', () => {
       'event: done\ndata: {"messageId":"msg-1","tokensUsed":5}\n\n',
     ].join('');
 
-    const sseDataSimple = 'event: token\ndata: {"content":"Hello"}\n\nevent: done\ndata: {"messageId":"msg-2","tokensUsed":3}\n\n';
+    const sseDataSimple =
+      'event: token\ndata: {"content":"Hello"}\n\nevent: done\ndata: {"messageId":"msg-2","tokensUsed":3}\n\n';
 
     vi.mocked(chatApi.sendMessageStream)
       .mockResolvedValueOnce(createMockSSEResponse(sseDataWithTool))

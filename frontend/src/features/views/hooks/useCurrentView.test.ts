@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, renderHook } from '@testing-library/react';
 import React from 'react';
-import { useCurrentView } from './useCurrentView';
-import { useAppStore } from '../../../store/appStore';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { View, ViewId } from '../../../api/types';
+import { useAppStore } from '../../../store/appStore';
+import { useCurrentView } from './useCurrentView';
 
 vi.mock('./useViews', () => ({
   useView: vi.fn(),

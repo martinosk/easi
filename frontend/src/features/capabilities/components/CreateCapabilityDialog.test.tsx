@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { CreateCapabilityDialog } from './CreateCapabilityDialog';
-import { MantineTestWrapper } from '../../../test/helpers/mantineTestWrapper';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MantineTestWrapper } from '../../../test/helpers/mantineTestWrapper';
+import { CreateCapabilityDialog } from './CreateCapabilityDialog';
 
 vi.mock('../hooks/useCapabilities', () => ({
   useCreateCapability: vi.fn(),
@@ -18,9 +18,9 @@ vi.mock('../../../hooks/useMaturityScale', () => ({
   useMaturityScale: vi.fn(),
 }));
 
-import { useCreateCapability, useUpdateCapabilityMetadata } from '../hooks/useCapabilities';
-import { useMaturityLevels, useStatuses } from '../../../hooks/useMetadata';
 import { useMaturityScale } from '../../../hooks/useMaturityScale';
+import { useMaturityLevels, useStatuses } from '../../../hooks/useMetadata';
+import { useCreateCapability, useUpdateCapabilityMetadata } from '../hooks/useCapabilities';
 
 function createTestQueryClient() {
   return new QueryClient({
@@ -35,10 +35,8 @@ function renderWithProviders(ui: React.ReactElement) {
   const queryClient = createTestQueryClient();
   return render(
     <QueryClientProvider client={queryClient}>
-      <MantineTestWrapper>
-        {ui}
-      </MantineTestWrapper>
-    </QueryClientProvider>
+      <MantineTestWrapper>{ui}</MantineTestWrapper>
+    </QueryClientProvider>,
   );
 }
 
@@ -459,9 +457,7 @@ describe('CreateCapabilityDialog', () => {
       fireEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(screen.getByTestId('create-capability-error')).toHaveTextContent(
-          'Duplicate capability name'
-        );
+        expect(screen.getByTestId('create-capability-error')).toHaveTextContent('Duplicate capability name');
       });
 
       expect(mockOnClose).not.toHaveBeenCalled();
@@ -488,9 +484,7 @@ describe('CreateCapabilityDialog', () => {
       fireEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(screen.getByTestId('create-capability-error')).toHaveTextContent(
-          'Failed to create capability'
-        );
+        expect(screen.getByTestId('create-capability-error')).toHaveTextContent('Failed to create capability');
       });
     });
 

@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act } from '@testing-library/react';
-import { createUserSlice, type UserState, type UserActions } from './userSlice';
-import type { SessionUser, SessionTenant } from '../../features/auth/types';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { SessionTenant, SessionUser } from '../../features/auth/types';
+import { createUserSlice, type UserActions, type UserState } from './userSlice';
 
 const mockUser: SessionUser = {
   id: 'user-123',
@@ -40,7 +40,9 @@ import { authApi } from '../../features/auth/api/authApi';
 
 function createStore() {
   let state: UserState & UserActions;
-  const setState = (partial: Partial<UserState & UserActions> | ((s: UserState & UserActions) => Partial<UserState & UserActions>)) => {
+  const setState = (
+    partial: Partial<UserState & UserActions> | ((s: UserState & UserActions) => Partial<UserState & UserActions>),
+  ) => {
     const update = typeof partial === 'function' ? partial(state) : partial;
     state = { ...state, ...update };
   };
@@ -52,7 +54,9 @@ function createStore() {
 
 async function loadSession(store: ReturnType<typeof createStore>, overrides?: Record<string, unknown>) {
   vi.mocked(authApi.getCurrentSession).mockResolvedValue({ ...mockSessionResponse, ...overrides });
-  await act(async () => { await store.getState().loadSession(); });
+  await act(async () => {
+    await store.getState().loadSession();
+  });
 }
 
 describe('userSlice', () => {

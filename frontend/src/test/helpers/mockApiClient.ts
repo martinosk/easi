@@ -1,4 +1,4 @@
-import { vi, type Mock } from 'vitest';
+import { type Mock, vi } from 'vitest';
 
 export interface MockComponentsApi {
   getAll: Mock;
@@ -96,9 +96,7 @@ export interface MockMetadataApi {
   getReleases: Mock;
 }
 
-export function createMockComponentsApi(
-  overrides?: Partial<MockComponentsApi>
-): MockComponentsApi {
+export function createMockComponentsApi(overrides?: Partial<MockComponentsApi>): MockComponentsApi {
   return {
     getAll: vi.fn().mockResolvedValue([]),
     getById: vi.fn().mockResolvedValue(null),
@@ -109,9 +107,7 @@ export function createMockComponentsApi(
   };
 }
 
-export function createMockRelationsApi(
-  overrides?: Partial<MockRelationsApi>
-): MockRelationsApi {
+export function createMockRelationsApi(overrides?: Partial<MockRelationsApi>): MockRelationsApi {
   return {
     getAll: vi.fn().mockResolvedValue([]),
     getById: vi.fn().mockResolvedValue(null),
@@ -148,9 +144,7 @@ export function createMockViewsApi(overrides?: Partial<MockViewsApi>): MockViews
   };
 }
 
-export function createMockCapabilitiesApi(
-  overrides?: Partial<MockCapabilitiesApi>
-): MockCapabilitiesApi {
+export function createMockCapabilitiesApi(overrides?: Partial<MockCapabilitiesApi>): MockCapabilitiesApi {
   return {
     getAll: vi.fn().mockResolvedValue([]),
     getById: vi.fn().mockResolvedValue(null),
@@ -177,9 +171,7 @@ export function createMockCapabilitiesApi(
   };
 }
 
-export function createMockBusinessDomainsApi(
-  overrides?: Partial<MockBusinessDomainsApi>
-): MockBusinessDomainsApi {
+export function createMockBusinessDomainsApi(overrides?: Partial<MockBusinessDomainsApi>): MockBusinessDomainsApi {
   return {
     getAll: vi.fn().mockResolvedValue([]),
     getById: vi.fn().mockResolvedValue(null),

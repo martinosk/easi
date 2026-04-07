@@ -1,10 +1,10 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { editGrantApi } from '../api/editGrantApi';
-import { editGrantsQueryKeys } from '../queryKeys';
-import { editGrantsMutationEffects } from '../mutationEffects';
-import { invalidateFor } from '../../../lib/invalidateFor';
-import type { EditGrant, CreateEditGrantRequest, ArtifactType } from '../types';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
+import { invalidateFor } from '../../../lib/invalidateFor';
+import { editGrantApi } from '../api/editGrantApi';
+import { editGrantsMutationEffects } from '../mutationEffects';
+import { editGrantsQueryKeys } from '../queryKeys';
+import type { ArtifactType, CreateEditGrantRequest, EditGrant } from '../types';
 
 export function useMyEditGrants() {
   return useQuery<EditGrant[]>({

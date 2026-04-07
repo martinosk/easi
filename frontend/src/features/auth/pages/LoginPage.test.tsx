@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LoginPage } from './LoginPage';
 
 const mockInitiateLogin = vi.fn();
@@ -19,7 +19,7 @@ function renderLoginPage(initialRoute = '/login') {
   return render(
     <MemoryRouter initialEntries={[initialRoute]}>
       <LoginPage />
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 }
 
@@ -44,10 +44,7 @@ describe('LoginPage', () => {
       fireEvent.click(screen.getByRole('button', { name: /continue/i }));
 
       await waitFor(() => {
-        expect(mockInitiateLogin).toHaveBeenCalledWith(
-          'user@example.com',
-          'https://app.example.com/dashboard'
-        );
+        expect(mockInitiateLogin).toHaveBeenCalledWith('user@example.com', 'https://app.example.com/dashboard');
       });
     });
 
@@ -64,10 +61,7 @@ describe('LoginPage', () => {
       fireEvent.click(screen.getByRole('button', { name: /continue/i }));
 
       await waitFor(() => {
-        expect(mockInitiateLogin).toHaveBeenCalledWith(
-          'user@example.com',
-          'https%3A%2F%2Fevil.com'
-        );
+        expect(mockInitiateLogin).toHaveBeenCalledWith('user@example.com', 'https%3A%2F%2Fevil.com');
       });
     });
 

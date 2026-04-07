@@ -1,6 +1,6 @@
-import { useState, useLayoutEffect, useCallback } from 'react';
-import { LoginPage } from '../pages/LoginPage';
+import { useCallback, useLayoutEffect, useState } from 'react';
 import App from '../../../App';
+import { LoginPage } from '../pages/LoginPage';
 
 export function AppWithAuth() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);

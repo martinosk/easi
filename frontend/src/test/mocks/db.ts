@@ -1,20 +1,20 @@
 import type {
-  Component,
-  ComponentId,
   Capability,
   CapabilityId,
   CapabilityRealization,
-  View,
-  ViewId,
+  Component,
+  ComponentId,
   Relation,
   RelationId,
+  View,
+  ViewId,
 } from '../../api/types';
 import {
-  buildComponent,
   buildCapability,
-  buildView,
-  buildRelation,
   buildCapabilityRealization,
+  buildComponent,
+  buildRelation,
+  buildView,
   resetIdCounter,
 } from '../helpers/entityBuilders';
 

@@ -1,5 +1,5 @@
-import { DomainCard } from './DomainCard';
 import type { BusinessDomain, BusinessDomainId } from '../../../api/types';
+import { DomainCard } from './DomainCard';
 
 interface DomainListProps {
   domains: BusinessDomain[];

@@ -1,7 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { getPersistedBoolean, getPersistedSet, persistBoolean, persistSet } from '../utils/treeUtils';
 
-function usePersistedBoolean(key: string, defaultValue: boolean): [boolean, React.Dispatch<React.SetStateAction<boolean>>] {
+function usePersistedBoolean(
+  key: string,
+  defaultValue: boolean,
+): [boolean, React.Dispatch<React.SetStateAction<boolean>>] {
   const [value, setValue] = useState(() => getPersistedBoolean(key, defaultValue));
 
   useEffect(() => {
@@ -25,23 +28,35 @@ export function useNavigationTreeState() {
   const [isOpen, setIsOpen] = usePersistedBoolean('navigationTreeOpen', true);
   const [isModelsExpanded, setIsModelsExpanded] = usePersistedBoolean('navigationTreeModelsExpanded', true);
   const [isViewsExpanded, setIsViewsExpanded] = usePersistedBoolean('navigationTreeViewsExpanded', true);
-  const [isCapabilitiesExpanded, setIsCapabilitiesExpanded] = usePersistedBoolean('navigationTreeCapabilitiesExpanded', true);
+  const [isCapabilitiesExpanded, setIsCapabilitiesExpanded] = usePersistedBoolean(
+    'navigationTreeCapabilitiesExpanded',
+    true,
+  );
   const [expandedCapabilities, setExpandedCapabilities] = usePersistedSet('navigationTreeExpandedCapabilities');
-  const [isAcquiredEntitiesExpanded, setIsAcquiredEntitiesExpanded] = usePersistedBoolean('navigationTreeAcquiredEntitiesExpanded', false);
+  const [isAcquiredEntitiesExpanded, setIsAcquiredEntitiesExpanded] = usePersistedBoolean(
+    'navigationTreeAcquiredEntitiesExpanded',
+    false,
+  );
   const [isVendorsExpanded, setIsVendorsExpanded] = usePersistedBoolean('navigationTreeVendorsExpanded', false);
-  const [isInternalTeamsExpanded, setIsInternalTeamsExpanded] = usePersistedBoolean('navigationTreeInternalTeamsExpanded', false);
+  const [isInternalTeamsExpanded, setIsInternalTeamsExpanded] = usePersistedBoolean(
+    'navigationTreeInternalTeamsExpanded',
+    false,
+  );
 
-  const toggleCapabilityExpanded = useCallback((capabilityId: string) => {
-    setExpandedCapabilities((prev) => {
-      const next = new Set(prev);
-      if (next.has(capabilityId)) {
-        next.delete(capabilityId);
-      } else {
-        next.add(capabilityId);
-      }
-      return next;
-    });
-  }, [setExpandedCapabilities]);
+  const toggleCapabilityExpanded = useCallback(
+    (capabilityId: string) => {
+      setExpandedCapabilities((prev) => {
+        const next = new Set(prev);
+        if (next.has(capabilityId)) {
+          next.delete(capabilityId);
+        } else {
+          next.add(capabilityId);
+        }
+        return next;
+      });
+    },
+    [setExpandedCapabilities],
+  );
 
   return {
     isOpen,

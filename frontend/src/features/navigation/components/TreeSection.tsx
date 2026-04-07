@@ -30,12 +30,7 @@ export const TreeSection: React.FC<TreeSectionProps> = ({
           <span className="category-count">{count}</span>
         </button>
         {onAdd && (
-          <button
-            className="add-view-btn"
-            onClick={onAdd}
-            title={addTitle}
-            data-testid={addTestId}
-          >
+          <button className="add-view-btn" onClick={onAdd} title={addTitle} data-testid={addTestId}>
             +
           </button>
         )}

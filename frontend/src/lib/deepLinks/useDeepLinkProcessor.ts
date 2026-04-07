@@ -1,18 +1,15 @@
 import { useEffect, useRef } from 'react';
+import { clearParams, getParamValue } from './registry';
 import type { DeepLinkHandler } from './types';
-import { getParamValue, clearParams } from './registry';
 
-export function useDeepLinkProcessor(
-  handlers: DeepLinkHandler[],
-  isReady: boolean = true
-): void {
+export function useDeepLinkProcessor(handlers: DeepLinkHandler[], isReady: boolean = true): void {
   const processedRef = useRef(false);
 
   useEffect(() => {
     if (!isReady || processedRef.current) return;
 
     const paramsToProcess = handlers
-      .map(handler => ({ handler, value: getParamValue(handler.param) }))
+      .map((handler) => ({ handler, value: getParamValue(handler.param) }))
       .filter(({ value }) => value !== null);
 
     if (paramsToProcess.length === 0) return;

@@ -30,13 +30,9 @@ export const ReleaseNotesSidebar: React.FC<ReleaseNotesSidebarProps> = ({
             >
               <span className="release-browser-item-version">
                 v{release.version}
-                {release.version === currentVersion && (
-                  <span className="release-browser-item-badge">current</span>
-                )}
+                {release.version === currentVersion && <span className="release-browser-item-badge">current</span>}
               </span>
-              <span className="release-browser-item-date">
-                {formatShortDate(release.releaseDate)}
-              </span>
+              <span className="release-browser-item-date">{formatShortDate(release.releaseDate)}</span>
             </button>
           </li>
         ))}

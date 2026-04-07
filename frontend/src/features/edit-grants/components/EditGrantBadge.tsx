@@ -9,7 +9,7 @@ interface EditGrantBadgeProps {
 export function EditGrantBadge({ artifactType, artifactId }: EditGrantBadgeProps) {
   const { data: grants } = useEditGrantsForArtifact(artifactType, artifactId);
 
-  const activeCount = grants?.filter(g => g.status === 'active').length ?? 0;
+  const activeCount = grants?.filter((g) => g.status === 'active').length ?? 0;
 
   if (activeCount === 0) return null;
 

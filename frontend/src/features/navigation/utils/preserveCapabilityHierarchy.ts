@@ -2,7 +2,7 @@ import type { Capability } from '../../../api/types';
 
 export function preserveCapabilityHierarchy(
   filteredCapabilities: Capability[],
-  allCapabilities: Capability[]
+  allCapabilities: Capability[],
 ): Capability[] {
   if (filteredCapabilities.length === 0) {
     return [];

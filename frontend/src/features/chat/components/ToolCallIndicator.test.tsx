@@ -1,12 +1,10 @@
-import { describe, it, expect } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 import { ToolCallIndicator } from './ToolCallIndicator';
 
 describe('ToolCallIndicator', () => {
   it('should render running state with pulsing dot and activity text', () => {
-    const { container } = render(
-      <ToolCallIndicator status="running" name="list_applications" />
-    );
+    const { container } = render(<ToolCallIndicator status="running" name="list_applications" />);
     expect(container.querySelector('.tool-call-indicator')).toBeInTheDocument();
     expect(container.querySelector('.tool-call-running')).toBeInTheDocument();
     expect(container.querySelector('.tool-call-pulse')).toBeInTheDocument();
@@ -15,7 +13,7 @@ describe('ToolCallIndicator', () => {
 
   it('should render completed state with check icon and preview', () => {
     const { container } = render(
-      <ToolCallIndicator status="completed" name="list_applications" resultPreview="Found 3 applications" />
+      <ToolCallIndicator status="completed" name="list_applications" resultPreview="Found 3 applications" />,
     );
     expect(container.querySelector('.tool-call-completed')).toBeInTheDocument();
     expect(screen.getByText('\u2713')).toBeInTheDocument();
@@ -23,7 +21,7 @@ describe('ToolCallIndicator', () => {
 
   it('should render error state with warning icon and error message', () => {
     const { container } = render(
-      <ToolCallIndicator status="error" name="list_applications" errorMessage="Service unavailable" />
+      <ToolCallIndicator status="error" name="list_applications" errorMessage="Service unavailable" />,
     );
     expect(container.querySelector('.tool-call-error')).toBeInTheDocument();
     expect(screen.getByText('\u26A0')).toBeInTheDocument();
@@ -61,9 +59,7 @@ describe('ToolCallIndicator', () => {
   });
 
   it('should expand preview on click when completed', () => {
-    render(
-      <ToolCallIndicator status="completed" name="list_applications" resultPreview="Found 3 applications" />
-    );
+    render(<ToolCallIndicator status="completed" name="list_applications" resultPreview="Found 3 applications" />);
 
     expect(screen.queryByText('Found 3 applications')).not.toBeInTheDocument();
 
@@ -74,9 +70,7 @@ describe('ToolCallIndicator', () => {
   });
 
   it('should collapse preview on second click', () => {
-    render(
-      <ToolCallIndicator status="completed" name="list_applications" resultPreview="Found 3 applications" />
-    );
+    render(<ToolCallIndicator status="completed" name="list_applications" resultPreview="Found 3 applications" />);
 
     const indicator = screen.getByText('Searching applications').closest('.tool-call-indicator')!;
     fireEvent.click(indicator);

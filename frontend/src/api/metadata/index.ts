@@ -1,3 +1,9 @@
-export { metadataApi, default } from './metadataApi';
 export { maturityScaleApi } from './maturityScaleApi';
-export { strategyPillarsApi, type StrategyPillarsConfigurationWithVersion, type PillarChange, type BatchUpdateRequest, type BatchUpdateResponse } from './strategyPillarsApi';
+export { default, metadataApi } from './metadataApi';
+export {
+  type BatchUpdateRequest,
+  type BatchUpdateResponse,
+  type PillarChange,
+  type StrategyPillarsConfigurationWithVersion,
+  strategyPillarsApi,
+} from './strategyPillarsApi';

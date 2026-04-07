@@ -1,17 +1,17 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { componentsApi } from '../api';
-import { componentsQueryKeys } from '../queryKeys';
 import type { QueryKey } from '@tanstack/react-query';
-import { invalidateFor } from '../../../lib/invalidateFor';
-import { componentsMutationEffects } from '../mutationEffects';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import type {
+  AddComponentExpertRequest,
   Component,
   ComponentId,
   CreateComponentRequest,
-  AddComponentExpertRequest,
   Expert,
 } from '../../../api/types';
-import toast from 'react-hot-toast';
+import { invalidateFor } from '../../../lib/invalidateFor';
+import { componentsApi } from '../api';
+import { componentsMutationEffects } from '../mutationEffects';
+import { componentsQueryKeys } from '../queryKeys';
 
 function useComponentMutation<TArgs, TResult>(
   mutationFn: (args: TArgs) => Promise<TResult>,
@@ -82,8 +82,7 @@ export function useComponentExpertRoles() {
 
 export function useAddComponentExpert() {
   return useComponentMutation(
-    ({ id, request }: { id: ComponentId; request: AddComponentExpertRequest }) =>
-      componentsApi.addExpert(id, request),
+    ({ id, request }: { id: ComponentId; request: AddComponentExpertRequest }) => componentsApi.addExpert(id, request),
     (_, { id }) => componentsMutationEffects.addExpert(id),
     'Expert added',
     'Failed to add expert',

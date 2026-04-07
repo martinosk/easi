@@ -1,12 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { Capability, View, ViewCapability } from '../../../../api/types';
-import { TreeSection } from '../TreeSection';
-import { TreeSearchInput } from '../shared/TreeSearchInput';
-import { buildCapabilityTree, getLevelNumber, hasCustomColor } from '../../utils/treeUtils';
 import { deriveMaturityValue } from '../../../../constants/maturityColors';
 import { useMaturityColorScale } from '../../../../hooks/useMaturityColorScale';
-import type { CapabilityTreeNode, TreeMultiSelectProps } from '../../types';
 import type { TreeSelectedItem } from '../../hooks/useTreeMultiSelect';
+import type { CapabilityTreeNode, TreeMultiSelectProps } from '../../types';
+import { buildCapabilityTree, getLevelNumber, hasCustomColor } from '../../utils/treeUtils';
+import { TreeSearchInput } from '../shared/TreeSearchInput';
+import { TreeSection } from '../TreeSection';
 
 interface ColorIndicatorProps {
   customColor: string | undefined;
@@ -44,10 +44,7 @@ const ExpandButton: React.FC<ExpandButtonProps> = ({ hasChildren, isExpanded, on
   );
 };
 
-function flattenVisibleCapabilities(
-  tree: CapabilityTreeNode[],
-  expandedSet: Set<string>
-): TreeSelectedItem[] {
+function flattenVisibleCapabilities(tree: CapabilityTreeNode[], expandedSet: Set<string>): TreeSelectedItem[] {
   const result: TreeSelectedItem[] = [];
   const walk = (nodes: CapabilityTreeNode[]) => {
     for (const node of nodes) {
@@ -73,10 +70,7 @@ function capabilityMatchesSearch(capability: Capability, searchLower: string): b
   );
 }
 
-function filterCapabilityTree(
-  tree: CapabilityTreeNode[],
-  search: string
-): CapabilityTreeNode[] {
+function filterCapabilityTree(tree: CapabilityTreeNode[], search: string): CapabilityTreeNode[] {
   if (!search.trim()) return tree;
   const searchLower = search.toLowerCase();
 
@@ -141,21 +135,18 @@ export const CapabilitiesSection: React.FC<CapabilitiesSectionProps> = ({
   const { getColorForValue, getSectionNameForValue } = useMaturityColorScale();
   const capabilityTree = useMemo(() => buildCapabilityTree(capabilities), [capabilities]);
 
-  const filteredTree = useMemo(
-    () => filterCapabilityTree(capabilityTree, search),
-    [capabilityTree, search]
-  );
+  const filteredTree = useMemo(() => filterCapabilityTree(capabilityTree, search), [capabilityTree, search]);
 
   const searchExpandedIds = useMemo(
     () => (search.trim() ? collectExpandedIdsFromFilteredTree(filteredTree) : null),
-    [filteredTree, search]
+    [filteredTree, search],
   );
 
   const effectiveExpanded = searchExpandedIds ?? expandedCapabilities;
 
   const visibleItems = useMemo(
     () => flattenVisibleCapabilities(filteredTree, effectiveExpanded),
-    [filteredTree, effectiveExpanded]
+    [filteredTree, effectiveExpanded],
   );
 
   const handleCapabilityClick = (capability: Capability, event: React.MouseEvent) => {
@@ -163,7 +154,7 @@ export const CapabilitiesSection: React.FC<CapabilitiesSectionProps> = ({
       { id: capability.id, name: capability.name, type: 'capability', links: capability._links },
       'capabilities',
       visibleItems,
-      event
+      event,
     );
     if (result === 'single') {
       setSelectedCapabilityId(capability.id);
@@ -202,7 +193,9 @@ export const CapabilitiesSection: React.FC<CapabilitiesSectionProps> = ({
       isSelected: selectedCapabilityId === capability.id || multiSelect.isMultiSelected(capability.id),
       isOnCanvas,
       showColorIndicator: hasCustomColor(currentView?.colorScheme, customColor),
-      title: isOnCanvas ? (capability.description || capability.name) : `${capability.description || capability.name} (not in view)`,
+      title: isOnCanvas
+        ? capability.description || capability.name
+        : `${capability.description || capability.name} (not in view)`,
       customColor,
       colorScheme,
     };
@@ -214,7 +207,9 @@ export const CapabilitiesSection: React.FC<CapabilitiesSectionProps> = ({
       `capability-level-${levelNum}`,
       isSelected && 'selected',
       !isOnCanvas && 'not-in-view',
-    ].filter(Boolean).join(' ');
+    ]
+      .filter(Boolean)
+      .join(' ');
   };
 
   const renderCapabilityNode = (node: CapabilityTreeNode): React.ReactNode => {
@@ -256,9 +251,7 @@ export const CapabilitiesSection: React.FC<CapabilitiesSectionProps> = ({
           {nodeData.showColorIndicator && <ColorIndicator customColor={nodeData.customColor} />}
         </div>
         {nodeData.hasChildNodes && nodeData.isExpanded && (
-          <div className="capability-children">
-            {children.map(renderCapabilityNode)}
-          </div>
+          <div className="capability-children">{children.map(renderCapabilityNode)}</div>
         )}
       </div>
     );
@@ -274,16 +267,10 @@ export const CapabilitiesSection: React.FC<CapabilitiesSectionProps> = ({
       addTitle="Create new capability"
       addTestId="create-capability-button"
     >
-      <TreeSearchInput
-        value={search}
-        onChange={setSearch}
-        placeholder="Search capabilities..."
-      />
+      <TreeSearchInput value={search} onChange={setSearch} placeholder="Search capabilities..." />
       <div className="tree-items">
         {filteredTree.length === 0 ? (
-          <div className="tree-item-empty">
-            {capabilities.length === 0 ? 'No capabilities' : 'No matches'}
-          </div>
+          <div className="tree-item-empty">{capabilities.length === 0 ? 'No capabilities' : 'No matches'}</div>
         ) : (
           filteredTree.map(renderCapabilityNode)
         )}

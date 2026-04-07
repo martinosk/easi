@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { http, HttpResponse } from 'msw';
-import { CreateRelationDialog } from './CreateRelationDialog';
-import { createMantineTestWrapper, seedDb, server } from '../../../test/helpers';
+import { HttpResponse, http } from 'msw';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ComponentId } from '../../../api/types';
+import { createMantineTestWrapper, seedDb, server } from '../../../test/helpers';
+import { CreateRelationDialog } from './CreateRelationDialog';
 
 const API_BASE = 'http://localhost:8080';
 
@@ -78,15 +78,9 @@ describe('CreateRelationDialog', () => {
 
   it('should enable submit button when source and target are pre-filled', async () => {
     const { Wrapper } = createMantineTestWrapper();
-    render(
-      <CreateRelationDialog
-        isOpen={true}
-        onClose={mockOnClose}
-        sourceComponentId="1"
-        targetComponentId="2"
-      />,
-      { wrapper: Wrapper }
-    );
+    render(<CreateRelationDialog isOpen={true} onClose={mockOnClose} sourceComponentId="1" targetComponentId="2" />, {
+      wrapper: Wrapper,
+    });
 
     await waitFor(() => {
       const submitButton = screen.getByTestId('create-relation-submit') as HTMLButtonElement;
@@ -96,15 +90,9 @@ describe('CreateRelationDialog', () => {
 
   it('should pre-fill source and target when provided', async () => {
     const { Wrapper } = createMantineTestWrapper();
-    render(
-      <CreateRelationDialog
-        isOpen={true}
-        onClose={mockOnClose}
-        sourceComponentId="1"
-        targetComponentId="2"
-      />,
-      { wrapper: Wrapper }
-    );
+    render(<CreateRelationDialog isOpen={true} onClose={mockOnClose} sourceComponentId="1" targetComponentId="2" />, {
+      wrapper: Wrapper,
+    });
 
     await waitFor(() => {
       const sourceSelect = screen.getByTestId('relation-source-select') as HTMLInputElement;
@@ -116,15 +104,9 @@ describe('CreateRelationDialog', () => {
 
   it('should disable source and target when pre-filled', async () => {
     const { Wrapper } = createMantineTestWrapper();
-    render(
-      <CreateRelationDialog
-        isOpen={true}
-        onClose={mockOnClose}
-        sourceComponentId="1"
-        targetComponentId="2"
-      />,
-      { wrapper: Wrapper }
-    );
+    render(<CreateRelationDialog isOpen={true} onClose={mockOnClose} sourceComponentId="1" targetComponentId="2" />, {
+      wrapper: Wrapper,
+    });
 
     await waitFor(() => {
       const sourceSelect = screen.getByTestId('relation-source-select');
@@ -136,15 +118,9 @@ describe('CreateRelationDialog', () => {
 
   it('should display error when source and target are the same', async () => {
     const { Wrapper } = createMantineTestWrapper();
-    render(
-      <CreateRelationDialog
-        isOpen={true}
-        onClose={mockOnClose}
-        sourceComponentId="1"
-        targetComponentId="1"
-      />,
-      { wrapper: Wrapper }
-    );
+    render(<CreateRelationDialog isOpen={true} onClose={mockOnClose} sourceComponentId="1" targetComponentId="1" />, {
+      wrapper: Wrapper,
+    });
 
     await waitFor(() => {
       expect(screen.getByTestId('create-relation-submit')).toBeInTheDocument();
@@ -160,26 +136,23 @@ describe('CreateRelationDialog', () => {
     let capturedRequest: Record<string, unknown> | null = null;
     server.use(
       http.post(`${API_BASE}/api/v1/relations`, async ({ request }) => {
-        capturedRequest = await request.json() as Record<string, unknown>;
-        return HttpResponse.json({
-          id: 'rel-1',
-          ...capturedRequest,
-          createdAt: '2024-01-01T00:00:00Z',
-          _links: { self: '/api/v1/relations/rel-1' },
-        }, { status: 201 });
-      })
+        capturedRequest = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(
+          {
+            id: 'rel-1',
+            ...capturedRequest,
+            createdAt: '2024-01-01T00:00:00Z',
+            _links: { self: '/api/v1/relations/rel-1' },
+          },
+          { status: 201 },
+        );
+      }),
     );
 
     const { Wrapper } = createMantineTestWrapper();
-    render(
-      <CreateRelationDialog
-        isOpen={true}
-        onClose={mockOnClose}
-        sourceComponentId="1"
-        targetComponentId="2"
-      />,
-      { wrapper: Wrapper }
-    );
+    render(<CreateRelationDialog isOpen={true} onClose={mockOnClose} sourceComponentId="1" targetComponentId="2" />, {
+      wrapper: Wrapper,
+    });
 
     await waitFor(() => {
       expect(screen.getByTestId('relation-name-input')).toBeInTheDocument();
@@ -213,27 +186,24 @@ describe('CreateRelationDialog', () => {
     let capturedRequest: Record<string, unknown> | null = null;
     server.use(
       http.post(`${API_BASE}/api/v1/relations`, async ({ request }) => {
-        capturedRequest = await request.json() as Record<string, unknown>;
-        return HttpResponse.json({
-          id: 'rel-1',
-          ...capturedRequest,
-          createdAt: '2024-01-01T00:00:00Z',
-          _links: { self: '/api/v1/relations/rel-1' },
-        }, { status: 201 });
-      })
+        capturedRequest = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(
+          {
+            id: 'rel-1',
+            ...capturedRequest,
+            createdAt: '2024-01-01T00:00:00Z',
+            _links: { self: '/api/v1/relations/rel-1' },
+          },
+          { status: 201 },
+        );
+      }),
     );
 
     const user = userEvent.setup();
     const { Wrapper } = createMantineTestWrapper();
-    render(
-      <CreateRelationDialog
-        isOpen={true}
-        onClose={mockOnClose}
-        sourceComponentId="1"
-        targetComponentId="2"
-      />,
-      { wrapper: Wrapper }
-    );
+    render(<CreateRelationDialog isOpen={true} onClose={mockOnClose} sourceComponentId="1" targetComponentId="2" />, {
+      wrapper: Wrapper,
+    });
 
     await waitFor(() => {
       expect(screen.getByTestId('relation-type-select')).toBeInTheDocument();
@@ -252,7 +222,7 @@ describe('CreateRelationDialog', () => {
       expect(capturedRequest).toEqual(
         expect.objectContaining({
           relationType: 'Serves',
-        })
+        }),
       );
     });
   });
@@ -260,23 +230,14 @@ describe('CreateRelationDialog', () => {
   it('should handle create relation error', async () => {
     server.use(
       http.post(`${API_BASE}/api/v1/relations`, () => {
-        return HttpResponse.json(
-          { error: 'Network error', message: 'Network error' },
-          { status: 500 }
-        );
-      })
+        return HttpResponse.json({ error: 'Network error', message: 'Network error' }, { status: 500 });
+      }),
     );
 
     const { Wrapper } = createMantineTestWrapper();
-    render(
-      <CreateRelationDialog
-        isOpen={true}
-        onClose={mockOnClose}
-        sourceComponentId="1"
-        targetComponentId="2"
-      />,
-      { wrapper: Wrapper }
-    );
+    render(<CreateRelationDialog isOpen={true} onClose={mockOnClose} sourceComponentId="1" targetComponentId="2" />, {
+      wrapper: Wrapper,
+    });
 
     await waitFor(() => {
       expect(screen.getByTestId('create-relation-submit')).toBeInTheDocument();
@@ -310,14 +271,17 @@ describe('CreateRelationDialog', () => {
     let capturedRequest: Record<string, unknown> | null = null;
     server.use(
       http.post(`${API_BASE}/api/v1/relations`, async ({ request }) => {
-        capturedRequest = await request.json() as Record<string, unknown>;
-        return HttpResponse.json({
-          id: 'rel-1',
-          ...capturedRequest,
-          createdAt: '2024-01-01T00:00:00Z',
-          _links: { self: '/api/v1/relations/rel-1' },
-        }, { status: 201 });
-      })
+        capturedRequest = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(
+          {
+            id: 'rel-1',
+            ...capturedRequest,
+            createdAt: '2024-01-01T00:00:00Z',
+            _links: { self: '/api/v1/relations/rel-1' },
+          },
+          { status: 201 },
+        );
+      }),
     );
 
     const user = userEvent.setup();
@@ -348,7 +312,7 @@ describe('CreateRelationDialog', () => {
         expect.objectContaining({
           sourceComponentId: '1',
           targetComponentId: '2',
-        })
+        }),
       );
     });
   });
@@ -357,27 +321,24 @@ describe('CreateRelationDialog', () => {
     server.use(
       http.post(`${API_BASE}/api/v1/relations`, async () => {
         await new Promise((resolve) => setTimeout(resolve, 100));
-        return HttpResponse.json({
-          id: 'rel-1',
-          sourceComponentId: '1',
-          targetComponentId: '2',
-          relationType: 'Triggers',
-          createdAt: '2024-01-01T00:00:00Z',
-          _links: { self: '/api/v1/relations/rel-1' },
-        }, { status: 201 });
-      })
+        return HttpResponse.json(
+          {
+            id: 'rel-1',
+            sourceComponentId: '1',
+            targetComponentId: '2',
+            relationType: 'Triggers',
+            createdAt: '2024-01-01T00:00:00Z',
+            _links: { self: '/api/v1/relations/rel-1' },
+          },
+          { status: 201 },
+        );
+      }),
     );
 
     const { Wrapper } = createMantineTestWrapper();
-    render(
-      <CreateRelationDialog
-        isOpen={true}
-        onClose={mockOnClose}
-        sourceComponentId="1"
-        targetComponentId="2"
-      />,
-      { wrapper: Wrapper }
-    );
+    render(<CreateRelationDialog isOpen={true} onClose={mockOnClose} sourceComponentId="1" targetComponentId="2" />, {
+      wrapper: Wrapper,
+    });
 
     await waitFor(() => {
       expect(screen.getByTestId('create-relation-submit')).toBeInTheDocument();

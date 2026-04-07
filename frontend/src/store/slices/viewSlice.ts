@@ -11,12 +11,7 @@ export interface ViewActions {
   setInitialized: (initialized: boolean) => void;
 }
 
-export const createViewSlice: StateCreator<
-  ViewState & ViewActions,
-  [],
-  [],
-  ViewState & ViewActions
-> = (set, get) => ({
+export const createViewSlice: StateCreator<ViewState & ViewActions, [], [], ViewState & ViewActions> = (set, get) => ({
   currentViewId: null,
   isInitialized: false,
 

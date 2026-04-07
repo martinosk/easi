@@ -1,8 +1,8 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { MultiSelectContextMenu } from './MultiSelectContextMenu';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import type { MultiSelectMenuState } from '../../hooks/useMultiSelectContextMenu';
 import type { NodeContextMenu } from '../../hooks/useNodeContextMenu';
+import { MultiSelectContextMenu } from './MultiSelectContextMenu';
 
 function makeNode(overrides: Partial<NodeContextMenu> = {}): NodeContextMenu {
   const nodeId = overrides.nodeId ?? 'test-id';
@@ -32,23 +32,13 @@ function makeMenu(overrides: Partial<MultiSelectMenuState> = {}): MultiSelectMen
 describe('MultiSelectContextMenu', () => {
   it('renders nothing when menu is null', () => {
     const { container } = render(
-      <MultiSelectContextMenu
-        menu={null}
-        onClose={vi.fn()}
-        onRequestBulkOperation={vi.fn()}
-      />
+      <MultiSelectContextMenu menu={null} onClose={vi.fn()} onRequestBulkOperation={vi.fn()} />,
     );
     expect(container.innerHTML).toBe('');
   });
 
   it('renders menu items with correct labels', () => {
-    render(
-      <MultiSelectContextMenu
-        menu={makeMenu()}
-        onClose={vi.fn()}
-        onRequestBulkOperation={vi.fn()}
-      />
-    );
+    render(<MultiSelectContextMenu menu={makeMenu()} onClose={vi.fn()} onRequestBulkOperation={vi.fn()} />);
 
     expect(screen.getByText('Remove from View (2 items)')).toBeDefined();
     expect(screen.getByText('Delete from Model (2 items)')).toBeDefined();
@@ -59,11 +49,7 @@ describe('MultiSelectContextMenu', () => {
     const onClose = vi.fn();
 
     render(
-      <MultiSelectContextMenu
-        menu={makeMenu()}
-        onClose={onClose}
-        onRequestBulkOperation={onRequestBulkOperation}
-      />
+      <MultiSelectContextMenu menu={makeMenu()} onClose={onClose} onRequestBulkOperation={onRequestBulkOperation} />,
     );
 
     fireEvent.click(screen.getByText('Remove from View (2 items)'));
@@ -79,11 +65,7 @@ describe('MultiSelectContextMenu', () => {
     const onClose = vi.fn();
 
     render(
-      <MultiSelectContextMenu
-        menu={makeMenu()}
-        onClose={onClose}
-        onRequestBulkOperation={onRequestBulkOperation}
-      />
+      <MultiSelectContextMenu menu={makeMenu()} onClose={onClose} onRequestBulkOperation={onRequestBulkOperation} />,
     );
 
     fireEvent.click(screen.getByText('Delete from Model (2 items)'));
@@ -96,18 +78,10 @@ describe('MultiSelectContextMenu', () => {
 
   it('renders only available actions', () => {
     const menu = makeMenu({
-      actions: [
-        { type: 'removeFromView', label: 'Remove from View (3 items)', isDanger: false },
-      ],
+      actions: [{ type: 'removeFromView', label: 'Remove from View (3 items)', isDanger: false }],
     });
 
-    render(
-      <MultiSelectContextMenu
-        menu={menu}
-        onClose={vi.fn()}
-        onRequestBulkOperation={vi.fn()}
-      />
-    );
+    render(<MultiSelectContextMenu menu={menu} onClose={vi.fn()} onRequestBulkOperation={vi.fn()} />);
 
     expect(screen.getByText('Remove from View (3 items)')).toBeDefined();
     expect(screen.queryByText(/Delete from Model/)).toBeNull();

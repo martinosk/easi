@@ -1,12 +1,12 @@
-import { useState, useCallback, useMemo } from 'react';
-import type { Component, Capability } from '../../../api/types';
-import { toAcquiredEntityId, toVendorId, toInternalTeamId } from '../../../api/types';
-import { useDeleteComponent, useComponents } from '../../components/hooks/useComponents';
-import { useDeleteCapability, useCapabilities } from '../../capabilities/hooks/useCapabilities';
+import { useCallback, useMemo, useState } from 'react';
+import type { Capability, Component } from '../../../api/types';
+import { toAcquiredEntityId, toInternalTeamId, toVendorId } from '../../../api/types';
+import { useCapabilities, useDeleteCapability } from '../../capabilities/hooks/useCapabilities';
+import { useComponents, useDeleteComponent } from '../../components/hooks/useComponents';
 import { useDeleteAcquiredEntity } from '../../origin-entities/hooks/useAcquiredEntities';
-import { useDeleteVendor } from '../../origin-entities/hooks/useVendors';
 import { useDeleteInternalTeam } from '../../origin-entities/hooks/useInternalTeams';
-import type { TreeSelectedItem, TreeItemType } from './useTreeMultiSelect';
+import { useDeleteVendor } from '../../origin-entities/hooks/useVendors';
+import type { TreeItemType, TreeSelectedItem } from './useTreeMultiSelect';
 
 export interface TreeBulkOperationResult {
   succeeded: string[];
@@ -15,7 +15,7 @@ export interface TreeBulkOperationResult {
 
 async function executeBulkDelete(
   items: TreeSelectedItem[],
-  deleteItem: (item: TreeSelectedItem) => Promise<void>
+  deleteItem: (item: TreeSelectedItem) => Promise<void>,
 ): Promise<TreeBulkOperationResult> {
   const succeeded: string[] = [];
   const failed: TreeBulkOperationResult['failed'] = [];
@@ -63,16 +63,21 @@ export function useTreeBulkDelete() {
           if (!capability) throw new Error(`Capability not found: ${item.name}`);
           return deleteCapabilityMutation.mutateAsync({ capability });
         },
-        acquired: () =>
-          deleteAcquiredEntityMutation.mutateAsync({ id: toAcquiredEntityId(item.id), name: item.name }),
-        vendor: () =>
-          deleteVendorMutation.mutateAsync({ id: toVendorId(item.id), name: item.name }),
-        team: () =>
-          deleteInternalTeamMutation.mutateAsync({ id: toInternalTeamId(item.id), name: item.name }),
+        acquired: () => deleteAcquiredEntityMutation.mutateAsync({ id: toAcquiredEntityId(item.id), name: item.name }),
+        vendor: () => deleteVendorMutation.mutateAsync({ id: toVendorId(item.id), name: item.name }),
+        team: () => deleteInternalTeamMutation.mutateAsync({ id: toInternalTeamId(item.id), name: item.name }),
       };
       return handlers[item.type]();
     },
-    [components, capabilities, deleteComponentMutation, deleteCapabilityMutation, deleteAcquiredEntityMutation, deleteVendorMutation, deleteInternalTeamMutation]
+    [
+      components,
+      capabilities,
+      deleteComponentMutation,
+      deleteCapabilityMutation,
+      deleteAcquiredEntityMutation,
+      deleteVendorMutation,
+      deleteInternalTeamMutation,
+    ],
   );
 
   const requestBulkDelete = useCallback((items: TreeSelectedItem[]) => {
@@ -102,10 +107,7 @@ export function useTreeBulkDelete() {
     setResult(null);
   }, []);
 
-  const itemNames = useMemo(
-    () => bulkItems?.map((item) => item.name) ?? [],
-    [bulkItems]
-  );
+  const itemNames = useMemo(() => bulkItems?.map((item) => item.name) ?? [], [bulkItems]);
 
   return {
     bulkItems,

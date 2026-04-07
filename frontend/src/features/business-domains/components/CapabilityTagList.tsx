@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
 import type { Capability } from '../../../api/types';
+import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
 
 interface CapabilityTagListProps {
   capabilities: Capability[];

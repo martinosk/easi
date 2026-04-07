@@ -1,4 +1,4 @@
-import type { CapabilityLevel, CapabilityId } from '../../../api/types';
+import type { CapabilityId, CapabilityLevel } from '../../../api/types';
 
 export interface RealizingSystem {
   componentId: string;

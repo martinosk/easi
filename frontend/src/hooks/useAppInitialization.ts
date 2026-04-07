@@ -1,16 +1,16 @@
-import { useEffect, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useViews, useCreateView } from '../features/views/hooks/useViews';
-import { useAppStore } from '../store/appStore';
+import { useCallback, useEffect, useRef } from 'react';
+import toast from 'react-hot-toast';
+import { metadataApi } from '../api/metadata';
 import type { View, ViewId } from '../api/types';
 import { toViewId } from '../api/types';
-import toast from 'react-hot-toast';
+import { useCreateView, useViews } from '../features/views/hooks/useViews';
 import { metadataQueryKeys } from '../lib/appQueryKeys';
-import { metadataApi } from '../api/metadata';
-import { getParamValue, clearParams, deepLinkParams } from '../lib/deepLinks';
+import { clearParams, deepLinkParams, getParamValue } from '../lib/deepLinks';
+import { useAppStore } from '../store/appStore';
 
 function findDefaultView(views: View[]): View {
-  return views.find(v => v.isDefault) ?? views[0];
+  return views.find((v) => v.isDefault) ?? views[0];
 }
 
 function resolveViewFromDeepLink(views: View[], setCurrentViewId: (id: ViewId) => void): void {
@@ -20,7 +20,7 @@ function resolveViewFromDeepLink(views: View[], setCurrentViewId: (id: ViewId) =
     return;
   }
 
-  const linkedView = views.find(v => v.id === toViewId(viewIdFromUrl));
+  const linkedView = views.find((v) => v.id === toViewId(viewIdFromUrl));
   if (linkedView) {
     setCurrentViewId(linkedView.id);
   } else {
@@ -45,7 +45,7 @@ function canInitialize(
   isInitialized: boolean,
   isLoadingViews: boolean,
   views: View[] | undefined,
-  isInitializing: boolean
+  isInitializing: boolean,
 ): boolean {
   return !isInitialized && !isLoadingViews && !!views && !isInitializing;
 }

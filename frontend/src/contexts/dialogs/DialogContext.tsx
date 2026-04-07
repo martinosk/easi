@@ -1,11 +1,9 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { DialogContext } from './context';
-import type { DialogId, DialogDataMap, DialogContextValue } from './types';
+import type { DialogContextValue, DialogDataMap, DialogId } from './types';
 
 export function DialogProvider({ children }: { children: React.ReactNode }) {
-  const [openDialogs, setOpenDialogs] = useState<Map<DialogId, DialogDataMap[DialogId]>>(
-    () => new Map()
-  );
+  const [openDialogs, setOpenDialogs] = useState<Map<DialogId, DialogDataMap[DialogId]>>(() => new Map());
 
   const openDialog = useCallback(<T extends DialogId>(id: T, data?: DialogDataMap[T]) => {
     setOpenDialogs((prev) => {
@@ -23,16 +21,13 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const isOpen = useCallback(
-    (id: DialogId) => openDialogs.has(id),
-    [openDialogs]
-  );
+  const isOpen = useCallback((id: DialogId) => openDialogs.has(id), [openDialogs]);
 
   const getData = useCallback(
     <T extends DialogId>(id: T): DialogDataMap[T] | undefined => {
       return openDialogs.get(id) as DialogDataMap[T] | undefined;
     },
-    [openDialogs]
+    [openDialogs],
   );
 
   const value = useMemo<DialogContextValue>(
@@ -43,7 +38,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
       isOpen,
       getData,
     }),
-    [openDialogs, openDialog, closeDialog, isOpen, getData]
+    [openDialogs, openDialog, closeDialog, isOpen, getData],
   );
 
   return <DialogContext.Provider value={value}>{children}</DialogContext.Provider>;

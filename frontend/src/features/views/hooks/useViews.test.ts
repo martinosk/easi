@@ -1,20 +1,20 @@
-import { renderHook, waitFor, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ComponentId, ViewId } from '../../../api/types';
+import { buildView } from '../../../test/helpers/entityBuilders';
+import { viewsQueryKeys } from '../queryKeys';
 import {
-  useViews,
-  useView,
+  useAddComponentToView,
   useCreateView,
   useDeleteView,
+  useRemoveComponentFromView,
   useRenameView,
   useSetDefaultView,
-  useAddComponentToView,
-  useRemoveComponentFromView,
+  useView,
+  useViews,
 } from './useViews';
-import { viewsQueryKeys } from '../queryKeys';
-import { buildView } from '../../../test/helpers/entityBuilders';
-import type { ViewId, ComponentId } from '../../../api/types';
 
 vi.mock('../api', () => ({
   viewsApi: {
@@ -48,8 +48,8 @@ vi.mock('react-hot-toast', () => ({
   },
 }));
 
-import { viewsApi } from '../api';
 import toast from 'react-hot-toast';
+import { viewsApi } from '../api';
 
 function createWrapper(queryClient: QueryClient) {
   return ({ children }: { children: React.ReactNode }) =>

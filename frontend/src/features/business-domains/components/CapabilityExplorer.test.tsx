@@ -1,13 +1,13 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
-import { CapabilityExplorer } from './CapabilityExplorer';
+import { describe, expect, it } from 'vitest';
 import type { Capability, CapabilityId } from '../../../api/types';
+import { CapabilityExplorer } from './CapabilityExplorer';
 
 const createCapability = (
   id: string,
   name: string,
   level: 'L1' | 'L2' | 'L3' | 'L4' = 'L1',
-  parentId?: string
+  parentId?: string,
 ): Capability => ({
   id: id as CapabilityId,
   name,
@@ -29,11 +29,7 @@ describe('CapabilityExplorer', () => {
   describe('Hierarchical Nesting', () => {
     it('should render L2 capabilities nested under their L1 parent', () => {
       render(
-        <CapabilityExplorer
-          capabilities={mockCapabilities}
-          assignedCapabilityIds={new Set()}
-          isLoading={false}
-        />
+        <CapabilityExplorer capabilities={mockCapabilities} assignedCapabilityIds={new Set()} isLoading={false} />,
       );
 
       expect(screen.getByText('Customer Onboarding')).toBeInTheDocument();
@@ -42,11 +38,7 @@ describe('CapabilityExplorer', () => {
 
     it('should render L3 capabilities nested under their L2 parent', () => {
       render(
-        <CapabilityExplorer
-          capabilities={mockCapabilities}
-          assignedCapabilityIds={new Set()}
-          isLoading={false}
-        />
+        <CapabilityExplorer capabilities={mockCapabilities} assignedCapabilityIds={new Set()} isLoading={false} />,
       );
 
       expect(screen.getByText('Customer Verification')).toBeInTheDocument();
@@ -56,11 +48,7 @@ describe('CapabilityExplorer', () => {
   describe('L1-Only Draggable Rule', () => {
     it('should make L1 items draggable', () => {
       render(
-        <CapabilityExplorer
-          capabilities={mockCapabilities}
-          assignedCapabilityIds={new Set()}
-          isLoading={false}
-        />
+        <CapabilityExplorer capabilities={mockCapabilities} assignedCapabilityIds={new Set()} isLoading={false} />,
       );
 
       const l1Item = screen.getByTestId('draggable-cap-1');
@@ -71,11 +59,7 @@ describe('CapabilityExplorer', () => {
 
     it('should not make non-L1 items draggable', () => {
       render(
-        <CapabilityExplorer
-          capabilities={mockCapabilities}
-          assignedCapabilityIds={new Set()}
-          isLoading={false}
-        />
+        <CapabilityExplorer capabilities={mockCapabilities} assignedCapabilityIds={new Set()} isLoading={false} />,
       );
 
       expect(screen.queryByTestId('draggable-cap-2')).not.toBeInTheDocument();
@@ -92,11 +76,7 @@ describe('CapabilityExplorer', () => {
       ];
 
       render(
-        <CapabilityExplorer
-          capabilities={unsortedCapabilities}
-          assignedCapabilityIds={new Set()}
-          isLoading={false}
-        />
+        <CapabilityExplorer capabilities={unsortedCapabilities} assignedCapabilityIds={new Set()} isLoading={false} />,
       );
 
       const items = screen.getAllByTestId(/^draggable-cap/);

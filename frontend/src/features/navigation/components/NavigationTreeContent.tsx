@@ -1,14 +1,14 @@
 import React from 'react';
-import type { Component, Capability, View, AcquiredEntity, Vendor, InternalTeam } from '../../../api/types';
-import { ApplicationsSection } from './sections/ApplicationsSection';
-import { ViewsSection } from './sections/ViewsSection';
-import { CapabilitiesSection } from './sections/CapabilitiesSection';
-import { AcquiredEntitiesSection } from './sections/AcquiredEntitiesSection';
-import { VendorsSection } from './sections/VendorsSection';
-import { InternalTeamsSection } from './sections/InternalTeamsSection';
-import { FilterPopover } from './FilterPopover';
+import type { AcquiredEntity, Capability, Component, InternalTeam, Vendor, View } from '../../../api/types';
 import type { EditingState, TreeMultiSelectProps } from '../types';
 import type { ArtifactCreator } from '../utils/filterByCreator';
+import { FilterPopover } from './FilterPopover';
+import { AcquiredEntitiesSection } from './sections/AcquiredEntitiesSection';
+import { ApplicationsSection } from './sections/ApplicationsSection';
+import { CapabilitiesSection } from './sections/CapabilitiesSection';
+import { InternalTeamsSection } from './sections/InternalTeamsSection';
+import { VendorsSection } from './sections/VendorsSection';
+import { ViewsSection } from './sections/ViewsSection';
 
 interface SelectedEntityIds {
   acquiredEntityId: string | null;
@@ -97,9 +97,18 @@ interface OriginEntitySectionsProps {
 }
 
 const OriginEntitySections: React.FC<OriginEntitySectionsProps> = ({
-  acquiredEntities, vendors, internalTeams, currentView, selectedEntityIds,
-  treeState, contextMenus, multiSelect, onOriginEntitySelect,
-  onAddAcquiredEntity, onAddVendor, onAddTeam,
+  acquiredEntities,
+  vendors,
+  internalTeams,
+  currentView,
+  selectedEntityIds,
+  treeState,
+  contextMenus,
+  multiSelect,
+  onOriginEntitySelect,
+  onAddAcquiredEntity,
+  onAddVendor,
+  onAddTeam,
 }) => (
   <>
     <AcquiredEntitiesSection
@@ -262,11 +271,7 @@ export const NavigationTreeContent: React.FC<NavigationTreeContentProps> = ({
         onAddTeam={onAddTeam}
       />
 
-      {selectionCount >= 2 && (
-        <div className="tree-selection-count">
-          {selectionCount} items selected
-        </div>
-      )}
+      {selectionCount >= 2 && <div className="tree-selection-count">{selectionCount} items selected</div>}
     </div>
   </div>
 );

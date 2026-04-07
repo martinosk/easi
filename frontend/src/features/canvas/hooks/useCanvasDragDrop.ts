@@ -1,11 +1,11 @@
-import { useCallback } from 'react';
 import type { ReactFlowInstance } from '@xyflow/react';
-import { useCurrentView } from '../../views/hooks/useCurrentView';
-import { useAddCapabilityToView, useAddOriginEntityToView } from '../../views/hooks/useViews';
+import { useCallback } from 'react';
 import { toCapabilityId, toComponentId, toViewId } from '../../../api/types';
-import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
 import { canEdit } from '../../../utils/hateoas';
 import type { MultiDragPayload, TreeItemType } from '../../navigation/hooks/useTreeMultiSelect';
+import { useCurrentView } from '../../views/hooks/useCurrentView';
+import { useAddCapabilityToView, useAddOriginEntityToView } from '../../views/hooks/useViews';
+import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
 
 const MULTI_DROP_OFFSET_Y = 100;
 
@@ -15,7 +15,13 @@ interface ViewPresenceCheck {
   originEntityIds: Set<string>;
 }
 
-function buildViewPresence(currentView: { components: { componentId: string }[]; capabilities: { capabilityId: string }[]; originEntities: { originEntityId: string }[] } | null): ViewPresenceCheck {
+function buildViewPresence(
+  currentView: {
+    components: { componentId: string }[];
+    capabilities: { capabilityId: string }[];
+    originEntities: { originEntityId: string }[];
+  } | null,
+): ViewPresenceCheck {
   return {
     componentIds: new Set((currentView?.components ?? []).map((c) => c.componentId)),
     capabilityIds: new Set((currentView?.capabilities ?? []).map((c) => c.capabilityId)),
@@ -71,7 +77,12 @@ interface DropHandlers {
   currentViewId: string;
 }
 
-async function addItemToView(item: { type: TreeItemType; id: string }, x: number, y: number, handlers: DropHandlers): Promise<void> {
+async function addItemToView(
+  item: { type: TreeItemType; id: string },
+  x: number,
+  y: number,
+  handlers: DropHandlers,
+): Promise<void> {
   switch (item.type) {
     case 'component':
       if (handlers.onComponentDrop) {
@@ -96,14 +107,14 @@ async function addItemToView(item: { type: TreeItemType; id: string }, x: number
 function canDropOnView(
   reactFlowInstance: ReactFlowInstance | null,
   currentViewId: string | null,
-  currentView: Parameters<typeof canEdit>[0]
+  currentView: Parameters<typeof canEdit>[0],
 ): boolean {
   return !!reactFlowInstance && !!currentViewId && canEdit(currentView);
 }
 
 export const useCanvasDragDrop = (
   reactFlowInstance: ReactFlowInstance | null,
-  onComponentDrop?: (componentId: string, x: number, y: number) => void
+  onComponentDrop?: (componentId: string, x: number, y: number) => void,
 ) => {
   const { currentViewId, currentView } = useCurrentView();
   const addCapabilityToViewMutation = useAddCapabilityToView();
@@ -120,15 +131,28 @@ export const useCanvasDragDrop = (
       onComponentDrop,
       updateComponentPosition,
       addCapability: async (viewId, capId, x, y) => {
-        await addCapabilityToViewMutation.mutateAsync({ viewId: toViewId(viewId), request: { capabilityId: capId, x, y } });
+        await addCapabilityToViewMutation.mutateAsync({
+          viewId: toViewId(viewId),
+          request: { capabilityId: capId, x, y },
+        });
       },
       updateCapabilityPosition,
       addOriginEntity: async (viewId, originEntityId, x, y) => {
-        await addOriginEntityToViewMutation.mutateAsync({ viewId: toViewId(viewId), request: { originEntityId, x, y } });
+        await addOriginEntityToViewMutation.mutateAsync({
+          viewId: toViewId(viewId),
+          request: { originEntityId, x, y },
+        });
       },
       currentViewId: currentViewId!,
     }),
-    [onComponentDrop, currentViewId, addCapabilityToViewMutation, addOriginEntityToViewMutation, updateComponentPosition, updateCapabilityPosition]
+    [
+      onComponentDrop,
+      currentViewId,
+      addCapabilityToViewMutation,
+      addOriginEntityToViewMutation,
+      updateComponentPosition,
+      updateCapabilityPosition,
+    ],
   );
 
   const onDrop = useCallback(
@@ -159,7 +183,7 @@ export const useCanvasDragDrop = (
         await addItemToView(singleItem, position.x, position.y, handlers);
       }
     },
-    [reactFlowInstance, currentViewId, currentView, getHandlers]
+    [reactFlowInstance, currentViewId, currentView, getHandlers],
   );
 
   return { onDragOver, onDrop };

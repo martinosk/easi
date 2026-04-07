@@ -1,5 +1,5 @@
 import { ContextMenu, type ContextMenuItem } from '../../../../components/shared/ContextMenu';
-import type { MultiSelectMenuState, MultiSelectAction } from '../../hooks/useMultiSelectContextMenu';
+import type { MultiSelectAction, MultiSelectMenuState } from '../../hooks/useMultiSelectContextMenu';
 import type { NodeContextMenu } from '../../hooks/useNodeContextMenu';
 
 export type BulkOperationType = MultiSelectAction['type'];
@@ -15,11 +15,7 @@ interface MultiSelectContextMenuProps {
   onRequestBulkOperation: (request: BulkOperationRequest) => void;
 }
 
-export const MultiSelectContextMenu = ({
-  menu,
-  onClose,
-  onRequestBulkOperation,
-}: MultiSelectContextMenuProps) => {
+export const MultiSelectContextMenu = ({ menu, onClose, onRequestBulkOperation }: MultiSelectContextMenuProps) => {
   if (!menu) return null;
 
   const items: ContextMenuItem[] = menu.actions.map((action) => ({
@@ -36,12 +32,5 @@ export const MultiSelectContextMenu = ({
 
   if (items.length === 0) return null;
 
-  return (
-    <ContextMenu
-      x={menu.x}
-      y={menu.y}
-      items={items}
-      onClose={onClose}
-    />
-  );
+  return <ContextMenu x={menu.x} y={menu.y} items={items} onClose={onClose} />;
 };

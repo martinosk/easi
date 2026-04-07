@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import type { DepthLevel } from '../components/DepthSelector';
 
 const STORAGE_KEY = 'business-domains-depth';

@@ -1,9 +1,14 @@
 import { useMemo } from 'react';
 import type { Capability, CapabilityId, CapabilityRealization, ComponentId } from '../../../api/types';
+import {
+  getResponsiveValue,
+  RESPONSIVE_GRID_COLUMNS,
+  RESPONSIVE_SPACING,
+  useResponsive,
+} from '../../../hooks/useResponsive';
 import type { DepthLevel } from './DepthSelector';
-import { useResponsive, RESPONSIVE_GRID_COLUMNS, RESPONSIVE_SPACING, getResponsiveValue } from '../../../hooks/useResponsive';
-import { buildTree, compareNodesByPosition, type PositionMap } from './grid/gridUtils';
 import { CapabilityItem } from './grid/CapabilityItem';
+import { buildTree, compareNodesByPosition, type PositionMap } from './grid/gridUtils';
 import './visualization.css';
 
 export type { PositionMap };
@@ -51,7 +56,8 @@ export function NestedCapabilityGrid({
 
   const containerPadding = getResponsiveValue(RESPONSIVE_SPACING.containerPadding, currentBreakpoint) || '1rem';
   const gridGap = getResponsiveValue(RESPONSIVE_SPACING.gridGap, currentBreakpoint) || '1rem';
-  const rootGridColumns = getResponsiveValue(RESPONSIVE_GRID_COLUMNS.L1, currentBreakpoint) || 'repeat(auto-fill, minmax(250px, 1fr))';
+  const rootGridColumns =
+    getResponsiveValue(RESPONSIVE_GRID_COLUMNS.L1, currentBreakpoint) || 'repeat(auto-fill, minmax(250px, 1fr))';
 
   return (
     <div

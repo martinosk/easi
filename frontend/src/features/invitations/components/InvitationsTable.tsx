@@ -46,9 +46,7 @@ export function InvitationsTable({ invitations, onRevoke }: InvitationsTableProp
                 <span className="role-badge">{invitation.role}</span>
               </td>
               <td>
-                <span className={`status-badge ${STATUS_BADGE_CLASSES[invitation.status]}`}>
-                  {invitation.status}
-                </span>
+                <span className={`status-badge ${STATUS_BADGE_CLASSES[invitation.status]}`}>{invitation.status}</span>
               </td>
               <td className="invited-by">{invitation.invitedBy ?? '-'}</td>
               <td className="date-cell">{formatDate(invitation.createdAt)}</td>

@@ -29,11 +29,7 @@ export function ViewModeToggle({ mode, onModeChange }: ViewModeToggleProps) {
               ${isFirst ? 'rounded-l-md' : ''}
               ${isLast ? 'rounded-r-md' : ''}
               ${!isFirst && !isLast ? '' : ''}
-              ${
-                isSelected
-                  ? 'bg-blue-600 text-white z-10'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
-              }
+              ${isSelected ? 'bg-blue-600 text-white z-10' : 'bg-white text-gray-700 hover:bg-gray-50'}
               border border-gray-300
               ${!isFirst ? '-ml-px' : ''}
               focus:z-10 focus:outline-none focus:ring-2 focus:ring-blue-500

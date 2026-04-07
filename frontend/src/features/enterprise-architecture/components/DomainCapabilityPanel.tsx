@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { Capability, CapabilityId } from '../../../api/types';
-import type { CapabilityLinkStatusResponse, CapabilityLinkStatus } from '../types';
+import type { CapabilityLinkStatus, CapabilityLinkStatusResponse } from '../types';
 
 interface TreeNode {
   capability: Capability;
@@ -64,10 +64,10 @@ function getStatusDisplayStyle(status: CapabilityLinkStatus) {
 
 function ChildrenTreeList({
   children,
-  linkStatuses
+  linkStatuses,
 }: {
   children: TreeNode[];
-  linkStatuses: Map<string, CapabilityLinkStatusResponse>
+  linkStatuses: Map<string, CapabilityLinkStatusResponse>;
 }) {
   if (children.length === 0) return null;
   return (
@@ -182,9 +182,7 @@ function DraggableCapabilityItem({
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           {isDraggable && <DragHandle />}
-          <span style={{ fontWeight: 500, color: styles.text, flex: 1 }}>
-            {capability.name}
-          </span>
+          <span style={{ fontWeight: 500, color: styles.text, flex: 1 }}>{capability.name}</span>
           {statusDisplay && <StatusLabel status={status} text={statusDisplay} />}
         </div>
       </div>
@@ -226,9 +224,7 @@ function CapabilityTreeItem({ node, linkStatus, linkStatuses }: CapabilityTreeIt
           {node.capability.name}
         </span>
         {blockedText && (
-          <span style={{ fontSize: '0.7rem', color: '#ef4444', fontStyle: 'italic' }}>
-            {blockedText}
-          </span>
+          <span style={{ fontSize: '0.7rem', color: '#ef4444', fontStyle: 'italic' }}>{blockedText}</span>
         )}
       </div>
       {node.children.length > 0 && (
@@ -274,9 +270,7 @@ export function DomainCapabilityPanel({
 
   return (
     <div style={{ padding: '1rem' }}>
-      <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1rem' }}>
-        Domain Capabilities
-      </h2>
+      <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1rem' }}>Domain Capabilities</h2>
       <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1.5rem' }}>
         Drag L1 capabilities to enterprise capabilities
       </p>

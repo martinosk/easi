@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import type { ArtifactCreator } from '../utils/filterByCreator';
 import { CreatedByFilter } from './CreatedByFilter';
 import { DomainFilter } from './DomainFilter';
-import type { ArtifactCreator } from '../utils/filterByCreator';
 
 interface FilterPopoverProps {
   artifactCreators: ArtifactCreator[];
@@ -62,12 +62,19 @@ export const FilterPopover: React.FC<FilterPopoverProps> = ({
         aria-haspopup="true"
         aria-label="Toggle filters"
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
         </svg>
-        {activeCount > 0 && (
-          <span className="filter-popover-badge">{activeCount}</span>
-        )}
+        {activeCount > 0 && <span className="filter-popover-badge">{activeCount}</span>}
       </button>
 
       {isOpen && (
@@ -75,10 +82,7 @@ export const FilterPopover: React.FC<FilterPopoverProps> = ({
           <div className="filter-popover-header">
             <span className="filter-popover-title">Filters</span>
             {hasActiveFilters && onClearAllFilters && (
-              <button
-                className="tree-filter-clear"
-                onClick={onClearAllFilters}
-              >
+              <button className="tree-filter-clear" onClick={onClearAllFilters}>
                 Clear all
               </button>
             )}

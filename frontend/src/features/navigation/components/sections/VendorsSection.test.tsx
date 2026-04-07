@@ -1,7 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import type { HATEOASLinks, Vendor, VendorId } from '../../../../api/types';
 import { VendorsSection } from './VendorsSection';
-import type { Vendor, VendorId, HATEOASLinks } from '../../../../api/types';
 
 describe('VendorsSection', () => {
   const mockLinks: HATEOASLinks = { self: { href: '/test', method: 'GET' } };
@@ -155,13 +155,7 @@ describe('VendorsSection', () => {
     it('should call onVendorSelect when vendor is clicked', () => {
       const onVendorSelect = vi.fn();
       const vendor = createMockVendor({ id: 'v-123' as VendorId });
-      render(
-        <VendorsSection
-          {...defaultProps}
-          vendors={[vendor]}
-          onVendorSelect={onVendorSelect}
-        />
-      );
+      render(<VendorsSection {...defaultProps} vendors={[vendor]} onVendorSelect={onVendorSelect} />);
 
       fireEvent.click(screen.getByTitle('SAP'));
 
@@ -170,13 +164,7 @@ describe('VendorsSection', () => {
 
     it('should apply selected class when vendor is selected', () => {
       const vendor = createMockVendor({ id: 'v-123' as VendorId });
-      render(
-        <VendorsSection
-          {...defaultProps}
-          vendors={[vendor]}
-          selectedVendorId="v-123"
-        />
-      );
+      render(<VendorsSection {...defaultProps} vendors={[vendor]} selectedVendorId="v-123" />);
 
       const vendorButton = screen.getByTitle('SAP');
       expect(vendorButton).toHaveClass('selected');
@@ -187,13 +175,7 @@ describe('VendorsSection', () => {
     it('should call onVendorContextMenu on right click', () => {
       const onVendorContextMenu = vi.fn();
       const vendor = createMockVendor();
-      render(
-        <VendorsSection
-          {...defaultProps}
-          vendors={[vendor]}
-          onVendorContextMenu={onVendorContextMenu}
-        />
-      );
+      render(<VendorsSection {...defaultProps} vendors={[vendor]} onVendorContextMenu={onVendorContextMenu} />);
 
       fireEvent.contextMenu(screen.getByTitle('SAP'));
 
@@ -204,12 +186,7 @@ describe('VendorsSection', () => {
   describe('drag and drop', () => {
     it('should always be draggable', () => {
       const vendor = createMockVendor({ id: 'v-123' as VendorId });
-      render(
-        <VendorsSection
-          {...defaultProps}
-          vendors={[vendor]}
-        />
-      );
+      render(<VendorsSection {...defaultProps} vendors={[vendor]} />);
 
       const vendorButton = screen.getByTitle('SAP');
       expect(vendorButton).toHaveAttribute('draggable', 'true');
@@ -217,12 +194,7 @@ describe('VendorsSection', () => {
 
     it('should set vendorId on drag start', () => {
       const vendor = createMockVendor({ id: 'v-123' as VendorId });
-      render(
-        <VendorsSection
-          {...defaultProps}
-          vendors={[vendor]}
-        />
-      );
+      render(<VendorsSection {...defaultProps} vendors={[vendor]} />);
 
       const vendorButton = screen.getByTitle('SAP');
       const mockDataTransfer = {

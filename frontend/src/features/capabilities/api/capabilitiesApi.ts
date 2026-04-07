@@ -1,23 +1,23 @@
 import { httpClient } from '../../../api/core/httpClient';
-import { followLink } from '../../../utils/hateoas';
 import type {
-  Capability,
-  CapabilityId,
-  CapabilityDependency,
-  CapabilityRealization,
-  CapabilityDeleteImpact,
-  CascadeDeleteRequest,
-  ComponentId,
-  CreateCapabilityRequest,
-  UpdateCapabilityRequest,
-  UpdateCapabilityMetadataRequest,
   AddCapabilityExpertRequest,
   AddCapabilityTagRequest,
-  CreateCapabilityDependencyRequest,
-  LinkSystemToCapabilityRequest,
-  UpdateRealizationRequest,
+  Capability,
+  CapabilityDeleteImpact,
+  CapabilityDependency,
+  CapabilityId,
+  CapabilityRealization,
+  CascadeDeleteRequest,
   CollectionResponse,
+  ComponentId,
+  CreateCapabilityDependencyRequest,
+  CreateCapabilityRequest,
+  LinkSystemToCapabilityRequest,
+  UpdateCapabilityMetadataRequest,
+  UpdateCapabilityRequest,
+  UpdateRealizationRequest,
 } from '../../../api/types';
+import { followLink } from '../../../utils/hateoas';
 
 export const capabilitiesApi = {
   async getAll(): Promise<Capability[]> {
@@ -54,10 +54,7 @@ export const capabilitiesApi = {
     await httpClient.post(`/api/v1/capabilities/${id}/experts`, request);
   },
 
-  async removeExpert(
-    id: CapabilityId,
-    expert: { name: string; role: string; contact: string }
-  ): Promise<void> {
+  async removeExpert(id: CapabilityId, expert: { name: string; role: string; contact: string }): Promise<void> {
     const params = new URLSearchParams({
       name: expert.name,
       role: expert.role,
@@ -80,16 +77,11 @@ export const capabilitiesApi = {
   },
 
   async getDeleteImpact(capabilityId: CapabilityId): Promise<CapabilityDeleteImpact> {
-    const response = await httpClient.get<CapabilityDeleteImpact>(
-      `/api/v1/capabilities/${capabilityId}/delete-impact`
-    );
+    const response = await httpClient.get<CapabilityDeleteImpact>(`/api/v1/capabilities/${capabilityId}/delete-impact`);
     return response.data;
   },
 
-  async cascadeDelete(
-    capability: Capability,
-    options: CascadeDeleteRequest
-  ): Promise<void> {
+  async cascadeDelete(capability: Capability, options: CascadeDeleteRequest): Promise<void> {
     await httpClient.delete(followLink(capability, 'delete'), { data: options });
   },
 
@@ -106,14 +98,14 @@ export const capabilitiesApi = {
 
   async getOutgoingDependencies(capabilityId: CapabilityId): Promise<CapabilityDependency[]> {
     const response = await httpClient.get<CollectionResponse<CapabilityDependency>>(
-      `/api/v1/capabilities/${capabilityId}/dependencies/outgoing`
+      `/api/v1/capabilities/${capabilityId}/dependencies/outgoing`,
     );
     return response.data.data || [];
   },
 
   async getIncomingDependencies(capabilityId: CapabilityId): Promise<CapabilityDependency[]> {
     const response = await httpClient.get<CollectionResponse<CapabilityDependency>>(
-      `/api/v1/capabilities/${capabilityId}/dependencies/incoming`
+      `/api/v1/capabilities/${capabilityId}/dependencies/incoming`,
     );
     return response.data.data || [];
   },
@@ -129,38 +121,36 @@ export const capabilitiesApi = {
 
   async getSystemsByCapability(capabilityId: CapabilityId): Promise<CapabilityRealization[]> {
     const response = await httpClient.get<CollectionResponse<CapabilityRealization>>(
-      `/api/v1/capabilities/${capabilityId}/systems`
+      `/api/v1/capabilities/${capabilityId}/systems`,
     );
     return response.data.data || [];
   },
 
   async getCapabilitiesByComponent(componentId: ComponentId): Promise<CapabilityRealization[]> {
     const response = await httpClient.get<CollectionResponse<CapabilityRealization>>(
-      `/api/v1/capability-realizations/by-component/${componentId}`
+      `/api/v1/capability-realizations/by-component/${componentId}`,
     );
     return response.data.data || [];
   },
 
   async getAllRealizations(): Promise<CapabilityRealization[]> {
-    const response = await httpClient.get<CollectionResponse<CapabilityRealization>>(
-      '/api/v1/capability-realizations'
-    );
+    const response = await httpClient.get<CollectionResponse<CapabilityRealization>>('/api/v1/capability-realizations');
     return response.data.data || [];
   },
 
   async linkSystem(capabilityId: CapabilityId, request: LinkSystemToCapabilityRequest): Promise<CapabilityRealization> {
     const response = await httpClient.post<CapabilityRealization>(
       `/api/v1/capabilities/${capabilityId}/systems`,
-      request
+      request,
     );
     return response.data;
   },
 
-  async updateRealization(realization: CapabilityRealization, request: UpdateRealizationRequest): Promise<CapabilityRealization> {
-    const response = await httpClient.put<CapabilityRealization>(
-      followLink(realization, 'edit'),
-      request
-    );
+  async updateRealization(
+    realization: CapabilityRealization,
+    request: UpdateRealizationRequest,
+  ): Promise<CapabilityRealization> {
+    const response = await httpClient.put<CapabilityRealization>(followLink(realization, 'edit'), request);
     return response.data;
   },
 

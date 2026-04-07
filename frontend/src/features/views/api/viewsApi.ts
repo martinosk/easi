@@ -1,24 +1,24 @@
 import { httpClient } from '../../../api/core/httpClient';
-import { followLink } from '../../../utils/hateoas';
 import type {
-  View,
-  ViewId,
-  ViewComponent,
-  CreateViewRequest,
-  AddComponentToViewRequest,
   AddCapabilityToViewRequest,
+  AddComponentToViewRequest,
   AddOriginEntityToViewRequest,
-  UpdatePositionRequest,
-  UpdateMultiplePositionsRequest,
-  RenameViewRequest,
-  UpdateViewEdgeTypeRequest,
-  UpdateViewColorSchemeRequest,
-  PaginatedResponse,
+  CapabilityId,
   CollectionResponse,
   ComponentId,
-  CapabilityId,
+  CreateViewRequest,
+  PaginatedResponse,
   Position,
+  RenameViewRequest,
+  UpdateMultiplePositionsRequest,
+  UpdatePositionRequest,
+  UpdateViewColorSchemeRequest,
+  UpdateViewEdgeTypeRequest,
+  View,
+  ViewComponent,
+  ViewId,
 } from '../../../api/types';
+import { followLink } from '../../../utils/hateoas';
 
 export const viewsApi = {
   async getAll(): Promise<View[]> {
@@ -57,9 +57,7 @@ export const viewsApi = {
   },
 
   async getComponents(viewId: ViewId): Promise<ViewComponent[]> {
-    const response = await httpClient.get<CollectionResponse<ViewComponent>>(
-      `/api/v1/views/${viewId}/components`
-    );
+    const response = await httpClient.get<CollectionResponse<ViewComponent>>(`/api/v1/views/${viewId}/components`);
     return response.data.data || [];
   },
 
@@ -74,12 +72,9 @@ export const viewsApi = {
   async updateComponentPosition(
     viewId: ViewId,
     componentId: ComponentId,
-    request: UpdatePositionRequest
+    request: UpdatePositionRequest,
   ): Promise<void> {
-    await httpClient.patch(
-      `/api/v1/views/${viewId}/components/${componentId}/position`,
-      request
-    );
+    await httpClient.patch(`/api/v1/views/${viewId}/components/${componentId}/position`, request);
   },
 
   async updateComponentColor(viewId: ViewId, componentId: ComponentId, color: string): Promise<void> {

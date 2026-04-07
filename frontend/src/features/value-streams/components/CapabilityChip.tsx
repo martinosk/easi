@@ -15,7 +15,10 @@ export function CapabilityChip({ mapping, canRemove, onRemove }: CapabilityChipP
         <button
           type="button"
           className="cap-chip-remove"
-          onClick={(e) => { e.stopPropagation(); onRemove(mapping); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove(mapping);
+          }}
           title="Remove capability"
         >
           &times;

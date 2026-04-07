@@ -7,7 +7,7 @@ export function MyEditGrants() {
     return <div className="loading-spinner" data-testid="my-edit-grants-loading" />;
   }
 
-  const activeGrants = grants?.filter(g => g.status === 'active') ?? [];
+  const activeGrants = grants?.filter((g) => g.status === 'active') ?? [];
 
   if (activeGrants.length === 0) {
     return null;
@@ -16,27 +16,19 @@ export function MyEditGrants() {
   return (
     <div className="card-list" data-testid="my-edit-grants">
       <h3>Your Edit Access</h3>
-      {activeGrants.map(grant => (
+      {activeGrants.map((grant) => (
         <div key={grant.id} className="card" data-testid={`my-grant-${grant.id}`}>
           <div className="card-body">
             <span className="card-title">
               {grant._links?.artifact ? (
-                <a href={grant._links.artifact.href}>
-                  {grant.artifactName || 'Deleted artifact'}
-                </a>
+                <a href={grant._links.artifact.href}>{grant.artifactName || 'Deleted artifact'}</a>
               ) : (
                 grant.artifactName || 'Deleted artifact'
               )}
             </span>
-            <span className="card-subtitle">
-              Granted by {grant.grantorEmail}
-            </span>
-            <span className="card-meta">
-              Expires {new Date(grant.expiresAt).toLocaleDateString()}
-            </span>
-            {grant.reason && (
-              <span className="card-description">{grant.reason}</span>
-            )}
+            <span className="card-subtitle">Granted by {grant.grantorEmail}</span>
+            <span className="card-meta">Expires {new Date(grant.expiresAt).toLocaleDateString()}</span>
+            {grant.reason && <span className="card-description">{grant.reason}</span>}
           </div>
         </div>
       ))}

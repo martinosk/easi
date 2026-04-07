@@ -1,12 +1,12 @@
-import React, { useLayoutEffect, useState } from 'react';
-import { Modal, TextInput, Textarea, Button, Group, Stack, Alert } from '@mantine/core';
-import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useCreateComponent } from '../hooks/useComponents';
-import { useAddComponentToView } from '../../views/hooks/useViews';
-import { useCurrentView } from '../../views/hooks/useCurrentView';
-import { createComponentSchema, type CreateComponentFormData } from '../../../lib/schemas';
+import { Alert, Button, Group, Modal, Stack, Textarea, TextInput } from '@mantine/core';
+import React, { useLayoutEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { type CreateComponentFormData, createComponentSchema } from '../../../lib/schemas';
 import { canEdit } from '../../../utils/hateoas';
+import { useCurrentView } from '../../views/hooks/useCurrentView';
+import { useAddComponentToView } from '../../views/hooks/useViews';
+import { useCreateComponent } from '../hooks/useComponents';
 
 interface CreateComponentDialogProps {
   isOpen: boolean;
@@ -15,10 +15,7 @@ interface CreateComponentDialogProps {
 
 const DEFAULT_VALUES: CreateComponentFormData = { name: '', description: '' };
 
-export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({
-  isOpen,
-  onClose,
-}) => {
+export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({ isOpen, onClose }) => {
   const [backendError, setBackendError] = useState<string | null>(null);
 
   const { currentView } = useCurrentView();
@@ -113,20 +110,10 @@ export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({
           )}
 
           <Group justify="flex-end" gap="sm">
-            <Button
-              variant="default"
-              onClick={handleClose}
-              disabled={isCreating}
-              data-testid="create-component-cancel"
-            >
+            <Button variant="default" onClick={handleClose} disabled={isCreating} data-testid="create-component-cancel">
               Cancel
             </Button>
-            <Button
-              type="submit"
-              loading={isCreating}
-              disabled={!isValid}
-              data-testid="create-component-submit"
-            >
+            <Button type="submit" loading={isCreating} disabled={!isValid} data-testid="create-component-submit">
               Create Application
             </Button>
           </Group>

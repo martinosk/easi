@@ -1,14 +1,11 @@
-import { componentsQueryKeys, fitScoresQueryKeys } from './queryKeys';
+import { auditQueryKeys } from '../audit/queryKeys';
 import { businessDomainsQueryKeys } from '../business-domains/queryKeys';
 import { strategicFitAnalysisQueryKeys } from '../enterprise-architecture/queryKeys';
-import { auditQueryKeys } from '../audit/queryKeys';
 import { artifactCreatorsQueryKeys } from '../navigation/hooks/useArtifactCreators';
+import { componentsQueryKeys, fitScoresQueryKeys } from './queryKeys';
 
 export const componentsMutationEffects = {
-  create: () => [
-    componentsQueryKeys.lists(),
-    artifactCreatorsQueryKeys.all,
-  ],
+  create: () => [componentsQueryKeys.lists(), artifactCreatorsQueryKeys.all],
 
   update: (componentId: string) => [
     componentsQueryKeys.lists(),
@@ -17,10 +14,7 @@ export const componentsMutationEffects = {
     auditQueryKeys.history(componentId),
   ],
 
-  delete: (componentId: string) => [
-    componentsQueryKeys.lists(),
-    componentsQueryKeys.detail(componentId),
-  ],
+  delete: (componentId: string) => [componentsQueryKeys.lists(), componentsQueryKeys.detail(componentId)],
 
   addExpert: (componentId: string) => [
     componentsQueryKeys.detail(componentId),
@@ -38,13 +32,7 @@ export const componentsMutationEffects = {
 };
 
 export const fitScoresMutationEffects = {
-  set: (componentId: string) => [
-    fitScoresQueryKeys.byComponent(componentId),
-    strategicFitAnalysisQueryKeys.all,
-  ],
+  set: (componentId: string) => [fitScoresQueryKeys.byComponent(componentId), strategicFitAnalysisQueryKeys.all],
 
-  delete: (componentId: string) => [
-    fitScoresQueryKeys.byComponent(componentId),
-    strategicFitAnalysisQueryKeys.all,
-  ],
+  delete: (componentId: string) => [fitScoresQueryKeys.byComponent(componentId), strategicFitAnalysisQueryKeys.all],
 };

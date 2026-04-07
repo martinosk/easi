@@ -1,8 +1,8 @@
+import { Box, Group, Slider, Stack, Text } from '@mantine/core';
 import React, { useMemo } from 'react';
-import { Slider, Box, Text, Group, Stack } from '@mantine/core';
+import type { MaturityBounds, MaturityScaleSection } from '../../api/types';
 import { useMaturityScale } from '../../hooks/useMaturityScale';
-import { getDefaultSections, getSectionForValue, getMaturityBounds } from '../../utils/maturity';
-import type { MaturityScaleSection, MaturityBounds } from '../../api/types';
+import { getDefaultSections, getMaturityBounds, getSectionForValue } from '../../utils/maturity';
 
 interface MaturitySliderProps {
   value: number;
@@ -63,9 +63,8 @@ const SectionTrack: React.FC<SectionTrackProps> = ({ sectionLabels, currentSecti
         key={section.name}
         style={{
           width: `${width}%`,
-          backgroundColor: currentSectionName === section.name
-            ? 'var(--mantine-color-blue-1)'
-            : 'var(--mantine-color-gray-1)',
+          backgroundColor:
+            currentSectionName === section.name ? 'var(--mantine-color-blue-1)' : 'var(--mantine-color-gray-1)',
           borderRight: section.maxValue !== maxBound ? '2px solid var(--mantine-color-gray-3)' : 'none',
         }}
       />
@@ -77,7 +76,7 @@ function useKeyboardNavigation(
   value: number,
   disabled: boolean,
   onChange: (v: number) => void,
-  bounds: { min: number; max: number }
+  bounds: { min: number; max: number },
 ) {
   return (event: React.KeyboardEvent) => {
     if (disabled) return;
@@ -115,13 +114,18 @@ export const MaturitySlider: React.FC<MaturitySliderProps> = ({ value, onChange,
   const bounds = useMemo(() => getMaturityBounds(sections), [sections]);
   const sectionLabels = useMemo(() => calculateSectionLabels(sections, bounds), [sections, bounds]);
   const currentSection = useMemo(() => getSectionForValue(value, sections), [value, sections]);
-  const marks = useMemo(() => [...sections.map((s) => ({ value: s.minValue, label: '' })), { value: bounds.max, label: '' }], [sections, bounds]);
+  const marks = useMemo(
+    () => [...sections.map((s) => ({ value: s.minValue, label: '' })), { value: bounds.max, label: '' }],
+    [sections, bounds],
+  );
   const handleKeyDown = useKeyboardNavigation(value, disabled, onChange, bounds);
   const ariaValueText = currentSection ? `${value} - ${currentSection.name}` : `${value}`;
 
   return (
     <Stack gap="xs">
-      <Text size="sm" fw={500}>Maturity Level</Text>
+      <Text size="sm" fw={500}>
+        Maturity Level
+      </Text>
       <Box pos="relative" mb="md">
         <SectionLabelsRow sectionLabels={sectionLabels} currentSectionName={currentSection?.name} />
         <Box pos="relative">

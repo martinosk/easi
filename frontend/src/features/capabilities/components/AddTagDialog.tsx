@@ -1,10 +1,10 @@
-import React, { useLayoutEffect, useState } from 'react';
-import { Modal, TextInput, Button, Group, Stack, Alert } from '@mantine/core';
-import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useAddCapabilityTag } from '../hooks/useCapabilities';
-import { addTagSchema, type AddTagFormData } from '../../../lib/schemas';
+import { Alert, Button, Group, Modal, Stack, TextInput } from '@mantine/core';
+import React, { useLayoutEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { toCapabilityId } from '../../../api/types';
+import { type AddTagFormData, addTagSchema } from '../../../lib/schemas';
+import { useAddCapabilityTag } from '../hooks/useCapabilities';
 
 interface AddTagDialogProps {
   isOpen: boolean;
@@ -14,11 +14,7 @@ interface AddTagDialogProps {
 
 const DEFAULT_VALUES: AddTagFormData = { tag: '' };
 
-export const AddTagDialog: React.FC<AddTagDialogProps> = ({
-  isOpen,
-  onClose,
-  capabilityId,
-}) => {
+export const AddTagDialog: React.FC<AddTagDialogProps> = ({ isOpen, onClose, capabilityId }) => {
   const [backendError, setBackendError] = useState<string | null>(null);
   const addTagMutation = useAddCapabilityTag();
 
@@ -58,13 +54,7 @@ export const AddTagDialog: React.FC<AddTagDialogProps> = ({
   };
 
   return (
-    <Modal
-      opened={isOpen}
-      onClose={handleClose}
-      title="Add Tag"
-      centered
-      data-testid="add-tag-dialog"
-    >
+    <Modal opened={isOpen} onClose={handleClose} title="Add Tag" centered data-testid="add-tag-dialog">
       <form onSubmit={handleSubmit(onSubmit)}>
         <Stack gap="md">
           <TextInput
@@ -94,12 +84,7 @@ export const AddTagDialog: React.FC<AddTagDialogProps> = ({
             >
               Cancel
             </Button>
-            <Button
-              type="submit"
-              loading={addTagMutation.isPending}
-              disabled={!isValid}
-              data-testid="add-tag-submit"
-            >
+            <Button type="submit" loading={addTagMutation.isPending} disabled={!isValid} data-testid="add-tag-submit">
               Add
             </Button>
           </Group>

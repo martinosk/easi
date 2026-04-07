@@ -1,11 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { DeleteCapabilityDialog } from './DeleteCapabilityDialog';
-import { MantineTestWrapper } from '../../../test/helpers/mantineTestWrapper';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { CapabilityDeleteImpact } from '../../../api/types';
 import { toCapabilityId, toComponentId } from '../../../api/types';
 import { buildCapability } from '../../../test/helpers/entityBuilders';
-import type { CapabilityDeleteImpact } from '../../../api/types';
+import { MantineTestWrapper } from '../../../test/helpers/mantineTestWrapper';
+import { DeleteCapabilityDialog } from './DeleteCapabilityDialog';
 
 vi.mock('../hooks/useCapabilities', () => ({
   useDeleteCapability: vi.fn(),
@@ -13,7 +13,7 @@ vi.mock('../hooks/useCapabilities', () => ({
   useCascadeDeleteCapability: vi.fn(),
 }));
 
-import { useDeleteCapability, useDeleteImpact, useCascadeDeleteCapability } from '../hooks/useCapabilities';
+import { useCascadeDeleteCapability, useDeleteCapability, useDeleteImpact } from '../hooks/useCapabilities';
 
 function createTestQueryClient() {
   return new QueryClient({
@@ -28,10 +28,8 @@ function renderWithProviders(ui: React.ReactElement) {
   const queryClient = createTestQueryClient();
   return render(
     <QueryClientProvider client={queryClient}>
-      <MantineTestWrapper>
-        {ui}
-      </MantineTestWrapper>
-    </QueryClientProvider>
+      <MantineTestWrapper>{ui}</MantineTestWrapper>
+    </QueryClientProvider>,
   );
 }
 
@@ -88,9 +86,7 @@ describe('DeleteCapabilityDialog', () => {
   });
 
   it('should not render when capability is null', () => {
-    renderWithProviders(
-      <DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={null} />
-    );
+    renderWithProviders(<DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={null} />);
 
     expect(screen.queryByTestId('delete-capability-dialog')).not.toBeInTheDocument();
   });
@@ -101,17 +97,13 @@ describe('DeleteCapabilityDialog', () => {
       isLoading: true,
     } as ReturnType<typeof useDeleteImpact>);
 
-    renderWithProviders(
-      <DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />
-    );
+    renderWithProviders(<DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />);
 
     expect(screen.getByTestId('delete-impact-loading')).toBeInTheDocument();
   });
 
   it('should show simple delete confirmation for leaf capability', () => {
-    renderWithProviders(
-      <DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />
-    );
+    renderWithProviders(<DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />);
 
     expect(screen.getByText('Are you sure you want to delete')).toBeInTheDocument();
     expect(screen.getByText('"Test Capability"')).toBeInTheDocument();
@@ -123,9 +115,7 @@ describe('DeleteCapabilityDialog', () => {
       isLoading: false,
     } as ReturnType<typeof useDeleteImpact>);
 
-    renderWithProviders(
-      <DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />
-    );
+    renderWithProviders(<DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />);
 
     expect(screen.getByTestId('cascade-warning')).toBeInTheDocument();
     expect(screen.getByText('Child A')).toBeInTheDocument();
@@ -152,9 +142,7 @@ describe('DeleteCapabilityDialog', () => {
       isLoading: false,
     } as ReturnType<typeof useDeleteImpact>);
 
-    renderWithProviders(
-      <DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />
-    );
+    renderWithProviders(<DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />);
 
     expect(screen.getByTestId('delete-applications-checkbox')).toBeInTheDocument();
   });
@@ -165,9 +153,7 @@ describe('DeleteCapabilityDialog', () => {
       isLoading: false,
     } as ReturnType<typeof useDeleteImpact>);
 
-    renderWithProviders(
-      <DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />
-    );
+    renderWithProviders(<DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />);
 
     expect(screen.queryByTestId('delete-applications-checkbox')).not.toBeInTheDocument();
   });
@@ -192,9 +178,7 @@ describe('DeleteCapabilityDialog', () => {
       isLoading: false,
     } as ReturnType<typeof useDeleteImpact>);
 
-    renderWithProviders(
-      <DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />
-    );
+    renderWithProviders(<DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />);
 
     expect(screen.getByText(/1 realization will be retained/)).toBeInTheDocument();
   });
@@ -205,9 +189,7 @@ describe('DeleteCapabilityDialog', () => {
       isLoading: false,
     } as ReturnType<typeof useDeleteImpact>);
 
-    renderWithProviders(
-      <DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />
-    );
+    renderWithProviders(<DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />);
 
     const submitButton = screen.getByTestId('delete-capability-submit');
     expect(submitButton).toHaveTextContent('Delete Test Capability and 2 children');
@@ -215,7 +197,7 @@ describe('DeleteCapabilityDialog', () => {
 
   it('should call cascadeDeleteMutation with cascade=false for leaf capability on confirm', async () => {
     renderWithProviders(
-      <DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} onConfirm={mockOnConfirm} capability={capability} />
+      <DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} onConfirm={mockOnConfirm} capability={capability} />,
     );
 
     fireEvent.click(screen.getByTestId('delete-capability-submit'));
@@ -238,7 +220,13 @@ describe('DeleteCapabilityDialog', () => {
     } as ReturnType<typeof useDeleteImpact>);
 
     renderWithProviders(
-      <DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} onConfirm={mockOnConfirm} capability={capability} domainId="domain-1" />
+      <DeleteCapabilityDialog
+        isOpen={true}
+        onClose={mockOnClose}
+        onConfirm={mockOnConfirm}
+        capability={capability}
+        domainId="domain-1"
+      />,
     );
 
     fireEvent.click(screen.getByTestId('delete-capability-submit'));
@@ -275,7 +263,7 @@ describe('DeleteCapabilityDialog', () => {
     } as ReturnType<typeof useDeleteImpact>);
 
     renderWithProviders(
-      <DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} onConfirm={mockOnConfirm} capability={capability} />
+      <DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} onConfirm={mockOnConfirm} capability={capability} />,
     );
 
     fireEvent.click(screen.getByTestId('delete-applications-checkbox'));
@@ -283,7 +271,7 @@ describe('DeleteCapabilityDialog', () => {
 
     await waitFor(() => {
       expect(mockCascadeMutateAsync).toHaveBeenCalledWith(
-        expect.objectContaining({ deleteRealisingApplications: true })
+        expect.objectContaining({ deleteRealisingApplications: true }),
       );
     });
   });
@@ -295,12 +283,7 @@ describe('DeleteCapabilityDialog', () => {
     ];
 
     renderWithProviders(
-      <DeleteCapabilityDialog
-        isOpen={true}
-        onClose={mockOnClose}
-        capability={caps[0]}
-        capabilitiesToDelete={caps}
-      />
+      <DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={caps[0]} capabilitiesToDelete={caps} />,
     );
 
     expect(screen.getByText(/delete 2 capabilities/)).toBeInTheDocument();
@@ -320,7 +303,7 @@ describe('DeleteCapabilityDialog', () => {
         capability={caps[0]}
         capabilitiesToDelete={caps}
         domainId="domain-1"
-      />
+      />,
     );
 
     fireEvent.click(screen.getByTestId('delete-capability-submit'));
@@ -343,9 +326,7 @@ describe('DeleteCapabilityDialog', () => {
   it('should show error alert on mutation failure', async () => {
     mockCascadeMutateAsync.mockRejectedValueOnce(new Error('Server error'));
 
-    renderWithProviders(
-      <DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />
-    );
+    renderWithProviders(<DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />);
 
     fireEvent.click(screen.getByTestId('delete-capability-submit'));
 
@@ -358,7 +339,7 @@ describe('DeleteCapabilityDialog', () => {
 
   it('should call onClose after successful deletion', async () => {
     renderWithProviders(
-      <DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} onConfirm={mockOnConfirm} capability={capability} />
+      <DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} onConfirm={mockOnConfirm} capability={capability} />,
     );
 
     fireEvent.click(screen.getByTestId('delete-capability-submit'));
@@ -370,9 +351,7 @@ describe('DeleteCapabilityDialog', () => {
   });
 
   it('should call onClose when cancel button is clicked', () => {
-    renderWithProviders(
-      <DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />
-    );
+    renderWithProviders(<DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />);
 
     fireEvent.click(screen.getByTestId('delete-capability-cancel'));
 
@@ -385,9 +364,7 @@ describe('DeleteCapabilityDialog', () => {
       isLoading: true,
     } as ReturnType<typeof useDeleteImpact>);
 
-    renderWithProviders(
-      <DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />
-    );
+    renderWithProviders(<DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />);
 
     const submitButton = screen.getByTestId('delete-capability-submit') as HTMLButtonElement;
     expect(submitButton.disabled).toBe(true);

@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { useEditGrantsForArtifact, useRevokeEditGrant } from '../hooks/useEditGrants';
-import { EditGrantsEmptyState } from './EditGrantsEmptyState';
-import type { ArtifactType, EditGrantStatus } from '../types';
 import { hasLink } from '../../../utils/hateoas';
+import { useEditGrantsForArtifact, useRevokeEditGrant } from '../hooks/useEditGrants';
+import type { ArtifactType, EditGrantStatus } from '../types';
+import { EditGrantsEmptyState } from './EditGrantsEmptyState';
 
 interface EditGrantsListProps {
   artifactType: ArtifactType;
@@ -21,9 +21,7 @@ export function EditGrantsList({ artifactType, artifactId }: EditGrantsListProps
   const { data: grants, isLoading } = useEditGrantsForArtifact(artifactType, artifactId);
   const revokeGrant = useRevokeEditGrant();
 
-  const filteredGrants = grants?.filter(
-    g => statusFilter === 'all' || g.status === statusFilter
-  ) ?? [];
+  const filteredGrants = grants?.filter((g) => statusFilter === 'all' || g.status === statusFilter) ?? [];
 
   if (isLoading) {
     return <div className="loading-spinner" data-testid="edit-grants-loading" />;
@@ -32,7 +30,7 @@ export function EditGrantsList({ artifactType, artifactId }: EditGrantsListProps
   return (
     <div data-testid="edit-grants-list">
       <div className="filter-bar">
-        {STATUS_OPTIONS.map(option => (
+        {STATUS_OPTIONS.map((option) => (
           <button
             key={option.value}
             className={`btn btn-sm ${statusFilter === option.value ? 'btn-primary' : 'btn-secondary'}`}
@@ -58,12 +56,14 @@ export function EditGrantsList({ artifactType, artifactId }: EditGrantsListProps
             </tr>
           </thead>
           <tbody>
-            {filteredGrants.map(grant => (
+            {filteredGrants.map((grant) => (
               <tr key={grant.id} data-testid={`edit-grant-row-${grant.id}`}>
                 <td>{grant.granteeEmail}</td>
                 <td>{grant.grantorEmail}</td>
                 <td>
-                  <span className={`badge badge-${grant.status === 'active' ? 'success' : grant.status === 'revoked' ? 'danger' : 'warning'}`}>
+                  <span
+                    className={`badge badge-${grant.status === 'active' ? 'success' : grant.status === 'revoked' ? 'danger' : 'warning'}`}
+                  >
                     {grant.status}
                   </span>
                 </td>

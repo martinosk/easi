@@ -1,18 +1,23 @@
-import { useState, useCallback, useMemo } from 'react';
-import { EnterpriseArchHeader } from '../components/EnterpriseArchHeader';
-import { EnterpriseArchContent } from '../components/EnterpriseArchContent';
-import { CreateEnterpriseCapabilityModal } from '../components/CreateEnterpriseCapabilityModal';
+import { useCallback, useMemo, useState } from 'react';
+import type { Capability } from '../../../api/types';
 import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
+import { useUserStore } from '../../../store/userStore';
+import { CreateEnterpriseCapabilityModal } from '../components/CreateEnterpriseCapabilityModal';
+import { EnterpriseArchContent } from '../components/EnterpriseArchContent';
+import { EnterpriseArchHeader } from '../components/EnterpriseArchHeader';
 import { MaturityAnalysisTab } from '../components/MaturityAnalysisTab';
+import { MaturityGapDetailPanel } from '../components/MaturityGapDetailPanel';
 import { StrategicFitTab } from '../components/StrategicFitTab';
 import { TimeSuggestionsTab } from '../components/TimeSuggestionsTab';
-import { MaturityGapDetailPanel } from '../components/MaturityGapDetailPanel';
-import { useEnterpriseCapabilities } from '../hooks/useEnterpriseCapabilities';
 import { useDomainCapabilityLinking } from '../hooks/useDomainCapabilityLinking';
+import { useEnterpriseCapabilities } from '../hooks/useEnterpriseCapabilities';
+import type {
+  CapabilityLinkStatusResponse,
+  CreateEnterpriseCapabilityRequest,
+  EnterpriseCapability,
+  EnterpriseCapabilityId,
+} from '../types';
 import { getErrorMessage } from '../utils/errorMessages';
-import type { EnterpriseCapability, CreateEnterpriseCapabilityRequest, EnterpriseCapabilityId, CapabilityLinkStatusResponse } from '../types';
-import type { Capability } from '../../../api/types';
-import { useUserStore } from '../../../store/userStore';
 import './EnterpriseArchPage.css';
 
 type TabType = 'capabilities' | 'maturity-analysis' | 'strategic-fit' | 'time-suggestions';
@@ -26,11 +31,14 @@ const TAB_CONFIG: { id: TabType; label: string }[] = [
 
 function useEnterpriseArchPermissions() {
   const hasPermission = useUserStore((state) => state.hasPermission);
-  return useMemo(() => ({
-    canRead: hasPermission('enterprise-arch:read'),
-    canWrite: hasPermission('enterprise-arch:write'),
-    canDelete: hasPermission('enterprise-arch:delete'),
-  }), [hasPermission]);
+  return useMemo(
+    () => ({
+      canRead: hasPermission('enterprise-arch:read'),
+      canWrite: hasPermission('enterprise-arch:write'),
+      canDelete: hasPermission('enterprise-arch:delete'),
+    }),
+    [hasPermission],
+  );
 }
 
 interface TabNavigationProps {
@@ -76,10 +84,18 @@ interface TabContentProps {
   onLinkCapability: (enterpriseCapabilityId: EnterpriseCapabilityId, domainCapability: Capability) => Promise<void>;
 }
 
-function TabContent({ activeTab, maturityGapDetailId, onViewMaturityGapDetail, onBackFromMaturityGapDetail, ...contentProps }: TabContentProps) {
+function TabContent({
+  activeTab,
+  maturityGapDetailId,
+  onViewMaturityGapDetail,
+  onBackFromMaturityGapDetail,
+  ...contentProps
+}: TabContentProps) {
   if (activeTab === 'maturity-analysis') {
     if (maturityGapDetailId) {
-      return <MaturityGapDetailPanel enterpriseCapabilityId={maturityGapDetailId} onBack={onBackFromMaturityGapDetail} />;
+      return (
+        <MaturityGapDetailPanel enterpriseCapabilityId={maturityGapDetailId} onBack={onBackFromMaturityGapDetail} />
+      );
     }
     return <MaturityAnalysisTab onViewDetail={onViewMaturityGapDetail} />;
   }
@@ -91,7 +107,7 @@ function TabContent({ activeTab, maturityGapDetailId, onViewMaturityGapDetail, o
 function useDeleteCapabilityDialog(
   selectedCapabilityId: EnterpriseCapabilityId | null,
   setSelectedCapabilityId: (id: EnterpriseCapabilityId | null) => void,
-  deleteCapability: (id: EnterpriseCapabilityId, name: string) => Promise<void>
+  deleteCapability: (id: EnterpriseCapabilityId, name: string) => Promise<void>,
 ) {
   const [capabilityToDelete, setCapabilityToDelete] = useState<EnterpriseCapability | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -137,26 +153,36 @@ export function EnterpriseArchPage() {
 
   const selectedCapability = useMemo(
     () => capabilities.find((c) => c.id === selectedCapabilityId) || null,
-    [capabilities, selectedCapabilityId]
+    [capabilities, selectedCapabilityId],
   );
 
-  const { domainCapabilities, linkStatuses, isLoading: isLoadingDomainCapabilities, linkCapability } =
-    useDomainCapabilityLinking(isDockPanelOpen);
+  const {
+    domainCapabilities,
+    linkStatuses,
+    isLoading: isLoadingDomainCapabilities,
+    linkCapability,
+  } = useDomainCapabilityLinking(isDockPanelOpen);
 
-  const handleCreateCapability = useCallback(async (request: CreateEnterpriseCapabilityRequest) => {
-    await createCapability(request);
-    setIsModalOpen(false);
-  }, [createCapability]);
+  const handleCreateCapability = useCallback(
+    async (request: CreateEnterpriseCapabilityRequest) => {
+      await createCapability(request);
+      setIsModalOpen(false);
+    },
+    [createCapability],
+  );
 
-  const handleSelectCapability = useCallback((capability: EnterpriseCapability) => {
-    setSelectedCapabilityId(capability.id === selectedCapabilityId ? null : capability.id);
-  }, [selectedCapabilityId]);
+  const handleSelectCapability = useCallback(
+    (capability: EnterpriseCapability) => {
+      setSelectedCapabilityId(capability.id === selectedCapabilityId ? null : capability.id);
+    },
+    [selectedCapabilityId],
+  );
 
   const handleLinkCapability = useCallback(
     async (enterpriseCapabilityId: EnterpriseCapabilityId, domainCapability: Capability) => {
       await linkCapability(enterpriseCapabilityId, domainCapability);
     },
-    [linkCapability]
+    [linkCapability],
   );
 
   const handleTabChange = useCallback((tab: TabType) => {

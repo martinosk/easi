@@ -1,4 +1,4 @@
-import { Component, type ReactNode, type ErrorInfo } from 'react';
+import { Component, type ErrorInfo, type ReactNode } from 'react';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -41,12 +41,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         return fallback;
       }
 
-      return (
-        <DefaultErrorFallback
-          error={this.state.error}
-          onReset={this.reset}
-        />
-      );
+      return <DefaultErrorFallback error={this.state.error} onReset={this.reset} />;
     }
 
     return this.props.children;
@@ -62,12 +57,7 @@ function DefaultErrorFallback({ error, onReset }: DefaultErrorFallbackProps) {
   return (
     <div className="error-boundary-fallback">
       <div className="error-boundary-content">
-        <svg
-          className="error-boundary-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
+        <svg className="error-boundary-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path
             d="M12 9V13M12 17H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
             stroke="currentColor"
@@ -78,11 +68,7 @@ function DefaultErrorFallback({ error, onReset }: DefaultErrorFallbackProps) {
         </svg>
         <h3 className="error-boundary-title">Something went wrong</h3>
         <p className="error-boundary-message">{error.message}</p>
-        <button
-          type="button"
-          className="error-boundary-button"
-          onClick={onReset}
-        >
+        <button type="button" className="error-boundary-button" onClick={onReset}>
           Try again
         </button>
       </div>
@@ -100,12 +86,7 @@ export function FeatureErrorFallback({ featureName, error, onReset }: FeatureErr
   return (
     <div className="error-boundary-fallback">
       <div className="error-boundary-content">
-        <svg
-          className="error-boundary-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
+        <svg className="error-boundary-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path
             d="M12 9V13M12 17H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
             stroke="currentColor"
@@ -117,11 +98,7 @@ export function FeatureErrorFallback({ featureName, error, onReset }: FeatureErr
         <h3 className="error-boundary-title">{featureName} encountered an error</h3>
         <p className="error-boundary-message">{error.message}</p>
         <div className="error-boundary-actions">
-          <button
-            type="button"
-            className="error-boundary-button"
-            onClick={onReset}
-          >
+          <button type="button" className="error-boundary-button" onClick={onReset}>
             Try again
           </button>
           <button

@@ -1,8 +1,8 @@
-import { useCallback, useRef, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
+import type { Capability, Component, Relation } from '../../../api/types';
+import { toComponentId } from '../../../api/types';
 import { useDialogContext } from '../../../contexts/dialogs';
 import { useAppStore } from '../../../store/appStore';
-import { toComponentId } from '../../../api/types';
-import type { Capability, Component, Relation } from '../../../api/types';
 
 export interface CanvasDialogActions {
   openComponentDialog: () => void;
@@ -17,13 +17,15 @@ export interface CanvasDialogActions {
 export function useCanvasDialogs(
   selectedEdgeId: string | null,
   relations: Relation[],
-  components: Component[]
+  components: Component[],
 ): CanvasDialogActions {
   const { openDialog } = useDialogContext();
   const selectNode = useAppStore((state) => state.selectNode);
 
   const componentsRef = useRef(components);
-  useEffect(() => { componentsRef.current = components; });
+  useEffect(() => {
+    componentsRef.current = components;
+  });
 
   const openComponentDialog = useCallback(() => {
     openDialog('create-component');
@@ -37,7 +39,7 @@ export function useCanvasDialogs(
     (sourceId: string, targetId: string) => {
       openDialog('create-relation', { sourceComponentId: sourceId, targetComponentId: targetId });
     },
-    [openDialog]
+    [openDialog],
   );
 
   const openEditRelationDialog = useCallback(() => {
@@ -57,14 +59,14 @@ export function useCanvasDialogs(
         }
       }
     },
-    [openDialog, selectNode]
+    [openDialog, selectNode],
   );
 
   const openEditCapabilityDialog = useCallback(
     (capability: Capability) => {
       openDialog('edit-capability', { capability });
     },
-    [openDialog]
+    [openDialog],
   );
 
   const openReleaseNotesBrowser = useCallback(() => {

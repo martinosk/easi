@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import type { TreeSelectedItem } from './useTreeMultiSelect';
 
 export interface TreeBulkAction {
@@ -34,11 +34,7 @@ export function useTreeMultiSelectMenu() {
   const [menu, setMenu] = useState<TreeMultiSelectMenuState | null>(null);
 
   const handleMultiSelectContextMenu = useCallback(
-    (
-      event: React.MouseEvent,
-      clickedItemId: string,
-      selectedItems: TreeSelectedItem[]
-    ): boolean => {
+    (event: React.MouseEvent, clickedItemId: string, selectedItems: TreeSelectedItem[]): boolean => {
       if (selectedItems.length < 2) return false;
 
       const isInSelection = selectedItems.some((item) => item.id === clickedItemId);
@@ -59,7 +55,7 @@ export function useTreeMultiSelectMenu() {
 
       return true;
     },
-    []
+    [],
   );
 
   const closeMenu = useCallback(() => {

@@ -1,22 +1,23 @@
 /* eslint-disable react-refresh/only-export-components */
-import { StrictMode, useEffect } from 'react'
-import { createRoot } from 'react-dom/client'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { MantineProvider } from '@mantine/core'
-import { QueryClientProvider } from '@tanstack/react-query'
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
-import 'dockview/dist/styles/dockview.css'
-import '@mantine/core/styles.css'
-import './index.css'
-import App from './App.tsx'
-import { LoginPage } from './features/auth/pages/LoginPage.tsx'
-import { ErrorBoundary } from './components/shared/ErrorBoundary.tsx'
-import { DialogProvider } from './contexts/dialogs'
-import { ProtectedRoute } from './routes/routes.tsx'
-import { ROUTES } from './routes/routePaths.ts'
-import { useUserStore } from './store/userStore.ts'
-import { theme } from './theme/mantine'
-import { queryClient } from './lib/queryClient'
+
+import { MantineProvider } from '@mantine/core';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { StrictMode, useEffect } from 'react';
+import { createRoot } from 'react-dom/client';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import 'dockview/dist/styles/dockview.css';
+import '@mantine/core/styles.css';
+import './index.css';
+import App from './App.tsx';
+import { ErrorBoundary } from './components/shared/ErrorBoundary.tsx';
+import { DialogProvider } from './contexts/dialogs';
+import { LoginPage } from './features/auth/pages/LoginPage.tsx';
+import { queryClient } from './lib/queryClient';
+import { ROUTES } from './routes/routePaths.ts';
+import { ProtectedRoute } from './routes/routes.tsx';
+import { useUserStore } from './store/userStore.ts';
+import { theme } from './theme/mantine';
 
 const basename = import.meta.env.BASE_URL.replace(/\/$/, '') || '';
 
@@ -24,12 +25,7 @@ function RootErrorFallback({ error, onReset }: { error: Error; onReset: () => vo
   return (
     <div className="error-boundary-fallback" style={{ minHeight: '100vh' }}>
       <div className="error-boundary-content">
-        <svg
-          className="error-boundary-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
+        <svg className="error-boundary-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path
             d="M12 9V13M12 17H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
             stroke="currentColor"
@@ -41,17 +37,13 @@ function RootErrorFallback({ error, onReset }: { error: Error; onReset: () => vo
         <h3 className="error-boundary-title">Application Error</h3>
         <p className="error-boundary-message">{error.message}</p>
         <div className="error-boundary-actions">
-          <button
-            type="button"
-            className="error-boundary-button"
-            onClick={onReset}
-          >
+          <button type="button" className="error-boundary-button" onClick={onReset}>
             Try again
           </button>
           <button
             type="button"
             className="error-boundary-button error-boundary-button-secondary"
-            onClick={() => window.location.href = basename + '/'}
+            onClick={() => (window.location.href = basename + '/')}
           >
             Go to home
           </button>
@@ -73,30 +65,28 @@ function SessionInitializer({ children }: { children: React.ReactNode }) {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ErrorBoundary
-      fallback={(error, reset) => <RootErrorFallback error={error} onReset={reset} />}
-    >
+    <ErrorBoundary fallback={(error, reset) => <RootErrorFallback error={error} onReset={reset} />}>
       <QueryClientProvider client={queryClient}>
         <MantineProvider theme={theme} defaultColorScheme="light">
           <BrowserRouter basename={basename}>
             <SessionInitializer>
               <DialogProvider>
-              <Routes>
-                <Route path={ROUTES.LOGIN} element={<LoginPage />} />
-                <Route element={<ProtectedRoute />}>
-                  <Route path={ROUTES.HOME} element={<App view="canvas" />} />
-                  <Route path={ROUTES.CANVAS} element={<Navigate to={ROUTES.HOME} replace />} />
-                  <Route path={ROUTES.BUSINESS_DOMAINS} element={<App view="business-domains" />} />
-                  <Route path={ROUTES.BUSINESS_DOMAIN_DETAIL} element={<App view="business-domains" />} />
-                  <Route path={`${ROUTES.VALUE_STREAMS}/*`} element={<App view="value-streams" />} />
-                  <Route path={ROUTES.ENTERPRISE_ARCHITECTURE} element={<App view="enterprise-architecture" />} />
-                  <Route path={ROUTES.INVITATIONS} element={<App view="invitations" />} />
-                  <Route path={ROUTES.USERS} element={<App view="users" />} />
-                  <Route path="/settings/*" element={<App view="settings" />} />
-                  <Route path={ROUTES.MY_EDIT_ACCESS} element={<App view="my-edit-access" />} />
-                </Route>
-                <Route path="*" element={<Navigate to={ROUTES.HOME} replace />} />
-              </Routes>
+                <Routes>
+                  <Route path={ROUTES.LOGIN} element={<LoginPage />} />
+                  <Route element={<ProtectedRoute />}>
+                    <Route path={ROUTES.HOME} element={<App view="canvas" />} />
+                    <Route path={ROUTES.CANVAS} element={<Navigate to={ROUTES.HOME} replace />} />
+                    <Route path={ROUTES.BUSINESS_DOMAINS} element={<App view="business-domains" />} />
+                    <Route path={ROUTES.BUSINESS_DOMAIN_DETAIL} element={<App view="business-domains" />} />
+                    <Route path={`${ROUTES.VALUE_STREAMS}/*`} element={<App view="value-streams" />} />
+                    <Route path={ROUTES.ENTERPRISE_ARCHITECTURE} element={<App view="enterprise-architecture" />} />
+                    <Route path={ROUTES.INVITATIONS} element={<App view="invitations" />} />
+                    <Route path={ROUTES.USERS} element={<App view="users" />} />
+                    <Route path="/settings/*" element={<App view="settings" />} />
+                    <Route path={ROUTES.MY_EDIT_ACCESS} element={<App view="my-edit-access" />} />
+                  </Route>
+                  <Route path="*" element={<Navigate to={ROUTES.HOME} replace />} />
+                </Routes>
               </DialogProvider>
             </SessionInitializer>
           </BrowserRouter>
@@ -105,4 +95,4 @@ createRoot(document.getElementById('root')!).render(
       </QueryClientProvider>
     </ErrorBoundary>
   </StrictMode>,
-)
+);

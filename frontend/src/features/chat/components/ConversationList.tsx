@@ -51,14 +51,16 @@ export function ConversationList({
         <div className="conversation-list-empty">No conversations yet</div>
       ) : (
         <div className="conversation-list-items">
-          {conversations.map(conv => (
+          {conversations.map((conv) => (
             <div
               key={conv.id}
               className={`conversation-item${activeConversationId === conv.id ? ' conversation-item-active' : ''}`}
               onClick={() => onSelect(conv.id)}
               role="button"
               tabIndex={0}
-              onKeyDown={(e) => { if (e.key === 'Enter') onSelect(conv.id); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') onSelect(conv.id);
+              }}
             >
               <div className="conversation-item-content">
                 <span className="conversation-item-title">{conv.title}</span>
@@ -67,7 +69,10 @@ export function ConversationList({
               <button
                 type="button"
                 className="conversation-delete-btn"
-                onClick={(e) => { e.stopPropagation(); onDelete(conv.id); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(conv.id);
+                }}
                 aria-label="Delete conversation"
               >
                 <svg viewBox="0 0 24 24" fill="none" width="14" height="14">

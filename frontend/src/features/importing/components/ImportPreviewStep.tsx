@@ -18,15 +18,12 @@ export const ImportPreviewStep: React.FC<ImportPreviewStepProps> = ({
 }) => {
   const { supported, unsupported } = preview;
   const hasUnsupported =
-    Object.keys(unsupported.elements).length > 0 ||
-    Object.keys(unsupported.relationships).length > 0;
+    Object.keys(unsupported.elements).length > 0 || Object.keys(unsupported.relationships).length > 0;
 
   return (
     <div className="import-step">
       <h3>Import Preview</h3>
-      <p className="import-step-description">
-        Review what will be imported from the file.
-      </p>
+      <p className="import-step-description">Review what will be imported from the file.</p>
 
       <div className="import-preview">
         <div className="import-section">
@@ -70,9 +67,7 @@ export const ImportPreviewStep: React.FC<ImportPreviewStepProps> = ({
         {hasUnsupported && (
           <div className="import-section import-warning">
             <h4>Will NOT Import</h4>
-            <p className="import-warning-text">
-              The following unsupported elements will be skipped:
-            </p>
+            <p className="import-warning-text">The following unsupported elements will be skipped:</p>
 
             {Object.keys(unsupported.elements).length > 0 && (
               <div>

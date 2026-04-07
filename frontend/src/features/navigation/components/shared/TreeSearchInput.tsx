@@ -6,11 +6,7 @@ interface TreeSearchInputProps {
   placeholder: string;
 }
 
-export const TreeSearchInput: React.FC<TreeSearchInputProps> = ({
-  value,
-  onChange,
-  placeholder,
-}) => (
+export const TreeSearchInput: React.FC<TreeSearchInputProps> = ({ value, onChange, placeholder }) => (
   <div className="tree-search">
     <input
       type="text"
@@ -20,11 +16,7 @@ export const TreeSearchInput: React.FC<TreeSearchInputProps> = ({
       onChange={(e) => onChange(e.target.value)}
     />
     {value && (
-      <button
-        className="tree-search-clear"
-        onClick={() => onChange('')}
-        aria-label="Clear search"
-      >
+      <button className="tree-search-clear" onClick={() => onChange('')} aria-label="Clear search">
         x
       </button>
     )}

@@ -1,11 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import type { BusinessDomain, Capability, ComponentId } from '../../../api/types';
-import { useComponentDetails } from '../hooks/useComponentDetails';
-import { ComponentDetailsContent } from '../../components/components/ComponentDetails';
-import { EditComponentDialog } from '../../components/components/EditComponentDialog';
 import { EditCapabilityDialog } from '../../capabilities/components/EditCapabilityDialog';
 import { useCapabilities, useCapabilitiesByComponent } from '../../capabilities/hooks/useCapabilities';
+import { ComponentDetailsContent } from '../../components/components/ComponentDetails';
+import { EditComponentDialog } from '../../components/components/EditComponentDialog';
 import { useComponents } from '../../components/hooks/useComponents';
+import { useComponentDetails } from '../hooks/useComponentDetails';
 import { StrategicImportanceSection } from './StrategicImportanceSection';
 
 interface DetailsSidebarProps {
@@ -21,9 +21,7 @@ function EmptyState() {
         <h3 className="detail-title">Details</h3>
       </div>
       <div className="detail-content" style={{ textAlign: 'center', padding: '2rem' }}>
-        <p style={{ color: 'var(--color-gray-500)', margin: 0 }}>
-          Select a capability or application to view details
-        </p>
+        <p style={{ color: 'var(--color-gray-500)', margin: 0 }}>Select a capability or application to view details</p>
       </div>
     </div>
   );
@@ -46,7 +44,9 @@ function CapabilityContent({ capability, domain }: CapabilityContentProps) {
       <div className="detail-content">
         {canEdit && (
           <div className="detail-actions">
-            <button className="btn btn-secondary btn-small" onClick={() => setEditDialogOpen(true)}>Edit</button>
+            <button className="btn btn-secondary btn-small" onClick={() => setEditDialogOpen(true)}>
+              Edit
+            </button>
           </div>
         )}
         <div className="detail-field">
@@ -64,18 +64,9 @@ function CapabilityContent({ capability, domain }: CapabilityContentProps) {
           </div>
         )}
 
-        {domain && (
-          <StrategicImportanceSection
-            domain={domain}
-            capabilityId={capability.id}
-          />
-        )}
+        {domain && <StrategicImportanceSection domain={domain} capabilityId={capability.id} />}
       </div>
-      <EditCapabilityDialog
-        isOpen={editDialogOpen}
-        onClose={() => setEditDialogOpen(false)}
-        capability={capability}
-      />
+      <EditCapabilityDialog isOpen={editDialogOpen} onClose={() => setEditDialogOpen(false)} capability={capability} />
     </div>
   );
 }
@@ -92,9 +83,11 @@ function ApplicationContent({ componentId }: ApplicationContentProps) {
   const { data: componentRealizations = [] } = useCapabilitiesByComponent(componentId);
 
   const componentFromStore = storeComponents.find((c) => c.id === componentId);
-  const { component: componentFromApi, isLoading, error } = useComponentDetails(
-    componentFromStore ? null : componentId
-  );
+  const {
+    component: componentFromApi,
+    isLoading,
+    error,
+  } = useComponentDetails(componentFromStore ? null : componentId);
 
   const component = componentFromStore || componentFromApi;
 
@@ -126,9 +119,7 @@ function ApplicationContent({ componentId }: ApplicationContentProps) {
           <h3 className="detail-title">Application Details</h3>
         </div>
         <div className="detail-content" style={{ textAlign: 'center', padding: '2rem' }}>
-          <p style={{ color: 'var(--color-red-500)', margin: 0 }}>
-            Failed to load application details
-          </p>
+          <p style={{ color: 'var(--color-red-500)', margin: 0 }}>Failed to load application details</p>
         </div>
       </div>
     );
@@ -142,20 +133,12 @@ function ApplicationContent({ componentId }: ApplicationContentProps) {
         capabilities={capabilities}
         onEdit={handleEdit}
       />
-      <EditComponentDialog
-        isOpen={editDialogOpen}
-        onClose={handleCloseEditDialog}
-        component={component}
-      />
+      <EditComponentDialog isOpen={editDialogOpen} onClose={handleCloseEditDialog} component={component} />
     </>
   );
 }
 
-export function DetailsSidebar({
-  selectedCapability,
-  selectedComponentId,
-  visualizedDomain,
-}: DetailsSidebarProps) {
+export function DetailsSidebar({ selectedCapability, selectedComponentId, visualizedDomain }: DetailsSidebarProps) {
   const hasSelection = selectedCapability || selectedComponentId;
 
   return (
@@ -169,9 +152,7 @@ export function DetailsSidebar({
     >
       {!hasSelection && <EmptyState />}
       {selectedCapability && <CapabilityContent capability={selectedCapability} domain={visualizedDomain} />}
-      {selectedComponentId && !selectedCapability && (
-        <ApplicationContent componentId={selectedComponentId} />
-      )}
+      {selectedComponentId && !selectedCapability && <ApplicationContent componentId={selectedComponentId} />}
     </aside>
   );
 }

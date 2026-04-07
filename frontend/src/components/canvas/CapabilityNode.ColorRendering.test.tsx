@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from '@testing-library/react';
-import React from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
+import React from 'react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../features/views/hooks/useCurrentView', () => ({
   useCurrentView: vi.fn(),
@@ -24,24 +24,28 @@ vi.mock('../../hooks/useMaturityScale', () => ({
   })),
 }));
 
-import { CapabilityNode, type CapabilityNodeData } from './CapabilityNode';
-import { useCurrentView } from '../../features/views/hooks/useCurrentView';
 import type { View } from '../../api/types';
-import { toViewId, toCapabilityId } from '../../api/types';
+import { toCapabilityId, toViewId } from '../../api/types';
+import { useCurrentView } from '../../features/views/hooks/useCurrentView';
+import { CapabilityNode, type CapabilityNodeData } from './CapabilityNode';
 
-const createMockView = (colorScheme: string, capabilitiesWithColors?: Array<{ capabilityId: string; customColor?: string }>): View => ({
+const createMockView = (
+  colorScheme: string,
+  capabilitiesWithColors?: Array<{ capabilityId: string; customColor?: string }>,
+): View => ({
   id: toViewId('view-1'),
   name: 'Test View',
   description: 'Test view description',
   isDefault: true,
   isPrivate: false,
   components: [],
-  capabilities: capabilitiesWithColors?.map(cap => ({
-    capabilityId: toCapabilityId(cap.capabilityId),
-    x: 100,
-    y: 200,
-    customColor: cap.customColor,
-  })) || [],
+  capabilities:
+    capabilitiesWithColors?.map((cap) => ({
+      capabilityId: toCapabilityId(cap.capabilityId),
+      x: 100,
+      y: 200,
+      customColor: cap.customColor,
+    })) || [],
   originEntities: [],
   colorScheme,
   createdAt: '2024-01-01T00:00:00Z',
@@ -52,7 +56,7 @@ const createCapabilityNodeData = (
   maturityLevel?: string,
   isSelected: boolean = false,
   customColor?: string,
-  maturityValue?: number
+  maturityValue?: number,
 ): CapabilityNodeData => ({
   label: 'Customer Management',
   level: 'L1',
@@ -63,20 +67,12 @@ const createCapabilityNodeData = (
 });
 
 const renderWithProvider = (component: React.ReactElement) => {
-  const result = render(
-    <ReactFlowProvider>
-      {component}
-    </ReactFlowProvider>
-  );
+  const result = render(<ReactFlowProvider>{component}</ReactFlowProvider>);
 
   return {
     ...result,
     rerender: (newComponent: React.ReactElement) => {
-      return result.rerender(
-        <ReactFlowProvider>
-          {newComponent}
-        </ReactFlowProvider>
-      );
+      return result.rerender(<ReactFlowProvider>{newComponent}</ReactFlowProvider>);
     },
   };
 };
@@ -132,9 +128,7 @@ interface NodeOptions {
 const renderAndGetNode = (options: NodeOptions = {}) => {
   const { nodeId = 'cap-1', maturityLevel, isSelected = false, customColor, maturityValue } = options;
   const nodeData = createCapabilityNodeData(maturityLevel, isSelected, customColor, maturityValue);
-  const result = renderWithProvider(
-    <CapabilityNode data={nodeData} id={nodeId} />
-  );
+  const result = renderWithProvider(<CapabilityNode data={nodeData} id={nodeId} />);
   const node = result.container.querySelector('.capability-node') as HTMLElement;
   return { node, nodeData, ...result };
 };
@@ -197,7 +191,11 @@ describe('CapabilityNode Custom Color Rendering', () => {
       { maturityLevel: 'Genesis', maturityValue: 12, expectedColor: '#f89191' },
       { maturityLevel: 'Custom Build', maturityValue: 37, expectedColor: '#fdb774' },
       { maturityLevel: 'Commodity', maturityValue: 87, expectedColor: '#5befb1' },
-    ])('should use maturity color for $maturityLevel when colorScheme is "maturity"', ({ maturityLevel, maturityValue, expectedColor }) => {
+    ])('should use maturity color for $maturityLevel when colorScheme is "maturity"', ({
+      maturityLevel,
+      maturityValue,
+      expectedColor,
+    }) => {
       mockCurrentView('maturity');
       const { node } = renderAndGetNode({ maturityLevel, maturityValue });
       expect(node.style.background).toMatch(/linear-gradient/);
@@ -244,7 +242,11 @@ describe('CapabilityNode Custom Color Rendering', () => {
 
     it('should switch from custom color to maturity color when scheme changes from "custom" to "maturity"', () => {
       mockCurrentView('custom');
-      const { container, rerender } = renderAndGetNode({ maturityLevel: 'Product', customColor: '#FF5733', maturityValue: 62 });
+      const { container, rerender } = renderAndGetNode({
+        maturityLevel: 'Product',
+        customColor: '#FF5733',
+        maturityValue: 62,
+      });
 
       let node = container.querySelector('.capability-node') as HTMLElement;
       expect(containsColor(node.style.background, '#FF5733')).toBe(true);
@@ -260,7 +262,11 @@ describe('CapabilityNode Custom Color Rendering', () => {
 
     it('should switch from maturity color to custom color when scheme changes from "maturity" to "custom"', () => {
       mockCurrentView('maturity');
-      const { container, rerender } = renderAndGetNode({ maturityLevel: 'Genesis', customColor: '#FF5733', maturityValue: 12 });
+      const { container, rerender } = renderAndGetNode({
+        maturityLevel: 'Genesis',
+        customColor: '#FF5733',
+        maturityValue: 12,
+      });
 
       let node = container.querySelector('.capability-node') as HTMLElement;
       expect(node.style.background).toMatch(/linear-gradient/);

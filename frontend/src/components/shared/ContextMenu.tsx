@@ -70,13 +70,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, items, onClose }
   };
 
   const menuContent = (
-    <div
-      ref={menuRef}
-      className="context-menu"
-      role="menu"
-      aria-label="Context menu"
-      style={{ left: x, top: y }}
-    >
+    <div ref={menuRef} className="context-menu" role="menu" aria-label="Context menu" style={{ left: x, top: y }}>
       {items.map((item, index) => (
         <button
           key={index}

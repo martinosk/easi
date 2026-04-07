@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { apiClient } from '../../../api/client';
 import type { Release } from '../../../api/types';
 
@@ -55,10 +55,7 @@ export function useReleaseNotes(): UseReleaseNotesResult {
   useEffect(() => {
     async function fetchReleaseInfo() {
       try {
-        const [version, latestRelease] = await Promise.all([
-          apiClient.getVersion(),
-          apiClient.getLatestRelease(),
-        ]);
+        const [version, latestRelease] = await Promise.all([apiClient.getVersion(), apiClient.getLatestRelease()]);
 
         setCurrentVersion(version);
         setRelease(latestRelease);
@@ -78,16 +75,19 @@ export function useReleaseNotes(): UseReleaseNotesResult {
     fetchReleaseInfo();
   }, []);
 
-  const dismiss = useCallback((mode: 'forever' | 'untilNext') => {
-    if (!currentVersion) return;
+  const dismiss = useCallback(
+    (mode: 'forever' | 'untilNext') => {
+      if (!currentVersion) return;
 
-    setStoredPreferences({
-      dismissedVersion: currentVersion,
-      dismissMode: mode,
-    });
+      setStoredPreferences({
+        dismissedVersion: currentVersion,
+        dismissMode: mode,
+      });
 
-    setShowOverlay(false);
-  }, [currentVersion]);
+      setShowOverlay(false);
+    },
+    [currentVersion],
+  );
 
   return {
     showOverlay,

@@ -1,9 +1,9 @@
-import { Box, Group, Stack, Title, Text } from '@mantine/core';
+import { Box, Group, Stack, Text, Title } from '@mantine/core';
 import type { BusinessDomain, Capability, CapabilityId, CapabilityRealization, ComponentId } from '../../../api/types';
-import { NestedCapabilityGrid } from './NestedCapabilityGrid';
-import { DepthSelector, type DepthLevel } from './DepthSelector';
-import { ShowApplicationsToggle } from './ShowApplicationsToggle';
 import { useResponsive } from '../../../hooks/useResponsive';
+import { type DepthLevel, DepthSelector } from './DepthSelector';
+import { NestedCapabilityGrid } from './NestedCapabilityGrid';
+import { ShowApplicationsToggle } from './ShowApplicationsToggle';
 
 interface VisualizationAreaProps {
   visualizedDomain: BusinessDomain | null;
@@ -51,9 +51,7 @@ export function VisualizationArea({
       <Box component="main" className="business-domains-main" style={{ flex: 1, padding: '1rem', overflow: 'auto' }}>
         <Stack align="center" mt="xl">
           <Title order={2}>Grid Visualization</Title>
-          <Text c="dimmed">
-            Click a domain to see its capabilities
-          </Text>
+          <Text c="dimmed">Click a domain to see its capabilities</Text>
         </Stack>
       </Box>
     );
@@ -68,10 +66,16 @@ export function VisualizationArea({
   }
 
   return (
-    <Box component="main" className="business-domains-main" style={{ flex: 1, padding: isMobile ? '0.5rem' : '1rem', overflow: 'auto' }}>
+    <Box
+      component="main"
+      className="business-domains-main"
+      style={{ flex: 1, padding: isMobile ? '0.5rem' : '1rem', overflow: 'auto' }}
+    >
       <Stack gap="md">
         <Group justify="space-between" align="center" wrap="wrap" gap="sm">
-          <Title order={2} size={isMobile ? 'h3' : 'h2'}>{visualizedDomain.name}</Title>
+          <Title order={2} size={isMobile ? 'h3' : 'h2'}>
+            {visualizedDomain.name}
+          </Title>
           <Group gap={isMobile ? 'xs' : 'md'} wrap="wrap">
             <ShowApplicationsToggle
               showApplications={showApplications}

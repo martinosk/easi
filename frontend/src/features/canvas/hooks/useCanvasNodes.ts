@@ -1,22 +1,22 @@
-import { useMemo } from 'react';
 import type { Node } from '@xyflow/react';
+import { useMemo } from 'react';
+import type { ViewCapability } from '../../../api/types';
 import { useAppStore } from '../../../store/appStore';
-import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
-import {
-  createComponentNode,
-  createCapabilityNode,
-  createAcquiredEntityNode,
-  createVendorNode,
-  createInternalTeamNode,
-  isComponentInView,
-} from '../utils/nodeFactory';
 import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
 import { useComponents } from '../../components/hooks/useComponents';
-import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { useAcquiredEntitiesQuery } from '../../origin-entities/hooks/useAcquiredEntities';
-import { useVendorsQuery } from '../../origin-entities/hooks/useVendors';
 import { useInternalTeamsQuery } from '../../origin-entities/hooks/useInternalTeams';
-import type { ViewCapability } from '../../../api/types';
+import { useVendorsQuery } from '../../origin-entities/hooks/useVendors';
+import { useCurrentView } from '../../views/hooks/useCurrentView';
+import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
+import {
+  createAcquiredEntityNode,
+  createCapabilityNode,
+  createComponentNode,
+  createInternalTeamNode,
+  createVendorNode,
+  isComponentInView,
+} from '../utils/nodeFactory';
 
 export const useCanvasNodes = (): Node[] => {
   const { data: components = [] } = useComponents();
@@ -45,7 +45,15 @@ export const useCanvasNodes = (): Node[] => {
     const capabilityNodes = (currentView.capabilities || [])
       .map((vc: ViewCapability) => {
         const capability = capabilities.find((c) => c.id === vc.capabilityId);
-        return capability ? createCapabilityNode({ capabilityId: vc.capabilityId, capability, layoutPositions, viewCapability: vc, selectedCapabilityId }) : null;
+        return capability
+          ? createCapabilityNode({
+              capabilityId: vc.capabilityId,
+              capability,
+              layoutPositions,
+              viewCapability: vc,
+              selectedCapabilityId,
+            })
+          : null;
       })
       .filter((n): n is Node => n !== null);
 
@@ -62,5 +70,15 @@ export const useCanvasNodes = (): Node[] => {
       .map((team) => createInternalTeamNode(team, viewOriginEntityPositions, selectedNodeId));
 
     return [...componentNodes, ...capabilityNodes, ...acquiredEntityNodes, ...vendorNodes, ...internalTeamNodes];
-  }, [components, currentView, selectedNodeId, capabilities, selectedCapabilityId, layoutPositions, acquiredEntities, vendors, internalTeams]);
+  }, [
+    components,
+    currentView,
+    selectedNodeId,
+    capabilities,
+    selectedCapabilityId,
+    layoutPositions,
+    acquiredEntities,
+    vendors,
+    internalTeams,
+  ]);
 };

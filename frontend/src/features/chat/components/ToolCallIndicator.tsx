@@ -32,7 +32,7 @@ const deletePrefixes = ['delete_', 'unrealize_'];
 const mutatePrefixes = ['create_', 'update_', 'realize_'];
 
 function matchesAnyPrefix(name: string, prefixes: string[]): boolean {
-  return prefixes.some(p => name.startsWith(p));
+  return prefixes.some((p) => name.startsWith(p));
 }
 
 function categorize(name: string): ToolCategory {
@@ -70,7 +70,12 @@ function hasVisiblePreview(expanded: boolean, resultPreview?: string): boolean {
   return expanded && Boolean(resultPreview);
 }
 
-function StatusDetail({ status, errorMessage, expanded, resultPreview }: {
+function StatusDetail({
+  status,
+  errorMessage,
+  expanded,
+  resultPreview,
+}: {
   status: string;
   errorMessage?: string;
   expanded: boolean;
@@ -78,7 +83,8 @@ function StatusDetail({ status, errorMessage, expanded, resultPreview }: {
 }) {
   if (status === 'running') return <span className="tool-call-activity">Looking up data...</span>;
   if (status === 'error' && errorMessage) return <span className="tool-call-error-message">{errorMessage}</span>;
-  if (status === 'completed' && hasVisiblePreview(expanded, resultPreview)) return <div className="tool-call-preview">{resultPreview}</div>;
+  if (status === 'completed' && hasVisiblePreview(expanded, resultPreview))
+    return <div className="tool-call-preview">{resultPreview}</div>;
   return null;
 }
 
@@ -88,10 +94,7 @@ export function ToolCallIndicator({ status, name, resultPreview, errorMessage }:
   const icon = categoryIcons[categorize(name)];
 
   return (
-    <div
-      className={`tool-call-indicator tool-call-${status}`}
-      onClick={() => setExpanded(prev => !prev)}
-    >
+    <div className={`tool-call-indicator tool-call-${status}`} onClick={() => setExpanded((prev) => !prev)}>
       <span className="tool-call-category-icon">{icon}</span>
       <StatusIndicator status={status} />
       <span className="tool-call-label">{label}</span>

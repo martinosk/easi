@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
+import type { Capability } from '../../../api/types';
 import { HelpTooltip } from '../../../components/shared/HelpTooltip';
 import type { EnterpriseCapability } from '../types';
-import type { Capability } from '../../../api/types';
 
 export interface EnterpriseCapabilityCardProps {
   capability: EnterpriseCapability;
@@ -53,9 +53,7 @@ export function EnterpriseCapabilityCard({ capability, onDrop }: EnterpriseCapab
       }}
     >
       <div style={{ marginBottom: '0.5rem' }}>
-        <h3 style={{ fontSize: '1.125rem', fontWeight: 600, margin: 0 }}>
-          {capability.name}
-        </h3>
+        <h3 style={{ fontSize: '1.125rem', fontWeight: 600, margin: 0 }}>{capability.name}</h3>
         {capability.category && (
           <span
             style={{
@@ -74,9 +72,7 @@ export function EnterpriseCapabilityCard({ capability, onDrop }: EnterpriseCapab
       </div>
 
       {capability.description && (
-        <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: '0.5rem 0' }}>
-          {capability.description}
-        </p>
+        <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: '0.5rem 0' }}>{capability.description}</p>
       )}
 
       <div style={{ display: 'flex', gap: '1rem', marginTop: '0.75rem' }}>
@@ -92,15 +88,17 @@ export function EnterpriseCapabilityCard({ capability, onDrop }: EnterpriseCapab
         </div>
       </div>
       {capability.linkCount === 0 && (
-        <div style={{
-          fontSize: '0.75rem',
-          color: '#6b7280',
-          marginTop: '0.5rem',
-          fontStyle: 'italic',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.25rem'
-        }}>
+        <div
+          style={{
+            fontSize: '0.75rem',
+            color: '#6b7280',
+            marginTop: '0.5rem',
+            fontStyle: 'italic',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.25rem',
+          }}
+        >
           Drag domain capabilities here to link them
         </div>
       )}

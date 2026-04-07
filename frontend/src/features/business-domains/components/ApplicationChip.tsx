@@ -30,9 +30,10 @@ export function ApplicationChip({ realization, onClick }: ApplicationChipProps) 
   const componentName = realization.componentName || realization.componentId;
   const isInherited = realization.origin === 'Inherited';
 
-  const tooltipText = isInherited && realization.sourceCapabilityName
-    ? `${componentName} (inherited from ${realization.sourceCapabilityName})`
-    : componentName;
+  const tooltipText =
+    isInherited && realization.sourceCapabilityName
+      ? `${componentName} (inherited from ${realization.sourceCapabilityName})`
+      : componentName;
 
   return (
     <button

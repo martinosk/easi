@@ -1,8 +1,8 @@
-import { renderHook, waitFor, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useGridPositions } from './useGridPositions';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiClient } from '../../../api/client';
 import type { BusinessDomainId, CapabilityId, LayoutContainer, LayoutContainerId } from '../../../api/types';
+import { useGridPositions } from './useGridPositions';
 
 vi.mock('../../../api/client', () => ({
   apiClient: {
@@ -68,11 +68,7 @@ describe('useGridPositions', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      expect(apiClient.upsertLayout).toHaveBeenCalledWith(
-        'business-domain-grid',
-        'bd-finance',
-        {}
-      );
+      expect(apiClient.upsertLayout).toHaveBeenCalledWith('business-domain-grid', 'bd-finance', {});
       expect(result.current.positions).toEqual({});
     });
 
@@ -104,12 +100,10 @@ describe('useGridPositions', () => {
         await result.current.updatePosition('cap-1' as CapabilityId, 2, 1);
       });
 
-      expect(apiClient.upsertElementPosition).toHaveBeenCalledWith(
-        'business-domain-grid',
-        'bd-finance',
-        'cap-1',
-        { x: 2, y: 1 }
-      );
+      expect(apiClient.upsertElementPosition).toHaveBeenCalledWith('business-domain-grid', 'bd-finance', 'cap-1', {
+        x: 2,
+        y: 1,
+      });
       expect(result.current.positions['cap-1']).toEqual({ x: 2, y: 1 });
     });
 
@@ -132,12 +126,10 @@ describe('useGridPositions', () => {
         await result.current.updatePosition('cap-new' as CapabilityId, 0, 0);
       });
 
-      expect(apiClient.upsertElementPosition).toHaveBeenCalledWith(
-        'business-domain-grid',
-        'bd-finance',
-        'cap-new',
-        { x: 0, y: 0 }
-      );
+      expect(apiClient.upsertElementPosition).toHaveBeenCalledWith('business-domain-grid', 'bd-finance', 'cap-new', {
+        x: 0,
+        y: 0,
+      });
       expect(result.current.positions['cap-new']).toEqual({ x: 0, y: 0 });
     });
 

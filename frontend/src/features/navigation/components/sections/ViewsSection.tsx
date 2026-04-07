@@ -1,8 +1,8 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import type { View } from '../../../../api/types';
-import { TreeSection } from '../TreeSection';
-import type { EditingState } from '../../types';
 import { useActiveUsers } from '../../../users/hooks/useUsers';
+import type { EditingState } from '../../types';
+import { TreeSection } from '../TreeSection';
 
 interface ViewsSectionProps {
   views: View[];
@@ -45,14 +45,17 @@ export const ViewsSection: React.FC<ViewsSectionProps> = ({
     return map;
   }, [users]);
 
-  const getOwnerDisplayName = useCallback((view: View): string => {
-    if (!view.isPrivate) return '';
-    if (view.ownerUserId) {
-      const name = userNameMap.get(view.ownerUserId);
-      if (name) return name;
-    }
-    return view.ownerEmail?.split('@')[0] || 'unknown';
-  }, [userNameMap]);
+  const getOwnerDisplayName = useCallback(
+    (view: View): string => {
+      if (!view.isPrivate) return '';
+      if (view.ownerUserId) {
+        const name = userNameMap.get(view.ownerUserId);
+        if (name) return name;
+      }
+      return view.ownerEmail?.split('@')[0] || 'unknown';
+    },
+    [userNameMap],
+  );
 
   const handleViewClick = (viewId: string) => {
     if (onViewSelect) {
@@ -78,10 +81,7 @@ export const ViewsSection: React.FC<ViewsSectionProps> = ({
             const isEditing = editingState?.viewId === view.id;
 
             return (
-              <div
-                key={view.id}
-                className={`tree-item-container ${isActive ? 'selected' : ''}`}
-              >
+              <div key={view.id} className={`tree-item-container ${isActive ? 'selected' : ''}`}>
                 {isEditing ? (
                   <div className="tree-item-edit">
                     <span className="tree-item-icon">👁️</span>

@@ -1,8 +1,8 @@
 import React from 'react';
-import { DetailField } from '../../../components/shared/DetailField';
-import { AuditHistorySection } from '../../audit';
-import { hasLink } from '../../../utils/hateoas';
 import type { AcquiredEntity, OriginRelationship } from '../../../api/types';
+import { DetailField } from '../../../components/shared/DetailField';
+import { hasLink } from '../../../utils/hateoas';
+import { AuditHistorySection } from '../../audit';
 
 interface AcquiredEntityDetailsProps {
   entity: AcquiredEntity;
@@ -76,9 +76,7 @@ export const AcquiredEntityDetails: React.FC<AcquiredEntityDetailsProps> = ({
 
         <DetailField label="Name">{entity.name}</DetailField>
 
-        <DetailField label="Acquisition Date">
-          {formatDate(entity.acquisitionDate)}
-        </DetailField>
+        <DetailField label="Acquisition Date">{formatDate(entity.acquisitionDate)}</DetailField>
 
         <DetailField label="Integration Status">
           <span

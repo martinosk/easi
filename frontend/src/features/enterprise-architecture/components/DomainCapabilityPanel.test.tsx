@@ -1,9 +1,9 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { DomainCapabilityPanel } from './DomainCapabilityPanel';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import type { Capability } from '../../../api/types';
 import { toCapabilityId } from '../../../api/types';
 import type { CapabilityLinkStatusResponse } from '../types';
+import { DomainCapabilityPanel } from './DomainCapabilityPanel';
 
 describe('DomainCapabilityPanel', () => {
   const mockCapabilities: Capability[] = [
@@ -31,13 +31,7 @@ describe('DomainCapabilityPanel', () => {
         ['cap-1', { capabilityId: 'cap-1', status: 'available' }],
       ]);
 
-      render(
-        <DomainCapabilityPanel
-          capabilities={mockCapabilities}
-          linkStatuses={linkStatuses}
-          isLoading={false}
-        />
-      );
+      render(<DomainCapabilityPanel capabilities={mockCapabilities} linkStatuses={linkStatuses} isLoading={false} />);
 
       expect(screen.getByText('Payment Processing')).toBeInTheDocument();
       expect(screen.queryByText(/Linked/)).not.toBeInTheDocument();
@@ -56,13 +50,7 @@ describe('DomainCapabilityPanel', () => {
         ],
       ]);
 
-      render(
-        <DomainCapabilityPanel
-          capabilities={mockCapabilities}
-          linkStatuses={linkStatuses}
-          isLoading={false}
-        />
-      );
+      render(<DomainCapabilityPanel capabilities={mockCapabilities} linkStatuses={linkStatuses} isLoading={false} />);
 
       expect(screen.getByText('Payment Processing')).toBeInTheDocument();
       expect(screen.getByText('──► Customer Management')).toBeInTheDocument();
@@ -80,13 +68,7 @@ describe('DomainCapabilityPanel', () => {
         ],
       ]);
 
-      render(
-        <DomainCapabilityPanel
-          capabilities={mockCapabilities}
-          linkStatuses={linkStatuses}
-          isLoading={false}
-        />
-      );
+      render(<DomainCapabilityPanel capabilities={mockCapabilities} linkStatuses={linkStatuses} isLoading={false} />);
 
       expect(screen.getByText('Payment Processing')).toBeInTheDocument();
       expect(screen.getByText(/Parent linked to Parent Capability/i)).toBeInTheDocument();
@@ -104,13 +86,7 @@ describe('DomainCapabilityPanel', () => {
         ],
       ]);
 
-      render(
-        <DomainCapabilityPanel
-          capabilities={mockCapabilities}
-          linkStatuses={linkStatuses}
-          isLoading={false}
-        />
-      );
+      render(<DomainCapabilityPanel capabilities={mockCapabilities} linkStatuses={linkStatuses} isLoading={false} />);
 
       expect(screen.getByText('Payment Processing')).toBeInTheDocument();
       expect(screen.getByText(/Child linked to Child Capability/i)).toBeInTheDocument();
@@ -123,13 +99,7 @@ describe('DomainCapabilityPanel', () => {
         ['cap-1', { capabilityId: 'cap-1', status: 'available' }],
       ]);
 
-      render(
-        <DomainCapabilityPanel
-          capabilities={mockCapabilities}
-          linkStatuses={linkStatuses}
-          isLoading={false}
-        />
-      );
+      render(<DomainCapabilityPanel capabilities={mockCapabilities} linkStatuses={linkStatuses} isLoading={false} />);
 
       const draggableElement = screen.getByText('Payment Processing').closest('div[draggable="true"]');
       expect(draggableElement).toBeInTheDocument();
@@ -148,13 +118,7 @@ describe('DomainCapabilityPanel', () => {
         ],
       ]);
 
-      render(
-        <DomainCapabilityPanel
-          capabilities={mockCapabilities}
-          linkStatuses={linkStatuses}
-          isLoading={false}
-        />
-      );
+      render(<DomainCapabilityPanel capabilities={mockCapabilities} linkStatuses={linkStatuses} isLoading={false} />);
 
       const nonDraggableElement = screen.getByText('Payment Processing').closest('div[draggable="false"]');
       expect(nonDraggableElement).toBeInTheDocument();
@@ -173,13 +137,7 @@ describe('DomainCapabilityPanel', () => {
         ],
       ]);
 
-      render(
-        <DomainCapabilityPanel
-          capabilities={mockCapabilities}
-          linkStatuses={linkStatuses}
-          isLoading={false}
-        />
-      );
+      render(<DomainCapabilityPanel capabilities={mockCapabilities} linkStatuses={linkStatuses} isLoading={false} />);
 
       const nonDraggableElement = screen.getByText('Payment Processing').closest('div[draggable="false"]');
       expect(nonDraggableElement).toBeInTheDocument();
@@ -199,7 +157,7 @@ describe('DomainCapabilityPanel', () => {
           isLoading={false}
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
-        />
+        />,
       );
 
       const draggableElement = screen.getByText('Payment Processing').closest('div[draggable="true"]')!;
@@ -216,25 +174,13 @@ describe('DomainCapabilityPanel', () => {
 
   describe('Data Loading', () => {
     it('shows loading message when isLoading is true', () => {
-      render(
-        <DomainCapabilityPanel
-          capabilities={[]}
-          linkStatuses={new Map()}
-          isLoading={true}
-        />
-      );
+      render(<DomainCapabilityPanel capabilities={[]} linkStatuses={new Map()} isLoading={true} />);
 
       expect(screen.getByText('Loading domain capabilities...')).toBeInTheDocument();
     });
 
     it('shows empty message when no capabilities are available', () => {
-      render(
-        <DomainCapabilityPanel
-          capabilities={[]}
-          linkStatuses={new Map()}
-          isLoading={false}
-        />
-      );
+      render(<DomainCapabilityPanel capabilities={[]} linkStatuses={new Map()} isLoading={false} />);
 
       expect(screen.getByText('No domain capabilities available')).toBeInTheDocument();
     });
@@ -245,13 +191,7 @@ describe('DomainCapabilityPanel', () => {
         ['cap-2', { capabilityId: 'cap-2', status: 'available' }],
       ]);
 
-      render(
-        <DomainCapabilityPanel
-          capabilities={mockCapabilities}
-          linkStatuses={linkStatuses}
-          isLoading={false}
-        />
-      );
+      render(<DomainCapabilityPanel capabilities={mockCapabilities} linkStatuses={linkStatuses} isLoading={false} />);
 
       expect(screen.getByText('Payment Processing')).toBeInTheDocument();
       expect(screen.getByText('Order Management')).toBeInTheDocument();
@@ -286,11 +226,7 @@ describe('DomainCapabilityPanel', () => {
       ]);
 
       render(
-        <DomainCapabilityPanel
-          capabilities={hierarchicalCapabilities}
-          linkStatuses={linkStatuses}
-          isLoading={false}
-        />
+        <DomainCapabilityPanel capabilities={hierarchicalCapabilities} linkStatuses={linkStatuses} isLoading={false} />,
       );
 
       expect(screen.getByText('Parent Capability')).toBeInTheDocument();

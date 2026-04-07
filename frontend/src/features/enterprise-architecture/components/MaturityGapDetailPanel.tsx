@@ -1,7 +1,7 @@
-import { useState, useCallback } from 'react';
-import { useMaturityGapDetailHook, useSetTargetMaturity } from '../hooks/useMaturityAnalysis';
-import { useMaturityColorScale } from '../../../hooks/useMaturityColorScale';
+import { useCallback, useState } from 'react';
 import { HelpTooltip } from '../../../components/shared/HelpTooltip';
+import { useMaturityColorScale } from '../../../hooks/useMaturityColorScale';
+import { useMaturityGapDetailHook, useSetTargetMaturity } from '../hooks/useMaturityAnalysis';
 import type { EnterpriseCapabilityId, ImplementationDetail, MaturityGapDetail } from '../types';
 import './MaturityGapDetailPanel.css';
 
@@ -32,9 +32,7 @@ function ImplementationBar({ implementation, targetMaturity, getColorForValue }:
     <div className="implementation-bar-container">
       <div className="implementation-info">
         <span className="impl-name">{implementation.domainCapabilityName}</span>
-        {implementation.businessDomainName && (
-          <span className="impl-domain">{implementation.businessDomainName}</span>
-        )}
+        {implementation.businessDomainName && <span className="impl-domain">{implementation.businessDomainName}</span>}
       </div>
       <div className="bar-wrapper">
         <div className="maturity-bar">
@@ -45,18 +43,11 @@ function ImplementationBar({ implementation, targetMaturity, getColorForValue }:
               backgroundColor: getColorForValue(implementation.maturityValue),
             }}
           />
-          <div
-            className="target-marker"
-            style={{ left: `${targetPercentage}%` }}
-            title="Target maturity level"
-          />
+          <div className="target-marker" style={{ left: `${targetPercentage}%` }} title="Target maturity level" />
         </div>
         <div className="bar-labels">
           <span className="maturity-value">{implementation.maturityValue}</span>
-          <span
-            className="gap-badge"
-            style={{ color: getPriorityColor(implementation.priority) }}
-          >
+          <span className="gap-badge" style={{ color: getPriorityColor(implementation.priority) }}>
             {implementation.gap > 0 ? `-${implementation.gap}` : 'On Target'}
           </span>
         </div>
@@ -74,7 +65,14 @@ interface PrioritySectionProps {
   getColorForValue: (value: number) => string;
 }
 
-function PrioritySection({ title, priority, implementations, targetMaturity, tooltip, getColorForValue }: PrioritySectionProps) {
+function PrioritySection({
+  title,
+  priority,
+  implementations,
+  targetMaturity,
+  tooltip,
+  getColorForValue,
+}: PrioritySectionProps) {
   if (implementations.length === 0) return null;
 
   return (
@@ -87,7 +85,7 @@ function PrioritySection({ title, priority, implementations, targetMaturity, too
         <span className="priority-count">{implementations.length}</span>
       </div>
       <div className="priority-implementations">
-        {implementations.map(impl => (
+        {implementations.map((impl) => (
           <ImplementationBar
             key={impl.domainCapabilityId}
             implementation={impl}
@@ -111,13 +109,25 @@ interface SetTargetMaturityModalProps {
   bounds: { min: number; max: number };
 }
 
-function SetTargetMaturityModal({ isOpen, currentValue, onClose, onSave, isSaving, getColorForValue, getSectionNameForValue, bounds }: SetTargetMaturityModalProps) {
+function SetTargetMaturityModal({
+  isOpen,
+  currentValue,
+  onClose,
+  onSave,
+  isSaving,
+  getColorForValue,
+  getSectionNameForValue,
+  bounds,
+}: SetTargetMaturityModalProps) {
   const [value, setValue] = useState<number>(currentValue ?? Math.floor((bounds.min + bounds.max) / 2));
 
-  const handleSubmit = useCallback((e: React.FormEvent) => {
-    e.preventDefault();
-    onSave(value);
-  }, [value, onSave]);
+  const handleSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      onSave(value);
+    },
+    [value, onSave],
+  );
 
   if (!isOpen) return null;
 
@@ -125,7 +135,7 @@ function SetTargetMaturityModal({ isOpen, currentValue, onClose, onSave, isSavin
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <h3 className="modal-title">Set Target Maturity</h3>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
@@ -144,10 +154,7 @@ function SetTargetMaturityModal({ isOpen, currentValue, onClose, onSave, isSavin
               />
               <div className="slider-value-display">
                 <span className="slider-value">{value}</span>
-                <span
-                  className="slider-section"
-                  style={{ color: getColorForValue(value) }}
-                >
+                <span className="slider-section" style={{ color: getColorForValue(value) }}>
                   {section}
                 </span>
               </div>
@@ -198,9 +205,7 @@ function ErrorPanel({ onBack, error }: ErrorPanelProps) {
       <button type="button" className="back-button" onClick={onBack}>
         ← Back to Analysis
       </button>
-      <div className="error-message">
-        {error ? `Failed to load details: ${error.message}` : 'Capability not found'}
-      </div>
+      <div className="error-message">{error ? `Failed to load details: ${error.message}` : 'Capability not found'}</div>
     </div>
   );
 }
@@ -213,10 +218,14 @@ interface TargetMaturityDisplayProps {
   onOpenModal: () => void;
 }
 
-function TargetMaturityDisplay({ detail, targetMaturity, getColorForValue, getSectionNameForValue, onOpenModal }: TargetMaturityDisplayProps) {
-  const targetSection = detail.targetMaturity !== null
-    ? getSectionNameForValue(detail.targetMaturity)
-    : null;
+function TargetMaturityDisplay({
+  detail,
+  targetMaturity,
+  getColorForValue,
+  getSectionNameForValue,
+  onOpenModal,
+}: TargetMaturityDisplayProps) {
+  const targetSection = detail.targetMaturity !== null ? getSectionNameForValue(detail.targetMaturity) : null;
 
   return (
     <div className="target-maturity-section">
@@ -225,10 +234,7 @@ function TargetMaturityDisplay({ detail, targetMaturity, getColorForValue, getSe
         {detail.targetMaturity !== null && targetSection ? (
           <span className="target-value">
             {detail.targetMaturity}
-            <span
-              className="target-section"
-              style={{ color: getColorForValue(detail.targetMaturity) }}
-            >
+            <span className="target-section" style={{ color: getColorForValue(detail.targetMaturity) }}>
               ({targetSection})
             </span>
           </span>
@@ -237,11 +243,7 @@ function TargetMaturityDisplay({ detail, targetMaturity, getColorForValue, getSe
         )}
       </div>
       {detail._links?.['x-set-target-maturity'] && (
-        <button
-          type="button"
-          className="btn btn-sm btn-secondary"
-          onClick={onOpenModal}
-        >
+        <button type="button" className="btn btn-sm btn-secondary" onClick={onOpenModal}>
           {detail.targetMaturity !== null ? 'Edit Target' : 'Set Target'}
         </button>
       )}
@@ -250,10 +252,30 @@ function TargetMaturityDisplay({ detail, targetMaturity, getColorForValue, getSe
 }
 
 const PRIORITY_SECTIONS = [
-  { title: 'High Priority (Gap > 40)', priority: 'High', key: 'high' as const, tooltip: 'Implementations that need significant work to reach the target' },
-  { title: 'Medium Priority (Gap 15-40)', priority: 'Medium', key: 'medium' as const, tooltip: 'Implementations that need moderate work to reach the target' },
-  { title: 'Low Priority (Gap 1-14)', priority: 'Low', key: 'low' as const, tooltip: 'Implementations that need minor work to reach the target' },
-  { title: 'On Target', priority: 'None', key: 'onTarget' as const, tooltip: 'Implementations that meet or exceed the target maturity level' },
+  {
+    title: 'High Priority (Gap > 40)',
+    priority: 'High',
+    key: 'high' as const,
+    tooltip: 'Implementations that need significant work to reach the target',
+  },
+  {
+    title: 'Medium Priority (Gap 15-40)',
+    priority: 'Medium',
+    key: 'medium' as const,
+    tooltip: 'Implementations that need moderate work to reach the target',
+  },
+  {
+    title: 'Low Priority (Gap 1-14)',
+    priority: 'Low',
+    key: 'low' as const,
+    tooltip: 'Implementations that need minor work to reach the target',
+  },
+  {
+    title: 'On Target',
+    priority: 'None',
+    key: 'onTarget' as const,
+    tooltip: 'Implementations that meet or exceed the target maturity level',
+  },
 ] as const;
 
 interface MaturityGapDetailPanelProps {
@@ -275,18 +297,21 @@ export function MaturityGapDetailPanel({ enterpriseCapabilityId, onBack }: Matur
     setIsModalOpen(false);
   }, []);
 
-  const handleSaveTargetMaturity = useCallback(async (value: number) => {
-    await setTargetMaturityMutation.mutateAsync({
-      enterpriseCapabilityId,
-      targetMaturity: value,
-    });
-    setIsModalOpen(false);
-  }, [enterpriseCapabilityId, setTargetMaturityMutation]);
+  const handleSaveTargetMaturity = useCallback(
+    async (value: number) => {
+      await setTargetMaturityMutation.mutateAsync({
+        enterpriseCapabilityId,
+        targetMaturity: value,
+      });
+      setIsModalOpen(false);
+    },
+    [enterpriseCapabilityId, setTargetMaturityMutation],
+  );
 
   if (isLoading) return <LoadingPanel />;
   if (error || !detail) return <ErrorPanel onBack={onBack} error={error} />;
 
-  const targetMaturity = detail.targetMaturity ?? Math.max(...detail.implementations.map(i => i.maturityValue));
+  const targetMaturity = detail.targetMaturity ?? Math.max(...detail.implementations.map((i) => i.maturityValue));
 
   return (
     <div className="maturity-gap-detail-panel">

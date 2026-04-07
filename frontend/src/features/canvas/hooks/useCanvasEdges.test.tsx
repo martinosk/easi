@@ -1,9 +1,9 @@
-import { describe, it, expect, vi } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useCanvasEdges } from './useCanvasEdges';
+import { renderHook, waitFor } from '@testing-library/react';
 import type { Node } from '@xyflow/react';
-import { toComponentId, toOriginRelationshipId, type OriginRelationship } from '../../../api/types';
+import { describe, expect, it, vi } from 'vitest';
+import { type OriginRelationship, toComponentId, toOriginRelationshipId } from '../../../api/types';
+import { useCanvasEdges } from './useCanvasEdges';
 
 const createWrapper = () => {
   const queryClient = new QueryClient({
@@ -47,12 +47,10 @@ vi.mock('../../origin-entities/hooks/useOriginRelationships', () => ({
 
 describe('useCanvasEdges - Origin Entity Edge Bug', () => {
   type OriginRelationshipsQueryResult = ReturnType<
-    (typeof import('../../origin-entities/hooks/useOriginRelationships'))['useOriginRelationshipsQuery']
+    typeof import('../../origin-entities/hooks/useOriginRelationships')['useOriginRelationshipsQuery']
   >;
 
-  function createOriginRelationshipsResult(
-    data: OriginRelationship[]
-  ): OriginRelationshipsQueryResult {
+  function createOriginRelationshipsResult(data: OriginRelationship[]): OriginRelationshipsQueryResult {
     return { data } as OriginRelationshipsQueryResult;
   }
 
@@ -76,9 +74,7 @@ describe('useCanvasEdges - Origin Entity Edge Bug', () => {
    * c) Edge filtering logic bug
    */
   it('BUG: should show edge immediately after linking when both nodes are on canvas', async () => {
-    const originRelationshipsModule = await import(
-      '../../origin-entities/hooks/useOriginRelationships'
-    );
+    const originRelationshipsModule = await import('../../origin-entities/hooks/useOriginRelationships');
     const mockedUseOriginRelationshipsQuery = vi.mocked(originRelationshipsModule.useOriginRelationshipsQuery);
 
     // Setup: Both nodes are on canvas

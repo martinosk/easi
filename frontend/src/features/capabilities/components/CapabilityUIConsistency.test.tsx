@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { createMantineTestWrapper, seedDb } from '../../../test/helpers';
-import { useAppStore } from '../../../store/appStore';
-import type { Capability, View, Component, CapabilityId, ComponentId, ViewId } from '../../../api/types';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Capability, CapabilityId, Component, ComponentId, View, ViewId } from '../../../api/types';
 import type { AppStore } from '../../../store/appStore';
+import { useAppStore } from '../../../store/appStore';
+import { createMantineTestWrapper, seedDb } from '../../../test/helpers';
 
 vi.mock('../../../store/appStore', () => ({
   useAppStore: vi.fn(),
@@ -38,7 +38,7 @@ vi.mock('../../../api/client', () => ({
 function setupMockStore(overrides: Record<string, unknown> = {}) {
   const mockStore = createMockStore(overrides);
   vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
-    selector(mockStore as unknown as AppStore)
+    selector(mockStore as unknown as AppStore),
   );
   return mockStore;
 }
@@ -46,9 +46,7 @@ function setupMockStore(overrides: Record<string, unknown> = {}) {
 async function setupApiClientMocks() {
   const { apiClient } = await import('../../../api/client');
   vi.mocked(apiClient.getMaturityLevels).mockResolvedValue(['Genesis', 'Custom Build', 'Product', 'Commodity']);
-  vi.mocked(apiClient.getStatuses).mockResolvedValue([
-    { value: 'Active', displayName: 'Active', sortOrder: 1 },
-  ]);
+  vi.mocked(apiClient.getStatuses).mockResolvedValue([{ value: 'Active', displayName: 'Active', sortOrder: 1 }]);
   vi.mocked(apiClient.getOwnershipModels).mockResolvedValue([]);
 }
 
@@ -58,7 +56,11 @@ async function renderNavigationTree(props: Record<string, unknown> = {}) {
   return render(<NavigationTree {...props} />, { wrapper: Wrapper });
 }
 
-async function renderEditCapabilityDialog(props: { isOpen: boolean; onClose: () => void; capability: Capability | null }) {
+async function renderEditCapabilityDialog(props: {
+  isOpen: boolean;
+  onClose: () => void;
+  capability: Capability | null;
+}) {
   const { Wrapper } = createMantineTestWrapper();
   const { EditCapabilityDialog } = await import('./EditCapabilityDialog');
   return { result: render(<EditCapabilityDialog {...props} />, { wrapper: Wrapper }), Wrapper, EditCapabilityDialog };
@@ -95,7 +97,11 @@ const mockCapabilities: Capability[] = [
     description: 'Manages customer data',
     maturityLevel: 'Product',
     createdAt: '2024-01-01T00:00:00Z',
-    _links: { self: { href: '/api/v1/capabilities/cap-1', method: 'GET' }, edit: { href: '/api/v1/capabilities/cap-1', method: 'PUT' }, delete: { href: '/api/v1/capabilities/cap-1', method: 'DELETE' } },
+    _links: {
+      self: { href: '/api/v1/capabilities/cap-1', method: 'GET' },
+      edit: { href: '/api/v1/capabilities/cap-1', method: 'PUT' },
+      delete: { href: '/api/v1/capabilities/cap-1', method: 'DELETE' },
+    },
   },
   {
     id: 'cap-2' as CapabilityId,
@@ -105,7 +111,11 @@ const mockCapabilities: Capability[] = [
     description: 'Processes orders',
     maturityLevel: 'Genesis',
     createdAt: '2024-01-01T00:00:00Z',
-    _links: { self: { href: '/api/v1/capabilities/cap-2', method: 'GET' }, edit: { href: '/api/v1/capabilities/cap-2', method: 'PUT' }, delete: { href: '/api/v1/capabilities/cap-2', method: 'DELETE' } },
+    _links: {
+      self: { href: '/api/v1/capabilities/cap-2', method: 'GET' },
+      edit: { href: '/api/v1/capabilities/cap-2', method: 'PUT' },
+      delete: { href: '/api/v1/capabilities/cap-2', method: 'DELETE' },
+    },
   },
   {
     id: 'cap-3' as CapabilityId,
@@ -114,7 +124,11 @@ const mockCapabilities: Capability[] = [
     description: 'Controls inventory',
     maturityLevel: 'Commodity',
     createdAt: '2024-01-01T00:00:00Z',
-    _links: { self: { href: '/api/v1/capabilities/cap-3', method: 'GET' }, edit: { href: '/api/v1/capabilities/cap-3', method: 'PUT' }, delete: { href: '/api/v1/capabilities/cap-3', method: 'DELETE' } },
+    _links: {
+      self: { href: '/api/v1/capabilities/cap-3', method: 'GET' },
+      edit: { href: '/api/v1/capabilities/cap-3', method: 'PUT' },
+      delete: { href: '/api/v1/capabilities/cap-3', method: 'DELETE' },
+    },
   },
 ];
 
@@ -124,7 +138,11 @@ const mockComponents: Component[] = [
     name: 'Component A',
     description: 'Test component',
     createdAt: '2024-01-01T00:00:00Z',
-    _links: { self: { href: '/api/v1/components/comp-1', method: 'GET' }, edit: { href: '/api/v1/components/comp-1', method: 'PUT' }, delete: { href: '/api/v1/components/comp-1', method: 'DELETE' } },
+    _links: {
+      self: { href: '/api/v1/components/comp-1', method: 'GET' },
+      edit: { href: '/api/v1/components/comp-1', method: 'PUT' },
+      delete: { href: '/api/v1/components/comp-1', method: 'DELETE' },
+    },
   },
 ];
 
@@ -218,16 +236,14 @@ describe('Capability UI Consistency', () => {
 
         const { rerender } = render(
           <EditComponentDialog isOpen={true} onClose={vi.fn()} component={mockComponents[0]} />,
-          { wrapper: Wrapper }
+          { wrapper: Wrapper },
         );
 
         await waitFor(() => {
           expect(screen.getByText('Edit Application')).toBeInTheDocument();
         });
 
-        rerender(
-          <EditCapabilityDialog isOpen={true} onClose={vi.fn()} capability={mockCapabilities[0]} />
-        );
+        rerender(<EditCapabilityDialog isOpen={true} onClose={vi.fn()} capability={mockCapabilities[0]} />);
 
         await waitFor(() => {
           expect(screen.getByText('Edit Capability')).toBeInTheDocument();
@@ -393,7 +409,9 @@ describe('Capability UI Consistency', () => {
         const { Wrapper } = createMantineTestWrapper();
 
         const { NavigationTree } = await import('../../navigation/components/NavigationTree');
-        const { rerender } = render(<NavigationTree onEditCapability={vi.fn()} onEditComponent={vi.fn()} />, { wrapper: Wrapper });
+        const { rerender } = render(<NavigationTree onEditCapability={vi.fn()} onEditComponent={vi.fn()} />, {
+          wrapper: Wrapper,
+        });
 
         await waitFor(() => {
           expect(screen.getByText('Customer Management')).toBeInTheDocument();
@@ -407,7 +425,7 @@ describe('Capability UI Consistency', () => {
         });
 
         const capabilityMenuItems = screen.getAllByRole('menuitem');
-        const capabilityMenuLabels = capabilityMenuItems.map(item => item.textContent);
+        const capabilityMenuLabels = capabilityMenuItems.map((item) => item.textContent);
 
         fireEvent.keyDown(document, { key: 'Escape' });
 
@@ -425,12 +443,12 @@ describe('Capability UI Consistency', () => {
         });
 
         const componentMenuItems = screen.getAllByRole('menuitem');
-        const componentMenuLabels = componentMenuItems.map(item => item.textContent);
+        const componentMenuLabels = componentMenuItems.map((item) => item.textContent);
 
         expect(capabilityMenuLabels).toContain('Edit');
         expect(componentMenuLabels).toContain('Edit');
-        expect(capabilityMenuLabels.some(label => label?.includes('Delete'))).toBe(true);
-        expect(componentMenuLabels.some(label => label?.includes('Delete'))).toBe(true);
+        expect(capabilityMenuLabels.some((label) => label?.includes('Delete'))).toBe(true);
+        expect(componentMenuLabels.some((label) => label?.includes('Delete'))).toBe(true);
       });
     });
   });

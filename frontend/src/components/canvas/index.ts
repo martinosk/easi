@@ -1,4 +1,4 @@
-export { ComponentNode } from './ComponentNode';
 export { CapabilityNode } from './CapabilityNode';
-export { OriginEntityNode } from './OriginEntityNode';
+export { ComponentNode } from './ComponentNode';
 export type { OriginEntityNodeData, OriginEntityType } from './OriginEntityNode';
+export { OriginEntityNode } from './OriginEntityNode';

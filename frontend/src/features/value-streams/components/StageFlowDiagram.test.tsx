@@ -1,7 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import type { HttpMethod, StageCapabilityMapping, StageId, ValueStreamId, ValueStreamStage } from '../../../api/types';
 import { StageFlowDiagram } from './StageFlowDiagram';
-import type { ValueStreamStage, StageCapabilityMapping, StageId, ValueStreamId, HttpMethod } from '../../../api/types';
 
 vi.mock('../hooks/useValueStreamStages', () => ({
   useRemoveStageCapability: () => ({ mutate: vi.fn() }),
@@ -74,10 +74,7 @@ describe('StageFlowDiagram', () => {
   });
 
   describe('With stages', () => {
-    const twoStages = [
-      createStage('s1', 1, 'Discovery'),
-      createStage('s2', 2, 'Delivery'),
-    ];
+    const twoStages = [createStage('s1', 1, 'Discovery'), createStage('s2', 2, 'Delivery')];
 
     it('should render the stage flow diagram with stages', () => {
       render(<StageFlowDiagram {...defaultProps} stages={twoStages} />);
@@ -152,13 +149,10 @@ describe('StageFlowDiagram', () => {
     });
 
     it('should sort stages by position', () => {
-      const unsorted = [
-        createStage('s2', 2, 'Second'),
-        createStage('s1', 1, 'First'),
-      ];
+      const unsorted = [createStage('s2', 2, 'Second'), createStage('s1', 1, 'First')];
       render(<StageFlowDiagram {...defaultProps} stages={unsorted} />);
 
-      const stageNames = screen.getAllByRole('heading', { level: 3 }).map(el => el.textContent);
+      const stageNames = screen.getAllByRole('heading', { level: 3 }).map((el) => el.textContent);
       expect(stageNames).toEqual(['First', 'Second']);
     });
   });

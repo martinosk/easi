@@ -1,11 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   createAcquiredEntitySchema,
-  editAcquiredEntitySchema,
-  createVendorSchema,
-  editVendorSchema,
   createInternalTeamSchema,
+  createVendorSchema,
+  editAcquiredEntitySchema,
   editInternalTeamSchema,
+  editVendorSchema,
 } from './originEntity';
 
 describe('createAcquiredEntitySchema', () => {

@@ -1,18 +1,18 @@
 import { httpClient } from '../../../api/core/httpClient';
-import { followLink } from '../../../utils/hateoas';
 import type {
-  ValueStream,
-  ValueStreamId,
-  ValueStreamDetail,
-  ValueStreamStage,
-  CreateValueStreamRequest,
-  UpdateValueStreamRequest,
   CreateStageRequest,
-  UpdateStageRequest,
+  CreateValueStreamRequest,
   ReorderStagesRequest,
   StageCapabilityMapping,
+  UpdateStageRequest,
+  UpdateValueStreamRequest,
+  ValueStream,
+  ValueStreamDetail,
+  ValueStreamId,
+  ValueStreamStage,
   ValueStreamsResponse,
 } from '../../../api/types';
+import { followLink } from '../../../utils/hateoas';
 
 export const valueStreamsApi = {
   async getAll(): Promise<ValueStreamsResponse> {
@@ -59,10 +59,7 @@ export const valueStreamsApi = {
   },
 
   async addStageCapability(stage: ValueStreamStage, capabilityId: string): Promise<ValueStreamDetail> {
-    const response = await httpClient.post<ValueStreamDetail>(
-      followLink(stage, 'x-add-capability'),
-      { capabilityId },
-    );
+    const response = await httpClient.post<ValueStreamDetail>(followLink(stage, 'x-add-capability'), { capabilityId });
     return response.data;
   },
 

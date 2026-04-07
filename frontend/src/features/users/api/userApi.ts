@@ -1,6 +1,6 @@
 import { httpClient } from '../../../api/core/httpClient';
 import { fetchAllPaginated } from '../../../api/core/pagination';
-import type { User, UpdateUserRequest } from '../types';
+import type { UpdateUserRequest, User } from '../types';
 
 export const userApi = {
   async getAll(statusFilter?: string, roleFilter?: string): Promise<User[]> {

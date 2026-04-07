@@ -3,10 +3,7 @@ export interface ShowApplicationsToggleProps {
   onShowApplicationsChange: (value: boolean) => void;
 }
 
-export function ShowApplicationsToggle({
-  showApplications,
-  onShowApplicationsChange,
-}: ShowApplicationsToggleProps) {
+export function ShowApplicationsToggle({ showApplications, onShowApplicationsChange }: ShowApplicationsToggleProps) {
   return (
     <div
       style={{

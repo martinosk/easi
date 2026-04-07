@@ -1,9 +1,9 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { assistantConfigApi } from '../../../api/assistant/assistantConfigApi';
 import type { UpdateAIConfigRequest } from '../../../api/assistant/types';
-import { assistantConfigQueryKeys } from '../queryKeys';
 import { invalidateFor } from '../../../lib/invalidateFor';
+import { assistantConfigQueryKeys } from '../queryKeys';
 
 export function useAIConfiguration() {
   return useQuery({
@@ -17,8 +17,7 @@ export function useUpdateAIConfiguration() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (request: UpdateAIConfigRequest) =>
-      assistantConfigApi.updateConfig(request),
+    mutationFn: (request: UpdateAIConfigRequest) => assistantConfigApi.updateConfig(request),
     onSuccess: () => {
       invalidateFor(queryClient, [assistantConfigQueryKeys.config()]);
       toast.success('AI configuration saved successfully');

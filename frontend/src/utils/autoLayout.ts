@@ -1,5 +1,5 @@
+import type { Edge, Node } from '@xyflow/react';
 import dagre from 'dagre';
-import type { Node, Edge } from '@xyflow/react';
 
 export type EntityType = 'capability' | 'component' | 'originEntity';
 
@@ -88,18 +88,10 @@ export interface AutoLayoutOptions {
   sublayerSpacing?: number;
 }
 
-export function calculateAutoLayout(
-  nodes: Node[],
-  edges: Edge[],
-  options: AutoLayoutOptions = {}
-): Node[] {
+export function calculateAutoLayout(nodes: Node[], edges: Edge[], options: AutoLayoutOptions = {}): Node[] {
   if (nodes.length === 0) return nodes;
 
-  const {
-    nodeSpacing = 120,
-    layerSpacing = 200,
-    sublayerSpacing = 100,
-  } = options;
+  const { nodeSpacing = 120, layerSpacing = 200, sublayerSpacing = 100 } = options;
 
   const metadataMap = new Map<string, EntityLayoutMetadata>();
   let maxSublayer = 0;
@@ -145,9 +137,8 @@ export function calculateAutoLayout(
   const nodeHeight = 80;
   const levelPitch = nodeHeight + sublayerSpacing;
   const capabilityZoneHeight = hasCapabilities ? (maxSublayer + 1) * levelPitch : 0;
-  const componentCenterY = capabilityZoneHeight > 0
-    ? capabilityZoneHeight + layerSpacing + nodeHeight / 2
-    : nodeHeight / 2;
+  const componentCenterY =
+    capabilityZoneHeight > 0 ? capabilityZoneHeight + layerSpacing + nodeHeight / 2 : nodeHeight / 2;
   const originCenterY = componentCenterY + layerSpacing + nodeHeight;
 
   return nodes.map((node) => {

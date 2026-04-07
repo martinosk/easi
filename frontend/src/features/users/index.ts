@@ -1,3 +1,3 @@
-export { UsersPage } from './pages/UsersPage';
 export { userApi } from './api/userApi';
-export type { User, UserStatus, UpdateUserRequest } from './types';
+export { UsersPage } from './pages/UsersPage';
+export type { UpdateUserRequest, User, UserStatus } from './types';

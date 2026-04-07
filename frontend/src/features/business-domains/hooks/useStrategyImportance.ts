@@ -1,22 +1,22 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { strategyImportanceApi } from '../api';
-import { strategyImportanceQueryKeys } from '../queryKeys';
-import { strategyImportanceMutationEffects } from '../mutationEffects';
-import { invalidateFor } from '../../../lib/invalidateFor';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import type {
   BusinessDomainId,
   CapabilityId,
-  StrategyImportanceId,
-  SetStrategyImportanceRequest,
-  UpdateStrategyImportanceRequest,
   CollectionResponse,
+  SetStrategyImportanceRequest,
   StrategyImportance,
+  StrategyImportanceId,
+  UpdateStrategyImportanceRequest,
 } from '../../../api/types';
-import toast from 'react-hot-toast';
+import { invalidateFor } from '../../../lib/invalidateFor';
+import { strategyImportanceApi } from '../api';
+import { strategyImportanceMutationEffects } from '../mutationEffects';
+import { strategyImportanceQueryKeys } from '../queryKeys';
 
 export function useStrategyImportanceByDomainAndCapability(
   domainId: BusinessDomainId | undefined,
-  capabilityId: CapabilityId | undefined
+  capabilityId: CapabilityId | undefined,
 ) {
   return useQuery<CollectionResponse<StrategyImportance>>({
     queryKey: strategyImportanceQueryKeys.byDomainAndCapability(domainId!, capabilityId!),
@@ -55,10 +55,10 @@ export function useSetStrategyImportance() {
       request: SetStrategyImportanceRequest;
     }) => strategyImportanceApi.setImportance(domainId, capabilityId, request),
     onSuccess: (newImportance) => {
-      invalidateFor(queryClient, strategyImportanceMutationEffects.set(
-        newImportance.businessDomainId,
-        newImportance.capabilityId
-      ));
+      invalidateFor(
+        queryClient,
+        strategyImportanceMutationEffects.set(newImportance.businessDomainId, newImportance.capabilityId),
+      );
       toast.success('Strategic importance set');
     },
     onError: (error: Error) => {
@@ -83,10 +83,10 @@ export function useUpdateStrategyImportance() {
       request: UpdateStrategyImportanceRequest;
     }) => strategyImportanceApi.updateImportance(domainId, capabilityId, importanceId, request),
     onSuccess: (updated) => {
-      invalidateFor(queryClient, strategyImportanceMutationEffects.update(
-        updated.businessDomainId,
-        updated.capabilityId
-      ));
+      invalidateFor(
+        queryClient,
+        strategyImportanceMutationEffects.update(updated.businessDomainId, updated.capabilityId),
+      );
       toast.success('Strategic importance updated');
     },
     onError: (error: Error) => {

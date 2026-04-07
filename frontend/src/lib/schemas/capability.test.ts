@@ -1,11 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-  capabilityNameSchema,
+  addExpertSchema,
+  addTagSchema,
   capabilityDescriptionSchema,
+  capabilityNameSchema,
   createCapabilitySchema,
   editCapabilitySchema,
-  addTagSchema,
-  addExpertSchema,
 } from './capability';
 
 describe('capabilityNameSchema', () => {

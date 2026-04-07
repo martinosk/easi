@@ -10,9 +10,10 @@ interface DomainFilterProps {
 export function DomainFilter({ domains, selected, onSelect }: DomainFilterProps) {
   const [searchTerm, setSearchTerm] = useState('');
 
-  const filteredDomains = domains.filter(domain =>
-    domain.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    domain.description.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredDomains = domains.filter(
+    (domain) =>
+      domain.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      domain.description.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   return (
@@ -36,12 +37,7 @@ export function DomainFilter({ domains, selected, onSelect }: DomainFilterProps)
           }`}
         >
           <div className="flex items-center">
-            <svg
-              className="w-5 h-5 mr-2 text-orange-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg className="w-5 h-5 mr-2 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"

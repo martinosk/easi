@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
+import { useRealizationDetails } from '../hooks/useRealizationDetails';
 import { EditRealizationDialog } from './EditRealizationDialog';
 import { RealizationDetailsContent } from './RealizationDetailsContent';
-import { useRealizationDetails } from '../hooks/useRealizationDetails';
 
 export const RealizationDetails: React.FC = () => {
   const data = useRealizationDetails();

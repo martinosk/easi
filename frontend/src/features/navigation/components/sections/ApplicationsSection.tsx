@@ -1,9 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { Component, View } from '../../../../api/types';
-import { TreeSection } from '../TreeSection';
-import { TreeSearchInput } from '../shared/TreeSearchInput';
-import { hasCustomColor } from '../../utils/treeUtils';
 import type { EditingState, TreeMultiSelectProps } from '../../types';
+import { hasCustomColor } from '../../utils/treeUtils';
+import { TreeSearchInput } from '../shared/TreeSearchInput';
+import { TreeSection } from '../TreeSection';
 
 interface ColorIndicatorProps {
   customColor: string | undefined;
@@ -30,7 +30,7 @@ function filterComponents(components: Component[], search: string): Component[] 
   return components.filter(
     (c) =>
       c.name.toLowerCase().includes(searchLower) ||
-      (c.description && c.description.toLowerCase().includes(searchLower))
+      (c.description && c.description.toLowerCase().includes(searchLower)),
   );
 }
 
@@ -43,7 +43,11 @@ interface EditingItemProps {
 }
 
 const EditingItem: React.FC<EditingItemProps> = ({
-  component, editingState, setEditingState, onRenameSubmit, editInputRef,
+  component,
+  editingState,
+  setEditingState,
+  onRenameSubmit,
+  editInputRef,
 }) => (
   <div key={component.id} className="tree-item-edit">
     <span className="tree-item-icon">📦</span>
@@ -75,8 +79,14 @@ interface ComponentItemProps {
 }
 
 const ComponentItem: React.FC<ComponentItemProps> = ({
-  component, isSelected, isInView, showColorIndicator, customColor,
-  onClick, onContextMenu, onDragStart,
+  component,
+  isSelected,
+  isInView,
+  showColorIndicator,
+  customColor,
+  onClick,
+  onContextMenu,
+  onDragStart,
 }) => (
   <button
     className={`tree-item ${isSelected ? 'selected' : ''} ${!isInView ? 'not-in-view' : ''}`}
@@ -135,27 +145,28 @@ export const ApplicationsSection: React.FC<ApplicationsSectionProps> = ({
 
   const filteredComponents = useMemo(
     () => filterComponents(components, applicationSearch),
-    [components, applicationSearch]
+    [components, applicationSearch],
   );
 
   const visibleItems = useMemo(
-    () => filteredComponents.map((c) => ({
-      id: c.id, name: c.name, type: 'component' as const, links: c._links,
-    })),
-    [filteredComponents]
+    () =>
+      filteredComponents.map((c) => ({
+        id: c.id,
+        name: c.name,
+        type: 'component' as const,
+        links: c._links,
+      })),
+    [filteredComponents],
   );
 
-  const componentViewMap = useMemo(
-    () => buildComponentViewMap(currentView),
-    [currentView]
-  );
+  const componentViewMap = useMemo(() => buildComponentViewMap(currentView), [currentView]);
 
   const handleSelect = (component: Component, event: React.MouseEvent) => {
     const result = multiSelect.handleItemClick(
       { id: component.id, name: component.name, type: 'component', links: component._links },
       'applications',
       visibleItems,
-      event
+      event,
     );
     if (result === 'single') {
       onComponentSelect?.(component.id);
@@ -220,16 +231,13 @@ export const ApplicationsSection: React.FC<ApplicationsSectionProps> = ({
       addTitle="Create new application"
       addTestId="create-component-button"
     >
-      <TreeSearchInput
-        value={applicationSearch}
-        onChange={setApplicationSearch}
-        placeholder="Search applications..."
-      />
+      <TreeSearchInput value={applicationSearch} onChange={setApplicationSearch} placeholder="Search applications..." />
       <div className="tree-items">
-        {filteredComponents.length === 0
-          ? <div className="tree-item-empty">{emptyMessage}</div>
-          : filteredComponents.map(renderComponent)
-        }
+        {filteredComponents.length === 0 ? (
+          <div className="tree-item-empty">{emptyMessage}</div>
+        ) : (
+          filteredComponents.map(renderComponent)
+        )}
       </div>
     </TreeSection>
   );

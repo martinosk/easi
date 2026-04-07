@@ -1,7 +1,7 @@
-import { useState, useCallback, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { chatApi } from '../api/chatApi';
-import { parseSSEChunk } from '../api/parseSSE';
 import type { SSEEvent } from '../api/parseSSE';
+import { parseSSEChunk } from '../api/parseSSE';
 import type { ChatMessage } from '../api/types';
 
 export interface ToolCallState {
@@ -37,10 +37,10 @@ interface StreamHandlers {
 }
 
 function upsertAssistantMessage(setMessages: MessageUpdater, id: string, content: string) {
-  setMessages(prev => {
-    const exists = prev.some(m => m.id === id);
+  setMessages((prev) => {
+    const exists = prev.some((m) => m.id === id);
     if (exists) {
-      return prev.map(m => m.id === id ? { ...m, content } : m);
+      return prev.map((m) => (m.id === id ? { ...m, content } : m));
     }
     return [...prev, { id, role: 'assistant' as const, content }];
   });
@@ -53,19 +53,14 @@ function trimProcessedBuffer(buffer: string, hasEvents: boolean): string {
 }
 
 function handleToolCallStart(handlers: StreamHandlers, event: Extract<SSEEvent, { type: 'tool_call_start' }>) {
-  handlers.setToolCalls(prev => [
-    ...prev,
-    { id: event.toolCallId, name: event.name, status: 'running' },
-  ]);
+  handlers.setToolCalls((prev) => [...prev, { id: event.toolCallId, name: event.name, status: 'running' }]);
 }
 
 function handleToolCallResult(handlers: StreamHandlers, event: Extract<SSEEvent, { type: 'tool_call_result' }>) {
-  handlers.setToolCalls(prev =>
-    prev.map(tc =>
-      tc.id === event.toolCallId
-        ? { ...tc, status: 'completed' as const, resultPreview: event.resultPreview }
-        : tc
-    )
+  handlers.setToolCalls((prev) =>
+    prev.map((tc) =>
+      tc.id === event.toolCallId ? { ...tc, status: 'completed' as const, resultPreview: event.resultPreview } : tc,
+    ),
   );
 }
 
@@ -75,10 +70,18 @@ function applySingleEvent(event: SSEEvent, state: { content: string }, handlers:
       state.content += event.content;
       upsertAssistantMessage(handlers.setMessages, handlers.msgId, state.content);
       break;
-    case 'tool_call_start': handleToolCallStart(handlers, event); break;
-    case 'tool_call_result': handleToolCallResult(handlers, event); break;
-    case 'done': handlers.onDone?.(); break;
-    case 'error': handlers.setError(event.message); break;
+    case 'tool_call_start':
+      handleToolCallStart(handlers, event);
+      break;
+    case 'tool_call_result':
+      handleToolCallResult(handlers, event);
+      break;
+    case 'done':
+      handlers.onDone?.();
+      break;
+    case 'error':
+      handlers.setError(event.message);
+      break;
   }
 }
 
@@ -125,14 +128,12 @@ export function useChat(options?: UseChatOptions): UseChatReturn {
     setToolCalls([]);
 
     const userMsgId = `user-${++messageIdCounter.current}`;
-    setMessages(prev => [...prev, { id: userMsgId, role: 'user', content }]);
+    setMessages((prev) => [...prev, { id: userMsgId, role: 'user', content }]);
 
     const assistantMsgId = `assistant-${messageIdCounter.current}`;
 
     try {
-      const request = allowWriteOperations !== undefined
-        ? { content, allowWriteOperations }
-        : { content };
+      const request = allowWriteOperations !== undefined ? { content, allowWriteOperations } : { content };
       const response = await chatApi.sendMessageStream(conversationId, request);
 
       if (!response.ok) {

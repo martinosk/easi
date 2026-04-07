@@ -1,10 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import {
-  relationTypeSchema,
-  createRelationSchema,
-  editRelationSchema,
-  editRealizationSchema,
-} from './relation';
+import { describe, expect, it } from 'vitest';
+import { createRelationSchema, editRealizationSchema, editRelationSchema, relationTypeSchema } from './relation';
 
 describe('relationTypeSchema', () => {
   it('should accept Triggers', () => {

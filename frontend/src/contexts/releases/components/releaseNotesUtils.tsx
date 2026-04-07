@@ -71,7 +71,7 @@ export function formatInlineMarkdown(text: string): React.ReactNode {
       parts.push(
         <code key={key++} className="release-notes-code">
           {codeMatch[1]}
-        </code>
+        </code>,
       );
       remaining = remaining.slice(codeMatch[0].length);
       continue;
@@ -113,10 +113,7 @@ interface DateFormatOptions {
   day: 'numeric' | '2-digit';
 }
 
-export function formatDate(
-  dateString: string,
-  options: DateFormatOptions
-): string {
+export function formatDate(dateString: string, options: DateFormatOptions): string {
   try {
     return new Date(dateString).toLocaleDateString(undefined, options);
   } catch {
@@ -141,8 +138,7 @@ export function formatShortDate(releaseDate: string): string {
 }
 
 export function compareSemver(a: string, b: string): number {
-  const parseVersion = (v: string): number[] =>
-    v.replace(/^v/, '').split('.').map(Number);
+  const parseVersion = (v: string): number[] => v.replace(/^v/, '').split('.').map(Number);
 
   const [aParts, bParts] = [parseVersion(a), parseVersion(b)];
 

@@ -1,11 +1,6 @@
-import React, { useRef, useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import type { Release } from '../../../api/types';
-import {
-  parseMarkdownSections,
-  formatInlineMarkdown,
-  formatReleaseDate,
-  getSectionStyle,
-} from './releaseNotesUtils';
+import { formatInlineMarkdown, formatReleaseDate, getSectionStyle, parseMarkdownSections } from './releaseNotesUtils';
 
 interface ReleaseNotesOverlayProps {
   isOpen: boolean;
@@ -13,19 +8,12 @@ interface ReleaseNotesOverlayProps {
   onDismiss: (mode: 'forever' | 'untilNext') => void;
 }
 
-export const ReleaseNotesOverlay: React.FC<ReleaseNotesOverlayProps> = ({
-  isOpen,
-  release,
-  onDismiss,
-}) => {
+export const ReleaseNotesOverlay: React.FC<ReleaseNotesOverlayProps> = ({ isOpen, release, onDismiss }) => {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   const sections = useMemo(() => parseMarkdownSections(release.notes), [release.notes]);
 
-  const formattedDate = useMemo(
-    () => formatReleaseDate(release.releaseDate),
-    [release.releaseDate]
-  );
+  const formattedDate = useMemo(() => formatReleaseDate(release.releaseDate), [release.releaseDate]);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -60,14 +48,9 @@ export const ReleaseNotesOverlay: React.FC<ReleaseNotesOverlayProps> = ({
             sections.map((section, index) => {
               const sectionStyle = getSectionStyle(section.title);
               return (
-                <div
-                  key={index}
-                  className={`release-notes-section ${sectionStyle.className}`}
-                >
+                <div key={index} className={`release-notes-section ${sectionStyle.className}`}>
                   <h3 className="release-notes-section-title">
-                    <span className="release-notes-section-icon">
-                      {sectionStyle.icon}
-                    </span>
+                    <span className="release-notes-section-icon">{sectionStyle.icon}</span>
                     {section.title}
                   </h3>
                   <ul className="release-notes-list">

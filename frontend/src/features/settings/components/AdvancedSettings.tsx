@@ -49,7 +49,8 @@ export function AdvancedSettings(props: AdvancedSettingsProps) {
           maxLength={2000}
         />
         <p className="ai-config-field-hint">
-          Provide additional organizational context. This is appended to the built-in system prompt as informational context.
+          Provide additional organizational context. This is appended to the built-in system prompt as informational
+          context.
         </p>
       </div>
     </div>

@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { InvitationsPage } from './InvitationsPage';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { invitationApi } from '../api/invitationApi';
 import type { Invitation } from '../types';
+import { InvitationsPage } from './InvitationsPage';
 
 vi.mock('../api/invitationApi');
 vi.mock('react-hot-toast', () => ({
@@ -107,9 +107,7 @@ describe('InvitationsPage', () => {
   });
 
   it('shows empty state when filter matches no invitations', async () => {
-    vi.mocked(invitationApi.getAll).mockResolvedValue(
-      mockInvitations.filter((i) => i.status === 'pending')
-    );
+    vi.mocked(invitationApi.getAll).mockResolvedValue(mockInvitations.filter((i) => i.status === 'pending'));
 
     render(<InvitationsPage />);
 

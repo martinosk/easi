@@ -12,10 +12,11 @@ export function APIKeyField({ apiKeyStatus, apiKey, onApiKeyChange, showInput, o
   if (apiKeyStatus === 'configured' && !showInput) {
     return (
       <div className="ai-config-field">
-        <label htmlFor="ai-api-key">API Key <span className="ai-config-required">*</span></label>
+        <label htmlFor="ai-api-key">
+          API Key <span className="ai-config-required">*</span>
+        </label>
         <div>
-          <span className="ai-config-api-key-status configured">API key configured</span>
-          {' '}
+          <span className="ai-config-api-key-status configured">API key configured</span>{' '}
           <Button variant="subtle" size="xs" onClick={() => onShowInput(true)}>
             Change
           </Button>
@@ -26,7 +27,9 @@ export function APIKeyField({ apiKeyStatus, apiKey, onApiKeyChange, showInput, o
 
   return (
     <div className="ai-config-field">
-      <label htmlFor="ai-api-key">API Key <span className="ai-config-required">*</span></label>
+      <label htmlFor="ai-api-key">
+        API Key <span className="ai-config-required">*</span>
+      </label>
       <div className="ai-config-api-key-row">
         <input
           id="ai-api-key"

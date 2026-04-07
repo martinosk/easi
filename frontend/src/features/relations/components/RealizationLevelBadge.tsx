@@ -15,8 +15,6 @@ interface RealizationLevelBadgeProps {
 
 export const RealizationLevelBadge: React.FC<RealizationLevelBadgeProps> = ({ level }) => (
   <DetailField label="Realization Level">
-    <span className={`level-badge level-${level.toLowerCase()}`}>
-      {getLevelDisplay(level)}
-    </span>
+    <span className={`level-badge level-${level.toLowerCase()}`}>{getLevelDisplay(level)}</span>
   </DetailField>
 );

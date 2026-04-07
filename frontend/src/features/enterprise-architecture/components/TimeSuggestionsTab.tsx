@@ -1,7 +1,7 @@
-import { useMemo, useState, useCallback } from 'react';
-import { useTimeSuggestions } from '../hooks/useTimeSuggestions';
+import { useCallback, useMemo, useState } from 'react';
 import { HelpTooltip } from '../../../components/shared/HelpTooltip';
-import type { TimeSuggestion, TimeClassification } from '../types';
+import { useTimeSuggestions } from '../hooks/useTimeSuggestions';
+import type { TimeClassification, TimeSuggestion } from '../types';
 import './TimeSuggestionsTab.css';
 
 const TIME_CLASSIFICATIONS: {
@@ -9,9 +9,21 @@ const TIME_CLASSIFICATIONS: {
   color: string;
   description: string;
 }[] = [
-  { value: 'Tolerate', color: 'var(--green-500)', description: 'Low Value, High Technical Quality - Keep but limit investment' },
-  { value: 'Invest', color: 'var(--blue-500)', description: 'High Value, High Technical Quality - Prioritize for funding' },
-  { value: 'Migrate', color: 'var(--yellow-500)', description: 'High Value, Low Technical Quality - Upgrade or move to new platform' },
+  {
+    value: 'Tolerate',
+    color: 'var(--green-500)',
+    description: 'Low Value, High Technical Quality - Keep but limit investment',
+  },
+  {
+    value: 'Invest',
+    color: 'var(--blue-500)',
+    description: 'High Value, High Technical Quality - Prioritize for funding',
+  },
+  {
+    value: 'Migrate',
+    color: 'var(--yellow-500)',
+    description: 'High Value, Low Technical Quality - Upgrade or move to new platform',
+  },
   { value: 'Eliminate', color: 'var(--red-500)', description: 'Low Value, Low Technical Quality - Retire or remove' },
 ];
 
@@ -20,7 +32,7 @@ function TimeLegend() {
     <div className="time-legend">
       <span className="time-legend-title">TIME Classifications</span>
       <div className="time-legend-items">
-        {TIME_CLASSIFICATIONS.map(item => (
+        {TIME_CLASSIFICATIONS.map((item) => (
           <div key={item.value} className="time-legend-item">
             <span className="time-legend-dot" style={{ backgroundColor: item.color }} />
             <span className="time-legend-name">
@@ -43,13 +55,20 @@ function TimeBadge({ time }: { time: TimeClassification | null }) {
 
 function GapCell({ gap, label }: { gap: number | null; label: string }) {
   if (gap === null) {
-    return <td className="gap-cell"><span className="gap-value gap-none">-</span></td>;
+    return (
+      <td className="gap-cell">
+        <span className="gap-value gap-none">-</span>
+      </td>
+    );
   }
   const sign = gap > 0 ? '+' : '';
   const colorClass = gap > 0 ? 'gap-positive' : gap < 0 ? 'gap-negative' : 'gap-neutral';
   return (
     <td className="gap-cell" title={`${label}: ${sign}${gap.toFixed(1)}`}>
-      <span className={`gap-value ${colorClass}`}>{sign}{gap.toFixed(1)}</span>
+      <span className={`gap-value ${colorClass}`}>
+        {sign}
+        {gap.toFixed(1)}
+      </span>
     </td>
   );
 }
@@ -57,11 +76,21 @@ function GapCell({ gap, label }: { gap: number | null; label: string }) {
 function SuggestionRow({ suggestion }: { suggestion: TimeSuggestion }) {
   return (
     <tr>
-      <td><div className="entity-cell"><span className="entity-name">{suggestion.capabilityName}</span></div></td>
-      <td><div className="entity-cell"><span className="entity-name">{suggestion.componentName}</span></div></td>
+      <td>
+        <div className="entity-cell">
+          <span className="entity-name">{suggestion.capabilityName}</span>
+        </div>
+      </td>
+      <td>
+        <div className="entity-cell">
+          <span className="entity-name">{suggestion.componentName}</span>
+        </div>
+      </td>
       <GapCell gap={suggestion.technicalGap} label="Technical Gap" />
       <GapCell gap={suggestion.functionalGap} label="Functional Gap" />
-      <td className="gap-cell"><TimeBadge time={suggestion.suggestedTime} /></td>
+      <td className="gap-cell">
+        <TimeBadge time={suggestion.suggestedTime} />
+      </td>
     </tr>
   );
 }
@@ -73,7 +102,11 @@ interface SummaryStats {
 
 function calculateSummary(suggestions: TimeSuggestion[]): SummaryStats {
   const byClassification: Record<TimeClassification | 'Unknown', number> = {
-    Tolerate: 0, Invest: 0, Migrate: 0, Eliminate: 0, Unknown: 0,
+    Tolerate: 0,
+    Invest: 0,
+    Migrate: 0,
+    Eliminate: 0,
+    Unknown: 0,
   };
   for (const s of suggestions) {
     if (s.suggestedTime) byClassification[s.suggestedTime]++;
@@ -98,19 +131,27 @@ function TimeSuggestionsHeader({ summary, groupBy, onGroupByChange }: HeaderProp
           <span className="time-summary-value">{summary.total}</span>
           <span className="time-summary-label">
             Total Realizations
-            <HelpTooltip content="Component-capability combinations with both strategic importance and fit scores" iconOnly />
+            <HelpTooltip
+              content="Component-capability combinations with both strategic importance and fit scores"
+              iconOnly
+            />
           </span>
         </div>
         <div className="time-summary-stat">
           <span className="time-summary-value">{summary.byClassification.Eliminate}</span>
           <span className="time-summary-label">
             Eliminate
-            <HelpTooltip content="Components suggested for phase-out due to both technical and functional gaps" iconOnly />
+            <HelpTooltip
+              content="Components suggested for phase-out due to both technical and functional gaps"
+              iconOnly
+            />
           </span>
         </div>
       </div>
       <div className="time-filters">
-        <label htmlFor="group-select" className="time-filter-label">Group by:</label>
+        <label htmlFor="group-select" className="time-filter-label">
+          Group by:
+        </label>
         <select id="group-select" value={groupBy} onChange={onGroupByChange} className="time-filter-select">
           <option value="none">No grouping</option>
           <option value="capability">Enterprise Capability</option>
@@ -125,14 +166,19 @@ function TimeSuggestionsEmptyState() {
   return (
     <div className="empty-state">
       <svg className="empty-state-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.5}
+          d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+        />
       </svg>
       <h3 className="empty-state-title">No TIME Suggestions Available</h3>
       <p className="empty-state-description">
-        TIME suggestions require:<br />
-        • Enterprise capabilities with strategic importance configured<br />
-        • Components with fit scores<br />
-        • Strategy pillars with fit types (Technical/Functional) enabled
+        TIME suggestions require:
+        <br />• Enterprise capabilities with strategic importance configured
+        <br />• Components with fit scores
+        <br />• Strategy pillars with fit types (Technical/Functional) enabled
       </p>
     </div>
   );
@@ -148,11 +194,17 @@ function SuggestionsTable({ suggestions }: { suggestions: TimeSuggestion[] }) {
             <th>Component</th>
             <th className="text-center">
               Technical Gap
-              <HelpTooltip content="Difference between strategic importance and fit score for technical pillars. Positive = underperforming" iconOnly />
+              <HelpTooltip
+                content="Difference between strategic importance and fit score for technical pillars. Positive = underperforming"
+                iconOnly
+              />
             </th>
             <th className="text-center">
               Functional Gap
-              <HelpTooltip content="Difference between strategic importance and fit score for functional pillars. Positive = underperforming" iconOnly />
+              <HelpTooltip
+                content="Difference between strategic importance and fit score for functional pillars. Positive = underperforming"
+                iconOnly
+              />
             </th>
             <th className="text-center">
               Suggested TIME
@@ -161,7 +213,7 @@ function SuggestionsTable({ suggestions }: { suggestions: TimeSuggestion[] }) {
           </tr>
         </thead>
         <tbody>
-          {suggestions.map(s => (
+          {suggestions.map((s) => (
             <SuggestionRow key={`${s.capabilityId}-${s.componentId}`} suggestion={s} />
           ))}
         </tbody>

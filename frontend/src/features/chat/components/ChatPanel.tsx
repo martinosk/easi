@@ -1,11 +1,11 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { chatApi } from '../api/chatApi';
+import { useChat } from '../hooks/useChat';
+import { useConversations } from '../hooks/useConversations';
 import { ChatInput } from './ChatInput';
 import { ChatPanelHeader } from './ChatPanelHeader';
 import { ConversationList } from './ConversationList';
 import { MessageList } from './MessageList';
-import { useChat } from '../hooks/useChat';
-import { useConversations } from '../hooks/useConversations';
-import { chatApi } from '../api/chatApi';
 import './ChatPanel.css';
 
 interface ChatPanelProps {
@@ -32,27 +32,33 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  const handleSend = useCallback(async (content: string) => {
-    let convId = conversationId;
-    if (!convId) {
-      const conversation = await chatApi.createConversation();
-      convId = conversation.id;
-      setConversationId(convId);
-      invalidateList();
-    }
-    sendMessage(convId, content, yoloEnabled);
-  }, [conversationId, sendMessage, yoloEnabled, invalidateList]);
+  const handleSend = useCallback(
+    async (content: string) => {
+      let convId = conversationId;
+      if (!convId) {
+        const conversation = await chatApi.createConversation();
+        convId = conversation.id;
+        setConversationId(convId);
+        invalidateList();
+      }
+      sendMessage(convId, content, yoloEnabled);
+    },
+    [conversationId, sendMessage, yoloEnabled, invalidateList],
+  );
 
-  const handleSelectConversation = useCallback(async (id: string) => {
-    setConversationId(id);
-    setShowConversationList(false);
-    try {
-      const detail = await chatApi.getConversation(id);
-      resetMessages(detail.messages.map(m => ({ id: m.id, role: m.role, content: m.content })));
-    } catch {
-      resetMessages();
-    }
-  }, [resetMessages]);
+  const handleSelectConversation = useCallback(
+    async (id: string) => {
+      setConversationId(id);
+      setShowConversationList(false);
+      try {
+        const detail = await chatApi.getConversation(id);
+        resetMessages(detail.messages.map((m) => ({ id: m.id, role: m.role, content: m.content })));
+      } catch {
+        resetMessages();
+      }
+    },
+    [resetMessages],
+  );
 
   const handleNewConversation = useCallback(() => {
     setConversationId(null);
@@ -60,22 +66,22 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
     resetMessages();
   }, [resetMessages]);
 
-  const handleDeleteConversation = useCallback((id: string) => {
-    deleteConversation(id);
-    if (conversationId === id) {
-      setConversationId(null);
-      resetMessages();
-    }
-  }, [deleteConversation, conversationId, resetMessages]);
+  const handleDeleteConversation = useCallback(
+    (id: string) => {
+      deleteConversation(id);
+      if (conversationId === id) {
+        setConversationId(null);
+        resetMessages();
+      }
+    },
+    [deleteConversation, conversationId, resetMessages],
+  );
 
   if (!isOpen) return null;
 
   return (
     <div className="chat-panel" role="complementary" aria-label="Chat panel">
-      <ChatPanelHeader
-        onToggleHistory={() => setShowConversationList(!showConversationList)}
-        onClose={onClose}
-      />
+      <ChatPanelHeader onToggleHistory={() => setShowConversationList(!showConversationList)} onClose={onClose} />
 
       {showConversationList && (
         <ConversationList

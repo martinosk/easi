@@ -1,23 +1,23 @@
 import React from 'react';
-import { ComponentDetails } from '../../features/components';
-import { RelationDetails, RealizationDetails } from '../../features/relations';
-import { CapabilityDetails } from '../../features/capabilities';
 import {
-  AcquiredEntityDetailsPanel,
-  VendorDetailsPanel,
-  InternalTeamDetailsPanel,
-  OriginRelationshipDetails,
-} from '../../features/origin-entities';
-import {
-  getEntityType,
   getEntityId,
+  getEntityType,
+  isOriginRelationshipEdge,
   isRealizationEdge,
   isRelationEdge,
-  isOriginRelationshipEdge,
-  toNodeId,
-  toEdgeId,
   type NodeEntityType,
+  toEdgeId,
+  toNodeId,
 } from '../../constants/entityIdentifiers';
+import { CapabilityDetails } from '../../features/capabilities';
+import { ComponentDetails } from '../../features/components';
+import {
+  AcquiredEntityDetailsPanel,
+  InternalTeamDetailsPanel,
+  OriginRelationshipDetails,
+  VendorDetailsPanel,
+} from '../../features/origin-entities';
+import { RealizationDetails, RelationDetails } from '../../features/relations';
 
 export interface DetailContentRendererProps {
   selectedNodeId: string | null;
@@ -114,8 +114,6 @@ export const DetailContentRendererWithPlaceholder: React.FC<DetailContentRendere
   if (content) return content;
 
   return (
-    <div style={{ color: 'var(--color-gray-500)' }}>
-      Select a component, relation, or capability to view details
-    </div>
+    <div style={{ color: 'var(--color-gray-500)' }}>Select a component, relation, or capability to view details</div>
   );
 };

@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, renderHook } from '@testing-library/react';
+import React from 'react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useBulkOperations } from './useBulkOperations';
 import type { NodeContextMenu } from './useNodeContextMenu';
 
@@ -20,7 +20,10 @@ vi.mock('../../views/hooks/useCurrentView', () => ({
 
 vi.mock('../../components/hooks/useComponents', () => ({
   useComponents: () => ({
-    data: [{ id: 'comp-1', name: 'Component 1' }, { id: 'comp-2', name: 'Component 2' }],
+    data: [
+      { id: 'comp-1', name: 'Component 1' },
+      { id: 'comp-2', name: 'Component 2' },
+    ],
   }),
   useDeleteComponent: () => ({ mutateAsync: mockDeleteComponent }),
 }));
@@ -160,9 +163,7 @@ describe('useBulkOperations', () => {
   });
 
   it('stops sequential delete on first failure and reports partial result', async () => {
-    mockDeleteComponent
-      .mockResolvedValueOnce(undefined)
-      .mockRejectedValueOnce(new Error('Delete failed'));
+    mockDeleteComponent.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('Delete failed'));
 
     const { result } = renderHook(() => useBulkOperations(), { wrapper: createWrapper() });
     const nodes = [

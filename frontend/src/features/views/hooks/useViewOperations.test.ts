@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, renderHook } from '@testing-library/react';
 import React from 'react';
-import { useViewOperations } from './useViewOperations';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ComponentId, ViewId } from '../../../api/types';
 import { useAppStore } from '../../../store/appStore';
-import type { ViewId, ComponentId } from '../../../api/types';
+import { useViewOperations } from './useViewOperations';
 
 vi.mock('../../../api/client');
 vi.mock('react-hot-toast', () => ({
@@ -37,9 +37,8 @@ function createWrapper() {
       },
     },
   });
-  return ({ children }: { children: React.ReactNode }) => (
-    React.createElement(QueryClientProvider, { client: queryClient }, children)
-  );
+  return ({ children }: { children: React.ReactNode }) =>
+    React.createElement(QueryClientProvider, { client: queryClient }, children);
 }
 
 describe('useViewOperations', () => {
@@ -84,8 +83,7 @@ describe('useViewOperations', () => {
       },
       {
         operation: 'removeComponentFromView',
-        execute: (ops: ReturnType<typeof useViewOperations>) =>
-          ops.removeComponentFromView('comp-1' as ComponentId),
+        execute: (ops: ReturnType<typeof useViewOperations>) => ops.removeComponentFromView('comp-1' as ComponentId),
       },
     ])('$operation should warn when currentViewId is null', async ({ execute }) => {
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});

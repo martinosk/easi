@@ -1,7 +1,7 @@
-import { describe, it, expect } from 'vitest';
-import { computeTreeBulkActions } from './useTreeMultiSelectMenu';
-import type { TreeSelectedItem } from './useTreeMultiSelect';
+import { describe, expect, it } from 'vitest';
 import type { HATEOASLinks } from '../../../api/types';
+import type { TreeSelectedItem } from './useTreeMultiSelect';
+import { computeTreeBulkActions } from './useTreeMultiSelectMenu';
 
 function makeItem(id: string, links?: HATEOASLinks): TreeSelectedItem {
   return {
@@ -28,11 +28,7 @@ describe('computeTreeBulkActions', () => {
   });
 
   it('all items have delete link - shows Delete from Model', () => {
-    const items = [
-      makeItem('1', deleteLinks),
-      makeItem('2', deleteLinks),
-      makeItem('3', deleteLinks),
-    ];
+    const items = [makeItem('1', deleteLinks), makeItem('2', deleteLinks), makeItem('3', deleteLinks)];
     const actions = computeTreeBulkActions(items);
     expect(actions).toHaveLength(1);
     expect(actions[0]).toEqual({
@@ -43,28 +39,19 @@ describe('computeTreeBulkActions', () => {
   });
 
   it('mixed permissions - some without delete - no actions', () => {
-    const items = [
-      makeItem('1', deleteLinks),
-      makeItem('2', noDeleteLinks),
-    ];
+    const items = [makeItem('1', deleteLinks), makeItem('2', noDeleteLinks)];
     const actions = computeTreeBulkActions(items);
     expect(actions).toHaveLength(0);
   });
 
   it('items with undefined links - no actions', () => {
-    const items = [
-      makeItem('1', deleteLinks),
-      makeItem('2', undefined),
-    ];
+    const items = [makeItem('1', deleteLinks), makeItem('2', undefined)];
     const actions = computeTreeBulkActions(items);
     expect(actions).toHaveLength(0);
   });
 
   it('exactly 2 items both with delete - shows action', () => {
-    const items = [
-      makeItem('1', deleteLinks),
-      makeItem('2', deleteLinks),
-    ];
+    const items = [makeItem('1', deleteLinks), makeItem('2', deleteLinks)];
     const actions = computeTreeBulkActions(items);
     expect(actions).toHaveLength(1);
     expect(actions[0].label).toBe('Delete from Model (2 items)');

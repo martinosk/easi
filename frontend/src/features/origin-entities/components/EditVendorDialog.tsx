@@ -1,10 +1,10 @@
-import React, { useLayoutEffect, useState } from 'react';
-import { Modal, TextInput, Textarea, Button, Group, Stack, Alert } from '@mantine/core';
-import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useUpdateVendor } from '../hooks/useVendors';
-import { editVendorSchema, type EditVendorFormData } from '../../../lib/schemas';
+import { Alert, Button, Group, Modal, Stack, Textarea, TextInput } from '@mantine/core';
+import React, { useLayoutEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import type { Vendor, VendorId } from '../../../api/types';
+import { type EditVendorFormData, editVendorSchema } from '../../../lib/schemas';
+import { useUpdateVendor } from '../hooks/useVendors';
 
 interface EditVendorDialogProps {
   isOpen: boolean;
@@ -12,11 +12,7 @@ interface EditVendorDialogProps {
   vendor: Vendor | null;
 }
 
-export const EditVendorDialog: React.FC<EditVendorDialogProps> = ({
-  isOpen,
-  onClose,
-  vendor,
-}) => {
+export const EditVendorDialog: React.FC<EditVendorDialogProps> = ({ isOpen, onClose, vendor }) => {
   const [backendError, setBackendError] = useState<string | null>(null);
   const updateMutation = useUpdateVendor();
 
@@ -67,13 +63,7 @@ export const EditVendorDialog: React.FC<EditVendorDialogProps> = ({
   if (!vendor) return null;
 
   return (
-    <Modal
-      opened={isOpen}
-      onClose={handleClose}
-      title="Edit Vendor"
-      centered
-      data-testid="edit-vendor-dialog"
-    >
+    <Modal opened={isOpen} onClose={handleClose} title="Edit Vendor" centered data-testid="edit-vendor-dialog">
       <form onSubmit={handleSubmit(onSubmit)}>
         <Stack gap="md">
           <TextInput

@@ -1,17 +1,36 @@
-import { useState, useRef, useCallback } from 'react';
-import type { View, Component, Capability, AcquiredEntity, Vendor, InternalTeam, HATEOASLinks } from '../../../api/types';
-import type { ViewContextMenuState, ComponentContextMenuState, CapabilityContextMenuState, EditingState } from '../types';
-import type { DeleteTarget } from '../components/DeleteConfirmation';
+import { useCallback, useRef, useState } from 'react';
+import type {
+  AcquiredEntity,
+  Capability,
+  Component,
+  HATEOASLinks,
+  InternalTeam,
+  Vendor,
+  View,
+} from '../../../api/types';
 import type { ContextMenuItem } from '../../../components/shared/ContextMenu';
-import type { ArtifactType } from '../../edit-grants/types';
-import { useUpdateComponent, useDeleteComponent } from '../../components/hooks/useComponents';
-import { useCreateView, useDeleteView, useRenameView, useSetDefaultView, useChangeViewVisibility } from '../../views/hooks/useViews';
-import { useDeleteAcquiredEntity } from '../../origin-entities/hooks/useAcquiredEntities';
-import { useDeleteVendor } from '../../origin-entities/hooks/useVendors';
-import { useDeleteInternalTeam } from '../../origin-entities/hooks/useInternalTeams';
-import { getContextMenuPosition } from '../utils/treeUtils';
 import { copyToClipboard, generateViewShareUrl } from '../../../utils/clipboard';
 import { hasLink } from '../../../utils/hateoas';
+import { useDeleteComponent, useUpdateComponent } from '../../components/hooks/useComponents';
+import type { ArtifactType } from '../../edit-grants/types';
+import { useDeleteAcquiredEntity } from '../../origin-entities/hooks/useAcquiredEntities';
+import { useDeleteInternalTeam } from '../../origin-entities/hooks/useInternalTeams';
+import { useDeleteVendor } from '../../origin-entities/hooks/useVendors';
+import {
+  useChangeViewVisibility,
+  useCreateView,
+  useDeleteView,
+  useRenameView,
+  useSetDefaultView,
+} from '../../views/hooks/useViews';
+import type { DeleteTarget } from '../components/DeleteConfirmation';
+import type {
+  CapabilityContextMenuState,
+  ComponentContextMenuState,
+  EditingState,
+  ViewContextMenuState,
+} from '../types';
+import { getContextMenuPosition } from '../utils/treeUtils';
 
 export interface InviteTarget {
   id: string;
@@ -59,10 +78,7 @@ function buildEntityMenuItems(config: EntityMenuConfig): ContextMenuItem[] {
   ]);
 }
 
-function createConditionalMenuItem(
-  condition: boolean,
-  item: ContextMenuItem
-): ContextMenuItem | null {
+function createConditionalMenuItem(condition: boolean, item: ContextMenuItem): ContextMenuItem | null {
   return condition ? item : null;
 }
 
@@ -158,10 +174,10 @@ export function useTreeContextMenus({
       if (editingState.viewId) {
         await renameViewMutation.mutateAsync({
           viewId: editingState.viewId,
-          request: { name: editingState.name }
+          request: { name: editingState.name },
         });
       } else if (editingState.componentId) {
-        const component = components.find(c => c.id === editingState.componentId);
+        const component = components.find((c) => c.id === editingState.componentId);
         if (component) {
           await updateComponentMutation.mutateAsync({
             component,
@@ -191,25 +207,34 @@ export function useTreeContextMenus({
     }
   };
 
-  const executeDelete = useCallback(async (target: DeleteTarget): Promise<void> => {
-    switch (target.type) {
-      case 'view':
-        await deleteViewMutation.mutateAsync(target.view);
-        break;
-      case 'component':
-        await deleteComponentMutation.mutateAsync(target.component);
-        break;
-      case 'acquired':
-        await deleteAcquiredEntityMutation.mutateAsync({ id: target.entity.id, name: target.entity.name });
-        break;
-      case 'vendor':
-        await deleteVendorMutation.mutateAsync({ id: target.entity.id, name: target.entity.name });
-        break;
-      case 'team':
-        await deleteInternalTeamMutation.mutateAsync({ id: target.entity.id, name: target.entity.name });
-        break;
-    }
-  }, [deleteViewMutation, deleteComponentMutation, deleteAcquiredEntityMutation, deleteVendorMutation, deleteInternalTeamMutation]);
+  const executeDelete = useCallback(
+    async (target: DeleteTarget): Promise<void> => {
+      switch (target.type) {
+        case 'view':
+          await deleteViewMutation.mutateAsync(target.view);
+          break;
+        case 'component':
+          await deleteComponentMutation.mutateAsync(target.component);
+          break;
+        case 'acquired':
+          await deleteAcquiredEntityMutation.mutateAsync({ id: target.entity.id, name: target.entity.name });
+          break;
+        case 'vendor':
+          await deleteVendorMutation.mutateAsync({ id: target.entity.id, name: target.entity.name });
+          break;
+        case 'team':
+          await deleteInternalTeamMutation.mutateAsync({ id: target.entity.id, name: target.entity.name });
+          break;
+      }
+    },
+    [
+      deleteViewMutation,
+      deleteComponentMutation,
+      deleteAcquiredEntityMutation,
+      deleteVendorMutation,
+      deleteInternalTeamMutation,
+    ],
+  );
 
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
@@ -267,25 +292,27 @@ export function useTreeContextMenus({
   const makeGenerateViewHandler = (id: string, type: GenerateViewTarget['entityRef']['type'], name: string) =>
     canCreateView && onGenerateView ? () => onGenerateView({ entityRef: { id, type }, entityName: name }) : undefined;
 
-  const getComponentContextMenuItems = (menu: ComponentContextMenuState): ContextMenuItem[] => buildEntityMenuItems({
-    links: menu.component._links,
-    onEdit: onEditComponent ? () => onEditComponent(menu.component.id) : undefined,
-    onInviteToEdit: () => setInviteTarget({ id: menu.component.id, artifactType: 'component' }),
-    onGenerateView: makeGenerateViewHandler(menu.component.id, 'component', menu.component.name),
-    onDelete: () => setDeleteTarget({ type: 'component', component: menu.component }),
-    deleteLabel: 'Delete from Model',
-    deleteAriaLabel: 'Delete application from model',
-  });
+  const getComponentContextMenuItems = (menu: ComponentContextMenuState): ContextMenuItem[] =>
+    buildEntityMenuItems({
+      links: menu.component._links,
+      onEdit: onEditComponent ? () => onEditComponent(menu.component.id) : undefined,
+      onInviteToEdit: () => setInviteTarget({ id: menu.component.id, artifactType: 'component' }),
+      onGenerateView: makeGenerateViewHandler(menu.component.id, 'component', menu.component.name),
+      onDelete: () => setDeleteTarget({ type: 'component', component: menu.component }),
+      deleteLabel: 'Delete from Model',
+      deleteAriaLabel: 'Delete application from model',
+    });
 
-  const getCapabilityContextMenuItems = (menu: CapabilityContextMenuState): ContextMenuItem[] => buildEntityMenuItems({
-    links: menu.capability._links,
-    onEdit: onEditCapability ? () => onEditCapability(menu.capability) : undefined,
-    onInviteToEdit: () => setInviteTarget({ id: menu.capability.id, artifactType: 'capability' }),
-    onGenerateView: makeGenerateViewHandler(menu.capability.id, 'capability', menu.capability.name),
-    onDelete: () => setDeleteCapability(menu.capability),
-    deleteLabel: 'Delete from Model',
-    deleteAriaLabel: 'Delete capability from model',
-  });
+  const getCapabilityContextMenuItems = (menu: CapabilityContextMenuState): ContextMenuItem[] =>
+    buildEntityMenuItems({
+      links: menu.capability._links,
+      onEdit: onEditCapability ? () => onEditCapability(menu.capability) : undefined,
+      onInviteToEdit: () => setInviteTarget({ id: menu.capability.id, artifactType: 'capability' }),
+      onGenerateView: makeGenerateViewHandler(menu.capability.id, 'capability', menu.capability.name),
+      onDelete: () => setDeleteCapability(menu.capability),
+      deleteLabel: 'Delete from Model',
+      deleteAriaLabel: 'Delete capability from model',
+    });
 
   const getOriginEntityContextMenuItems = (menu: OriginEntityContextMenuState): ContextMenuItem[] => {
     const entityTypeLabels: Record<OriginEntityContextMenuState['entityType'], string> = {
@@ -315,7 +342,8 @@ export function useTreeContextMenus({
     return buildEntityMenuItems({
       links: menu.entity._links,
       onEdit: editHandlers[menu.entityType],
-      onInviteToEdit: () => setInviteTarget({ id: menu.entity.id, artifactType: originEntityArtifactTypes[menu.entityType] }),
+      onInviteToEdit: () =>
+        setInviteTarget({ id: menu.entity.id, artifactType: originEntityArtifactTypes[menu.entityType] }),
       onGenerateView: makeGenerateViewHandler(menu.entity.id, 'originEntity', menu.entity.name),
       onDelete: () => setDeleteTarget(deleteTargetFactories[menu.entityType]()),
       deleteLabel: 'Delete from Model',

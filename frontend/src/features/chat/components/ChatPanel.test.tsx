@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
-import { ChatPanel } from './ChatPanel';
-import { createTestQueryClient, TestProviders } from '../../../test/helpers/renderWithProviders';
-import type { ReactNode } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import type { ReactNode } from 'react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createTestQueryClient, TestProviders } from '../../../test/helpers/renderWithProviders';
+import { ChatPanel } from './ChatPanel';
 
 vi.mock('../api/chatApi', () => ({
   chatApi: {
@@ -34,7 +34,7 @@ function renderPanel(isOpen: boolean, onClose = vi.fn(), queryClient?: QueryClie
   return render(
     <Wrapper>
       <ChatPanel isOpen={isOpen} onClose={onClose} />
-    </Wrapper>
+    </Wrapper>,
   );
 }
 
@@ -49,12 +49,16 @@ function mockConversationAndStream(convId: string) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     start(controller) {
-      controller.enqueue(encoder.encode('event: token\ndata: {"content":"Hello"}\n\nevent: done\ndata: {"messageId":"msg-1","tokensUsed":5}\n\n'));
+      controller.enqueue(
+        encoder.encode(
+          'event: token\ndata: {"content":"Hello"}\n\nevent: done\ndata: {"messageId":"msg-1","tokensUsed":5}\n\n',
+        ),
+      );
       controller.close();
     },
   });
   vi.mocked(chatApi.sendMessageStream).mockResolvedValue(
-    new Response(stream, { status: 200, headers: { 'Content-Type': 'text/event-stream' } })
+    new Response(stream, { status: 200, headers: { 'Content-Type': 'text/event-stream' } }),
   );
 }
 
@@ -150,16 +154,24 @@ describe('ChatPanel', () => {
     });
 
     const Wrapper = createWrapper(qc);
-    render(<Wrapper><ChatPanel isOpen={true} onClose={vi.fn()} /></Wrapper>);
+    render(
+      <Wrapper>
+        <ChatPanel isOpen={true} onClose={vi.fn()} />
+      </Wrapper>,
+    );
 
     await waitFor(() => {
       expect(screen.queryByText('No conversations yet')).not.toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByLabelText('Conversation history'));
-    await waitFor(() => { expect(screen.getByText('Old chat')).toBeInTheDocument(); });
+    await waitFor(() => {
+      expect(screen.getByText('Old chat')).toBeInTheDocument();
+    });
 
-    await act(async () => { fireEvent.click(screen.getByText('Old chat')); });
+    await act(async () => {
+      fireEvent.click(screen.getByText('Old chat'));
+    });
 
     await waitFor(() => {
       expect(chatApi.getConversation).toHaveBeenCalledWith('conv-old');
@@ -180,18 +192,26 @@ describe('ChatPanel', () => {
       createdAt: new Date().toISOString(),
       lastMessageAt: new Date().toISOString(),
       _links: {},
-      messages: [
-        { id: 'msg-1', role: 'user', content: 'Previous question', createdAt: new Date().toISOString() },
-      ],
+      messages: [{ id: 'msg-1', role: 'user', content: 'Previous question', createdAt: new Date().toISOString() }],
     });
 
     const Wrapper = createWrapper(qc);
-    render(<Wrapper><ChatPanel isOpen={true} onClose={vi.fn()} /></Wrapper>);
+    render(
+      <Wrapper>
+        <ChatPanel isOpen={true} onClose={vi.fn()} />
+      </Wrapper>,
+    );
 
     fireEvent.click(screen.getByLabelText('Conversation history'));
-    await waitFor(() => { expect(screen.getByText('Old chat')).toBeInTheDocument(); });
-    await act(async () => { fireEvent.click(screen.getByText('Old chat')); });
-    await waitFor(() => { expect(screen.getByText('Previous question')).toBeInTheDocument(); });
+    await waitFor(() => {
+      expect(screen.getByText('Old chat')).toBeInTheDocument();
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByText('Old chat'));
+    });
+    await waitFor(() => {
+      expect(screen.getByText('Previous question')).toBeInTheDocument();
+    });
 
     fireEvent.click(screen.getByLabelText('Conversation history'));
     fireEvent.click(screen.getByLabelText('New conversation'));

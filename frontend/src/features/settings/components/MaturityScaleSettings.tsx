@@ -1,10 +1,10 @@
-import { useState, useLayoutEffect } from 'react';
 import { Button } from '@mantine/core';
-import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
-import { HelpTooltip } from '../../../components/shared/HelpTooltip';
-import { useMaturityScale, useUpdateMaturityScale, useResetMaturityScale } from '../../../hooks/useMaturityScale';
+import { useLayoutEffect, useState } from 'react';
 import type { MaturityScaleSection } from '../../../api/types';
 import { ApiError } from '../../../api/types';
+import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
+import { HelpTooltip } from '../../../components/shared/HelpTooltip';
+import { useMaturityScale, useResetMaturityScale, useUpdateMaturityScale } from '../../../hooks/useMaturityScale';
 import './MaturityScaleSettings.css';
 
 interface ValidationErrors {
@@ -182,11 +182,7 @@ export function MaturityScaleSettings() {
         {!isEditing && (
           <div className="maturity-scale-actions">
             {!config.isDefault && (
-              <Button
-                variant="outline"
-                onClick={() => setShowResetDialog(true)}
-                disabled={resetMutation.isPending}
-              >
+              <Button variant="outline" onClick={() => setShowResetDialog(true)} disabled={resetMutation.isPending}>
                 Reset to Defaults
               </Button>
             )}
@@ -195,11 +191,7 @@ export function MaturityScaleSettings() {
         )}
       </div>
 
-      {config.isDefault && (
-        <div className="default-badge">
-          Using default configuration
-        </div>
-      )}
+      {config.isDefault && <div className="default-badge">Using default configuration</div>}
 
       {conflictError && (
         <div className="conflict-message">
@@ -212,11 +204,7 @@ export function MaturityScaleSettings() {
           {sections.map((section, index) => {
             const width = ((section.maxValue - section.minValue + 1) / totalRange) * 100;
             return (
-              <div
-                key={index}
-                className="scale-section"
-                style={{ width: `${width}%` }}
-              >
+              <div key={index} className="scale-section" style={{ width: `${width}%` }}>
                 {isEditing ? (
                   <div className="scale-section-edit">
                     <input
@@ -254,15 +242,10 @@ export function MaturityScaleSettings() {
             {sections.map((section, index) => {
               const isLastSection = index === sections.length - 1;
               return (
-                <div
-                  key={index}
-                  className="boundary-control-slot"
-                >
+                <div key={index} className="boundary-control-slot">
                   {!isLastSection && (
                     <div className="boundary-control">
-                      <label className="boundary-label">
-                        End of {section.name}:
-                      </label>
+                      <label className="boundary-label">End of {section.name}:</label>
                       <input
                         type="number"
                         className="boundary-input"
@@ -288,11 +271,7 @@ export function MaturityScaleSettings() {
 
       {isEditing && (
         <div className="edit-actions">
-          <Button
-            variant="outline"
-            onClick={handleCancel}
-            disabled={updateMutation.isPending}
-          >
+          <Button variant="outline" onClick={handleCancel} disabled={updateMutation.isPending}>
             Cancel
           </Button>
           <Button

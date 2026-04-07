@@ -16,9 +16,7 @@ export const ImportProgressStep: React.FC<ImportProgressStepProps> = ({ progress
   return (
     <div className="import-step">
       <h3>Importing...</h3>
-      <p className="import-step-description">
-        Please wait while the import is in progress. Do not close this dialog.
-      </p>
+      <p className="import-step-description">Please wait while the import is in progress. Do not close this dialog.</p>
 
       <div className="import-progress">
         <div className="progress-info">
@@ -31,11 +29,7 @@ export const ImportProgressStep: React.FC<ImportProgressStepProps> = ({ progress
         </div>
 
         <div className="progress-bar">
-          <div
-            className="progress-bar-fill"
-            style={{ width: `${percentage}%` }}
-            data-testid="progress-bar"
-          />
+          <div className="progress-bar-fill" style={{ width: `${percentage}%` }} data-testid="progress-bar" />
         </div>
 
         <div className="progress-percentage" data-testid="progress-percentage">

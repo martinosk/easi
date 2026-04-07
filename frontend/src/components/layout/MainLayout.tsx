@@ -1,13 +1,13 @@
 import React from 'react';
-import { Toolbar } from './Toolbar';
+import type { Capability } from '../../api/types';
+import { ComponentCanvas, type ComponentCanvasRef } from '../../features/canvas';
 import { NavigationTree } from '../../features/navigation';
 import { ViewSelector } from '../../features/views';
-import { ComponentCanvas, type ComponentCanvasRef } from '../../features/canvas';
-import { useAppStore } from '../../store/appStore';
-import { useRemoveCapabilityFromView } from '../../features/views/hooks/useViews';
 import { useCurrentView } from '../../features/views/hooks/useCurrentView';
+import { useRemoveCapabilityFromView } from '../../features/views/hooks/useViews';
+import { useAppStore } from '../../store/appStore';
 import { DetailContentRenderer } from '../shared/DetailContentRenderer';
-import type { Capability } from '../../api/types';
+import { Toolbar } from './Toolbar';
 
 interface MainLayoutProps {
   canvasRef: React.RefObject<ComponentCanvasRef | null>;
@@ -102,11 +102,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
         <div className="canvas-section">
           <ViewSelector />
-          <ComponentCanvas
-            ref={canvasRef}
-            onConnect={onConnect}
-            onComponentDrop={onComponentDrop}
-          />
+          <ComponentCanvas ref={canvasRef} onConnect={onConnect} onComponentDrop={onComponentDrop} />
         </div>
 
         <DetailSection

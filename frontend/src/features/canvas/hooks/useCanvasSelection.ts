@@ -1,20 +1,20 @@
-import { useCallback, useMemo } from 'react';
-import type { Node, Edge } from '@xyflow/react';
+import type { Edge, Node } from '@xyflow/react';
 import { useReactFlow } from '@xyflow/react';
-import { useAppStore } from '../../../store/appStore';
+import { useCallback, useMemo } from 'react';
+import type { ViewId } from '../../../api/types';
 import {
-  toComponentId,
-  toCapabilityId,
-  toRelationId,
   type BatchUpdateItem,
   type CapabilityId,
   type ComponentId,
+  toCapabilityId,
+  toComponentId,
+  toRelationId,
 } from '../../../api/types';
-import type { ViewId } from '../../../api/types';
-import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
+import { useAppStore } from '../../../store/appStore';
+import { canEdit } from '../../../utils/hateoas';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { useUpdateOriginEntityPosition } from '../../views/hooks/useViews';
-import { canEdit } from '../../../utils/hateoas';
+import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
 import { extractOriginEntityId } from '../utils/nodeFactory';
 
 function isMultiSelectModifier(event: React.MouseEvent): boolean {
@@ -24,7 +24,7 @@ function isMultiSelectModifier(event: React.MouseEvent): boolean {
 function persistOriginEntityPosition(
   node: Node,
   viewId: ViewId,
-  mutate: (params: { viewId: ViewId; originEntityId: string; position: { x: number; y: number } }) => void
+  mutate: (params: { viewId: ViewId; originEntityId: string; position: { x: number; y: number } }) => void,
 ): void {
   const originEntityId = extractOriginEntityId(node.id);
   if (!originEntityId) return;
@@ -96,14 +96,14 @@ export const useCanvasSelection = () => {
         selectCapability(null);
       }
     },
-    [selectNode, selectCapability]
+    [selectNode, selectCapability],
   );
 
   const onEdgeClick = useCallback(
     (_event: React.MouseEvent, edge: Edge) => {
       selectEdge(toRelationId(edge.id));
     },
-    [selectEdge]
+    [selectEdge],
   );
 
   const onPaneClick = useCallback(() => {
@@ -111,12 +111,15 @@ export const useCanvasSelection = () => {
     selectCapability(null);
   }, [clearSelection, selectCapability]);
 
-  const persisters = useMemo<PositionPersisters>(() => ({
-    updateCapabilityPosition,
-    updateComponentPosition,
-    updateOriginEntity: (target: Node) =>
-      currentViewId && persistOriginEntityPosition(target, currentViewId, updateOriginEntityPositionMutation.mutate),
-  }), [updateCapabilityPosition, updateComponentPosition, currentViewId, updateOriginEntityPositionMutation]);
+  const persisters = useMemo<PositionPersisters>(
+    () => ({
+      updateCapabilityPosition,
+      updateComponentPosition,
+      updateOriginEntity: (target: Node) =>
+        currentViewId && persistOriginEntityPosition(target, currentViewId, updateOriginEntityPositionMutation.mutate),
+    }),
+    [updateCapabilityPosition, updateComponentPosition, currentViewId, updateOriginEntityPositionMutation],
+  );
 
   const onNodeDragStop = useCallback(
     (_event: React.MouseEvent, node: Node) => {
@@ -132,7 +135,7 @@ export const useCanvasSelection = () => {
       const updates = buildBatchUpdates(nodesToPersist, persisters.updateOriginEntity);
       if (updates.length > 0) batchUpdatePositions(updates);
     },
-    [persisters, currentView, currentViewId, reactFlowInstance, batchUpdatePositions]
+    [persisters, currentView, currentViewId, reactFlowInstance, batchUpdatePositions],
   );
 
   return {

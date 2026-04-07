@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, type ReactNode } from 'react';
-import { useCanvasLayout, type UseCanvasLayoutResult } from '../hooks/useCanvasLayout';
+import { createContext, type ReactNode, useContext } from 'react';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
+import { type UseCanvasLayoutResult, useCanvasLayout } from '../hooks/useCanvasLayout';
 
 const CanvasLayoutContext = createContext<UseCanvasLayoutResult | null>(null);
 
@@ -13,11 +13,7 @@ export function CanvasLayoutProvider({ children }: CanvasLayoutProviderProps) {
   const { currentViewId } = useCurrentView();
   const layoutResult = useCanvasLayout(currentViewId);
 
-  return (
-    <CanvasLayoutContext.Provider value={layoutResult}>
-      {children}
-    </CanvasLayoutContext.Provider>
-  );
+  return <CanvasLayoutContext.Provider value={layoutResult}>{children}</CanvasLayoutContext.Provider>;
 }
 
 export function useCanvasLayoutContext(): UseCanvasLayoutResult {

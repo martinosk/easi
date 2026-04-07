@@ -45,7 +45,7 @@ function createHttpClient(baseURL: string = import.meta.env.VITE_API_URL ?? ''):
 
       const message = extractErrorMessage(error);
       throw new ApiError(message, statusCode, error.response?.data);
-    }
+    },
   );
 
   return client;

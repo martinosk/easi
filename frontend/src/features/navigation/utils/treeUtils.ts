@@ -20,7 +20,10 @@ export const persistSet = (key: string, value: Set<string>): void => {
 };
 
 const LEVEL_NUMBER_MAP: Record<string, number> = {
-  L1: 1, L2: 2, L3: 3, L4: 4,
+  L1: 1,
+  L2: 2,
+  L3: 3,
+  L4: 4,
 };
 
 export const getLevelNumber = (level: string): number => LEVEL_NUMBER_MAP[level] ?? 1;
@@ -54,11 +57,5 @@ export const buildCapabilityTree = (capabilities: Capability[]): CapabilityTreeN
   return roots;
 };
 
-export const hasCustomColor = (
-  colorScheme: string | undefined,
-  customColor: string | undefined | null
-): boolean =>
-  colorScheme === 'custom' &&
-  customColor !== undefined &&
-  customColor !== null &&
-  customColor !== '';
+export const hasCustomColor = (colorScheme: string | undefined, customColor: string | undefined | null): boolean =>
+  colorScheme === 'custom' && customColor !== undefined && customColor !== null && customColor !== '';

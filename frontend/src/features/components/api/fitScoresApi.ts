@@ -1,31 +1,29 @@
 import { httpClient } from '../../../api/core/httpClient';
 import type {
-  ComponentId,
-  CapabilityId,
-  BusinessDomainId,
   ApplicationFitScore,
   ApplicationFitScoresResponse,
-  SetApplicationFitScoreRequest,
+  BusinessDomainId,
+  CapabilityId,
+  ComponentId,
   FitComparison,
   FitComparisonsResponse,
+  SetApplicationFitScoreRequest,
 } from '../../../api/types';
 
 export const fitScoresApi = {
   async getByComponent(componentId: ComponentId): Promise<ApplicationFitScoresResponse> {
-    const response = await httpClient.get<ApplicationFitScoresResponse>(
-      `/api/v1/components/${componentId}/fit-scores`
-    );
+    const response = await httpClient.get<ApplicationFitScoresResponse>(`/api/v1/components/${componentId}/fit-scores`);
     return response.data;
   },
 
   async setScore(
     componentId: ComponentId,
     pillarId: string,
-    request: SetApplicationFitScoreRequest
+    request: SetApplicationFitScoreRequest,
   ): Promise<ApplicationFitScore> {
     const response = await httpClient.put<ApplicationFitScore>(
       `/api/v1/components/${componentId}/fit-scores/${pillarId}`,
-      request
+      request,
     );
     return response.data;
   },
@@ -37,12 +35,11 @@ export const fitScoresApi = {
   async getFitComparisons(
     componentId: ComponentId,
     capabilityId: CapabilityId,
-    businessDomainId: BusinessDomainId
+    businessDomainId: BusinessDomainId,
   ): Promise<FitComparison[]> {
-    const response = await httpClient.get<FitComparisonsResponse>(
-      `/api/v1/components/${componentId}/fit-comparisons`,
-      { params: { capabilityId, businessDomainId } }
-    );
+    const response = await httpClient.get<FitComparisonsResponse>(`/api/v1/components/${componentId}/fit-comparisons`, {
+      params: { capabilityId, businessDomainId },
+    });
     return response.data.data;
   },
 };

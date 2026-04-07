@@ -23,12 +23,7 @@ export function CapabilityDetailPanel({ capability, onClose }: CapabilityDetailP
           aria-label="Close panel"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
-            />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
       </div>
@@ -42,9 +37,7 @@ export function CapabilityDetailPanel({ capability, onClose }: CapabilityDetailP
             <span className="text-sm text-gray-500">{capability.code}</span>
           </div>
           <h3 className="text-xl font-semibold text-gray-900 mb-2">{capability.name}</h3>
-          {capability.description && (
-            <p className="text-sm text-gray-600">{capability.description}</p>
-          )}
+          {capability.description && <p className="text-sm text-gray-600">{capability.description}</p>}
         </div>
 
         {capability.parentId && (
@@ -70,9 +63,7 @@ export function CapabilityDetailPanel({ capability, onClose }: CapabilityDetailP
                     </span>
                     <span className="text-sm font-medium text-gray-900">{child.name}</span>
                   </div>
-                  {child.description && (
-                    <p className="text-xs text-gray-600 mt-1">{child.description}</p>
-                  )}
+                  {child.description && <p className="text-xs text-gray-600 mt-1">{child.description}</p>}
                 </div>
               ))}
             </div>
@@ -133,9 +124,7 @@ export function CapabilityDetailPanel({ capability, onClose }: CapabilityDetailP
               </svg>
               <div className="text-sm font-semibold">Unassigned Capability</div>
             </div>
-            <p className="text-xs text-orange-700 mt-2">
-              This L1 capability is not assigned to any business domain.
-            </p>
+            <p className="text-xs text-orange-700 mt-2">This L1 capability is not assigned to any business domain.</p>
           </div>
         )}
       </div>

@@ -1,5 +1,5 @@
-import { describe, it, expect, afterEach } from 'vitest';
-import { generateViewShareUrl, generateDomainShareUrl } from './generators';
+import { afterEach, describe, expect, it } from 'vitest';
+import { generateDomainShareUrl, generateViewShareUrl } from './generators';
 
 function setLocationOrigin(origin: string) {
   Object.defineProperty(window, 'location', {

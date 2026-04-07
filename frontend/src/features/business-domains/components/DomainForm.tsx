@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import type { BusinessDomain } from '../../../api/types';
 import { useEAOwnerCandidates } from '../../users/hooks/useUsers';
 
@@ -94,11 +94,7 @@ export function DomainForm({ domain, mode, onSubmit, onCancel }: DomainFormProps
     setIsSubmitting(true);
 
     try {
-      await onSubmit(
-        form.name.trim(),
-        form.description.trim(),
-        form.domainArchitectId || undefined
-      );
+      await onSubmit(form.name.trim(), form.description.trim(), form.domainArchitectId || undefined);
     } catch (err) {
       setBackendError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -170,9 +166,7 @@ export function DomainForm({ domain, mode, onSubmit, onCancel }: DomainFormProps
             </option>
           ))}
         </select>
-        {isLoadingUsers && (
-          <div className="field-hint">Loading eligible users...</div>
-        )}
+        {isLoadingUsers && <div className="field-hint">Loading eligible users...</div>}
       </div>
 
       {backendError && (

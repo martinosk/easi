@@ -1,25 +1,25 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { capabilitiesApi } from '../api';
-import { capabilitiesQueryKeys } from '../queryKeys';
-import { invalidateFor } from '../../../lib/invalidateFor';
-import { capabilitiesMutationEffects } from '../mutationEffects';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import type {
-  Capability,
-  CapabilityId,
-  CapabilityDependency,
-  CapabilityDeleteImpact,
-  CapabilityRealization,
-  ComponentId,
-  CreateCapabilityRequest,
-  UpdateCapabilityRequest,
-  UpdateCapabilityMetadataRequest,
   AddCapabilityExpertRequest,
   AddCapabilityTagRequest,
+  Capability,
+  CapabilityDeleteImpact,
+  CapabilityDependency,
+  CapabilityId,
+  CapabilityRealization,
+  ComponentId,
   CreateCapabilityDependencyRequest,
+  CreateCapabilityRequest,
   LinkSystemToCapabilityRequest,
+  UpdateCapabilityMetadataRequest,
+  UpdateCapabilityRequest,
   UpdateRealizationRequest,
 } from '../../../api/types';
-import toast from 'react-hot-toast';
+import { invalidateFor } from '../../../lib/invalidateFor';
+import { capabilitiesApi } from '../api';
+import { capabilitiesMutationEffects } from '../mutationEffects';
+import { capabilitiesQueryKeys } from '../queryKeys';
 
 type InvalidationEffect = ReadonlyArray<readonly unknown[]>;
 
@@ -37,9 +37,8 @@ function useCapabilityMutation<TData, TVariables>(config: MutationConfig<TData, 
     mutationFn: config.mutationFn,
     onSuccess: (data, variables) => {
       invalidateFor(queryClient, config.getEffects(data, variables));
-      const message = typeof config.successMessage === 'function'
-        ? config.successMessage(data, variables)
-        : config.successMessage;
+      const message =
+        typeof config.successMessage === 'function' ? config.successMessage(data, variables) : config.successMessage;
       toast.success(message);
     },
     onError: (error: Error) => {
@@ -54,7 +53,7 @@ function createIdRequestMutation<TRequest, TData>(
   apiFn: (id: CapabilityId, request: TRequest) => Promise<TData>,
   getEffects: (id: CapabilityId) => InvalidationEffect,
   successMessage: string,
-  errorMessage: string
+  errorMessage: string,
 ) {
   return () =>
     useCapabilityMutation<TData, IdRequestPair<TRequest>>({
@@ -154,14 +153,14 @@ export const useUpdateCapabilityMetadata = createIdRequestMutation<UpdateCapabil
   capabilitiesApi.updateMetadata,
   (id) => capabilitiesMutationEffects.update(id),
   'Capability metadata updated',
-  'Failed to update capability metadata'
+  'Failed to update capability metadata',
 );
 
 export const useAddCapabilityExpert = createIdRequestMutation<AddCapabilityExpertRequest, void>(
   capabilitiesApi.addExpert,
   (id) => capabilitiesMutationEffects.addExpert(id),
   'Expert added',
-  'Failed to add expert'
+  'Failed to add expert',
 );
 
 export function useCapabilityExpertRoles() {
@@ -185,7 +184,7 @@ export const useAddCapabilityTag = createIdRequestMutation<AddCapabilityTagReque
   capabilitiesApi.addTag,
   (id) => capabilitiesMutationEffects.addTag(id),
   'Tag added',
-  'Failed to add tag'
+  'Failed to add tag',
 );
 
 export function useDeleteCapability() {
@@ -221,8 +220,7 @@ export function useChangeCapabilityParent() {
 export function useCreateCapabilityDependency() {
   return useCapabilityMutation({
     mutationFn: (request: CreateCapabilityDependencyRequest) => capabilitiesApi.createDependency(request),
-    getEffects: (newDependency) =>
-      capabilitiesMutationEffects.addDependency(newDependency),
+    getEffects: (newDependency) => capabilitiesMutationEffects.addDependency(newDependency),
     successMessage: 'Dependency created',
     errorMessage: 'Failed to create dependency',
   });
@@ -231,8 +229,7 @@ export function useCreateCapabilityDependency() {
 export function useDeleteCapabilityDependency() {
   return useCapabilityMutation({
     mutationFn: (dependency: CapabilityDependency) => capabilitiesApi.deleteDependency(dependency),
-    getEffects: (_, dependency) =>
-      capabilitiesMutationEffects.removeDependency(dependency),
+    getEffects: (_, dependency) => capabilitiesMutationEffects.removeDependency(dependency),
     successMessage: 'Dependency deleted',
     errorMessage: 'Failed to delete dependency',
   });
@@ -253,8 +250,7 @@ export function useUpdateRealization() {
   return useCapabilityMutation({
     mutationFn: (context: { realization: CapabilityRealization; request: UpdateRealizationRequest }) =>
       capabilitiesApi.updateRealization(context.realization, context.request),
-    getEffects: (_, context) =>
-      capabilitiesMutationEffects.updateRealization(context.realization),
+    getEffects: (_, context) => capabilitiesMutationEffects.updateRealization(context.realization),
     successMessage: 'Realization updated',
     errorMessage: 'Failed to update realization',
   });
@@ -263,8 +259,7 @@ export function useUpdateRealization() {
 export function useDeleteRealization() {
   return useCapabilityMutation({
     mutationFn: (realization: CapabilityRealization) => capabilitiesApi.deleteRealization(realization),
-    getEffects: (_, realization) =>
-      capabilitiesMutationEffects.deleteRealization(realization),
+    getEffects: (_, realization) => capabilitiesMutationEffects.deleteRealization(realization),
     successMessage: 'Realization deleted',
     errorMessage: 'Failed to delete realization',
   });

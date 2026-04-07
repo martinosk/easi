@@ -1,8 +1,8 @@
-import React from 'react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { ImportSession, ImportSessionId, CreateImportSessionRequest } from '../types';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import React from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { CreateImportSessionRequest, ImportSession, ImportSessionId } from '../types';
 
 const { mockPost, mockGet, mockDelete } = vi.hoisted(() => ({
   mockPost: vi.fn(),
@@ -176,9 +176,7 @@ describe('useImportSession', () => {
         },
       };
 
-      mockPost
-        .mockResolvedValueOnce({ data: pendingSession })
-        .mockResolvedValueOnce({ data: importingSession });
+      mockPost.mockResolvedValueOnce({ data: pendingSession }).mockResolvedValueOnce({ data: importingSession });
 
       const result = await renderAndCreateSession(queryClient);
 
@@ -202,9 +200,7 @@ describe('useImportSession', () => {
       });
 
       const errorMessage = 'Import already started';
-      mockPost
-        .mockResolvedValueOnce({ data: pendingSession })
-        .mockRejectedValueOnce(new Error(errorMessage));
+      mockPost.mockResolvedValueOnce({ data: pendingSession }).mockRejectedValueOnce(new Error(errorMessage));
 
       const result = await renderAndCreateSession(queryClient);
 
@@ -276,9 +272,7 @@ describe('useImportSession', () => {
       };
 
       mockPost.mockResolvedValue({ data: importingSession });
-      mockGet
-        .mockResolvedValueOnce({ data: importingSession })
-        .mockResolvedValueOnce({ data: completedSession });
+      mockGet.mockResolvedValueOnce({ data: importingSession }).mockResolvedValueOnce({ data: completedSession });
 
       const { result } = renderHook(() => useImportSession(), {
         wrapper: createWrapper(queryClient),
@@ -297,7 +291,7 @@ describe('useImportSession', () => {
         () => {
           expect(result.current.session?.status).toBe('completed');
         },
-        { timeout: 8000 }
+        { timeout: 8000 },
       );
 
       expect(mockGet).toHaveBeenCalled();
@@ -338,7 +332,7 @@ describe('useImportSession', () => {
       });
 
       await act(async () => {
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        await new Promise((resolve) => setTimeout(resolve, 3000));
       });
 
       expect(mockGet).not.toHaveBeenCalled();

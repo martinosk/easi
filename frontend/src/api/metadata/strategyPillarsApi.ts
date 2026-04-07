@@ -1,10 +1,10 @@
 import { httpClient } from '../core/httpClient';
 import type {
-  StrategyPillarsConfiguration,
-  StrategyPillar,
   CreateStrategyPillarRequest,
-  UpdateStrategyPillarRequest,
   FitType,
+  StrategyPillar,
+  StrategyPillarsConfiguration,
+  UpdateStrategyPillarRequest,
 } from '../types';
 
 export interface StrategyPillarsConfigurationWithVersion extends StrategyPillarsConfiguration {
@@ -50,12 +50,18 @@ const PILLARS_BASE_URL = '/api/v1/meta-model/strategy-pillars';
 
 export const strategyPillarsApi = {
   async getConfiguration(includeInactive = true): Promise<StrategyPillarsConfigurationWithVersion> {
-    const response = await httpClient.get<StrategyPillarsConfiguration>(`${PILLARS_BASE_URL}?includeInactive=${includeInactive}`);
+    const response = await httpClient.get<StrategyPillarsConfiguration>(
+      `${PILLARS_BASE_URL}?includeInactive=${includeInactive}`,
+    );
     return { ...response.data, version: parseETag(response.headers['etag']) };
   },
 
   async batchUpdate(request: BatchUpdateRequest, version: number): Promise<BatchUpdateResponse> {
-    const response = await httpClient.patch<BatchUpdateResponse>(PILLARS_BASE_URL, request, withOptimisticLocking(version));
+    const response = await httpClient.patch<BatchUpdateResponse>(
+      PILLARS_BASE_URL,
+      request,
+      withOptimisticLocking(version),
+    );
     return response.data;
   },
 
@@ -65,7 +71,11 @@ export const strategyPillarsApi = {
   },
 
   async updatePillar(id: string, request: UpdateStrategyPillarRequest, version: number): Promise<StrategyPillar> {
-    const response = await httpClient.put<StrategyPillar>(`${PILLARS_BASE_URL}/${id}`, request, withOptimisticLocking(version));
+    const response = await httpClient.put<StrategyPillar>(
+      `${PILLARS_BASE_URL}/${id}`,
+      request,
+      withOptimisticLocking(version),
+    );
     return response.data;
   },
 
@@ -73,8 +83,16 @@ export const strategyPillarsApi = {
     await httpClient.delete(`${PILLARS_BASE_URL}/${id}`);
   },
 
-  async updateFitConfiguration(id: string, request: UpdateFitConfigurationRequest, version: number): Promise<StrategyPillar> {
-    const response = await httpClient.put<StrategyPillar>(`${PILLARS_BASE_URL}/${id}/fit-configuration`, request, withOptimisticLocking(version));
+  async updateFitConfiguration(
+    id: string,
+    request: UpdateFitConfigurationRequest,
+    version: number,
+  ): Promise<StrategyPillar> {
+    const response = await httpClient.put<StrategyPillar>(
+      `${PILLARS_BASE_URL}/${id}/fit-configuration`,
+      request,
+      withOptimisticLocking(version),
+    );
     return response.data;
   },
 };

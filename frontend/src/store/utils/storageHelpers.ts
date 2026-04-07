@@ -11,9 +11,7 @@ export function loadViewportStatesFromStorage(): Record<string, ViewportState> {
   }
 }
 
-export function saveViewportStatesToStorage(
-  states: Record<string, ViewportState>
-): void {
+export function saveViewportStatesToStorage(states: Record<string, ViewportState>): void {
   try {
     localStorage.setItem(VIEWPORT_STATES_KEY, JSON.stringify(states));
   } catch (error) {

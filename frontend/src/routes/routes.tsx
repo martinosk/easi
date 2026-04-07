@@ -1,6 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { useUserStore } from '../store/userStore';
 import { LoadingFallback } from '../components/shared/LoadingFallback';
+import { useUserStore } from '../store/userStore';
 
 export function ProtectedRoute() {
   const location = useLocation();

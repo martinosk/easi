@@ -1,6 +1,6 @@
+import { businessDomainsQueryKeys } from '../business-domains/queryKeys';
 import { capabilitiesQueryKeys } from '../capabilities/queryKeys';
 import { componentsQueryKeys } from '../components/queryKeys';
-import { businessDomainsQueryKeys } from '../business-domains/queryKeys';
 import { maturityAnalysisQueryKeys } from '../enterprise-architecture/queryKeys';
 import { valueStreamsQueryKeys } from '../value-streams/queryKeys';
 

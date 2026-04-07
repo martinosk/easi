@@ -1,11 +1,11 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import type { ComponentId } from '../../../api/types';
 import { useAppStore } from '../../../store/appStore';
 import { useNavigationTree } from '../hooks/useNavigationTree';
+import type { TreeSelectedItem } from '../hooks/useTreeMultiSelect';
+import type { NavigationTreeProps } from '../types';
 import { NavigationTreeContent } from './NavigationTreeContent';
 import { NavigationTreeDialogs } from './NavigationTreeDialogs';
-import type { NavigationTreeProps } from '../types';
-import type { TreeSelectedItem } from '../hooks/useTreeMultiSelect';
-import type { ComponentId } from '../../../api/types';
 
 type OriginEntityDialogType = 'acquired' | 'vendor' | 'team' | null;
 
@@ -24,7 +24,7 @@ function useEscapeToClearSelection(selectionCount: number, clearFn: () => void) 
 function useClearSingleSelectionOnMulti(
   selectionCount: number,
   selectNode: (id: ComponentId | null) => void,
-  setSelectedCapabilityId: (id: string | null) => void
+  setSelectedCapabilityId: (id: string | null) => void,
 ) {
   useEffect(() => {
     if (selectionCount >= 2) {
@@ -39,15 +39,15 @@ function useOriginEntityDialog(canCreateOriginEntity: boolean) {
 
   const onAddAcquired = useMemo(
     () => (canCreateOriginEntity ? () => setOpenOriginDialog('acquired') : undefined),
-    [canCreateOriginEntity]
+    [canCreateOriginEntity],
   );
   const onAddVendor = useMemo(
     () => (canCreateOriginEntity ? () => setOpenOriginDialog('vendor') : undefined),
-    [canCreateOriginEntity]
+    [canCreateOriginEntity],
   );
   const onAddTeam = useMemo(
     () => (canCreateOriginEntity ? () => setOpenOriginDialog('team') : undefined),
-    [canCreateOriginEntity]
+    [canCreateOriginEntity],
   );
   const closeDialog = useCallback(() => setOpenOriginDialog(null), []);
 
@@ -56,7 +56,7 @@ function useOriginEntityDialog(canCreateOriginEntity: boolean) {
 
 function useMultiContextMenu(
   handleMultiSelectContextMenu: (event: React.MouseEvent, itemId: string, selectedItems: TreeSelectedItem[]) => boolean,
-  clearMultiSelection: () => void
+  clearMultiSelection: () => void,
 ) {
   return useCallback(
     (event: React.MouseEvent, itemId: string, selectedItems: TreeSelectedItem[]) => {
@@ -69,20 +69,20 @@ function useMultiContextMenu(
       }
       return handled;
     },
-    [handleMultiSelectContextMenu, clearMultiSelection]
+    [handleMultiSelectContextMenu, clearMultiSelection],
   );
 }
 
 function useBulkOperations(
   requestBulkDelete: (items: TreeSelectedItem[]) => void,
   confirmBulkDelete: () => Promise<void>,
-  clearMultiSelection: () => void
+  clearMultiSelection: () => void,
 ) {
   const handleBulkOperation = useCallback(
     (request: { type: 'deleteFromModel'; items: TreeSelectedItem[] }) => {
       requestBulkDelete(request.items);
     },
-    [requestBulkDelete]
+    [requestBulkDelete],
   );
 
   const handleBulkDeleteConfirm = useCallback(async () => {
@@ -94,10 +94,8 @@ function useBulkOperations(
 }
 
 export const NavigationTree: React.FC<NavigationTreeProps> = (props) => {
-  const {
-    onComponentSelect, onViewSelect, onAddComponent,
-    onCapabilitySelect, onAddCapability, onOriginEntitySelect,
-  } = props;
+  const { onComponentSelect, onViewSelect, onAddComponent, onCapabilitySelect, onAddCapability, onOriginEntitySelect } =
+    props;
 
   const tree = useNavigationTree(props);
   const selectNode = useAppStore((state) => state.selectNode);
@@ -106,20 +104,32 @@ export const NavigationTree: React.FC<NavigationTreeProps> = (props) => {
   useEscapeToClearSelection(tree.multiSelect.selectionCount, tree.multiSelect.clearMultiSelection);
 
   const { handleBulkOperation, handleBulkDeleteConfirm } = useBulkOperations(
-    tree.bulkDelete.requestBulkDelete, tree.bulkDelete.handleConfirm, tree.multiSelect.clearMultiSelection,
+    tree.bulkDelete.requestBulkDelete,
+    tree.bulkDelete.handleConfirm,
+    tree.multiSelect.clearMultiSelection,
   );
 
   const handleMultiContextMenu = useMultiContextMenu(
-    tree.multiSelectMenu.handleMultiSelectContextMenu, tree.multiSelect.clearMultiSelection,
+    tree.multiSelectMenu.handleMultiSelectContextMenu,
+    tree.multiSelect.clearMultiSelection,
   );
 
-  const multiSelectProps = useMemo(() => ({
-    isMultiSelected: tree.multiSelect.isMultiSelected,
-    handleItemClick: tree.multiSelect.handleItemClick,
-    handleContextMenu: handleMultiContextMenu,
-    handleDragStart: tree.multiSelect.handleDragStart,
-    selectedItems: tree.multiSelect.selectedItems,
-  }), [tree.multiSelect.isMultiSelected, tree.multiSelect.handleItemClick, tree.multiSelect.handleDragStart, tree.multiSelect.selectedItems, handleMultiContextMenu]);
+  const multiSelectProps = useMemo(
+    () => ({
+      isMultiSelected: tree.multiSelect.isMultiSelected,
+      handleItemClick: tree.multiSelect.handleItemClick,
+      handleContextMenu: handleMultiContextMenu,
+      handleDragStart: tree.multiSelect.handleDragStart,
+      selectedItems: tree.multiSelect.selectedItems,
+    }),
+    [
+      tree.multiSelect.isMultiSelected,
+      tree.multiSelect.handleItemClick,
+      tree.multiSelect.handleDragStart,
+      tree.multiSelect.selectedItems,
+      handleMultiContextMenu,
+    ],
+  );
 
   const originEntity = useOriginEntityDialog(tree.canCreateOriginEntity);
 

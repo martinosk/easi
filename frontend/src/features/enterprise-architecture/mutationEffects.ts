@@ -1,9 +1,7 @@
 import { enterpriseCapabilitiesQueryKeys, maturityAnalysisQueryKeys } from './queryKeys';
 
 export const enterpriseCapabilitiesMutationEffects = {
-  create: () => [
-    enterpriseCapabilitiesQueryKeys.lists(),
-  ],
+  create: () => [enterpriseCapabilitiesQueryKeys.lists()],
 
   delete: (enterpriseCapabilityId: string) => [
     enterpriseCapabilitiesQueryKeys.lists(),

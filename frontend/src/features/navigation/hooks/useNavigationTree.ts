@@ -1,14 +1,14 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useAppStore } from '../../../store/appStore';
+import { useGenerateView } from '../../canvas/hooks/useGenerateView';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
+import type { NavigationTreeProps } from '../types';
+import { useFilteredTreeData } from './useFilteredTreeData';
 import { useNavigationTreeState } from './useNavigationTreeState';
-import { useTreeContextMenus, type GenerateViewTarget } from './useTreeContextMenus';
+import { useTreeBulkDelete } from './useTreeBulkDelete';
+import { type GenerateViewTarget, useTreeContextMenus } from './useTreeContextMenus';
 import { useTreeMultiSelect } from './useTreeMultiSelect';
 import { useTreeMultiSelectMenu } from './useTreeMultiSelectMenu';
-import { useTreeBulkDelete } from './useTreeBulkDelete';
-import { useFilteredTreeData } from './useFilteredTreeData';
-import { useGenerateView } from '../../canvas/hooks/useGenerateView';
-import type { NavigationTreeProps } from '../types';
 
 interface SelectedEntityIds {
   acquiredEntityId: string | null;
@@ -52,7 +52,11 @@ export function useNavigationTree(props: NavigationTreeProps) {
     [generateView],
   );
   const contextMenus = useTreeContextMenus({
-    components, onEditCapability, onEditComponent, onGenerateView: handleGenerateView, canCreateView,
+    components,
+    onEditCapability,
+    onEditComponent,
+    onGenerateView: handleGenerateView,
+    canCreateView,
   });
 
   const multiSelect = useTreeMultiSelect();

@@ -1,22 +1,22 @@
 import { httpClient } from '../../../api/core/httpClient';
 import type {
+  AcquiredEntitiesResponse,
   AcquiredEntity,
   AcquiredEntityId,
-  AcquiredEntitiesResponse,
+  AllOriginRelationshipsResponse,
   CreateAcquiredEntityRequest,
-  UpdateAcquiredEntityRequest,
-  Vendor,
-  VendorId,
-  VendorsResponse,
+  CreateInternalTeamRequest,
   CreateVendorRequest,
-  UpdateVendorRequest,
   InternalTeam,
   InternalTeamId,
   InternalTeamsResponse,
-  CreateInternalTeamRequest,
-  UpdateInternalTeamRequest,
   OriginRelationship,
-  AllOriginRelationshipsResponse,
+  UpdateAcquiredEntityRequest,
+  UpdateInternalTeamRequest,
+  UpdateVendorRequest,
+  Vendor,
+  VendorId,
+  VendorsResponse,
 } from '../../../api/types';
 
 export const originEntitiesApi = {
@@ -53,11 +53,11 @@ export const originEntitiesApi = {
     async linkComponent(
       componentId: string,
       acquiredEntityId: AcquiredEntityId,
-      notes?: string
+      notes?: string,
     ): Promise<OriginRelationship> {
       const response = await httpClient.put<OriginRelationship>(
         `/api/v1/components/${componentId}/origin/acquired-via`,
-        { acquiredEntityId, componentId, notes }
+        { acquiredEntityId, componentId, notes },
       );
       return response.data;
     },
@@ -92,14 +92,10 @@ export const originEntitiesApi = {
       await httpClient.delete(`/api/v1/vendors/${id}`);
     },
 
-    async linkComponent(
-      componentId: string,
-      vendorId: VendorId,
-      notes?: string
-    ): Promise<OriginRelationship> {
+    async linkComponent(componentId: string, vendorId: VendorId, notes?: string): Promise<OriginRelationship> {
       const response = await httpClient.put<OriginRelationship>(
         `/api/v1/components/${componentId}/origin/purchased-from`,
-        { vendorId, componentId, notes }
+        { vendorId, componentId, notes },
       );
       return response.data;
     },
@@ -137,12 +133,13 @@ export const originEntitiesApi = {
     async linkComponent(
       componentId: string,
       internalTeamId: InternalTeamId,
-      notes?: string
+      notes?: string,
     ): Promise<OriginRelationship> {
-      const response = await httpClient.put<OriginRelationship>(
-        `/api/v1/components/${componentId}/origin/built-by`,
-        { internalTeamId, componentId, notes }
-      );
+      const response = await httpClient.put<OriginRelationship>(`/api/v1/components/${componentId}/origin/built-by`, {
+        internalTeamId,
+        componentId,
+        notes,
+      });
       return response.data;
     },
 

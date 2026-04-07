@@ -1,6 +1,6 @@
 import { ConfirmationDialog } from '../../../../components/shared/ConfirmationDialog';
-import type { BulkOperationRequest } from '../context-menus/MultiSelectContextMenu';
 import type { BulkOperationResult } from '../../hooks/useBulkOperations';
+import type { BulkOperationRequest } from '../context-menus/MultiSelectContextMenu';
 
 interface BulkConfirmationDialogProps {
   bulkOperation: BulkOperationRequest | null;

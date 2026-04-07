@@ -1,8 +1,8 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { apiClient } from '../../../api/client';
 import type { Release } from '../../../api/types';
-import { ReleaseNotesSidebar } from './ReleaseNotesSidebar';
 import { ReleaseNotesContent } from './ReleaseNotesContent';
+import { ReleaseNotesSidebar } from './ReleaseNotesSidebar';
 import { compareSemver } from './releaseNotesUtils';
 
 interface ReleaseNotesBrowserProps {
@@ -10,10 +10,7 @@ interface ReleaseNotesBrowserProps {
   onClose: () => void;
 }
 
-export const ReleaseNotesBrowser: React.FC<ReleaseNotesBrowserProps> = ({
-  isOpen,
-  onClose,
-}) => {
+export const ReleaseNotesBrowser: React.FC<ReleaseNotesBrowserProps> = ({ isOpen, onClose }) => {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [releases, setReleases] = useState<Release[]>([]);
   const [currentVersion, setCurrentVersion] = useState<string | null>(null);
@@ -26,13 +23,8 @@ export const ReleaseNotesBrowser: React.FC<ReleaseNotesBrowserProps> = ({
       try {
         setIsLoading(true);
         setError(null);
-        const [releasesData, version] = await Promise.all([
-          apiClient.getReleases(),
-          apiClient.getVersion(),
-        ]);
-        const sortedReleases = [...releasesData].sort((a, b) =>
-          compareSemver(b.version, a.version)
-        );
+        const [releasesData, version] = await Promise.all([apiClient.getReleases(), apiClient.getVersion()]);
+        const sortedReleases = [...releasesData].sort((a, b) => compareSemver(b.version, a.version));
         setReleases(sortedReleases);
         setCurrentVersion(version);
         if (sortedReleases.length > 0) {
@@ -75,17 +67,8 @@ export const ReleaseNotesBrowser: React.FC<ReleaseNotesBrowserProps> = ({
       <div className="release-browser-content">
         <div className="release-browser-header">
           <h2 className="dialog-title">Release Notes</h2>
-          {currentVersion && (
-            <span className="release-browser-current-version">
-              Current: v{currentVersion}
-            </span>
-          )}
-          <button
-            type="button"
-            className="release-browser-close"
-            onClick={onClose}
-            aria-label="Close"
-          >
+          {currentVersion && <span className="release-browser-current-version">Current: v{currentVersion}</span>}
+          <button type="button" className="release-browser-close" onClick={onClose} aria-label="Close">
             ×
           </button>
         </div>
@@ -119,11 +102,7 @@ export const ReleaseNotesBrowser: React.FC<ReleaseNotesBrowserProps> = ({
         )}
 
         <div className="dialog-actions">
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={onClose}
-          >
+          <button type="button" className="btn btn-primary" onClick={onClose}>
             Close
           </button>
         </div>

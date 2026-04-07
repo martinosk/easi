@@ -1,10 +1,10 @@
 import React from 'react';
 import { DetailField } from '../../../components/shared/DetailField';
+import type { RealizationData } from '../hooks/useRealizationDetails';
+import { InheritedRealizationInfo } from './InheritedRealizationInfo';
+import { OriginBadge } from './OriginBadge';
 import { RealizationActions } from './RealizationActions';
 import { RealizationLevelBadge } from './RealizationLevelBadge';
-import { OriginBadge } from './OriginBadge';
-import { InheritedRealizationInfo } from './InheritedRealizationInfo';
-import type { RealizationData } from '../hooks/useRealizationDetails';
 
 interface RealizationDetailsContentProps {
   data: RealizationData;

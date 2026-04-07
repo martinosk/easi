@@ -1,7 +1,7 @@
 export { assistantConfigApi } from './assistantConfigApi';
 export type {
-  LLMProvider,
   AIConfigurationResponse,
-  UpdateAIConfigRequest,
+  LLMProvider,
   TestConnectionResponse,
+  UpdateAIConfigRequest,
 } from './types';

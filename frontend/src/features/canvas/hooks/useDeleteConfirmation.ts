@@ -1,18 +1,40 @@
-import { useState, useCallback, useMemo } from 'react';
-import { useCurrentView } from '../../views/hooks/useCurrentView';
-import { useDeleteCapability, useCascadeDeleteCapability, useChangeCapabilityParent, useDeleteRealization } from '../../capabilities/hooks/useCapabilities';
-import { useDeleteComponent } from '../../components/hooks/useComponents';
-import { useDeleteRelation } from '../../relations/hooks/useRelations';
-import { useRemoveComponentFromView, useRemoveCapabilityFromView } from '../../views/hooks/useViews';
-import { useComponents } from '../../components/hooks/useComponents';
-import { useRelations } from '../../relations/hooks/useRelations';
-import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
-import { useDeleteAcquiredEntity, useUnlinkComponentFromAcquiredEntity } from '../../origin-entities/hooks/useAcquiredEntities';
-import { useDeleteVendor, useUnlinkComponentFromVendor } from '../../origin-entities/hooks/useVendors';
-import { useDeleteInternalTeam, useUnlinkComponentFromInternalTeam } from '../../origin-entities/hooks/useInternalTeams';
-import { toComponentId, toCapabilityId, toRealizationId } from '../../../api/types';
-import type { CapabilityId, ComponentId, ViewId, Component, Relation, Capability, HATEOASLinks, AcquiredEntityId, VendorId, InternalTeamId, OriginRelationshipId, OriginRelationshipType } from '../../../api/types';
+import { useCallback, useMemo, useState } from 'react';
+import type {
+  AcquiredEntityId,
+  Capability,
+  CapabilityId,
+  Component,
+  ComponentId,
+  HATEOASLinks,
+  InternalTeamId,
+  OriginRelationshipId,
+  OriginRelationshipType,
+  Relation,
+  VendorId,
+  ViewId,
+} from '../../../api/types';
+import { toCapabilityId, toComponentId, toRealizationId } from '../../../api/types';
 import type { OriginEntityType } from '../../../constants/entityIdentifiers';
+import {
+  useCapabilities,
+  useCascadeDeleteCapability,
+  useChangeCapabilityParent,
+  useDeleteCapability,
+  useDeleteRealization,
+} from '../../capabilities/hooks/useCapabilities';
+import { useComponents, useDeleteComponent } from '../../components/hooks/useComponents';
+import {
+  useDeleteAcquiredEntity,
+  useUnlinkComponentFromAcquiredEntity,
+} from '../../origin-entities/hooks/useAcquiredEntities';
+import {
+  useDeleteInternalTeam,
+  useUnlinkComponentFromInternalTeam,
+} from '../../origin-entities/hooks/useInternalTeams';
+import { useDeleteVendor, useUnlinkComponentFromVendor } from '../../origin-entities/hooks/useVendors';
+import { useDeleteRelation, useRelations } from '../../relations/hooks/useRelations';
+import { useCurrentView } from '../../views/hooks/useCurrentView';
+import { useRemoveCapabilityFromView, useRemoveComponentFromView } from '../../views/hooks/useViews';
 
 export type DeleteTargetType =
   | 'component-from-view'
@@ -46,7 +68,7 @@ type DeleteHandler = (
     components: Component[];
     relations: Relation[];
     capabilities: Capability[];
-  }
+  },
 ) => Promise<void>;
 
 interface OriginEntityDeleteMutations {
@@ -64,22 +86,20 @@ interface OriginRelationshipUnlinkMutations {
 type OriginEntityDeleteStrategy = (
   mutations: OriginEntityDeleteMutations,
   entityId: string,
-  name: string
+  name: string,
 ) => Promise<void>;
 
 type OriginRelationshipUnlinkStrategy = (
   mutations: OriginRelationshipUnlinkMutations,
   originEntityId: string,
-  componentId: ComponentId
+  componentId: ComponentId,
 ) => Promise<void>;
 
 const ORIGIN_ENTITY_DELETE_STRATEGIES: Record<OriginEntityType, OriginEntityDeleteStrategy> = {
   acquired: (mutations, entityId, name) =>
     mutations.deleteAcquired.mutateAsync({ id: entityId as AcquiredEntityId, name }),
-  vendor: (mutations, entityId, name) =>
-    mutations.deleteVendor.mutateAsync({ id: entityId as VendorId, name }),
-  team: (mutations, entityId, name) =>
-    mutations.deleteTeam.mutateAsync({ id: entityId as InternalTeamId, name }),
+  vendor: (mutations, entityId, name) => mutations.deleteVendor.mutateAsync({ id: entityId as VendorId, name }),
+  team: (mutations, entityId, name) => mutations.deleteTeam.mutateAsync({ id: entityId as InternalTeamId, name }),
 };
 
 const ORIGIN_RELATIONSHIP_UNLINK_STRATEGIES: Record<OriginRelationshipType, OriginRelationshipUnlinkStrategy> = {
@@ -115,97 +135,106 @@ function useDeleteHandlers() {
   const unlinkFromVendorMutation = useUnlinkComponentFromVendor();
   const unlinkFromInternalTeamMutation = useUnlinkComponentFromInternalTeam();
 
-  const originEntityDeleteMutations: OriginEntityDeleteMutations = useMemo(() => ({
-    deleteAcquired: deleteAcquiredEntityMutation,
-    deleteVendor: deleteVendorMutation,
-    deleteTeam: deleteInternalTeamMutation,
-  }), [deleteAcquiredEntityMutation, deleteVendorMutation, deleteInternalTeamMutation]);
+  const originEntityDeleteMutations: OriginEntityDeleteMutations = useMemo(
+    () => ({
+      deleteAcquired: deleteAcquiredEntityMutation,
+      deleteVendor: deleteVendorMutation,
+      deleteTeam: deleteInternalTeamMutation,
+    }),
+    [deleteAcquiredEntityMutation, deleteVendorMutation, deleteInternalTeamMutation],
+  );
 
-  const originRelationshipUnlinkMutations: OriginRelationshipUnlinkMutations = useMemo(() => ({
-    unlinkAcquired: unlinkFromAcquiredMutation,
-    unlinkVendor: unlinkFromVendorMutation,
-    unlinkTeam: unlinkFromInternalTeamMutation,
-  }), [unlinkFromAcquiredMutation, unlinkFromVendorMutation, unlinkFromInternalTeamMutation]);
+  const originRelationshipUnlinkMutations: OriginRelationshipUnlinkMutations = useMemo(
+    () => ({
+      unlinkAcquired: unlinkFromAcquiredMutation,
+      unlinkVendor: unlinkFromVendorMutation,
+      unlinkTeam: unlinkFromInternalTeamMutation,
+    }),
+    [unlinkFromAcquiredMutation, unlinkFromVendorMutation, unlinkFromInternalTeamMutation],
+  );
 
-  return useMemo((): Record<DeleteTargetType, DeleteHandler> => ({
-    'component-from-view': async (target, viewId) => {
-      if (!viewId) return;
-      await removeComponentFromViewMutation.mutateAsync({
-        viewId,
-        componentId: toComponentId(target.id),
-      });
-    },
-    'component-from-model': async (target, _viewId, lookups) => {
-      const component = lookups.components.find(c => c.id === target.id);
-      if (!component) return;
-      await deleteComponentMutation.mutateAsync(component);
-    },
-    'relation-from-model': async (target, _viewId, lookups) => {
-      const relation = lookups.relations.find(r => r.id === target.id);
-      if (!relation) return;
-      await deleteRelationMutation.mutateAsync(relation);
-    },
-    'capability-from-canvas': async (target, viewId) => {
-      if (!viewId) return;
-      await removeCapabilityFromViewMutation.mutateAsync({
-        viewId,
-        capabilityId: toCapabilityId(target.id),
-      });
-    },
-    'capability-from-model': async (target, _viewId, lookups) => {
-      const capability = lookups.capabilities.find(c => c.id === target.id);
-      if (!capability) return;
-      await cascadeDeleteCapabilityMutation.mutateAsync({
-        capability,
-        cascade: false,
-        deleteRealisingApplications: false,
-        parentId: capability.parentId ?? undefined,
-      });
-    },
-    'parent-relation': async (target) => {
-      if (!target.childId) return;
-      await changeCapabilityParentMutation.mutateAsync({
-        id: toCapabilityId(target.childId),
-        oldParentId: target.id,
-        newParentId: null,
-      });
-    },
-    'realization': async (target) => {
-      if (!hasRealizationData(target)) return;
-      await deleteRealizationMutation.mutateAsync({
-        id: toRealizationId(target.id),
-        capabilityId: target.capabilityId!,
-        componentId: target.componentId!,
-        realizationLevel: 'Full',
-        origin: 'Direct',
-        linkedAt: '',
-        _links: target._links!,
-      });
-    },
-    'origin-entity-from-model': async (target) => {
-      if (!target.originEntityType) return;
+  return useMemo(
+    (): Record<DeleteTargetType, DeleteHandler> => ({
+      'component-from-view': async (target, viewId) => {
+        if (!viewId) return;
+        await removeComponentFromViewMutation.mutateAsync({
+          viewId,
+          componentId: toComponentId(target.id),
+        });
+      },
+      'component-from-model': async (target, _viewId, lookups) => {
+        const component = lookups.components.find((c) => c.id === target.id);
+        if (!component) return;
+        await deleteComponentMutation.mutateAsync(component);
+      },
+      'relation-from-model': async (target, _viewId, lookups) => {
+        const relation = lookups.relations.find((r) => r.id === target.id);
+        if (!relation) return;
+        await deleteRelationMutation.mutateAsync(relation);
+      },
+      'capability-from-canvas': async (target, viewId) => {
+        if (!viewId) return;
+        await removeCapabilityFromViewMutation.mutateAsync({
+          viewId,
+          capabilityId: toCapabilityId(target.id),
+        });
+      },
+      'capability-from-model': async (target, _viewId, lookups) => {
+        const capability = lookups.capabilities.find((c) => c.id === target.id);
+        if (!capability) return;
+        await cascadeDeleteCapabilityMutation.mutateAsync({
+          capability,
+          cascade: false,
+          deleteRealisingApplications: false,
+          parentId: capability.parentId ?? undefined,
+        });
+      },
+      'parent-relation': async (target) => {
+        if (!target.childId) return;
+        await changeCapabilityParentMutation.mutateAsync({
+          id: toCapabilityId(target.childId),
+          oldParentId: target.id,
+          newParentId: null,
+        });
+      },
+      realization: async (target) => {
+        if (!hasRealizationData(target)) return;
+        await deleteRealizationMutation.mutateAsync({
+          id: toRealizationId(target.id),
+          capabilityId: target.capabilityId!,
+          componentId: target.componentId!,
+          realizationLevel: 'Full',
+          origin: 'Direct',
+          linkedAt: '',
+          _links: target._links!,
+        });
+      },
+      'origin-entity-from-model': async (target) => {
+        if (!target.originEntityType) return;
 
-      const strategy = ORIGIN_ENTITY_DELETE_STRATEGIES[target.originEntityType];
-      await strategy(originEntityDeleteMutations, target.id, target.name);
-    },
-    'origin-relationship': async (target) => {
-      if (!hasOriginRelationshipData(target)) return;
+        const strategy = ORIGIN_ENTITY_DELETE_STRATEGIES[target.originEntityType];
+        await strategy(originEntityDeleteMutations, target.id, target.name);
+      },
+      'origin-relationship': async (target) => {
+        if (!hasOriginRelationshipData(target)) return;
 
-      const strategy = ORIGIN_RELATIONSHIP_UNLINK_STRATEGIES[target.originRelationshipType!];
-      await strategy(originRelationshipUnlinkMutations, target.originEntityId!, target.componentId!);
-    },
-  }), [
-    removeComponentFromViewMutation,
-    removeCapabilityFromViewMutation,
-    deleteComponentMutation,
-    deleteRelationMutation,
-    deleteCapabilityMutation,
-    cascadeDeleteCapabilityMutation,
-    changeCapabilityParentMutation,
-    deleteRealizationMutation,
-    originEntityDeleteMutations,
-    originRelationshipUnlinkMutations,
-  ]);
+        const strategy = ORIGIN_RELATIONSHIP_UNLINK_STRATEGIES[target.originRelationshipType!];
+        await strategy(originRelationshipUnlinkMutations, target.originEntityId!, target.componentId!);
+      },
+    }),
+    [
+      removeComponentFromViewMutation,
+      removeCapabilityFromViewMutation,
+      deleteComponentMutation,
+      deleteRelationMutation,
+      deleteCapabilityMutation,
+      cascadeDeleteCapabilityMutation,
+      changeCapabilityParentMutation,
+      deleteRealizationMutation,
+      originEntityDeleteMutations,
+      originRelationshipUnlinkMutations,
+    ],
+  );
 }
 
 export const useDeleteConfirmation = () => {

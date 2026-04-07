@@ -1,17 +1,17 @@
-import { renderHook, waitFor, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
-import {
-  useComponents,
-  useComponent,
-  useCreateComponent,
-  useUpdateComponent,
-  useDeleteComponent,
-} from './useComponents';
-import { componentsQueryKeys } from '../queryKeys';
-import { buildComponent } from '../../../test/helpers/entityBuilders';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ComponentId } from '../../../api/types';
+import { buildComponent } from '../../../test/helpers/entityBuilders';
+import { componentsQueryKeys } from '../queryKeys';
+import {
+  useComponent,
+  useComponents,
+  useCreateComponent,
+  useDeleteComponent,
+  useUpdateComponent,
+} from './useComponents';
 
 vi.mock('../api', () => ({
   componentsApi: {
@@ -30,8 +30,8 @@ vi.mock('react-hot-toast', () => ({
   },
 }));
 
-import { componentsApi } from '../api';
 import toast from 'react-hot-toast';
+import { componentsApi } from '../api';
 
 function createWrapper(queryClient: QueryClient) {
   return ({ children }: { children: React.ReactNode }) =>

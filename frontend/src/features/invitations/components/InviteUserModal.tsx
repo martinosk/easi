@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type FormEvent } from 'react';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 import type { UserRole } from '../../auth/types';
 import type { CreateInvitationRequest } from '../types';
 
@@ -108,12 +108,7 @@ export function InviteUserModal({ isOpen, onClose, onSubmit }: InviteUserModalPr
             >
               Cancel
             </button>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={isSubmitting}
-              data-testid="invite-submit-btn"
-            >
+            <button type="submit" className="btn btn-primary" disabled={isSubmitting} data-testid="invite-submit-btn">
               {isSubmitting ? 'Creating...' : 'Create Invitation'}
             </button>
           </div>

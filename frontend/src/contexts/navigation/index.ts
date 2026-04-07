@@ -1,17 +1,17 @@
 export { NavigationContext } from './context';
 export { NavigationProvider } from './NavigationProvider';
+export type {
+  DialogActions,
+  NavigationActions,
+  NavigationContextValue,
+  Permissions,
+  ViewActions,
+} from './types';
 export {
+  useCanvasRef,
+  useDialogActions,
   useNavigation,
   useNavigationActions,
-  useDialogActions,
-  useViewActions,
   usePermissions,
-  useCanvasRef,
+  useViewActions,
 } from './useNavigation';
-export type {
-  NavigationContextValue,
-  NavigationActions,
-  DialogActions,
-  ViewActions,
-  Permissions,
-} from './types';

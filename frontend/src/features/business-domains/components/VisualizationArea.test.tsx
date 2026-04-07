@@ -1,8 +1,8 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
-import { VisualizationArea } from './VisualizationArea';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import type { BusinessDomain, BusinessDomainId, Capability, CapabilityId } from '../../../api/types';
 import { MantineTestWrapper } from '../../../test/helpers/mantineTestWrapper';
+import { VisualizationArea } from './VisualizationArea';
 
 const renderWithMantine = (ui: React.ReactElement) => render(<MantineTestWrapper>{ui}</MantineTestWrapper>);
 
@@ -69,7 +69,7 @@ describe('VisualizationArea', () => {
     expect(onCapabilityClick).toHaveBeenCalledTimes(1);
     expect(onCapabilityClick).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'cap-1', name: 'Financial Management' }),
-      expect.any(Object)
+      expect.any(Object),
     );
   });
 
@@ -82,7 +82,7 @@ describe('VisualizationArea', () => {
     expect(onContextMenu).toHaveBeenCalledTimes(1);
     expect(onContextMenu).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'cap-1', name: 'Financial Management' }),
-      expect.any(Object)
+      expect.any(Object),
     );
   });
 

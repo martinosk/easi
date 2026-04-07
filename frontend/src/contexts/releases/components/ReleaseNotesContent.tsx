@@ -1,19 +1,12 @@
 import React, { useMemo } from 'react';
 import type { Release } from '../../../api/types';
-import {
-  parseMarkdownSections,
-  formatInlineMarkdown,
-  formatReleaseDate,
-  getSectionStyle,
-} from './releaseNotesUtils';
+import { formatInlineMarkdown, formatReleaseDate, getSectionStyle, parseMarkdownSections } from './releaseNotesUtils';
 
 interface ReleaseNotesContentProps {
   selectedRelease: Release | null;
 }
 
-export const ReleaseNotesContent: React.FC<ReleaseNotesContentProps> = ({
-  selectedRelease,
-}) => {
+export const ReleaseNotesContent: React.FC<ReleaseNotesContentProps> = ({ selectedRelease }) => {
   const sections = useMemo(() => {
     if (!selectedRelease) return [];
     return parseMarkdownSections(selectedRelease.notes);
@@ -30,12 +23,8 @@ export const ReleaseNotesContent: React.FC<ReleaseNotesContentProps> = ({
   return (
     <>
       <div className="release-browser-main-header">
-        <h3 className="release-browser-main-title">
-          Version {selectedRelease.version}
-        </h3>
-        <span className="release-browser-main-date">
-          {formatReleaseDate(selectedRelease.releaseDate)}
-        </span>
+        <h3 className="release-browser-main-title">Version {selectedRelease.version}</h3>
+        <span className="release-browser-main-date">{formatReleaseDate(selectedRelease.releaseDate)}</span>
       </div>
 
       <div className="release-browser-notes">
@@ -43,14 +32,9 @@ export const ReleaseNotesContent: React.FC<ReleaseNotesContentProps> = ({
           sections.map((section, index) => {
             const sectionStyle = getSectionStyle(section.title);
             return (
-              <div
-                key={index}
-                className={`release-notes-section ${sectionStyle.className}`}
-              >
+              <div key={index} className={`release-notes-section ${sectionStyle.className}`}>
                 <h4 className="release-notes-section-title">
-                  <span className="release-notes-section-icon">
-                    {sectionStyle.icon}
-                  </span>
+                  <span className="release-notes-section-icon">{sectionStyle.icon}</span>
                   {section.title}
                 </h4>
                 <ul className="release-notes-list">

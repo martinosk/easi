@@ -1,21 +1,15 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { toAcquiredEntityId, toCapabilityId, toComponentId, toInternalTeamId, toVendorId } from '../../../api/types';
 import {
-  buildComponent,
-  buildCapability,
   buildAcquiredEntity,
-  buildVendor,
+  buildCapability,
+  buildComponent,
   buildInternalTeam,
+  buildVendor,
   resetIdCounter,
 } from '../../../test/helpers';
-import {
-  toComponentId,
-  toCapabilityId,
-  toAcquiredEntityId,
-  toVendorId,
-  toInternalTeamId,
-} from '../../../api/types';
-import { filterByCreator } from './filterByCreator';
 import type { FilterableArtifacts } from './filterByCreator';
+import { filterByCreator } from './filterByCreator';
 
 describe('filterByCreator', () => {
   beforeEach(() => {
@@ -191,16 +185,12 @@ describe('filterByCreator', () => {
         components: [comp1, comp2],
       });
 
-      const creatorMap = buildCreatorMap([
-        ['comp-1', USER_ALICE],
-      ]);
+      const creatorMap = buildCreatorMap([['comp-1', USER_ALICE]]);
 
       const result = filterByCreator(artifacts, [USER_ALICE], creatorMap);
 
       expect(result.components).toEqual([comp1]);
-      expect(result.components).not.toContainEqual(
-        expect.objectContaining({ name: 'Unknown Creator' })
-      );
+      expect(result.components).not.toContainEqual(expect.objectContaining({ name: 'Unknown Creator' }));
     });
   });
 

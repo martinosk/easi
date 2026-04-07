@@ -147,15 +147,11 @@ export function CapabilityExplorer({
   const tree = useMemo(() => buildTree(capabilities), [capabilities]);
 
   if (isLoading) {
-    return (
-      <div style={{ padding: '1rem', color: '#6b7280' }}>Loading capabilities...</div>
-    );
+    return <div style={{ padding: '1rem', color: '#6b7280' }}>Loading capabilities...</div>;
   }
 
   if (tree.length === 0) {
-    return (
-      <div style={{ padding: '1rem', color: '#6b7280' }}>No capabilities available</div>
-    );
+    return <div style={{ padding: '1rem', color: '#6b7280' }}>No capabilities available</div>;
   }
 
   return (

@@ -1,20 +1,9 @@
+import { Badge, Box, Button, Group, Select, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
 import React from 'react';
-import {
-  TextInput,
-  Textarea,
-  Select,
-  SimpleGrid,
-  Box,
-  Badge,
-  Text,
-  Stack,
-  Group,
-  Button,
-} from '@mantine/core';
-import { Controller, type Control, type UseFormRegister, type FieldErrors } from 'react-hook-form';
-import type { EditCapabilityFormData } from '../../../lib/schemas';
+import { type Control, Controller, type FieldErrors, type UseFormRegister } from 'react-hook-form';
 import type { Expert } from '../../../api/types';
 import { MaturitySlider } from '../../../components/shared/MaturitySlider';
+import type { EditCapabilityFormData } from '../../../lib/schemas';
 
 interface SelectOption {
   value: string;
@@ -60,12 +49,7 @@ interface StatusFieldProps {
   disabled: boolean;
 }
 
-export const StatusField: React.FC<StatusFieldProps> = ({
-  control,
-  options,
-  isLoading,
-  disabled,
-}) => (
+export const StatusField: React.FC<StatusFieldProps> = ({ control, options, isLoading, disabled }) => (
   <Controller
     name="status"
     control={control}
@@ -90,9 +74,7 @@ export const MaturityField: React.FC<MaturityFieldProps> = ({ control, disabled 
   <Controller
     name="maturityValue"
     control={control}
-    render={({ field }) => (
-      <MaturitySlider value={field.value} onChange={field.onChange} disabled={disabled} />
-    )}
+    render={({ field }) => <MaturitySlider value={field.value} onChange={field.onChange} disabled={disabled} />}
   />
 );
 

@@ -1,7 +1,8 @@
 /* eslint-disable react-refresh/only-export-components */
-import type { ReactNode } from 'react';
+
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { ReactNode } from 'react';
 import { theme } from '../../theme/mantine';
 
 function createTestQueryClient(): QueryClient {

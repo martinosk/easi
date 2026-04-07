@@ -1,7 +1,14 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import type {
+  AcquiredEntity,
+  AcquiredEntityId,
+  ComponentId,
+  HATEOASLinks,
+  IntegrationStatus,
+  ViewId,
+} from '../../../../api/types';
 import { AcquiredEntitiesSection } from './AcquiredEntitiesSection';
-import type { AcquiredEntity, AcquiredEntityId, IntegrationStatus, HATEOASLinks, ViewId, ComponentId } from '../../../../api/types';
 
 describe('AcquiredEntitiesSection', () => {
   const mockLinks: HATEOASLinks = { self: { href: '/test', method: 'GET' } };
@@ -37,7 +44,6 @@ describe('AcquiredEntitiesSection', () => {
     onEntityContextMenu: vi.fn(),
     multiSelect: mockMultiSelect,
   };
-
 
   describe('rendering', () => {
     it('should display section label with count', () => {
@@ -177,13 +183,7 @@ describe('AcquiredEntitiesSection', () => {
     it('should call onEntitySelect when entity is clicked', () => {
       const onEntitySelect = vi.fn();
       const entity = createMockEntity({ id: 'ae-123' as AcquiredEntityId });
-      render(
-        <AcquiredEntitiesSection
-          {...defaultProps}
-          acquiredEntities={[entity]}
-          onEntitySelect={onEntitySelect}
-        />
-      );
+      render(<AcquiredEntitiesSection {...defaultProps} acquiredEntities={[entity]} onEntitySelect={onEntitySelect} />);
 
       fireEvent.click(screen.getByTitle('TechCorp'));
 
@@ -192,13 +192,7 @@ describe('AcquiredEntitiesSection', () => {
 
     it('should apply selected class when entity is selected', () => {
       const entity = createMockEntity({ id: 'ae-123' as AcquiredEntityId });
-      render(
-        <AcquiredEntitiesSection
-          {...defaultProps}
-          acquiredEntities={[entity]}
-          selectedEntityId="ae-123"
-        />
-      );
+      render(<AcquiredEntitiesSection {...defaultProps} acquiredEntities={[entity]} selectedEntityId="ae-123" />);
 
       const entityButton = screen.getByTitle('TechCorp');
       expect(entityButton).toHaveClass('selected');
@@ -206,13 +200,7 @@ describe('AcquiredEntitiesSection', () => {
 
     it('should not apply selected class when entity is not selected', () => {
       const entity = createMockEntity({ id: 'ae-123' as AcquiredEntityId });
-      render(
-        <AcquiredEntitiesSection
-          {...defaultProps}
-          acquiredEntities={[entity]}
-          selectedEntityId="ae-456"
-        />
-      );
+      render(<AcquiredEntitiesSection {...defaultProps} acquiredEntities={[entity]} selectedEntityId="ae-456" />);
 
       const entityButton = screen.getByTitle('TechCorp');
       expect(entityButton).not.toHaveClass('selected');
@@ -228,7 +216,7 @@ describe('AcquiredEntitiesSection', () => {
           {...defaultProps}
           acquiredEntities={[entity]}
           onEntityContextMenu={onEntityContextMenu}
-        />
+        />,
       );
 
       fireEvent.contextMenu(screen.getByTitle('TechCorp'));
@@ -240,12 +228,7 @@ describe('AcquiredEntitiesSection', () => {
   describe('drag and drop', () => {
     it('should always be draggable', () => {
       const entity = createMockEntity({ id: 'ae-123' as AcquiredEntityId });
-      render(
-        <AcquiredEntitiesSection
-          {...defaultProps}
-          acquiredEntities={[entity]}
-        />
-      );
+      render(<AcquiredEntitiesSection {...defaultProps} acquiredEntities={[entity]} />);
 
       const entityButton = screen.getByTitle('TechCorp');
       expect(entityButton).toHaveAttribute('draggable', 'true');
@@ -253,12 +236,7 @@ describe('AcquiredEntitiesSection', () => {
 
     it('should set acquiredEntityId on drag start', () => {
       const entity = createMockEntity({ id: 'ae-123' as AcquiredEntityId });
-      render(
-        <AcquiredEntitiesSection
-          {...defaultProps}
-          acquiredEntities={[entity]}
-        />
-      );
+      render(<AcquiredEntitiesSection {...defaultProps} acquiredEntities={[entity]} />);
 
       const entityButton = screen.getByTitle('TechCorp');
       const mockDataTransfer = {
@@ -306,9 +284,9 @@ describe('AcquiredEntitiesSection', () => {
       name: 'Test View',
       isDefault: false,
       isPrivate: false,
-      components: componentIds.map(cid => ({ componentId: cid as ComponentId, x: 0, y: 0 })),
+      components: componentIds.map((cid) => ({ componentId: cid as ComponentId, x: 0, y: 0 })),
       capabilities: [],
-      originEntities: originEntityIds.map(oeId => ({ originEntityId: oeId, x: 0, y: 0 })),
+      originEntities: originEntityIds.map((oeId) => ({ originEntityId: oeId, x: 0, y: 0 })),
       createdAt: '2021-01-01T00:00:00Z',
       _links: mockLinks,
     });
@@ -317,13 +295,7 @@ describe('AcquiredEntitiesSection', () => {
       const entity = createMockEntity({ id: 'ae-123' as AcquiredEntityId, name: 'TechCorp' });
       const currentView = createMockView('view-1', ['comp-456'], ['acq-ae-123']);
 
-      render(
-        <AcquiredEntitiesSection
-          {...defaultProps}
-          acquiredEntities={[entity]}
-          currentView={currentView}
-        />
-      );
+      render(<AcquiredEntitiesSection {...defaultProps} acquiredEntities={[entity]} currentView={currentView} />);
 
       const entityButton = screen.getByTitle('TechCorp');
       expect(entityButton).not.toHaveClass('not-in-view');
@@ -333,13 +305,7 @@ describe('AcquiredEntitiesSection', () => {
       const entity = createMockEntity({ id: 'ae-123' as AcquiredEntityId, name: 'TechCorp' });
       const currentView = createMockView('view-1', ['comp-456'], []);
 
-      render(
-        <AcquiredEntitiesSection
-          {...defaultProps}
-          acquiredEntities={[entity]}
-          currentView={currentView}
-        />
-      );
+      render(<AcquiredEntitiesSection {...defaultProps} acquiredEntities={[entity]} currentView={currentView} />);
 
       const entityButton = screen.getByTitle('TechCorp (not on canvas)');
       expect(entityButton).toHaveClass('not-in-view');
@@ -348,13 +314,7 @@ describe('AcquiredEntitiesSection', () => {
     it('should show all entities as on-canvas when no current view is selected', () => {
       const entity = createMockEntity({ id: 'ae-123' as AcquiredEntityId, name: 'TechCorp' });
 
-      render(
-        <AcquiredEntitiesSection
-          {...defaultProps}
-          acquiredEntities={[entity]}
-          currentView={null}
-        />
-      );
+      render(<AcquiredEntitiesSection {...defaultProps} acquiredEntities={[entity]} currentView={null} />);
 
       const entityButton = screen.getByTitle('TechCorp');
       expect(entityButton).not.toHaveClass('not-in-view');

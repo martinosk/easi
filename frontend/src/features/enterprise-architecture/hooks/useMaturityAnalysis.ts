@@ -1,17 +1,17 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
-import { enterpriseArchApi } from '../api/enterpriseArchApi';
-import { enterpriseCapabilitiesQueryKeys, maturityAnalysisQueryKeys } from '../queryKeys';
-import { enterpriseCapabilitiesMutationEffects } from '../mutationEffects';
+import toast from 'react-hot-toast';
 import { invalidateFor } from '../../../lib/invalidateFor';
-import { getErrorMessage } from '../utils/errorMessages';
+import { enterpriseArchApi } from '../api/enterpriseArchApi';
+import { enterpriseCapabilitiesMutationEffects } from '../mutationEffects';
+import { enterpriseCapabilitiesQueryKeys, maturityAnalysisQueryKeys } from '../queryKeys';
 import type {
   EnterpriseCapabilityId,
   MaturityAnalysisCandidate,
   MaturityAnalysisSummary,
   MaturityGapDetail,
 } from '../types';
-import toast from 'react-hot-toast';
+import { getErrorMessage } from '../utils/errorMessages';
 
 export function useMaturityAnalysisCandidates(sortBy: string = 'gap') {
   return useQuery({
@@ -59,7 +59,9 @@ export interface UseMaturityGapDetailResult {
   refetch: () => Promise<void>;
 }
 
-export function useMaturityGapDetailHook(enterpriseCapabilityId: EnterpriseCapabilityId | undefined): UseMaturityGapDetailResult {
+export function useMaturityGapDetailHook(
+  enterpriseCapabilityId: EnterpriseCapabilityId | undefined,
+): UseMaturityGapDetailResult {
   const query = useMaturityGapDetail(enterpriseCapabilityId);
 
   const refetch = useCallback(async () => {
@@ -86,10 +88,7 @@ export function useSetTargetMaturity() {
       targetMaturity: number;
     }) => enterpriseArchApi.setTargetMaturity(enterpriseCapabilityId, targetMaturity),
     onSuccess: (_, { enterpriseCapabilityId }) => {
-      invalidateFor(
-        queryClient,
-        enterpriseCapabilitiesMutationEffects.setTargetMaturity(enterpriseCapabilityId)
-      );
+      invalidateFor(queryClient, enterpriseCapabilitiesMutationEffects.setTargetMaturity(enterpriseCapabilityId));
       toast.success('Target maturity updated successfully');
     },
     onError: (error: unknown) => {

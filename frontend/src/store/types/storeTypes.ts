@@ -1,19 +1,13 @@
 import type {
+  CapabilityDependencyId,
+  CapabilityId,
   ComponentId,
+  RealizationId,
   RelationId,
   ViewId,
-  CapabilityId,
-  CapabilityDependencyId,
-  RealizationId,
 } from '../../api/types';
 
-export type {
-  ComponentId,
-  RelationId,
-  ViewId,
-  CapabilityId,
-  RealizationId,
-};
+export type { CapabilityId, ComponentId, RealizationId, RelationId, ViewId };
 export type DependencyId = CapabilityDependencyId;
 
 export type RelationType = 'Triggers' | 'Serves';

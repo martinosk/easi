@@ -1,5 +1,5 @@
-import React from 'react';
 import { Handle, Position } from '@xyflow/react';
+import React from 'react';
 import type { OriginEntityType } from '../../constants/entityIdentifiers';
 
 type HexColor = string;
@@ -22,23 +22,23 @@ const ENTITY_COLORS: Record<OriginEntityType, HexColor> = {
 const ENTITY_ICONS: Record<OriginEntityType, React.ReactNode> = {
   acquired: (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="2" y="4" width="12" height="10" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-      <path d="M4 4V3C4 2.44772 4.44772 2 5 2H11C11.5523 2 12 2.44772 12 3V4" stroke="currentColor" strokeWidth="1.5"/>
-      <line x1="5" y1="7" x2="11" y2="7" stroke="currentColor" strokeWidth="1.5"/>
-      <line x1="5" y1="10" x2="9" y2="10" stroke="currentColor" strokeWidth="1.5"/>
+      <rect x="2" y="4" width="12" height="10" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none" />
+      <path d="M4 4V3C4 2.44772 4.44772 2 5 2H11C11.5523 2 12 2.44772 12 3V4" stroke="currentColor" strokeWidth="1.5" />
+      <line x1="5" y1="7" x2="11" y2="7" stroke="currentColor" strokeWidth="1.5" />
+      <line x1="5" y1="10" x2="9" y2="10" stroke="currentColor" strokeWidth="1.5" />
     </svg>
   ),
   vendor: (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="1" y="5" width="14" height="10" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-      <path d="M1 5L8 1L15 5" stroke="currentColor" strokeWidth="1.5"/>
-      <rect x="6" y="9" width="4" height="6" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+      <rect x="1" y="5" width="14" height="10" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none" />
+      <path d="M1 5L8 1L15 5" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="6" y="9" width="4" height="6" stroke="currentColor" strokeWidth="1.5" fill="none" />
     </svg>
   ),
   team: (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="8" cy="5" r="3" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-      <path d="M2 14C2 11.2386 4.68629 9 8 9C11.3137 9 14 11.2386 14 14" stroke="currentColor" strokeWidth="1.5"/>
+      <circle cx="8" cy="5" r="3" stroke="currentColor" strokeWidth="1.5" fill="none" />
+      <path d="M2 14C2 11.2386 4.68629 9 8 9C11.3137 9 14 11.2386 14 14" stroke="currentColor" strokeWidth="1.5" />
     </svg>
   ),
 };
@@ -55,7 +55,11 @@ const getBackgroundGradient = (baseColor: HexColor): string => {
   return `linear-gradient(135deg, ${baseColor} 0%, ${baseColor}dd 100%)`;
 };
 
-export const OriginEntityNode: React.FC<{ data: OriginEntityNodeData; id: string; selected?: boolean }> = ({ data, id, selected }) => {
+export const OriginEntityNode: React.FC<{ data: OriginEntityNodeData; id: string; selected?: boolean }> = ({
+  data,
+  id,
+  selected,
+}) => {
   const baseColor = ENTITY_COLORS[data.entityType];
   const isSelected = data.isSelected || !!selected;
   const borderColor = isSelected ? SELECTED_BORDER_COLOR : baseColor;
@@ -107,10 +111,16 @@ export const OriginEntityNode: React.FC<{ data: OriginEntityNodeData; id: string
 
       <div className="origin-entity-node-content" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
         <div className="origin-entity-node-header" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ display: 'flex', alignItems: 'center' }}>
-            {ENTITY_ICONS[data.entityType]}
-          </span>
-          <span style={{ fontSize: '14px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <span style={{ display: 'flex', alignItems: 'center' }}>{ENTITY_ICONS[data.entityType]}</span>
+          <span
+            style={{
+              fontSize: '14px',
+              fontWeight: 600,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
             {data.label}
           </span>
         </div>

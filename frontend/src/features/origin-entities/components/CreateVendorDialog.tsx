@@ -1,9 +1,9 @@
-import React, { useLayoutEffect, useState } from 'react';
-import { Modal, TextInput, Textarea, Button, Group, Stack, Alert } from '@mantine/core';
-import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Alert, Button, Group, Modal, Stack, Textarea, TextInput } from '@mantine/core';
+import React, { useLayoutEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { type CreateVendorFormData, createVendorSchema } from '../../../lib/schemas';
 import { useCreateVendor } from '../hooks/useVendors';
-import { createVendorSchema, type CreateVendorFormData } from '../../../lib/schemas';
 
 interface CreateVendorDialogProps {
   isOpen: boolean;
@@ -16,10 +16,7 @@ const DEFAULT_VALUES: CreateVendorFormData = {
   notes: '',
 };
 
-export const CreateVendorDialog: React.FC<CreateVendorDialogProps> = ({
-  isOpen,
-  onClose,
-}) => {
+export const CreateVendorDialog: React.FC<CreateVendorDialogProps> = ({ isOpen, onClose }) => {
   const [backendError, setBackendError] = useState<string | null>(null);
   const createMutation = useCreateVendor();
 
@@ -60,13 +57,7 @@ export const CreateVendorDialog: React.FC<CreateVendorDialogProps> = ({
   };
 
   return (
-    <Modal
-      opened={isOpen}
-      onClose={handleClose}
-      title="Create Vendor"
-      centered
-      data-testid="create-vendor-dialog"
-    >
+    <Modal opened={isOpen} onClose={handleClose} title="Create Vendor" centered data-testid="create-vendor-dialog">
       <form onSubmit={handleSubmit(onSubmit)}>
         <Stack gap="md">
           <TextInput

@@ -1,10 +1,10 @@
-import React, { useLayoutEffect, useState } from 'react';
-import { Modal, TextInput, Textarea, Button, Group, Stack, Alert, Select } from '@mantine/core';
-import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useCreateAcquiredEntity } from '../hooks/useAcquiredEntities';
-import { createAcquiredEntitySchema, type CreateAcquiredEntityFormData } from '../../../lib/schemas';
+import { Alert, Button, Group, Modal, Select, Stack, Textarea, TextInput } from '@mantine/core';
+import React, { useLayoutEffect, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
 import type { IntegrationStatus } from '../../../api/types';
+import { type CreateAcquiredEntityFormData, createAcquiredEntitySchema } from '../../../lib/schemas';
+import { useCreateAcquiredEntity } from '../hooks/useAcquiredEntities';
 
 interface CreateAcquiredEntityDialogProps {
   isOpen: boolean;
@@ -30,10 +30,7 @@ const DEFAULT_VALUES: CreateAcquiredEntityFormData = {
   notes: '',
 };
 
-export const CreateAcquiredEntityDialog: React.FC<CreateAcquiredEntityDialogProps> = ({
-  isOpen,
-  onClose,
-}) => {
+export const CreateAcquiredEntityDialog: React.FC<CreateAcquiredEntityDialogProps> = ({ isOpen, onClose }) => {
   const [backendError, setBackendError] = useState<string | null>(null);
   const createMutation = useCreateAcquiredEntity();
 

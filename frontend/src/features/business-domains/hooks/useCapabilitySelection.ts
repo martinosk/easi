@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import type { Capability, CapabilityId } from '../../../api/types';
 
 interface UseCapabilitySelectionResult {
@@ -11,32 +11,35 @@ interface UseCapabilitySelectionResult {
 
 export function useCapabilitySelection(
   capabilities: Capability[],
-  onRegularClick: (capability: Capability) => void
+  onRegularClick: (capability: Capability) => void,
 ): UseCapabilitySelectionResult {
   const [selectedCapabilities, setSelectedCapabilities] = useState<Set<CapabilityId>>(new Set());
 
-  const handleCapabilityClick = useCallback((capability: Capability, event: React.MouseEvent) => {
-    if (event.shiftKey) {
-      event.preventDefault();
-      event.stopPropagation();
-      setSelectedCapabilities(prev => {
-        const next = new Set(prev);
-        if (next.has(capability.id)) {
-          next.delete(capability.id);
-        } else {
-          next.add(capability.id);
-        }
-        return next;
-      });
-    } else {
-      setSelectedCapabilities(new Set());
-      onRegularClick(capability);
-    }
-  }, [onRegularClick]);
+  const handleCapabilityClick = useCallback(
+    (capability: Capability, event: React.MouseEvent) => {
+      if (event.shiftKey) {
+        event.preventDefault();
+        event.stopPropagation();
+        setSelectedCapabilities((prev) => {
+          const next = new Set(prev);
+          if (next.has(capability.id)) {
+            next.delete(capability.id);
+          } else {
+            next.add(capability.id);
+          }
+          return next;
+        });
+      } else {
+        setSelectedCapabilities(new Set());
+        onRegularClick(capability);
+      }
+    },
+    [onRegularClick],
+  );
 
   const selectAllL1Capabilities = useCallback(() => {
-    const l1Capabilities = capabilities.filter(c => c.level === 'L1');
-    setSelectedCapabilities(new Set(l1Capabilities.map(c => c.id)));
+    const l1Capabilities = capabilities.filter((c) => c.level === 'L1');
+    setSelectedCapabilities(new Set(l1Capabilities.map((c) => c.id)));
   }, [capabilities]);
 
   const clearSelection = useCallback(() => {

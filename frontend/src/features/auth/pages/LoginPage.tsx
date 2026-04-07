@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo, type FormEvent, type FC } from 'react';
+import { type FC, type FormEvent, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { authApi } from '../api/authApi';
 import { resetLoginRedirectFlag } from '../../../api';
+import { authApi } from '../api/authApi';
 
 function getReturnUrlFromParams(searchParams: URLSearchParams): string | undefined {
   return searchParams.get('returnUrl') ?? undefined;
@@ -100,17 +100,9 @@ export const LoginPage: FC = () => {
             />
           </div>
 
-          {error && (
-            <div className="error-message">
-              {error}
-            </div>
-          )}
+          {error && <div className="error-message">{error}</div>}
 
-          <button
-            type="submit"
-            className="btn btn-primary login-submit-btn"
-            disabled={loading}
-          >
+          <button type="submit" className="btn btn-primary login-submit-btn" disabled={loading}>
             {loading ? (
               <>
                 <div className="loading-spinner-small"></div>

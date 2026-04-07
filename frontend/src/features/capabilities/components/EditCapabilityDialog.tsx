@@ -1,17 +1,17 @@
+import { Alert, Button, Group, Modal, Stack } from '@mantine/core';
 import React, { useState } from 'react';
-import { Modal, Button, Group, Stack, Alert } from '@mantine/core';
 import type { Capability } from '../../../api/types';
 import { useEditCapabilityForm } from '../hooks/useEditCapabilityForm';
-import {
-  BasicFields,
-  StatusField,
-  MaturityField,
-  OwnershipFields,
-  ExpertsList,
-  TagsList,
-} from './EditCapabilityFormFields';
 import { AddExpertDialog } from './AddExpertDialog';
 import { AddTagDialog } from './AddTagDialog';
+import {
+  BasicFields,
+  ExpertsList,
+  MaturityField,
+  OwnershipFields,
+  StatusField,
+  TagsList,
+} from './EditCapabilityFormFields';
 
 interface EditCapabilityDialogProps {
   isOpen: boolean;
@@ -19,11 +19,7 @@ interface EditCapabilityDialogProps {
   capability: Capability | null;
 }
 
-export const EditCapabilityDialog: React.FC<EditCapabilityDialogProps> = ({
-  isOpen,
-  onClose,
-  capability,
-}) => {
+export const EditCapabilityDialog: React.FC<EditCapabilityDialogProps> = ({ isOpen, onClose, capability }) => {
   const [isAddExpertOpen, setIsAddExpertOpen] = useState(false);
   const [isAddTagOpen, setIsAddTagOpen] = useState(false);
 
@@ -70,12 +66,7 @@ export const EditCapabilityDialog: React.FC<EditCapabilityDialogProps> = ({
           <Stack gap="md">
             <BasicFields register={register} errors={errors} disabled={isSaving} />
 
-            <StatusField
-              control={control}
-              options={statusOptions}
-              isLoading={isLoadingMetadata}
-              disabled={isSaving}
-            />
+            <StatusField control={control} options={statusOptions} isLoading={isLoadingMetadata} disabled={isSaving} />
 
             <MaturityField control={control} disabled={isSaving} />
 
@@ -95,11 +86,7 @@ export const EditCapabilityDialog: React.FC<EditCapabilityDialogProps> = ({
               disabled={isSaving}
             />
 
-            <TagsList
-              tags={displayCapability.tags}
-              onAddClick={() => setIsAddTagOpen(true)}
-              disabled={isSaving}
-            />
+            <TagsList tags={displayCapability.tags} onAddClick={() => setIsAddTagOpen(true)} disabled={isSaving} />
 
             {backendError && (
               <Alert color="red" data-testid="edit-capability-error">
@@ -108,12 +95,7 @@ export const EditCapabilityDialog: React.FC<EditCapabilityDialogProps> = ({
             )}
 
             <Group justify="flex-end" gap="sm">
-              <Button
-                variant="default"
-                onClick={handleClose}
-                disabled={isSaving}
-                data-testid="edit-capability-cancel"
-              >
+              <Button variant="default" onClick={handleClose} disabled={isSaving} data-testid="edit-capability-cancel">
                 Cancel
               </Button>
               <Button
@@ -135,11 +117,7 @@ export const EditCapabilityDialog: React.FC<EditCapabilityDialogProps> = ({
         capabilityId={capability.id}
       />
 
-      <AddTagDialog
-        isOpen={isAddTagOpen}
-        onClose={() => setIsAddTagOpen(false)}
-        capabilityId={capability.id}
-      />
+      <AddTagDialog isOpen={isAddTagOpen} onClose={() => setIsAddTagOpen(false)} capabilityId={capability.id} />
     </>
   );
 };

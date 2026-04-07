@@ -2,34 +2,34 @@ import { httpClient } from '../../../api/core/httpClient';
 import type {
   BusinessDomainId,
   CapabilityId,
+  CollectionResponse,
+  SetStrategyImportanceRequest,
   StrategyImportance,
   StrategyImportanceId,
-  SetStrategyImportanceRequest,
   UpdateStrategyImportanceRequest,
-  CollectionResponse,
 } from '../../../api/types';
 
 export const strategyImportanceApi = {
   async getByDomainAndCapability(
     domainId: BusinessDomainId,
-    capabilityId: CapabilityId
+    capabilityId: CapabilityId,
   ): Promise<CollectionResponse<StrategyImportance>> {
     const response = await httpClient.get<CollectionResponse<StrategyImportance>>(
-      `/api/v1/business-domains/${domainId}/capabilities/${capabilityId}/importance`
+      `/api/v1/business-domains/${domainId}/capabilities/${capabilityId}/importance`,
     );
     return response.data;
   },
 
   async getByDomain(domainId: BusinessDomainId): Promise<StrategyImportance[]> {
     const response = await httpClient.get<CollectionResponse<StrategyImportance>>(
-      `/api/v1/business-domains/${domainId}/importance`
+      `/api/v1/business-domains/${domainId}/importance`,
     );
     return response.data.data || [];
   },
 
   async getByCapability(capabilityId: CapabilityId): Promise<StrategyImportance[]> {
     const response = await httpClient.get<CollectionResponse<StrategyImportance>>(
-      `/api/v1/capabilities/${capabilityId}/importance`
+      `/api/v1/capabilities/${capabilityId}/importance`,
     );
     return response.data.data || [];
   },
@@ -37,11 +37,11 @@ export const strategyImportanceApi = {
   async setImportance(
     domainId: BusinessDomainId,
     capabilityId: CapabilityId,
-    request: SetStrategyImportanceRequest
+    request: SetStrategyImportanceRequest,
   ): Promise<StrategyImportance> {
     const response = await httpClient.post<StrategyImportance>(
       `/api/v1/business-domains/${domainId}/capabilities/${capabilityId}/importance`,
-      request
+      request,
     );
     return response.data;
   },
@@ -50,11 +50,11 @@ export const strategyImportanceApi = {
     domainId: BusinessDomainId,
     capabilityId: CapabilityId,
     importanceId: StrategyImportanceId,
-    request: UpdateStrategyImportanceRequest
+    request: UpdateStrategyImportanceRequest,
   ): Promise<StrategyImportance> {
     const response = await httpClient.put<StrategyImportance>(
       `/api/v1/business-domains/${domainId}/capabilities/${capabilityId}/importance/${importanceId}`,
-      request
+      request,
     );
     return response.data;
   },
@@ -62,10 +62,10 @@ export const strategyImportanceApi = {
   async removeImportance(
     domainId: BusinessDomainId,
     capabilityId: CapabilityId,
-    importanceId: StrategyImportanceId
+    importanceId: StrategyImportanceId,
   ): Promise<void> {
     await httpClient.delete(
-      `/api/v1/business-domains/${domainId}/capabilities/${capabilityId}/importance/${importanceId}`
+      `/api/v1/business-domains/${domainId}/capabilities/${capabilityId}/importance/${importanceId}`,
     );
   },
 };

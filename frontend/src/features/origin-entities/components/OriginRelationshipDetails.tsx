@@ -1,21 +1,25 @@
 import React from 'react';
-import { useAppStore } from '../../../store/appStore';
+import type {
+  AcquiredEntityId,
+  InternalTeamId,
+  OriginRelationship,
+  OriginRelationshipType,
+  VendorId,
+} from '../../../api/types';
 import { DetailField } from '../../../components/shared/DetailField';
-import { useOriginRelationshipsQuery } from '../hooks/useOriginRelationships';
-import { useUnlinkComponentFromAcquiredEntity } from '../hooks/useAcquiredEntities';
-import { useUnlinkComponentFromVendor } from '../hooks/useVendors';
-import { useUnlinkComponentFromInternalTeam } from '../hooks/useInternalTeams';
+import { EDGE_PREFIXES, ORIGIN_RELATIONSHIP_LABELS } from '../../../constants/entityIdentifiers';
+import { useAppStore } from '../../../store/appStore';
 import { hasLink } from '../../../utils/hateoas';
-import { ORIGIN_RELATIONSHIP_LABELS, EDGE_PREFIXES } from '../../../constants/entityIdentifiers';
-import type { OriginRelationship, OriginRelationshipType, AcquiredEntityId, VendorId, InternalTeamId } from '../../../api/types';
+import { useUnlinkComponentFromAcquiredEntity } from '../hooks/useAcquiredEntities';
+import { useUnlinkComponentFromInternalTeam } from '../hooks/useInternalTeams';
+import { useOriginRelationshipsQuery } from '../hooks/useOriginRelationships';
+import { useUnlinkComponentFromVendor } from '../hooks/useVendors';
 
 const ORIGIN_EDGE_PREFIX = EDGE_PREFIXES.origin;
 
-const isOriginEdge = (edgeId: string | null): boolean =>
-  edgeId !== null && edgeId.startsWith(ORIGIN_EDGE_PREFIX);
+const isOriginEdge = (edgeId: string | null): boolean => edgeId !== null && edgeId.startsWith(ORIGIN_EDGE_PREFIX);
 
-const extractRelationshipId = (edgeId: string): string =>
-  edgeId.replace(ORIGIN_EDGE_PREFIX, '');
+const extractRelationshipId = (edgeId: string): string => edgeId.replace(ORIGIN_EDGE_PREFIX, '');
 
 interface RelationshipData {
   relationship: OriginRelationship;
@@ -25,7 +29,7 @@ interface RelationshipData {
 
 const getRelationshipData = (
   selectedEdgeId: string | null,
-  relationships: OriginRelationship[]
+  relationships: OriginRelationship[],
 ): RelationshipData | null => {
   if (!isOriginEdge(selectedEdgeId)) {
     return null;
@@ -50,10 +54,7 @@ interface UnlinkFunctions {
   unlinkFromTeam: ReturnType<typeof useUnlinkComponentFromInternalTeam>;
 }
 
-const handleUnlink = async (
-  relationship: OriginRelationship,
-  unlinkFunctions: UnlinkFunctions
-): Promise<void> => {
+const handleUnlink = async (relationship: OriginRelationship, unlinkFunctions: UnlinkFunctions): Promise<void> => {
   const { unlinkFromAcquired, unlinkFromVendor, unlinkFromTeam } = unlinkFunctions;
 
   switch (relationship.relationshipType) {
@@ -116,11 +117,7 @@ export const OriginRelationshipDetails: React.FC = () => {
       <div className="detail-content">
         {canDelete && (
           <div className="detail-actions">
-            <button
-              className="btn btn-danger btn-small"
-              onClick={onDelete}
-              disabled={isPending}
-            >
+            <button className="btn btn-danger btn-small" onClick={onDelete} disabled={isPending}>
               {isPending ? 'Deleting...' : 'Delete'}
             </button>
           </div>
@@ -133,9 +130,7 @@ export const OriginRelationshipDetails: React.FC = () => {
         </DetailField>
         <DetailField label="Origin Entity">{relationship.originEntityName}</DetailField>
         <DetailField label="Application">{relationship.componentName}</DetailField>
-        {relationship.notes && (
-          <DetailField label="Notes">{relationship.notes}</DetailField>
-        )}
+        {relationship.notes && <DetailField label="Notes">{relationship.notes}</DetailField>}
         <DetailField label="Created">
           <span className="detail-date">{formattedDate}</span>
         </DetailField>

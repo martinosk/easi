@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 /**
  * Core E2E Workflows
@@ -15,7 +15,7 @@ test.describe('Core Application Workflows', () => {
     // Wait for canvas to be ready
     await page.waitForSelector('[data-testid="canvas-loaded"]', {
       state: 'visible',
-      timeout: 10000
+      timeout: 10000,
     });
 
     // Give React Flow time to initialize
@@ -80,7 +80,10 @@ test.describe('Core Application Workflows', () => {
 
     // Reload page
     await page.reload();
-    await page.waitForSelector('[data-testid="canvas-loaded"]', { state: 'visible', timeout: 10000 });
+    await page.waitForSelector('[data-testid="canvas-loaded"]', {
+      state: 'visible',
+      timeout: 10000,
+    });
     await page.waitForTimeout(500);
 
     // Verify component still exists

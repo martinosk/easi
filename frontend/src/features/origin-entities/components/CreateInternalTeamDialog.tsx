@@ -1,9 +1,9 @@
-import React, { useLayoutEffect, useState } from 'react';
-import { Modal, TextInput, Textarea, Button, Group, Stack, Alert } from '@mantine/core';
-import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Alert, Button, Group, Modal, Stack, Textarea, TextInput } from '@mantine/core';
+import React, { useLayoutEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { type CreateInternalTeamFormData, createInternalTeamSchema } from '../../../lib/schemas';
 import { useCreateInternalTeam } from '../hooks/useInternalTeams';
-import { createInternalTeamSchema, type CreateInternalTeamFormData } from '../../../lib/schemas';
 
 interface CreateInternalTeamDialogProps {
   isOpen: boolean;
@@ -17,10 +17,7 @@ const DEFAULT_VALUES: CreateInternalTeamFormData = {
   notes: '',
 };
 
-export const CreateInternalTeamDialog: React.FC<CreateInternalTeamDialogProps> = ({
-  isOpen,
-  onClose,
-}) => {
+export const CreateInternalTeamDialog: React.FC<CreateInternalTeamDialogProps> = ({ isOpen, onClose }) => {
   const [backendError, setBackendError] = useState<string | null>(null);
   const createMutation = useCreateInternalTeam();
 

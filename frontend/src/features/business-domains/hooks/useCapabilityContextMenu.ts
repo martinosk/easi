@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { Capability, CapabilityId } from '../../../api/types';
 import type { ContextMenuItem } from '../../../components/shared/ContextMenu';
 import { hasLink } from '../../../utils/hateoas';
@@ -24,7 +24,7 @@ function findL1Ancestor(capability: Capability, capabilities: Capability[]): Cap
 
   while (current.parentId && !seen.has(current.id)) {
     seen.add(current.id);
-    const parent = capabilities.find(c => c.id === current.parentId);
+    const parent = capabilities.find((c) => c.id === current.parentId);
     if (!parent) break;
     current = parent;
   }
@@ -35,38 +35,39 @@ function findL1Ancestor(capability: Capability, capabilities: Capability[]): Cap
 function getTargetL1Capabilities(
   contextCapability: Capability,
   selectedCapabilities: Set<CapabilityId>,
-  capabilities: Capability[]
+  capabilities: Capability[],
 ): Capability[] {
   const isContextSelected = selectedCapabilities.has(contextCapability.id);
-  const targetCapabilities = (selectedCapabilities.size > 0 && isContextSelected)
-    ? Array.from(selectedCapabilities)
-        .map(id => capabilities.find(c => c.id === id))
-        .filter((c): c is Capability => c !== undefined)
-    : [contextCapability];
+  const targetCapabilities =
+    selectedCapabilities.size > 0 && isContextSelected
+      ? Array.from(selectedCapabilities)
+          .map((id) => capabilities.find((c) => c.id === id))
+          .filter((c): c is Capability => c !== undefined)
+      : [contextCapability];
 
   const l1Ancestors = targetCapabilities
-    .map(c => findL1Ancestor(c, capabilities))
+    .map((c) => findL1Ancestor(c, capabilities))
     .filter((c): c is Capability => c !== undefined);
 
-  return Array.from(new Map(l1Ancestors.map(c => [c.id, c])).values());
+  return Array.from(new Map(l1Ancestors.map((c) => [c.id, c])).values());
 }
 
 function useCapabilityPermissions(
   contextMenu: CapabilityContextMenuState | null,
   targetL1s: Capability[],
-  domainCapabilities: Capability[]
+  domainCapabilities: Capability[],
 ) {
   const canRemoveFromDomain = useMemo(() => {
     if (!contextMenu || targetL1s.length === 0) return false;
-    return targetL1s.every(l1 => {
-      const domainCap = domainCapabilities.find(c => c.id === l1.id);
+    return targetL1s.every((l1) => {
+      const domainCap = domainCapabilities.find((c) => c.id === l1.id);
       return domainCap && hasLink(domainCap, 'x-remove-from-domain');
     });
   }, [contextMenu, targetL1s, domainCapabilities]);
 
   const canDeleteFromModel = useMemo(() => {
     if (!contextMenu || targetL1s.length === 0) return false;
-    return targetL1s.every(l1 => hasLink(l1, 'delete'));
+    return targetL1s.every((l1) => hasLink(l1, 'delete'));
   }, [contextMenu, targetL1s]);
 
   return { canRemoveFromDomain, canDeleteFromModel };
@@ -75,7 +76,7 @@ function useCapabilityPermissions(
 function buildMenuItems(
   contextMenu: CapabilityContextMenuState | null,
   permissions: { canRemoveFromDomain: boolean; canDeleteFromModel: boolean },
-  actions: { handleRemoveFromDomain: () => void; handleDeleteFromModel: () => void; handleInviteToEdit: () => void }
+  actions: { handleRemoveFromDomain: () => void; handleDeleteFromModel: () => void; handleInviteToEdit: () => void },
 ): ContextMenuItem[] {
   const items: ContextMenuItem[] = [];
   if (permissions.canRemoveFromDomain) {
@@ -117,11 +118,14 @@ export function useCapabilityContextMenu({
   }, [contextMenu, selectedCapabilities, capabilities]);
 
   const handleRemoveFromDomain = useCallback(async () => {
-    if (targetL1s.length === 0) { closeContextMenu(); return; }
+    if (targetL1s.length === 0) {
+      closeContextMenu();
+      return;
+    }
     const domainL1s = targetL1s
-      .map(l1 => domainCapabilities.find(c => c.id === l1.id))
+      .map((l1) => domainCapabilities.find((c) => c.id === l1.id))
       .filter((c): c is Capability => c !== undefined);
-    await Promise.all(domainL1s.map(l1 => dissociateCapability(l1)));
+    await Promise.all(domainL1s.map((l1) => dissociateCapability(l1)));
     await refetch();
     clearSelection();
     closeContextMenu();
@@ -148,15 +152,38 @@ export function useCapabilityContextMenu({
     closeContextMenu();
   }, [contextMenu, closeContextMenu]);
 
-  const { canRemoveFromDomain, canDeleteFromModel } = useCapabilityPermissions(contextMenu, targetL1s, domainCapabilities);
+  const { canRemoveFromDomain, canDeleteFromModel } = useCapabilityPermissions(
+    contextMenu,
+    targetL1s,
+    domainCapabilities,
+  );
   const contextMenuItems = useMemo(
-    () => buildMenuItems(contextMenu, { canRemoveFromDomain, canDeleteFromModel }, { handleRemoveFromDomain, handleDeleteFromModel, handleInviteToEdit }),
-    [contextMenu, canRemoveFromDomain, canDeleteFromModel, handleRemoveFromDomain, handleDeleteFromModel, handleInviteToEdit]
+    () =>
+      buildMenuItems(
+        contextMenu,
+        { canRemoveFromDomain, canDeleteFromModel },
+        { handleRemoveFromDomain, handleDeleteFromModel, handleInviteToEdit },
+      ),
+    [
+      contextMenu,
+      canRemoveFromDomain,
+      canDeleteFromModel,
+      handleRemoveFromDomain,
+      handleDeleteFromModel,
+      handleInviteToEdit,
+    ],
   );
 
   return {
-    contextMenu, capabilityToDelete, capabilitiesToDelete, capabilityToInvite,
-    handleCapabilityContextMenu, closeContextMenu, contextMenuItems,
-    handleDeleteConfirm, setCapabilityToDelete, setCapabilityToInvite,
+    contextMenu,
+    capabilityToDelete,
+    capabilitiesToDelete,
+    capabilityToInvite,
+    handleCapabilityContextMenu,
+    closeContextMenu,
+    contextMenuItems,
+    handleDeleteConfirm,
+    setCapabilityToDelete,
+    setCapabilityToInvite,
   };
 }

@@ -1,7 +1,7 @@
-import { businessDomainsQueryKeys, strategyImportanceQueryKeys } from './queryKeys';
 import { auditQueryKeys } from '../audit/queryKeys';
-import { maturityAnalysisQueryKeys } from '../enterprise-architecture/queryKeys';
 import { capabilitiesQueryKeys } from '../capabilities/queryKeys';
+import { maturityAnalysisQueryKeys } from '../enterprise-architecture/queryKeys';
+import { businessDomainsQueryKeys, strategyImportanceQueryKeys } from './queryKeys';
 
 export const strategyImportanceMutationEffects = {
   set: (domainId: string, capabilityId: string) => [
@@ -24,9 +24,7 @@ export const strategyImportanceMutationEffects = {
 };
 
 export const businessDomainsMutationEffects = {
-  create: () => [
-    businessDomainsQueryKeys.lists(),
-  ],
+  create: () => [businessDomainsQueryKeys.lists()],
 
   delete: (domainId: string) => [
     businessDomainsQueryKeys.lists(),

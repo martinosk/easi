@@ -1,12 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { http, HttpResponse } from 'msw';
-import { ComponentDetails } from './ComponentDetails';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { HttpResponse, http } from 'msw';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { View } from '../../../api/types';
 import { toComponentId, toViewId } from '../../../api/types';
+import { type AppStore, useAppStore } from '../../../store/appStore';
 import { createMantineTestWrapper, seedDb, server } from '../../../test/helpers';
-import { useAppStore, type AppStore } from '../../../store/appStore';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
+import { ComponentDetails } from './ComponentDetails';
 
 const API_BASE = 'http://localhost:8080';
 
@@ -79,7 +79,9 @@ describe('ComponentDetails - ColorPicker Integration', () => {
   });
 
   const renderComponentDetails = (view: View | null) => {
-    vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) => selector(createMockStore() as unknown as AppStore));
+    vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
+      selector(createMockStore() as unknown as AppStore),
+    );
     vi.mocked(useCurrentView).mockReturnValue({
       currentView: view,
       currentViewId: view?.id ?? null,
@@ -190,10 +192,10 @@ describe('ComponentDetails - ColorPicker Integration', () => {
       let capturedColor: string | null = null;
       server.use(
         http.patch(`${API_BASE}/api/v1/views/:viewId/components/:componentId/color`, async ({ request }) => {
-          const body = await request.json() as { color: string };
+          const body = (await request.json()) as { color: string };
           capturedColor = body.color;
           return new HttpResponse(null, { status: 204 });
-        })
+        }),
       );
 
       const mockView = createMockView('custom');
@@ -220,7 +222,7 @@ describe('ComponentDetails - ColorPicker Integration', () => {
         http.patch(`${API_BASE}/api/v1/views/:viewId/components/:componentId/color`, ({ params }) => {
           capturedParams = { viewId: params.viewId as string, componentId: params.componentId as string };
           return new HttpResponse(null, { status: 204 });
-        })
+        }),
       );
 
       const mockView = createMockView('custom');
@@ -250,7 +252,7 @@ describe('ComponentDetails - ColorPicker Integration', () => {
         http.patch(`${API_BASE}/api/v1/views/:viewId/components/:componentId/color`, () => {
           apiCalled = true;
           return HttpResponse.json({ error: 'Failed to update color' }, { status: 500 });
-        })
+        }),
       );
 
       const mockView = createMockView('custom', '#FF5733');
@@ -327,7 +329,7 @@ describe('ComponentDetails - ColorPicker Integration', () => {
         http.delete(`${API_BASE}/api/v1/views/:viewId/components/:componentId/color`, () => {
           clearCalled = true;
           return new HttpResponse(null, { status: 204 });
-        })
+        }),
       );
 
       const mockView = createMockView('custom', '#FF5733');
@@ -351,7 +353,7 @@ describe('ComponentDetails - ColorPicker Integration', () => {
         http.delete(`${API_BASE}/api/v1/views/:viewId/components/:componentId/color`, () => {
           apiCalled = true;
           return HttpResponse.json({ error: 'Failed to clear color' }, { status: 500 });
-        })
+        }),
       );
 
       const mockView = createMockView('custom', '#FF5733');

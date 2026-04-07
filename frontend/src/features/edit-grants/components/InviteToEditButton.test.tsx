@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { InviteToEditButton } from './InviteToEditButton';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MantineTestWrapper } from '../../../test/helpers/mantineTestWrapper';
 import type { ResourceWithLinks } from '../../../utils/hateoas';
+import { InviteToEditButton } from './InviteToEditButton';
 
 vi.mock('../hooks/useEditGrants', () => ({
   useCreateEditGrant: vi.fn(),
@@ -31,12 +31,8 @@ describe('InviteToEditButton', () => {
   function renderButton(resource: ResourceWithLinks) {
     return render(
       <MantineTestWrapper>
-        <InviteToEditButton
-          resource={resource}
-          artifactType="capability"
-          artifactId="cap-123"
-        />
-      </MantineTestWrapper>
+        <InviteToEditButton resource={resource} artifactType="capability" artifactId="cap-123" />
+      </MantineTestWrapper>,
     );
   }
 

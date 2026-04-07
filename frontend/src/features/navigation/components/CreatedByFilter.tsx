@@ -46,11 +46,7 @@ export const CreatedByFilter: React.FC<CreatedByFilterProps> = ({
       <div className="tree-filter-header">
         <span className="tree-filter-label">Created by</span>
         {selectedCreatorIds.length > 0 && (
-          <button
-            className="tree-filter-clear"
-            onClick={handleClear}
-            aria-label="Clear filter"
-          >
+          <button className="tree-filter-clear" onClick={handleClear} aria-label="Clear filter">
             Clear
           </button>
         )}

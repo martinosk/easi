@@ -1,16 +1,16 @@
-import { useState, useMemo } from 'react';
-import { useComponents } from '../../components/hooks/useComponents';
+import { useMemo, useState } from 'react';
 import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
-import { useViews } from '../../views/hooks/useViews';
+import { useComponents } from '../../components/hooks/useComponents';
 import { useAcquiredEntitiesQuery } from '../../origin-entities/hooks/useAcquiredEntities';
-import { useVendorsQuery } from '../../origin-entities/hooks/useVendors';
 import { useInternalTeamsQuery } from '../../origin-entities/hooks/useInternalTeams';
+import { useVendorsQuery } from '../../origin-entities/hooks/useVendors';
 import { useActiveUsers } from '../../users/hooks/useUsers';
-import { useArtifactCreators } from './useArtifactCreators';
-import { useDomainFilterData } from './useDomainFilterData';
+import { useViews } from '../../views/hooks/useViews';
 import { filterByCreator } from '../utils/filterByCreator';
 import { filterByDomain } from '../utils/filterByDomain';
 import { preserveCapabilityHierarchy } from '../utils/preserveCapabilityHierarchy';
+import { useArtifactCreators } from './useArtifactCreators';
+import { useDomainFilterData } from './useDomainFilterData';
 
 export function useFilteredTreeData() {
   const { data: components = [] } = useComponents();
@@ -29,7 +29,7 @@ export function useFilteredTreeData() {
 
   const creatorMap = useMemo(
     () => new Map(artifactCreators.map((ac) => [ac.aggregateId, ac.creatorId])),
-    [artifactCreators]
+    [artifactCreators],
   );
 
   const filtered = useMemo(() => {
@@ -42,7 +42,17 @@ export function useFilteredTreeData() {
       ...afterDomain,
       capabilities: preserveCapabilityHierarchy(afterDomain.capabilities, capabilities),
     };
-  }, [components, capabilities, acquiredEntities, vendors, internalTeams, selectedCreatorIds, creatorMap, selectedDomainIds, domainFilterData]);
+  }, [
+    components,
+    capabilities,
+    acquiredEntities,
+    vendors,
+    internalTeams,
+    selectedCreatorIds,
+    creatorMap,
+    selectedDomainIds,
+    domainFilterData,
+  ]);
 
   const hasActiveFilters = selectedCreatorIds.length > 0 || selectedDomainIds.length > 0;
 

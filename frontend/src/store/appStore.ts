@@ -1,18 +1,21 @@
 import { create } from 'zustand';
-import { createViewSlice, type ViewState, type ViewActions } from './slices/viewSlice';
-import { createViewportSlice, type ViewportSliceState, type ViewportActions } from './slices/viewportSlice';
-import { createSelectionSlice, type SelectionState, type SelectionActions } from './slices/selectionSlice';
-import { createCanvasCapabilitySlice, type CanvasCapabilityState, type CanvasCapabilityActions } from './slices/canvasCapabilitySlice';
+import {
+  type CanvasCapabilityActions,
+  type CanvasCapabilityState,
+  createCanvasCapabilitySlice,
+} from './slices/canvasCapabilitySlice';
+import { createSelectionSlice, type SelectionActions, type SelectionState } from './slices/selectionSlice';
+import { createViewportSlice, type ViewportActions, type ViewportSliceState } from './slices/viewportSlice';
+import { createViewSlice, type ViewActions, type ViewState } from './slices/viewSlice';
 
-export type AppStore =
-  & ViewState
-  & ViewActions
-  & ViewportSliceState
-  & ViewportActions
-  & SelectionState
-  & SelectionActions
-  & CanvasCapabilityState
-  & CanvasCapabilityActions;
+export type AppStore = ViewState &
+  ViewActions &
+  ViewportSliceState &
+  ViewportActions &
+  SelectionState &
+  SelectionActions &
+  CanvasCapabilityState &
+  CanvasCapabilityActions;
 
 export const useAppStore = create<AppStore>()((...args) => ({
   ...createViewSlice(...args),
@@ -22,16 +25,16 @@ export const useAppStore = create<AppStore>()((...args) => ({
 }));
 
 export type {
-  ComponentId,
-  RelationId,
-  ViewId,
   CapabilityId,
+  ComponentData,
+  ComponentId,
   DependencyId,
-  RealizationId,
-  RelationType,
   EdgeType,
   Position,
-  ViewportState,
-  ComponentData,
+  RealizationId,
   RelationData,
+  RelationId,
+  RelationType,
+  ViewId,
+  ViewportState,
 } from './types/storeTypes';

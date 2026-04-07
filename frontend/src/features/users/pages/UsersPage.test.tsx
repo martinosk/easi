@@ -1,15 +1,17 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { UsersPage } from './UsersPage';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { userApi } from '../api/userApi';
 import type { User } from '../types';
+import { UsersPage } from './UsersPage';
 
 vi.mock('../api/userApi');
 vi.mock('react-hot-toast', () => ({
   default: { error: vi.fn(), success: vi.fn() },
 }));
 vi.mock('../../../store/userStore', () => ({
-  useUserStore: <T,>(selector: (state: { hasPermission: (p: string) => boolean; user: { id: string } | null }) => T): T =>
+  useUserStore: <T,>(
+    selector: (state: { hasPermission: (p: string) => boolean; user: { id: string } | null }) => T,
+  ): T =>
     selector({ hasPermission: (p) => p === 'users:read' || p === 'users:manage', user: { id: 'current-user-id' } }),
 }));
 
@@ -176,7 +178,12 @@ describe('UsersPage', () => {
   it.each([
     { action: 'disable', btnTestId: 'disable-btn-user-2', userId: 'user-2', newStatus: 'disabled', mockUserIndex: 1 },
     { action: 'enable', btnTestId: 'enable-btn-user-3', userId: 'user-3', newStatus: 'active', mockUserIndex: 2 },
-  ])('calls update user API when $action button is clicked', async ({ btnTestId, userId, newStatus, mockUserIndex }) => {
+  ])('calls update user API when $action button is clicked', async ({
+    btnTestId,
+    userId,
+    newStatus,
+    mockUserIndex,
+  }) => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
     vi.mocked(userApi.update).mockResolvedValue(mockUsers[mockUserIndex]);
 
@@ -280,5 +287,4 @@ describe('UsersPage', () => {
     expect(screen.getByText('architect')).toBeInTheDocument();
     expect(screen.getByText('stakeholder')).toBeInTheDocument();
   });
-
 });

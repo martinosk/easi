@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
+import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
+import { canEdit } from '../../../utils/hateoas';
+import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { useAutoLayout } from '../hooks/useAutoLayout';
 import { useCanvasNodes } from '../hooks/useCanvasNodes';
-import { useCurrentView } from '../../views/hooks/useCurrentView';
-import { canEdit } from '../../../utils/hateoas';
-import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
 
 const AUTO_LAYOUT_WARNING = 'Auto layout is an experimental feature that will completely re-arrange your view.';
 

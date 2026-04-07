@@ -1,12 +1,16 @@
-import { ContextMenu, type ContextMenuItem } from '../../../../components/shared/ContextMenu';
-import { useCurrentView } from '../../../views/hooks/useCurrentView';
-import { useRemoveComponentFromView, useRemoveCapabilityFromView, useRemoveOriginEntityFromView } from '../../../views/hooks/useViews';
-import type { NodeContextMenu as NodeContextMenuType } from '../../hooks/useContextMenu';
-import type { OriginEntityType } from '../../../../components/canvas';
-import type { ArtifactType } from '../../../edit-grants/types';
 import type { ViewId } from '../../../../api/types';
 import { toCapabilityId, toComponentId } from '../../../../api/types';
+import type { OriginEntityType } from '../../../../components/canvas';
+import { ContextMenu, type ContextMenuItem } from '../../../../components/shared/ContextMenu';
 import { hasLink } from '../../../../utils/hateoas';
+import type { ArtifactType } from '../../../edit-grants/types';
+import { useCurrentView } from '../../../views/hooks/useCurrentView';
+import {
+  useRemoveCapabilityFromView,
+  useRemoveComponentFromView,
+  useRemoveOriginEntityFromView,
+} from '../../../views/hooks/useViews';
+import type { NodeContextMenu as NodeContextMenuType } from '../../hooks/useContextMenu';
 
 export type NodeDeleteTarget = {
   type: 'component-from-model' | 'capability-from-model' | 'origin-entity-from-model';
@@ -150,7 +154,14 @@ function buildMenuItems(ctx: MenuItemBuilderContext, config: ViewElementConfig):
   return items;
 }
 
-export const NodeContextMenu = ({ menu, onClose, onRequestDelete, onRequestInviteToEdit, onRequestGenerateView, canCreateView = false }: NodeContextMenuProps) => {
+export const NodeContextMenu = ({
+  menu,
+  onClose,
+  onRequestDelete,
+  onRequestInviteToEdit,
+  onRequestGenerateView,
+  canCreateView = false,
+}: NodeContextMenuProps) => {
   const { currentViewId } = useCurrentView();
   const removeComponentFromViewMutation = useRemoveComponentFromView();
   const removeCapabilityFromViewMutation = useRemoveCapabilityFromView();
@@ -163,18 +174,24 @@ export const NodeContextMenu = ({ menu, onClose, onRequestDelete, onRequestInvit
   const canInviteToEdit = hasLink({ _links: menu.modelLinks }, 'x-edit-grants');
 
   const removeFromViewHandlers: Record<NodeContextMenuType['nodeType'], (id: string) => void> = {
-    capability: (id) => currentViewId && removeCapabilityFromViewMutation.mutate({
-      viewId: currentViewId,
-      capabilityId: toCapabilityId(id),
-    }),
-    component: (id) => currentViewId && removeComponentFromViewMutation.mutate({
-      viewId: currentViewId,
-      componentId: toComponentId(id),
-    }),
-    originEntity: (originEntityId) => currentViewId && removeOriginEntityFromViewMutation.mutate({
-      viewId: currentViewId,
-      originEntityId,
-    }),
+    capability: (id) =>
+      currentViewId &&
+      removeCapabilityFromViewMutation.mutate({
+        viewId: currentViewId,
+        capabilityId: toCapabilityId(id),
+      }),
+    component: (id) =>
+      currentViewId &&
+      removeComponentFromViewMutation.mutate({
+        viewId: currentViewId,
+        componentId: toComponentId(id),
+      }),
+    originEntity: (originEntityId) =>
+      currentViewId &&
+      removeOriginEntityFromViewMutation.mutate({
+        viewId: currentViewId,
+        originEntityId,
+      }),
   };
 
   const ctx: MenuItemBuilderContext = {
@@ -195,12 +212,5 @@ export const NodeContextMenu = ({ menu, onClose, onRequestDelete, onRequestInvit
   const items = buildMenuItems(ctx, viewElementConfig);
   if (items.length === 0) return null;
 
-  return (
-    <ContextMenu
-      x={menu.x}
-      y={menu.y}
-      items={items}
-      onClose={onClose}
-    />
-  );
+  return <ContextMenu x={menu.x} y={menu.y} items={items} onClose={onClose} />;
 };

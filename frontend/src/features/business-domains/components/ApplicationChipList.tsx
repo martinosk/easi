@@ -1,5 +1,5 @@
-import { ApplicationChip } from './ApplicationChip';
 import type { CapabilityRealization, ComponentId } from '../../../api/types';
+import { ApplicationChip } from './ApplicationChip';
 
 export interface ApplicationChipListProps {
   realizations: CapabilityRealization[];
@@ -8,10 +8,7 @@ export interface ApplicationChipListProps {
 
 const MAX_VISIBLE_CHIPS = 5;
 
-export function ApplicationChipList({
-  realizations,
-  onApplicationClick,
-}: ApplicationChipListProps) {
+export function ApplicationChipList({ realizations, onApplicationClick }: ApplicationChipListProps) {
   const visibleRealizations = realizations.slice(0, MAX_VISIBLE_CHIPS);
   const overflowCount = realizations.length - MAX_VISIBLE_CHIPS;
 
@@ -29,11 +26,7 @@ export function ApplicationChipList({
       }}
     >
       {visibleRealizations.map((realization) => (
-        <ApplicationChip
-          key={realization.id}
-          realization={realization}
-          onClick={onApplicationClick}
-        />
+        <ApplicationChip key={realization.id} realization={realization} onClick={onApplicationClick} />
       ))}
       {overflowCount > 0 && (
         <span

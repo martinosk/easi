@@ -1,29 +1,25 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import {
-  buildComponent,
-  buildCapability,
-  buildAcquiredEntity,
-  buildVendor,
-  buildInternalTeam,
-  buildOriginRelationship,
-  resetIdCounter,
-} from '../../../test/helpers';
-import {
-  toComponentId,
-  toCapabilityId,
   toAcquiredEntityId,
-  toVendorId,
+  toBusinessDomainId,
+  toCapabilityId,
+  toComponentId,
   toInternalTeamId,
   toOriginRelationshipId,
-  toBusinessDomainId,
+  toVendorId,
 } from '../../../api/types';
-import type { FilterableArtifacts } from './filterByCreator';
 import {
-  computeVisibleArtifactIds,
-  filterByDomain,
-  UNASSIGNED_DOMAIN,
-} from './filterByDomain';
+  buildAcquiredEntity,
+  buildCapability,
+  buildComponent,
+  buildInternalTeam,
+  buildOriginRelationship,
+  buildVendor,
+  resetIdCounter,
+} from '../../../test/helpers';
+import type { FilterableArtifacts } from './filterByCreator';
 import type { DomainFilterData } from './filterByDomain';
+import { computeVisibleArtifactIds, filterByDomain, UNASSIGNED_DOMAIN } from './filterByDomain';
 
 function buildArtifacts(overrides: Partial<FilterableArtifacts> = {}): FilterableArtifacts {
   return {
@@ -102,27 +98,24 @@ describe('filterByDomain', () => {
         selectedDomainIds: [DOMAIN_A, UNASSIGNED_DOMAIN],
         expectedCapIds: ['cap-1', 'cap-2'],
       },
-    ])(
-      '$scenario',
-      ({ domainCapabilityIds, allDomainIds, selectedDomainIds, expectedCapIds }) => {
-        const cap1 = buildCapability({ id: toCapabilityId('cap-1') });
-        const cap2 = buildCapability({ id: toCapabilityId('cap-2') });
-        const cap3 = buildCapability({ id: toCapabilityId('cap-3') });
-        const allCaps = [cap1, cap2, cap3];
+    ])('$scenario', ({ domainCapabilityIds, allDomainIds, selectedDomainIds, expectedCapIds }) => {
+      const cap1 = buildCapability({ id: toCapabilityId('cap-1') });
+      const cap2 = buildCapability({ id: toCapabilityId('cap-2') });
+      const cap3 = buildCapability({ id: toCapabilityId('cap-3') });
+      const allCaps = [cap1, cap2, cap3];
 
-        const artifacts = buildArtifacts({ capabilities: allCaps });
-        const data = buildDomainFilterData({
-          domainCapabilityIds,
-          allCapabilities: allCaps,
-          allDomainIds,
-        });
+      const artifacts = buildArtifacts({ capabilities: allCaps });
+      const data = buildDomainFilterData({
+        domainCapabilityIds,
+        allCapabilities: allCaps,
+        allDomainIds,
+      });
 
-        const result = filterByDomain(artifacts, selectedDomainIds, data);
+      const result = filterByDomain(artifacts, selectedDomainIds, data);
 
-        const expectedCaps = allCaps.filter((c) => expectedCapIds.includes(c.id));
-        expect(result.capabilities).toEqual(expectedCaps);
-      },
-    );
+      const expectedCaps = allCaps.filter((c) => expectedCapIds.includes(c.id));
+      expect(result.capabilities).toEqual(expectedCaps);
+    });
   });
 
   describe('descendant capability expansion', () => {
@@ -205,36 +198,39 @@ describe('filterByDomain', () => {
         originEntityId: 'team-1',
         relationshipType: 'BuiltBy' as const,
       },
-    ])(
-      'should show $entityType linked to visible components',
-      ({ buildIncluded, buildExcluded, artifactKey, originEntityId, relationshipType }) => {
-        const comp1 = buildComponent({ id: toComponentId('comp-1') });
-        const included = buildIncluded();
-        const excluded = buildExcluded();
+    ])('should show $entityType linked to visible components', ({
+      buildIncluded,
+      buildExcluded,
+      artifactKey,
+      originEntityId,
+      relationshipType,
+    }) => {
+      const comp1 = buildComponent({ id: toComponentId('comp-1') });
+      const included = buildIncluded();
+      const excluded = buildExcluded();
 
-        const artifacts = buildArtifacts({
-          components: [comp1],
-          [artifactKey]: [included, excluded],
-        });
+      const artifacts = buildArtifacts({
+        components: [comp1],
+        [artifactKey]: [included, excluded],
+      });
 
-        const data = buildDomainFilterData({
-          domainComponentIds: new Map([[DOMAIN_A, ['comp-1']]]),
-          originRelationships: [
-            buildOriginRelationship({
-              id: toOriginRelationshipId('or-1'),
-              componentId: toComponentId('comp-1'),
-              relationshipType,
-              originEntityId,
-            }),
-          ],
-          allDomainIds: [DOMAIN_A],
-        });
+      const data = buildDomainFilterData({
+        domainComponentIds: new Map([[DOMAIN_A, ['comp-1']]]),
+        originRelationships: [
+          buildOriginRelationship({
+            id: toOriginRelationshipId('or-1'),
+            componentId: toComponentId('comp-1'),
+            relationshipType,
+            originEntityId,
+          }),
+        ],
+        allDomainIds: [DOMAIN_A],
+      });
 
-        const result = filterByDomain(artifacts, [DOMAIN_A], data);
+      const result = filterByDomain(artifacts, [DOMAIN_A], data);
 
-        expect(result[artifactKey]).toEqual([included]);
-      },
-    );
+      expect(result[artifactKey]).toEqual([included]);
+    });
   });
 
   describe('multiple domains (union)', () => {

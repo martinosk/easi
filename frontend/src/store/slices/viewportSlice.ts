@@ -1,9 +1,6 @@
 import type { StateCreator } from 'zustand';
 import type { ViewId, ViewportState } from '../types/storeTypes';
-import {
-  loadViewportStatesFromStorage,
-  saveViewportStatesToStorage,
-} from '../utils/storageHelpers';
+import { loadViewportStatesFromStorage, saveViewportStatesToStorage } from '../utils/storageHelpers';
 
 export interface ViewportSliceState {
   viewportStates: Record<ViewId, ViewportState>;

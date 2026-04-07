@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ComponentOriginsSection } from './ComponentOriginsSection';
-import type { ComponentId } from '../../../api/types';
+import { render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { httpClient } from '../../../api/core/httpClient';
+import type { ComponentId } from '../../../api/types';
+import { ComponentOriginsSection } from './ComponentOriginsSection';
 
 vi.mock('../../../api/core/httpClient', () => ({
   httpClient: {
@@ -28,7 +28,7 @@ describe('ComponentOriginsSection', () => {
     return render(
       <QueryClientProvider client={queryClient}>
         <ComponentOriginsSection componentId={componentId} />
-      </QueryClientProvider>
+      </QueryClientProvider>,
     );
   };
 
@@ -44,9 +44,7 @@ describe('ComponentOriginsSection', () => {
 
   describe('loading state', () => {
     it('should display loading text while fetching origins', async () => {
-      vi.mocked(httpClient.get).mockImplementation(
-        () => new Promise(() => {})
-      );
+      vi.mocked(httpClient.get).mockImplementation(() => new Promise(() => {}));
 
       renderComponent('comp-123' as ComponentId);
 

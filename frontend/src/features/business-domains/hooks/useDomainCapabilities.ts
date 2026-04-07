@@ -1,11 +1,11 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { businessDomainsApi } from '../api';
-import { businessDomainsQueryKeys } from '../queryKeys';
-import { businessDomainsMutationEffects } from '../mutationEffects';
-import { invalidateFor } from '../../../lib/invalidateFor';
-import type { Capability, CapabilityId, BusinessDomainId } from '../../../api/types';
 import toast from 'react-hot-toast';
+import type { BusinessDomainId, Capability, CapabilityId } from '../../../api/types';
+import { invalidateFor } from '../../../lib/invalidateFor';
+import { businessDomainsApi } from '../api';
+import { businessDomainsMutationEffects } from '../mutationEffects';
+import { businessDomainsQueryKeys } from '../queryKeys';
 
 export interface UseDomainCapabilitiesResult {
   capabilities: Capability[];
@@ -16,9 +16,7 @@ export interface UseDomainCapabilitiesResult {
   dissociateCapability: (capability: Capability) => Promise<void>;
 }
 
-export function useDomainCapabilities(
-  domainId: BusinessDomainId | undefined
-): UseDomainCapabilitiesResult {
+export function useDomainCapabilities(domainId: BusinessDomainId | undefined): UseDomainCapabilitiesResult {
   const queryClient = useQueryClient();
 
   const query = useQuery({
@@ -31,10 +29,7 @@ export function useDomainCapabilities(
     mutationFn: (capabilityId: CapabilityId) =>
       businessDomainsApi.associateCapabilityByDomainId(domainId!, { capabilityId }),
     onSuccess: (_, capabilityId) => {
-      invalidateFor(
-        queryClient,
-        businessDomainsMutationEffects.associateCapability(domainId!, capabilityId)
-      );
+      invalidateFor(queryClient, businessDomainsMutationEffects.associateCapability(domainId!, capabilityId));
       toast.success('Capability associated with domain');
     },
     onError: (error: Error) => {
@@ -46,10 +41,7 @@ export function useDomainCapabilities(
     mutationFn: (capabilityId: CapabilityId) =>
       businessDomainsApi.dissociateCapabilityByDomainId(domainId!, capabilityId),
     onSuccess: (_, capabilityId) => {
-      invalidateFor(
-        queryClient,
-        businessDomainsMutationEffects.dissociateCapability(domainId!, capabilityId)
-      );
+      invalidateFor(queryClient, businessDomainsMutationEffects.dissociateCapability(domainId!, capabilityId));
       toast.success('Capability removed from domain');
     },
     onError: (error: Error) => {
@@ -64,7 +56,7 @@ export function useDomainCapabilities(
       }
       await associateMutation.mutateAsync(capabilityId);
     },
-    [domainId, associateMutation]
+    [domainId, associateMutation],
   );
 
   const dissociateCapability = useCallback(
@@ -74,7 +66,7 @@ export function useDomainCapabilities(
       }
       await dissociateMutation.mutateAsync(capability.id);
     },
-    [domainId, dissociateMutation]
+    [domainId, dissociateMutation],
   );
 
   const refetch = useCallback(async () => {

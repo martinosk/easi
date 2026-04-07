@@ -1,6 +1,6 @@
 import type { StateCreator } from 'zustand';
-import type { SessionUser, SessionTenant, SessionLinks } from '../../features/auth/types';
 import { authApi } from '../../features/auth/api/authApi';
+import type { SessionLinks, SessionTenant, SessionUser } from '../../features/auth/types';
 
 export interface UserState {
   user: SessionUser | null;
@@ -17,12 +17,7 @@ export interface UserActions {
   hasPermission: (permission: string) => boolean;
 }
 
-export const createUserSlice: StateCreator<
-  UserState & UserActions,
-  [],
-  [],
-  UserState & UserActions
-> = (set, get) => ({
+export const createUserSlice: StateCreator<UserState & UserActions, [], [], UserState & UserActions> = (set, get) => ({
   user: null,
   tenant: null,
   sessionLinks: null,

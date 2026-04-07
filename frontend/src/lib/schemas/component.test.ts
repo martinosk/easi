@@ -1,7 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-  componentNameSchema,
   componentDescriptionSchema,
+  componentNameSchema,
   createComponentSchema,
   editComponentSchema,
 } from './component';

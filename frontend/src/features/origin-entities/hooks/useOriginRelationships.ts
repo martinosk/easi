@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
+import type { AllOriginRelationshipsResponse, OriginRelationship } from '../../../api/types';
+import { toComponentId, toOriginRelationshipId } from '../../../api/types';
 import { originEntitiesApi } from '../api/originEntitiesApi';
 import { originRelationshipsQueryKeys } from '../queryKeys';
-import type { OriginRelationship, AllOriginRelationshipsResponse } from '../../../api/types';
-import { toOriginRelationshipId, toComponentId } from '../../../api/types';
 
 function transformToOriginRelationships(response: AllOriginRelationshipsResponse): OriginRelationship[] {
   const relationships: OriginRelationship[] = [];

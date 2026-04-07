@@ -1,8 +1,8 @@
-import { renderHook, waitFor, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useLayout } from './useLayout';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiClient } from '../api/client';
 import type { LayoutContainer, LayoutContainerId } from '../api/types';
+import { useLayout } from './useLayout';
 
 vi.mock('../api/client', () => ({
   apiClient: {
@@ -45,9 +45,7 @@ describe('useLayout', () => {
   it('should load existing layout', async () => {
     vi.mocked(apiClient.getLayout).mockResolvedValue(mockLayout);
 
-    const { result } = renderHook(() =>
-      useLayout('business-domain-grid', 'domain-finance')
-    );
+    const { result } = renderHook(() => useLayout('business-domain-grid', 'domain-finance'));
 
     expect(result.current.isLoading).toBe(true);
 
@@ -64,19 +62,13 @@ describe('useLayout', () => {
     vi.mocked(apiClient.getLayout).mockResolvedValue(null);
     vi.mocked(apiClient.upsertLayout).mockResolvedValue(mockLayout);
 
-    const { result } = renderHook(() =>
-      useLayout('business-domain-grid', 'domain-finance')
-    );
+    const { result } = renderHook(() => useLayout('business-domain-grid', 'domain-finance'));
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    expect(apiClient.upsertLayout).toHaveBeenCalledWith(
-      'business-domain-grid',
-      'domain-finance',
-      {}
-    );
+    expect(apiClient.upsertLayout).toHaveBeenCalledWith('business-domain-grid', 'domain-finance', {});
     expect(result.current.layout).toEqual(mockLayout);
   });
 
@@ -89,9 +81,7 @@ describe('useLayout', () => {
       _links: { self: { href: '/test' } },
     });
 
-    const { result } = renderHook(() =>
-      useLayout('business-domain-grid', 'domain-finance')
-    );
+    const { result } = renderHook(() => useLayout('business-domain-grid', 'domain-finance'));
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -102,21 +92,17 @@ describe('useLayout', () => {
     });
 
     expect(result.current.positions['cap-1']).toEqual({ x: 300, y: 400 });
-    expect(apiClient.upsertElementPosition).toHaveBeenCalledWith(
-      'business-domain-grid',
-      'domain-finance',
-      'cap-1',
-      { x: 300, y: 400 }
-    );
+    expect(apiClient.upsertElementPosition).toHaveBeenCalledWith('business-domain-grid', 'domain-finance', 'cap-1', {
+      x: 300,
+      y: 400,
+    });
   });
 
   it('should rollback on API error', async () => {
     vi.mocked(apiClient.getLayout).mockResolvedValue(mockLayout);
     vi.mocked(apiClient.upsertElementPosition).mockRejectedValue(new Error('API Error'));
 
-    const { result } = renderHook(() =>
-      useLayout('business-domain-grid', 'domain-finance')
-    );
+    const { result } = renderHook(() => useLayout('business-domain-grid', 'domain-finance'));
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -141,9 +127,7 @@ describe('useLayout', () => {
       _links: {},
     });
 
-    const { result } = renderHook(() =>
-      useLayout('business-domain-grid', 'domain-finance')
-    );
+    const { result } = renderHook(() => useLayout('business-domain-grid', 'domain-finance'));
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -156,20 +140,14 @@ describe('useLayout', () => {
       ]);
     });
 
-    expect(apiClient.batchUpdateElements).toHaveBeenCalledWith(
-      'business-domain-grid',
-      'domain-finance',
-      [
-        { elementId: 'cap-1', x: 150, y: 250 },
-        { elementId: 'cap-2', x: 350, y: 450 },
-      ]
-    );
+    expect(apiClient.batchUpdateElements).toHaveBeenCalledWith('business-domain-grid', 'domain-finance', [
+      { elementId: 'cap-1', x: 150, y: 250 },
+      { elementId: 'cap-2', x: 350, y: 450 },
+    ]);
   });
 
   it('should handle null contextRef', async () => {
-    const { result } = renderHook(() =>
-      useLayout('business-domain-grid', null)
-    );
+    const { result } = renderHook(() => useLayout('business-domain-grid', null));
 
     expect(result.current.isLoading).toBe(false);
     expect(result.current.layout).toBeNull();
@@ -179,9 +157,7 @@ describe('useLayout', () => {
   it('should refetch layout', async () => {
     vi.mocked(apiClient.getLayout).mockResolvedValue(mockLayout);
 
-    const { result } = renderHook(() =>
-      useLayout('business-domain-grid', 'domain-finance')
-    );
+    const { result } = renderHook(() => useLayout('business-domain-grid', 'domain-finance'));
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -193,9 +169,6 @@ describe('useLayout', () => {
       await result.current.refetch();
     });
 
-    expect(apiClient.getLayout).toHaveBeenCalledWith(
-      'business-domain-grid',
-      'domain-finance'
-    );
+    expect(apiClient.getLayout).toHaveBeenCalledWith('business-domain-grid', 'domain-finance');
   });
 });

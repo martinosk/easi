@@ -15,9 +15,7 @@ export const auditApi = {
       params.set('cursor', cursor);
     }
 
-    const response = await httpClient.get<AuditHistoryResponse>(
-      `/api/v1/audit/${aggregateId}?${params.toString()}`
-    );
+    const response = await httpClient.get<AuditHistoryResponse>(`/api/v1/audit/${aggregateId}?${params.toString()}`);
     return response.data;
   },
 };

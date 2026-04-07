@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import type { BusinessDomain } from '../../../api/types';
 
@@ -6,7 +6,12 @@ type DialogMode = 'create' | 'edit' | null;
 
 interface UseDomainDialogManagerProps {
   createDomain: (name: string, description?: string, domainArchitectId?: string) => Promise<BusinessDomain>;
-  updateDomain: (domain: BusinessDomain, name: string, description?: string, domainArchitectId?: string) => Promise<BusinessDomain>;
+  updateDomain: (
+    domain: BusinessDomain,
+    name: string,
+    description?: string,
+    domainArchitectId?: string,
+  ) => Promise<BusinessDomain>;
   deleteDomain: (domain: BusinessDomain) => Promise<void>;
   onDomainDeleted?: (deletedDomainId: string) => void;
 }

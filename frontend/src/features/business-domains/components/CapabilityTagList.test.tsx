@@ -1,7 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { CapabilityTagList } from './CapabilityTagList';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import type { Capability, CapabilityId } from '../../../api/types';
+import { CapabilityTagList } from './CapabilityTagList';
 
 describe('CapabilityTagList', () => {
   const mockCapabilities: Capability[] = [
@@ -66,7 +66,9 @@ describe('CapabilityTagList', () => {
       fireEvent.click(removeButton);
 
       expect(screen.getByText('Remove Capability')).toBeInTheDocument();
-      expect(screen.getByText('Are you sure you want to remove "Customer Onboarding" from this domain?')).toBeInTheDocument();
+      expect(
+        screen.getByText('Are you sure you want to remove "Customer Onboarding" from this domain?'),
+      ).toBeInTheDocument();
     });
 
     it('calls onRemove when confirmation is confirmed', () => {

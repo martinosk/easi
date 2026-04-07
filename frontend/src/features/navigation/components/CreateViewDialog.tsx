@@ -36,8 +36,12 @@ export const CreateViewDialog: React.FC<CreateViewDialogProps> = ({
           className="dialog-input"
         />
         <div className="dialog-actions">
-          <button onClick={onClose} className="btn-secondary">Cancel</button>
-          <button onClick={onCreate} className="btn-primary">Create</button>
+          <button onClick={onClose} className="btn-secondary">
+            Cancel
+          </button>
+          <button onClick={onCreate} className="btn-primary">
+            Create
+          </button>
         </div>
       </div>
     </div>

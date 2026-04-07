@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { useCapabilityTree, type CapabilityTreeNode } from '../hooks/useCapabilityTree';
 import type { Capability, CapabilityId } from '../../../api/types';
+import { type CapabilityTreeNode, useCapabilityTree } from '../hooks/useCapabilityTree';
 
 interface CapabilitySelectorModalProps {
   isOpen: boolean;
@@ -42,7 +42,12 @@ function CapabilityTree({ nodes, selectedIds, disabledIds, orphanedIds, onToggle
                   />
                   <span className={isOrphaned ? 'capability-orphaned' : ''}>
                     {node.capability.name}
-                    {isOrphaned && <span className="orphan-warning" title="No child capabilities"> ⚠️</span>}
+                    {isOrphaned && (
+                      <span className="orphan-warning" title="No child capabilities">
+                        {' '}
+                        ⚠️
+                      </span>
+                    )}
                   </span>
                 </label>
               ) : (
@@ -66,7 +71,12 @@ function CapabilityTree({ nodes, selectedIds, disabledIds, orphanedIds, onToggle
   );
 }
 
-export function CapabilitySelectorModal({ isOpen, onClose, currentAssociations, onSave }: CapabilitySelectorModalProps) {
+export function CapabilitySelectorModal({
+  isOpen,
+  onClose,
+  currentAssociations,
+  onSave,
+}: CapabilitySelectorModalProps) {
   const { tree, isLoading, error, orphanedL1Ids } = useCapabilityTree();
   const [selectedIds, setSelectedIds] = useState<Set<CapabilityId>>(new Set());
   const [selectedCapabilities, setSelectedCapabilities] = useState<Map<CapabilityId, Capability>>(new Map());
@@ -129,7 +139,12 @@ export function CapabilitySelectorModal({ isOpen, onClose, currentAssociations, 
   };
 
   return (
-    <dialog ref={dialogRef} className="dialog capability-selector-modal" onClose={handleCancel} data-testid="capability-selector-modal">
+    <dialog
+      ref={dialogRef}
+      className="dialog capability-selector-modal"
+      onClose={handleCancel}
+      data-testid="capability-selector-modal"
+    >
       <div className="dialog-content">
         <h2 className="dialog-title">Add Capabilities</h2>
 
@@ -172,7 +187,9 @@ export function CapabilitySelectorModal({ isOpen, onClose, currentAssociations, 
             disabled={isSaving || selectedIds.size === 0}
             data-testid="capability-selector-save"
           >
-            {isSaving ? 'Saving...' : `Add ${selectedIds.size} ${selectedIds.size === 1 ? 'Capability' : 'Capabilities'}`}
+            {isSaving
+              ? 'Saving...'
+              : `Add ${selectedIds.size} ${selectedIds.size === 1 ? 'Capability' : 'Capabilities'}`}
           </button>
         </div>
       </div>

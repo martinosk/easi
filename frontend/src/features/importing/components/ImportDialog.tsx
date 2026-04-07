@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
-import { ImportUploadStep } from './ImportUploadStep';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import type { BusinessDomain } from '../../../api/types';
+import { useEAOwnerCandidates } from '../../users/hooks/useUsers';
+import { useImportSession } from '../hooks/useImportSession';
 import { ImportPreviewStep } from './ImportPreviewStep';
 import { ImportProgressStep } from './ImportProgressStep';
 import { ImportResultsStep } from './ImportResultsStep';
-import { useImportSession } from '../hooks/useImportSession';
-import { useEAOwnerCandidates } from '../../users/hooks/useUsers';
-import type { BusinessDomain } from '../../../api/types';
+import { ImportUploadStep } from './ImportUploadStep';
 
 interface ImportDialogProps {
   isOpen: boolean;
@@ -15,23 +15,11 @@ interface ImportDialogProps {
 
 type ImportStep = 'upload' | 'preview' | 'progress' | 'results';
 
-export const ImportDialog: React.FC<ImportDialogProps> = ({
-  isOpen,
-  onClose,
-  businessDomains = [],
-}) => {
+export const ImportDialog: React.FC<ImportDialogProps> = ({ isOpen, onClose, businessDomains = [] }) => {
   const [currentStep, setCurrentStep] = useState<ImportStep>('upload');
   const dialogRef = useRef<HTMLDialogElement>(null);
 
-  const {
-    session,
-    isLoading,
-    error,
-    createSession,
-    confirmSession,
-    cancelSession,
-    reset,
-  } = useImportSession();
+  const { session, isLoading, error, createSession, confirmSession, cancelSession, reset } = useImportSession();
 
   const { data: eaOwnerCandidates = [] } = useEAOwnerCandidates();
 
@@ -41,12 +29,15 @@ export const ImportDialog: React.FC<ImportDialogProps> = ({
     return user?.name || user?.email;
   }, [session, eaOwnerCandidates]);
 
-  const handleBackdropClick = useCallback((e: React.MouseEvent<HTMLDialogElement>) => {
-    if (e.target === dialogRef.current) {
-      reset();
-      onClose();
-    }
-  }, [reset, onClose]);
+  const handleBackdropClick = useCallback(
+    (e: React.MouseEvent<HTMLDialogElement>) => {
+      if (e.target === dialogRef.current) {
+        reset();
+        onClose();
+      }
+    },
+    [reset, onClose],
+  );
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -129,8 +120,7 @@ export const ImportDialog: React.FC<ImportDialogProps> = ({
       />
     );
 
-  const renderProgressStep = () =>
-    session?.progress && <ImportProgressStep progress={session.progress} />;
+  const renderProgressStep = () => session?.progress && <ImportProgressStep progress={session.progress} />;
 
   const renderResultsStep = () =>
     session?.result && <ImportResultsStep result={session.result} onClose={handleClose} />;
@@ -145,12 +135,7 @@ export const ImportDialog: React.FC<ImportDialogProps> = ({
   const renderStep = () => stepRenderers[currentStep]?.() ?? null;
 
   return (
-    <dialog
-      ref={dialogRef}
-      className="dialog import-dialog"
-      data-testid="import-dialog"
-      onClick={handleBackdropClick}
-    >
+    <dialog ref={dialogRef} className="dialog import-dialog" data-testid="import-dialog" onClick={handleBackdropClick}>
       <div className="dialog-content">
         <h2 className="dialog-title">Import from ArchiMate</h2>
         {renderStep()}

@@ -22,12 +22,7 @@ export function DomainsSidebar({
     <div className="sidebar-content">
       {canCreateDomain && (
         <div style={{ marginBottom: '1rem' }}>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={onCreateClick}
-            data-testid="create-domain-button"
-          >
+          <button type="button" className="btn btn-primary" onClick={onCreateClick} data-testid="create-domain-button">
             Create Domain
           </button>
         </div>

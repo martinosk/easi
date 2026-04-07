@@ -1,7 +1,7 @@
 import type { RefObject } from 'react';
 import type { BusinessDomain } from '../../../api/types';
-import { DomainForm } from './DomainForm';
 import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
+import { DomainForm } from './DomainForm';
 
 type DialogMode = 'create' | 'edit' | null;
 

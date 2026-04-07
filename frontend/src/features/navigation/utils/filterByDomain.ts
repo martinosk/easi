@@ -15,10 +15,7 @@ function isUnincludedChild(cap: Capability, included: Set<string>): boolean {
   return !included.has(cap.id) && !!cap.parentId && included.has(cap.parentId);
 }
 
-function getDescendantCapabilityIds(
-  directIds: Set<string>,
-  allCapabilities: Capability[]
-): Set<string> {
+function getDescendantCapabilityIds(directIds: Set<string>, allCapabilities: Capability[]): Set<string> {
   const result = new Set(directIds);
   let added = true;
   while (added) {
@@ -33,10 +30,7 @@ function getDescendantCapabilityIds(
   return result;
 }
 
-function getOriginEntityIds(
-  visibleComponentIds: Set<string>,
-  originRelationships: OriginRelationship[]
-): Set<string> {
+function getOriginEntityIds(visibleComponentIds: Set<string>, originRelationships: OriginRelationship[]): Set<string> {
   const result = new Set<string>();
   for (const rel of originRelationships) {
     if (visibleComponentIds.has(rel.componentId)) {
@@ -46,10 +40,7 @@ function getOriginEntityIds(
   return result;
 }
 
-function computeVisibleForDomains(
-  domainIds: string[],
-  data: DomainFilterData
-): Set<string> {
+function computeVisibleForDomains(domainIds: string[], data: DomainFilterData): Set<string> {
   const visible = new Set<string>();
 
   for (const domainId of domainIds) {
@@ -97,16 +88,11 @@ function mergeInto(target: Set<string>, source: Set<string>): void {
   for (const id of source) target.add(id);
 }
 
-export function computeVisibleArtifactIds(
-  selectedDomainIds: string[],
-  data: DomainFilterData
-): Set<string> {
+export function computeVisibleArtifactIds(selectedDomainIds: string[], data: DomainFilterData): Set<string> {
   const hasUnassigned = selectedDomainIds.includes(UNASSIGNED_DOMAIN);
   const realDomainIds = selectedDomainIds.filter((id) => id !== UNASSIGNED_DOMAIN);
 
-  const visible = realDomainIds.length > 0
-    ? computeVisibleForDomains(realDomainIds, data)
-    : new Set<string>();
+  const visible = realDomainIds.length > 0 ? computeVisibleForDomains(realDomainIds, data) : new Set<string>();
 
   if (hasUnassigned) {
     mergeInto(visible, computeUnassignedIds(data));
@@ -118,7 +104,7 @@ export function computeVisibleArtifactIds(
 export function filterByDomain(
   artifacts: FilterableArtifacts,
   selectedDomainIds: string[],
-  data: DomainFilterData
+  data: DomainFilterData,
 ): FilteredArtifacts {
   if (selectedDomainIds.length === 0) {
     return artifacts;
@@ -127,16 +113,11 @@ export function filterByDomain(
   const hasUnassigned = selectedDomainIds.includes(UNASSIGNED_DOMAIN);
   const realDomainIds = selectedDomainIds.filter((id) => id !== UNASSIGNED_DOMAIN);
 
-  const selectedVisible = realDomainIds.length > 0
-    ? computeVisibleForDomains(realDomainIds, data)
-    : new Set<string>();
+  const selectedVisible = realDomainIds.length > 0 ? computeVisibleForDomains(realDomainIds, data) : new Set<string>();
 
-  const assignedToAny = hasUnassigned
-    ? computeVisibleForDomains(data.allDomainIds, data)
-    : new Set<string>();
+  const assignedToAny = hasUnassigned ? computeVisibleForDomains(data.allDomainIds, data) : new Set<string>();
 
-  const isVisible = (id: string) =>
-    selectedVisible.has(id) || (hasUnassigned && !assignedToAny.has(id));
+  const isVisible = (id: string) => selectedVisible.has(id) || (hasUnassigned && !assignedToAny.has(id));
 
   return {
     components: artifacts.components.filter((c) => isVisible(c.id)),

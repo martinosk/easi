@@ -1,19 +1,25 @@
-import { DockviewReact, themeLight } from 'dockview';
 import type { IDockviewPanelProps } from 'dockview';
-import { DomainsSidebar } from './DomainsSidebar';
+import { DockviewReact, themeLight } from 'dockview';
+import type { useBusinessDomainsPage } from '../hooks/useBusinessDomainsPage';
 import { CapabilityExplorerSidebar } from './CapabilityExplorerSidebar';
-import { VisualizationArea } from './VisualizationArea';
 import { DetailsSidebar } from './DetailsSidebar';
+import { DomainsSidebar } from './DomainsSidebar';
 import { DockviewToolbar } from './dockview/DockviewToolbar';
 import { useDockviewLayout } from './dockview/useDockviewLayout';
-import type { useBusinessDomainsPage } from '../hooks/useBusinessDomainsPage';
+import { VisualizationArea } from './VisualizationArea';
 
 type BusinessDomainsHookReturn = ReturnType<typeof useBusinessDomainsPage>;
 
 type DomainsSidebarPanelProps = IDockviewPanelProps<{
   domains: BusinessDomainsHookReturn['domains'];
   canCreateDomain: BusinessDomainsHookReturn['canCreateDomain'];
-  selectedDomainId: BusinessDomainsHookReturn['visualizedDomain'] extends infer T ? T extends null ? undefined : T extends { id: infer U } ? U : undefined : undefined;
+  selectedDomainId: BusinessDomainsHookReturn['visualizedDomain'] extends infer T
+    ? T extends null
+      ? undefined
+      : T extends { id: infer U }
+        ? U
+        : undefined
+    : undefined;
   onCreateClick: BusinessDomainsHookReturn['dialogManager']['handleCreateClick'];
   onVisualize: BusinessDomainsHookReturn['handleVisualizeClick'];
   onContextMenu: BusinessDomainsHookReturn['domainContextMenu']['handleContextMenu'];
@@ -53,7 +59,13 @@ type DetailsPanelProps = IDockviewPanelProps<{
   visualizedDomain: BusinessDomainsHookReturn['visualizedDomain'];
 }>;
 
-const panelContainerStyle = { height: '100%', width: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' } as const;
+const panelContainerStyle = {
+  height: '100%',
+  width: '100%',
+  overflow: 'hidden',
+  display: 'flex',
+  flexDirection: 'column',
+} as const;
 
 const DomainsSidebarPanel = (props: DomainsSidebarPanelProps) => (
   <div style={panelContainerStyle}>
@@ -130,15 +142,14 @@ export function DockviewBusinessDomainsLayout({ hookData }: DockviewBusinessDoma
   const { onReady, panelVisibility, togglePanel, showExplorer } = useDockviewLayout(hookData);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }} data-testid="business-domains-page">
+    <div
+      style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}
+      data-testid="business-domains-page"
+    >
       <DockviewToolbar panelVisibility={panelVisibility} onTogglePanel={togglePanel} showExplorer={showExplorer} />
       <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
         <div className="dockview-theme-light" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
-          <DockviewReact
-            onReady={onReady}
-            components={components}
-            theme={themeLight}
-          />
+          <DockviewReact onReady={onReady} components={components} theme={themeLight} />
         </div>
       </div>
     </div>

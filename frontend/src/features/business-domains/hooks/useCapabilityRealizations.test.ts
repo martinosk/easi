@@ -1,10 +1,17 @@
-import React from 'react';
-import { renderHook, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useCapabilityRealizations } from './useCapabilityRealizations';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import React from 'react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiClient } from '../../../api/client';
-import type { BusinessDomainId, CapabilityId, CapabilityRealization, CapabilityRealizationsGroup, RealizationId, ComponentId } from '../../../api/types';
+import type {
+  BusinessDomainId,
+  CapabilityId,
+  CapabilityRealization,
+  CapabilityRealizationsGroup,
+  ComponentId,
+  RealizationId,
+} from '../../../api/types';
+import { useCapabilityRealizations } from './useCapabilityRealizations';
 
 vi.mock('../../../api/client', () => ({
   apiClient: {
@@ -33,7 +40,7 @@ const createRealization = (
   capabilityId: string,
   origin: 'Direct' | 'Inherited' = 'Direct',
   sourceCapabilityId?: string,
-  componentId = 'comp-1'
+  componentId = 'comp-1',
 ): CapabilityRealization => ({
   id: id as RealizationId,
   capabilityId: capabilityId as CapabilityId,
@@ -49,7 +56,7 @@ const createRealization = (
 const createGroup = (
   capabilityId: string,
   level: 'L1' | 'L2' | 'L3' | 'L4',
-  realizations: CapabilityRealization[]
+  realizations: CapabilityRealization[],
 ): CapabilityRealizationsGroup => ({
   capabilityId: capabilityId as CapabilityId,
   capabilityName: `Capability ${capabilityId}`,
@@ -68,14 +75,15 @@ async function renderAndWaitForRealizations(
   queryClient: QueryClient,
   groups: CapabilityRealizationsGroup[],
   depth: number,
-  visibleIds?: Set<CapabilityId>
+  visibleIds?: Set<CapabilityId>,
 ) {
   vi.mocked(apiClient.getCapabilityRealizationsByDomain).mockResolvedValue(groups);
-  const { result } = renderHook(
-    () => useCapabilityRealizations(true, domainId, depth, visibleIds),
-    { wrapper: createWrapper(queryClient) }
-  );
-  await waitFor(() => { expect(result.current.isLoading).toBe(false); });
+  const { result } = renderHook(() => useCapabilityRealizations(true, domainId, depth, visibleIds), {
+    wrapper: createWrapper(queryClient),
+  });
+  await waitFor(() => {
+    expect(result.current.isLoading).toBe(false);
+  });
   return result;
 }
 
@@ -107,7 +115,9 @@ describe('useCapabilityRealizations', () => {
     });
 
     it('should not fetch when disabled', async () => {
-      const { result } = renderHook(() => useCapabilityRealizations(false, domainId, 4), { wrapper: createWrapper(queryClient) });
+      const { result } = renderHook(() => useCapabilityRealizations(false, domainId, 4), {
+        wrapper: createWrapper(queryClient),
+      });
 
       expect(result.current.isLoading).toBe(false);
       expect(result.current.realizations).toEqual([]);
@@ -115,7 +125,9 @@ describe('useCapabilityRealizations', () => {
     });
 
     it('should not fetch when domainId is null', async () => {
-      const { result } = renderHook(() => useCapabilityRealizations(true, null, 4), { wrapper: createWrapper(queryClient) });
+      const { result } = renderHook(() => useCapabilityRealizations(true, null, 4), {
+        wrapper: createWrapper(queryClient),
+      });
 
       expect(result.current.isLoading).toBe(false);
       expect(result.current.realizations).toEqual([]);
@@ -125,10 +137,10 @@ describe('useCapabilityRealizations', () => {
     it('should re-fetch when depth changes', async () => {
       vi.mocked(apiClient.getCapabilityRealizationsByDomain).mockResolvedValue([]);
 
-      const { rerender } = renderHook(
-        ({ depth }) => useCapabilityRealizations(true, domainId, depth),
-        { initialProps: { depth: 2 }, wrapper: createWrapper(queryClient) }
-      );
+      const { rerender } = renderHook(({ depth }) => useCapabilityRealizations(true, domainId, depth), {
+        initialProps: { depth: 2 },
+        wrapper: createWrapper(queryClient),
+      });
 
       await waitFor(() => {
         expect(apiClient.getCapabilityRealizationsByDomain).toHaveBeenCalledWith(domainId, 2);
@@ -144,11 +156,11 @@ describe('useCapabilityRealizations', () => {
     });
 
     it('should handle API errors', async () => {
-      vi.mocked(apiClient.getCapabilityRealizationsByDomain).mockRejectedValue(
-        new Error('API Error')
-      );
+      vi.mocked(apiClient.getCapabilityRealizationsByDomain).mockRejectedValue(new Error('API Error'));
 
-      const { result } = renderHook(() => useCapabilityRealizations(true, domainId, 4), { wrapper: createWrapper(queryClient) });
+      const { result } = renderHook(() => useCapabilityRealizations(true, domainId, 4), {
+        wrapper: createWrapper(queryClient),
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -220,7 +232,9 @@ describe('useCapabilityRealizations', () => {
 
   describe('depth-based visibility scenarios', () => {
     it('should show inherited on L1 when L2 is not visible (L1 only depth)', async () => {
-      const groups = [createGroup('cap-l1', 'L1', [createRealization('real-inherited', 'cap-l1', 'Inherited', 'cap-l2')])];
+      const groups = [
+        createGroup('cap-l1', 'L1', [createRealization('real-inherited', 'cap-l1', 'Inherited', 'cap-l2')]),
+      ];
       const result = await renderAndWaitForRealizations(queryClient, groups, 1);
 
       expect(result.current.realizations).toHaveLength(1);
@@ -270,7 +284,7 @@ describe('useCapabilityRealizations', () => {
       const result = await renderAndWaitForRealizations(
         queryClient,
         [createGroup('cap-1', 'L1', [createRealization('real-1', 'cap-1', 'Direct')])],
-        4
+        4,
       );
 
       expect(apiClient.getCapabilityRealizationsByDomain).toHaveBeenCalledTimes(1);
@@ -292,7 +306,9 @@ describe('useCapabilityRealizations', () => {
     });
 
     it('should return empty realizations when disabled initially', async () => {
-      const { result } = renderHook(() => useCapabilityRealizations(false, domainId, 4), { wrapper: createWrapper(queryClient) });
+      const { result } = renderHook(() => useCapabilityRealizations(false, domainId, 4), {
+        wrapper: createWrapper(queryClient),
+      });
 
       expect(result.current.isLoading).toBe(false);
       expect(result.current.realizations).toEqual([]);
@@ -306,10 +322,10 @@ describe('useCapabilityRealizations', () => {
         createGroup('cap-1', 'L1', [createRealization('real-1', 'cap-1', 'Direct')]),
       ]);
 
-      const { result, rerender } = renderHook(
-        ({ enabled }) => useCapabilityRealizations(enabled, domainId, 4),
-        { initialProps: { enabled: true }, wrapper: createWrapper(queryClient) }
-      );
+      const { result, rerender } = renderHook(({ enabled }) => useCapabilityRealizations(enabled, domainId, 4), {
+        initialProps: { enabled: true },
+        wrapper: createWrapper(queryClient),
+      });
 
       await waitFor(() => {
         expect(result.current.realizations).toHaveLength(1);
@@ -325,10 +341,10 @@ describe('useCapabilityRealizations', () => {
         createGroup('cap-1', 'L1', [createRealization('real-1', 'cap-1', 'Direct')]),
       ]);
 
-      const { result, rerender } = renderHook(
-        ({ domainId }) => useCapabilityRealizations(true, domainId, 4),
-        { initialProps: { domainId: domainId as BusinessDomainId | null }, wrapper: createWrapper(queryClient) }
-      );
+      const { result, rerender } = renderHook(({ domainId }) => useCapabilityRealizations(true, domainId, 4), {
+        initialProps: { domainId: domainId as BusinessDomainId | null },
+        wrapper: createWrapper(queryClient),
+      });
 
       await waitFor(() => {
         expect(result.current.realizations).toHaveLength(1);

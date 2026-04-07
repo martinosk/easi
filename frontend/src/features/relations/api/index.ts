@@ -1,1 +1,1 @@
-export { relationsApi, default } from './relationsApi';
+export { default, relationsApi } from './relationsApi';

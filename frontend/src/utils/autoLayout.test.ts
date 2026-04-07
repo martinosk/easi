@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import type { Node, Edge } from '@xyflow/react';
+import type { Edge, Node } from '@xyflow/react';
+import { describe, expect, it } from 'vitest';
 import { calculateAutoLayout } from './autoLayout';
 
 describe('calculateAutoLayout', () => {
@@ -25,9 +25,7 @@ describe('calculateAutoLayout', () => {
   });
 
   it('should throw for unknown node types', () => {
-    const nodes: Node[] = [
-      { id: 'x', type: 'unknown', position: { x: 0, y: 0 }, data: {} },
-    ];
+    const nodes: Node[] = [{ id: 'x', type: 'unknown', position: { x: 0, y: 0 }, data: {} }];
 
     expect(() => calculateAutoLayout(nodes, [])).toThrow('No layout strategy');
   });

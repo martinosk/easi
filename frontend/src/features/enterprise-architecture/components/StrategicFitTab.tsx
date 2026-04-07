@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react';
-import { useStrategicFitAnalysis } from '../hooks/useStrategicFitAnalysis';
+import { useMemo, useState } from 'react';
+import type { ApiError, RealizationFit, StrategicFitSummary } from '../../../api/types';
 import { useStrategyPillarsConfig } from '../../../hooks/useStrategyPillarsSettings';
-import type { RealizationFit, StrategicFitSummary, ApiError } from '../../../api/types';
+import { useStrategicFitAnalysis } from '../hooks/useStrategicFitAnalysis';
 import './StrategicFitTab.css';
 
 const SCORE_RANGE = [1, 2, 3, 4, 5] as const;
@@ -61,11 +61,7 @@ function SummaryCard({ summary }: SummaryCardProps) {
         <span className="meta-item">
           {summary.scoredRealizations} of {summary.totalRealizations} realizations scored
         </span>
-        {summary.averageGap > 0 && (
-          <span className="meta-item">
-            Average gap: {summary.averageGap.toFixed(1)}
-          </span>
-        )}
+        {summary.averageGap > 0 && <span className="meta-item">Average gap: {summary.averageGap.toFixed(1)}</span>}
       </div>
     </div>
   );
@@ -84,26 +80,25 @@ function RealizationFitCard({ realization }: RealizationFitCardProps) {
           <span className="arrow-separator">→</span>
           <span className="capability-name">{realization.capabilityName}</span>
         </div>
-        {realization.businessDomainName && (
-          <span className="domain-badge">{realization.businessDomainName}</span>
-        )}
+        {realization.businessDomainName && <span className="domain-badge">{realization.businessDomainName}</span>}
       </div>
       <div className="fit-card-scores">
         <div className="score-item">
           <span className="score-label">
             Importance
             {realization.isImportanceInherited && realization.importanceSourceCapabilityName && (
-              <span className="inherited-indicator" title={`Inherited from ${realization.importanceSourceCapabilityName}`}>
-                {' '}(from {realization.importanceSourceCapabilityName})
+              <span
+                className="inherited-indicator"
+                title={`Inherited from ${realization.importanceSourceCapabilityName}`}
+              >
+                {' '}
+                (from {realization.importanceSourceCapabilityName})
               </span>
             )}
           </span>
           <span className="score-value importance">
             {SCORE_RANGE.map((i) => (
-              <span
-                key={i}
-                className={`score-star ${i <= realization.importance ? 'filled' : ''}`}
-              >
+              <span key={i} className={`score-star ${i <= realization.importance ? 'filled' : ''}`}>
                 ★
               </span>
             ))}
@@ -114,17 +109,16 @@ function RealizationFitCard({ realization }: RealizationFitCardProps) {
           <span className="score-label">Fit</span>
           <span className="score-value fit">
             {SCORE_RANGE.map((i) => (
-              <span
-                key={i}
-                className={`score-dot ${i <= realization.fitScore ? 'filled' : ''}`}
-              />
+              <span key={i} className={`score-dot ${i <= realization.fitScore ? 'filled' : ''}`} />
             ))}
             <span className="score-number">({realization.fitScore})</span>
           </span>
         </div>
         <div className="score-item">
           <span className="score-label">Gap</span>
-          <span className={`score-value gap gap-${realization.gap >= 2 ? 'high' : realization.gap === 1 ? 'medium' : 'low'}`}>
+          <span
+            className={`score-value gap gap-${realization.gap >= 2 ? 'high' : realization.gap === 1 ? 'medium' : 'low'}`}
+          >
             {realization.gap}
           </span>
         </div>
@@ -132,9 +126,7 @@ function RealizationFitCard({ realization }: RealizationFitCardProps) {
       {realization.importanceRationale && (
         <div className="fit-rationale">Strategic importance: "{realization.importanceRationale}"</div>
       )}
-      {realization.fitRationale && (
-        <div className="fit-rationale">"{realization.fitRationale}"</div>
-      )}
+      {realization.fitRationale && <div className="fit-rationale">"{realization.fitRationale}"</div>}
     </div>
   );
 }
@@ -163,7 +155,9 @@ function RealizationSection({ title, realizations, defaultExpanded = false, cate
         <span className="section-title" style={{ color: getCategoryColor(category) }}>
           {title} ({realizations.length})
         </span>
-        <span className={`expand-icon ${isExpanded ? 'expanded' : ''}`} aria-hidden="true">▸</span>
+        <span className={`expand-icon ${isExpanded ? 'expanded' : ''}`} aria-hidden="true">
+          ▸
+        </span>
       </button>
       {isExpanded && (
         <div className="section-content">
@@ -203,8 +197,20 @@ export function StrategicFitTab() {
     return (
       <div className="strategic-fit-tab">
         <div className="empty-state">
-          <svg className="empty-state-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          <svg
+            className="empty-state-icon"
+            width="48"
+            height="48"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+            />
           </svg>
           <h3 className="empty-state-title">No Pillars with Fit Scoring</h3>
           <p className="empty-state-description">
@@ -251,9 +257,7 @@ export function StrategicFitTab() {
           <span>Loading analysis...</span>
         </div>
       ) : error ? (
-        <div className="error-message">
-          {getAnalysisErrorMessage(error)}
-        </div>
+        <div className="error-message">{getAnalysisErrorMessage(error)}</div>
       ) : analysis ? (
         <div className="fit-analysis-content">
           <SummaryCard summary={analysis.summary} />

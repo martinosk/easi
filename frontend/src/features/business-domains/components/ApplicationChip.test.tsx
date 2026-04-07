@@ -1,12 +1,10 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import type { CapabilityId, CapabilityRealization, ComponentId, RealizationId } from '../../../api/types';
 import { ApplicationChip } from './ApplicationChip';
-import type { CapabilityRealization, ComponentId, CapabilityId, RealizationId } from '../../../api/types';
 
 describe('ApplicationChip', () => {
-  const createRealization = (
-    overrides: Partial<CapabilityRealization> = {}
-  ): CapabilityRealization => ({
+  const createRealization = (overrides: Partial<CapabilityRealization> = {}): CapabilityRealization => ({
     id: 'real-1' as RealizationId,
     capabilityId: 'cap-1' as CapabilityId,
     componentId: 'comp-1' as ComponentId,
@@ -67,7 +65,7 @@ describe('ApplicationChip', () => {
       render(
         <div onClick={parentClick}>
           <ApplicationChip realization={realization} onClick={onClick} />
-        </div>
+        </div>,
       );
 
       fireEvent.click(screen.getByRole('button'));
@@ -92,10 +90,7 @@ describe('ApplicationChip', () => {
       });
       render(<ApplicationChip realization={realization} onClick={vi.fn()} />);
 
-      expect(screen.getByRole('button')).toHaveAttribute(
-        'title',
-        'SAP Finance (inherited from Parent Capability)'
-      );
+      expect(screen.getByRole('button')).toHaveAttribute('title', 'SAP Finance (inherited from Parent Capability)');
     });
   });
 

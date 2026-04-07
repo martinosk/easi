@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { EditComponentDialog } from './EditComponentDialog';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Component } from '../../../api/types';
 import { toComponentId } from '../../../api/types';
 import { MantineTestWrapper } from '../../../test/helpers/mantineTestWrapper';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { EditComponentDialog } from './EditComponentDialog';
 
 const mockMutateAsync = vi.fn();
 const mockAddExpertMutate = vi.fn();
@@ -57,16 +57,12 @@ describe('EditComponentDialog', () => {
     });
   });
 
-  const renderDialog = (
-    component: Component | null = mockComponent,
-    isOpen = true,
-    onClose = vi.fn()
-  ) => {
+  const renderDialog = (component: Component | null = mockComponent, isOpen = true, onClose = vi.fn()) => {
     return render(
       <QueryClientProvider client={queryClient}>
         <EditComponentDialog isOpen={isOpen} onClose={onClose} component={component} />
       </QueryClientProvider>,
-      { wrapper: MantineTestWrapper }
+      { wrapper: MantineTestWrapper },
     );
   };
 
@@ -124,7 +120,7 @@ describe('EditComponentDialog', () => {
       rerender(
         <QueryClientProvider client={queryClient}>
           <EditComponentDialog isOpen={true} onClose={vi.fn()} component={null} />
-        </QueryClientProvider>
+        </QueryClientProvider>,
       );
 
       await waitFor(() => {
@@ -244,7 +240,7 @@ describe('EditComponentDialog', () => {
       rerender(
         <QueryClientProvider client={queryClient}>
           <EditComponentDialog isOpen={true} onClose={mockOnClose} component={newComponent} />
-        </QueryClientProvider>
+        </QueryClientProvider>,
       );
 
       await waitFor(() => {
@@ -311,9 +307,7 @@ describe('EditComponentDialog', () => {
     });
 
     it('should call mutation when form is submitted', async () => {
-      mockMutateAsync.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100))
-      );
+      mockMutateAsync.mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 100)));
 
       renderDialog();
 

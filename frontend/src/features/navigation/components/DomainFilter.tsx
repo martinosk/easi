@@ -7,11 +7,7 @@ interface DomainFilterProps {
   onSelectionChange: (domainIds: string[]) => void;
 }
 
-export const DomainFilter: React.FC<DomainFilterProps> = ({
-  domains,
-  selectedDomainIds,
-  onSelectionChange,
-}) => {
+export const DomainFilter: React.FC<DomainFilterProps> = ({ domains, selectedDomainIds, onSelectionChange }) => {
   const selectedSet = useMemo(() => new Set(selectedDomainIds), [selectedDomainIds]);
 
   const handleToggle = (domainId: string) => {
@@ -31,11 +27,7 @@ export const DomainFilter: React.FC<DomainFilterProps> = ({
       <div className="tree-filter-header">
         <span className="tree-filter-label">Assigned to domain</span>
         {selectedDomainIds.length > 0 && (
-          <button
-            className="tree-filter-clear"
-            onClick={handleClear}
-            aria-label="Clear filter"
-          >
+          <button className="tree-filter-clear" onClick={handleClear} aria-label="Clear filter">
             Clear
           </button>
         )}

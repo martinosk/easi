@@ -1,5 +1,5 @@
 import { httpClient } from '../../../api/core/httpClient';
-import type { InitiateLoginRequest, InitiateLoginResponse, CurrentSessionResponse } from '../types';
+import type { CurrentSessionResponse, InitiateLoginRequest, InitiateLoginResponse } from '../types';
 
 export const authApi = {
   async initiateLogin(email: string, returnUrl?: string): Promise<InitiateLoginResponse> {
@@ -7,10 +7,7 @@ export const authApi = {
     if (returnUrl) {
       request.returnUrl = returnUrl;
     }
-    const response = await httpClient.post<InitiateLoginResponse>(
-      '/api/v1/auth/sessions',
-      request
-    );
+    const response = await httpClient.post<InitiateLoginResponse>('/api/v1/auth/sessions', request);
     return response.data;
   },
 

@@ -1,10 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { AcquiredEntity, View } from '../../../../api/types';
-import { TreeSection } from '../TreeSection';
-import { TreeSearchInput } from '../shared/TreeSearchInput';
-import { TreeItemList } from '../shared/TreeItemList';
 import { ORIGIN_ENTITY_PREFIXES } from '../../../canvas/utils/nodeFactory';
 import type { TreeMultiSelectProps } from '../../types';
+import { TreeItemList } from '../shared/TreeItemList';
+import { TreeSearchInput } from '../shared/TreeSearchInput';
+import { TreeSection } from '../TreeSection';
 
 interface AcquiredEntitiesSectionProps {
   acquiredEntities: AcquiredEntity[];
@@ -32,16 +32,12 @@ function filterEntities(entities: AcquiredEntity[], search: string): AcquiredEnt
   if (!search.trim()) return entities;
   const searchLower = search.toLowerCase();
   return entities.filter(
-    (e) =>
-      e.name.toLowerCase().includes(searchLower) ||
-      (e.notes && e.notes.toLowerCase().includes(searchLower))
+    (e) => e.name.toLowerCase().includes(searchLower) || (e.notes && e.notes.toLowerCase().includes(searchLower)),
   );
 }
 
 function buildEntityIdsOnCanvas(entities: AcquiredEntity[], currentView: View | null): Set<string> {
-  const viewOriginEntityIds = new Set(
-    (currentView?.originEntities ?? []).map((oe) => oe.originEntityId)
-  );
+  const viewOriginEntityIds = new Set((currentView?.originEntities ?? []).map((oe) => oe.originEntityId));
   const onCanvas = new Set<string>();
   for (const entity of entities) {
     if (viewOriginEntityIds.has(`${ORIGIN_ENTITY_PREFIXES.acquired}${entity.id}`)) {
@@ -66,19 +62,20 @@ export const AcquiredEntitiesSection: React.FC<AcquiredEntitiesSectionProps> = (
 
   const entityIdsOnCanvas = useMemo(
     () => buildEntityIdsOnCanvas(acquiredEntities, currentView),
-    [acquiredEntities, currentView]
+    [acquiredEntities, currentView],
   );
 
-  const filteredEntities = useMemo(
-    () => filterEntities(acquiredEntities, search),
-    [acquiredEntities, search]
-  );
+  const filteredEntities = useMemo(() => filterEntities(acquiredEntities, search), [acquiredEntities, search]);
 
   const visibleItems = useMemo(
-    () => filteredEntities.map((e) => ({
-      id: e.id, name: e.name, type: 'acquired' as const, links: e._links,
-    })),
-    [filteredEntities]
+    () =>
+      filteredEntities.map((e) => ({
+        id: e.id,
+        name: e.name,
+        type: 'acquired' as const,
+        links: e._links,
+      })),
+    [filteredEntities],
   );
 
   const emptyMessage = acquiredEntities.length === 0 ? 'No acquired entities' : 'No matches';
@@ -88,7 +85,7 @@ export const AcquiredEntitiesSection: React.FC<AcquiredEntitiesSectionProps> = (
       { id: entity.id, name: entity.name, type: 'acquired', links: entity._links },
       'acquired',
       visibleItems,
-      event
+      event,
     );
     if (result === 'single') {
       onEntitySelect?.(entity.id);
@@ -120,11 +117,7 @@ export const AcquiredEntitiesSection: React.FC<AcquiredEntitiesSectionProps> = (
       addTitle="Create new acquired entity"
       addTestId="create-acquired-entity-button"
     >
-      <TreeSearchInput
-        value={search}
-        onChange={setSearch}
-        placeholder="Search acquired entities..."
-      />
+      <TreeSearchInput value={search} onChange={setSearch} placeholder="Search acquired entities..." />
       <div className="tree-items">
         <TreeItemList
           items={filteredEntities}
@@ -133,9 +126,7 @@ export const AcquiredEntitiesSection: React.FC<AcquiredEntitiesSectionProps> = (
           dragDataKey="acquiredEntityId"
           isSelected={(entity) => selectedEntityId === entity.id || multiSelect.isMultiSelected(entity.id)}
           isInView={(entity) => !currentView || entityIdsOnCanvas.has(entity.id)}
-          getTitle={(entity, isInView) =>
-            isInView ? entity.name : `${entity.name} (not on canvas)`
-          }
+          getTitle={(entity, isInView) => (isInView ? entity.name : `${entity.name} (not on canvas)`)}
           renderLabel={(entity) => (
             <>
               {entity.name}

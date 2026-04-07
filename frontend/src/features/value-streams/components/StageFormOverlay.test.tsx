@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import { StageFormOverlay } from './StageFormOverlay';
 
 const defaultProps = {
@@ -33,13 +33,7 @@ describe('StageFormOverlay', () => {
     });
 
     it('should display "Save" on the submit button when editing', () => {
-      render(
-        <StageFormOverlay
-          {...defaultProps}
-          isEditing={true}
-          formData={{ name: 'Existing', description: '' }}
-        />,
-      );
+      render(<StageFormOverlay {...defaultProps} isEditing={true} formData={{ name: 'Existing', description: '' }} />);
 
       expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
     });
@@ -47,12 +41,7 @@ describe('StageFormOverlay', () => {
 
   describe('Form behavior', () => {
     it('should render name and description inputs with current formData', () => {
-      render(
-        <StageFormOverlay
-          {...defaultProps}
-          formData={{ name: 'Discovery', description: 'Initial stage' }}
-        />,
-      );
+      render(<StageFormOverlay {...defaultProps} formData={{ name: 'Discovery', description: 'Initial stage' }} />);
 
       const nameInput = screen.getByLabelText('Name') as HTMLInputElement;
       const descInput = screen.getByLabelText('Description') as HTMLTextAreaElement;
@@ -62,13 +51,21 @@ describe('StageFormOverlay', () => {
     });
 
     it.each([
-      { field: 'Name', input: 'New Stage', initial: { name: '', description: '' }, expected: { name: 'New Stage', description: '' } },
-      { field: 'Description', input: 'A description', initial: { name: 'Stage', description: '' }, expected: { name: 'Stage', description: 'A description' } },
+      {
+        field: 'Name',
+        input: 'New Stage',
+        initial: { name: '', description: '' },
+        expected: { name: 'New Stage', description: '' },
+      },
+      {
+        field: 'Description',
+        input: 'A description',
+        initial: { name: 'Stage', description: '' },
+        expected: { name: 'Stage', description: 'A description' },
+      },
     ])('should call onFormDataChange when $field input changes', ({ field, input, initial, expected }) => {
       const onFormDataChange = vi.fn();
-      render(
-        <StageFormOverlay {...defaultProps} onFormDataChange={onFormDataChange} formData={initial} />,
-      );
+      render(<StageFormOverlay {...defaultProps} onFormDataChange={onFormDataChange} formData={initial} />);
 
       fireEvent.change(screen.getByLabelText(field), { target: { value: input } });
 
@@ -99,11 +96,7 @@ describe('StageFormOverlay', () => {
     it('should call onSubmit when submit button is clicked', () => {
       const onSubmit = vi.fn();
       render(
-        <StageFormOverlay
-          {...defaultProps}
-          onSubmit={onSubmit}
-          formData={{ name: 'Test Stage', description: '' }}
-        />,
+        <StageFormOverlay {...defaultProps} onSubmit={onSubmit} formData={{ name: 'Test Stage', description: '' }} />,
       );
 
       fireEvent.click(screen.getByRole('button', { name: 'Add' }));

@@ -1,13 +1,13 @@
-import React, { useLayoutEffect, useState, useMemo } from 'react';
-import { Modal, TextInput, Textarea, Select, Button, Group, Stack, Alert } from '@mantine/core';
-import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useCreateCapability, useUpdateCapabilityMetadata } from '../hooks/useCapabilities';
-import { useStatuses } from '../../../hooks/useMetadata';
-import { useMaturityScale } from '../../../hooks/useMaturityScale';
+import { Alert, Button, Group, Modal, Select, Stack, Textarea, TextInput } from '@mantine/core';
+import React, { useLayoutEffect, useMemo, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
 import { MaturitySlider } from '../../../components/shared/MaturitySlider';
-import { createCapabilitySchema, type CreateCapabilityFormData } from '../../../lib/schemas';
-import { getMaturityBounds, getDefaultSections } from '../../../utils/maturity';
+import { useMaturityScale } from '../../../hooks/useMaturityScale';
+import { useStatuses } from '../../../hooks/useMetadata';
+import { type CreateCapabilityFormData, createCapabilitySchema } from '../../../lib/schemas';
+import { getDefaultSections, getMaturityBounds } from '../../../utils/maturity';
+import { useCreateCapability, useUpdateCapabilityMetadata } from '../hooks/useCapabilities';
 
 interface CreateCapabilityDialogProps {
   isOpen: boolean;
@@ -87,30 +87,35 @@ function useCreateCapabilityForm(isOpen: boolean, onClose: () => void) {
   };
 
   return {
-    register, handleSubmit, control, errors, isValid,
-    backendError, isCreating, isLoadingStatuses,
-    statusOptions, onSubmit,
+    register,
+    handleSubmit,
+    control,
+    errors,
+    isValid,
+    backendError,
+    isCreating,
+    isLoadingStatuses,
+    statusOptions,
+    onSubmit,
   };
 }
 
-export const CreateCapabilityDialog: React.FC<CreateCapabilityDialogProps> = ({
-  isOpen,
-  onClose,
-}) => {
+export const CreateCapabilityDialog: React.FC<CreateCapabilityDialogProps> = ({ isOpen, onClose }) => {
   const {
-    register, handleSubmit, control, errors, isValid,
-    backendError, isCreating, isLoadingStatuses,
-    statusOptions, onSubmit,
+    register,
+    handleSubmit,
+    control,
+    errors,
+    isValid,
+    backendError,
+    isCreating,
+    isLoadingStatuses,
+    statusOptions,
+    onSubmit,
   } = useCreateCapabilityForm(isOpen, onClose);
 
   return (
-    <Modal
-      opened={isOpen}
-      onClose={onClose}
-      title="Create Capability"
-      centered
-      data-testid="create-capability-dialog"
-    >
+    <Modal opened={isOpen} onClose={onClose} title="Create Capability" centered data-testid="create-capability-dialog">
       <form onSubmit={handleSubmit(onSubmit)}>
         <Stack gap="md">
           <TextInput
@@ -153,11 +158,7 @@ export const CreateCapabilityDialog: React.FC<CreateCapabilityDialogProps> = ({
             name="maturityValue"
             control={control}
             render={({ field }) => (
-              <MaturitySlider
-                value={field.value}
-                onChange={field.onChange}
-                disabled={isCreating}
-              />
+              <MaturitySlider value={field.value} onChange={field.onChange} disabled={isCreating} />
             )}
           />
 
@@ -168,12 +169,7 @@ export const CreateCapabilityDialog: React.FC<CreateCapabilityDialogProps> = ({
           )}
 
           <Group justify="flex-end" gap="sm">
-            <Button
-              variant="default"
-              onClick={onClose}
-              disabled={isCreating}
-              data-testid="create-capability-cancel"
-            >
+            <Button variant="default" onClick={onClose} disabled={isCreating} data-testid="create-capability-cancel">
               Cancel
             </Button>
             <Button

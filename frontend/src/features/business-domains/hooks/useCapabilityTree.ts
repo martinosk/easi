@@ -58,7 +58,9 @@ export function useCapabilityTree(): UseCapabilityTreeResult {
     tree,
     isLoading,
     error: error ?? null,
-    refetch: async () => { await refetch(); },
+    refetch: async () => {
+      await refetch();
+    },
     orphanedL1Ids,
   };
 }

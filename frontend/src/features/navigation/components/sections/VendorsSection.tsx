@@ -1,10 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { Vendor, View } from '../../../../api/types';
-import { TreeSection } from '../TreeSection';
-import { TreeSearchInput } from '../shared/TreeSearchInput';
-import { TreeItemList } from '../shared/TreeItemList';
 import { ORIGIN_ENTITY_PREFIXES } from '../../../canvas/utils/nodeFactory';
 import type { TreeMultiSelectProps } from '../../types';
+import { TreeItemList } from '../shared/TreeItemList';
+import { TreeSearchInput } from '../shared/TreeSearchInput';
+import { TreeSection } from '../TreeSection';
 
 interface VendorsSectionProps {
   vendors: Vendor[];
@@ -25,14 +25,12 @@ function filterVendors(vendors: Vendor[], search: string): Vendor[] {
     (v) =>
       v.name.toLowerCase().includes(searchLower) ||
       (v.implementationPartner && v.implementationPartner.toLowerCase().includes(searchLower)) ||
-      (v.notes && v.notes.toLowerCase().includes(searchLower))
+      (v.notes && v.notes.toLowerCase().includes(searchLower)),
   );
 }
 
 function buildVendorIdsOnCanvas(vendors: Vendor[], currentView: View | null): Set<string> {
-  const viewOriginEntityIds = new Set(
-    (currentView?.originEntities ?? []).map((oe) => oe.originEntityId)
-  );
+  const viewOriginEntityIds = new Set((currentView?.originEntities ?? []).map((oe) => oe.originEntityId));
   const onCanvas = new Set<string>();
   for (const vendor of vendors) {
     if (viewOriginEntityIds.has(`${ORIGIN_ENTITY_PREFIXES.vendor}${vendor.id}`)) {
@@ -55,21 +53,19 @@ export const VendorsSection: React.FC<VendorsSectionProps> = ({
 }) => {
   const [search, setSearch] = useState('');
 
-  const vendorIdsOnCanvas = useMemo(
-    () => buildVendorIdsOnCanvas(vendors, currentView),
-    [vendors, currentView]
-  );
+  const vendorIdsOnCanvas = useMemo(() => buildVendorIdsOnCanvas(vendors, currentView), [vendors, currentView]);
 
-  const filteredVendors = useMemo(
-    () => filterVendors(vendors, search),
-    [vendors, search]
-  );
+  const filteredVendors = useMemo(() => filterVendors(vendors, search), [vendors, search]);
 
   const visibleItems = useMemo(
-    () => filteredVendors.map((v) => ({
-      id: v.id, name: v.name, type: 'vendor' as const, links: v._links,
-    })),
-    [filteredVendors]
+    () =>
+      filteredVendors.map((v) => ({
+        id: v.id,
+        name: v.name,
+        type: 'vendor' as const,
+        links: v._links,
+      })),
+    [filteredVendors],
   );
 
   const hasNoVendors = vendors.length === 0;
@@ -80,7 +76,7 @@ export const VendorsSection: React.FC<VendorsSectionProps> = ({
       { id: vendor.id, name: vendor.name, type: 'vendor', links: vendor._links },
       'vendors',
       visibleItems,
-      event
+      event,
     );
     if (result === 'single') {
       onVendorSelect?.(vendor.id);
@@ -112,11 +108,7 @@ export const VendorsSection: React.FC<VendorsSectionProps> = ({
       addTitle="Create new vendor"
       addTestId="create-vendor-button"
     >
-      <TreeSearchInput
-        value={search}
-        onChange={setSearch}
-        placeholder="Search vendors..."
-      />
+      <TreeSearchInput value={search} onChange={setSearch} placeholder="Search vendors..." />
       <div className="tree-items">
         <TreeItemList
           items={filteredVendors}
@@ -125,9 +117,7 @@ export const VendorsSection: React.FC<VendorsSectionProps> = ({
           dragDataKey="vendorId"
           isSelected={(vendor) => selectedVendorId === vendor.id || multiSelect.isMultiSelected(vendor.id)}
           isInView={(vendor) => !currentView || vendorIdsOnCanvas.has(vendor.id)}
-          getTitle={(vendor, isInView) =>
-            isInView ? vendor.name : `${vendor.name} (not on canvas)`
-          }
+          getTitle={(vendor, isInView) => (isInView ? vendor.name : `${vendor.name} (not on canvas)`)}
           renderLabel={(vendor) => vendor.name}
           onSelect={handleSelect}
           onContextMenu={handleContextMenu}

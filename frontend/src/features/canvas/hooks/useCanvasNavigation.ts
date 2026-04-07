@@ -1,9 +1,9 @@
 import { useCallback } from 'react';
+import type { View, ViewCapability, ViewComponent } from '../../../api/types';
+import { toCapabilityId, toComponentId } from '../../../api/types';
 import { useAppStore } from '../../../store/appStore';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
 import type { ComponentCanvasRef } from '../components/ComponentCanvas';
-import { toComponentId, toCapabilityId } from '../../../api/types';
-import type { View, ViewComponent, ViewCapability } from '../../../api/types';
 
 function isComponentInView(view: View | null, componentId: string): boolean {
   return view?.components.some((vc: ViewComponent) => vc.componentId === componentId) ?? false;
@@ -16,7 +16,7 @@ function isCapabilityInView(view: View | null, capabilityId: string): boolean {
 function centerOnNodeIfNeeded(
   canvasRef: React.RefObject<ComponentCanvasRef | null>,
   nodeId: string,
-  shouldCenter: boolean
+  shouldCenter: boolean,
 ): void {
   if (shouldCenter) {
     canvasRef.current?.centerOnNode(nodeId);
@@ -34,7 +34,7 @@ export function useCanvasNavigation(canvasRef: React.RefObject<ComponentCanvasRe
       selectCapability(null);
       centerOnNodeIfNeeded(canvasRef, componentId, isComponentInView(currentView, componentId));
     },
-    [currentView, selectNode, selectCapability, canvasRef]
+    [currentView, selectNode, selectCapability, canvasRef],
   );
 
   const navigateToCapability = useCallback(
@@ -43,7 +43,7 @@ export function useCanvasNavigation(canvasRef: React.RefObject<ComponentCanvasRe
       selectNode(null);
       centerOnNodeIfNeeded(canvasRef, `cap-${capabilityId}`, isCapabilityInView(currentView, capabilityId));
     },
-    [currentView, selectCapability, selectNode, canvasRef]
+    [currentView, selectCapability, selectNode, canvasRef],
   );
 
   const navigateToOriginEntity = useCallback(
@@ -52,7 +52,7 @@ export function useCanvasNavigation(canvasRef: React.RefObject<ComponentCanvasRe
       selectCapability(null);
       canvasRef.current?.centerOnNode(nodeId);
     },
-    [selectNode, selectCapability, canvasRef]
+    [selectNode, selectCapability, canvasRef],
   );
 
   return { navigateToComponent, navigateToCapability, navigateToOriginEntity };

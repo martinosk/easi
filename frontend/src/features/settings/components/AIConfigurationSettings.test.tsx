@@ -1,11 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MantineProvider } from '@mantine/core';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
-import { AIConfigurationSettings } from './AIConfigurationSettings';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { assistantConfigApi } from '../../../api/assistant/assistantConfigApi';
 import type { AIConfigurationResponse } from '../../../api/assistant/types';
+import { AIConfigurationSettings } from './AIConfigurationSettings';
 
 vi.mock('../../../api/assistant/assistantConfigApi', () => ({
   assistantConfigApi: {
@@ -32,10 +32,8 @@ function renderWithProviders(ui: React.ReactElement) {
   const client = createQueryClient();
   return render(
     <QueryClientProvider client={client}>
-      <MantineProvider>
-        {ui}
-      </MantineProvider>
-    </QueryClientProvider>
+      <MantineProvider>{ui}</MantineProvider>
+    </QueryClientProvider>,
   );
 }
 
@@ -97,9 +95,7 @@ describe('AIConfigurationSettings', () => {
   });
 
   it('renders loading state initially', () => {
-    vi.mocked(assistantConfigApi.getConfig).mockImplementation(
-      () => new Promise(() => {})
-    );
+    vi.mocked(assistantConfigApi.getConfig).mockImplementation(() => new Promise(() => {}));
 
     renderWithProviders(<AIConfigurationSettings />);
 
@@ -107,9 +103,7 @@ describe('AIConfigurationSettings', () => {
   });
 
   it('renders error state when loading fails', async () => {
-    vi.mocked(assistantConfigApi.getConfig).mockRejectedValue(
-      new Error('Network error')
-    );
+    vi.mocked(assistantConfigApi.getConfig).mockRejectedValue(new Error('Network error'));
 
     renderWithProviders(<AIConfigurationSettings />);
 
@@ -236,7 +230,7 @@ describe('AIConfigurationSettings', () => {
           provider: 'openai',
           model: 'gpt-4o',
           apiKey: 'sk-test-key',
-        })
+        }),
       );
     });
   });

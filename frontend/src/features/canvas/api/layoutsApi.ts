@@ -1,22 +1,20 @@
 import { httpClient } from '../../../api/core/httpClient';
-import { ApiError } from '../../../api/types';
 import type {
-  LayoutContextType,
-  LayoutContainer,
-  LayoutContainerSummary,
-  ElementPosition,
-  UpsertLayoutRequest,
-  ElementPositionInput,
   BatchUpdateItem,
   BatchUpdateResponse,
+  ElementPosition,
+  ElementPositionInput,
+  LayoutContainer,
+  LayoutContainerSummary,
+  LayoutContextType,
+  UpsertLayoutRequest,
 } from '../../../api/types';
+import { ApiError } from '../../../api/types';
 
 export const layoutsApi = {
   async get(contextType: LayoutContextType, contextRef: string): Promise<LayoutContainer | null> {
     try {
-      const response = await httpClient.get<LayoutContainer>(
-        `/api/v1/layouts/${contextType}/${contextRef}`
-      );
+      const response = await httpClient.get<LayoutContainer>(`/api/v1/layouts/${contextType}/${contextRef}`);
       return response.data;
     } catch (error) {
       if (error instanceof ApiError && error.statusCode === 404) {
@@ -29,12 +27,9 @@ export const layoutsApi = {
   async upsert(
     contextType: LayoutContextType,
     contextRef: string,
-    request: UpsertLayoutRequest = {}
+    request: UpsertLayoutRequest = {},
   ): Promise<LayoutContainer> {
-    const response = await httpClient.put<LayoutContainer>(
-      `/api/v1/layouts/${contextType}/${contextRef}`,
-      request
-    );
+    const response = await httpClient.put<LayoutContainer>(`/api/v1/layouts/${contextType}/${contextRef}`, request);
     return response.data;
   },
 
@@ -46,7 +41,7 @@ export const layoutsApi = {
     contextType: LayoutContextType,
     contextRef: string,
     preferences: Record<string, unknown>,
-    version: number
+    version: number,
   ): Promise<LayoutContainerSummary> {
     const response = await httpClient.patch<LayoutContainerSummary>(
       `/api/v1/layouts/${contextType}/${contextRef}/preferences`,
@@ -55,7 +50,7 @@ export const layoutsApi = {
         headers: {
           'If-Match': `"${version}"`,
         },
-      }
+      },
     );
     return response.data;
   },
@@ -64,33 +59,27 @@ export const layoutsApi = {
     contextType: LayoutContextType,
     contextRef: string,
     elementId: string,
-    position: ElementPositionInput
+    position: ElementPositionInput,
   ): Promise<ElementPosition> {
     const response = await httpClient.put<ElementPosition>(
       `/api/v1/layouts/${contextType}/${contextRef}/elements/${elementId}`,
-      position
+      position,
     );
     return response.data;
   },
 
-  async deleteElement(
-    contextType: LayoutContextType,
-    contextRef: string,
-    elementId: string
-  ): Promise<void> {
-    await httpClient.delete(
-      `/api/v1/layouts/${contextType}/${contextRef}/elements/${elementId}`
-    );
+  async deleteElement(contextType: LayoutContextType, contextRef: string, elementId: string): Promise<void> {
+    await httpClient.delete(`/api/v1/layouts/${contextType}/${contextRef}/elements/${elementId}`);
   },
 
   async batchUpdateElements(
     contextType: LayoutContextType,
     contextRef: string,
-    updates: BatchUpdateItem[]
+    updates: BatchUpdateItem[],
   ): Promise<BatchUpdateResponse> {
     const response = await httpClient.patch<BatchUpdateResponse>(
       `/api/v1/layouts/${contextType}/${contextRef}/elements`,
-      { updates }
+      { updates },
     );
     return response.data;
   },

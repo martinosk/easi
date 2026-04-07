@@ -1,17 +1,17 @@
-import { describe, it, expect } from 'vitest';
-import { collectRelatedEntities, type EntityRef, type TraversalData } from './collectRelatedEntities';
+import { describe, expect, it } from 'vitest';
 import type {
-  Relation,
   Capability,
-  CapabilityRealization,
-  OriginRelationship,
-  ComponentId,
   CapabilityId,
-  RelationId,
-  RealizationId,
-  OriginRelationshipId,
+  CapabilityRealization,
+  ComponentId,
   HATEOASLinks,
+  OriginRelationship,
+  OriginRelationshipId,
+  RealizationId,
+  Relation,
+  RelationId,
 } from '../../../api/types';
+import { collectRelatedEntities, type EntityRef, type TraversalData } from './collectRelatedEntities';
 
 const links: HATEOASLinks = { self: { href: '/test', method: 'GET' } };
 
@@ -124,12 +124,15 @@ describe('collectRelatedEntities', () => {
   });
 
   it('traverses mixed graph crossing all relation types', () => {
-    const result = collect({ id: 'comp-1', type: 'component' }, {
-      relations: [makeRelation('comp-1', 'comp-2')],
-      capabilities: [makeCapability('cap-1'), makeCapability('cap-2', 'cap-1')],
-      realizations: [makeRealization('comp-1', 'cap-1'), makeRealization('comp-2', 'cap-2')],
-      originRelationships: [makeOriginRelationship('comp-2', 'acq-1')],
-    });
+    const result = collect(
+      { id: 'comp-1', type: 'component' },
+      {
+        relations: [makeRelation('comp-1', 'comp-2')],
+        capabilities: [makeCapability('cap-1'), makeCapability('cap-2', 'cap-1')],
+        realizations: [makeRealization('comp-1', 'cap-1'), makeRealization('comp-2', 'cap-2')],
+        originRelationships: [makeOriginRelationship('comp-2', 'acq-1')],
+      },
+    );
 
     expect(result.componentIds).toEqual(new Set(['comp-1', 'comp-2']));
     expect(result.capabilityIds).toEqual(new Set(['cap-1', 'cap-2']));

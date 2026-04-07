@@ -9,9 +9,8 @@ export const InheritedRealizationInfo: React.FC<InheritedRealizationInfoProps> =
 
   return (
     <div className="detail-info">
-      This is an inherited realization. It was automatically created when
-      an application was linked to a child capability. To edit or delete,
-      modify the original direct realization.
+      This is an inherited realization. It was automatically created when an application was linked to a child
+      capability. To edit or delete, modify the original direct realization.
     </div>
   );
 };

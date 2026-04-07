@@ -1,10 +1,10 @@
-import { renderHook, waitFor, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
-import { useValueStreams, useValueStreamsQuery, useValueStream } from './useValueStreams';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ValueStream, ValueStreamDetail, ValueStreamId, ValueStreamsResponse } from '../../../api/types';
 import { valueStreamsQueryKeys } from '../queryKeys';
-import type { ValueStream, ValueStreamId, ValueStreamDetail, ValueStreamsResponse } from '../../../api/types';
+import { useValueStream, useValueStreams, useValueStreamsQuery } from './useValueStreams';
 
 vi.mock('../api', () => ({
   valueStreamsApi: {
@@ -67,7 +67,7 @@ describe('useValueStreams', () => {
         data: [createValueStream('vs-1', 'Customer Onboarding')],
         _links: {
           self: { href: '/api/v1/value-streams', method: 'GET' },
-          'create': { href: '/api/v1/value-streams', method: 'POST' },
+          create: { href: '/api/v1/value-streams', method: 'POST' },
         },
       };
       vi.mocked(valueStreamsApi.getAll).mockResolvedValue(response);
@@ -87,7 +87,11 @@ describe('useValueStreams', () => {
 
   describe('useValueStream', () => {
     it('should fetch a single value stream by id', async () => {
-      const vs: ValueStreamDetail = { ...createValueStream('vs-1', 'Customer Onboarding'), stages: [], stageCapabilities: [] };
+      const vs: ValueStreamDetail = {
+        ...createValueStream('vs-1', 'Customer Onboarding'),
+        stages: [],
+        stageCapabilities: [],
+      };
       vi.mocked(valueStreamsApi.getById).mockResolvedValue(vs);
 
       const { result } = renderHook(() => useValueStream('vs-1' as ValueStreamId), {
@@ -181,7 +185,12 @@ describe('useValueStreams', () => {
           expect(valueStreamsApi.delete).toHaveBeenCalledWith(createValueStream('vs-1', 'To Delete'));
         },
       },
-    ])('should $scenario a value stream and invalidate queries', async ({ seedData, setupMock, performAction, assertApi }) => {
+    ])('should $scenario a value stream and invalidate queries', async ({
+      seedData,
+      setupMock,
+      performAction,
+      assertApi,
+    }) => {
       const response: ValueStreamsResponse = {
         data: seedData,
         _links: { self: { href: '/api/v1/value-streams', method: 'GET' } },

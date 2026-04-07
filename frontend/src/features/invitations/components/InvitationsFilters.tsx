@@ -9,7 +9,9 @@ export function InvitationsFilters({ statusFilter, onFilterChange }: Invitations
   return (
     <div className="invitations-filters">
       <div className="filter-group">
-        <label htmlFor="status-filter" className="filter-label">Filter by status:</label>
+        <label htmlFor="status-filter" className="filter-label">
+          Filter by status:
+        </label>
         <select
           id="status-filter"
           className="filter-select"

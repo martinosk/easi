@@ -1,9 +1,9 @@
-import { useState, useCallback } from 'react';
-import { useMaturityAnalysis } from '../hooks/useMaturityAnalysis';
-import { useMaturityScale } from '../../../hooks/useMaturityScale';
-import { useMaturityColorScale } from '../../../hooks/useMaturityColorScale';
+import { useCallback, useState } from 'react';
 import { HelpTooltip } from '../../../components/shared/HelpTooltip';
-import type { MaturityAnalysisCandidate, EnterpriseCapabilityId } from '../types';
+import { useMaturityColorScale } from '../../../hooks/useMaturityColorScale';
+import { useMaturityScale } from '../../../hooks/useMaturityScale';
+import { useMaturityAnalysis } from '../hooks/useMaturityAnalysis';
+import type { EnterpriseCapabilityId, MaturityAnalysisCandidate } from '../types';
 import './MaturityAnalysisTab.css';
 
 function MaturitySectionLegend() {
@@ -24,14 +24,13 @@ function MaturitySectionLegend() {
         />
       </span>
       <div className="legend-items">
-        {sortedSections.map(section => (
+        {sortedSections.map((section) => (
           <div key={section.order} className="legend-section-item">
-            <span
-              className="legend-section-dot"
-              style={{ backgroundColor: getBaseSectionColor(section.order) }}
-            />
+            <span className="legend-section-dot" style={{ backgroundColor: getBaseSectionColor(section.order) }} />
             <span className="legend-section-name">{section.name}</span>
-            <span className="legend-section-range">({section.minValue}-{section.maxValue})</span>
+            <span className="legend-section-range">
+              ({section.minValue}-{section.maxValue})
+            </span>
           </div>
         ))}
       </div>
@@ -55,9 +54,7 @@ function MaturityDistributionBar({ distribution }: MaturityDistributionBarProps)
   const total = distribution.genesis + distribution.customBuild + distribution.product + distribution.commodity;
   if (total === 0) return null;
 
-  const sortedSections = maturityScale?.sections
-    ? [...maturityScale.sections].sort((a, b) => a.order - b.order)
-    : [];
+  const sortedSections = maturityScale?.sections ? [...maturityScale.sections].sort((a, b) => a.order - b.order) : [];
 
   const distributionByOrder = [
     distribution.genesis,
@@ -72,12 +69,12 @@ function MaturityDistributionBar({ distribution }: MaturityDistributionBarProps)
       count: distributionByOrder[index] || 0,
       color: getBaseSectionColor(section.order),
     }))
-    .filter(s => s.count > 0);
+    .filter((s) => s.count > 0);
 
   return (
     <div className="maturity-distribution">
       <div className="distribution-bar">
-        {segments.map(segment => (
+        {segments.map((segment) => (
           <div
             key={segment.name}
             className="distribution-segment"
@@ -90,7 +87,7 @@ function MaturityDistributionBar({ distribution }: MaturityDistributionBarProps)
         ))}
       </div>
       <div className="distribution-legend">
-        {segments.map(segment => (
+        {segments.map((segment) => (
           <span key={segment.name} className="legend-item">
             <span className="legend-dot" style={{ backgroundColor: segment.color }} />
             {segment.count}
@@ -109,21 +106,15 @@ interface CandidateCardProps {
 function CandidateCard({ candidate, onViewDetail }: CandidateCardProps) {
   const { getColorForValue, getSectionNameForValue } = useMaturityColorScale();
 
-  const targetSection = candidate.targetMaturity !== null
-    ? getSectionNameForValue(candidate.targetMaturity)
-    : null;
-  const targetColor = candidate.targetMaturity !== null
-    ? getColorForValue(candidate.targetMaturity)
-    : undefined;
+  const targetSection = candidate.targetMaturity !== null ? getSectionNameForValue(candidate.targetMaturity) : null;
+  const targetColor = candidate.targetMaturity !== null ? getColorForValue(candidate.targetMaturity) : undefined;
 
   return (
     <div className="candidate-card">
       <div className="candidate-header">
         <div className="candidate-info">
           <h3 className="candidate-name">{candidate.enterpriseCapabilityName}</h3>
-          {candidate.category && (
-            <span className="category-badge">{candidate.category}</span>
-          )}
+          {candidate.category && <span className="category-badge">{candidate.category}</span>}
         </div>
         <button
           type="button"
@@ -170,7 +161,9 @@ function CandidateCard({ candidate, onViewDetail }: CandidateCardProps) {
             Max Gap
             <HelpTooltip content="Largest maturity difference from target among all implementations" iconOnly />
           </span>
-          <span className={`stat-value gap-value ${candidate.maxGap > 40 ? 'gap-high' : candidate.maxGap >= 15 ? 'gap-medium' : ''}`}>
+          <span
+            className={`stat-value gap-value ${candidate.maxGap > 40 ? 'gap-high' : candidate.maxGap >= 15 ? 'gap-medium' : ''}`}
+          >
             {candidate.maxGap}
           </span>
         </div>
@@ -211,11 +204,7 @@ export function MaturityAnalysisTab({ onViewDetail }: MaturityAnalysisTabProps) 
   }
 
   if (error) {
-    return (
-      <div className="error-message">
-        Failed to load maturity analysis: {error.message}
-      </div>
-    );
+    return <div className="error-message">Failed to load maturity analysis: {error.message}</div>;
   }
 
   return (
@@ -238,10 +227,7 @@ export function MaturityAnalysisTab({ onViewDetail }: MaturityAnalysisTabProps) 
                 <span className="summary-value">{summary.totalImplementations}</span>
                 <span className="summary-label">
                   Implementations
-                  <HelpTooltip
-                    content="Total domain capabilities linked to these enterprise capabilities"
-                    iconOnly
-                  />
+                  <HelpTooltip content="Total domain capabilities linked to these enterprise capabilities" iconOnly />
                 </span>
               </div>
               <div className="summary-stat">
@@ -258,13 +244,10 @@ export function MaturityAnalysisTab({ onViewDetail }: MaturityAnalysisTabProps) 
           )}
         </div>
         <div className="analysis-controls">
-          <label htmlFor="sort-select" className="sort-label">Sort by:</label>
-          <select
-            id="sort-select"
-            value={sortBy}
-            onChange={handleSortChange}
-            className="sort-select"
-          >
+          <label htmlFor="sort-select" className="sort-label">
+            Sort by:
+          </label>
+          <select id="sort-select" value={sortBy} onChange={handleSortChange} className="sort-select">
             <option value="gap">Max Gap</option>
             <option value="implementations">Implementations</option>
           </select>
@@ -275,8 +258,20 @@ export function MaturityAnalysisTab({ onViewDetail }: MaturityAnalysisTabProps) 
 
       {candidates.length === 0 ? (
         <div className="empty-state">
-          <svg className="empty-state-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          <svg
+            className="empty-state-icon"
+            width="48"
+            height="48"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+            />
           </svg>
           <h3 className="empty-state-title">No Enterprise Capabilities</h3>
           <p className="empty-state-description">
@@ -285,12 +280,8 @@ export function MaturityAnalysisTab({ onViewDetail }: MaturityAnalysisTabProps) 
         </div>
       ) : (
         <div className="candidates-grid">
-          {candidates.map(candidate => (
-            <CandidateCard
-              key={candidate.enterpriseCapabilityId}
-              candidate={candidate}
-              onViewDetail={onViewDetail}
-            />
+          {candidates.map((candidate) => (
+            <CandidateCard key={candidate.enterpriseCapabilityId} candidate={candidate} onViewDetail={onViewDetail} />
           ))}
         </div>
       )}

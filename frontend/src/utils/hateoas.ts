@@ -18,11 +18,17 @@ export function getLink(resource: ResourceWithLinks | null | undefined, linkName
   return resource?._links?.[linkName]?.href;
 }
 
-export function getLinkMethod(resource: ResourceWithLinks | null | undefined, linkName: string): HttpMethod | undefined {
+export function getLinkMethod(
+  resource: ResourceWithLinks | null | undefined,
+  linkName: string,
+): HttpMethod | undefined {
   return resource?._links?.[linkName]?.method;
 }
 
-export function getLinkObject(resource: ResourceWithLinks | null | undefined, linkName: string): HATEOASLink | undefined {
+export function getLinkObject(
+  resource: ResourceWithLinks | null | undefined,
+  linkName: string,
+): HATEOASLink | undefined {
   return resource?._links?.[linkName];
 }
 
@@ -37,7 +43,7 @@ export function followLink(resource: ResourceWithLinks | null | undefined, linkN
 export function buildLinkRequest<T = unknown>(
   resource: ResourceWithLinks | null | undefined,
   linkName: string,
-  data?: T
+  data?: T,
 ): LinkRequest<T> {
   const link = getLinkObject(resource, linkName);
   if (!link) {

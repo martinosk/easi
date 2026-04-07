@@ -1,19 +1,19 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { valueStreamsApi } from '../api';
-import { valueStreamsQueryKeys } from '../queryKeys';
-import { valueStreamsMutationEffects } from '../mutationEffects';
-import { invalidateFor } from '../../../lib/invalidateFor';
-import type {
-  ValueStreamId,
-  ValueStreamDetail,
-  ValueStream,
-  ValueStreamStage,
-  StageCapabilityMapping,
-  CreateStageRequest,
-  UpdateStageRequest,
-  ReorderStagesRequest,
-} from '../../../api/types';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
+import type {
+  CreateStageRequest,
+  ReorderStagesRequest,
+  StageCapabilityMapping,
+  UpdateStageRequest,
+  ValueStream,
+  ValueStreamDetail,
+  ValueStreamId,
+  ValueStreamStage,
+} from '../../../api/types';
+import { invalidateFor } from '../../../lib/invalidateFor';
+import { valueStreamsApi } from '../api';
+import { valueStreamsMutationEffects } from '../mutationEffects';
+import { valueStreamsQueryKeys } from '../queryKeys';
 
 export function useValueStreamDetail(id: ValueStreamId | undefined) {
   return useQuery<ValueStreamDetail>({
@@ -44,7 +44,9 @@ export function useAddStage() {
   return useStageMutation(
     ({ valueStream, request }: { valueStream: ValueStream; request: CreateStageRequest }) =>
       valueStreamsApi.addStage(valueStream, request),
-    'addStage', 'Stage added', 'Failed to add stage',
+    'addStage',
+    'Stage added',
+    'Failed to add stage',
   );
 }
 
@@ -52,7 +54,9 @@ export function useUpdateStage() {
   return useStageMutation(
     ({ stage, request }: { stage: ValueStreamStage; request: UpdateStageRequest }) =>
       valueStreamsApi.updateStage(stage, request),
-    'updateStage', 'Stage updated', 'Failed to update stage',
+    'updateStage',
+    'Stage updated',
+    'Failed to update stage',
   );
 }
 
@@ -72,7 +76,9 @@ export function useReorderStages() {
   return useStageMutation(
     ({ valueStream, request }: { valueStream: ValueStream; request: ReorderStagesRequest }) =>
       valueStreamsApi.reorderStages(valueStream, request),
-    'reorderStages', undefined, 'Failed to reorder stages',
+    'reorderStages',
+    undefined,
+    'Failed to reorder stages',
   );
 }
 
@@ -80,7 +86,9 @@ export function useAddStageCapability() {
   return useStageMutation(
     ({ stage, capabilityId }: { stage: ValueStreamStage; capabilityId: string }) =>
       valueStreamsApi.addStageCapability(stage, capabilityId),
-    'addStageCapability', 'Capability mapped to stage', 'Failed to map capability',
+    'addStageCapability',
+    'Capability mapped to stage',
+    'Failed to map capability',
   );
 }
 

@@ -1,8 +1,8 @@
 import { useCallback } from 'react';
-import { useAppStore } from '../../../store/appStore';
-import { useRemoveComponentFromView, useAddComponentToView } from './useViews';
-import { useCurrentView } from './useCurrentView';
 import type { ComponentId, ViewId } from '../../../api/types';
+import { useAppStore } from '../../../store/appStore';
+import { useCurrentView } from './useCurrentView';
+import { useAddComponentToView, useRemoveComponentFromView } from './useViews';
 
 export function useViewOperations() {
   const { currentViewId } = useCurrentView();
@@ -29,7 +29,7 @@ export function useViewOperations() {
         console.error('Failed to remove component from view:', error);
       }
     },
-    [currentViewId, removeComponentMutation, clearSelection]
+    [currentViewId, removeComponentMutation, clearSelection],
   );
 
   const addComponentToView = useCallback(
@@ -48,12 +48,15 @@ export function useViewOperations() {
         console.error('Failed to add component to view:', error);
       }
     },
-    [currentViewId, addComponentMutation]
+    [currentViewId, addComponentMutation],
   );
 
-  const switchView = useCallback((viewId: ViewId) => {
-    setCurrentViewId(viewId);
-  }, [setCurrentViewId]);
+  const switchView = useCallback(
+    (viewId: ViewId) => {
+      setCurrentViewId(viewId);
+    },
+    [setCurrentViewId],
+  );
 
   return {
     removeComponentFromView,

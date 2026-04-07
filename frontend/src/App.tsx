@@ -1,58 +1,60 @@
 import { lazy, Suspense, useCallback, useLayoutEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { useUserStore } from './store/userStore';
+import type { Release } from './api/types';
 import { AppLayout } from './components/layout/AppLayout';
 import { AppNavigation } from './components/layout/AppNavigation';
-import { LoadingScreen } from './components/shared/LoadingScreen';
-import { ErrorScreen } from './components/shared/ErrorScreen';
 import { ErrorBoundary, FeatureErrorFallback } from './components/shared/ErrorBoundary';
+import { ErrorScreen } from './components/shared/ErrorScreen';
 import { LoadingFallback } from './components/shared/LoadingFallback';
+import { LoadingScreen } from './components/shared/LoadingScreen';
+import { useDialogContext } from './contexts/dialogs';
 import { ReleaseNotesOverlay } from './contexts/releases/components/ReleaseNotesOverlay';
 import { ChatButton, useChatStore } from './features/chat';
-import { useDialogContext } from './contexts/dialogs';
 import { useAppInitialization } from './hooks/useAppInitialization';
 import { useReleaseNotes } from './hooks/useReleaseNotes';
-import type { Release } from './api/types';
+import { useUserStore } from './store/userStore';
 
 const CanvasContainer = lazy(() => import('./features/canvas/CanvasContainer'));
 
 const DialogManager = lazy(() =>
-  import('./components/shared/DialogManager').then(module => ({ default: module.DialogManager }))
+  import('./components/shared/DialogManager').then((module) => ({ default: module.DialogManager })),
 );
 
 const ChatPanel = lazy(() =>
-  import('./features/chat/components/ChatPanel').then(module => ({ default: module.ChatPanel }))
+  import('./features/chat/components/ChatPanel').then((module) => ({ default: module.ChatPanel })),
 );
 
 const BusinessDomainsRouter = lazy(() =>
-  import('./features/business-domains').then(module => ({ default: module.BusinessDomainsRouter }))
+  import('./features/business-domains').then((module) => ({ default: module.BusinessDomainsRouter })),
 );
 
 const InvitationsPage = lazy(() =>
-  import('./features/invitations').then(module => ({ default: module.InvitationsPage }))
+  import('./features/invitations').then((module) => ({ default: module.InvitationsPage })),
 );
 
-const UsersPage = lazy(() =>
-  import('./features/users').then(module => ({ default: module.UsersPage }))
-);
+const UsersPage = lazy(() => import('./features/users').then((module) => ({ default: module.UsersPage })));
 
-const SettingsPage = lazy(() =>
-  import('./features/settings').then(module => ({ default: module.SettingsPage }))
-);
+const SettingsPage = lazy(() => import('./features/settings').then((module) => ({ default: module.SettingsPage })));
 
 const ValueStreamsRouter = lazy(() =>
-  import('./features/value-streams').then(module => ({ default: module.ValueStreamsRouter }))
+  import('./features/value-streams').then((module) => ({ default: module.ValueStreamsRouter })),
 );
 
 const EnterpriseArchRouter = lazy(() =>
-  import('./features/enterprise-architecture').then(module => ({ default: module.EnterpriseArchRouter }))
+  import('./features/enterprise-architecture').then((module) => ({ default: module.EnterpriseArchRouter })),
 );
 
-const MyEditAccessPage = lazy(() =>
-  import('./features/edit-grants/pages/MyEditAccessPage')
-);
+const MyEditAccessPage = lazy(() => import('./features/edit-grants/pages/MyEditAccessPage'));
 
-type AppView = 'canvas' | 'business-domains' | 'value-streams' | 'invitations' | 'users' | 'settings' | 'enterprise-architecture' | 'my-edit-access';
+type AppView =
+  | 'canvas'
+  | 'business-domains'
+  | 'value-streams'
+  | 'invitations'
+  | 'users'
+  | 'settings'
+  | 'enterprise-architecture'
+  | 'my-edit-access';
 
 function useAuthErrorHandler() {
   const [authError, setAuthError] = useState<string | null>(null);
@@ -85,52 +87,74 @@ interface ReleaseNotesDisplayProps {
 function ReleaseNotesDisplay({ showOverlay, release, onDismiss }: ReleaseNotesDisplayProps) {
   const showReleaseOverlay = showOverlay && release !== null;
   if (!showReleaseOverlay) return null;
-  return (
-    <ReleaseNotesOverlay
-      isOpen={showOverlay}
-      release={release}
-      onDismiss={onDismiss}
-    />
-  );
+  return <ReleaseNotesOverlay isOpen={showOverlay} release={release} onDismiss={onDismiss} />;
 }
 
 function LazyFeatureView({ featureName, children }: { featureName: string; children: React.ReactNode }) {
   return (
     <ErrorBoundary
-      fallback={(error, reset) => (
-        <FeatureErrorFallback featureName={featureName} error={error} onReset={reset} />
-      )}
+      fallback={(error, reset) => <FeatureErrorFallback featureName={featureName} error={error} onReset={reset} />}
     >
-      <Suspense fallback={<LoadingFallback message={`Loading ${featureName}...`} />}>
-        {children}
-      </Suspense>
+      <Suspense fallback={<LoadingFallback message={`Loading ${featureName}...`} />}>{children}</Suspense>
     </ErrorBoundary>
   );
 }
 
 function MainContent({ view }: { view: AppView }) {
   if (view === 'canvas') {
-    return <LazyFeatureView featureName="Canvas"><CanvasContainer /></LazyFeatureView>;
+    return (
+      <LazyFeatureView featureName="Canvas">
+        <CanvasContainer />
+      </LazyFeatureView>
+    );
   }
   if (view === 'invitations') {
-    return <LazyFeatureView featureName="Invitations"><InvitationsPage /></LazyFeatureView>;
+    return (
+      <LazyFeatureView featureName="Invitations">
+        <InvitationsPage />
+      </LazyFeatureView>
+    );
   }
   if (view === 'users') {
-    return <LazyFeatureView featureName="Users"><UsersPage /></LazyFeatureView>;
+    return (
+      <LazyFeatureView featureName="Users">
+        <UsersPage />
+      </LazyFeatureView>
+    );
   }
   if (view === 'settings') {
-    return <LazyFeatureView featureName="Settings"><SettingsPage /></LazyFeatureView>;
+    return (
+      <LazyFeatureView featureName="Settings">
+        <SettingsPage />
+      </LazyFeatureView>
+    );
   }
   if (view === 'value-streams') {
-    return <LazyFeatureView featureName="Value Streams"><ValueStreamsRouter /></LazyFeatureView>;
+    return (
+      <LazyFeatureView featureName="Value Streams">
+        <ValueStreamsRouter />
+      </LazyFeatureView>
+    );
   }
   if (view === 'enterprise-architecture') {
-    return <LazyFeatureView featureName="Enterprise Architecture"><EnterpriseArchRouter /></LazyFeatureView>;
+    return (
+      <LazyFeatureView featureName="Enterprise Architecture">
+        <EnterpriseArchRouter />
+      </LazyFeatureView>
+    );
   }
   if (view === 'my-edit-access') {
-    return <LazyFeatureView featureName="My Edit Access"><MyEditAccessPage /></LazyFeatureView>;
+    return (
+      <LazyFeatureView featureName="My Edit Access">
+        <MyEditAccessPage />
+      </LazyFeatureView>
+    );
   }
-  return <LazyFeatureView featureName="Business Domains"><BusinessDomainsRouter /></LazyFeatureView>;
+  return (
+    <LazyFeatureView featureName="Business Domains">
+      <BusinessDomainsRouter />
+    </LazyFeatureView>
+  );
 }
 
 interface AppProps {
@@ -160,7 +184,7 @@ function App({ view }: AppProps) {
         <ErrorScreen
           title="Access Denied"
           error={authError}
-          onRetry={() => window.location.href = '/easi/login'}
+          onRetry={() => (window.location.href = '/easi/login')}
           retryLabel="Back to Login"
         />
       </AppLayout>
@@ -168,11 +192,19 @@ function App({ view }: AppProps) {
   }
 
   if (isLoading) {
-    return <AppLayout><LoadingScreen /></AppLayout>;
+    return (
+      <AppLayout>
+        <LoadingScreen />
+      </AppLayout>
+    );
   }
 
   if (error) {
-    return <AppLayout><ErrorScreen error={error.message} onRetry={() => window.location.reload()} /></AppLayout>;
+    return (
+      <AppLayout>
+        <ErrorScreen error={error.message} onRetry={() => window.location.reload()} />
+      </AppLayout>
+    );
   }
 
   return (
@@ -180,13 +212,7 @@ function App({ view }: AppProps) {
       <AppNavigation
         currentView={view}
         onOpenReleaseNotes={openReleaseNotesBrowser}
-        chatButton={
-          <ChatButton
-            assistantAvailable={assistantAvailable}
-            onClick={toggleChat}
-            isActive={chatIsOpen}
-          />
-        }
+        chatButton={<ChatButton assistantAvailable={assistantAvailable} onClick={toggleChat} isActive={chatIsOpen} />}
       />
       <MainContent view={view} />
       <Suspense fallback={null}>
@@ -197,11 +223,7 @@ function App({ view }: AppProps) {
           <ChatPanel isOpen={chatIsOpen} onClose={closeChat} />
         </Suspense>
       )}
-      <ReleaseNotesDisplay
-        showOverlay={showReleaseNotes}
-        release={release}
-        onDismiss={dismissReleaseNotes}
-      />
+      <ReleaseNotesDisplay showOverlay={showReleaseNotes} release={release} onDismiss={dismissReleaseNotes} />
     </AppLayout>
   );
 }

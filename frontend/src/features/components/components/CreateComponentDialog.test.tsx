@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { CreateComponentDialog } from './CreateComponentDialog';
-import { MantineTestWrapper } from '../../../test/helpers/mantineTestWrapper';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MantineTestWrapper } from '../../../test/helpers/mantineTestWrapper';
+import { CreateComponentDialog } from './CreateComponentDialog';
 
 const mockMutateAsync = vi.fn();
 const mockAddToViewMutateAsync = vi.fn();
@@ -51,7 +51,7 @@ describe('CreateComponentDialog', () => {
       <QueryClientProvider client={queryClient}>
         <CreateComponentDialog isOpen={isOpen} onClose={mockOnClose} />
       </QueryClientProvider>,
-      { wrapper: MantineTestWrapper }
+      { wrapper: MantineTestWrapper },
     );
   };
 
@@ -79,7 +79,7 @@ describe('CreateComponentDialog', () => {
     renderDialog();
 
     const buttons = screen.getAllByRole('button');
-    const submitButton = buttons.find(btn => btn.textContent === 'Create Application') as HTMLButtonElement;
+    const submitButton = buttons.find((btn) => btn.textContent === 'Create Application') as HTMLButtonElement;
 
     expect(submitButton.disabled).toBe(true);
     expect(mockMutateAsync).not.toHaveBeenCalled();
@@ -93,7 +93,7 @@ describe('CreateComponentDialog', () => {
     const nameInput = screen.getByLabelText(/Name/);
     const descriptionInput = screen.getByLabelText(/Description/);
     const buttons = screen.getAllByRole('button');
-    const submitButton = buttons.find(btn => btn.textContent === 'Create Application');
+    const submitButton = buttons.find((btn) => btn.textContent === 'Create Application');
 
     fireEvent.change(nameInput, { target: { value: 'Test Component' } });
     fireEvent.change(descriptionInput, { target: { value: 'Test Description' } });
@@ -123,7 +123,7 @@ describe('CreateComponentDialog', () => {
 
     const nameInput = screen.getByLabelText(/Name/);
     const buttons = screen.getAllByRole('button');
-    const submitButton = buttons.find(btn => btn.textContent === 'Create Application');
+    const submitButton = buttons.find((btn) => btn.textContent === 'Create Application');
 
     fireEvent.change(nameInput, { target: { value: '  Test Component  ' } });
 
@@ -148,7 +148,7 @@ describe('CreateComponentDialog', () => {
 
     const nameInput = screen.getByLabelText(/Name/);
     const buttons = screen.getAllByRole('button');
-    const submitButton = buttons.find(btn => btn.textContent === 'Create Application');
+    const submitButton = buttons.find((btn) => btn.textContent === 'Create Application');
 
     fireEvent.change(nameInput, { target: { value: 'Test Component' } });
 

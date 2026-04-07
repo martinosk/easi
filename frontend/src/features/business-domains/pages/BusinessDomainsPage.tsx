@@ -1,23 +1,16 @@
-import { DockviewBusinessDomainsLayout } from '../components/DockviewBusinessDomainsLayout';
-import { DomainDialogs } from '../components/DomainDialogs';
-import { PageLoadingStates } from '../components/PageLoadingStates';
 import { ContextMenu } from '../../../components/shared/ContextMenu';
 import { DeleteCapabilityDialog } from '../../capabilities/components/DeleteCapabilityDialog';
 import { InviteToEditDialog } from '../../edit-grants/components/InviteToEditDialog';
 import { useCreateEditGrant } from '../../edit-grants/hooks/useEditGrants';
+import { DockviewBusinessDomainsLayout } from '../components/DockviewBusinessDomainsLayout';
+import { DomainDialogs } from '../components/DomainDialogs';
+import { PageLoadingStates } from '../components/PageLoadingStates';
 import { useBusinessDomainsPage } from '../hooks/useBusinessDomainsPage';
 import '../components/visualization.css';
 
 export function BusinessDomainsPage() {
   const hookData = useBusinessDomainsPage();
-  const {
-    domains,
-    isLoading,
-    error,
-    dialogManager,
-    domainContextMenu,
-    capabilityContextMenu,
-  } = hookData;
+  const { domains, isLoading, error, dialogManager, domainContextMenu, capabilityContextMenu } = hookData;
   const createGrant = useCreateEditGrant();
 
   return (
@@ -54,7 +47,9 @@ export function BusinessDomainsPage() {
         <InviteToEditDialog
           isOpen={capabilityContextMenu.capabilityToInvite !== null}
           onClose={() => capabilityContextMenu.setCapabilityToInvite(null)}
-          onSubmit={async (request) => { await createGrant.mutateAsync(request); }}
+          onSubmit={async (request) => {
+            await createGrant.mutateAsync(request);
+          }}
           artifactType="capability"
           artifactId={capabilityContextMenu.capabilityToInvite.id}
         />
@@ -64,7 +59,9 @@ export function BusinessDomainsPage() {
         <InviteToEditDialog
           isOpen={domainContextMenu.domainToInvite !== null}
           onClose={() => domainContextMenu.setDomainToInvite(null)}
-          onSubmit={async (request) => { await createGrant.mutateAsync(request); }}
+          onSubmit={async (request) => {
+            await createGrant.mutateAsync(request);
+          }}
           artifactType={domainContextMenu.domainToInvite.artifactType}
           artifactId={domainContextMenu.domainToInvite.id}
         />

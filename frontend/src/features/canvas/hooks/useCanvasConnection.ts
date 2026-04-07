@@ -1,7 +1,7 @@
-import { useCallback } from 'react';
 import type { Connection } from '@xyflow/react';
+import { useCallback } from 'react';
 import { isOriginEntityNode } from '../utils/nodeFactory';
-import { useCapabilityConnection, isCapabilityNode } from './useCapabilityConnection';
+import { isCapabilityNode, useCapabilityConnection } from './useCapabilityConnection';
 import { useOriginConnection } from './useOriginConnection';
 
 type ConnectionType =
@@ -37,9 +37,7 @@ const getConnectionType = (source: string, target: string): ConnectionType => {
   return CONNECTION_TYPE_MAP[`${sourceKind}-${targetKind}`];
 };
 
-export const useCanvasConnection = (
-  onConnect: (source: string, target: string) => void
-) => {
+export const useCanvasConnection = (onConnect: (source: string, target: string) => void) => {
   const { handleCapabilityParentConnection, handleCapabilityComponentConnection } = useCapabilityConnection();
   const { handleOriginComponentConnection } = useOriginConnection();
 
@@ -66,7 +64,7 @@ export const useCanvasConnection = (
           break;
       }
     },
-    [onConnect, handleCapabilityParentConnection, handleCapabilityComponentConnection, handleOriginComponentConnection]
+    [onConnect, handleCapabilityParentConnection, handleCapabilityComponentConnection, handleOriginComponentConnection],
   );
 
   return { onConnectHandler };

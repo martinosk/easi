@@ -1,3 +1,3 @@
 export * from './useAcquiredEntities';
-export * from './useVendors';
 export * from './useInternalTeams';
+export * from './useVendors';

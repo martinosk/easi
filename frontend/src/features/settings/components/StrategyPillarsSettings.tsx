@@ -1,13 +1,10 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@mantine/core';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { PillarChange } from '../../../api/metadata';
+import { ApiError, type FitType, type StrategyPillar } from '../../../api/types';
 import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
 import { HelpTooltip } from '../../../components/shared/HelpTooltip';
-import {
-  useStrategyPillarsConfig,
-  useBatchUpdateStrategyPillars,
-} from '../../../hooks/useStrategyPillarsSettings';
-import { ApiError, type StrategyPillar, type FitType } from '../../../api/types';
-import type { PillarChange } from '../../../api/metadata';
+import { useBatchUpdateStrategyPillars, useStrategyPillarsConfig } from '../../../hooks/useStrategyPillarsSettings';
 import './StrategyPillarsSettings.css';
 
 interface EditablePillar {
@@ -34,10 +31,7 @@ function isConflictError(err: unknown): boolean {
   return err instanceof ApiError && (err.statusCode === 409 || err.statusCode === 412);
 }
 
-function buildPillarChanges(
-  editedPillars: EditablePillar[],
-  originalPillars: StrategyPillar[]
-): PillarChange[] {
+function buildPillarChanges(editedPillars: EditablePillar[], originalPillars: StrategyPillar[]): PillarChange[] {
   const changes: PillarChange[] = [];
 
   for (const pillar of editedPillars) {
@@ -73,10 +67,7 @@ function hasPillarChanged(pillar: EditablePillar, original: StrategyPillar | und
   );
 }
 
-function buildSinglePillarChange(
-  pillar: EditablePillar,
-  originalPillars: StrategyPillar[]
-): PillarChange | null {
+function buildSinglePillarChange(pillar: EditablePillar, originalPillars: StrategyPillar[]): PillarChange | null {
   if (isNewPillarToAdd(pillar)) {
     return {
       operation: 'add',
@@ -136,7 +127,7 @@ export function StrategyPillarsSettings() {
           fitType: p.fitType ?? '',
           isNew: false,
           markedForDeletion: false,
-        }))
+        })),
       );
     }
   }, [config]);
@@ -187,7 +178,7 @@ export function StrategyPillarsSettings() {
           fitType: p.fitType ?? '',
           isNew: false,
           markedForDeletion: false,
-        }))
+        })),
       );
     }
     setValidationErrors({});
@@ -252,9 +243,7 @@ export function StrategyPillarsSettings() {
   };
 
   const handleAddPillar = () => {
-    const activeCount = editedPillars.filter(
-      (p) => (p.active || p.isNew) && !p.markedForDeletion
-    ).length;
+    const activeCount = editedPillars.filter((p) => (p.active || p.isNew) && !p.markedForDeletion).length;
     if (activeCount >= MAX_PILLARS) return;
 
     const newPillar: EditablePillar = {
@@ -320,9 +309,7 @@ export function StrategyPillarsSettings() {
   };
 
   const getActiveCount = () => {
-    return editedPillars.filter(
-      (p) => (p.active || p.isNew) && !p.markedForDeletion
-    ).length;
+    return editedPillars.filter((p) => (p.active || p.isNew) && !p.markedForDeletion).length;
   };
 
   const canDelete = (index: number) => {
@@ -486,9 +473,7 @@ export function StrategyPillarsSettings() {
                 ) : (
                   <>
                     <span className="pillar-name">{pillar.name}</span>
-                    {pillar.description && (
-                      <span className="pillar-description-view">{pillar.description}</span>
-                    )}
+                    {pillar.description && <span className="pillar-description-view">{pillar.description}</span>}
                     {pillar.fitScoringEnabled && (
                       <div className="pillar-fit-info">
                         <span className="fit-scoring-badge">Fit Scoring Enabled</span>
@@ -497,9 +482,7 @@ export function StrategyPillarsSettings() {
                             {pillar.fitType === 'TECHNICAL' ? 'Technical' : 'Functional'}
                           </span>
                         )}
-                        {pillar.fitCriteria && (
-                          <span className="fit-criteria-view">{pillar.fitCriteria}</span>
-                        )}
+                        {pillar.fitCriteria && <span className="fit-criteria-view">{pillar.fitCriteria}</span>}
                       </div>
                     )}
                   </>
@@ -555,12 +538,7 @@ export function StrategyPillarsSettings() {
 
       {isEditing && (
         <div className="edit-actions">
-          <Button
-            variant="outline"
-            onClick={handleCancel}
-            disabled={isSaving}
-            data-testid="cancel-pillars-btn"
-          >
+          <Button variant="outline" onClick={handleCancel} disabled={isSaving} data-testid="cancel-pillars-btn">
             Cancel
           </Button>
           <Button

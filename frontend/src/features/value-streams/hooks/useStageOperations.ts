@@ -1,6 +1,12 @@
-import { useState, useCallback } from 'react';
-import { useAddStage, useUpdateStage, useDeleteStage, useReorderStages, useAddStageCapability } from './useValueStreamStages';
-import type { ValueStreamStage, ValueStreamDetail } from '../../../api/types';
+import { useCallback, useState } from 'react';
+import type { ValueStreamDetail, ValueStreamStage } from '../../../api/types';
+import {
+  useAddStage,
+  useAddStageCapability,
+  useDeleteStage,
+  useReorderStages,
+  useUpdateStage,
+} from './useValueStreamStages';
 
 interface StageFormData {
   name: string;
@@ -51,28 +57,43 @@ export function useStageOperations(detail: ValueStreamDetail | undefined) {
     if (!form.formData.name.trim() || !detail) return;
     const desc = form.formData.description || undefined;
     if (form.editingStage) {
-      await updateStageMutation.mutateAsync({ stage: form.editingStage, request: { name: form.formData.name, description: desc } });
+      await updateStageMutation.mutateAsync({
+        stage: form.editingStage,
+        request: { name: form.formData.name, description: desc },
+      });
     } else {
-      await addStageMutation.mutateAsync({ valueStream: detail, request: { name: form.formData.name, description: desc, position: form.insertPosition } });
+      await addStageMutation.mutateAsync({
+        valueStream: detail,
+        request: { name: form.formData.name, description: desc, position: form.insertPosition },
+      });
     }
     form.closeForm();
   }, [form, detail, updateStageMutation, addStageMutation]);
 
-  const deleteStage = useCallback(async (stage: ValueStreamStage) => {
-    await deleteStageMutation.mutateAsync(stage);
-  }, [deleteStageMutation]);
+  const deleteStage = useCallback(
+    async (stage: ValueStreamStage) => {
+      await deleteStageMutation.mutateAsync(stage);
+    },
+    [deleteStageMutation],
+  );
 
-  const reorderStages = useCallback(async (orderedStageIds: string[]) => {
-    if (!detail) return;
-    const positions = orderedStageIds.map((stageId, index) => ({ stageId, position: index + 1 }));
-    await reorderStagesMutation.mutateAsync({ valueStream: detail, request: { positions } });
-  }, [detail, reorderStagesMutation]);
+  const reorderStages = useCallback(
+    async (orderedStageIds: string[]) => {
+      if (!detail) return;
+      const positions = orderedStageIds.map((stageId, index) => ({ stageId, position: index + 1 }));
+      await reorderStagesMutation.mutateAsync({ valueStream: detail, request: { positions } });
+    },
+    [detail, reorderStagesMutation],
+  );
 
-  const addCapability = useCallback((stageId: string, capabilityId: string) => {
-    const stage = detail?.stages.find(s => s.id === stageId);
-    if (!stage) return;
-    addCapabilityMutation.mutate({ stage, capabilityId });
-  }, [detail, addCapabilityMutation]);
+  const addCapability = useCallback(
+    (stageId: string, capabilityId: string) => {
+      const stage = detail?.stages.find((s) => s.id === stageId);
+      if (!stage) return;
+      addCapabilityMutation.mutate({ stage, capabilityId });
+    },
+    [detail, addCapabilityMutation],
+  );
 
   return {
     ...form,

@@ -1,7 +1,7 @@
-import { renderHook, act } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
-import { useCapabilitySelection } from './useCapabilitySelection';
+import { act, renderHook } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import type { Capability, CapabilityId } from '../../../api/types';
+import { useCapabilitySelection } from './useCapabilitySelection';
 
 describe('useCapabilitySelection', () => {
   const createCapability = (id: string, name: string, level: 'L1' | 'L2'): Capability => ({
@@ -29,7 +29,11 @@ describe('useCapabilitySelection', () => {
     const onRegularClick = vi.fn();
     const { result } = renderHook(() => useCapabilitySelection(mockCapabilities, onRegularClick));
 
-    const mockEvent = { shiftKey: false, preventDefault: vi.fn(), stopPropagation: vi.fn() } as unknown as React.MouseEvent;
+    const mockEvent = {
+      shiftKey: false,
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn(),
+    } as unknown as React.MouseEvent;
 
     act(() => {
       result.current.handleCapabilityClick(mockCapabilities[0], mockEvent);
@@ -43,7 +47,11 @@ describe('useCapabilitySelection', () => {
     const onRegularClick = vi.fn();
     const { result } = renderHook(() => useCapabilitySelection(mockCapabilities, onRegularClick));
 
-    const shiftEvent = { shiftKey: true, preventDefault: vi.fn(), stopPropagation: vi.fn() } as unknown as React.MouseEvent;
+    const shiftEvent = {
+      shiftKey: true,
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn(),
+    } as unknown as React.MouseEvent;
 
     act(() => {
       result.current.handleCapabilityClick(mockCapabilities[0], shiftEvent);
@@ -60,7 +68,11 @@ describe('useCapabilitySelection', () => {
     const onRegularClick = vi.fn();
     const { result } = renderHook(() => useCapabilitySelection(mockCapabilities, onRegularClick));
 
-    const shiftEvent = { shiftKey: true, preventDefault: vi.fn(), stopPropagation: vi.fn() } as unknown as React.MouseEvent;
+    const shiftEvent = {
+      shiftKey: true,
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn(),
+    } as unknown as React.MouseEvent;
 
     act(() => {
       result.current.handleCapabilityClick(mockCapabilities[0], shiftEvent);
@@ -76,8 +88,16 @@ describe('useCapabilitySelection', () => {
     const onRegularClick = vi.fn();
     const { result } = renderHook(() => useCapabilitySelection(mockCapabilities, onRegularClick));
 
-    const shiftEvent = { shiftKey: true, preventDefault: vi.fn(), stopPropagation: vi.fn() } as unknown as React.MouseEvent;
-    const normalEvent = { shiftKey: false, preventDefault: vi.fn(), stopPropagation: vi.fn() } as unknown as React.MouseEvent;
+    const shiftEvent = {
+      shiftKey: true,
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn(),
+    } as unknown as React.MouseEvent;
+    const normalEvent = {
+      shiftKey: false,
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn(),
+    } as unknown as React.MouseEvent;
 
     act(() => {
       result.current.handleCapabilityClick(mockCapabilities[0], shiftEvent);

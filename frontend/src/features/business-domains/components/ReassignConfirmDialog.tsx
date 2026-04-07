@@ -45,13 +45,10 @@ export function ReassignConfirmDialog({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 style={{ margin: 0, marginBottom: '1rem', fontSize: '1.25rem' }}>
-          Reassign Capability
-        </h2>
+        <h2 style={{ margin: 0, marginBottom: '1rem', fontSize: '1.25rem' }}>Reassign Capability</h2>
 
         <p style={{ color: '#4b5563', marginBottom: '1.5rem' }}>
-          Are you sure you want to move <strong>{capability.name}</strong> under{' '}
-          <strong>{newParent.name}</strong>?
+          Are you sure you want to move <strong>{capability.name}</strong> under <strong>{newParent.name}</strong>?
         </p>
 
         <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>

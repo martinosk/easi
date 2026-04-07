@@ -1,11 +1,7 @@
 import { httpClient } from '../../../api/core/httpClient';
 import { fetchAllPaginated } from '../../../api/core/pagination';
+import type { CreateRelationRequest, Relation, RelationId } from '../../../api/types';
 import { followLink } from '../../../utils/hateoas';
-import type {
-  Relation,
-  RelationId,
-  CreateRelationRequest,
-} from '../../../api/types';
 
 export const relationsApi = {
   async getAll(): Promise<Relation[]> {

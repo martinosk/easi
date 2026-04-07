@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, waitFor, act } from '@testing-library/react';
-import { useReleaseNotes } from './useReleaseNotes';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiClient } from '../api/client';
 import type { Release } from '../api/types';
 import { toReleaseVersion } from '../api/types';
+import { useReleaseNotes } from './useReleaseNotes';
 
 vi.mock('../api/client', () => ({
   apiClient: {
@@ -63,10 +63,13 @@ describe('useReleaseNotes', () => {
     });
 
     it('should not show overlay when version has been dismissed', async () => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        dismissedVersion: '1.2.0',
-        dismissMode: 'untilNext',
-      }));
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          dismissedVersion: '1.2.0',
+          dismissMode: 'untilNext',
+        }),
+      );
 
       vi.mocked(apiClient.getVersion).mockResolvedValue('1.2.0');
       vi.mocked(apiClient.getLatestRelease).mockResolvedValue(mockRelease);
@@ -81,10 +84,13 @@ describe('useReleaseNotes', () => {
     });
 
     it('should show overlay when version is newer than dismissed version', async () => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        dismissedVersion: '1.1.0',
-        dismissMode: 'untilNext',
-      }));
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          dismissedVersion: '1.1.0',
+          dismissMode: 'untilNext',
+        }),
+      );
 
       vi.mocked(apiClient.getVersion).mockResolvedValue('1.2.0');
       vi.mocked(apiClient.getLatestRelease).mockResolvedValue(mockRelease);
@@ -241,10 +247,13 @@ describe('useReleaseNotes', () => {
 
   describe('Version Comparison for Overlay Display', () => {
     it('should show overlay when forever dismissed but version changed', async () => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        dismissedVersion: '1.0.0',
-        dismissMode: 'forever',
-      }));
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          dismissedVersion: '1.0.0',
+          dismissMode: 'forever',
+        }),
+      );
 
       vi.mocked(apiClient.getVersion).mockResolvedValue('2.0.0');
       vi.mocked(apiClient.getLatestRelease).mockResolvedValue({
@@ -262,10 +271,13 @@ describe('useReleaseNotes', () => {
     });
 
     it('should not show overlay when same version is dismissed regardless of mode', async () => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        dismissedVersion: '1.2.0',
-        dismissMode: 'forever',
-      }));
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          dismissedVersion: '1.2.0',
+          dismissMode: 'forever',
+        }),
+      );
 
       vi.mocked(apiClient.getVersion).mockResolvedValue('1.2.0');
       vi.mocked(apiClient.getLatestRelease).mockResolvedValue(mockRelease);

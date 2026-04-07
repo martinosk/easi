@@ -1,7 +1,7 @@
-import { renderHook, act } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
-import { useCapabilityContextMenu } from './useCapabilityContextMenu';
+import { act, renderHook } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import type { Capability, CapabilityId } from '../../../api/types';
+import { useCapabilityContextMenu } from './useCapabilityContextMenu';
 
 describe('useCapabilityContextMenu', () => {
   const createCapability = (id: string, name: string, level: 'L1' | 'L2', parentId?: string): Capability => ({
@@ -95,10 +95,12 @@ describe('useCapabilityContextMenu', () => {
 
   it('resolves L1 ancestor when removing L2 capability', async () => {
     const dissociateCapability = vi.fn().mockResolvedValue(undefined);
-    const { result } = renderHook(() => useCapabilityContextMenu({
-      ...defaultProps,
-      dissociateCapability,
-    }));
+    const { result } = renderHook(() =>
+      useCapabilityContextMenu({
+        ...defaultProps,
+        dissociateCapability,
+      }),
+    );
 
     const mockEvent = { preventDefault: vi.fn(), clientX: 100, clientY: 200 } as unknown as React.MouseEvent;
 
@@ -111,7 +113,13 @@ describe('useCapabilityContextMenu', () => {
     });
 
     expect(dissociateCapability).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'l1-1', level: 'L1', _links: expect.objectContaining({ 'x-remove-from-domain': { href: '/api/v1/business-domains/domain-1/capabilities/l1-1', method: 'DELETE' } }) })
+      expect.objectContaining({
+        id: 'l1-1',
+        level: 'L1',
+        _links: expect.objectContaining({
+          'x-remove-from-domain': { href: '/api/v1/business-domains/domain-1/capabilities/l1-1', method: 'DELETE' },
+        }),
+      }),
     );
   });
 
@@ -128,8 +136,6 @@ describe('useCapabilityContextMenu', () => {
       result.current.contextMenuItems[1].onClick(); // Delete from Model
     });
 
-    expect(result.current.capabilityToDelete).toEqual(
-      expect.objectContaining({ id: 'l1-1' })
-    );
+    expect(result.current.capabilityToDelete).toEqual(expect.objectContaining({ id: 'l1-1' }));
   });
 });
