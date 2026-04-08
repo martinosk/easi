@@ -322,7 +322,7 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "ApiKeyAuth": []
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Returns the creator (first event actor) for each tree-relevant aggregate: components, capabilities, vendors, internal teams, and acquired entities. Requires audit:read permission.",
@@ -754,7 +754,7 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "ApiKeyAuth": []
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Retrieves paginated audit history entries for a specific aggregate by ID. Returns all events that have occurred on the aggregate, including event type, data, timestamp, version, and actor information. Requires audit:read permission (Admin, Architect, or Stakeholder role).",
@@ -4095,7 +4095,7 @@ const docTemplate = `{
             "put": {
                 "security": [
                     {
-                        "ApiKeyAuth": []
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Creates or updates a strategic fit score for a component-pillar combination. Requires components:write permission (Admin or Architect role).",
@@ -4176,7 +4176,7 @@ const docTemplate = `{
             "delete": {
                 "security": [
                     {
-                        "ApiKeyAuth": []
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Deletes an existing strategic fit score. Requires components:write permission (Admin or Architect role).",
@@ -7860,7 +7860,7 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "ApiKeyAuth": []
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Analyzes the gap between capability importance and application fit scores for a strategic pillar. Requires enterprise-arch:read permission (Admin, Architect, or Stakeholder role).",
@@ -13908,11 +13908,11 @@ const docTemplate = `{
         }
     },
     "securityDefinitions": {
-        "ApiKeyAuth": {
-            "description": "Session-based authentication using httpOnly cookies. Obtain session via /auth/sessions endpoint.",
+        "CookieAuth": {
+            "description": "Session cookie obtained after logging in via the UI (/auth/callback). Copy the `easi_session` cookie value from DevTools.",
             "type": "apiKey",
-            "name": "Authorization",
-            "in": "header"
+            "name": "easi_session",
+            "in": "cookie"
         }
     }
 }`

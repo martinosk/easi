@@ -34,10 +34,10 @@ import (
 
 // @schemes http https
 // @BasePath /api/v1
-// @securityDefinitions.apikey ApiKeyAuth
-// @in header
-// @name Authorization
-// @description Session-based authentication using httpOnly cookies. Obtain session via /auth/sessions endpoint.
+// @securityDefinitions.apikey CookieAuth
+// @in cookie
+// @name easi_session
+// @description Session cookie obtained after logging in via the UI (/auth/callback). Copy the `easi_session` cookie value from DevTools.
 func main() {
 	if err := run(); err != nil {
 		log.Fatalf("Application error: %v", err)
