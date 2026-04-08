@@ -331,6 +331,7 @@ func TestGenericExecutor_ToolSpecCatalog_AllRegistered(t *testing.T) {
 		"assign_capability_to_domain", "remove_capability_from_domain",
 		"list_capability_dependencies", "create_capability_dependency", "delete_capability_dependency",
 		"get_capability_children",
+		"get_domain_capability_realizations",
 		"get_strategy_importance", "set_strategy_importance",
 		"get_application_fit_scores", "set_application_fit_score",
 		"get_strategic_fit_analysis",

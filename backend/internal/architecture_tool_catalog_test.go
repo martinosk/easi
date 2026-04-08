@@ -209,7 +209,6 @@ var excludedRoutes = map[string]string{
 	"PUT /capability-realizations/*":                           "update realization level — fine-grained, use realize_capability",
 	"DELETE /business-domains/*":                               "delete domain — high-impact, reserved for UI",
 	"GET /business-domains/*/capabilities":                     "capabilities in domain — available in get_business_domain_details",
-	"GET /business-domains/*/capability-realizations":          "domain realizations — composite view, reserved for UI",
 	"GET /business-domains/*/capabilities/*/importance":        "per-domain-capability importance — use get_strategy_importance",
 	"PUT /business-domains/*/capabilities/*/importance/*":      "update importance — fine-grained, use set_strategy_importance",
 	"DELETE /business-domains/*/capabilities/*/importance/*":   "remove importance — fine-grained, reserved for UI",

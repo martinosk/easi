@@ -10,6 +10,7 @@ func AgentTools() []pl.AgentToolSpec {
 	specs = append(specs, capabilityMetadataTools()...)
 	specs = append(specs, businessDomainTools()...)
 	specs = append(specs, dependencyTools()...)
+	specs = append(specs, domainCapabilityRealizationTools()...)
 	specs = append(specs, strategyTools()...)
 	return specs
 }
@@ -225,6 +226,24 @@ func dependencyTools() []pl.AgentToolSpec {
 			Access: pl.AccessRead, Permission: "capabilities:read",
 			Method: "GET", Path: "/capabilities/{id}/children",
 			PathParams: []pl.ParamSpec{pl.UUIDParam("id", "Parent capability ID (UUID)")},
+		},
+	}
+}
+
+func domainCapabilityRealizationTools() []pl.AgentToolSpec {
+	return []pl.AgentToolSpec{
+		{
+			Name: "get_domain_capability_realizations",
+			Description: "Get all capabilities and their realizing application components for a business domain, up to the specified hierarchy depth. " +
+				"Use this tool when the user asks about capabilities at a specific level within a domain (e.g. 'level 2 capabilities in the Passenger domain'). " +
+				"Returns all capabilities in the domain up to the given depth, each tagged with its hierarchy level (L1–L4) and the systems that realize it (if any). " +
+				"depth=1 returns only L1 capabilities; depth=2 also includes L2; depth=3 includes up to L3; depth=4 (default) returns all levels.",
+			Access: pl.AccessRead, Permission: "domains:read",
+			Method: "GET", Path: "/business-domains/{id}/capability-realizations",
+			PathParams: []pl.ParamSpec{pl.UUIDParam("id", "Business domain ID (UUID)")},
+			QueryParams: []pl.ParamSpec{
+				pl.IntParam("depth", "Maximum capability hierarchy depth to include (1–4, default 4)"),
+			},
 		},
 	}
 }

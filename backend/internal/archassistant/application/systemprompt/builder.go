@@ -42,6 +42,12 @@ EASI Domain Model:
 
 - Business Domains: Organizational groupings of L1 capabilities (e.g. "Finance",
   "Customer Experience"). One L1 can belong to multiple domains.
+  Capability hierarchy retrieval in business domains:
+  When a user asks for capabilities at a specific level in a domain (e.g. "level 2
+  capabilities in the Passenger domain"), call get_domain_capability_realizations with
+  the domain ID and the appropriate depth (depth=2 for L2, depth=3 for up to L3, etc.).
+  This returns all capabilities in the domain up to that depth (including those without
+  realizations), tagged with their level. Present the results clearly labelled by level.
 
 - Capability Realizations: Links between capabilities and application components
   (IT systems). 

@@ -84,6 +84,7 @@ func TestContextOwnedCatalogs_ContainAllTools(t *testing.T) {
 		"assign_capability_to_domain", "remove_capability_from_domain",
 		"list_capability_dependencies", "create_capability_dependency", "delete_capability_dependency",
 		"get_capability_children",
+		"get_domain_capability_realizations",
 		"get_strategy_importance", "set_strategy_importance",
 		"get_application_fit_scores", "set_application_fit_score",
 		"get_strategic_fit_analysis",
@@ -115,7 +116,7 @@ func TestContextOwnedCatalogs_ContainAllTools(t *testing.T) {
 
 func TestContextOwnedCatalogs_ToolCounts(t *testing.T) {
 	assert.Len(t, amPL.AgentTools(), 26, "architecturemodeling")
-	assert.Len(t, cmPL.AgentTools(), 32, "capabilitymapping")
+	assert.Len(t, cmPL.AgentTools(), 33, "capabilitymapping")
 	assert.Len(t, vsPL.AgentTools(), 9, "valuestreams")
 	assert.Len(t, eaPL.AgentTools(), 12, "enterprisearchitecture")
 	assert.Len(t, mmPL.AgentTools(), 2, "metamodel")
