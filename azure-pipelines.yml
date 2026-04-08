@@ -26,13 +26,16 @@ stages:
   - job: BackendTest
     displayName: 'Backend: build and test'
     steps:
+    - script: echo "##vso[task.setvariable variable=GOMODCACHE]$(go env GOMODCACHE)"
+      displayName: 'Resolve Go module cache path'
+
     - task: Cache@2
       displayName: 'Cache Go modules'
       inputs:
         key: '"go" | "$(Agent.OS)" | backend/go.sum'
         restoreKeys: |
           "go" | "$(Agent.OS)"
-        path: $(GOPATH)/pkg/mod
+        path: $(GOMODCACHE)
 
     - task: Go@0
       name: BackendBuild
@@ -62,9 +65,9 @@ stages:
     - task: Cache@2
       displayName: 'Cache npm packages'
       inputs:
-        key: '"npm" | "$(Agent.OS)" | frontend/package-lock.json'
+        key: '"npm" | "v2" | "$(Agent.OS)" | frontend/package-lock.json'
         restoreKeys: |
-          "npm" | "$(Agent.OS)"
+          "npm" | "v2" | "$(Agent.OS)"
         path: $(npm_config_cache)
 
     - script: |
