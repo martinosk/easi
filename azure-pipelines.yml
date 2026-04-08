@@ -32,7 +32,7 @@ stages:
         arguments: '-o /dev/null ./cmd/api'
         workingDirectory: 'backend'
 
-    - task: NodeTool@0
+    - task: NodeTool@1
       name: InstallNode
       displayName: 'Install Node.js'
       inputs:
@@ -101,7 +101,6 @@ stages:
         Dockerfile: 'backend/Dockerfile.migrate'
         buildContext: 'backend'
         arguments: '--tag easi-migrate:$(Build.BuildNumber)'
-        addPipelineData: false
 
     - task: Docker@2
       name: BuildBackend
@@ -111,7 +110,6 @@ stages:
         Dockerfile: 'backend/Dockerfile'
         buildContext: 'backend'
         arguments: '--tag easi-backend:$(Build.BuildNumber) --build-arg APP_VERSION=$(APP_VERSION)'
-        addPipelineData: false
 
     - task: Docker@2
       name: BuildFrontend
@@ -121,7 +119,6 @@ stages:
         Dockerfile: 'frontend/Dockerfile'
         buildContext: 'frontend'
         arguments: '--tag easi-frontend:$(Build.BuildNumber) --build-arg VITE_API_URL='
-        addPipelineData: false
 
     - task: ECRPushImage@1
       name: PushMigrate
