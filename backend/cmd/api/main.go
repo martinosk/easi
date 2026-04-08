@@ -20,19 +20,17 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// @title EASI Architecture Modeling API
+// @title EASI Architecture API
 // @version 1.0
-// @description API for Enterprise Architecture System Integration - Component Modeling
-// @termsOfService http://swagger.io/terms/
+// @description API for EASI - Enterprise Architecture Simple Insights.
 
-// @contact.name API Support
-// @contact.url http://www.easi.io/support
-// @contact.email support@easi.io
+// @contact.name Martin Oskarsson
+// @contact.url https://github.com/martinosk/easi/issues
 
 // @license.name MIT
-// @license.url https://opensource.org/licenses/MIT
+// @license.url https://github.com/martinosk/easi/blob/main/LICENSE
 
-// @schemes http https
+// @schemes https
 // @BasePath /api/v1
 // @securityDefinitions.apikey CookieAuth
 // @in cookie

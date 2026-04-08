@@ -9,15 +9,13 @@ const docTemplate = `{
     "info": {
         "description": "{{escape .Description}}",
         "title": "{{.Title}}",
-        "termsOfService": "http://swagger.io/terms/",
         "contact": {
-            "name": "API Support",
-            "url": "http://www.easi.io/support",
-            "email": "support@easi.io"
+            "name": "Martin Oskarsson",
+            "url": "https://github.com/martinosk/easi/issues"
         },
         "license": {
             "name": "MIT",
-            "url": "https://opensource.org/licenses/MIT"
+            "url": "https://github.com/martinosk/easi/blob/main/LICENSE"
         },
         "version": "{{.Version}}"
     },
@@ -13922,7 +13920,7 @@ var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
 	Host:             "",
 	BasePath:         "/api/v1",
-	Schemes:          []string{"http", "https"},
+	Schemes:          []string{"https"},
 	Title:            "EASI Architecture Modeling API",
 	Description:      "API for Enterprise Architecture System Integration - Component Modeling",
 	InfoInstanceName: "swagger",
