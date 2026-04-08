@@ -151,11 +151,22 @@ describe('DetailsSidebar', () => {
           await new Promise((resolve) => setTimeout(resolve, 100));
           return HttpResponse.json({ data: [], _links: { self: '/api/v1/components' } });
         }),
+        http.get(`${API_BASE}/api/v1/components/comp-2`, async () => {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          return new HttpResponse(null, { status: 404 });
+        }),
       );
 
       renderSidebar({ ...defaultProps, selectedComponentId: 'comp-2' as ComponentId });
 
-      expect(screen.getByText('Loading...')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('Loading...')).toBeInTheDocument();
+      });
+
+      // Wait for pending async state updates to settle to avoid act warnings
+      await waitFor(() => {
+        expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+      });
     });
 
     it('shows error state when component fetch fails', async () => {

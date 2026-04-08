@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useLayoutEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import type { Capability } from '../../../api/types';
 import { useMaturityScale } from '../../../hooks/useMaturityScale';
@@ -99,19 +99,20 @@ export function useEditCapabilityForm(
     mode: 'onChange',
   });
 
-  useLayoutEffect(() => {
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally omit currentCapability to avoid re-running on state update
+  useEffect(() => {
     if (capability) {
-      const found = capabilities.find((c) => c.id === capability.id) || capability;
-      if (currentCapability !== found) queueMicrotask(() => setCurrentCapability(found));
+      setCurrentCapability(capabilities.find((c) => c.id === capability.id) || capability);
     }
-  }, [capability, capabilities, currentCapability]);
+  }, [capability, capabilities]);
 
-  useLayoutEffect(() => {
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally omit backendError to avoid re-running on error clear
+  useEffect(() => {
     if (isOpen && capability) {
       form.reset(createDefaultValues(capability, sections));
-      if (backendError !== null) queueMicrotask(() => setBackendError(null));
+      setBackendError(null);
     }
-  }, [isOpen, capability, sections, form, backendError]);
+  }, [isOpen, capability, sections, form]);
 
   const statusOptions = useMemo(
     () =>

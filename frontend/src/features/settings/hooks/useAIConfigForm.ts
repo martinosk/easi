@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { AIConfigurationResponse, LLMProvider, TestConnectionResponse } from '../../../api/assistant/types';
 import { useTestAIConnection, useUpdateAIConfiguration } from './useAIConfiguration';
 
@@ -51,17 +51,12 @@ export function useAIConfigForm(config: AIConfigurationResponse | undefined) {
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
   const [testResult, setTestResult] = useState<TestConnectionResponse | null>(null);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (config) {
-      const derived = deriveFieldsFromConfig(config);
-      if (JSON.stringify(fields) !== JSON.stringify(derived)) {
-        queueMicrotask(() => setFields(derived));
-      }
-      if (showApiKeyInput !== (config.apiKeyStatus !== 'configured')) {
-        queueMicrotask(() => setShowApiKeyInput(config.apiKeyStatus !== 'configured'));
-      }
+      setFields(deriveFieldsFromConfig(config));
+      setShowApiKeyInput(config.apiKeyStatus !== 'configured');
     }
-  }, [config, fields, showApiKeyInput]);
+  }, [config]);
 
   const updateField = <K extends keyof FormFields>(key: K, value: FormFields[K]) =>
     setFields((prev) => ({ ...prev, [key]: value }));
