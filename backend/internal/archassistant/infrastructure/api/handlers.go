@@ -293,9 +293,9 @@ func testLLMConnection(provider vo.LLMProvider, endpoint, apiKey, model string) 
 		fullURL = llmEndpointURL(endpoint, "/v1/messages")
 	case isResponsesAPIURL(endpoint):
 		reqBody = map[string]interface{}{
-			"model":            model,
-			"input":            []map[string]string{{"role": "user", "content": "Hello"}},
-			"max_output_tokens": 5,
+			"model":             model,
+			"input":             []map[string]string{{"role": "user", "content": "Hello"}},
+			"max_output_tokens": 16,
 		}
 		fullURL = endpoint // full URL is already provided by the user
 	default:
