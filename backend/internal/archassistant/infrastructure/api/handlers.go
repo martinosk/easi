@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -255,6 +256,17 @@ func (h *AIConfigHandlers) TestConnection(w http.ResponseWriter, r *http.Request
 	sharedAPI.RespondJSON(w, http.StatusOK, result)
 }
 
+// llmEndpointURL returns the full API URL: if endpoint already has a non-root
+// path (e.g. Azure AI Foundry full URLs), it is used as-is; otherwise the
+// defaultPath is appended (standard OpenAI / Anthropic base‑URL style).
+func llmEndpointURL(endpoint, defaultPath string) string {
+	u, err := url.Parse(endpoint)
+	if err == nil && u.Path != "" && u.Path != "/" {
+		return endpoint
+	}
+	return endpoint + defaultPath
+}
+
 func testLLMConnection(provider vo.LLMProvider, endpoint, apiKey, model string) TestConnectionResponse {
 	reqBody := map[string]interface{}{
 		"model":      model,
@@ -263,13 +275,15 @@ func testLLMConnection(provider vo.LLMProvider, endpoint, apiKey, model string) 
 	}
 	body, _ := json.Marshal(reqBody)
 
-	path := "/v1/chat/completions"
+	endpoint = strings.TrimRight(endpoint, "/")
+	var fullURL string
 	if provider.IsAnthropic() {
-		path = "/v1/messages"
+		fullURL = llmEndpointURL(endpoint, "/v1/messages")
+	} else {
+		fullURL = llmEndpointURL(endpoint, "/v1/chat/completions")
 	}
 
-	endpoint = strings.TrimRight(endpoint, "/")
-	req, err := http.NewRequest("POST", endpoint+path, bytes.NewReader(body))
+	req, err := http.NewRequest("POST", fullURL, bytes.NewReader(body))
 	if err != nil {
 		return TestConnectionResponse{Success: false, Error: fmt.Sprintf("Failed to create request: %v", err)}
 	}

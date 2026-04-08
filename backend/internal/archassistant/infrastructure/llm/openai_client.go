@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -25,6 +26,17 @@ func NewOpenAIClient(endpoint, apiKey string) *OpenAIClient {
 			Timeout: 120 * time.Second,
 		},
 	}
+}
+
+// chatURL returns the full chat URL. If the endpoint already contains a
+// non-root path (e.g. Azure AI Foundry full URL), it is used as-is;
+// otherwise "/v1/chat/completions" is appended (standard OpenAI style).
+func (c *OpenAIClient) chatURL() string {
+	u, err := url.Parse(c.endpoint)
+	if err == nil && u.Path != "" && u.Path != "/" {
+		return c.endpoint
+	}
+	return c.endpoint + "/v1/chat/completions"
 }
 
 type openAIRequest struct {
@@ -138,7 +150,7 @@ func (c *OpenAIClient) StreamChat(ctx context.Context, messages []Message, opts 
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", c.endpoint+"/v1/chat/completions", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, "POST", c.chatURL(), bytes.NewReader(body))
 	if err != nil {
 		cancel()
 		return nil, fmt.Errorf("failed to create request: %w", err)

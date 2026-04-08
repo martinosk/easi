@@ -269,3 +269,31 @@ func TestOpenAIClient_StreamChat_ToolCallMessageInRequest(t *testing.T) {
 	assert.Equal(t, "tool", toolMsg["role"])
 	assert.Equal(t, "call_1", toolMsg["tool_call_id"])
 }
+
+// TestOpenAIClient_StreamChat_FullPathEndpoint verifies that when the endpoint
+// already contains a non-root path (e.g. an Azure AI Foundry URL), StreamChat
+// posts to that exact path and does NOT append /v1/chat/completions.
+func TestOpenAIClient_StreamChat_FullPathEndpoint(t *testing.T) {
+	var requestedPath string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestedPath = r.URL.RequestURI()
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		_, _ = fmt.Fprint(w, "data: [DONE]\n\n")
+	}))
+	defer server.Close()
+
+	// Simulate an Azure AI Foundry-style full-path endpoint.
+	fullEndpoint := server.URL + "/openai/responses?api-version=2025-04-01-preview"
+	client := llm.NewOpenAIClient(fullEndpoint, "test-key")
+	ch, err := client.StreamChat(context.Background(), []llm.Message{
+		{Role: llm.RoleUser, Content: "Hello"},
+	}, llm.Options{Model: "gpt-5.4-mini", MaxTokens: 16})
+
+	require.NoError(t, err)
+	for range ch {
+	}
+
+	assert.Equal(t, "/openai/responses?api-version=2025-04-01-preview", requestedPath,
+		"full-path endpoint should be used as-is without appending /v1/chat/completions")
+}
