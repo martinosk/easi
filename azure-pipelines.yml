@@ -16,8 +16,6 @@ variables:
   value: 'enterprisearchitecture-pnpbj-k8s'
 - name: 'kubernetes-namespace'
   value: 'enterprisearchitecture-pnpbj'
-- name: npm_config_cache
-  value: $(Pipeline.Workspace)/.npm
 
 stages:
 - stage: Test
@@ -56,19 +54,10 @@ stages:
   - job: FrontendTest
     displayName: 'Frontend: build and test'
     steps:
-    - task: NodeTool@1
-      name: InstallNode
+    - task: UseNode@1
       displayName: 'Install Node.js'
       inputs:
-        versionSpec: '20.x'
-
-    - task: Cache@2
-      displayName: 'Cache npm packages'
-      inputs:
-        key: '"npm" | "v2" | "$(Agent.OS)" | frontend/package-lock.json'
-        restoreKeys: |
-          "npm" | "v2" | "$(Agent.OS)"
-        path: $(npm_config_cache)
+        version: '20.x'
 
     - script: |
         cd frontend
