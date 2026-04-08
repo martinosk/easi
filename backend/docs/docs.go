@@ -13909,7 +13909,7 @@ const docTemplate = `{
     },
     "securityDefinitions": {
         "CookieAuth": {
-            "description": "Session cookie obtained after logging in via the UI (/auth/callback). Copy the `easi_session` cookie value from DevTools.",
+            "description": "Session cookie obtained after logging in via the UI (/auth/callback). Copy the 'easi_session' cookie value from DevTools.",
             "type": "apiKey",
             "name": "easi_session",
             "in": "cookie"

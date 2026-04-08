@@ -37,7 +37,7 @@ import (
 // @securityDefinitions.apikey CookieAuth
 // @in cookie
 // @name easi_session
-// @description Session cookie obtained after logging in via the UI (/auth/callback). Copy the `easi_session` cookie value from DevTools.
+// @description Session cookie obtained after logging in via the UI (/auth/callback). Copy the 'easi_session' cookie value from DevTools.
 func main() {
 	if err := run(); err != nil {
 		log.Fatalf("Application error: %v", err)
