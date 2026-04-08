@@ -328,6 +328,43 @@ func TestResponsesAPIClient_StreamChat_ToolCallInputInRequest(t *testing.T) {
 	assert.Equal(t, `[{"name":"App1"}]`, fcoItem["output"])
 }
 
+// TestResponsesAPIClient_StreamChat_ToolCallNameFromOutputItem verifies that
+// when response.function_call_arguments.done omits the "name" field (as Azure
+// AI Foundry does), the name is resolved from the earlier output_item.added event.
+func TestResponsesAPIClient_StreamChat_ToolCallNameFromOutputItem(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		writeSSELines(w,
+			// name present in output_item.added
+			`{"type":"response.output_item.added","output_index":0,"item":{"type":"function_call","id":"item_1","call_id":"call_xyz","name":"list_apps"}}`,
+			// name intentionally absent from arguments.done (Azure pattern)
+			`{"type":"response.function_call_arguments.done","item_id":"item_1","arguments":"{\"id\":1}"}`,
+			`{"type":"response.completed","response":{}}`,
+		)
+	}))
+	defer server.Close()
+
+	client := llm.NewResponsesAPIClient(server.URL, "test-key")
+	ch, err := client.StreamChat(context.Background(), []llm.Message{
+		{Role: llm.RoleUser, Content: "List apps"},
+	}, llm.Options{Model: "gpt-4o", MaxTokens: 100})
+	require.NoError(t, err)
+
+	var toolCallEvents []llm.StreamEvent
+	for e := range ch {
+		if e.Type == llm.EventToolCall {
+			toolCallEvents = append(toolCallEvents, e)
+		}
+	}
+
+	require.Len(t, toolCallEvents, 1)
+	require.Len(t, toolCallEvents[0].ToolCalls, 1)
+	assert.Equal(t, "call_xyz", toolCallEvents[0].ToolCalls[0].ID)
+	assert.Equal(t, "list_apps", toolCallEvents[0].ToolCalls[0].Name, "name should be resolved from output_item.added")
+	assert.Equal(t, `{"id":1}`, toolCallEvents[0].ToolCalls[0].Arguments)
+}
+
 func TestResponsesAPIClient_StreamChat_ErrorEvent(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
@@ -355,6 +392,79 @@ func TestResponsesAPIClient_StreamChat_ErrorEvent(t *testing.T) {
 
 	require.NotNil(t, errorEvent)
 	assert.Contains(t, errorEvent.Error.Error(), "something went wrong")
+}
+
+func TestResponsesToolCallAccumulator_NormalFlow(t *testing.T) {
+	acc := llm.NewResponsesToolCallAccumulator()
+
+	acc.RegisterItem("item_1", "call_abc", "list_apps")
+	acc.Finalize("item_1", "list_apps", `{"name":"x"}`)
+
+	ch := make(chan llm.StreamEvent, 4)
+	acc.Emit(ch)
+	close(ch)
+
+	var events []llm.StreamEvent
+	for e := range ch {
+		events = append(events, e)
+	}
+
+	require.Len(t, events, 1)
+	require.Len(t, events[0].ToolCalls, 1)
+	assert.Equal(t, "call_abc", events[0].ToolCalls[0].ID)
+	assert.Equal(t, "list_apps", events[0].ToolCalls[0].Name)
+	assert.Equal(t, `{"name":"x"}`, events[0].ToolCalls[0].Arguments)
+}
+
+func TestResponsesToolCallAccumulator_NameFallback(t *testing.T) {
+	// Azure omits "name" from function_call_arguments.done; name must come from registerItem.
+	acc := llm.NewResponsesToolCallAccumulator()
+
+	acc.RegisterItem("item_1", "call_abc", "list_apps")
+	acc.Finalize("item_1", "", `{"name":"x"}`) // name intentionally blank
+
+	ch := make(chan llm.StreamEvent, 4)
+	acc.Emit(ch)
+	close(ch)
+
+	var events []llm.StreamEvent
+	for e := range ch {
+		events = append(events, e)
+	}
+
+	require.Len(t, events, 1)
+	assert.Equal(t, "list_apps", events[0].ToolCalls[0].Name, "name must fall back to value from output_item.added")
+}
+
+func TestResponsesToolCallAccumulator_MultipleItems(t *testing.T) {
+	acc := llm.NewResponsesToolCallAccumulator()
+
+	acc.RegisterItem("item_1", "call_1", "get_app")
+	acc.RegisterItem("item_2", "call_2", "get_vendor")
+	acc.Finalize("item_1", "get_app", `{"id":1}`)
+	acc.Finalize("item_2", "get_vendor", `{"id":2}`)
+
+	ch := make(chan llm.StreamEvent, 4)
+	acc.Emit(ch)
+	close(ch)
+
+	var events []llm.StreamEvent
+	for e := range ch {
+		events = append(events, e)
+	}
+
+	require.Len(t, events, 1)
+	require.Len(t, events[0].ToolCalls, 2)
+	assert.Equal(t, "call_1", events[0].ToolCalls[0].ID)
+	assert.Equal(t, "call_2", events[0].ToolCalls[1].ID)
+}
+
+func TestResponsesToolCallAccumulator_EmitWithoutCalls(t *testing.T) {
+	acc := llm.NewResponsesToolCallAccumulator()
+	ch := make(chan llm.StreamEvent, 4)
+	acc.Emit(ch) // should not send anything
+	close(ch)
+	assert.Empty(t, ch)
 }
 
 func TestIsResponsesAPIEndpoint(t *testing.T) {

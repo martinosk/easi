@@ -83,6 +83,50 @@ type responsesFunctionCallOutputItem struct {
 	Output string `json:"output"`
 }
 
+type ResponsesToolCallAccumulator struct {
+	callIDs map[string]string // item ID → call_id
+	names   map[string]string // item ID → function name
+	calls   []ToolCall
+}
+
+func NewResponsesToolCallAccumulator() *ResponsesToolCallAccumulator {
+	return &ResponsesToolCallAccumulator{
+		callIDs: make(map[string]string),
+		names:   make(map[string]string),
+	}
+}
+
+func (a *ResponsesToolCallAccumulator) RegisterItem(itemID, callID, name string) {
+	if callID != "" {
+		a.callIDs[itemID] = callID
+	}
+	if name != "" {
+		a.names[itemID] = name
+	}
+}
+
+func (a *ResponsesToolCallAccumulator) Finalize(itemID, name, arguments string) {
+	callID := itemID
+	if mapped, ok := a.callIDs[itemID]; ok {
+		callID = mapped
+	}
+	if name == "" {
+		name = a.names[itemID]
+	}
+	a.calls = append(a.calls, ToolCall{ID: callID, Name: name, Arguments: arguments})
+}
+
+func (a *ResponsesToolCallAccumulator) hasToolCalls() bool {
+	return len(a.calls) > 0
+}
+
+func (a *ResponsesToolCallAccumulator) Emit(ch chan<- StreamEvent) {
+	if a.hasToolCalls() {
+		ch <- StreamEvent{Type: EventToolCall, ToolCalls: a.calls}
+		a.calls = nil
+	}
+}
+
 // ---- streaming event types ----
 
 type responsesStreamEvent struct {
@@ -216,9 +260,7 @@ func (c *ResponsesAPIClient) readStream(ctx context.Context, resp *http.Response
 	scanner.Buffer(make([]byte, 1024*1024), 1024*1024)
 
 	totalTokens := 0
-	// Map from output item ID to call_id for function_call items.
-	itemCallIDs := map[string]string{}
-	var pendingToolCalls []ToolCall
+	acc := NewResponsesToolCallAccumulator()
 
 	for scanner.Scan() {
 		if ctx.Err() != nil {
@@ -249,36 +291,21 @@ func (c *ResponsesAPIClient) readStream(ctx context.Context, resp *http.Response
 			}
 
 		case "response.output_item.added":
-			// Capture call_id for function_call output items so we can
-			// attach it to the ToolCall when arguments are finalised.
 			var item responsesOutputItemPayload
 			if err := json.Unmarshal(event.Item, &item); err == nil {
-				if item.Type == "function_call" && item.CallID != "" {
-					itemCallIDs[item.ID] = item.CallID
+				if item.Type == "function_call" {
+					acc.RegisterItem(item.ID, item.CallID, item.Name)
 				}
 			}
 
 		case "response.function_call_arguments.done":
-			// item_id is the output-item's ID; call_id is what the next
-			// turn must use as ToolCallID when returning the tool result.
-			callID := event.ItemID
-			if mapped, ok := itemCallIDs[event.ItemID]; ok {
-				callID = mapped
-			}
-			pendingToolCalls = append(pendingToolCalls, ToolCall{
-				ID:        callID,
-				Name:      event.Name,
-				Arguments: event.Arguments,
-			})
+			acc.Finalize(event.ItemID, event.Name, event.Arguments)
 
 		case "response.completed":
 			if event.Response != nil && event.Response.Usage != nil {
 				totalTokens = event.Response.Usage.TotalTokens
 			}
-			if len(pendingToolCalls) > 0 {
-				ch <- StreamEvent{Type: EventToolCall, ToolCalls: pendingToolCalls}
-				pendingToolCalls = nil
-			}
+			acc.Emit(ch)
 			ch <- StreamEvent{Type: EventDone, TokensUsed: totalTokens}
 			return
 
