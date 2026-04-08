@@ -256,6 +256,16 @@ func (h *AIConfigHandlers) TestConnection(w http.ResponseWriter, r *http.Request
 	sharedAPI.RespondJSON(w, http.StatusOK, result)
 }
 
+// isResponsesAPIURL reports whether the endpoint URL targets the OpenAI Responses API
+// (i.e. its path contains "/responses").
+func isResponsesAPIURL(endpoint string) bool {
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return false
+	}
+	return strings.Contains(u.Path, "/responses")
+}
+
 // llmEndpointURL returns the full API URL: if endpoint already has a non-root
 // path (e.g. Azure AI Foundry full URLs), it is used as-is; otherwise the
 // defaultPath is appended (standard OpenAI / Anthropic base‑URL style).
@@ -268,20 +278,36 @@ func llmEndpointURL(endpoint, defaultPath string) string {
 }
 
 func testLLMConnection(provider vo.LLMProvider, endpoint, apiKey, model string) TestConnectionResponse {
-	reqBody := map[string]interface{}{
-		"model":      model,
-		"messages":   []map[string]string{{"role": "user", "content": "Hello"}},
-		"max_tokens": 5,
-	}
-	body, _ := json.Marshal(reqBody)
-
 	endpoint = strings.TrimRight(endpoint, "/")
+
+	var reqBody map[string]interface{}
 	var fullURL string
-	if provider.IsAnthropic() {
+
+	switch {
+	case provider.IsAnthropic():
+		reqBody = map[string]interface{}{
+			"model":      model,
+			"messages":   []map[string]string{{"role": "user", "content": "Hello"}},
+			"max_tokens": 5,
+		}
 		fullURL = llmEndpointURL(endpoint, "/v1/messages")
-	} else {
+	case isResponsesAPIURL(endpoint):
+		reqBody = map[string]interface{}{
+			"model":            model,
+			"input":            []map[string]string{{"role": "user", "content": "Hello"}},
+			"max_output_tokens": 5,
+		}
+		fullURL = endpoint // full URL is already provided by the user
+	default:
+		reqBody = map[string]interface{}{
+			"model":      model,
+			"messages":   []map[string]string{{"role": "user", "content": "Hello"}},
+			"max_tokens": 5,
+		}
 		fullURL = llmEndpointURL(endpoint, "/v1/chat/completions")
 	}
+
+	body, _ := json.Marshal(reqBody)
 
 	req, err := http.NewRequest("POST", fullURL, bytes.NewReader(body))
 	if err != nil {
