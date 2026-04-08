@@ -38,12 +38,11 @@ stages:
       inputs:
         versionSpec: '20.x'
 
-    - task: Npm@1
+    - script: |
+        cd frontend
+        npm ci
       name: FrontendInstall
       displayName: 'Install frontend dependencies'
-      inputs:
-        command: 'ci'
-        workingDir: 'frontend'
 
     - script: |
         cd frontend
