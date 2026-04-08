@@ -16,14 +16,24 @@ variables:
   value: 'enterprisearchitecture-pnpbj-k8s'
 - name: 'kubernetes-namespace'
   value: 'enterprisearchitecture-pnpbj'
+- name: npm_config_cache
+  value: $(Pipeline.Workspace)/.npm
 
 stages:
 - stage: Test
   displayName: 'Test & Verify Build'
   jobs:
-  - job: Test
-    displayName: 'Run tests and verify build'
+  - job: BackendTest
+    displayName: 'Backend: build and test'
     steps:
+    - task: Cache@2
+      displayName: 'Cache Go modules'
+      inputs:
+        key: '"go" | "$(Agent.OS)" | backend/go.sum'
+        restoreKeys: |
+          "go" | "$(Agent.OS)"
+        path: $(GOPATH)/pkg/mod
+
     - task: Go@0
       name: BackendBuild
       displayName: 'Verify backend build'
@@ -32,11 +42,30 @@ stages:
         arguments: '-o /dev/null ./cmd/api'
         workingDirectory: 'backend'
 
+    - task: Go@0
+      name: BackendUnitTests
+      displayName: 'Run backend unit tests'
+      inputs:
+        command: 'test'
+        arguments: '-v ./...'
+        workingDirectory: 'backend'
+
+  - job: FrontendTest
+    displayName: 'Frontend: build and test'
+    steps:
     - task: NodeTool@1
       name: InstallNode
       displayName: 'Install Node.js'
       inputs:
         versionSpec: '20.x'
+
+    - task: Cache@2
+      displayName: 'Cache npm packages'
+      inputs:
+        key: '"npm" | "$(Agent.OS)" | frontend/package-lock.json'
+        restoreKeys: |
+          "npm" | "$(Agent.OS)"
+        path: $(npm_config_cache)
 
     - script: |
         cd frontend
@@ -49,14 +78,6 @@ stages:
         npm run build
       name: FrontendBuild
       displayName: 'Verify frontend build'
-
-    - task: Go@0
-      name: BackendUnitTests
-      displayName: 'Run backend unit tests'
-      inputs:
-        command: 'test'
-        arguments: '-v ./...'
-        workingDirectory: 'backend'
 
     - script: |
         cd frontend
@@ -81,17 +102,23 @@ stages:
   dependsOn: Test
   condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
   jobs:
-  - job: BuildAndPush
-    displayName: 'Build and push images'
+  - job: SetVersion
+    displayName: 'Determine version'
     steps:
     - script: |
         VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
         VERSION=${VERSION#v}
         echo "Detected version: $VERSION"
-        echo "##vso[task.setvariable variable=APP_VERSION]$VERSION"
-      name: GetVersion
+        echo "##vso[task.setvariable variable=APP_VERSION;isOutput=true]$VERSION"
+      name: SetVersion
       displayName: 'Get version from git tag'
 
+  - job: BuildPushMigrate
+    displayName: 'Build and push migrate image'
+    dependsOn: SetVersion
+    variables:
+      APP_VERSION: $[ dependencies.SetVersion.outputs['SetVersion.APP_VERSION'] ]
+    steps:
     - task: Docker@2
       name: BuildMigrate
       displayName: 'Build migrate docker image'
@@ -100,24 +127,6 @@ stages:
         Dockerfile: 'backend/Dockerfile.migrate'
         buildContext: 'backend'
         arguments: '--tag easi-migrate:$(Build.BuildNumber)'
-
-    - task: Docker@2
-      name: BuildBackend
-      displayName: 'Build backend docker image'
-      inputs:
-        command: 'build'
-        Dockerfile: 'backend/Dockerfile'
-        buildContext: 'backend'
-        arguments: '--tag easi-backend:$(Build.BuildNumber) --build-arg APP_VERSION=$(APP_VERSION)'
-
-    - task: Docker@2
-      name: BuildFrontend
-      displayName: 'Build frontend docker image'
-      inputs:
-        command: 'build'
-        Dockerfile: 'frontend/Dockerfile'
-        buildContext: 'frontend'
-        arguments: '--tag easi-frontend:$(Build.BuildNumber) --build-arg VITE_API_URL='
 
     - task: ECRPushImage@1
       name: PushMigrate
@@ -131,6 +140,21 @@ stages:
         repositoryName: 'architecture/easi-migrate'
         pushTag: '$(Build.BuildNumber)'
 
+  - job: BuildPushBackend
+    displayName: 'Build and push backend image'
+    dependsOn: SetVersion
+    variables:
+      APP_VERSION: $[ dependencies.SetVersion.outputs['SetVersion.APP_VERSION'] ]
+    steps:
+    - task: Docker@2
+      name: BuildBackend
+      displayName: 'Build backend docker image'
+      inputs:
+        command: 'build'
+        Dockerfile: 'backend/Dockerfile'
+        buildContext: 'backend'
+        arguments: '--tag easi-backend:$(Build.BuildNumber) --build-arg APP_VERSION=$(APP_VERSION)'
+
     - task: ECRPushImage@1
       name: PushBackend
       displayName: 'Push backend image to AWS'
@@ -142,6 +166,21 @@ stages:
         sourceImageTag: '$(Build.BuildNumber)'
         repositoryName: 'architecture/easi-backend'
         pushTag: '$(Build.BuildNumber)'
+
+  - job: BuildPushFrontend
+    displayName: 'Build and push frontend image'
+    dependsOn: SetVersion
+    variables:
+      APP_VERSION: $[ dependencies.SetVersion.outputs['SetVersion.APP_VERSION'] ]
+    steps:
+    - task: Docker@2
+      name: BuildFrontend
+      displayName: 'Build frontend docker image'
+      inputs:
+        command: 'build'
+        Dockerfile: 'frontend/Dockerfile'
+        buildContext: 'frontend'
+        arguments: '--tag easi-frontend:$(Build.BuildNumber) --build-arg VITE_API_URL='
 
     - task: ECRPushImage@1
       name: PushFrontend
