@@ -86,6 +86,8 @@ A spec is too broad if:
 
 When scope is too broad, propose a split into vertical slices. Each slice gets its own numbered spec. Human approves the split before continuing.
 
+A spec must never contain "future work", "out of scope", or "nice to have" sections. If something is worth doing, it warrants its own numbered spec. If it's not worth a spec, it doesn't belong in writing at all.
+
 ### Consistency Gate (before checking `Specification ready`)
 
 - Intent is unambiguous — two developers would interpret it the same way
@@ -134,3 +136,4 @@ When scope is too broad, propose a split into vertical slices. Each slice gets i
 6. Update the spec during implementation — discoveries belong in the spec
 7. Don't skip the cross-context integration section
 8. Categorize all critiques (gap / ambiguity / conflict / scope violation) and reference specific text
+9. **No future or out-of-scope content in a spec** — a spec describes only what will be built in this slice. If something is valuable but out of scope, do not add it as a note, placeholder, or "future consideration". Create a new numbered spec for it instead.
