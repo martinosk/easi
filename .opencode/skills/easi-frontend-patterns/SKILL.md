@@ -184,15 +184,58 @@ See `src/features/components/hooks/useComponents.ts` for the canonical example o
 | Static data | `staleTime: Infinity` |
 | Optimistic updates | Avoid for domain state |
 | Conditional queries | `enabled: !!dependency` |
+| Mantine components     | Use for all UI surfaces  |
+| Dialog gates           | Grep for all call sites and update every surface before marking complete |
 
-## Rationalization Prevention
+## UI Component Framework (Mantine v8)
 
-| Excuse | Why it's wrong |
-|--------|----------------|
-| "The user is an admin, I know they can edit" | The backend is the authority on permissions; client-side role checks become stale and create security holes |
-| "I'll just `queryClient.invalidateQueries` directly" | Bypasses the centralized `mutationEffects` registry, making it impossible to audit what each mutation invalidates |
-| "Optimistic update makes it feel faster" | Domain state mutations can fail for business rule reasons; reverting optimistic state creates confusing UX |
-| "This data never changes, no need for staleTime" | Without `staleTime: Infinity` the query refetches on every focus/mount, causing unnecessary API calls |
+All interactive UI surfaces in EASI use **Mantine v8** (`@mantine/core`). Never write plain HTML for dialogs, buttons, inputs, or form controls.
+
+### Component Mapping
+
+| UI Surface | Mantine Component |
+|---|---|
+| Dialogs / modals | `Modal` |
+| Number inputs | `NumberInput` |
+| Checkboxes | `Checkbox` |
+| Buttons (primary / default) | `Button` (with `variant` prop) |
+| Vertical spacing | `Stack` |
+| Horizontal grouping | `Group` |
+| Body text | `Text` |
+
+### Test wrapper
+
+Mantine component tests must be wrapped in `MantineTestWrapper`:
+
+```typescript
+import { MantineTestWrapper } from '../../../test/helpers/mantineTestWrapper';
+
+render(
+  <MantineTestWrapper>
+    <MyComponent />
+  </MantineTestWrapper>
+);
+```
+
+Rendering without the wrapper causes test failures (missing MantineProvider context).
+
+---
+
+## Multi-Surface Feature Entry Points
+
+Features in EASI can be triggered from multiple surfaces — canvas context menu, navigation tree context menu, toolbar buttons, or keyboard shortcuts. When you add a **dialog gate** (an interstitial dialog that intercepts an action to collect user input or confirmation), you must update **every** call site of the underlying action hook, not just the surface you are actively coding.
+
+### Audit call sites before implementing a dialog gate
+
+```bash
+grep -r "yourHookFunction(" frontend/src/ --include="*.tsx" --include="*.ts"
+```
+
+### Checklist when adding a dialog gate
+
+- [ ] `grep` for all current call sites of the intercepted hook function
+- [ ] Update every call site to route through the dialog gate state
+- [ ] Add a test per surface (unit or E2E) that verifies the dialog appears
 
 ## Guidelines
 
@@ -204,3 +247,7 @@ See `src/features/components/hooks/useComponents.ts` for the canonical example o
 6. **Mutations always call `invalidateFor`** in `onSuccess`
 7. **Never use optimistic updates** for domain state mutations
 8. **Use `staleTime: Infinity`** for static metadata queries
+9. **Use Mantine for all UI components** — no plain HTML for dialogs, inputs, buttons, or checkboxes
+10. **Never invent CSS class names** for UI elements — they will not exist in the EASI stylesheet
+11. **Wrap Mantine component tests** in `MantineTestWrapper` from `src/test/helpers/mantineTestWrapper.tsx`
+12. **Audit all call sites** before adding a dialog gate — grep first, update every entry point, not just the one you are coding
