@@ -10,7 +10,11 @@ import type {
   ViewComponent,
 } from '../../../api/types';
 import { getBestHandles } from './handleCalculation';
-import { ORIGIN_ENTITY_PREFIXES } from './nodeFactory';
+import {
+  makeNodeId,
+  ORIGIN_RELATIONSHIP_LABELS,
+  RELATIONSHIP_TO_ENTITY_TYPE,
+} from '../../../constants/entityIdentifiers';
 
 export interface EdgeCreationContext {
   nodes: Node[];
@@ -169,24 +173,8 @@ const ORIGIN_RELATIONSHIP_COLORS: Record<OriginRelationshipType, string> = {
   BuiltBy: '#14b8a6',
 };
 
-const ORIGIN_RELATIONSHIP_LABELS: Record<OriginRelationshipType, string> = {
-  AcquiredVia: 'Acquired via',
-  PurchasedFrom: 'Purchased from',
-  BuiltBy: 'Built by',
-};
-
-const getOriginEntityNodeId = (relationshipType: OriginRelationshipType, entityId: string): string => {
-  switch (relationshipType) {
-    case 'AcquiredVia':
-      return `${ORIGIN_ENTITY_PREFIXES.acquired}${entityId}`;
-    case 'PurchasedFrom':
-      return `${ORIGIN_ENTITY_PREFIXES.vendor}${entityId}`;
-    case 'BuiltBy':
-      return `${ORIGIN_ENTITY_PREFIXES.team}${entityId}`;
-    default:
-      return entityId;
-  }
-};
+const getOriginEntityNodeId = (relationshipType: OriginRelationshipType, entityId: string): string =>
+  makeNodeId(RELATIONSHIP_TO_ENTITY_TYPE[relationshipType], entityId);
 
 export function createOriginRelationshipEdges(
   originRelationships: OriginRelationship[],

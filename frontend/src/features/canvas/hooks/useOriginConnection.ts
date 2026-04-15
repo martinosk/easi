@@ -6,7 +6,7 @@ import {
   useLinkComponentToInternalTeam,
   useLinkComponentToVendor,
 } from '../../origin-entities/hooks';
-import { extractOriginEntityId, getOriginEntityTypeFromNodeId, isOriginEntityNode } from '../utils/nodeFactory';
+import { getEntityId, getOriginEntityType, isOriginEntity, toNodeId } from '../../../constants/entityIdentifiers';
 
 const getErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message : fallback;
@@ -50,12 +50,12 @@ export const useOriginConnection = () => {
 
   const handleOriginComponentConnection = useCallback(
     async (source: string, target: string, notes?: string): Promise<void> => {
-      const sourceIsOriginEntity = isOriginEntityNode(source);
+      const sourceIsOriginEntity = isOriginEntity(toNodeId(source));
       const originNodeId = sourceIsOriginEntity ? source : target;
       const componentNodeId = sourceIsOriginEntity ? target : source;
 
-      const originEntityType = getOriginEntityTypeFromNodeId(originNodeId);
-      const entityId = extractOriginEntityId(originNodeId);
+      const originEntityType = getOriginEntityType(toNodeId(originNodeId));
+      const entityId = getEntityId(toNodeId(originNodeId));
       const componentId = toComponentId(componentNodeId);
 
       if (!entityId || !originEntityType) {

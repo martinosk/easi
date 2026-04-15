@@ -15,7 +15,7 @@ import { canEdit } from '../../../utils/hateoas';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { useUpdateOriginEntityPosition } from '../../views/hooks/useViews';
 import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
-import { extractOriginEntityId } from '../utils/nodeFactory';
+import { getEntityId, toNodeId } from '../../../constants/entityIdentifiers';
 
 function isMultiSelectModifier(event: React.MouseEvent): boolean {
   return event.shiftKey || event.ctrlKey || event.metaKey;
@@ -26,7 +26,7 @@ function persistOriginEntityPosition(
   viewId: ViewId,
   mutate: (params: { viewId: ViewId; originEntityId: string; position: { x: number; y: number } }) => void,
 ): void {
-  const originEntityId = extractOriginEntityId(node.id);
+  const originEntityId = getEntityId(toNodeId(node.id));
   if (!originEntityId) return;
   mutate({
     viewId,

@@ -1,6 +1,6 @@
 import type { Connection } from '@xyflow/react';
 import { useCallback } from 'react';
-import { isOriginEntityNode } from '../utils/nodeFactory';
+import { isOriginEntity, toNodeId } from '../../../constants/entityIdentifiers';
 import { isCapabilityNode, useCapabilityConnection } from './useCapabilityConnection';
 import { useOriginConnection } from './useOriginConnection';
 
@@ -15,7 +15,7 @@ type NodeKind = 'capability' | 'component' | 'origin';
 
 const getNodeKind = (nodeId: string): NodeKind => {
   if (isCapabilityNode(nodeId)) return 'capability';
-  if (isOriginEntityNode(nodeId)) return 'origin';
+  if (isOriginEntity(toNodeId(nodeId))) return 'origin';
   return 'component';
 };
 

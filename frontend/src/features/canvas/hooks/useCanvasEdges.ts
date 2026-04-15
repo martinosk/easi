@@ -11,7 +11,7 @@ import {
   createRealizationEdges,
   createRelationEdges,
 } from '../utils/edgeCreators';
-import { ORIGIN_ENTITY_PREFIXES } from '../utils/nodeFactory';
+import { isOriginEntity, toNodeId } from '../../../constants/entityIdentifiers';
 
 export const useCanvasEdges = (nodes: Node[]): Edge[] => {
   const { data: relations = [] } = useRelations();
@@ -35,14 +35,7 @@ export const useCanvasEdges = (nodes: Node[]): Edge[] => {
 
     const componentIdsOnCanvas = new Set(viewComponents.map((vc) => vc.componentId));
     const originEntityNodeIds = new Set(
-      nodes
-        .filter(
-          (n) =>
-            n.id.startsWith(ORIGIN_ENTITY_PREFIXES.acquired) ||
-            n.id.startsWith(ORIGIN_ENTITY_PREFIXES.vendor) ||
-            n.id.startsWith(ORIGIN_ENTITY_PREFIXES.team),
-        )
-        .map((n) => n.id),
+      nodes.filter((n) => isOriginEntity(toNodeId(n.id))).map((n) => n.id),
     );
 
     return [

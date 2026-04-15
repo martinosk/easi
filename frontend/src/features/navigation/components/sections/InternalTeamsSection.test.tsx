@@ -120,46 +120,21 @@ describe('InternalTeamsSection', () => {
       expect(screen.queryByText('Finance IT')).not.toBeInTheDocument();
     });
 
-    it('should filter teams by department', () => {
+    it.each([
+      { field: 'department', match: { department: 'Technology' }, other: { department: 'Finance' }, search: 'technology' },
+      { field: 'contact person', match: { contactPerson: 'John Doe' }, other: { contactPerson: 'Jane Smith' }, search: 'john' },
+      { field: 'notes', match: { notes: 'Analytics and BI' }, other: { notes: 'Core platform services' }, search: 'analytics' },
+    ])('should filter teams by $field', ({ match, other, search }) => {
       const teams = [
-        createMockTeam({ id: 'it-1', name: 'Platform Engineering', department: 'Technology' }),
-        createMockTeam({ id: 'it-2', name: 'Finance IT', department: 'Finance' }),
+        createMockTeam({ id: 'it-1', name: 'Match Team', ...match }),
+        createMockTeam({ id: 'it-2', name: 'Other Team', ...other }),
       ];
       render(<InternalTeamsSection {...defaultProps} internalTeams={teams} />);
 
-      const searchInput = screen.getByPlaceholderText('Search internal teams...');
-      fireEvent.change(searchInput, { target: { value: 'technology' } });
+      fireEvent.change(screen.getByPlaceholderText('Search internal teams...'), { target: { value: search } });
 
-      expect(screen.getByText('Platform Engineering')).toBeInTheDocument();
-      expect(screen.queryByText('Finance IT')).not.toBeInTheDocument();
-    });
-
-    it('should filter teams by contact person', () => {
-      const teams = [
-        createMockTeam({ id: 'it-1', name: 'Platform Engineering', contactPerson: 'John Doe' }),
-        createMockTeam({ id: 'it-2', name: 'Data Team', contactPerson: 'Jane Smith' }),
-      ];
-      render(<InternalTeamsSection {...defaultProps} internalTeams={teams} />);
-
-      const searchInput = screen.getByPlaceholderText('Search internal teams...');
-      fireEvent.change(searchInput, { target: { value: 'john' } });
-
-      expect(screen.getByText('Platform Engineering')).toBeInTheDocument();
-      expect(screen.queryByText('Data Team')).not.toBeInTheDocument();
-    });
-
-    it('should filter teams by notes', () => {
-      const teams = [
-        createMockTeam({ id: 'it-1', name: 'Platform Engineering', notes: 'Core platform services' }),
-        createMockTeam({ id: 'it-2', name: 'Data Team', notes: 'Analytics and BI' }),
-      ];
-      render(<InternalTeamsSection {...defaultProps} internalTeams={teams} />);
-
-      const searchInput = screen.getByPlaceholderText('Search internal teams...');
-      fireEvent.change(searchInput, { target: { value: 'analytics' } });
-
-      expect(screen.getByText('Data Team')).toBeInTheDocument();
-      expect(screen.queryByText('Platform Engineering')).not.toBeInTheDocument();
+      expect(screen.getByText('Match Team')).toBeInTheDocument();
+      expect(screen.queryByText('Other Team')).not.toBeInTheDocument();
     });
 
     it('should show no matches message when search yields no results', () => {

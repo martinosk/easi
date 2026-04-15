@@ -97,6 +97,12 @@ export const ORIGIN_RELATIONSHIP_TYPE_MAP: Record<OriginEntityType, OriginRelati
   team: 'BuiltBy',
 };
 
+export const RELATIONSHIP_TO_ENTITY_TYPE: Record<OriginRelationshipType, OriginEntityType> = {
+  AcquiredVia: 'acquired',
+  PurchasedFrom: 'vendor',
+  BuiltBy: 'team',
+};
+
 export const ORIGIN_RELATIONSHIP_LABELS: Record<OriginRelationshipType, string> = {
   AcquiredVia: 'Acquired via',
   PurchasedFrom: 'Purchased from',

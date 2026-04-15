@@ -56,10 +56,6 @@ vi.mock('../../origin-entities/hooks/useInternalTeams', () => ({
   useDeleteInternalTeam: () => ({ mutateAsync: mockDeleteInternalTeam }),
 }));
 
-vi.mock('../utils/nodeFactory', () => ({
-  extractOriginEntityId: (id: string) => id.replace(/^(ae-|vendor-|team-)/, ''),
-}));
-
 const createWrapper = () => {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -83,20 +79,43 @@ function makeNode(overrides: Partial<NodeContextMenu> = {}): NodeContextMenu {
   };
 }
 
+function setupBulkHook() {
+  const { result } = renderHook(() => useBulkOperations(), { wrapper: createWrapper() });
+  return result;
+}
+
+const twoComponentNodes = () => [
+  makeNode({ nodeId: 'comp-1', nodeName: 'Component 1', nodeType: 'component' }),
+  makeNode({ nodeId: 'comp-2', nodeName: 'Component 2', nodeType: 'component' }),
+];
+
+async function setBulkAndConfirm(
+  result: ReturnType<typeof setupBulkHook>,
+  type: 'removeFromView' | 'deleteFromModel',
+  nodes: NodeContextMenu[],
+) {
+  act(() => {
+    result.current.setBulkOperation({ type, nodes });
+  });
+  await act(async () => {
+    await result.current.handleBulkConfirm();
+  });
+}
+
 describe('useBulkOperations', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('starts with no bulk operation', () => {
-    const { result } = renderHook(() => useBulkOperations(), { wrapper: createWrapper() });
+    const result = setupBulkHook();
     expect(result.current.bulkOperation).toBeNull();
     expect(result.current.isExecuting).toBe(false);
     expect(result.current.result).toBeNull();
   });
 
   it('sets bulk operation via setBulkOperation', () => {
-    const { result } = renderHook(() => useBulkOperations(), { wrapper: createWrapper() });
+    const result = setupBulkHook();
     const nodes = [makeNode({ nodeId: 'comp-1' }), makeNode({ nodeId: 'comp-2' })];
 
     act(() => {
@@ -109,7 +128,7 @@ describe('useBulkOperations', () => {
   });
 
   it('clears bulk operation on cancel', () => {
-    const { result } = renderHook(() => useBulkOperations(), { wrapper: createWrapper() });
+    const result = setupBulkHook();
     const nodes = [makeNode({ nodeId: 'comp-1' }), makeNode({ nodeId: 'comp-2' })];
 
     act(() => {
@@ -124,19 +143,8 @@ describe('useBulkOperations', () => {
   });
 
   it('executes bulk remove from view in parallel', async () => {
-    const { result } = renderHook(() => useBulkOperations(), { wrapper: createWrapper() });
-    const nodes = [
-      makeNode({ nodeId: 'comp-1', nodeName: 'Component 1', nodeType: 'component' }),
-      makeNode({ nodeId: 'comp-2', nodeName: 'Component 2', nodeType: 'component' }),
-    ];
-
-    act(() => {
-      result.current.setBulkOperation({ type: 'removeFromView', nodes });
-    });
-
-    await act(async () => {
-      await result.current.handleBulkConfirm();
-    });
+    const result = setupBulkHook();
+    await setBulkAndConfirm(result, 'removeFromView', twoComponentNodes());
 
     expect(mockRemoveComponent).toHaveBeenCalledTimes(2);
     expect(result.current.bulkOperation).toBeNull();
@@ -144,19 +152,8 @@ describe('useBulkOperations', () => {
   });
 
   it('executes bulk delete from model sequentially', async () => {
-    const { result } = renderHook(() => useBulkOperations(), { wrapper: createWrapper() });
-    const nodes = [
-      makeNode({ nodeId: 'comp-1', nodeName: 'Component 1', nodeType: 'component' }),
-      makeNode({ nodeId: 'comp-2', nodeName: 'Component 2', nodeType: 'component' }),
-    ];
-
-    act(() => {
-      result.current.setBulkOperation({ type: 'deleteFromModel', nodes });
-    });
-
-    await act(async () => {
-      await result.current.handleBulkConfirm();
-    });
+    const result = setupBulkHook();
+    await setBulkAndConfirm(result, 'deleteFromModel', twoComponentNodes());
 
     expect(mockDeleteComponent).toHaveBeenCalledTimes(2);
     expect(result.current.bulkOperation).toBeNull();
@@ -165,19 +162,8 @@ describe('useBulkOperations', () => {
   it('stops sequential delete on first failure and reports partial result', async () => {
     mockDeleteComponent.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('Delete failed'));
 
-    const { result } = renderHook(() => useBulkOperations(), { wrapper: createWrapper() });
-    const nodes = [
-      makeNode({ nodeId: 'comp-1', nodeName: 'Component 1', nodeType: 'component' }),
-      makeNode({ nodeId: 'comp-2', nodeName: 'Component 2', nodeType: 'component' }),
-    ];
-
-    act(() => {
-      result.current.setBulkOperation({ type: 'deleteFromModel', nodes });
-    });
-
-    await act(async () => {
-      await result.current.handleBulkConfirm();
-    });
+    const result = setupBulkHook();
+    await setBulkAndConfirm(result, 'deleteFromModel', twoComponentNodes());
 
     expect(result.current.result).not.toBeNull();
     expect(result.current.result!.succeeded).toEqual(['Component 1']);

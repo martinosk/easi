@@ -8,7 +8,7 @@ import { useAcquiredEntitiesQuery } from '../../origin-entities/hooks/useAcquire
 import { useInternalTeamsQuery } from '../../origin-entities/hooks/useInternalTeams';
 import { useVendorsQuery } from '../../origin-entities/hooks/useVendors';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
-import { extractOriginEntityId, getOriginEntityTypeFromNodeId } from '../utils/nodeFactory';
+import { getEntityId, getOriginEntityType, toNodeId } from '../../../constants/entityIdentifiers';
 
 export interface NodeContextMenu {
   x: number;
@@ -36,8 +36,8 @@ function findOriginEntity(
   nodeId: string,
   lookups: OriginEntityLookups,
 ): { entity: { name: string; _links?: HATEOASLinks }; originEntityType: OriginEntityType } | null {
-  const originEntityType = getOriginEntityTypeFromNodeId(nodeId);
-  const entityId = extractOriginEntityId(nodeId);
+  const originEntityType = getOriginEntityType(toNodeId(nodeId));
+  const entityId = getEntityId(toNodeId(nodeId));
   if (!originEntityType || !entityId) return null;
 
   const lookupMap: Record<OriginEntityType, typeof lookups.acquiredEntities> = {
@@ -57,7 +57,7 @@ function resolveOriginEntityNode(
   viewElementLinks?: HATEOASLinks,
 ): NodeContextMenu | null {
   const result = findOriginEntity(node.id, lookups);
-  const entityId = extractOriginEntityId(node.id);
+  const entityId = getEntityId(toNodeId(node.id));
   if (!result || !entityId) return null;
 
   return {
@@ -131,7 +131,7 @@ export function resolveNodeMenu(
   }
 
   if (node.type === 'originEntity') {
-    const entityId = extractOriginEntityId(node.id);
+    const entityId = getEntityId(toNodeId(node.id));
     const viewElement = entityId
       ? deps.currentViewOriginEntities.find((vo) => vo.originEntityId === entityId)
       : undefined;

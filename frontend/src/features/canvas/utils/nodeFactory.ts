@@ -9,7 +9,7 @@ import type {
   View,
   ViewCapability,
 } from '../../../api/types';
-import { NODE_PREFIXES, type OriginEntityType } from '../../../constants/entityIdentifiers';
+import { makeNodeId, type OriginEntityType } from '../../../constants/entityIdentifiers';
 import type { CanvasPositionMap } from '../hooks/useCanvasLayout';
 
 const DEFAULT_POSITION: Position = { x: 400, y: 300 };
@@ -70,12 +70,6 @@ export const createCapabilityNode = (params: CapabilityNodeParams): Node => {
 export const isComponentInView = (component: Component, currentView: View): boolean =>
   currentView.components.some((vc) => vc.componentId === component.id);
 
-export const ORIGIN_ENTITY_PREFIXES = {
-  acquired: NODE_PREFIXES.acquired,
-  vendor: NODE_PREFIXES.vendor,
-  team: NODE_PREFIXES.team,
-} as const;
-
 interface OriginEntityNodeParams {
   entityId: string;
   entityType: OriginEntityType;
@@ -87,8 +81,7 @@ interface OriginEntityNodeParams {
 
 export const createOriginEntityNode = (params: OriginEntityNodeParams): Node => {
   const { entityId, entityType, name, layoutPositions, selectedOriginEntityId, subtitle } = params;
-  const prefix = ORIGIN_ENTITY_PREFIXES[entityType];
-  const nodeId = `${prefix}${entityId}`;
+  const nodeId = makeNodeId(entityType, entityId);
   const layoutPosition = layoutPositions[entityId];
   const position = layoutPosition ?? DEFAULT_POSITION;
 
@@ -149,23 +142,3 @@ export const createInternalTeamNode = (
     subtitle: team.department,
   });
 
-export const isOriginEntityNode = (nodeId: string): boolean => {
-  return (
-    nodeId.startsWith(ORIGIN_ENTITY_PREFIXES.acquired) ||
-    nodeId.startsWith(ORIGIN_ENTITY_PREFIXES.vendor) ||
-    nodeId.startsWith(ORIGIN_ENTITY_PREFIXES.team)
-  );
-};
-
-export const getOriginEntityTypeFromNodeId = (nodeId: string): OriginEntityType | null => {
-  if (nodeId.startsWith(ORIGIN_ENTITY_PREFIXES.acquired)) return 'acquired';
-  if (nodeId.startsWith(ORIGIN_ENTITY_PREFIXES.vendor)) return 'vendor';
-  if (nodeId.startsWith(ORIGIN_ENTITY_PREFIXES.team)) return 'team';
-  return null;
-};
-
-export const extractOriginEntityId = (nodeId: string): string | null => {
-  const entityType = getOriginEntityTypeFromNodeId(nodeId);
-  if (!entityType) return null;
-  return nodeId.replace(ORIGIN_ENTITY_PREFIXES[entityType], '');
-};
