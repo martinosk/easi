@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import type { AcquiredEntity, View } from '../../../../api/types';
-import { ORIGIN_ENTITY_PREFIXES } from '../../../canvas/utils/nodeFactory';
 import type { TreeMultiSelectProps } from '../../types';
 import { TreeItemList } from '../shared/TreeItemList';
 import { TreeSearchInput } from '../shared/TreeSearchInput';
@@ -40,7 +39,7 @@ function buildEntityIdsOnCanvas(entities: AcquiredEntity[], currentView: View | 
   const viewOriginEntityIds = new Set((currentView?.originEntities ?? []).map((oe) => oe.originEntityId));
   const onCanvas = new Set<string>();
   for (const entity of entities) {
-    if (viewOriginEntityIds.has(`${ORIGIN_ENTITY_PREFIXES.acquired}${entity.id}`)) {
+    if (viewOriginEntityIds.has(entity.id)) {
       onCanvas.add(entity.id);
     }
   }

@@ -293,7 +293,7 @@ describe('AcquiredEntitiesSection', () => {
 
     it('should show entity as on-canvas when it is in the view', () => {
       const entity = createMockEntity({ id: 'ae-123' as AcquiredEntityId, name: 'TechCorp' });
-      const currentView = createMockView('view-1', ['comp-456'], ['acq-ae-123']);
+      const currentView = createMockView('view-1', ['comp-456'], ['ae-123']);
 
       render(<AcquiredEntitiesSection {...defaultProps} acquiredEntities={[entity]} currentView={currentView} />);
 

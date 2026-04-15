@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import type { Vendor, View } from '../../../../api/types';
-import { ORIGIN_ENTITY_PREFIXES } from '../../../canvas/utils/nodeFactory';
 import type { TreeMultiSelectProps } from '../../types';
 import { TreeItemList } from '../shared/TreeItemList';
 import { TreeSearchInput } from '../shared/TreeSearchInput';
@@ -33,7 +32,7 @@ function buildVendorIdsOnCanvas(vendors: Vendor[], currentView: View | null): Se
   const viewOriginEntityIds = new Set((currentView?.originEntities ?? []).map((oe) => oe.originEntityId));
   const onCanvas = new Set<string>();
   for (const vendor of vendors) {
-    if (viewOriginEntityIds.has(`${ORIGIN_ENTITY_PREFIXES.vendor}${vendor.id}`)) {
+    if (viewOriginEntityIds.has(vendor.id)) {
       onCanvas.add(vendor.id);
     }
   }

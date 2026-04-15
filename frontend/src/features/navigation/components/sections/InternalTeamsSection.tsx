@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import type { InternalTeam, View } from '../../../../api/types';
-import { ORIGIN_ENTITY_PREFIXES } from '../../../canvas/utils/nodeFactory';
 import type { TreeMultiSelectProps } from '../../types';
 import { TreeItemList } from '../shared/TreeItemList';
 import { TreeSearchInput } from '../shared/TreeSearchInput';
@@ -34,7 +33,7 @@ function buildTeamIdsOnCanvas(teams: InternalTeam[], currentView: View | null): 
   const viewOriginEntityIds = new Set((currentView?.originEntities ?? []).map((oe) => oe.originEntityId));
   const onCanvas = new Set<string>();
   for (const team of teams) {
-    if (viewOriginEntityIds.has(`${ORIGIN_ENTITY_PREFIXES.team}${team.id}`)) {
+    if (viewOriginEntityIds.has(team.id)) {
       onCanvas.add(team.id);
     }
   }

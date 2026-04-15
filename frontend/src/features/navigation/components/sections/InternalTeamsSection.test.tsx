@@ -284,7 +284,7 @@ describe('InternalTeamsSection', () => {
 
     it('should show team as on-canvas when it is in the view', () => {
       const team = createMockTeam({ id: 'it-123' as InternalTeamId, name: 'Platform Engineering' });
-      const currentView = createMockView('view-1', ['comp-456'], ['team-it-123']);
+      const currentView = createMockView('view-1', ['comp-456'], ['it-123']);
 
       render(<InternalTeamsSection {...defaultProps} internalTeams={[team]} currentView={currentView} />);
 
