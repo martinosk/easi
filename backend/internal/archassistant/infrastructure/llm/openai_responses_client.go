@@ -83,6 +83,12 @@ type responsesFunctionCallOutputItem struct {
 	Output string `json:"output"`
 }
 
+type functionCallItem struct {
+	id     string
+	callID string
+	name   string
+}
+
 type ResponsesToolCallAccumulator struct {
 	callIDs map[string]string // item ID → call_id
 	names   map[string]string // item ID → function name
@@ -97,11 +103,15 @@ func NewResponsesToolCallAccumulator() *ResponsesToolCallAccumulator {
 }
 
 func (a *ResponsesToolCallAccumulator) RegisterItem(itemID, callID, name string) {
-	if callID != "" {
-		a.callIDs[itemID] = callID
+	a.registerItem(functionCallItem{id: itemID, callID: callID, name: name})
+}
+
+func (a *ResponsesToolCallAccumulator) registerItem(item functionCallItem) {
+	if item.callID != "" {
+		a.callIDs[item.id] = item.callID
 	}
-	if name != "" {
-		a.names[itemID] = name
+	if item.name != "" {
+		a.names[item.id] = item.name
 	}
 }
 
@@ -158,35 +168,11 @@ func (c *ResponsesAPIClient) buildRequest(messages []Message, opts Options) resp
 	var input []json.RawMessage
 
 	for _, m := range messages {
-		switch m.Role {
-		case RoleSystem:
+		if m.Role == RoleSystem {
 			instructions = m.Content
-		case RoleUser:
-			b, _ := json.Marshal(responsesInputMessage{Role: "user", Content: m.Content})
-			input = append(input, b)
-		case RoleAssistant:
-			if len(m.ToolCalls) > 0 {
-				for _, tc := range m.ToolCalls {
-					b, _ := json.Marshal(responsesFunctionCallItem{
-						Type:      "function_call",
-						CallID:    tc.ID,
-						Name:      tc.Name,
-						Arguments: tc.Arguments,
-					})
-					input = append(input, b)
-				}
-			} else {
-				b, _ := json.Marshal(responsesInputMessage{Role: "assistant", Content: m.Content})
-				input = append(input, b)
-			}
-		case RoleTool:
-			b, _ := json.Marshal(responsesFunctionCallOutputItem{
-				Type:   "function_call_output",
-				CallID: m.ToolCallID,
-				Output: m.Content,
-			})
-			input = append(input, b)
+			continue
 		}
+		input = append(input, messageToInputItems(m)...)
 	}
 
 	req := responsesAPIRequest{
@@ -199,18 +185,57 @@ func (c *ResponsesAPIClient) buildRequest(messages []Message, opts Options) resp
 	}
 
 	if len(opts.Tools) > 0 {
-		for _, t := range opts.Tools {
-			req.Tools = append(req.Tools, responsesAPIToolDef{
-				Type:        "function",
-				Name:        t.Function.Name,
-				Description: t.Function.Description,
-				Parameters:  t.Function.Parameters,
-			})
-		}
+		req.Tools = toolsToAPIDefs(opts.Tools)
 		req.ToolChoice = "auto"
 	}
 
 	return req
+}
+
+func messageToInputItems(m Message) []json.RawMessage {
+	switch m.Role {
+	case RoleUser:
+		b, _ := json.Marshal(responsesInputMessage{Role: "user", Content: m.Content})
+		return []json.RawMessage{b}
+	case RoleAssistant:
+		if len(m.ToolCalls) > 0 {
+			items := make([]json.RawMessage, 0, len(m.ToolCalls))
+			for _, tc := range m.ToolCalls {
+				b, _ := json.Marshal(responsesFunctionCallItem{
+					Type:      "function_call",
+					CallID:    tc.ID,
+					Name:      tc.Name,
+					Arguments: tc.Arguments,
+				})
+				items = append(items, b)
+			}
+			return items
+		}
+		b, _ := json.Marshal(responsesInputMessage{Role: "assistant", Content: m.Content})
+		return []json.RawMessage{b}
+	case RoleTool:
+		b, _ := json.Marshal(responsesFunctionCallOutputItem{
+			Type:   "function_call_output",
+			CallID: m.ToolCallID,
+			Output: m.Content,
+		})
+		return []json.RawMessage{b}
+	default:
+		return nil
+	}
+}
+
+func toolsToAPIDefs(tools []ToolDef) []responsesAPIToolDef {
+	defs := make([]responsesAPIToolDef, 0, len(tools))
+	for _, t := range tools {
+		defs = append(defs, responsesAPIToolDef{
+			Type:        "function",
+			Name:        t.Function.Name,
+			Description: t.Function.Description,
+			Parameters:  t.Function.Parameters,
+		})
+	}
+	return defs
 }
 
 func (c *ResponsesAPIClient) StreamChat(ctx context.Context, messages []Message, opts Options) (<-chan StreamEvent, error) {
@@ -267,59 +292,92 @@ func (c *ResponsesAPIClient) readStream(ctx context.Context, resp *http.Response
 			return
 		}
 
-		line := scanner.Text()
-		// The Responses API SSE stream emits both "event:" and "data:" lines;
-		// skip anything that is not a "data:" line.
-		if strings.HasPrefix(line, "event:") || line == "" {
-			continue
-		}
-
-		data, ok := parseSSEData(line)
+		event, ok := parseScannerLine(scanner.Text())
 		if !ok {
 			continue
 		}
 
-		var event responsesStreamEvent
-		if err := json.Unmarshal([]byte(data), &event); err != nil {
-			continue
-		}
-
-		switch event.Type {
-		case "response.output_text.delta":
-			if event.Delta != "" {
-				ch <- StreamEvent{Type: EventToken, Content: event.Delta}
-			}
-
-		case "response.output_item.added":
-			var item responsesOutputItemPayload
-			if err := json.Unmarshal(event.Item, &item); err == nil {
-				if item.Type == "function_call" {
-					acc.RegisterItem(item.ID, item.CallID, item.Name)
-				}
-			}
-
-		case "response.function_call_arguments.done":
-			acc.Finalize(event.ItemID, event.Name, event.Arguments)
-
-		case "response.completed":
-			if event.Response != nil && event.Response.Usage != nil {
-				totalTokens = event.Response.Usage.TotalTokens
-			}
-			acc.Emit(ch)
-			ch <- StreamEvent{Type: EventDone, TokensUsed: totalTokens}
-			return
-
-		case "response.failed", "error":
-			errMsg := event.Message
-			if errMsg == "" {
-				errMsg = "LLM returned an error"
-			}
-			ch <- StreamEvent{Type: EventError, Error: fmt.Errorf("%s", errMsg)}
+		if handleStreamEvent(event, acc, ch, &totalTokens) {
 			return
 		}
 	}
 
 	if err := scanner.Err(); err != nil && ctx.Err() == nil {
 		ch <- StreamEvent{Type: EventError, Error: fmt.Errorf("stream read error: %w", err)}
+	}
+}
+
+// parseScannerLine extracts and unmarshals a responsesStreamEvent from a raw
+// SSE line. It returns false for non-data lines or unparseable payloads.
+func parseScannerLine(line string) (responsesStreamEvent, bool) {
+	// The Responses API SSE stream emits both "event:" and "data:" lines;
+	// skip anything that is not a "data:" line.
+	if strings.HasPrefix(line, "event:") || line == "" {
+		return responsesStreamEvent{}, false
+	}
+
+	data, ok := parseSSEData(line)
+	if !ok {
+		return responsesStreamEvent{}, false
+	}
+
+	var event responsesStreamEvent
+	if err := json.Unmarshal([]byte(data), &event); err != nil {
+		return responsesStreamEvent{}, false
+	}
+	return event, true
+}
+
+// handleStreamEvent processes a single parsed SSE event and returns true if
+// the stream should stop (done or error).
+func handleStreamEvent(event responsesStreamEvent, acc *ResponsesToolCallAccumulator, ch chan<- StreamEvent, totalTokens *int) bool {
+	switch event.Type {
+	case "response.output_text.delta":
+		if event.Delta != "" {
+			ch <- StreamEvent{Type: EventToken, Content: event.Delta}
+		}
+
+	case "response.output_item.added":
+		parseOutputItem(event.Item, acc)
+
+	case "response.function_call_arguments.done":
+		acc.Finalize(event.ItemID, event.Name, event.Arguments)
+
+	case "response.completed":
+		*totalTokens = extractTokenCount(event)
+		acc.Emit(ch)
+		ch <- StreamEvent{Type: EventDone, TokensUsed: *totalTokens}
+		return true
+
+	case "response.failed", "error":
+		ch <- StreamEvent{Type: EventError, Error: fmt.Errorf("%s", resolveErrorMessage(event.Message))}
+		return true
+	}
+	return false
+}
+
+func extractTokenCount(event responsesStreamEvent) int {
+	if event.Response != nil && event.Response.Usage != nil {
+		return event.Response.Usage.TotalTokens
+	}
+	return 0
+}
+
+func resolveErrorMessage(msg string) string {
+	if msg != "" {
+		return msg
+	}
+	return "LLM returned an error"
+}
+
+// parseOutputItem unmarshals a response.output_item.added payload and
+// registers function_call items in the accumulator.
+func parseOutputItem(raw json.RawMessage, acc *ResponsesToolCallAccumulator) {
+	var item responsesOutputItemPayload
+	if err := json.Unmarshal(raw, &item); err != nil {
+		return
+	}
+	if item.Type == "function_call" {
+		acc.registerItem(functionCallItem{id: item.ID, callID: item.CallID, name: item.Name})
 	}
 }
