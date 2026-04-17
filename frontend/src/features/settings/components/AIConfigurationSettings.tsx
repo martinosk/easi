@@ -97,7 +97,7 @@ function AIConfigForm({ config }: { config: AIConfigurationResponse | undefined 
       {form.testResult && <TestResultBanner result={form.testResult} />}
 
       <div className="ai-config-actions">
-        {form.isConfigured && (
+        {form.isTestable && (
           <Button
             variant="outline"
             onClick={form.handleTestConnection}

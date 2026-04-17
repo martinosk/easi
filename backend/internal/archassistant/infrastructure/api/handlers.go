@@ -17,6 +17,7 @@ import (
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/crypto"
+	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 )
 
 type AIConfigHandlers struct {
@@ -51,11 +52,25 @@ type UpdateAIConfigRequest struct {
 	SystemPromptOverride *string `json:"systemPromptOverride,omitempty"`
 }
 
+type TestConnectionRequest struct {
+	Provider string `json:"provider,omitempty"`
+	Endpoint string `json:"endpoint,omitempty"`
+	APIKey   string `json:"apiKey,omitempty"`
+	Model    string `json:"model,omitempty"`
+}
+
 type TestConnectionResponse struct {
 	Success   bool   `json:"success"`
 	Model     string `json:"model,omitempty"`
 	LatencyMs int64  `json:"latencyMs,omitempty"`
 	Error     string `json:"error,omitempty"`
+}
+
+type resolvedConnectionParams struct {
+	provider string
+	endpoint string
+	apiKey   string
+	model    string
 }
 
 // GetConfig godoc
@@ -174,6 +189,63 @@ func (h *AIConfigHandlers) applyAPIKeyEncryption(ctx context.Context, rawKey str
 	return nil
 }
 
+func (h *AIConfigHandlers) decryptStoredAPIKey(config *aggregates.AIConfiguration, tenantID sharedvo.TenantID) (string, error) {
+	encrypted := config.APIKeyEncrypted().Value()
+	if encrypted == "" {
+		return "", nil
+	}
+	return crypto.Decrypt(encrypted, tenantID.Value())
+}
+
+func (h *AIConfigHandlers) resolveConnectionParams(ctx context.Context, req TestConnectionRequest, tenantID sharedvo.TenantID) (resolvedConnectionParams, error) {
+	params := resolvedConnectionParams{
+		provider: req.Provider,
+		endpoint: req.Endpoint,
+		apiKey:   req.APIKey,
+		model:    req.Model,
+	}
+
+	needsFallback := params.provider == "" || params.model == "" || params.apiKey == ""
+	if !needsFallback {
+		return params, nil
+	}
+
+	if err := h.applyConfigFallbacks(ctx, &params, tenantID); err != nil {
+		return params, err
+	}
+
+	return params, nil
+}
+
+func (h *AIConfigHandlers) applyConfigFallbacks(ctx context.Context, params *resolvedConnectionParams, tenantID sharedvo.TenantID) error {
+	config, err := h.repo.GetByTenantID(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve configuration: %w", err)
+	}
+
+	if config == nil {
+		return nil
+	}
+
+	if params.provider == "" {
+		params.provider = config.Provider().Value()
+	}
+	if params.endpoint == "" {
+		params.endpoint = config.Endpoint().Value()
+	}
+	if params.model == "" {
+		params.model = config.Model().Value()
+	}
+	if params.apiKey == "" {
+		params.apiKey, err = h.decryptStoredAPIKey(config, tenantID)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func buildUpdateParams(req UpdateAIConfigRequest) (aggregates.UpdateConfigParams, error) {
 	provider, err := vo.NewLLMProvider(req.Provider)
 	if err != nil {
@@ -216,9 +288,11 @@ func buildUpdateParams(req UpdateAIConfigRequest) (aggregates.UpdateConfigParams
 
 // TestConnection godoc
 // @Summary Test assistant provider connection
-// @Description Tests connectivity to the configured LLM provider endpoint using the stored encrypted API key for the current tenant.
+// @Description Tests connectivity to the configured LLM provider endpoint. Accepts an optional request body with connection parameters; any omitted fields fall back to the stored configuration. Allows testing unsaved form values without saving first.
 // @Tags assistant-config
+// @Accept json
 // @Produce json
+// @Param request body TestConnectionRequest false "Optional connection parameters to test (falls back to stored config for omitted fields)"
 // @Success 200 {object} TestConnectionResponse
 // @Failure 400 {object} sharedAPI.ErrorResponse
 // @Failure 401 {object} sharedAPI.ErrorResponse
@@ -226,16 +300,9 @@ func buildUpdateParams(req UpdateAIConfigRequest) (aggregates.UpdateConfigParams
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /assistant-config/connection-tests [post]
 func (h *AIConfigHandlers) TestConnection(w http.ResponseWriter, r *http.Request) {
-	config, err := h.repo.GetByTenantID(r.Context())
-	if err != nil || config == nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "No configuration found")
-		return
-	}
-
-	if !config.Status().IsConfigured() {
-		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "Configuration is not complete")
-		return
-	}
+	var req TestConnectionRequest
+	// Decode optional body; ignore decode errors (empty body is valid)
+	_ = json.NewDecoder(r.Body).Decode(&req)
 
 	tenantID, err := sharedctx.GetTenant(r.Context())
 	if err != nil {
@@ -243,7 +310,7 @@ func (h *AIConfigHandlers) TestConnection(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	apiKey, err := crypto.Decrypt(config.APIKeyEncrypted().Value(), tenantID.Value())
+	params, err := h.resolveConnectionParams(r.Context(), req, tenantID)
 	if err != nil {
 		sharedAPI.RespondJSON(w, http.StatusOK, TestConnectionResponse{
 			Success: false,
@@ -252,7 +319,26 @@ func (h *AIConfigHandlers) TestConnection(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	result := testLLMConnection(config.Provider(), config.Endpoint().Value(), apiKey, config.Model().Value())
+	if params.provider == "" || params.model == "" {
+		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "Provider and model are required")
+		return
+	}
+	if params.apiKey == "" {
+		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "API key is required")
+		return
+	}
+
+	provider, err := vo.NewLLMProvider(params.provider)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+		return
+	}
+
+	if params.endpoint == "" {
+		params.endpoint = provider.DefaultEndpoint()
+	}
+
+	result := testLLMConnection(provider, params.endpoint, params.apiKey, params.model)
 	sharedAPI.RespondJSON(w, http.StatusOK, result)
 }
 
@@ -271,7 +357,8 @@ func isResponsesAPIURL(endpoint string) bool {
 // defaultPath is appended (standard OpenAI / Anthropic base‑URL style).
 func llmEndpointURL(endpoint, defaultPath string) string {
 	u, err := url.Parse(endpoint)
-	if err == nil && u.Path != "" && u.Path != "/" {
+	hasNonRootPath := err == nil && u.Path != "" && u.Path != "/"
+	if hasNonRootPath {
 		return endpoint
 	}
 	return endpoint + defaultPath

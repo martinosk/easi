@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { assistantConfigApi } from '../../../api/assistant/assistantConfigApi';
-import type { UpdateAIConfigRequest } from '../../../api/assistant/types';
+import type { TestConnectionRequest, UpdateAIConfigRequest } from '../../../api/assistant/types';
 import { invalidateFor } from '../../../lib/invalidateFor';
 import { assistantConfigQueryKeys } from '../queryKeys';
 
@@ -30,6 +30,6 @@ export function useUpdateAIConfiguration() {
 
 export function useTestAIConnection() {
   return useMutation({
-    mutationFn: () => assistantConfigApi.testConnection(),
+    mutationFn: (req: TestConnectionRequest) => assistantConfigApi.testConnection(req),
   });
 }

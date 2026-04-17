@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { AIConfigurationResponse, LLMProvider, TestConnectionResponse } from '../../../api/assistant/types';
+import type { AIConfigurationResponse, LLMProvider, TestConnectionRequest, TestConnectionResponse } from '../../../api/assistant/types';
 import { useTestAIConnection, useUpdateAIConfiguration } from './useAIConfiguration';
 
 interface FormFields {
@@ -42,6 +42,17 @@ function toSaveRequest(fields: FormFields) {
   };
 }
 
+function isApiKeyRequired(config: AIConfigurationResponse | undefined, apiKey: string): boolean {
+  return config?.apiKeyStatus !== 'configured' && !apiKey;
+}
+
+function isConnectionTestable(
+  fields: Pick<FormFields, 'provider' | 'model' | 'apiKey'>,
+  config: AIConfigurationResponse | undefined
+): boolean {
+  return !!fields.provider && !!fields.model && (!!fields.apiKey || config?.apiKeyStatus === 'configured');
+}
+
 export function useAIConfigForm(config: AIConfigurationResponse | undefined) {
   const updateMutation = useUpdateAIConfiguration();
   const testMutation = useTestAIConnection();
@@ -70,11 +81,17 @@ export function useAIConfigForm(config: AIConfigurationResponse | undefined) {
 
   const handleTestConnection = async () => {
     setTestResult(null);
-    const result = await testMutation.mutateAsync();
+    const req: TestConnectionRequest = {
+      provider: fields.provider,
+      endpoint: fields.endpoint,
+      model: fields.model,
+      apiKey: fields.apiKey || undefined,
+    };
+    const result = await testMutation.mutateAsync(req);
     setTestResult(result);
   };
 
-  const needsApiKey = config?.apiKeyStatus !== 'configured' && !fields.apiKey;
+  const needsApiKey = isApiKeyRequired(config, fields.apiKey);
   const isSaveDisabled = !fields.provider || !fields.model || needsApiKey;
 
   return {
@@ -88,6 +105,6 @@ export function useAIConfigForm(config: AIConfigurationResponse | undefined) {
     isSaveDisabled,
     isSaving: updateMutation.isPending,
     isTesting: testMutation.isPending,
-    isConfigured: config?.status === 'configured',
+    isTestable: isConnectionTestable(fields, config),
   };
 }
