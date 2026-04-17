@@ -165,7 +165,7 @@ func TestRegisterAllTools_AllRegistered(t *testing.T) {
 		"get_capability_statuses", "get_capability_ownership_models",
 		"get_capability_expert_roles",
 		"update_capability_metadata",
-		"get_capability_realizations", "get_capability_business_domains",
+		"get_capability_realizations", "get_capabilities_by_application", "get_capability_business_domains",
 		"get_domain_importance_overview", "get_fit_scores_by_pillar",
 		"list_enterprise_capabilities", "get_enterprise_capability_details",
 		"create_enterprise_capability", "update_enterprise_capability", "delete_enterprise_capability",
