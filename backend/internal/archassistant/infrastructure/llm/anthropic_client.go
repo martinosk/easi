@@ -30,7 +30,8 @@ func NewAnthropicClient(endpoint, apiKey string) *AnthropicClient {
 
 func (c *AnthropicClient) messagesURL() string {
 	u, err := url.Parse(c.endpoint)
-	if err == nil && u.Path != "" && u.Path != "/" {
+	hasNonRootPath := err == nil && u.Path != "" && u.Path != "/"
+	if hasNonRootPath {
 		return c.endpoint
 	}
 	return c.endpoint + "/v1/messages"
