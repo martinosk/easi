@@ -33,7 +33,8 @@ func NewOpenAIClient(endpoint, apiKey string) *OpenAIClient {
 // otherwise "/v1/chat/completions" is appended (standard OpenAI style).
 func (c *OpenAIClient) chatURL() string {
 	u, err := url.Parse(c.endpoint)
-	if err == nil && u.Path != "" && u.Path != "/" {
+	hasNonRootPath := err == nil && u.Path != "" && u.Path != "/"
+	if hasNonRootPath {
 		return c.endpoint
 	}
 	return c.endpoint + "/v1/chat/completions"
