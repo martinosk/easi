@@ -74,9 +74,13 @@ export function useAIConfigForm(config: AIConfigurationResponse | undefined) {
 
   const handleSave = async () => {
     setTestResult(null);
-    await updateMutation.mutateAsync(toSaveRequest(fields));
-    updateField('apiKey', '');
-    setShowApiKeyInput(false);
+    try {
+      await updateMutation.mutateAsync(toSaveRequest(fields));
+      updateField('apiKey', '');
+      setShowApiKeyInput(false);
+    } catch {
+      // Error is handled by the mutation's onError callback (toast notification)
+    }
   };
 
   const handleTestConnection = async () => {
@@ -87,8 +91,12 @@ export function useAIConfigForm(config: AIConfigurationResponse | undefined) {
       model: fields.model,
       apiKey: fields.apiKey || undefined,
     };
-    const result = await testMutation.mutateAsync(req);
-    setTestResult(result);
+    try {
+      const result = await testMutation.mutateAsync(req);
+      setTestResult(result);
+    } catch (err) {
+      setTestResult({ success: false, error: err instanceof Error ? err.message : 'Connection test failed' });
+    }
   };
 
   const needsApiKey = isApiKeyRequired(config, fields.apiKey);
