@@ -13,11 +13,21 @@ Collect commits since the last git tag, categorise them, write a SQL migration, 
 
 2. **Collect commits since the last tag**
    - Run `git log <last-tag>..HEAD --oneline` to list every commit in scope.
-   - Categorise each commit into one of three buckets using its prefix and content:
-     - **Major** — `feat:` commits that introduce a significant user-facing capability.
-     - **Minor** — `feat:` commits with smaller scope, `refactor:`, `chore:`, `docs:`, UI/UX improvements.
-     - **Bugs** — `fix:` commits.
-   - Ignore pure tooling or CI commits that users never see (e.g. `chore: update deps`).
+   - For each commit, ask: **would an end user or API consumer notice this change?** If no, exclude it entirely.
+   - Items that qualify:
+     - New or changed UI features, workflows, or behaviours visible to users.
+     - New, changed, or removed API endpoints, request/response fields, or status codes.
+     - Bug fixes that affected user-visible or API-visible behaviour.
+     - Performance or reliability improvements a user would observe.
+   - Items that must be excluded regardless of commit prefix:
+     - Internal refactors, code health improvements, and test changes with no behavioural effect.
+     - Tooling, CI, developer workflow, or agent/skill configuration changes.
+     - Dependency upgrades that carry no user-visible change.
+     - Documentation updates that are not end-user docs.
+   - Categorise qualifying commits into one of three buckets:
+     - **Major** — significant new user-facing capability or breaking API change.
+     - **Minor** — smaller user-facing improvement, new API field, or UI/UX enhancement.
+     - **Bugs** — fix to user-visible or API-visible behaviour.
    - Write each item as a single plain-English sentence describing the user-visible effect, not the code change.
 
 3. **Find the next migration number**
@@ -53,7 +63,7 @@ Collect commits since the last git tag, categorise them, write a SQL migration, 
    - Any single quote inside the notes text must be escaped as `''` (two single quotes).
 
 5. **Review with the human**
-   - Show the full migration file content and the categorised commit list.
+   - Show the full migration file content and the categorised commit list, including a separate list of commits that were excluded and why.
    - Wait for explicit approval before proceeding.
 
 6. **Commit and tag**
@@ -66,5 +76,6 @@ Collect commits since the last git tag, categorise them, write a SQL migration, 
 - Never bump the major version — the project uses `v0.x.y` and major version stays at `0` until explicitly decided otherwise.
 - The `version` field in the SQL does **not** include the `v` prefix (e.g. `'0.27.2'`, not `'v0.27.2'`).
 - The git tag **does** include the `v` prefix (e.g. `v0.27.2`).
-- Do not push the tag automatically — leave that for the `/pr` workflow.
-- If a section would only contain internal/tooling changes invisible to users, omit it entirely rather than padding with low-value entries.
+- Do not push the tag automatically — leave that for the `/easi-pr` workflow.
+- If all qualifying commits in a section are excluded, omit the section entirely — never pad with low-value entries.
+- When in doubt about whether something is end-user relevant, err on the side of exclusion. Less is more in release notes.
