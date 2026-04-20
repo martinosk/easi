@@ -334,16 +334,17 @@ func (h *AIConfigHandlers) TestConnection(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	endpointStr := params.endpoint
-	if endpointStr == "" {
-		endpointStr = provider.DefaultEndpoint()
+	rawEndpoint := params.endpoint
+	if rawEndpoint == "" {
+		rawEndpoint = provider.DefaultEndpoint()
 	}
-	if _, err := vo.NewLLMEndpoint(endpointStr); err != nil {
+	validatedEndpoint, err := vo.NewLLMEndpoint(rawEndpoint)
+	if err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid endpoint URL")
 		return
 	}
 
-	result := testLLMConnection(r.Context(), provider, endpointStr, params.apiKey, params.model)
+	result := testLLMConnection(r.Context(), provider, validatedEndpoint.Value(), params.apiKey, params.model)
 	sharedAPI.RespondJSON(w, http.StatusOK, result)
 }
 
