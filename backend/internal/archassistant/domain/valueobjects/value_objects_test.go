@@ -111,6 +111,25 @@ func TestNewLLMEndpoint_InvalidScheme(t *testing.T) {
 	}
 }
 
+func TestNewLLMEndpoint_PrivateOrLinkLocalIP(t *testing.T) {
+	rejected := []struct {
+		name  string
+		input string
+	}{
+		{"https RFC1918 10.x", "https://10.0.0.1/v1"},
+		{"https RFC1918 192.168.x", "https://192.168.1.1/v1"},
+		{"https RFC1918 172.16.x", "https://172.16.0.1/v1"},
+		{"https link-local IPv4 (cloud metadata)", "https://169.254.169.254/latest/meta-data"},
+		{"https link-local IPv6", "https://[fe80::1]/v1"},
+	}
+	for _, tc := range rejected {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := NewLLMEndpoint(tc.input)
+			assert.ErrorIs(t, err, ErrEndpointPrivateAddr)
+		})
+	}
+}
+
 func TestNewLLMEndpoint_Trimming(t *testing.T) {
 	ep, err := NewLLMEndpoint("  https://api.openai.com  ")
 	require.NoError(t, err)

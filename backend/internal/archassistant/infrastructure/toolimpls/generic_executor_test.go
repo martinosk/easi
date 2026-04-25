@@ -86,6 +86,24 @@ func TestGenericExecutor_Validation(t *testing.T) {
 			args:       nil,
 			wantSubstr: "id is required",
 		},
+		{
+			name: "rejects missing required integer param",
+			spec: toolimpls.AgentToolSpec{
+				Method: "GET", Path: "/components",
+				QueryParams: []toolimpls.ParamSpec{{Name: "limit", Type: "integer", Required: true}},
+			},
+			args:       map[string]interface{}{},
+			wantSubstr: "limit is required",
+		},
+		{
+			name: "rejects missing required boolean param",
+			spec: toolimpls.AgentToolSpec{
+				Method: "POST", Path: "/components",
+				BodyParams: []toolimpls.ParamSpec{{Name: "active", Type: "boolean", Required: true}},
+			},
+			args:       map[string]interface{}{},
+			wantSubstr: "active is required",
+		},
 	}
 
 	for _, tt := range tests {

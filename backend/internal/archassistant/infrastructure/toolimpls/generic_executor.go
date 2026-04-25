@@ -122,8 +122,18 @@ func isStringTyped(p ParamSpec) bool {
 }
 
 func validateParam(args map[string]interface{}, p ParamSpec) *tools.ToolResult {
-	val, _ := args[p.Name].(string)
-	if val == "" && isStringTyped(p) {
+	raw, present := args[p.Name]
+	if !present || raw == nil {
+		if p.Required {
+			return toolErr(p.Name + " is required")
+		}
+		return nil
+	}
+	if !isStringTyped(p) {
+		return nil
+	}
+	val, _ := raw.(string)
+	if val == "" {
 		if p.Required {
 			return toolErr(p.Name + " is required")
 		}
