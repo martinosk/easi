@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -212,44 +215,30 @@ func (h *AIConfigHandlers) resolveConnectionParams(ctx context.Context, req Test
 		model:    req.Model,
 	}
 
-	needsFallback := params.provider == "" || params.model == "" || params.apiKey == ""
-	if !needsFallback {
+	if params.apiKey != "" {
 		return params, nil
 	}
 
-	if err := h.applyConfigFallbacks(ctx, &params, tenantID); err != nil {
+	if err := h.applyStoredAPIKey(ctx, &params, tenantID); err != nil {
 		return params, err
 	}
 
 	return params, nil
 }
 
-func (h *AIConfigHandlers) applyConfigFallbacks(ctx context.Context, params *resolvedConnectionParams, tenantID sharedvo.TenantID) error {
+func (h *AIConfigHandlers) applyStoredAPIKey(ctx context.Context, params *resolvedConnectionParams, tenantID sharedvo.TenantID) error {
 	config, err := h.repo.GetByTenantID(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve configuration: %w", err)
 	}
-
 	if config == nil {
 		return nil
 	}
-
-	if params.provider == "" {
-		params.provider = config.Provider().Value()
+	decrypted, err := h.decryptStoredAPIKey(config, tenantID)
+	if err != nil {
+		return err
 	}
-	if params.endpoint == "" {
-		params.endpoint = config.Endpoint().Value()
-	}
-	if params.model == "" {
-		params.model = config.Model().Value()
-	}
-	if params.apiKey == "" {
-		params.apiKey, err = h.decryptStoredAPIKey(config, tenantID)
-		if err != nil {
-			return err
-		}
-	}
-
+	params.apiKey = decrypted
 	return nil
 }
 
@@ -445,6 +434,36 @@ func buildTestPayload(provider vo.LLMProvider, endpoint, model string) (map[stri
 	}
 }
 
+func summarizeConnectionError(err error) string {
+	if err == nil {
+		return ""
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return "Connection timed out"
+	}
+	var dnsErr *net.DNSError
+	if errors.As(err, &dnsErr) {
+		return "DNS lookup failed for the configured endpoint"
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return "Connection timed out"
+	}
+	return classifyConnectionErrorMessage(err.Error())
+}
+
+func classifyConnectionErrorMessage(msg string) string {
+	switch {
+	case strings.Contains(msg, "connection refused"):
+		return "Connection refused by the configured endpoint"
+	case strings.Contains(msg, "no such host"):
+		return "Host not found for the configured endpoint"
+	case strings.Contains(msg, "tls:"), strings.Contains(msg, "x509:"):
+		return "TLS handshake failed"
+	}
+	return "Unable to reach LLM endpoint"
+}
+
 func setLLMAuthHeaders(req *http.Request, provider vo.LLMProvider, apiKey string) {
 	req.Header.Set("Content-Type", "application/json")
 	if provider.IsAnthropic() {
@@ -461,7 +480,8 @@ func executeLLMRequest(req *http.Request) TestConnectionResponse {
 	resp, err := client.Do(req)
 	latency := time.Since(start).Milliseconds()
 	if err != nil {
-		return TestConnectionResponse{Success: false, Error: fmt.Sprintf("Connection failed: %v", err)}
+		log.Printf("[archassistant] LLM connection test failed: %v", err)
+		return TestConnectionResponse{Success: false, Error: summarizeConnectionError(err)}
 	}
 	defer func() { _ = resp.Body.Close() }()
 
