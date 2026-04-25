@@ -67,6 +67,7 @@ func TestNewLLMEndpoint_ValidURLs(t *testing.T) {
 		{"anthropic with path", "https://api.anthropic.com/v1/messages"},
 		{"azure openai subdomain", "https://my-resource.openai.azure.com/openai/responses?api-version=2025-04-01-preview"},
 		{"azure cognitive services subdomain", "https://cog-easi-prd01.cognitiveservices.azure.com/openai/responses"},
+		{"azure ai foundry subdomain", "https://my-project.ai.azure.com/openai/responses"},
 	}
 	for _, tc := range valid {
 		t.Run(tc.name, func(t *testing.T) {

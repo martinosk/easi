@@ -21,6 +21,7 @@ var allowedExactHosts = map[string]struct{}{
 var allowedHostSuffixes = []string{
 	".openai.azure.com",
 	".cognitiveservices.azure.com",
+	".ai.azure.com",
 }
 
 type LLMEndpoint struct {
