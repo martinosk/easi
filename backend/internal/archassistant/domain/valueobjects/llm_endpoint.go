@@ -2,17 +2,26 @@ package valueobjects
 
 import (
 	"errors"
-	"net"
 	"net/url"
 	"strings"
 )
 
 var (
-	ErrEndpointEmpty       = errors.New("LLM endpoint cannot be empty")
-	ErrEndpointTooLong     = errors.New("LLM endpoint cannot exceed 500 characters")
-	ErrEndpointInvalid     = errors.New("LLM endpoint must be a valid URL with https:// or http://localhost")
-	ErrEndpointPrivateAddr = errors.New("LLM endpoint must not point to a private or link-local IP address")
+	ErrEndpointEmpty          = errors.New("LLM endpoint cannot be empty")
+	ErrEndpointTooLong        = errors.New("LLM endpoint cannot exceed 500 characters")
+	ErrEndpointInvalid        = errors.New("LLM endpoint must be a valid https:// URL")
+	ErrEndpointHostNotAllowed = errors.New("LLM endpoint host is not in the allowed providers list")
 )
+
+var allowedExactHosts = map[string]struct{}{
+	"api.openai.com":    {},
+	"api.anthropic.com": {},
+}
+
+var allowedHostSuffixes = []string{
+	".openai.azure.com",
+	".cognitiveservices.azure.com",
+}
 
 type LLMEndpoint struct {
 	value string
@@ -27,31 +36,26 @@ func NewLLMEndpoint(value string) (LLMEndpoint, error) {
 		return LLMEndpoint{}, ErrEndpointTooLong
 	}
 	parsed, err := url.Parse(trimmed)
-	if err != nil || parsed.Host == "" {
+	if err != nil || parsed.Host == "" || parsed.Scheme != "https" {
 		return LLMEndpoint{}, ErrEndpointInvalid
 	}
-	if !isAllowedScheme(parsed) {
-		return LLMEndpoint{}, ErrEndpointInvalid
-	}
-	if isPrivateOrLinkLocalIP(parsed.Hostname()) {
-		return LLMEndpoint{}, ErrEndpointPrivateAddr
+	if !isAllowedHost(parsed.Hostname()) {
+		return LLMEndpoint{}, ErrEndpointHostNotAllowed
 	}
 	return LLMEndpoint{value: trimmed}, nil
 }
 
-func isAllowedScheme(parsed *url.URL) bool {
-	if parsed.Scheme == "https" {
+func isAllowedHost(hostname string) bool {
+	host := strings.ToLower(hostname)
+	if _, ok := allowedExactHosts[host]; ok {
 		return true
 	}
-	return parsed.Scheme == "http" && strings.EqualFold(parsed.Hostname(), "localhost")
-}
-
-func isPrivateOrLinkLocalIP(hostname string) bool {
-	ip := net.ParseIP(hostname)
-	if ip == nil {
-		return false
+	for _, suffix := range allowedHostSuffixes {
+		if strings.HasSuffix(host, suffix) {
+			return true
+		}
 	}
-	return ip.IsPrivate() || ip.IsLinkLocalUnicast()
+	return false
 }
 
 func ReconstructLLMEndpoint(value string) LLMEndpoint {
