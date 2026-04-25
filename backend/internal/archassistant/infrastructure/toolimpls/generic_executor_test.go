@@ -43,13 +43,28 @@ func executeSpec(executor *toolimpls.GenericAPIToolExecutor, args map[string]int
 	return executor.Execute(context.Background(), args)
 }
 
-func TestGenericExecutor_Validation(t *testing.T) {
-	tests := []struct {
-		name       string
-		spec       toolimpls.AgentToolSpec
-		args       map[string]interface{}
-		wantSubstr string
-	}{
+type validationCase struct {
+	name       string
+	spec       toolimpls.AgentToolSpec
+	args       map[string]interface{}
+	wantSubstr string
+}
+
+func runValidationCases(t *testing.T, cases []validationCase) {
+	t.Helper()
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			server := newForbiddenServer(t)
+			defer server.Close()
+			result := executeSpec(newGenericExecutor(server, tt.spec), tt.args)
+			assert.True(t, result.IsError)
+			assert.Contains(t, result.Content, tt.wantSubstr)
+		})
+	}
+}
+
+func TestGenericExecutor_RejectsMissingRequiredParams(t *testing.T) {
+	runValidationCases(t, []validationCase{
 		{
 			name: "rejects missing required string param",
 			spec: toolimpls.AgentToolSpec{
@@ -58,24 +73,6 @@ func TestGenericExecutor_Validation(t *testing.T) {
 			},
 			args:       map[string]interface{}{},
 			wantSubstr: "name is required",
-		},
-		{
-			name: "rejects invalid UUID",
-			spec: toolimpls.AgentToolSpec{
-				Method: "GET", Path: "/components/{id}",
-				PathParams: []toolimpls.ParamSpec{{Name: "id", Type: "uuid", Required: true}},
-			},
-			args:       map[string]interface{}{"id": "not-a-uuid"},
-			wantSubstr: "id must be a valid UUID",
-		},
-		{
-			name: "rejects string too long",
-			spec: toolimpls.AgentToolSpec{
-				Method: "POST", Path: "/components",
-				BodyParams: []toolimpls.ParamSpec{{Name: "name", Type: "string", Required: true}},
-			},
-			args:       map[string]interface{}{"name": strings.Repeat("a", 201)},
-			wantSubstr: "name must be at most 200 characters",
 		},
 		{
 			name: "rejects nil args with required param",
@@ -104,17 +101,48 @@ func TestGenericExecutor_Validation(t *testing.T) {
 			args:       map[string]interface{}{},
 			wantSubstr: "active is required",
 		},
-	}
+		{
+			name: "rejects wrong-typed integer param (string)",
+			spec: toolimpls.AgentToolSpec{
+				Method: "GET", Path: "/components",
+				QueryParams: []toolimpls.ParamSpec{{Name: "limit", Type: "integer", Required: true}},
+			},
+			args:       map[string]interface{}{"limit": "10"},
+			wantSubstr: "limit is required",
+		},
+		{
+			name: "rejects wrong-typed boolean param (string)",
+			spec: toolimpls.AgentToolSpec{
+				Method: "POST", Path: "/components",
+				BodyParams: []toolimpls.ParamSpec{{Name: "active", Type: "boolean", Required: true}},
+			},
+			args:       map[string]interface{}{"active": "true"},
+			wantSubstr: "active is required",
+		},
+	})
+}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			server := newForbiddenServer(t)
-			defer server.Close()
-			result := executeSpec(newGenericExecutor(server, tt.spec), tt.args)
-			assert.True(t, result.IsError)
-			assert.Contains(t, result.Content, tt.wantSubstr)
-		})
-	}
+func TestGenericExecutor_RejectsInvalidParamValues(t *testing.T) {
+	runValidationCases(t, []validationCase{
+		{
+			name: "rejects invalid UUID",
+			spec: toolimpls.AgentToolSpec{
+				Method: "GET", Path: "/components/{id}",
+				PathParams: []toolimpls.ParamSpec{{Name: "id", Type: "uuid", Required: true}},
+			},
+			args:       map[string]interface{}{"id": "not-a-uuid"},
+			wantSubstr: "id must be a valid UUID",
+		},
+		{
+			name: "rejects string too long",
+			spec: toolimpls.AgentToolSpec{
+				Method: "POST", Path: "/components",
+				BodyParams: []toolimpls.ParamSpec{{Name: "name", Type: "string", Required: true}},
+			},
+			args:       map[string]interface{}{"name": strings.Repeat("a", 201)},
+			wantSubstr: "name must be at most 200 characters",
+		},
+	})
 }
 
 func TestGenericExecutor_PathParamSubstitution(t *testing.T) {

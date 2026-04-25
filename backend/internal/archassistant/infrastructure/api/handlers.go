@@ -208,38 +208,58 @@ func (h *AIConfigHandlers) decryptStoredAPIKey(config *aggregates.AIConfiguratio
 }
 
 func (h *AIConfigHandlers) resolveConnectionParams(ctx context.Context, req TestConnectionRequest, tenantID sharedvo.TenantID) (resolvedConnectionParams, error) {
-	params := resolvedConnectionParams{
+	params := paramsFromRequest(req)
+	if isFullySpecified(params) {
+		return params, nil
+	}
+
+	config, err := h.repo.GetByTenantID(ctx)
+	if err != nil {
+		return params, fmt.Errorf("failed to retrieve configuration: %w", err)
+	}
+	if config == nil {
+		return params, nil
+	}
+
+	mergeStoredConfig(&params, config)
+	return h.fillStoredAPIKey(params, config, tenantID)
+}
+
+func paramsFromRequest(req TestConnectionRequest) resolvedConnectionParams {
+	return resolvedConnectionParams{
 		provider: req.Provider,
 		endpoint: req.Endpoint,
 		apiKey:   req.APIKey,
 		model:    req.Model,
 	}
+}
 
+func isFullySpecified(params resolvedConnectionParams) bool {
+	return params.provider != "" && params.endpoint != "" && params.model != "" && params.apiKey != ""
+}
+
+func mergeStoredConfig(params *resolvedConnectionParams, config *aggregates.AIConfiguration) {
+	if params.provider == "" {
+		params.provider = config.Provider().Value()
+	}
+	if params.endpoint == "" {
+		params.endpoint = config.Endpoint().Value()
+	}
+	if params.model == "" {
+		params.model = config.Model().Value()
+	}
+}
+
+func (h *AIConfigHandlers) fillStoredAPIKey(params resolvedConnectionParams, config *aggregates.AIConfiguration, tenantID sharedvo.TenantID) (resolvedConnectionParams, error) {
 	if params.apiKey != "" {
 		return params, nil
 	}
-
-	if err := h.applyStoredAPIKey(ctx, &params, tenantID); err != nil {
-		return params, err
-	}
-
-	return params, nil
-}
-
-func (h *AIConfigHandlers) applyStoredAPIKey(ctx context.Context, params *resolvedConnectionParams, tenantID sharedvo.TenantID) error {
-	config, err := h.repo.GetByTenantID(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to retrieve configuration: %w", err)
-	}
-	if config == nil {
-		return nil
-	}
 	decrypted, err := h.decryptStoredAPIKey(config, tenantID)
 	if err != nil {
-		return err
+		return params, err
 	}
 	params.apiKey = decrypted
-	return nil
+	return params, nil
 }
 
 func buildUpdateParams(req UpdateAIConfigRequest) (aggregates.UpdateConfigParams, error) {
@@ -297,8 +317,10 @@ func buildUpdateParams(req UpdateAIConfigRequest) (aggregates.UpdateConfigParams
 // @Router /assistant-config/connection-tests [post]
 func (h *AIConfigHandlers) TestConnection(w http.ResponseWriter, r *http.Request) {
 	var req TestConnectionRequest
-	// Decode optional body; ignore decode errors (empty body is valid)
-	_ = json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && !errors.Is(err, io.EOF) {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+		return
+	}
 
 	data, ok := h.prepareConnectionTest(w, r, req)
 	if !ok {
@@ -321,9 +343,10 @@ func (h *AIConfigHandlers) prepareConnectionTest(w http.ResponseWriter, r *http.
 
 	params, err := h.resolveConnectionParams(r.Context(), req, tenantID)
 	if err != nil {
+		log.Printf("[archassistant] failed to resolve connection params for tenant %s: %v", tenantID.Value(), err)
 		sharedAPI.RespondJSON(w, http.StatusOK, TestConnectionResponse{
 			Success: false,
-			Error:   "Failed to resolve connection parameters: " + err.Error(),
+			Error:   "Failed to resolve connection parameters",
 		})
 		return llmTestRequest{}, false
 	}
