@@ -100,3 +100,4 @@ Non-trivial features must have an approved spec in `/specs/` before any code is 
 - All API docs are generated via swaggo; do not edit `backend/docs/` by hand.
 - Environment variables follow `.env.example` patterns in each sub-directory.
 - Docker Compose (`docker-compose.yml`) starts local PostgreSQL and Dex (OIDC).
+- **Never add comments unless the user explicitly asks for them.**
