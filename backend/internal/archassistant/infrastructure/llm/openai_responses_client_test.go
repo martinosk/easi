@@ -397,8 +397,8 @@ func TestResponsesAPIClient_StreamChat_ErrorEvent(t *testing.T) {
 func TestResponsesToolCallAccumulator_NormalFlow(t *testing.T) {
 	acc := llm.NewResponsesToolCallAccumulator()
 
-	acc.RegisterItem("item_1", "call_abc", "list_apps")
-	acc.Finalize("item_1", "list_apps", `{"name":"x"}`)
+	acc.RegisterItem(llm.ToolCallRegistration{ItemID: "item_1", CallID: "call_abc", Name: "list_apps"})
+	acc.Finalize(llm.ToolCallCompletion{ItemID: "item_1", Name: "list_apps", Arguments: `{"name":"x"}`})
 
 	ch := make(chan llm.StreamEvent, 4)
 	acc.Emit(ch)
@@ -420,8 +420,8 @@ func TestResponsesToolCallAccumulator_NameFallback(t *testing.T) {
 	// Azure omits "name" from function_call_arguments.done; name must come from registerItem.
 	acc := llm.NewResponsesToolCallAccumulator()
 
-	acc.RegisterItem("item_1", "call_abc", "list_apps")
-	acc.Finalize("item_1", "", `{"name":"x"}`) // name intentionally blank
+	acc.RegisterItem(llm.ToolCallRegistration{ItemID: "item_1", CallID: "call_abc", Name: "list_apps"})
+	acc.Finalize(llm.ToolCallCompletion{ItemID: "item_1", Name: "", Arguments: `{"name":"x"}`}) // name intentionally blank
 
 	ch := make(chan llm.StreamEvent, 4)
 	acc.Emit(ch)
@@ -439,10 +439,10 @@ func TestResponsesToolCallAccumulator_NameFallback(t *testing.T) {
 func TestResponsesToolCallAccumulator_MultipleItems(t *testing.T) {
 	acc := llm.NewResponsesToolCallAccumulator()
 
-	acc.RegisterItem("item_1", "call_1", "get_app")
-	acc.RegisterItem("item_2", "call_2", "get_vendor")
-	acc.Finalize("item_1", "get_app", `{"id":1}`)
-	acc.Finalize("item_2", "get_vendor", `{"id":2}`)
+	acc.RegisterItem(llm.ToolCallRegistration{ItemID: "item_1", CallID: "call_1", Name: "get_app"})
+	acc.RegisterItem(llm.ToolCallRegistration{ItemID: "item_2", CallID: "call_2", Name: "get_vendor"})
+	acc.Finalize(llm.ToolCallCompletion{ItemID: "item_1", Name: "get_app", Arguments: `{"id":1}`})
+	acc.Finalize(llm.ToolCallCompletion{ItemID: "item_2", Name: "get_vendor", Arguments: `{"id":2}`})
 
 	ch := make(chan llm.StreamEvent, 4)
 	acc.Emit(ch)

@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -17,6 +20,7 @@ import (
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/crypto"
+	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 )
 
 type AIConfigHandlers struct {
@@ -51,11 +55,32 @@ type UpdateAIConfigRequest struct {
 	SystemPromptOverride *string `json:"systemPromptOverride,omitempty"`
 }
 
+type TestConnectionRequest struct {
+	Provider string `json:"provider,omitempty"`
+	Endpoint string `json:"endpoint,omitempty"`
+	APIKey   string `json:"apiKey,omitempty"`
+	Model    string `json:"model,omitempty"`
+}
+
 type TestConnectionResponse struct {
 	Success   bool   `json:"success"`
 	Model     string `json:"model,omitempty"`
 	LatencyMs int64  `json:"latencyMs,omitempty"`
 	Error     string `json:"error,omitempty"`
+}
+
+type resolvedConnectionParams struct {
+	provider string
+	endpoint string
+	apiKey   string
+	model    string
+}
+
+type llmTestRequest struct {
+	provider vo.LLMProvider
+	endpoint string
+	apiKey   string
+	model    string
 }
 
 // GetConfig godoc
@@ -174,6 +199,49 @@ func (h *AIConfigHandlers) applyAPIKeyEncryption(ctx context.Context, rawKey str
 	return nil
 }
 
+func (h *AIConfigHandlers) decryptStoredAPIKey(config *aggregates.AIConfiguration, tenantID sharedvo.TenantID) (string, error) {
+	encrypted := config.APIKeyEncrypted().Value()
+	if encrypted == "" {
+		return "", nil
+	}
+	return crypto.Decrypt(encrypted, tenantID.Value())
+}
+
+func (h *AIConfigHandlers) resolveConnectionParams(ctx context.Context, req TestConnectionRequest, tenantID sharedvo.TenantID) (resolvedConnectionParams, error) {
+	params := resolvedConnectionParams{
+		provider: req.Provider,
+		endpoint: req.Endpoint,
+		apiKey:   req.APIKey,
+		model:    req.Model,
+	}
+
+	if params.apiKey != "" {
+		return params, nil
+	}
+
+	if err := h.applyStoredAPIKey(ctx, &params, tenantID); err != nil {
+		return params, err
+	}
+
+	return params, nil
+}
+
+func (h *AIConfigHandlers) applyStoredAPIKey(ctx context.Context, params *resolvedConnectionParams, tenantID sharedvo.TenantID) error {
+	config, err := h.repo.GetByTenantID(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve configuration: %w", err)
+	}
+	if config == nil {
+		return nil
+	}
+	decrypted, err := h.decryptStoredAPIKey(config, tenantID)
+	if err != nil {
+		return err
+	}
+	params.apiKey = decrypted
+	return nil
+}
+
 func buildUpdateParams(req UpdateAIConfigRequest) (aggregates.UpdateConfigParams, error) {
 	provider, err := vo.NewLLMProvider(req.Provider)
 	if err != nil {
@@ -216,9 +284,11 @@ func buildUpdateParams(req UpdateAIConfigRequest) (aggregates.UpdateConfigParams
 
 // TestConnection godoc
 // @Summary Test assistant provider connection
-// @Description Tests connectivity to the configured LLM provider endpoint using the stored encrypted API key for the current tenant.
+// @Description Tests connectivity to the configured LLM provider endpoint. Accepts an optional request body with connection parameters; any omitted fields fall back to the stored configuration. Allows testing unsaved form values without saving first.
 // @Tags assistant-config
+// @Accept json
 // @Produce json
+// @Param request body TestConnectionRequest false "Optional connection parameters to test (falls back to stored config for omitted fields)"
 // @Success 200 {object} TestConnectionResponse
 // @Failure 400 {object} sharedAPI.ErrorResponse
 // @Failure 401 {object} sharedAPI.ErrorResponse
@@ -226,34 +296,82 @@ func buildUpdateParams(req UpdateAIConfigRequest) (aggregates.UpdateConfigParams
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /assistant-config/connection-tests [post]
 func (h *AIConfigHandlers) TestConnection(w http.ResponseWriter, r *http.Request) {
-	config, err := h.repo.GetByTenantID(r.Context())
-	if err != nil || config == nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "No configuration found")
+	var req TestConnectionRequest
+	// Decode optional body; ignore decode errors (empty body is valid)
+	_ = json.NewDecoder(r.Body).Decode(&req)
+
+	data, ok := h.prepareConnectionTest(w, r, req)
+	if !ok {
 		return
 	}
 
-	if !config.Status().IsConfigured() {
-		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "Configuration is not complete")
-		return
-	}
+	result := testLLMConnection(r.Context(), data)
+	sharedAPI.RespondJSON(w, http.StatusOK, result)
+}
 
+// prepareConnectionTest resolves the request against stored config, validates
+// inputs, and constructs a typed llmTestRequest. On invalid input it writes the
+// HTTP error response and returns ok=false.
+func (h *AIConfigHandlers) prepareConnectionTest(w http.ResponseWriter, r *http.Request, req TestConnectionRequest) (llmTestRequest, bool) {
 	tenantID, err := sharedctx.GetTenant(r.Context())
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to get tenant")
-		return
+		return llmTestRequest{}, false
 	}
 
-	apiKey, err := crypto.Decrypt(config.APIKeyEncrypted().Value(), tenantID.Value())
+	params, err := h.resolveConnectionParams(r.Context(), req, tenantID)
 	if err != nil {
 		sharedAPI.RespondJSON(w, http.StatusOK, TestConnectionResponse{
 			Success: false,
-			Error:   "Failed to decrypt API key",
+			Error:   "Failed to resolve connection parameters: " + err.Error(),
 		})
-		return
+		return llmTestRequest{}, false
 	}
 
-	result := testLLMConnection(config.Provider(), config.Endpoint().Value(), apiKey, config.Model().Value())
-	sharedAPI.RespondJSON(w, http.StatusOK, result)
+	if msg := validateTestConnectionParams(params); msg != "" {
+		sharedAPI.RespondError(w, http.StatusBadRequest, nil, msg)
+		return llmTestRequest{}, false
+	}
+
+	provider, err := vo.NewLLMProvider(params.provider)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+		return llmTestRequest{}, false
+	}
+
+	endpoint, err := resolveTestEndpoint(params.endpoint, provider)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid endpoint URL")
+		return llmTestRequest{}, false
+	}
+
+	return llmTestRequest{
+		provider: provider,
+		endpoint: endpoint,
+		apiKey:   params.apiKey,
+		model:    params.model,
+	}, true
+}
+
+func validateTestConnectionParams(params resolvedConnectionParams) string {
+	if params.provider == "" || params.model == "" {
+		return "Provider and model are required"
+	}
+	if params.apiKey == "" {
+		return "API key is required"
+	}
+	return ""
+}
+
+func resolveTestEndpoint(rawEndpoint string, provider vo.LLMProvider) (string, error) {
+	if rawEndpoint == "" {
+		rawEndpoint = provider.DefaultEndpoint()
+	}
+	validated, err := vo.NewLLMEndpoint(rawEndpoint)
+	if err != nil {
+		return "", err
+	}
+	return validated.Value(), nil
 }
 
 // isResponsesAPIURL reports whether the endpoint URL targets the OpenAI Responses API
@@ -271,58 +389,89 @@ func isResponsesAPIURL(endpoint string) bool {
 // defaultPath is appended (standard OpenAI / Anthropic base‑URL style).
 func llmEndpointURL(endpoint, defaultPath string) string {
 	u, err := url.Parse(endpoint)
-	if err == nil && u.Path != "" && u.Path != "/" {
+	hasNonRootPath := err == nil && u.Path != "" && u.Path != "/"
+	if hasNonRootPath {
 		return endpoint
 	}
 	return endpoint + defaultPath
 }
 
-func testLLMConnection(provider vo.LLMProvider, endpoint, apiKey, model string) TestConnectionResponse {
-	endpoint = strings.TrimRight(endpoint, "/")
-
-	var reqBody map[string]interface{}
-	var fullURL string
-
-	switch {
-	case provider.IsAnthropic():
-		reqBody = map[string]interface{}{
-			"model":      model,
-			"messages":   []map[string]string{{"role": "user", "content": "Hello"}},
-			"max_tokens": 5,
-		}
-		fullURL = llmEndpointURL(endpoint, "/v1/messages")
-	case isResponsesAPIURL(endpoint):
-		reqBody = map[string]interface{}{
-			"model":             model,
-			"input":             []map[string]string{{"role": "user", "content": "Hello"}},
-			"max_output_tokens": 16,
-		}
-		fullURL = endpoint // full URL is already provided by the user
-	default:
-		reqBody = map[string]interface{}{
-			"model":      model,
-			"messages":   []map[string]string{{"role": "user", "content": "Hello"}},
-			"max_tokens": 5,
-		}
-		fullURL = llmEndpointURL(endpoint, "/v1/chat/completions")
-	}
+func testLLMConnection(ctx context.Context, data llmTestRequest) TestConnectionResponse {
+	data.endpoint = strings.TrimRight(data.endpoint, "/")
+	reqBody, fullURL := buildTestPayload(data.provider, data.endpoint, data.model)
 
 	body, _ := json.Marshal(reqBody)
 
-	req, err := http.NewRequest("POST", fullURL, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, "POST", fullURL, bytes.NewReader(body))
 	if err != nil {
 		return TestConnectionResponse{Success: false, Error: fmt.Sprintf("Failed to create request: %v", err)}
 	}
-	req.Header.Set("Content-Type", "application/json")
+	setLLMAuthHeaders(req, data.provider, data.apiKey)
 
+	return executeLLMRequest(req)
+}
+
+func buildTestPayload(provider vo.LLMProvider, endpoint, model string) (map[string]interface{}, string) {
+	switch {
+	case provider.IsAnthropic():
+		return map[string]interface{}{
+			"model":      model,
+			"messages":   []map[string]string{{"role": "user", "content": "Hello"}},
+			"max_tokens": 5,
+		}, llmEndpointURL(endpoint, "/v1/messages")
+	case isResponsesAPIURL(endpoint):
+		return map[string]interface{}{
+			"model":             model,
+			"input":             []map[string]string{{"role": "user", "content": "Hello"}},
+			"max_output_tokens": 16,
+		}, endpoint // full URL is already provided by the user
+	default:
+		return map[string]interface{}{
+			"model":      model,
+			"messages":   []map[string]string{{"role": "user", "content": "Hello"}},
+			"max_tokens": 5,
+		}, llmEndpointURL(endpoint, "/v1/chat/completions")
+	}
+}
+
+func summarizeConnectionError(err error) string {
+	if err == nil {
+		return ""
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return "Connection timed out"
+	}
+	var dnsErr *net.DNSError
+	if errors.As(err, &dnsErr) {
+		return "DNS lookup failed for the configured endpoint"
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return "Connection timed out"
+	}
+	return classifyConnectionErrorMessage(err.Error())
+}
+
+func classifyConnectionErrorMessage(msg string) string {
+	switch {
+	case strings.Contains(msg, "connection refused"):
+		return "Connection refused by the configured endpoint"
+	case strings.Contains(msg, "no such host"):
+		return "Host not found for the configured endpoint"
+	case strings.Contains(msg, "tls:"), strings.Contains(msg, "x509:"):
+		return "TLS handshake failed"
+	}
+	return "Unable to reach LLM endpoint"
+}
+
+func setLLMAuthHeaders(req *http.Request, provider vo.LLMProvider, apiKey string) {
+	req.Header.Set("Content-Type", "application/json")
 	if provider.IsAnthropic() {
 		req.Header.Set("x-api-key", apiKey)
 		req.Header.Set("anthropic-version", "2023-06-01")
-	} else {
-		req.Header.Set("Authorization", "Bearer "+apiKey)
+		return
 	}
-
-	return executeLLMRequest(req)
+	req.Header.Set("Authorization", "Bearer "+apiKey)
 }
 
 func executeLLMRequest(req *http.Request) TestConnectionResponse {
@@ -331,7 +480,8 @@ func executeLLMRequest(req *http.Request) TestConnectionResponse {
 	resp, err := client.Do(req)
 	latency := time.Since(start).Milliseconds()
 	if err != nil {
-		return TestConnectionResponse{Success: false, Error: fmt.Sprintf("Connection failed: %v", err)}
+		log.Printf("[archassistant] LLM connection test failed: %v", err)
+		return TestConnectionResponse{Success: false, Error: summarizeConnectionError(err)}
 	}
 	defer func() { _ = resp.Body.Close() }()
 

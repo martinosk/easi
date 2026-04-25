@@ -1,5 +1,5 @@
 import { httpClient } from '../core/httpClient';
-import type { AIConfigurationResponse, TestConnectionResponse, UpdateAIConfigRequest } from './types';
+import type { AIConfigurationResponse, TestConnectionRequest, TestConnectionResponse, UpdateAIConfigRequest } from './types';
 
 const BASE = '/api/v1/assistant-config';
 
@@ -14,8 +14,8 @@ export const assistantConfigApi = {
     return response.data;
   },
 
-  async testConnection(): Promise<TestConnectionResponse> {
-    const response = await httpClient.post<TestConnectionResponse>(`${BASE}/connection-tests`);
+  async testConnection(request: TestConnectionRequest): Promise<TestConnectionResponse> {
+    const response = await httpClient.post<TestConnectionResponse>(`${BASE}/connection-tests`, request);
     return response.data;
   },
 };

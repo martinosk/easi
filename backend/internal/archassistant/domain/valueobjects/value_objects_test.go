@@ -60,12 +60,13 @@ func TestNewLLMEndpoint_ValidURLs(t *testing.T) {
 		name  string
 		input string
 	}{
-		{"simple https", "https://api.openai.com"},
-		{"https with path", "https://api.openai.com/v1"},
-		{"https with port", "https://api.example.com:8443"},
-		{"localhost with port", "http://localhost:8080"},
-		{"localhost no port", "http://localhost"},
-		{"localhost with path", "http://localhost:11434/api"},
+		{"openai", "https://api.openai.com"},
+		{"openai with path", "https://api.openai.com/v1"},
+		{"openai with port", "https://api.openai.com:443"},
+		{"anthropic", "https://api.anthropic.com"},
+		{"anthropic with path", "https://api.anthropic.com/v1/messages"},
+		{"azure openai subdomain", "https://my-resource.openai.azure.com/openai/responses?api-version=2025-04-01-preview"},
+		{"azure cognitive services subdomain", "https://cog-easi-prd01.cognitiveservices.azure.com/openai/responses"},
 	}
 	for _, tc := range valid {
 		t.Run(tc.name, func(t *testing.T) {
@@ -97,16 +98,39 @@ func TestNewLLMEndpoint_InvalidScheme(t *testing.T) {
 		name  string
 		input string
 	}{
-		{"plain http non-localhost", "http://api.openai.com"},
-		{"localhost prefix domain", "http://localhost.evil.com"},
-		{"localhost prefix domain with port", "http://localhost.evil.com:8080"},
-		{"ftp", "ftp://api.example.com"},
+		{"plain http", "http://api.openai.com"},
+		{"http localhost no longer allowed", "http://localhost:8080"},
+		{"ftp", "ftp://api.openai.com"},
 		{"no scheme", "api.openai.com"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := NewLLMEndpoint(tc.input)
 			assert.ErrorIs(t, err, ErrEndpointInvalid)
+		})
+	}
+}
+
+func TestNewLLMEndpoint_HostNotAllowed(t *testing.T) {
+	rejected := []struct {
+		name  string
+		input string
+	}{
+		{"arbitrary public host", "https://api.example.com"},
+		{"openai lookalike (suffix attack)", "https://evil.com/api.openai.com"},
+		{"openai prefix attack", "https://api.openai.com.evil.com"},
+		{"azure suffix without leading dot", "https://evilopenai.azure.com"},
+		{"userinfo host smuggling", "https://api.openai.com@evil.com"},
+		{"localhost host", "https://localhost"},
+		{"RFC1918 10.x", "https://10.0.0.1/v1"},
+		{"RFC1918 192.168.x", "https://192.168.1.1/v1"},
+		{"link-local IPv4 (cloud metadata)", "https://169.254.169.254/latest/meta-data"},
+		{"link-local IPv6", "https://[fe80::1]/v1"},
+	}
+	for _, tc := range rejected {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := NewLLMEndpoint(tc.input)
+			assert.ErrorIs(t, err, ErrEndpointHostNotAllowed)
 		})
 	}
 }

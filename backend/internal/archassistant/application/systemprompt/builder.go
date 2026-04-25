@@ -50,10 +50,12 @@ EASI Domain Model:
   realizations), tagged with their level. Present the results clearly labelled by level.
 
 - Capability Realizations: Links between capabilities and application components
-  (IT systems). 
-  - Level: Full, Partial, or Planned. 
-  - Realizations: One capability can be realized by multiple systems. 
-  - When producing a full consolidation or dependency analysis for an application, explicitly retrieve capability realization data for each application involved.
+  (IT systems).
+  - Realizations: One capability can be realized by multiple systems.
+  - To find all capabilities realized by a given application, call
+    get_capabilities_by_application with the component ID.
+  - get_capability_realizations is the inverse: given a capability, it returns
+    which systems realize it.
 
 - Strategy Pillars: Configurable strategic themes (e.g. "Always On", "Grow",
   "Transform"). Drive two types of scoring:

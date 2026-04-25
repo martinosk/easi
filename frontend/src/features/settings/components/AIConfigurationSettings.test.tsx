@@ -249,6 +249,12 @@ describe('AIConfigurationSettings', () => {
       expect(screen.getByText(/connection successful/i)).toBeInTheDocument();
     });
     expect(screen.getByText(/150ms/)).toBeInTheDocument();
+    expect(assistantConfigApi.testConnection).toHaveBeenCalledWith({
+      provider: 'openai',
+      endpoint: 'https://api.openai.com',
+      model: 'gpt-4o',
+      apiKey: undefined,
+    });
   });
 
   it('shows test connection failure', async () => {
@@ -264,6 +270,12 @@ describe('AIConfigurationSettings', () => {
       expect(screen.getByText(/connection failed/i)).toBeInTheDocument();
     });
     expect(screen.getByText(/invalid api key/i)).toBeInTheDocument();
+    expect(assistantConfigApi.testConnection).toHaveBeenCalledWith({
+      provider: 'openai',
+      endpoint: 'https://api.openai.com',
+      model: 'gpt-4o',
+      apiKey: undefined,
+    });
   });
 
   it('disables save when model is empty even with API key configured', async () => {
@@ -301,5 +313,47 @@ describe('AIConfigurationSettings', () => {
 
     const modelInput = screen.getByLabelText(/^Model/) as HTMLInputElement;
     expect(modelInput.placeholder).toContain('claude');
+  });
+
+  it('shows test connection button when form has required fields filled but not yet saved', async () => {
+    await renderWithConfig(unconfiguredResponse);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/^Model/)).toBeInTheDocument();
+    });
+
+    // Test button not visible yet (model empty)
+    expect(screen.queryByRole('button', { name: 'Test Connection' })).not.toBeInTheDocument();
+
+    // Fill in required fields
+    fireEvent.change(screen.getByLabelText(/^Model/), { target: { value: 'gpt-4o' } });
+    fireEvent.change(screen.getByLabelText(/^API Key/), { target: { value: 'sk-test-key' } });
+
+    // Now Test Connection button should appear
+    expect(screen.getByRole('button', { name: 'Test Connection' })).toBeInTheDocument();
+  });
+
+  it('test connection sends current form values not saved values', async () => {
+    vi.mocked(assistantConfigApi.testConnection).mockResolvedValue({
+      success: true,
+      model: 'gpt-4o-mini',
+      latencyMs: 200,
+    });
+    await renderWithConfig(configuredResponse);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Test Connection' })).toBeInTheDocument();
+    });
+
+    // Change the model field without saving
+    fireEvent.change(screen.getByLabelText(/^Model/), { target: { value: 'gpt-4o-mini' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Test Connection' }));
+
+    await waitFor(() => {
+      expect(assistantConfigApi.testConnection).toHaveBeenCalledWith(
+        expect.objectContaining({ model: 'gpt-4o-mini' }),
+      );
+    });
   });
 });

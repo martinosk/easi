@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -25,6 +26,15 @@ func NewAnthropicClient(endpoint, apiKey string) *AnthropicClient {
 			Timeout: 120 * time.Second,
 		},
 	}
+}
+
+func (c *AnthropicClient) messagesURL() string {
+	u, err := url.Parse(c.endpoint)
+	hasNonRootPath := err == nil && u.Path != "" && u.Path != "/"
+	if hasNonRootPath {
+		return c.endpoint
+	}
+	return c.endpoint + "/v1/messages"
 }
 
 type anthropicRequest struct {
@@ -132,7 +142,7 @@ func (c *AnthropicClient) StreamChat(ctx context.Context, messages []Message, op
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", c.endpoint+"/v1/messages", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, "POST", c.messagesURL(), bytes.NewReader(body))
 	if err != nil {
 		cancel()
 		return nil, fmt.Errorf("failed to create request: %w", err)

@@ -30,3 +30,10 @@ export interface TestConnectionResponse {
   latencyMs?: number;
   error?: string;
 }
+
+export interface TestConnectionRequest {
+  provider: string;
+  endpoint: string;
+  apiKey?: string;
+  model: string;
+}

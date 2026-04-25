@@ -87,11 +87,9 @@ make swagger
 
 ---
 
-## JS/TS Module Notes
+## Spec-Driven Development
 
-- **ES Modules**: `"type": "module"` is set in `frontend/package.json`. The project is fully ESM.
-- **require() usage**: 0 occurrences found in `frontend/src/` — no CommonJS migration candidates.
-- **TypeScript**: `frontend/tsconfig.json` exists. No scaffolding needed.
+Non-trivial features must have an approved spec in `/specs/` before any code is written. See the `easi-spec-driven-development` skill for the full workflow, lifecycle states, naming convention, and required checklist.
 
 ---
 

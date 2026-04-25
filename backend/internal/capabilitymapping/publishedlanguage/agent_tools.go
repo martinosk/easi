@@ -125,6 +125,12 @@ func capabilityMetadataTools() []pl.AgentToolSpec {
 			PathParams: []pl.ParamSpec{pl.UUIDParam("id", "Capability ID (UUID)")},
 		},
 		{
+			Name: "get_capabilities_by_application", Description: "Get all capabilities realized by a specific application component (IT system). Returns all realization links for the given component, each including the capability ID, realization level (Full, Partial, Planned), and optional notes. Use this as the primary lookup when the user asks which capabilities a given application realises.",
+			Access: pl.AccessRead, Permission: "capabilities:read",
+			Method: "GET", Path: "/capability-realizations/by-component/{componentId}",
+			PathParams: []pl.ParamSpec{pl.UUIDParam("componentId", "Application component ID (UUID)")},
+		},
+		{
 			Name: "get_capability_business_domains", Description: "Get the business domains that a capability belongs to. For L1 capabilities this shows direct assignments; for L2-L4 it shows inherited domain membership through the parent hierarchy.",
 			Access: pl.AccessRead, Permission: "capabilities:read",
 			Method: "GET", Path: "/capabilities/{id}/business-domains",

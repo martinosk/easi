@@ -7,10 +7,21 @@ import (
 )
 
 var (
-	ErrEndpointEmpty   = errors.New("LLM endpoint cannot be empty")
-	ErrEndpointTooLong = errors.New("LLM endpoint cannot exceed 500 characters")
-	ErrEndpointInvalid = errors.New("LLM endpoint must be a valid URL with https:// or http://localhost")
+	ErrEndpointEmpty          = errors.New("LLM endpoint cannot be empty")
+	ErrEndpointTooLong        = errors.New("LLM endpoint cannot exceed 500 characters")
+	ErrEndpointInvalid        = errors.New("LLM endpoint must be a valid https:// URL")
+	ErrEndpointHostNotAllowed = errors.New("LLM endpoint host is not in the allowed providers list")
 )
+
+var allowedExactHosts = map[string]struct{}{
+	"api.openai.com":    {},
+	"api.anthropic.com": {},
+}
+
+var allowedHostSuffixes = []string{
+	".openai.azure.com",
+	".cognitiveservices.azure.com",
+}
 
 type LLMEndpoint struct {
 	value string
@@ -25,16 +36,26 @@ func NewLLMEndpoint(value string) (LLMEndpoint, error) {
 		return LLMEndpoint{}, ErrEndpointTooLong
 	}
 	parsed, err := url.Parse(trimmed)
-	if err != nil || parsed.Host == "" {
+	if err != nil || parsed.Host == "" || parsed.Scheme != "https" {
 		return LLMEndpoint{}, ErrEndpointInvalid
 	}
-	if parsed.Scheme == "https" {
-		return LLMEndpoint{value: trimmed}, nil
+	if !isAllowedHost(parsed.Hostname()) {
+		return LLMEndpoint{}, ErrEndpointHostNotAllowed
 	}
-	if parsed.Scheme == "http" && strings.EqualFold(parsed.Hostname(), "localhost") {
-		return LLMEndpoint{value: trimmed}, nil
+	return LLMEndpoint{value: trimmed}, nil
+}
+
+func isAllowedHost(hostname string) bool {
+	host := strings.ToLower(hostname)
+	if _, ok := allowedExactHosts[host]; ok {
+		return true
 	}
-	return LLMEndpoint{}, ErrEndpointInvalid
+	for _, suffix := range allowedHostSuffixes {
+		if strings.HasSuffix(host, suffix) {
+			return true
+		}
+	}
+	return false
 }
 
 func ReconstructLLMEndpoint(value string) LLMEndpoint {

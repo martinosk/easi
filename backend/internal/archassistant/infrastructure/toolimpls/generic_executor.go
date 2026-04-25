@@ -122,14 +122,36 @@ func isStringTyped(p ParamSpec) bool {
 }
 
 func validateParam(args map[string]interface{}, p ParamSpec) *tools.ToolResult {
-	val, _ := args[p.Name].(string)
-	if val == "" && isStringTyped(p) {
-		if p.Required {
-			return toolErr(p.Name + " is required")
-		}
+	if isParamMissing(args, p) {
+		return missingParamResult(p)
+	}
+	if !isStringTyped(p) {
 		return nil
 	}
+	val, _ := args[p.Name].(string)
 	return validateParamValue(val, p)
+}
+
+// isParamMissing reports whether p is absent, nil, or — for string-typed
+// params — an empty string. Non-string params count as present whenever a
+// non-nil value of any type is supplied.
+func isParamMissing(args map[string]interface{}, p ParamSpec) bool {
+	raw, present := args[p.Name]
+	if !present || raw == nil {
+		return true
+	}
+	if !isStringTyped(p) {
+		return false
+	}
+	val, _ := raw.(string)
+	return val == ""
+}
+
+func missingParamResult(p ParamSpec) *tools.ToolResult {
+	if p.Required {
+		return toolErr(p.Name + " is required")
+	}
+	return nil
 }
 
 func validateParamValue(val string, p ParamSpec) *tools.ToolResult {
