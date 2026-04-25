@@ -73,6 +73,13 @@ type resolvedConnectionParams struct {
 	model    string
 }
 
+type llmTestRequest struct {
+	provider vo.LLMProvider
+	endpoint string
+	apiKey   string
+	model    string
+}
+
 // GetConfig godoc
 // @Summary Get assistant configuration
 // @Description Retrieves the AI assistant configuration for the current tenant. If no configuration exists yet, returns a default not_configured response.
@@ -304,10 +311,23 @@ func (h *AIConfigHandlers) TestConnection(w http.ResponseWriter, r *http.Request
 	// Decode optional body; ignore decode errors (empty body is valid)
 	_ = json.NewDecoder(r.Body).Decode(&req)
 
+	data, ok := h.prepareConnectionTest(w, r, req)
+	if !ok {
+		return
+	}
+
+	result := testLLMConnection(r.Context(), data)
+	sharedAPI.RespondJSON(w, http.StatusOK, result)
+}
+
+// prepareConnectionTest resolves the request against stored config, validates
+// inputs, and constructs a typed llmTestRequest. On invalid input it writes the
+// HTTP error response and returns ok=false.
+func (h *AIConfigHandlers) prepareConnectionTest(w http.ResponseWriter, r *http.Request, req TestConnectionRequest) (llmTestRequest, bool) {
 	tenantID, err := sharedctx.GetTenant(r.Context())
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to get tenant")
-		return
+		return llmTestRequest{}, false
 	}
 
 	params, err := h.resolveConnectionParams(r.Context(), req, tenantID)
@@ -316,36 +336,53 @@ func (h *AIConfigHandlers) TestConnection(w http.ResponseWriter, r *http.Request
 			Success: false,
 			Error:   "Failed to resolve connection parameters: " + err.Error(),
 		})
-		return
+		return llmTestRequest{}, false
 	}
 
-	if params.provider == "" || params.model == "" {
-		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "Provider and model are required")
-		return
-	}
-	if params.apiKey == "" {
-		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "API key is required")
-		return
+	if msg := validateTestConnectionParams(params); msg != "" {
+		sharedAPI.RespondError(w, http.StatusBadRequest, nil, msg)
+		return llmTestRequest{}, false
 	}
 
 	provider, err := vo.NewLLMProvider(params.provider)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
-		return
+		return llmTestRequest{}, false
 	}
 
-	rawEndpoint := params.endpoint
+	endpoint, err := resolveTestEndpoint(params.endpoint, provider)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid endpoint URL")
+		return llmTestRequest{}, false
+	}
+
+	return llmTestRequest{
+		provider: provider,
+		endpoint: endpoint,
+		apiKey:   params.apiKey,
+		model:    params.model,
+	}, true
+}
+
+func validateTestConnectionParams(params resolvedConnectionParams) string {
+	if params.provider == "" || params.model == "" {
+		return "Provider and model are required"
+	}
+	if params.apiKey == "" {
+		return "API key is required"
+	}
+	return ""
+}
+
+func resolveTestEndpoint(rawEndpoint string, provider vo.LLMProvider) (string, error) {
 	if rawEndpoint == "" {
 		rawEndpoint = provider.DefaultEndpoint()
 	}
-	validatedEndpoint, err := vo.NewLLMEndpoint(rawEndpoint)
+	validated, err := vo.NewLLMEndpoint(rawEndpoint)
 	if err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid endpoint URL")
-		return
+		return "", err
 	}
-
-	result := testLLMConnection(r.Context(), provider, validatedEndpoint.Value(), params.apiKey, params.model)
-	sharedAPI.RespondJSON(w, http.StatusOK, result)
+	return validated.Value(), nil
 }
 
 // isResponsesAPIURL reports whether the endpoint URL targets the OpenAI Responses API
@@ -370,35 +407,9 @@ func llmEndpointURL(endpoint, defaultPath string) string {
 	return endpoint + defaultPath
 }
 
-func testLLMConnection(ctx context.Context, provider vo.LLMProvider, endpoint, apiKey, model string) TestConnectionResponse {
-	endpoint = strings.TrimRight(endpoint, "/")
-
-	var reqBody map[string]interface{}
-	var fullURL string
-
-	switch {
-	case provider.IsAnthropic():
-		reqBody = map[string]interface{}{
-			"model":      model,
-			"messages":   []map[string]string{{"role": "user", "content": "Hello"}},
-			"max_tokens": 5,
-		}
-		fullURL = llmEndpointURL(endpoint, "/v1/messages")
-	case isResponsesAPIURL(endpoint):
-		reqBody = map[string]interface{}{
-			"model":             model,
-			"input":             []map[string]string{{"role": "user", "content": "Hello"}},
-			"max_output_tokens": 16,
-		}
-		fullURL = endpoint // full URL is already provided by the user
-	default:
-		reqBody = map[string]interface{}{
-			"model":      model,
-			"messages":   []map[string]string{{"role": "user", "content": "Hello"}},
-			"max_tokens": 5,
-		}
-		fullURL = llmEndpointURL(endpoint, "/v1/chat/completions")
-	}
+func testLLMConnection(ctx context.Context, data llmTestRequest) TestConnectionResponse {
+	data.endpoint = strings.TrimRight(data.endpoint, "/")
+	reqBody, fullURL := buildTestPayload(data.provider, data.endpoint, data.model)
 
 	body, _ := json.Marshal(reqBody)
 
@@ -406,16 +417,42 @@ func testLLMConnection(ctx context.Context, provider vo.LLMProvider, endpoint, a
 	if err != nil {
 		return TestConnectionResponse{Success: false, Error: fmt.Sprintf("Failed to create request: %v", err)}
 	}
-	req.Header.Set("Content-Type", "application/json")
+	setLLMAuthHeaders(req, data.provider, data.apiKey)
 
+	return executeLLMRequest(req)
+}
+
+func buildTestPayload(provider vo.LLMProvider, endpoint, model string) (map[string]interface{}, string) {
+	switch {
+	case provider.IsAnthropic():
+		return map[string]interface{}{
+			"model":      model,
+			"messages":   []map[string]string{{"role": "user", "content": "Hello"}},
+			"max_tokens": 5,
+		}, llmEndpointURL(endpoint, "/v1/messages")
+	case isResponsesAPIURL(endpoint):
+		return map[string]interface{}{
+			"model":             model,
+			"input":             []map[string]string{{"role": "user", "content": "Hello"}},
+			"max_output_tokens": 16,
+		}, endpoint // full URL is already provided by the user
+	default:
+		return map[string]interface{}{
+			"model":      model,
+			"messages":   []map[string]string{{"role": "user", "content": "Hello"}},
+			"max_tokens": 5,
+		}, llmEndpointURL(endpoint, "/v1/chat/completions")
+	}
+}
+
+func setLLMAuthHeaders(req *http.Request, provider vo.LLMProvider, apiKey string) {
+	req.Header.Set("Content-Type", "application/json")
 	if provider.IsAnthropic() {
 		req.Header.Set("x-api-key", apiKey)
 		req.Header.Set("anthropic-version", "2023-06-01")
-	} else {
-		req.Header.Set("Authorization", "Bearer "+apiKey)
+		return
 	}
-
-	return executeLLMRequest(req)
+	req.Header.Set("Authorization", "Bearer "+apiKey)
 }
 
 func executeLLMRequest(req *http.Request) TestConnectionResponse {

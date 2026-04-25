@@ -83,10 +83,21 @@ type responsesFunctionCallOutputItem struct {
 	Output string `json:"output"`
 }
 
-type functionCallItem struct {
-	id     string
-	callID string
-	name   string
+// ToolCallRegistration captures the metadata emitted with
+// response.output_item.added for a function_call item, used to track
+// call_id and name across the streamed arguments.
+type ToolCallRegistration struct {
+	ItemID string
+	CallID string
+	Name   string
+}
+
+// ToolCallCompletion captures the terminal event of a streamed tool call,
+// where the assembled arguments and (possibly) the function name are known.
+type ToolCallCompletion struct {
+	ItemID    string
+	Name      string
+	Arguments string
 }
 
 type ResponsesToolCallAccumulator struct {
@@ -102,28 +113,25 @@ func NewResponsesToolCallAccumulator() *ResponsesToolCallAccumulator {
 	}
 }
 
-func (a *ResponsesToolCallAccumulator) RegisterItem(itemID, callID, name string) {
-	a.registerItem(functionCallItem{id: itemID, callID: callID, name: name})
-}
-
-func (a *ResponsesToolCallAccumulator) registerItem(item functionCallItem) {
-	if item.callID != "" {
-		a.callIDs[item.id] = item.callID
+func (a *ResponsesToolCallAccumulator) RegisterItem(reg ToolCallRegistration) {
+	if reg.CallID != "" {
+		a.callIDs[reg.ItemID] = reg.CallID
 	}
-	if item.name != "" {
-		a.names[item.id] = item.name
+	if reg.Name != "" {
+		a.names[reg.ItemID] = reg.Name
 	}
 }
 
-func (a *ResponsesToolCallAccumulator) Finalize(itemID, name, arguments string) {
-	callID := itemID
-	if mapped, ok := a.callIDs[itemID]; ok {
+func (a *ResponsesToolCallAccumulator) Finalize(c ToolCallCompletion) {
+	callID := c.ItemID
+	if mapped, ok := a.callIDs[c.ItemID]; ok {
 		callID = mapped
 	}
+	name := c.Name
 	if name == "" {
-		name = a.names[itemID]
+		name = a.names[c.ItemID]
 	}
-	a.calls = append(a.calls, ToolCall{ID: callID, Name: name, Arguments: arguments})
+	a.calls = append(a.calls, ToolCall{ID: callID, Name: name, Arguments: c.Arguments})
 }
 
 func (a *ResponsesToolCallAccumulator) hasToolCalls() bool {
@@ -341,7 +349,11 @@ func handleStreamEvent(event responsesStreamEvent, acc *ResponsesToolCallAccumul
 		parseOutputItem(event.Item, acc)
 
 	case "response.function_call_arguments.done":
-		acc.Finalize(event.ItemID, event.Name, event.Arguments)
+		acc.Finalize(ToolCallCompletion{
+			ItemID:    event.ItemID,
+			Name:      event.Name,
+			Arguments: event.Arguments,
+		})
 
 	case "response.completed":
 		*totalTokens = extractTokenCount(event)
@@ -378,6 +390,6 @@ func parseOutputItem(raw json.RawMessage, acc *ResponsesToolCallAccumulator) {
 		return
 	}
 	if item.Type == "function_call" {
-		acc.registerItem(functionCallItem{id: item.ID, callID: item.CallID, name: item.Name})
+		acc.RegisterItem(ToolCallRegistration{ItemID: item.ID, CallID: item.CallID, Name: item.Name})
 	}
 }
