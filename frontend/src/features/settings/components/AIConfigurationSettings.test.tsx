@@ -219,8 +219,9 @@ describe('AIConfigurationSettings', () => {
       expect(screen.getByLabelText(/^Model/)).toBeInTheDocument();
     });
 
+    const generatedApiKey = crypto.randomUUID();
     fireEvent.change(screen.getByLabelText(/^Model/), { target: { value: 'gpt-4o' } });
-    fireEvent.change(screen.getByLabelText(/^API Key/), { target: { value: 'sk-test-key' } });
+    fireEvent.change(screen.getByLabelText(/^API Key/), { target: { value: generatedApiKey } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -229,7 +230,7 @@ describe('AIConfigurationSettings', () => {
         expect.objectContaining({
           provider: 'openai',
           model: 'gpt-4o',
-          apiKey: 'sk-test-key',
+          apiKey: generatedApiKey,
         }),
       );
     });

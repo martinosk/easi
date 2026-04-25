@@ -158,7 +158,7 @@ func setupToolTest(t *testing.T, registry *tools.Registry, handler http.Handler)
 	factory := adapters.NewLLMClientFactory()
 	orch := orchestrator.New(repo, factory)
 	writer := &mockStreamWriter{}
-	conv := aggregates.NewConversation("tenant-1", "user-1")
+	conv := aggregates.NewConversation(testTenantID, testUserID)
 	repo.conversation = conv
 
 	return &toolTestFixture{repo: repo, orch: orch, writer: writer, conv: conv, registry: registry}, server
@@ -168,9 +168,9 @@ func (f *toolTestFixture) sendMessage(t *testing.T, serverURL, content string, p
 	t.Helper()
 	return f.orch.SendMessage(context.Background(), f.writer, orchestrator.SendMessageParams{
 		ConversationID: f.conv.ID(),
-		UserID:         "user-1",
+		UserID:         testUserID,
 		Content:        content,
-		TenantID:       "tenant-1",
+		TenantID:       testTenantID,
 		UserRole:       "architect",
 		Config:         testConfig(serverURL),
 		Permissions:    perms,

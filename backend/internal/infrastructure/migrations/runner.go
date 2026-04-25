@@ -101,6 +101,9 @@ func getSortedSQLFiles(dirPath string) ([]string, error) {
 		if file.IsDir() || !strings.HasSuffix(file.Name(), ".sql") {
 			continue
 		}
+		if err := validateMigrationFilename(file.Name()); err != nil {
+			return nil, fmt.Errorf("invalid migration filename %q: %w", file.Name(), err)
+		}
 		sqlFiles = append(sqlFiles, file.Name())
 	}
 

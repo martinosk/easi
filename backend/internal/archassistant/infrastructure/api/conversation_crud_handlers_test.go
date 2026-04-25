@@ -17,8 +17,18 @@ import (
 	"easi/backend/internal/shared/types"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+)
+
+var (
+	testTenantID = uuid.NewString()
+	testUserID   = uuid.NewString()
+	testConvID1  = uuid.NewString()
+	testConvID2  = uuid.NewString()
+	testMsgID1   = uuid.NewString()
+	testMsgID2   = uuid.NewString()
 )
 
 type crudMockRepo struct {
@@ -79,9 +89,9 @@ func newCRUDHandlers(repo domain.ConversationRepository) *assistantAPI.Conversat
 
 func withCRUDActorAndTenant(r *http.Request) *http.Request {
 	ctx := r.Context()
-	actor := sharedctx.NewActor("user-1", "user@example.com", sharedctx.RoleArchitect)
+	actor := sharedctx.NewActor(testUserID, "user@example.com", sharedctx.RoleArchitect)
 	ctx = sharedctx.WithActor(ctx, actor)
-	tenantID, _ := sharedvo.NewTenantID("tenant-1")
+	tenantID, _ := sharedvo.NewTenantID(testTenantID)
 	ctx = sharedctx.WithTenant(ctx, tenantID)
 	return r.WithContext(ctx)
 }
@@ -104,8 +114,8 @@ func TestListConversations_ReturnsUserConversations(t *testing.T) {
 	now := time.Now().Truncate(time.Second)
 	repo := &crudMockRepo{
 		conversations: []*aggregates.Conversation{
-			makeConversation(aggregates.ReconstructConversationParams{ID: "conv-1", TenantID: "tenant-1", UserID: "user-1", Title: "First chat", CreatedAt: now, LastMessageAt: now}),
-			makeConversation(aggregates.ReconstructConversationParams{ID: "conv-2", TenantID: "tenant-1", UserID: "user-1", Title: "Second chat", CreatedAt: now.Add(-time.Hour), LastMessageAt: now.Add(-30 * time.Minute)}),
+			makeConversation(aggregates.ReconstructConversationParams{ID: testConvID1, TenantID: testTenantID, UserID: testUserID, Title: "First chat", CreatedAt: now, LastMessageAt: now}),
+			makeConversation(aggregates.ReconstructConversationParams{ID: testConvID2, TenantID: testTenantID, UserID: testUserID, Title: "Second chat", CreatedAt: now.Add(-time.Hour), LastMessageAt: now.Add(-30 * time.Minute)}),
 		},
 		total: 2,
 	}
@@ -136,7 +146,7 @@ func TestListConversations_ReturnsUserConversations(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Len(t, resp.Data, 2)
-	assert.Equal(t, "conv-1", resp.Data[0].ID)
+	assert.Equal(t, testConvID1, resp.Data[0].ID)
 	assert.Equal(t, "First chat", resp.Data[0].Title)
 	assert.NotNil(t, resp.Data[0].Links["self"])
 	assert.NotNil(t, resp.Data[0].Links["delete"])
@@ -184,10 +194,10 @@ func TestListConversations_NoActor(t *testing.T) {
 func TestGetConversation_ReturnsConversationWithMessages(t *testing.T) {
 	now := time.Now().Truncate(time.Second)
 	convID := "00000000-0000-0000-0000-000000000001"
-	conv := makeConversation(aggregates.ReconstructConversationParams{ID: convID, TenantID: "tenant-1", UserID: "user-1", Title: "My chat", CreatedAt: now, LastMessageAt: now})
+	conv := makeConversation(aggregates.ReconstructConversationParams{ID: convID, TenantID: testTenantID, UserID: testUserID, Title: "My chat", CreatedAt: now, LastMessageAt: now})
 	messages := []*aggregates.Message{
-		makeMessage(aggregates.ReconstructMessageParams{ID: "msg-1", ConversationID: convID, Role: vo.MessageRoleUser, Content: "Hello", CreatedAt: now}),
-		makeMessage(aggregates.ReconstructMessageParams{ID: "msg-2", ConversationID: convID, Role: vo.MessageRoleAssistant, Content: "Hi there!", CreatedAt: now.Add(time.Second)}),
+		makeMessage(aggregates.ReconstructMessageParams{ID: testMsgID1, ConversationID: convID, Role: vo.MessageRoleUser, Content: "Hello", CreatedAt: now}),
+		makeMessage(aggregates.ReconstructMessageParams{ID: testMsgID2, ConversationID: convID, Role: vo.MessageRoleAssistant, Content: "Hi there!", CreatedAt: now.Add(time.Second)}),
 	}
 
 	repo := &crudMockRepo{
@@ -224,10 +234,10 @@ func TestGetConversation_ReturnsConversationWithMessages(t *testing.T) {
 	assert.Equal(t, convID, resp.ID)
 	assert.Equal(t, "My chat", resp.Title)
 	require.Len(t, resp.Messages, 2)
-	assert.Equal(t, "msg-1", resp.Messages[0].ID)
+	assert.Equal(t, testMsgID1, resp.Messages[0].ID)
 	assert.Equal(t, "user", resp.Messages[0].Role)
 	assert.Equal(t, "Hello", resp.Messages[0].Content)
-	assert.Equal(t, "msg-2", resp.Messages[1].ID)
+	assert.Equal(t, testMsgID2, resp.Messages[1].ID)
 	assert.Equal(t, "assistant", resp.Messages[1].Role)
 	assert.NotNil(t, resp.Links["self"])
 	assert.NotNil(t, resp.Links["messages"])
@@ -276,7 +286,7 @@ func TestDeleteConversation_Success(t *testing.T) {
 
 	assert.Equal(t, http.StatusNoContent, rec.Code)
 	assert.Equal(t, convID, repo.deletedID)
-	assert.Equal(t, "user-1", repo.deletedUser)
+	assert.Equal(t, testUserID, repo.deletedUser)
 }
 
 func TestDeleteConversation_NotFound(t *testing.T) {

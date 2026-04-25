@@ -1,6 +1,6 @@
 module easi/backend
 
-go 1.26.1
+go 1.26.2
 
 require (
 	github.com/alexedwards/scs/postgresstore v0.0.0-20251002162104-209de6e426de
@@ -8,7 +8,7 @@ require (
 	github.com/coreos/go-oidc/v3 v3.17.0
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/go-chi/cors v1.2.2
-	github.com/go-jose/go-jose/v4 v4.1.3
+	github.com/go-jose/go-jose/v4 v4.1.4
 	github.com/google/uuid v1.6.0
 	github.com/lib/pq v1.11.2
 	github.com/stretchr/testify v1.11.1

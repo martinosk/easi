@@ -8,23 +8,32 @@ import (
 	"easi/backend/internal/archassistant/domain/aggregates"
 	vo "easi/backend/internal/archassistant/domain/valueobjects"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+var (
+	testTenantID      = uuid.NewString()
+	testUserID        = uuid.NewString()
+	testOtherUserID   = uuid.NewString()
+	testConvID        = uuid.NewString()
+	testMsgID1        = uuid.NewString()
+)
+
 func TestNewConversation(t *testing.T) {
-	conv := aggregates.NewConversation("tenant-1", "user-1")
+	conv := aggregates.NewConversation(testTenantID, testUserID)
 
 	assert.NotEmpty(t, conv.ID())
-	assert.Equal(t, "tenant-1", conv.TenantID())
-	assert.Equal(t, "user-1", conv.UserID())
+	assert.Equal(t, testTenantID, conv.TenantID())
+	assert.Equal(t, testUserID, conv.UserID())
 	assert.Equal(t, "New conversation", conv.Title())
 	assert.False(t, conv.CreatedAt().IsZero())
 	assert.False(t, conv.LastMessageAt().IsZero())
 }
 
 func TestConversation_AddUserMessage(t *testing.T) {
-	conv := aggregates.NewConversation("tenant-1", "user-1")
+	conv := aggregates.NewConversation(testTenantID, testUserID)
 
 	msg, err := conv.AddUserMessage("Hello, assistant!")
 	require.NoError(t, err)
@@ -37,7 +46,7 @@ func TestConversation_AddUserMessage(t *testing.T) {
 }
 
 func TestConversation_AddUserMessage_GeneratesTitle(t *testing.T) {
-	conv := aggregates.NewConversation("tenant-1", "user-1")
+	conv := aggregates.NewConversation(testTenantID, testUserID)
 	assert.Equal(t, "New conversation", conv.Title())
 
 	_, err := conv.AddUserMessage("What are our main capabilities?")
@@ -47,7 +56,7 @@ func TestConversation_AddUserMessage_GeneratesTitle(t *testing.T) {
 }
 
 func TestConversation_AddUserMessage_TruncatesLongTitle(t *testing.T) {
-	conv := aggregates.NewConversation("tenant-1", "user-1")
+	conv := aggregates.NewConversation(testTenantID, testUserID)
 
 	longMsg := strings.Repeat("a", 200)
 	_, err := conv.AddUserMessage(longMsg)
@@ -58,7 +67,7 @@ func TestConversation_AddUserMessage_TruncatesLongTitle(t *testing.T) {
 }
 
 func TestConversation_AddUserMessage_TitleSetOnlyOnce(t *testing.T) {
-	conv := aggregates.NewConversation("tenant-1", "user-1")
+	conv := aggregates.NewConversation(testTenantID, testUserID)
 
 	_, err := conv.AddUserMessage("First message")
 	require.NoError(t, err)
@@ -70,32 +79,32 @@ func TestConversation_AddUserMessage_TitleSetOnlyOnce(t *testing.T) {
 }
 
 func TestConversation_AddUserMessage_EmptyContent(t *testing.T) {
-	conv := aggregates.NewConversation("tenant-1", "user-1")
+	conv := aggregates.NewConversation(testTenantID, testUserID)
 	_, err := conv.AddUserMessage("")
 	assert.ErrorIs(t, err, vo.ErrMessageContentEmpty)
 }
 
 func TestConversation_AddUserMessage_TooLong(t *testing.T) {
-	conv := aggregates.NewConversation("tenant-1", "user-1")
+	conv := aggregates.NewConversation(testTenantID, testUserID)
 	_, err := conv.AddUserMessage(strings.Repeat("a", 2001))
 	assert.ErrorIs(t, err, vo.ErrMessageContentTooLong)
 }
 
 func TestConversation_AddUserMessage_ExactlyMaxLength(t *testing.T) {
-	conv := aggregates.NewConversation("tenant-1", "user-1")
+	conv := aggregates.NewConversation(testTenantID, testUserID)
 	_, err := conv.AddUserMessage(strings.Repeat("a", 2000))
 	assert.NoError(t, err)
 }
 
 func TestConversation_AddUserMessage_SanitizesControlChars(t *testing.T) {
-	conv := aggregates.NewConversation("tenant-1", "user-1")
+	conv := aggregates.NewConversation(testTenantID, testUserID)
 	msg, err := conv.AddUserMessage("hello\x00world\nkeep newlines")
 	require.NoError(t, err)
 	assert.Equal(t, "helloworld\nkeep newlines", msg.Content())
 }
 
 func TestConversation_AddUserMessage_TitleSanitizesAngleBrackets(t *testing.T) {
-	conv := aggregates.NewConversation("tenant-1", "user-1")
+	conv := aggregates.NewConversation(testTenantID, testUserID)
 	_, err := conv.AddUserMessage("<script>alert('xss')</script>")
 	require.NoError(t, err)
 	assert.NotContains(t, conv.Title(), "<")
@@ -103,7 +112,7 @@ func TestConversation_AddUserMessage_TitleSanitizesAngleBrackets(t *testing.T) {
 }
 
 func TestConversation_AddAssistantMessage(t *testing.T) {
-	conv := aggregates.NewConversation("tenant-1", "user-1")
+	conv := aggregates.NewConversation(testTenantID, testUserID)
 
 	msg := conv.AddAssistantMessage("Here is your answer.", 42)
 
@@ -116,20 +125,24 @@ func TestConversation_AddAssistantMessage(t *testing.T) {
 }
 
 func TestConversation_IsOwnedBy(t *testing.T) {
-	conv := aggregates.NewConversation("tenant-1", "user-1")
-	assert.True(t, conv.IsOwnedBy("user-1"))
-	assert.False(t, conv.IsOwnedBy("user-2"))
+	conv := aggregates.NewConversation(testTenantID, testUserID)
+	assert.True(t, conv.IsOwnedBy(testUserID))
+	assert.False(t, conv.IsOwnedBy(testOtherUserID))
 }
 
-func TestConversation_AddUserMessage_UpdatesLastMessageAt(t *testing.T) {
+func newConvWithStaleLastMessageAt() (*aggregates.Conversation, time.Time) {
 	conv := aggregates.ReconstructConversation(aggregates.ReconstructConversationParams{
-		ID:            "conv-1",
-		TenantID:      "tenant-1",
-		UserID:        "user-1",
+		ID:            testConvID,
+		TenantID:      testTenantID,
+		UserID:        testUserID,
 		Title:         "Existing title",
 		LastMessageAt: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
 	})
-	before := time.Now().Add(-time.Millisecond)
+	return conv, time.Now().Add(-time.Millisecond)
+}
+
+func TestConversation_AddUserMessage_UpdatesLastMessageAt(t *testing.T) {
+	conv, before := newConvWithStaleLastMessageAt()
 
 	_, err := conv.AddUserMessage("Hello")
 	require.NoError(t, err)
@@ -138,14 +151,7 @@ func TestConversation_AddUserMessage_UpdatesLastMessageAt(t *testing.T) {
 }
 
 func TestConversation_AddAssistantMessage_UpdatesLastMessageAt(t *testing.T) {
-	conv := aggregates.ReconstructConversation(aggregates.ReconstructConversationParams{
-		ID:            "conv-1",
-		TenantID:      "tenant-1",
-		UserID:        "user-1",
-		Title:         "Existing title",
-		LastMessageAt: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
-	})
-	before := time.Now().Add(-time.Millisecond)
+	conv, before := newConvWithStaleLastMessageAt()
 
 	conv.AddAssistantMessage("Response", 42)
 
@@ -170,30 +176,30 @@ func TestNewMessageRole(t *testing.T) {
 
 func TestReconstructConversation(t *testing.T) {
 	conv := aggregates.ReconstructConversation(aggregates.ReconstructConversationParams{
-		ID:       "conv-1",
-		TenantID: "tenant-1",
-		UserID:   "user-1",
+		ID:       testConvID,
+		TenantID: testTenantID,
+		UserID:   testUserID,
 		Title:    "Test conversation",
 	})
 
-	assert.Equal(t, "conv-1", conv.ID())
-	assert.Equal(t, "tenant-1", conv.TenantID())
-	assert.Equal(t, "user-1", conv.UserID())
+	assert.Equal(t, testConvID, conv.ID())
+	assert.Equal(t, testTenantID, conv.TenantID())
+	assert.Equal(t, testUserID, conv.UserID())
 	assert.Equal(t, "Test conversation", conv.Title())
 }
 
 func TestReconstructMessage(t *testing.T) {
 	tokens := 50
 	msg := aggregates.ReconstructMessage(aggregates.ReconstructMessageParams{
-		ID:             "msg-1",
-		ConversationID: "conv-1",
+		ID:             testMsgID1,
+		ConversationID: testConvID,
 		Role:           vo.MessageRoleAssistant,
 		Content:        "Hello",
 		TokensUsed:     &tokens,
 	})
 
-	assert.Equal(t, "msg-1", msg.ID())
-	assert.Equal(t, "conv-1", msg.ConversationID())
+	assert.Equal(t, testMsgID1, msg.ID())
+	assert.Equal(t, testConvID, msg.ConversationID())
 	assert.Equal(t, vo.MessageRoleAssistant, msg.Role())
 	assert.Equal(t, "Hello", msg.Content())
 	require.NotNil(t, msg.TokensUsed())

@@ -28,6 +28,7 @@ spec:
           capabilities:
             drop:
             - ALL
+          readOnlyRootFilesystem: true
         env:
         - name: DB_ADMIN_CONN_STRING
           valueFrom:

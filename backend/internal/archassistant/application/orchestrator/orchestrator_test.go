@@ -15,8 +15,17 @@ import (
 	"easi/backend/internal/archassistant/infrastructure/sse"
 	"easi/backend/internal/archassistant/publishedlanguage"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+)
+
+var (
+	testTenantID = uuid.NewString()
+	testUserID   = uuid.NewString()
+	testConvID   = uuid.NewString()
+	testMsgID1   = uuid.NewString()
+	testMsgID2   = uuid.NewString()
 )
 
 type mockConversationRepo struct {
@@ -90,7 +99,7 @@ func testConfig(endpoint string) *publishedlanguage.AIConfigInfo {
 	return &publishedlanguage.AIConfigInfo{
 		Provider:    "openai",
 		Endpoint:    endpoint,
-		APIKey:      "test-key",
+		APIKey:      uuid.NewString(),
 		Model:       "gpt-4",
 		MaxTokens:   4096,
 		Temperature: 0.3,
@@ -109,14 +118,14 @@ func TestOrchestrator_SendMessage_Success(t *testing.T) {
 
 	orch, repo, writer, rec := setupTestOrchestrator(t)
 
-	conv := aggregates.NewConversation("tenant-1", "user-1")
+	conv := aggregates.NewConversation(testTenantID, testUserID)
 	repo.conversation = conv
 
 	err := orch.SendMessage(context.Background(), writer, orchestrator.SendMessageParams{
 		ConversationID: conv.ID(),
-		UserID:         "user-1",
+		UserID:         testUserID,
 		Content:        "Hi there",
-		TenantID:       "tenant-1",
+		TenantID:       testTenantID,
 		UserRole:       "architect",
 		Config:         testConfig(server.URL),
 	})
@@ -148,32 +157,32 @@ func TestOrchestrator_SendMessage_WithHistory(t *testing.T) {
 	orch, repo, writer, _ := setupTestOrchestrator(t)
 
 	conv := aggregates.ReconstructConversation(aggregates.ReconstructConversationParams{
-		ID:       "conv-1",
-		TenantID: "tenant-1",
-		UserID:   "user-1",
+		ID:       testConvID,
+		TenantID: testTenantID,
+		UserID:   testUserID,
 		Title:    "Test",
 	})
 	repo.conversation = conv
 	repo.messages = []*aggregates.Message{
 		aggregates.ReconstructMessage(aggregates.ReconstructMessageParams{
-			ID:             "msg-1",
-			ConversationID: "conv-1",
+			ID:             testMsgID1,
+			ConversationID: testConvID,
 			Role:           vo.MessageRoleUser,
 			Content:        "First question",
 		}),
 		aggregates.ReconstructMessage(aggregates.ReconstructMessageParams{
-			ID:             "msg-2",
-			ConversationID: "conv-1",
+			ID:             testMsgID2,
+			ConversationID: testConvID,
 			Role:           vo.MessageRoleAssistant,
 			Content:        "First answer",
 		}),
 	}
 
 	err := orch.SendMessage(context.Background(), writer, orchestrator.SendMessageParams{
-		ConversationID: "conv-1",
-		UserID:         "user-1",
+		ConversationID: testConvID,
+		UserID:         testUserID,
 		Content:        "Follow-up question",
-		TenantID:       "tenant-1",
+		TenantID:       testTenantID,
 		UserRole:       "architect",
 		Config:         testConfig(server.URL),
 	})
@@ -191,14 +200,14 @@ func TestOrchestrator_SendMessage_LLMError(t *testing.T) {
 
 	orch, repo, writer, _ := setupTestOrchestrator(t)
 
-	conv := aggregates.NewConversation("tenant-1", "user-1")
+	conv := aggregates.NewConversation(testTenantID, testUserID)
 	repo.conversation = conv
 
 	err := orch.SendMessage(context.Background(), writer, orchestrator.SendMessageParams{
 		ConversationID: conv.ID(),
-		UserID:         "user-1",
+		UserID:         testUserID,
 		Content:        "Test",
-		TenantID:       "tenant-1",
+		TenantID:       testTenantID,
 		UserRole:       "architect",
 		Config:         testConfig(server.URL),
 	})
@@ -214,9 +223,9 @@ func TestOrchestrator_SendMessage_ConversationNotFound(t *testing.T) {
 
 	err := orch.SendMessage(context.Background(), writer, orchestrator.SendMessageParams{
 		ConversationID: "nonexistent",
-		UserID:         "user-1",
+		UserID:         testUserID,
 		Content:        "Test",
-		TenantID:       "tenant-1",
+		TenantID:       testTenantID,
 		UserRole:       "architect",
 		Config:         testConfig("http://localhost"),
 	})
@@ -226,14 +235,14 @@ func TestOrchestrator_SendMessage_ConversationNotFound(t *testing.T) {
 func TestOrchestrator_SendMessage_ValidationError(t *testing.T) {
 	orch, repo, writer, _ := setupTestOrchestrator(t)
 
-	conv := aggregates.NewConversation("tenant-1", "user-1")
+	conv := aggregates.NewConversation(testTenantID, testUserID)
 	repo.conversation = conv
 
 	err := orch.SendMessage(context.Background(), writer, orchestrator.SendMessageParams{
 		ConversationID: conv.ID(),
-		UserID:         "user-1",
+		UserID:         testUserID,
 		Content:        "",
-		TenantID:       "tenant-1",
+		TenantID:       testTenantID,
 		UserRole:       "architect",
 		Config:         testConfig("http://localhost"),
 	})
@@ -256,7 +265,7 @@ func TestOrchestrator_SendMessage_ContextCancellation(t *testing.T) {
 
 	orch, repo, writer, _ := setupTestOrchestrator(t)
 
-	conv := aggregates.NewConversation("tenant-1", "user-1")
+	conv := aggregates.NewConversation(testTenantID, testUserID)
 	repo.conversation = conv
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -264,9 +273,9 @@ func TestOrchestrator_SendMessage_ContextCancellation(t *testing.T) {
 
 	err := orch.SendMessage(ctx, writer, orchestrator.SendMessageParams{
 		ConversationID: conv.ID(),
-		UserID:         "user-1",
+		UserID:         testUserID,
 		Content:        "Test",
-		TenantID:       "tenant-1",
+		TenantID:       testTenantID,
 		UserRole:       "architect",
 		Config:         testConfig(server.URL),
 	})
