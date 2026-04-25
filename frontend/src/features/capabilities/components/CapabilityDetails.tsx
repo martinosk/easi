@@ -198,6 +198,51 @@ const RealizationsField: React.FC<RealizationsFieldProps> = ({
   );
 };
 
+interface MaturityDisplay {
+  sectionName: string;
+  text: string;
+}
+
+const DEFAULT_LEGACY_MATURITY = 12;
+
+function computeMaturityDisplay(capability: Capability, sections: ReturnType<typeof getDefaultSections>): MaturityDisplay {
+  const value =
+    capability.maturityValue ??
+    (capability.maturityLevel ? deriveLegacyMaturityValue(capability.maturityLevel, sections) : DEFAULT_LEGACY_MATURITY);
+  const sectionName = sections.find((s) => value >= s.minValue && value <= s.maxValue)?.name ?? 'Unknown';
+  return { sectionName, text: `${sectionName} (${value})` };
+}
+
+interface CapabilityActionsBarProps {
+  canEdit: boolean;
+  canRemoveFromView: boolean;
+  onEdit: () => void;
+  onRemoveFromView: () => void;
+}
+
+const CapabilityActionsBar: React.FC<CapabilityActionsBarProps> = ({
+  canEdit,
+  canRemoveFromView,
+  onEdit,
+  onRemoveFromView,
+}) => {
+  if (!canEdit && !canRemoveFromView) return null;
+  return (
+    <div className="detail-actions">
+      {canEdit && (
+        <button className="btn btn-secondary btn-small" onClick={onEdit}>
+          Edit
+        </button>
+      )}
+      {canRemoveFromView && (
+        <button className="btn btn-secondary btn-small" onClick={onRemoveFromView}>
+          Remove from View
+        </button>
+      )}
+    </div>
+  );
+};
+
 interface CapabilityContentProps {
   capability: Capability;
   capabilityInView: ViewCapability | undefined;
@@ -223,39 +268,21 @@ const CapabilityContent: React.FC<CapabilityContentProps> = ({
   onRemoveFromView,
   onAddExpert,
 }) => {
-  const formattedDate = new Date(capability.createdAt).toLocaleString();
   const { data: maturityScale } = useMaturityScale();
   const sections = maturityScale?.sections ?? getDefaultSections();
+  const maturity = computeMaturityDisplay(capability, sections);
+  const formattedDate = new Date(capability.createdAt).toLocaleString();
 
-  const effectiveMaturityValue =
-    capability.maturityValue ??
-    (capability.maturityLevel ? deriveLegacyMaturityValue(capability.maturityLevel, sections) : 12);
-  const sectionName =
-    sections.find((s) => effectiveMaturityValue >= s.minValue && effectiveMaturityValue <= s.maxValue)?.name ||
-    'Unknown';
-  const maturityDisplay = `${sectionName} (${effectiveMaturityValue})`;
-
-  const canEdit = capability._links?.edit !== undefined;
-  const canRemoveFromView = capabilityInView?._links?.['x-remove'] !== undefined;
-  const canAddExpert = hasLink(capability, 'x-add-expert');
-  const showActionButtons = canEdit || canRemoveFromView;
+  const showColorPicker = capabilityInView !== undefined && currentView !== null;
 
   return (
     <div className="detail-content">
-      {showActionButtons && (
-        <div className="detail-actions">
-          {canEdit && (
-            <button className="btn btn-secondary btn-small" onClick={onEdit}>
-              Edit
-            </button>
-          )}
-          {canRemoveFromView && (
-            <button className="btn btn-secondary btn-small" onClick={onRemoveFromView}>
-              Remove from View
-            </button>
-          )}
-        </div>
-      )}
+      <CapabilityActionsBar
+        canEdit={capability._links?.edit !== undefined}
+        canRemoveFromView={capabilityInView?._links?.['x-remove'] !== undefined}
+        onEdit={onEdit}
+        onRemoveFromView={onRemoveFromView}
+      />
 
       <DetailField label="Name">{capability.name}</DetailField>
       <DetailField label="Level">
@@ -263,7 +290,7 @@ const CapabilityContent: React.FC<CapabilityContentProps> = ({
       </DetailField>
       <CapabilityOptionalFields capability={capability} />
       <DetailField label="Maturity Level">
-        <span className={`maturity-badge ${getMaturityBadgeClass(sectionName)}`}>{maturityDisplay}</span>
+        <span className={`maturity-badge ${getMaturityBadgeClass(maturity.sectionName)}`}>{maturity.text}</span>
       </DetailField>
       <DetailField label="Created">
         <span className="detail-date">{formattedDate}</span>
@@ -275,11 +302,11 @@ const CapabilityContent: React.FC<CapabilityContentProps> = ({
       <CapabilityExpertsList
         capabilityId={capability.id}
         experts={capability.experts}
-        canAddExpert={canAddExpert}
+        canAddExpert={hasLink(capability, 'x-add-expert')}
         onAddClick={onAddExpert}
       />
 
-      {capabilityInView && currentView && (
+      {showColorPicker && (
         <ColorPickerField capabilityInView={capabilityInView} currentView={currentView} onColorChange={onColorChange} />
       )}
 

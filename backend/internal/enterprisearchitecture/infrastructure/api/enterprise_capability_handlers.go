@@ -1,8 +1,8 @@
 package api
 
 import (
+	"context"
 	"net/http"
-	"strings"
 
 	authPL "easi/backend/internal/auth/publishedlanguage"
 	"easi/backend/internal/enterprisearchitecture/application/commands"
@@ -40,51 +40,14 @@ func NewEnterpriseCapabilityHandlers(
 	}
 }
 
-type CreateEnterpriseCapabilityRequest struct {
+type EnterpriseCapabilityWriteRequest struct {
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
 	Category    string `json:"category,omitempty"`
 }
 
-type UpdateEnterpriseCapabilityRequest struct {
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
-	Category    string `json:"category,omitempty"`
-}
-
-type LinkCapabilityRequest struct {
-	DomainCapabilityID string `json:"domainCapabilityId"`
-}
-
-type SetStrategicImportanceRequest struct {
-	PillarID   string `json:"pillarId"`
-	PillarName string `json:"pillarName"`
-	Importance int    `json:"importance"`
-	Rationale  string `json:"rationale,omitempty"`
-}
-
-type UpdateStrategicImportanceRequest struct {
-	Importance int    `json:"importance"`
-	Rationale  string `json:"rationale,omitempty"`
-}
-
-type SetTargetMaturityRequest struct {
-	TargetMaturity int `json:"targetMaturity"`
-}
-
-type MaturityAnalysisResponse struct {
-	Summary readmodels.MaturityAnalysisSummaryDTO     `json:"summary"`
-	Data    []readmodels.MaturityAnalysisCandidateDTO `json:"data"`
-	Links   types.Links                               `json:"_links,omitempty"`
-}
-
-type DomainCapabilityEnterpriseResponse struct {
-	Linked                   bool        `json:"linked"`
-	EnterpriseCapabilityID   *string     `json:"enterpriseCapabilityId"`
-	EnterpriseCapabilityName *string     `json:"enterpriseCapabilityName,omitempty"`
-	LinkID                   *string     `json:"linkId,omitempty"`
-	Links                    types.Links `json:"_links,omitempty"`
-}
+type CreateEnterpriseCapabilityRequest = EnterpriseCapabilityWriteRequest
+type UpdateEnterpriseCapabilityRequest = EnterpriseCapabilityWriteRequest
 
 // CreateEnterpriseCapability godoc
 // @Summary Create a new enterprise capability
@@ -99,18 +62,9 @@ type DomainCapabilityEnterpriseResponse struct {
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /enterprise-capabilities [post]
 func (h *EnterpriseCapabilityHandlers) CreateEnterpriseCapability(w http.ResponseWriter, r *http.Request) {
-	req, ok := sharedAPI.DecodeRequestOrFail[CreateEnterpriseCapabilityRequest](w, r)
-	if !ok {
-		return
-	}
-
-	cmd := &commands.CreateEnterpriseCapability{
-		Name:        req.Name,
-		Description: req.Description,
-		Category:    req.Category,
-	}
-
-	h.dispatchAndRespondWithCapability(w, r, cmd, "")
+	h.handleCapabilityWrite(w, r, "", func(req EnterpriseCapabilityWriteRequest, _ string) cqrs.Command {
+		return &commands.CreateEnterpriseCapability{Name: req.Name, Description: req.Description, Category: req.Category}
+	})
 }
 
 // GetAllEnterpriseCapabilities godoc
@@ -174,20 +128,9 @@ func (h *EnterpriseCapabilityHandlers) GetEnterpriseCapabilityByID(w http.Respon
 // @Router /enterprise-capabilities/{id} [put]
 func (h *EnterpriseCapabilityHandlers) UpdateEnterpriseCapability(w http.ResponseWriter, r *http.Request) {
 	id := sharedAPI.GetPathParam(r, "id")
-
-	req, ok := sharedAPI.DecodeRequestOrFail[UpdateEnterpriseCapabilityRequest](w, r)
-	if !ok {
-		return
-	}
-
-	cmd := &commands.UpdateEnterpriseCapability{
-		ID:          id,
-		Name:        req.Name,
-		Description: req.Description,
-		Category:    req.Category,
-	}
-
-	h.dispatchAndRespondWithCapability(w, r, cmd, id)
+	h.handleCapabilityWrite(w, r, id, func(req EnterpriseCapabilityWriteRequest, capID string) cqrs.Command {
+		return &commands.UpdateEnterpriseCapability{ID: capID, Name: req.Name, Description: req.Description, Category: req.Category}
+	})
 }
 
 // DeleteEnterpriseCapability godoc
@@ -207,280 +150,42 @@ func (h *EnterpriseCapabilityHandlers) DeleteEnterpriseCapability(w http.Respons
 	h.dispatchDelete(w, r, &commands.DeleteEnterpriseCapability{ID: id})
 }
 
-// GetLinkedCapabilities godoc
-// @Summary Get linked domain capabilities
-// @Description Retrieves all domain capabilities linked to an enterprise capability
-// @Tags enterprise-capabilities
-// @Produce json
-// @Param id path string true "Enterprise capability ID"
-// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseCapabilityLinkDTO}
-// @Failure 404 {object} sharedAPI.ErrorResponse
-// @Failure 500 {object} sharedAPI.ErrorResponse
-// @Router /enterprise-capabilities/{id}/links [get]
-func (h *EnterpriseCapabilityHandlers) GetLinkedCapabilities(w http.ResponseWriter, r *http.Request) {
+type scopedCollection[T any] struct {
+	fetch           func(ctx context.Context, ecID string) ([]T, error)
+	decorate        func(r *http.Request, ecID string, items []T)
+	collectionLinks func(ecID string) types.Links
+}
+
+func respondScopedCollection[T any](
+	w http.ResponseWriter,
+	r *http.Request,
+	h *EnterpriseCapabilityHandlers,
+	endpoint scopedCollection[T],
+) {
 	ecID, ok := h.requireCapability(w, r)
 	if !ok {
 		return
 	}
-
-	links, err := h.readModels.Link.GetByEnterpriseCapabilityID(r.Context(), ecID)
+	items, err := endpoint.fetch(r.Context(), ecID)
 	if err != nil {
 		sharedAPI.HandleError(w, err)
 		return
 	}
-
-	for i := range links {
-		links[i].Links = h.hateoas.EnterpriseCapabilityLinkLinks(ecID, links[i].ID)
-	}
-
-	sharedAPI.RespondCollection(w, http.StatusOK, links, h.hateoas.EnterpriseCapabilityLinksCollectionLinks(ecID))
+	endpoint.decorate(r, ecID, items)
+	sharedAPI.RespondCollection(w, http.StatusOK, items, endpoint.collectionLinks(ecID))
 }
 
-// LinkCapability godoc
-// @Summary Link a domain capability
-// @Description Links a domain capability to an enterprise capability
-// @Tags enterprise-capabilities
-// @Accept json
-// @Produce json
-// @Param id path string true "Enterprise capability ID"
-// @Param link body LinkCapabilityRequest true "Link data"
-// @Success 201 {object} easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseCapabilityLinkDTO
-// @Failure 400 {object} sharedAPI.ErrorResponse
-// @Failure 404 {object} sharedAPI.ErrorResponse
-// @Failure 409 {object} sharedAPI.ErrorResponse
-// @Failure 500 {object} sharedAPI.ErrorResponse
-// @Router /enterprise-capabilities/{id}/links [post]
-func (h *EnterpriseCapabilityHandlers) LinkCapability(w http.ResponseWriter, r *http.Request) {
-	enterpriseCapabilityID := sharedAPI.GetPathParam(r, "id")
-
-	req, ok := sharedAPI.DecodeRequestOrFail[LinkCapabilityRequest](w, r)
+func (h *EnterpriseCapabilityHandlers) handleCapabilityWrite(
+	w http.ResponseWriter,
+	r *http.Request,
+	capabilityID string,
+	buildCmd func(req EnterpriseCapabilityWriteRequest, capabilityID string) cqrs.Command,
+) {
+	req, ok := sharedAPI.DecodeRequestOrFail[EnterpriseCapabilityWriteRequest](w, r)
 	if !ok {
 		return
 	}
-
-	linkedBy, err := h.getCurrentUserEmail(r)
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusUnauthorized, err, "Authentication required")
-		return
-	}
-
-	cmd := &commands.LinkCapability{
-		EnterpriseCapabilityID: enterpriseCapabilityID,
-		DomainCapabilityID:     req.DomainCapabilityID,
-		LinkedBy:               linkedBy,
-	}
-
-	result, err := h.commandBus.Dispatch(r.Context(), cmd)
-	sharedAPI.HandleCommandResult(w, result, err, func(createdID string) {
-		location := sharedAPI.BuildSubResourceLink(sharedAPI.ResourcePath("/enterprise-capabilities"), sharedAPI.ResourceID(enterpriseCapabilityID), sharedAPI.ResourcePath("/links/"+createdID))
-		link, err := h.readModels.Link.GetByID(r.Context(), createdID)
-		if err != nil || link == nil {
-			sharedAPI.RespondCreatedNoBody(w, location)
-			return
-		}
-		link.Links = h.hateoas.EnterpriseCapabilityLinkLinks(enterpriseCapabilityID, link.ID)
-		sharedAPI.RespondCreated(w, location, link)
-	})
-}
-
-// UnlinkCapability godoc
-// @Summary Unlink a domain capability
-// @Description Removes the link between a domain capability and an enterprise capability
-// @Tags enterprise-capabilities
-// @Param id path string true "Enterprise capability ID"
-// @Param linkId path string true "Link ID"
-// @Success 204 "No Content"
-// @Failure 404 {object} sharedAPI.ErrorResponse
-// @Failure 500 {object} sharedAPI.ErrorResponse
-// @Router /enterprise-capabilities/{id}/links/{linkId} [delete]
-func (h *EnterpriseCapabilityHandlers) UnlinkCapability(w http.ResponseWriter, r *http.Request) {
-	linkID := sharedAPI.GetPathParam(r, "linkId")
-	if h.getLinkOrNotFound(w, r, linkID) == nil {
-		return
-	}
-	h.dispatchDelete(w, r, &commands.UnlinkCapability{LinkID: linkID})
-}
-
-// GetStrategicImportance godoc
-// @Summary Get strategic importance ratings
-// @Description Retrieves all strategic importance ratings for an enterprise capability
-// @Tags enterprise-capabilities
-// @Produce json
-// @Param id path string true "Enterprise capability ID"
-// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseStrategicImportanceDTO}
-// @Failure 404 {object} sharedAPI.ErrorResponse
-// @Failure 500 {object} sharedAPI.ErrorResponse
-// @Router /enterprise-capabilities/{id}/strategic-importance [get]
-func (h *EnterpriseCapabilityHandlers) GetStrategicImportance(w http.ResponseWriter, r *http.Request) {
-	ecID, ok := h.requireCapability(w, r)
-	if !ok {
-		return
-	}
-
-	ratings, err := h.readModels.Importance.GetByEnterpriseCapabilityID(r.Context(), ecID)
-	if err != nil {
-		sharedAPI.HandleError(w, err)
-		return
-	}
-
-	actor, _ := sharedctx.GetActor(r.Context())
-	for i := range ratings {
-		ratings[i].Links = h.hateoas.EnterpriseStrategicImportanceLinksForActor(ecID, ratings[i].ID, actor)
-	}
-
-	sharedAPI.RespondCollection(w, http.StatusOK, ratings, h.hateoas.EnterpriseStrategicImportanceCollectionLinks(ecID))
-}
-
-// SetStrategicImportance godoc
-// @Summary Set strategic importance
-// @Description Sets the strategic importance of an enterprise capability for a specific strategy pillar
-// @Tags enterprise-capabilities
-// @Accept json
-// @Produce json
-// @Param id path string true "Enterprise capability ID"
-// @Param importance body SetStrategicImportanceRequest true "Strategic importance data"
-// @Success 201 {object} easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseStrategicImportanceDTO
-// @Failure 400 {object} sharedAPI.ErrorResponse
-// @Failure 404 {object} sharedAPI.ErrorResponse
-// @Failure 409 {object} sharedAPI.ErrorResponse
-// @Failure 500 {object} sharedAPI.ErrorResponse
-// @Router /enterprise-capabilities/{id}/strategic-importance [post]
-func (h *EnterpriseCapabilityHandlers) SetStrategicImportance(w http.ResponseWriter, r *http.Request) {
-	enterpriseCapabilityID := sharedAPI.GetPathParam(r, "id")
-
-	req, ok := sharedAPI.DecodeRequestOrFail[SetStrategicImportanceRequest](w, r)
-	if !ok {
-		return
-	}
-
-	cmd := &commands.SetEnterpriseStrategicImportance{
-		EnterpriseCapabilityID: enterpriseCapabilityID,
-		PillarID:               req.PillarID,
-		PillarName:             req.PillarName,
-		Importance:             req.Importance,
-		Rationale:              req.Rationale,
-	}
-
-	result, err := h.commandBus.Dispatch(r.Context(), cmd)
-	sharedAPI.HandleCommandResult(w, result, err, func(createdID string) {
-		location := sharedAPI.BuildSubResourceLink(sharedAPI.ResourcePath("/enterprise-capabilities"), sharedAPI.ResourceID(enterpriseCapabilityID), sharedAPI.ResourcePath("/strategic-importance/"+createdID))
-		rating, err := h.readModels.Importance.GetByID(r.Context(), createdID)
-		if err != nil || rating == nil {
-			sharedAPI.RespondCreatedNoBody(w, location)
-			return
-		}
-		actor, _ := sharedctx.GetActor(r.Context())
-		rating.Links = h.hateoas.EnterpriseStrategicImportanceLinksForActor(enterpriseCapabilityID, rating.ID, actor)
-		sharedAPI.RespondCreated(w, location, rating)
-	})
-}
-
-// UpdateStrategicImportance godoc
-// @Summary Update strategic importance
-// @Description Updates the strategic importance rating for a specific pillar
-// @Tags enterprise-capabilities
-// @Accept json
-// @Produce json
-// @Param id path string true "Enterprise capability ID"
-// @Param importanceId path string true "Strategic importance ID"
-// @Param importance body UpdateStrategicImportanceRequest true "Updated importance data"
-// @Success 200 {object} easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseStrategicImportanceDTO
-// @Failure 400 {object} sharedAPI.ErrorResponse
-// @Failure 404 {object} sharedAPI.ErrorResponse
-// @Failure 500 {object} sharedAPI.ErrorResponse
-// @Router /enterprise-capabilities/{id}/strategic-importance/{importanceId} [put]
-func (h *EnterpriseCapabilityHandlers) UpdateStrategicImportance(w http.ResponseWriter, r *http.Request) {
-	enterpriseCapabilityID := sharedAPI.GetPathParam(r, "id")
-	importanceID := sharedAPI.GetPathParam(r, "importanceId")
-
-	req, ok := sharedAPI.DecodeRequestOrFail[UpdateStrategicImportanceRequest](w, r)
-	if !ok {
-		return
-	}
-
-	cmd := &commands.UpdateEnterpriseStrategicImportance{
-		ID:         importanceID,
-		Importance: req.Importance,
-		Rationale:  req.Rationale,
-	}
-
-	result, err := h.commandBus.Dispatch(r.Context(), cmd)
-	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
-		rating, err := h.readModels.Importance.GetByID(r.Context(), importanceID)
-		if err != nil {
-			sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Update succeeded but failed to retrieve updated resource")
-			return
-		}
-		if rating == nil {
-			sharedAPI.RespondError(w, http.StatusInternalServerError, nil, "Update succeeded but resource not found")
-			return
-		}
-		actor, _ := sharedctx.GetActor(r.Context())
-		rating.Links = h.hateoas.EnterpriseStrategicImportanceLinksForActor(enterpriseCapabilityID, rating.ID, actor)
-		sharedAPI.RespondJSON(w, http.StatusOK, rating)
-	})
-}
-
-// RemoveStrategicImportance godoc
-// @Summary Remove strategic importance
-// @Description Removes the strategic importance rating for a specific pillar
-// @Tags enterprise-capabilities
-// @Param id path string true "Enterprise capability ID"
-// @Param importanceId path string true "Strategic importance ID"
-// @Success 204 "No Content"
-// @Failure 404 {object} sharedAPI.ErrorResponse
-// @Failure 500 {object} sharedAPI.ErrorResponse
-// @Router /enterprise-capabilities/{id}/strategic-importance/{importanceId} [delete]
-func (h *EnterpriseCapabilityHandlers) RemoveStrategicImportance(w http.ResponseWriter, r *http.Request) {
-	importanceID := sharedAPI.GetPathParam(r, "importanceId")
-	if h.getImportanceOrNotFound(w, r, importanceID) == nil {
-		return
-	}
-	h.dispatchDelete(w, r, &commands.RemoveEnterpriseStrategicImportance{ID: importanceID})
-}
-
-// GetEnterpriseCapabilityForDomainCapability godoc
-// @Summary Get enterprise capability for a domain capability
-// @Description Retrieves the enterprise capability linked to a specific domain capability
-// @Tags enterprise-capabilities
-// @Produce json
-// @Param domainCapabilityId path string true "Domain capability ID"
-// @Success 200 {object} DomainCapabilityEnterpriseResponse
-// @Failure 500 {object} sharedAPI.ErrorResponse
-// @Router /domain-capabilities/{domainCapabilityId}/enterprise-capability [get]
-func (h *EnterpriseCapabilityHandlers) GetEnterpriseCapabilityForDomainCapability(w http.ResponseWriter, r *http.Request) {
-	domainCapabilityID := sharedAPI.GetPathParam(r, "domainCapabilityId")
-
-	link, err := h.readModels.Link.GetByDomainCapabilityID(r.Context(), domainCapabilityID)
-	if err != nil {
-		sharedAPI.HandleError(w, err)
-		return
-	}
-
-	if link == nil {
-		response := DomainCapabilityEnterpriseResponse{
-			Linked:                 false,
-			EnterpriseCapabilityID: nil,
-			Links:                  h.hateoas.DomainCapabilityEnterpriseLinks(domainCapabilityID),
-		}
-		sharedAPI.RespondJSON(w, http.StatusOK, response)
-		return
-	}
-
-	capability, err := h.readModels.Capability.GetByID(r.Context(), link.EnterpriseCapabilityID)
-	if err != nil {
-		sharedAPI.HandleError(w, err)
-		return
-	}
-
-	response := DomainCapabilityEnterpriseResponse{
-		Linked:                   true,
-		EnterpriseCapabilityID:   &link.EnterpriseCapabilityID,
-		EnterpriseCapabilityName: &capability.Name,
-		LinkID:                   &link.ID,
-		Links:                    h.hateoas.DomainCapabilityEnterpriseLinkedLinks(domainCapabilityID, link.EnterpriseCapabilityID, link.ID),
-	}
-	sharedAPI.RespondJSON(w, http.StatusOK, response)
+	h.dispatchAndRespondWithCapability(w, r, buildCmd(req, capabilityID), capabilityID)
 }
 
 func getOrNotFound[T any](w http.ResponseWriter, fetchFn func() (*T, error), resourceName string) *T {
@@ -508,18 +213,6 @@ func (h *EnterpriseCapabilityHandlers) getCapabilityOrNotFound(w http.ResponseWr
 	return getOrNotFound(w, func() (*readmodels.EnterpriseCapabilityDTO, error) {
 		return h.readModels.Capability.GetByID(r.Context(), id)
 	}, "Enterprise capability")
-}
-
-func (h *EnterpriseCapabilityHandlers) getLinkOrNotFound(w http.ResponseWriter, r *http.Request, id string) *readmodels.EnterpriseCapabilityLinkDTO {
-	return getOrNotFound(w, func() (*readmodels.EnterpriseCapabilityLinkDTO, error) {
-		return h.readModels.Link.GetByID(r.Context(), id)
-	}, "Link")
-}
-
-func (h *EnterpriseCapabilityHandlers) getImportanceOrNotFound(w http.ResponseWriter, r *http.Request, id string) *readmodels.EnterpriseStrategicImportanceDTO {
-	return getOrNotFound(w, func() (*readmodels.EnterpriseStrategicImportanceDTO, error) {
-		return h.readModels.Importance.GetByID(r.Context(), id)
-	}, "Importance rating")
 }
 
 func (h *EnterpriseCapabilityHandlers) respondWithCapability(w http.ResponseWriter, r *http.Request, capabilityID string, statusCode int) {
@@ -567,196 +260,4 @@ func (h *EnterpriseCapabilityHandlers) dispatchDelete(w http.ResponseWriter, r *
 	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
 		sharedAPI.RespondDeleted(w)
 	})
-}
-
-func (h *EnterpriseCapabilityHandlers) addLinkStatusLinks(status *readmodels.CapabilityLinkStatusDTO) {
-	var linkedToID *string
-	if status.LinkedTo != nil {
-		linkedToID = &status.LinkedTo.ID
-	}
-
-	var blockingCapabilityID *string
-	if status.BlockingCapability != nil {
-		blockingCapabilityID = &status.BlockingCapability.ID
-	}
-
-	status.Links = h.hateoas.CapabilityLinkStatusLinks(LinkStatusParams{
-		CapabilityID:  status.CapabilityID,
-		Status:        string(status.Status),
-		LinkedToID:    linkedToID,
-		BlockingCapID: blockingCapabilityID,
-		BlockingEcID:  status.BlockingEnterpriseCapID,
-	})
-}
-
-func (h *EnterpriseCapabilityHandlers) getCurrentUserEmail(r *http.Request) (string, error) {
-	return h.sessionProvider.GetCurrentUserEmail(r.Context())
-}
-
-// GetCapabilityLinkStatus godoc
-// @Summary Get link eligibility status for a domain capability
-// @Description Checks if a domain capability can be linked to an enterprise capability
-// @Tags enterprise-capabilities
-// @Produce json
-// @Param domainCapabilityId path string true "Domain capability ID"
-// @Success 200 {object} easi_backend_internal_enterprisearchitecture_application_readmodels.CapabilityLinkStatusDTO
-// @Failure 500 {object} sharedAPI.ErrorResponse
-// @Router /domain-capabilities/{domainCapabilityId}/enterprise-link-status [get]
-func (h *EnterpriseCapabilityHandlers) GetCapabilityLinkStatus(w http.ResponseWriter, r *http.Request) {
-	capabilityID := sharedAPI.GetPathParam(r, "domainCapabilityId")
-
-	status, err := h.readModels.Link.GetLinkStatus(r.Context(), capabilityID)
-	if err != nil {
-		sharedAPI.HandleError(w, err)
-		return
-	}
-
-	h.addLinkStatusLinks(status)
-	sharedAPI.RespondJSON(w, http.StatusOK, status)
-}
-
-// GetBatchCapabilityLinkStatus godoc
-// @Summary Get link eligibility status for multiple domain capabilities
-// @Description Batch check link eligibility for domain capabilities, optionally filtered by business domain
-// @Tags enterprise-capabilities
-// @Produce json
-// @Param capabilityIds query string false "Comma-separated list of capability IDs"
-// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]easi_backend_internal_enterprisearchitecture_application_readmodels.CapabilityLinkStatusDTO}
-// @Failure 400 {object} sharedAPI.ErrorResponse
-// @Failure 500 {object} sharedAPI.ErrorResponse
-// @Router /domain-capabilities/enterprise-link-status [get]
-func (h *EnterpriseCapabilityHandlers) GetBatchCapabilityLinkStatus(w http.ResponseWriter, r *http.Request) {
-	capabilityIDsParam := r.URL.Query().Get("capabilityIds")
-	if capabilityIDsParam == "" {
-		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "capabilityIds query parameter is required")
-		return
-	}
-
-	capabilityIDs := splitAndTrim(capabilityIDsParam)
-	if len(capabilityIDs) == 0 {
-		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "at least one capability ID is required")
-		return
-	}
-
-	if len(capabilityIDs) > 100 {
-		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "maximum 100 capability IDs allowed per request")
-		return
-	}
-
-	statuses, err := h.readModels.Link.GetBatchLinkStatus(r.Context(), capabilityIDs)
-	if err != nil {
-		sharedAPI.HandleError(w, err)
-		return
-	}
-
-	for i := range statuses {
-		h.addLinkStatusLinks(&statuses[i])
-	}
-
-	sharedAPI.RespondCollection(w, http.StatusOK, statuses, nil)
-}
-
-func splitAndTrim(s string) []string {
-	parts := make([]string, 0)
-	for _, part := range strings.Split(s, ",") {
-		if trimmed := strings.TrimSpace(part); trimmed != "" {
-			parts = append(parts, trimmed)
-		}
-	}
-	return parts
-}
-
-// SetTargetMaturity godoc
-// @Summary Set target maturity for enterprise capability
-// @Description Sets the target maturity level (0-99) for an enterprise capability used in gap analysis
-// @Tags enterprise-capabilities
-// @Accept json
-// @Produce json
-// @Param id path string true "Enterprise capability ID"
-// @Param maturity body SetTargetMaturityRequest true "Target maturity data"
-// @Success 200 {object} easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseCapabilityDTO
-// @Failure 400 {object} sharedAPI.ErrorResponse
-// @Failure 404 {object} sharedAPI.ErrorResponse
-// @Failure 500 {object} sharedAPI.ErrorResponse
-// @Router /enterprise-capabilities/{id}/target-maturity [put]
-func (h *EnterpriseCapabilityHandlers) SetTargetMaturity(w http.ResponseWriter, r *http.Request) {
-	id := sharedAPI.GetPathParam(r, "id")
-
-	if h.getCapabilityOrNotFound(w, r, id) == nil {
-		return
-	}
-
-	req, ok := sharedAPI.DecodeRequestOrFail[SetTargetMaturityRequest](w, r)
-	if !ok {
-		return
-	}
-
-	cmd := &commands.SetTargetMaturity{
-		ID:             id,
-		TargetMaturity: req.TargetMaturity,
-	}
-
-	result, err := h.commandBus.Dispatch(r.Context(), cmd)
-	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
-		h.respondWithCapability(w, r, id, http.StatusOK)
-	})
-}
-
-// GetMaturityAnalysisCandidates godoc
-// @Summary Get enterprise capabilities with maturity gaps
-// @Description Retrieves enterprise capabilities that have 2+ implementations with varying maturity levels
-// @Tags enterprise-capabilities
-// @Produce json
-// @Param sortBy query string false "Sort order: 'gap' or 'implementations' (default: gap)"
-// @Success 200 {object} object{summary=easi_backend_internal_enterprisearchitecture_application_readmodels.MaturityAnalysisSummaryDTO,data=[]easi_backend_internal_enterprisearchitecture_application_readmodels.MaturityAnalysisCandidateDTO}
-// @Failure 500 {object} sharedAPI.ErrorResponse
-// @Router /enterprise-capabilities/maturity-analysis [get]
-func (h *EnterpriseCapabilityHandlers) GetMaturityAnalysisCandidates(w http.ResponseWriter, r *http.Request) {
-	sortBy := r.URL.Query().Get("sortBy")
-
-	candidates, summary, err := h.readModels.MaturityAnalysis.GetMaturityAnalysisCandidates(r.Context(), sortBy)
-	if err != nil {
-		sharedAPI.HandleError(w, err)
-		return
-	}
-
-	for i := range candidates {
-		candidates[i].Links = h.hateoas.MaturityAnalysisCandidateLinks(candidates[i].EnterpriseCapabilityID)
-	}
-
-	response := MaturityAnalysisResponse{
-		Summary: summary,
-		Data:    candidates,
-		Links:   h.hateoas.MaturityAnalysisCollectionLinks(),
-	}
-	sharedAPI.RespondJSON(w, http.StatusOK, response)
-}
-
-// GetMaturityGapDetail godoc
-// @Summary Get detailed maturity gap analysis
-// @Description Retrieves detailed maturity gap analysis for a specific enterprise capability
-// @Tags enterprise-capabilities
-// @Produce json
-// @Param id path string true "Enterprise capability ID"
-// @Success 200 {object} easi_backend_internal_enterprisearchitecture_application_readmodels.MaturityGapDetailDTO
-// @Failure 404 {object} sharedAPI.ErrorResponse
-// @Failure 500 {object} sharedAPI.ErrorResponse
-// @Router /enterprise-capabilities/{id}/maturity-gap [get]
-func (h *EnterpriseCapabilityHandlers) GetMaturityGapDetail(w http.ResponseWriter, r *http.Request) {
-	enterpriseCapabilityID := sharedAPI.GetPathParam(r, "id")
-
-	detail, err := h.readModels.MaturityAnalysis.GetMaturityGapDetail(r.Context(), enterpriseCapabilityID)
-	if err != nil {
-		sharedAPI.HandleError(w, err)
-		return
-	}
-
-	if detail == nil {
-		sharedAPI.RespondError(w, http.StatusNotFound, nil, "Enterprise capability not found")
-		return
-	}
-
-	detail.Links = h.hateoas.MaturityGapDetailLinks(enterpriseCapabilityID)
-
-	sharedAPI.RespondJSON(w, http.StatusOK, detail)
 }
