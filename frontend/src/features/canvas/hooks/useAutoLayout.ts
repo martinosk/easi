@@ -1,9 +1,10 @@
-import type { Node } from '@xyflow/react';
+import type { Node, ReactFlowInstance } from '@xyflow/react';
 import { useReactFlow } from '@xyflow/react';
 import { useCallback, useState } from 'react';
 import toast from 'react-hot-toast';
 import { calculateAutoLayout } from '../../../utils/autoLayout';
 import { canEdit } from '../../../utils/hateoas';
+import { useAppStore } from '../../../store/appStore';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { useUpdateOriginEntityPosition } from '../../views/hooks/useViews';
 import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
@@ -25,33 +26,43 @@ function partitionByType(nodes: Node[]) {
   return { layout, origin };
 }
 
-export function useAutoLayout() {
-  const reactFlowInstance = useReactFlow();
+function nodeEntityId(node: Node): string {
+  return node.type === 'capability' ? node.id.replace('cap-', '') : node.id;
+}
+
+function fitAfterRender(reactFlow: ReactFlowInstance) {
+  const { zoom } = reactFlow.getViewport();
+  window.requestAnimationFrame(() => {
+    reactFlow.fitView({ padding: 0.2, duration: 800, minZoom: zoom, maxZoom: zoom });
+  });
+}
+
+function useDraftApply() {
+  const draftSetPositions = useAppStore((s) => s.draftSetPositions);
+  return useCallback(
+    (nodes: Node[]) => {
+      const updates: Record<string, { x: number; y: number }> = {};
+      for (const node of nodes) {
+        updates[nodeEntityId(node)] = { x: node.position.x, y: node.position.y };
+      }
+      draftSetPositions(updates);
+    },
+    [draftSetPositions],
+  );
+}
+
+function useServerApply() {
   const { batchUpdatePositions } = useCanvasLayoutContext();
-  const { currentView, currentViewId } = useCurrentView();
+  const { currentViewId } = useCurrentView();
   const updateOriginEntityPositionMutation = useUpdateOriginEntityPosition();
-  const [isLayouting, setIsLayouting] = useState(false);
 
-  const applyAutoLayout = useCallback(async () => {
-    const isEditable = reactFlowInstance && currentViewId && canEdit(currentView);
-    if (!isEditable) return;
-
-    const nodes = reactFlowInstance.getNodes();
-    if (nodes.length === 0) {
-      toast.error('No entities to layout');
-      return;
-    }
-
-    setIsLayouting(true);
-
-    try {
-      const layoutedNodes = calculateAutoLayout(nodes, reactFlowInstance.getEdges());
-      const { layout, origin } = partitionByType(layoutedNodes);
-
+  return useCallback(
+    async (nodes: Node[]) => {
+      if (!currentViewId) return;
+      const { layout, origin } = partitionByType(nodes);
       if (layout.length > 0) {
         await batchUpdatePositions(layout.map(toLayoutUpdate));
       }
-
       if (origin.length > 0) {
         await Promise.all(
           origin.map((node) =>
@@ -63,12 +74,41 @@ export function useAutoLayout() {
           ),
         );
       }
+    },
+    [currentViewId, batchUpdatePositions, updateOriginEntityPositionMutation],
+  );
+}
 
-      const { zoom } = reactFlowInstance.getViewport();
-      window.requestAnimationFrame(() => {
-        reactFlowInstance.fitView({ padding: 0.2, duration: 800, minZoom: zoom, maxZoom: zoom });
-      });
+function isLayoutAvailable(
+  reactFlowInstance: ReactFlowInstance | null,
+  currentViewId: string | null,
+  currentView: Parameters<typeof canEdit>[0],
+): boolean {
+  return Boolean(reactFlowInstance) && Boolean(currentViewId) && canEdit(currentView);
+}
 
+export function useAutoLayout() {
+  const reactFlowInstance = useReactFlow();
+  const { currentView, currentViewId } = useCurrentView();
+  const dynamicEnabled = useAppStore((s) => s.dynamicEnabled);
+  const applyToDraft = useDraftApply();
+  const applyToServer = useServerApply();
+  const [isLayouting, setIsLayouting] = useState(false);
+
+  const applyAutoLayout = useCallback(async () => {
+    if (!isLayoutAvailable(reactFlowInstance, currentViewId, currentView)) return;
+    const nodes = reactFlowInstance.getNodes();
+    if (nodes.length === 0) {
+      toast.error('No entities to layout');
+      return;
+    }
+
+    setIsLayouting(true);
+    try {
+      const layoutedNodes = calculateAutoLayout(nodes, reactFlowInstance.getEdges());
+      if (dynamicEnabled) applyToDraft(layoutedNodes);
+      else await applyToServer(layoutedNodes);
+      fitAfterRender(reactFlowInstance);
       toast.success('Layout applied successfully');
     } catch (error) {
       console.error('Auto-layout failed:', error);
@@ -76,7 +116,7 @@ export function useAutoLayout() {
     } finally {
       setIsLayouting(false);
     }
-  }, [reactFlowInstance, currentViewId, currentView, batchUpdatePositions, updateOriginEntityPositionMutation]);
+  }, [reactFlowInstance, currentViewId, currentView, dynamicEnabled, applyToDraft, applyToServer]);
 
   return { applyAutoLayout, isLayouting };
 }

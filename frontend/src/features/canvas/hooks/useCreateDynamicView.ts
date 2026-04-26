@@ -26,10 +26,13 @@ export function useCreateDynamicView() {
       try {
         const newView = await createViewMutation.mutateAsync({ name: buildViewName(entityName) });
         setCurrentViewId(newView.id);
-        enterDynamicMode({
-          entities: [seed],
-          positions: { [seed.id]: { x: 0, y: 0 } },
-        });
+        enterDynamicMode(
+          {
+            entities: [seed],
+            positions: { [seed.id]: { x: 0, y: 0 } },
+          },
+          newView.id,
+        );
         toast.success(`Dynamic view ready — expand from ${entityName}`);
       } catch {
         toast.error('Failed to create dynamic view');

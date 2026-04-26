@@ -2,21 +2,15 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook } from '@testing-library/react';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useAppStore } from '../../../store/appStore';
 import { useBulkOperations } from './useBulkOperations';
 import type { NodeContextMenu } from './useNodeContextMenu';
 
-const mockRemoveComponent = vi.fn().mockResolvedValue(undefined);
-const mockRemoveCapability = vi.fn().mockResolvedValue(undefined);
-const mockRemoveOriginEntity = vi.fn().mockResolvedValue(undefined);
 const mockDeleteComponent = vi.fn().mockResolvedValue(undefined);
 const mockDeleteCapability = vi.fn().mockResolvedValue(undefined);
 const mockDeleteAcquiredEntity = vi.fn().mockResolvedValue(undefined);
 const mockDeleteVendor = vi.fn().mockResolvedValue(undefined);
 const mockDeleteInternalTeam = vi.fn().mockResolvedValue(undefined);
-
-vi.mock('../../views/hooks/useCurrentView', () => ({
-  useCurrentView: () => ({ currentViewId: 'view-1' }),
-}));
 
 vi.mock('../../components/hooks/useComponents', () => ({
   useComponents: () => ({
@@ -33,12 +27,6 @@ vi.mock('../../capabilities/hooks/useCapabilities', () => ({
     data: [{ id: 'cap-1', name: 'Capability 1' }],
   }),
   useDeleteCapability: () => ({ mutateAsync: mockDeleteCapability }),
-}));
-
-vi.mock('../../views/hooks/useViews', () => ({
-  useRemoveComponentFromView: () => ({ mutateAsync: mockRemoveComponent }),
-  useRemoveCapabilityFromView: () => ({ mutateAsync: mockRemoveCapability }),
-  useRemoveOriginEntityFromView: () => ({ mutateAsync: mockRemoveOriginEntity }),
 }));
 
 vi.mock('../../origin-entities/hooks/useAcquiredEntities', () => ({
@@ -142,11 +130,15 @@ describe('useBulkOperations', () => {
     expect(result.current.bulkOperation).toBeNull();
   });
 
-  it('executes bulk remove from view in parallel', async () => {
+  it('routes bulk remove from view through the draft store', async () => {
+    const draftRemoveEntities = vi.fn();
+    useAppStore.setState({ draftRemoveEntities });
+
     const result = setupBulkHook();
     await setBulkAndConfirm(result, 'removeFromView', twoComponentNodes());
 
-    expect(mockRemoveComponent).toHaveBeenCalledTimes(2);
+    expect(draftRemoveEntities).toHaveBeenCalledTimes(1);
+    expect(draftRemoveEntities).toHaveBeenCalledWith(['comp-1', 'comp-2']);
     expect(result.current.bulkOperation).toBeNull();
     expect(result.current.isExecuting).toBe(false);
   });

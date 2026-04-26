@@ -2,40 +2,25 @@ import { Button, Group, Modal, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
 
 interface DynamicModeToolbarProps {
-  enabled: boolean;
   dirty: boolean;
   isSaving: boolean;
   saveLabel: string;
-  onEnable: () => void;
   onSave: () => void;
   onDiscard: () => void;
 }
 
 export function DynamicModeToolbar({
-  enabled,
   dirty,
   isSaving,
   saveLabel,
-  onEnable,
   onSave,
   onDiscard,
 }: DynamicModeToolbarProps) {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  if (!enabled) {
-    return (
-      <Button variant="default" onClick={onEnable}>
-        Dynamic mode
-      </Button>
-    );
-  }
-
   const handleCancelClick = () => {
-    if (dirty) {
-      setConfirmOpen(true);
-    } else {
-      onDiscard();
-    }
+    if (!dirty) return;
+    setConfirmOpen(true);
   };
 
   const handleConfirmDiscard = () => {
@@ -46,10 +31,10 @@ export function DynamicModeToolbar({
   return (
     <>
       <Group gap="xs">
-        <Button color="green" disabled={isSaving} onClick={onSave}>
+        <Button color="green" disabled={isSaving || !dirty} onClick={onSave}>
           {saveLabel}
         </Button>
-        <Button variant="default" disabled={isSaving} onClick={handleCancelClick}>
+        <Button variant="default" disabled={isSaving || !dirty} onClick={handleCancelClick}>
           Cancel
         </Button>
       </Group>

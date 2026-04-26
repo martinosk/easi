@@ -1,4 +1,5 @@
 import toast from 'react-hot-toast';
+import { useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAppStore } from '../../../store/appStore';
 import {
@@ -10,99 +11,137 @@ import {
 import { invalidateFor } from '../../../lib/invalidateFor';
 import { viewsMutationEffects } from '../../views/mutationEffects';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
+import { canEdit } from '../../../utils/hateoas';
 import { useSaveDynamicDraft } from '../hooks/useSaveDynamicDraft';
-import type { DynamicModeSnapshot } from '../../../store/slices/dynamicModeSlice';
+import { useDynamicSnapshot } from '../hooks/useDynamicSnapshot';
 import type { EntityRef } from '../utils/dynamicMode';
 import { DynamicModeToolbar } from './DynamicModeToolbar';
 
-function buildSnapshotFromView(view: NonNullable<ReturnType<typeof useCurrentView>['currentView']>): DynamicModeSnapshot {
-  const entities: EntityRef[] = [];
-  const positions: Record<string, { x: number; y: number }> = {};
+type Position = { x: number; y: number };
 
-  for (const c of view.components) {
-    entities.push({ id: c.componentId, type: 'component' });
-    positions[c.componentId] = { x: c.x, y: c.y };
-  }
-  for (const cap of view.capabilities) {
-    entities.push({ id: cap.capabilityId, type: 'capability' });
-    positions[cap.capabilityId] = { x: cap.x, y: cap.y };
-  }
-  for (const oe of view.originEntities) {
-    entities.push({ id: oe.originEntityId, type: 'originEntity' });
-    positions[oe.originEntityId] = { x: oe.x, y: oe.y };
-  }
+function additionsWithPositions(additions: EntityRef[], positions: Record<string, Position>) {
+  return additions.map((e) => ({
+    ...e,
+    x: positions[e.id]?.x ?? 0,
+    y: positions[e.id]?.y ?? 0,
+  }));
+}
 
-  return { entities, positions };
+function positionDeltasAsList(deltas: Record<string, Position>, entities: EntityRef[]) {
+  return Object.entries(deltas).map(([id, pos]) => {
+    const ent = entities.find((e) => e.id === id);
+    return { id, type: ent?.type ?? 'component', ...pos };
+  });
+}
+
+type SaveResult = Awaited<ReturnType<ReturnType<typeof useSaveDynamicDraft>['save']>>;
+
+function notifySaveResult(result: SaveResult) {
+  if (result.failures.length === 0) {
+    toast.success(`Saved ${result.successCount} change${result.successCount === 1 ? '' : 's'}`);
+    return;
+  }
+  const failureMsg = result.failures.map((f) => `${f.operation} ${f.entity.id}`).join(', ');
+  toast.error(`Saved ${result.successCount}, failed: ${failureMsg}`);
+}
+
+interface DraftSummary {
+  dirty: boolean;
+  additions: EntityRef[];
+  removals: EntityRef[];
+  positionDeltas: Record<string, Position>;
+  totalChanges: number;
+}
+
+function shouldRenderToolbar(
+  editable: boolean,
+  currentView: unknown,
+  currentViewId: unknown,
+  enabled: boolean,
+): boolean {
+  return editable && Boolean(currentView) && Boolean(currentViewId) && enabled;
+}
+
+function useDraftSummary(): DraftSummary {
+  const dynamicOriginal = useAppStore((s) => s.dynamicOriginal);
+  const dynamicEntities = useAppStore((s) => s.dynamicEntities);
+  const dynamicPositions = useAppStore((s) => s.dynamicPositions);
+
+  return useMemo(() => {
+    const state = { dynamicOriginal, dynamicEntities, dynamicPositions };
+    const adds = selectDynamicAdditions(state);
+    const rems = selectDynamicRemovals(state);
+    const pos = selectDynamicPositionDeltas(state);
+    return {
+      dirty: selectDynamicDirty(state),
+      additions: adds,
+      removals: rems,
+      positionDeltas: pos,
+      totalChanges: adds.length + rems.length + Object.keys(pos).length,
+    };
+  }, [dynamicOriginal, dynamicEntities, dynamicPositions]);
 }
 
 export function DynamicModeContainer() {
+  useDynamicSnapshot();
+
   const queryClient = useQueryClient();
   const { currentView, currentViewId } = useCurrentView();
+  const editable = canEdit(currentView);
+
   const enabled = useAppStore((s) => s.dynamicEnabled);
   const dynamicEntities = useAppStore((s) => s.dynamicEntities);
+  const dynamicPositions = useAppStore((s) => s.dynamicPositions);
   const enterDynamicMode = useAppStore((s) => s.enterDynamicMode);
-  const exitDynamicMode = useAppStore((s) => s.exitDynamicMode);
-
-  const dirty = useAppStore(selectDynamicDirty);
-  const additions = useAppStore(selectDynamicAdditions);
-  const removals = useAppStore(selectDynamicRemovals);
-  const positionDeltas = useAppStore(selectDynamicPositionDeltas);
-  const positionsState = useAppStore((s) => s.dynamicPositions);
+  const resetDraft = useAppStore((s) => s.resetDraft);
 
   const { save, isSaving } = useSaveDynamicDraft();
+  const { dirty, additions, removals, positionDeltas, totalChanges } = useDraftSummary();
 
-  const handleEnable = () => {
-    if (!currentView) return;
-    enterDynamicMode(buildSnapshotFromView(currentView));
-  };
-
-  const handleSave = async () => {
-    if (!currentViewId) return;
-    const additionsWithPos = additions.map((e) => ({
-      ...e,
-      x: positionsState[e.id]?.x ?? 0,
-      y: positionsState[e.id]?.y ?? 0,
-    }));
-    const positionsAsList = Object.entries(positionDeltas).map(([id, pos]) => {
-      const ent = dynamicEntities.find((e) => e.id === id);
-      return { id, type: ent?.type ?? 'component', ...pos };
+  const handleSave = useCallback(async () => {
+    if (!currentViewId || !currentView) return;
+    const result = await save({
+      viewId: currentViewId,
+      additions: additionsWithPositions(additions, dynamicPositions),
+      removals,
+      positionDeltas: positionDeltasAsList(positionDeltas, dynamicEntities),
     });
-    const result = await save({ viewId: currentViewId, additions: additionsWithPos, removals, positionDeltas: positionsAsList });
 
     invalidateFor(queryClient, viewsMutationEffects.updateDetail(currentViewId));
+    notifySaveResult(result);
 
     if (result.failures.length === 0) {
-      toast.success(`Saved ${result.successCount} change${result.successCount === 1 ? '' : 's'}`);
-      exitDynamicMode();
-    } else {
-      const failureMsg = result.failures.map((f) => `${f.operation} ${f.entity.id}`).join(', ');
-      toast.error(`Saved ${result.successCount}, failed: ${failureMsg}`);
+      enterDynamicMode(
+        { entities: [...dynamicEntities], positions: { ...dynamicPositions } },
+        currentViewId,
+      );
     }
-  };
+  }, [
+    currentViewId,
+    currentView,
+    additions,
+    removals,
+    positionDeltas,
+    dynamicPositions,
+    dynamicEntities,
+    save,
+    queryClient,
+    enterDynamicMode,
+  ]);
 
-  const handleDiscard = () => {
-    exitDynamicMode();
-    if (currentViewId) {
-      invalidateFor(queryClient, viewsMutationEffects.updateDetail(currentViewId));
-    }
-  };
+  const handleSaveClick = useCallback(() => {
+    void handleSave();
+  }, [handleSave]);
 
-  const totalChanges = additions.length + removals.length + Object.keys(positionDeltas).length;
-  const saveLabel = `Save view (${totalChanges})`;
-
-  if (!currentView || !currentViewId) return null;
+  if (!shouldRenderToolbar(editable, currentView, currentViewId, enabled)) return null;
 
   return (
-    <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 10 }}>
-      <DynamicModeToolbar
-        enabled={enabled}
-        dirty={dirty}
-        isSaving={isSaving}
-        saveLabel={saveLabel}
-        onEnable={handleEnable}
-        onSave={() => void handleSave()}
-        onDiscard={handleDiscard}
-      />
-    </div>
+    <DynamicModeToolbar
+      dirty={dirty}
+      isSaving={isSaving}
+      saveLabel={totalChanges > 0 ? `Save view (${totalChanges})` : 'Save view'}
+      onSave={handleSaveClick}
+      onDiscard={resetDraft}
+    />
   );
 }

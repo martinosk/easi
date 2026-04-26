@@ -1,18 +1,12 @@
 import { useCallback, useMemo, useState } from 'react';
-import type { AcquiredEntityId, Capability, Component, InternalTeamId, VendorId, ViewId } from '../../../api/types';
-import { toCapabilityId, toComponentId } from '../../../api/types';
+import type { AcquiredEntityId, Capability, Component, InternalTeamId, VendorId } from '../../../api/types';
 import type { OriginEntityType } from '../../../constants/entityIdentifiers';
+import { useAppStore } from '../../../store/appStore';
 import { useCapabilities, useDeleteCapability } from '../../capabilities/hooks/useCapabilities';
 import { useComponents, useDeleteComponent } from '../../components/hooks/useComponents';
 import { useDeleteAcquiredEntity } from '../../origin-entities/hooks/useAcquiredEntities';
 import { useDeleteInternalTeam } from '../../origin-entities/hooks/useInternalTeams';
 import { useDeleteVendor } from '../../origin-entities/hooks/useVendors';
-import { useCurrentView } from '../../views/hooks/useCurrentView';
-import {
-  useRemoveCapabilityFromView,
-  useRemoveComponentFromView,
-  useRemoveOriginEntityFromView,
-} from '../../views/hooks/useViews';
 import type { BulkOperationRequest } from '../components/context-menus/MultiSelectContextMenu';
 import type { NodeContextMenu } from './useNodeContextMenu';
 
@@ -41,23 +35,6 @@ async function executeSequentially(
   return { succeeded, failed };
 }
 
-type RemoveMutations = {
-  component: { mutateAsync: (p: { viewId: ViewId; componentId: ReturnType<typeof toComponentId> }) => Promise<void> };
-  capability: {
-    mutateAsync: (p: { viewId: ViewId; capabilityId: ReturnType<typeof toCapabilityId> }) => Promise<void>;
-  };
-  originEntity: { mutateAsync: (p: { viewId: ViewId; originEntityId: string }) => Promise<void> };
-};
-
-function removeNodeFromView(node: NodeContextMenu, viewId: ViewId, mutations: RemoveMutations): Promise<void> {
-  const handlers: Record<NodeContextMenu['nodeType'], () => Promise<void>> = {
-    component: () => mutations.component.mutateAsync({ viewId, componentId: toComponentId(node.nodeId) }),
-    capability: () => mutations.capability.mutateAsync({ viewId, capabilityId: toCapabilityId(node.nodeId) }),
-    originEntity: () => mutations.originEntity.mutateAsync({ viewId, originEntityId: node.nodeId }),
-  };
-  return handlers[node.nodeType]();
-}
-
 interface OriginEntityDeleteMutations {
   acquired: { mutateAsync: (p: { id: AcquiredEntityId; name: string }) => Promise<void> };
   vendor: { mutateAsync: (p: { id: VendorId; name: string }) => Promise<void> };
@@ -76,21 +53,6 @@ function deleteOriginEntity(
     team: () => mutations.team.mutateAsync({ id: entityId as InternalTeamId, name }),
   };
   return strategies[originEntityType]();
-}
-
-function useRemoveMutations(): RemoveMutations {
-  const removeComponentMutation = useRemoveComponentFromView();
-  const removeCapabilityMutation = useRemoveCapabilityFromView();
-  const removeOriginEntityMutation = useRemoveOriginEntityFromView();
-
-  return useMemo<RemoveMutations>(
-    () => ({
-      component: removeComponentMutation,
-      capability: removeCapabilityMutation,
-      originEntity: removeOriginEntityMutation,
-    }),
-    [removeComponentMutation, removeCapabilityMutation, removeOriginEntityMutation],
-  );
 }
 
 function deleteComponentFromModel(
@@ -150,9 +112,7 @@ function useModelDeleteHandler() {
 }
 
 export const useBulkOperations = () => {
-  const { currentViewId } = useCurrentView();
-
-  const removeMutations = useRemoveMutations();
+  const draftRemoveEntities = useAppStore((s) => s.draftRemoveEntities);
   const deleteFromModel = useModelDeleteHandler();
 
   const [bulkOperation, setBulkOperation] = useState<BulkOperationRequest | null>(null);
@@ -170,15 +130,12 @@ export const useBulkOperations = () => {
 
   const executeBulkRemoveFromView = useCallback(
     async (nodes: NodeContextMenu[]) => {
-      if (!currentViewId) return;
       setIsExecuting(true);
       setResult(null);
-      const operationResult = await executeSequentially(nodes, (node) =>
-        removeNodeFromView(node, currentViewId, removeMutations),
-      );
-      finishExecution(operationResult);
+      draftRemoveEntities(nodes.map((n) => n.nodeId));
+      finishExecution({ succeeded: nodes.map((n) => n.nodeName), failed: [] });
     },
-    [currentViewId, removeMutations, finishExecution],
+    [draftRemoveEntities, finishExecution],
   );
 
   const executeBulkDeleteFromModel = useCallback(

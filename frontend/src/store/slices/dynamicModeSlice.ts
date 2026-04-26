@@ -16,14 +16,16 @@ export interface DynamicModeSnapshot {
 export interface DynamicModeState {
   dynamicEnabled: boolean;
   dynamicOriginal: DynamicModeSnapshot | null;
+  dynamicViewId: string | null;
   dynamicEntities: EntityRef[];
   dynamicPositions: Record<string, Position>;
   dynamicFilters: DynamicFilters;
 }
 
 export interface DynamicModeActions {
-  enterDynamicMode: (initial: DynamicModeSnapshot) => void;
+  enterDynamicMode: (initial: DynamicModeSnapshot, viewId?: string | null) => void;
   exitDynamicMode: () => void;
+  resetDraft: () => void;
   draftAddEntities: (entities: EntityRef[], positions?: Record<string, Position>) => void;
   draftRemoveEntities: (ids: string[]) => void;
   draftSetPosition: (id: string, x: number, y: number) => void;
@@ -45,14 +47,16 @@ export const createDynamicModeSlice: StateCreator<
 > = (set) => ({
   dynamicEnabled: false,
   dynamicOriginal: null,
+  dynamicViewId: null,
   dynamicEntities: [],
   dynamicPositions: {},
   dynamicFilters: defaultFilters,
 
-  enterDynamicMode: (initial) => {
+  enterDynamicMode: (initial, viewId = null) => {
     set({
       dynamicEnabled: true,
       dynamicOriginal: { entities: [...initial.entities], positions: { ...initial.positions } },
+      dynamicViewId: viewId,
       dynamicEntities: [...initial.entities],
       dynamicPositions: { ...initial.positions },
     });
@@ -61,9 +65,19 @@ export const createDynamicModeSlice: StateCreator<
     set({
       dynamicEnabled: false,
       dynamicOriginal: null,
+      dynamicViewId: null,
       dynamicEntities: [],
       dynamicPositions: {},
       dynamicFilters: defaultFilters,
+    });
+  },
+  resetDraft: () => {
+    set((s) => {
+      if (!s.dynamicOriginal) return {};
+      return {
+        dynamicEntities: [...s.dynamicOriginal.entities],
+        dynamicPositions: { ...s.dynamicOriginal.positions },
+      };
     });
   },
 
@@ -113,13 +127,18 @@ export const createDynamicModeSlice: StateCreator<
   },
 });
 
-export function selectDynamicAdditions(state: DynamicModeState): EntityRef[] {
+export type DynamicDiffState = Pick<
+  DynamicModeState,
+  'dynamicOriginal' | 'dynamicEntities' | 'dynamicPositions'
+>;
+
+export function selectDynamicAdditions(state: DynamicDiffState): EntityRef[] {
   if (!state.dynamicOriginal) return [];
   const originalIds = new Set(state.dynamicOriginal.entities.map((e) => e.id));
   return state.dynamicEntities.filter((e) => !originalIds.has(e.id));
 }
 
-export function selectDynamicRemovals(state: DynamicModeState): EntityRef[] {
+export function selectDynamicRemovals(state: DynamicDiffState): EntityRef[] {
   if (!state.dynamicOriginal) return [];
   const currentIds = new Set(state.dynamicEntities.map((e) => e.id));
   return state.dynamicOriginal.entities.filter((e) => !currentIds.has(e.id));
@@ -129,7 +148,7 @@ function isPositionChanged(orig: Position | undefined, cur: Position): boolean {
   return !orig || orig.x !== cur.x || orig.y !== cur.y;
 }
 
-export function selectDynamicPositionDeltas(state: DynamicModeState): Record<string, Position> {
+export function selectDynamicPositionDeltas(state: DynamicDiffState): Record<string, Position> {
   if (!state.dynamicOriginal) return {};
   const original = state.dynamicOriginal.positions;
   const out: Record<string, Position> = {};
@@ -140,7 +159,7 @@ export function selectDynamicPositionDeltas(state: DynamicModeState): Record<str
   return out;
 }
 
-export function selectDynamicDirty(state: DynamicModeState): boolean {
+export function selectDynamicDirty(state: DynamicDiffState): boolean {
   if (!state.dynamicOriginal) return false;
   if (selectDynamicAdditions(state).length > 0) return true;
   if (selectDynamicRemovals(state).length > 0) return true;

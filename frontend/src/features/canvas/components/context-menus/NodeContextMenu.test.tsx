@@ -1,7 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { HATEOASLinks, ViewId } from '../../../../api/types';
+import { useAppStore } from '../../../../store/appStore';
 import type { NodeContextMenu as NodeContextMenuType } from '../../hooks/useContextMenu';
 import { type GenerateViewTarget, NodeContextMenu } from './NodeContextMenu';
 
@@ -9,10 +10,8 @@ vi.mock('../../../views/hooks/useCurrentView', () => ({
   useCurrentView: () => ({ currentViewId: 'view-1' as ViewId }),
 }));
 
-vi.mock('../../../views/hooks/useViews', () => ({
-  useRemoveComponentFromView: () => ({ mutate: vi.fn() }),
-  useRemoveCapabilityFromView: () => ({ mutate: vi.fn() }),
-  useRemoveOriginEntityFromView: () => ({ mutate: vi.fn() }),
+vi.mock('../../hooks/useDraftRemoveFromView', () => ({
+  useDraftRemoveFromView: () => vi.fn(),
 }));
 
 const editableLinks: HATEOASLinks = {
@@ -97,6 +96,29 @@ describe('NodeContextMenu - Create dynamic view', () => {
     const menuItem = screen.getByText(/Create dynamic view from/);
     expect(menuItem.textContent).toContain('\u2026');
     expect(menuItem.textContent!.length).toBeLessThan(`Create dynamic view from ${longName}`.length);
+  });
+
+  it('shows Remove from View for drafted entities even without view-element links', () => {
+    act(() => {
+      useAppStore.setState({
+        dynamicEnabled: true,
+        dynamicEntities: [{ id: 'comp-42', type: 'component' }],
+      });
+    });
+
+    renderMenu({
+      menu: makeMenu({
+        nodeId: 'comp-42',
+        nodeName: 'Drafted Component',
+        viewElementLinks: undefined,
+      }),
+    });
+
+    expect(screen.getByText('Remove from View')).toBeDefined();
+
+    act(() => {
+      useAppStore.setState({ dynamicEnabled: false, dynamicEntities: [] });
+    });
   });
 
   it('calls onRequestGenerateView with correct target on click', () => {

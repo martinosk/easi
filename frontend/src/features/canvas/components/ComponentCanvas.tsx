@@ -196,8 +196,10 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
           />
         </ReactFlow>
 
-        <AutoLayoutButton />
-        <DynamicModeContainer />
+        <div className="canvas-toolbar">
+          <AutoLayoutButton />
+          <DynamicModeContainer />
+        </div>
 
         <NodeContextMenu
           menu={nodeContextMenu}

@@ -56,9 +56,30 @@ function buildAllRefs(
   );
 }
 
+const EXPAND_RADIUS = 220;
+
+function fanOutPositions(
+  ids: string[],
+  origin: { x: number; y: number },
+  startAngleDeg = 0,
+): Record<string, { x: number; y: number }> {
+  if (ids.length === 0) return {};
+  const positions: Record<string, { x: number; y: number }> = {};
+  const step = (2 * Math.PI) / Math.max(ids.length, 6);
+  ids.forEach((id, i) => {
+    const angle = (startAngleDeg * Math.PI) / 180 + i * step;
+    positions[id] = {
+      x: origin.x + Math.cos(angle) * EXPAND_RADIUS,
+      y: origin.y + Math.sin(angle) * EXPAND_RADIUS,
+    };
+  });
+  return positions;
+}
+
 export function DynamicExpandBadge({ entityId, entityType, entityName }: DynamicExpandBadgeProps) {
   const enabled = useAppStore((s) => s.dynamicEnabled);
   const dynamicEntities = useAppStore((s) => s.dynamicEntities);
+  const dynamicPositions = useAppStore((s) => s.dynamicPositions);
   const filters = useAppStore((s) => s.dynamicFilters);
   const draftAddEntities = useAppStore((s) => s.draftAddEntities);
 
@@ -82,13 +103,17 @@ export function DynamicExpandBadge({ entityId, entityType, entityName }: Dynamic
 
   if (total === 0) return null;
 
+  const origin = dynamicPositions[entityId] ?? { x: 400, y: 300 };
+
   const handleExpandEdgeType = (edge: EdgeType) => {
-    draftAddEntities(breakdown[edge].map((id) => ({ id, type: inferNeighborType(edge, entityType) })));
+    const refs = breakdown[edge].map((id) => ({ id, type: inferNeighborType(edge, entityType) }));
+    draftAddEntities(refs, fanOutPositions(refs.map((r) => r.id), origin));
     setPopoverOpen(false);
   };
 
   const handleExpandAll = () => {
-    draftAddEntities(buildAllRefs(breakdown, filters, entityType));
+    const refs = buildAllRefs(breakdown, filters, entityType);
+    draftAddEntities(refs, fanOutPositions(refs.map((r) => r.id), origin));
     setPopoverOpen(false);
   };
 

@@ -286,11 +286,15 @@ body {
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
-.canvas-auto-layout {
+.canvas-toolbar {
   position: absolute;
   top: var(--spacing-md);
   right: var(--spacing-md);
   z-index: 6;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--spacing-sm);
 }
 
 .auto-layout-button {

@@ -1,16 +1,13 @@
 import type { ViewId } from '../../../../api/types';
-import { toCapabilityId, toComponentId } from '../../../../api/types';
 import type { OriginEntityType } from '../../../../components/canvas';
 import { ContextMenu, type ContextMenuItem } from '../../../../components/shared/ContextMenu';
 import { hasLink } from '../../../../utils/hateoas';
+import { useAppStore } from '../../../../store/appStore';
 import type { ArtifactType } from '../../../edit-grants/types';
 import { useCurrentView } from '../../../views/hooks/useCurrentView';
-import {
-  useRemoveCapabilityFromView,
-  useRemoveComponentFromView,
-  useRemoveOriginEntityFromView,
-} from '../../../views/hooks/useViews';
+import { useDraftRemoveFromView } from '../../hooks/useDraftRemoveFromView';
 import type { NodeContextMenu as NodeContextMenuType } from '../../hooks/useContextMenu';
+import type { EntityType } from '../../utils/dynamicMode';
 
 export type NodeDeleteTarget = {
   type: 'component-from-model' | 'capability-from-model' | 'origin-entity-from-model';
@@ -49,18 +46,23 @@ interface MenuItemBuilderContext {
   onRequestInviteToEdit?: (target: InviteTarget) => void;
   onRequestGenerateView?: (target: GenerateViewTarget) => void;
   onClose: () => void;
-  removeFromView: (id: string) => void;
+  removeFromView: (id: string, type: EntityType) => void;
 }
 
 interface ViewElementConfig {
   deleteTargetType: NodeDeleteTarget['type'];
   entityLabel: string;
+  entityType: EntityType;
 }
 
 const viewElementConfigs: Record<string, ViewElementConfig> = {
-  component: { deleteTargetType: 'component-from-model', entityLabel: 'component' },
-  capability: { deleteTargetType: 'capability-from-model', entityLabel: 'capability' },
-  originEntity: { deleteTargetType: 'origin-entity-from-model', entityLabel: 'origin entity' },
+  component: { deleteTargetType: 'component-from-model', entityLabel: 'component', entityType: 'component' },
+  capability: { deleteTargetType: 'capability-from-model', entityLabel: 'capability', entityType: 'capability' },
+  originEntity: {
+    deleteTargetType: 'origin-entity-from-model',
+    entityLabel: 'origin entity',
+    entityType: 'originEntity',
+  },
 };
 
 const nodeTypeToArtifactType: Record<NodeContextMenuType['nodeType'], ArtifactType> = {
@@ -97,7 +99,7 @@ function buildInviteToEditItem(ctx: MenuItemBuilderContext): ContextMenuItem | n
 const MENU_LABEL_MAX_NAME_LENGTH = 30;
 
 function truncateName(name: string, maxLength: number): string {
-  return name.length > maxLength ? name.slice(0, maxLength - 1) + '\u2026' : name;
+  return name.length > maxLength ? name.slice(0, maxLength - 1) + '…' : name;
 }
 
 function buildGenerateViewItem(ctx: MenuItemBuilderContext): ContextMenuItem | null {
@@ -128,7 +130,7 @@ function buildMenuItems(ctx: MenuItemBuilderContext, config: ViewElementConfig):
     items.push({
       label: 'Remove from View',
       onClick: () => {
-        ctx.removeFromView(ctx.menu.nodeId);
+        ctx.removeFromView(ctx.menu.nodeId, config.entityType);
         ctx.onClose();
       },
     });
@@ -163,36 +165,16 @@ export const NodeContextMenu = ({
   canCreateView = false,
 }: NodeContextMenuProps) => {
   const { currentViewId } = useCurrentView();
-  const removeComponentFromViewMutation = useRemoveComponentFromView();
-  const removeCapabilityFromViewMutation = useRemoveCapabilityFromView();
-  const removeOriginEntityFromViewMutation = useRemoveOriginEntityFromView();
+  const draftRemove = useDraftRemoveFromView();
+  const dynamicEnabled = useAppStore((s) => s.dynamicEnabled);
+  const dynamicEntities = useAppStore((s) => s.dynamicEntities);
 
   if (!menu) return null;
 
-  const canRemoveFromView = hasLink({ _links: menu.viewElementLinks }, 'x-remove');
+  const isDrafted = dynamicEnabled && dynamicEntities.some((e) => e.id === menu.nodeId);
+  const canRemoveFromView = isDrafted || hasLink({ _links: menu.viewElementLinks }, 'x-remove');
   const canDeleteFromModel = hasLink({ _links: menu.modelLinks }, 'delete');
   const canInviteToEdit = hasLink({ _links: menu.modelLinks }, 'x-edit-grants');
-
-  const removeFromViewHandlers: Record<NodeContextMenuType['nodeType'], (id: string) => void> = {
-    capability: (id) =>
-      currentViewId &&
-      removeCapabilityFromViewMutation.mutate({
-        viewId: currentViewId,
-        capabilityId: toCapabilityId(id),
-      }),
-    component: (id) =>
-      currentViewId &&
-      removeComponentFromViewMutation.mutate({
-        viewId: currentViewId,
-        componentId: toComponentId(id),
-      }),
-    originEntity: (originEntityId) =>
-      currentViewId &&
-      removeOriginEntityFromViewMutation.mutate({
-        viewId: currentViewId,
-        originEntityId,
-      }),
-  };
 
   const ctx: MenuItemBuilderContext = {
     menu,
@@ -205,7 +187,7 @@ export const NodeContextMenu = ({
     onRequestInviteToEdit,
     onRequestGenerateView,
     onClose,
-    removeFromView: removeFromViewHandlers[menu.nodeType],
+    removeFromView: (id, type) => draftRemove(id, type),
   };
 
   const viewElementConfig = viewElementConfigs[menu.nodeType];

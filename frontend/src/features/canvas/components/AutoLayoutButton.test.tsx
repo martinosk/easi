@@ -1,6 +1,10 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MantineTestWrapper } from '../../../test/helpers/mantineTestWrapper';
 import { AutoLayoutButton } from './AutoLayoutButton';
+
+const renderWithMantine = (ui: React.ReactElement) =>
+  render(<MantineTestWrapper>{ui}</MantineTestWrapper>);
 
 const mockApplyAutoLayout = vi.fn();
 const mockUseCanvasNodes = vi.fn();
@@ -36,7 +40,7 @@ describe('AutoLayoutButton', () => {
   });
 
   it('shows warning dialog when auto-layout is clicked', () => {
-    render(<AutoLayoutButton />);
+    renderWithMantine(<AutoLayoutButton />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Auto layout canvas' }));
 
@@ -48,7 +52,7 @@ describe('AutoLayoutButton', () => {
   });
 
   it('cancels auto-layout when Cancel is clicked in warning dialog', () => {
-    render(<AutoLayoutButton />);
+    renderWithMantine(<AutoLayoutButton />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Auto layout canvas' }));
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
@@ -58,7 +62,7 @@ describe('AutoLayoutButton', () => {
   });
 
   it('runs auto-layout when OK is clicked in warning dialog', () => {
-    render(<AutoLayoutButton />);
+    renderWithMantine(<AutoLayoutButton />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Auto layout canvas' }));
     fireEvent.click(screen.getByRole('button', { name: 'OK' }));

@@ -8,11 +8,9 @@ function renderToolbar(props: Partial<React.ComponentProps<typeof DynamicModeToo
   return render(
     <MantineTestWrapper>
       <DynamicModeToolbar
-        enabled={false}
         dirty={false}
         isSaving={false}
-        saveLabel="Save view (0)"
-        onEnable={vi.fn()}
+        saveLabel="Save view"
         onSave={vi.fn()}
         onDiscard={vi.fn()}
         {...props}
@@ -22,46 +20,35 @@ function renderToolbar(props: Partial<React.ComponentProps<typeof DynamicModeToo
 }
 
 describe('DynamicModeToolbar', () => {
-  it('shows the Dynamic mode toggle when disabled', () => {
-    renderToolbar({ enabled: false });
-    expect(screen.getByRole('button', { name: /dynamic mode/i })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /save view/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /cancel/i })).not.toBeInTheDocument();
-  });
-
-  it('clicking the toggle calls onEnable', async () => {
-    const onEnable = vi.fn();
-    renderToolbar({ enabled: false, onEnable });
-
-    await userEvent.click(screen.getByRole('button', { name: /dynamic mode/i }));
-    expect(onEnable).toHaveBeenCalled();
-  });
-
-  it('shows Save and Cancel buttons when enabled', () => {
-    renderToolbar({ enabled: true, saveLabel: 'Save view (3)' });
-    expect(screen.getByRole('button', { name: /save view \(3\)/i })).toBeInTheDocument();
+  it('always renders Save and Cancel buttons', () => {
+    renderToolbar();
+    expect(screen.getByRole('button', { name: /save view/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
+  });
+
+  it('Save and Cancel are disabled when there are no draft changes', () => {
+    renderToolbar({ dirty: false });
+    expect(screen.getByRole('button', { name: /save view/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /cancel/i })).toBeDisabled();
+  });
+
+  it('Save and Cancel become enabled when dirty', () => {
+    renderToolbar({ dirty: true });
+    expect(screen.getByRole('button', { name: /save view/i })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /cancel/i })).toBeEnabled();
   });
 
   it('clicking Save calls onSave', async () => {
     const onSave = vi.fn();
-    renderToolbar({ enabled: true, onSave });
+    renderToolbar({ dirty: true, onSave });
 
     await userEvent.click(screen.getByRole('button', { name: /save view/i }));
     expect(onSave).toHaveBeenCalled();
   });
 
-  it('clicking Cancel when no changes calls onDiscard immediately', async () => {
-    const onDiscard = vi.fn();
-    renderToolbar({ enabled: true, dirty: false, onDiscard });
-
-    await userEvent.click(screen.getByRole('button', { name: /cancel/i }));
-    expect(onDiscard).toHaveBeenCalled();
-  });
-
   it('clicking Cancel when dirty shows a confirm dialog before calling onDiscard', async () => {
     const onDiscard = vi.fn();
-    renderToolbar({ enabled: true, dirty: true, onDiscard });
+    renderToolbar({ dirty: true, onDiscard });
 
     await userEvent.click(screen.getByRole('button', { name: /^cancel$/i }));
     expect(onDiscard).not.toHaveBeenCalled();
@@ -74,7 +61,7 @@ describe('DynamicModeToolbar', () => {
 
   it('the confirm dialog can be dismissed without discarding', async () => {
     const onDiscard = vi.fn();
-    renderToolbar({ enabled: true, dirty: true, onDiscard });
+    renderToolbar({ dirty: true, onDiscard });
 
     await userEvent.click(screen.getByRole('button', { name: /^cancel$/i }));
     const dialogCancel = screen.getByRole('button', { name: /keep editing/i });
@@ -84,7 +71,7 @@ describe('DynamicModeToolbar', () => {
   });
 
   it('disables Save and Cancel while saving', () => {
-    renderToolbar({ enabled: true, isSaving: true });
+    renderToolbar({ dirty: true, isSaving: true });
     expect(screen.getByRole('button', { name: /save view/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /cancel/i })).toBeDisabled();
   });

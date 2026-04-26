@@ -1,12 +1,9 @@
 import type { ReactFlowInstance } from '@xyflow/react';
 import { useCallback } from 'react';
-import { toCapabilityId, toComponentId, toViewId } from '../../../api/types';
 import { useAppStore } from '../../../store/appStore';
 import { canEdit } from '../../../utils/hateoas';
 import type { MultiDragPayload, TreeItemType } from '../../navigation/hooks/useTreeMultiSelect';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
-import { useAddCapabilityToView, useAddOriginEntityToView } from '../../views/hooks/useViews';
-import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
 import type { EntityRef, EntityType } from '../utils/dynamicMode';
 
 const TREE_TYPE_TO_ENTITY_TYPE: Record<TreeItemType, EntityType> = {
@@ -78,42 +75,6 @@ function parseMultiDragPayload(dataTransfer: DataTransfer): MultiDragPayload | n
   }
 }
 
-interface DropHandlers {
-  onComponentDrop?: (componentId: string, x: number, y: number) => void;
-  updateComponentPosition: (componentId: ReturnType<typeof toComponentId>, x: number, y: number) => Promise<void>;
-  addCapability: (viewId: string, capId: ReturnType<typeof toCapabilityId>, x: number, y: number) => Promise<void>;
-  updateCapabilityPosition: (capId: ReturnType<typeof toCapabilityId>, x: number, y: number) => Promise<void>;
-  addOriginEntity: (viewId: string, originEntityId: string, x: number, y: number) => Promise<void>;
-  currentViewId: string;
-}
-
-async function addItemToView(
-  item: { type: TreeItemType; id: string },
-  x: number,
-  y: number,
-  handlers: DropHandlers,
-): Promise<void> {
-  switch (item.type) {
-    case 'component':
-      if (handlers.onComponentDrop) {
-        await handlers.onComponentDrop(item.id, x, y);
-        await handlers.updateComponentPosition(toComponentId(item.id), x, y);
-      }
-      break;
-    case 'capability': {
-      const capId = toCapabilityId(item.id);
-      await handlers.addCapability(handlers.currentViewId, capId, x, y);
-      await handlers.updateCapabilityPosition(capId, x, y);
-      break;
-    }
-    case 'acquired':
-    case 'vendor':
-    case 'team':
-      await handlers.addOriginEntity(handlers.currentViewId, item.id, x, y);
-      break;
-  }
-}
-
 function canDropOnView(
   reactFlowInstance: ReactFlowInstance | null,
   currentViewId: string | null,
@@ -125,15 +86,19 @@ function canDropOnView(
 function parseDropItems(
   dataTransfer: DataTransfer,
   presence: ViewPresenceCheck,
+  draftPresence: Set<string>,
 ): { type: TreeItemType; id: string }[] {
+  const filterUnique = (items: { type: TreeItemType; id: string }[]) =>
+    items.filter((item) => !isItemInView(item, presence) && !draftPresence.has(item.id));
+
   const multiPayload = parseMultiDragPayload(dataTransfer);
-  if (multiPayload) return multiPayload.items.filter((item) => !isItemInView(item, presence));
+  if (multiPayload) return filterUnique(multiPayload.items);
   const singleItem = parseSingleDragItem(dataTransfer);
-  if (singleItem && !isItemInView(singleItem, presence)) return [singleItem];
+  if (singleItem) return filterUnique([singleItem]);
   return [];
 }
 
-function applyDynamicDrop(
+function applyDraftDrop(
   items: { type: TreeItemType; id: string }[],
   origin: { x: number; y: number },
   draftAddEntities: (refs: EntityRef[], positions: Record<string, { x: number; y: number }>) => void,
@@ -149,70 +114,31 @@ function applyDynamicDrop(
 
 export const useCanvasDragDrop = (
   reactFlowInstance: ReactFlowInstance | null,
-  onComponentDrop?: (componentId: string, x: number, y: number) => void,
+  _onComponentDrop?: (componentId: string, x: number, y: number) => void,
 ) => {
   const { currentViewId, currentView } = useCurrentView();
-  const addCapabilityToViewMutation = useAddCapabilityToView();
-  const addOriginEntityToViewMutation = useAddOriginEntityToView();
-  const { updateComponentPosition, updateCapabilityPosition } = useCanvasLayoutContext();
-  const dynamicEnabled = useAppStore((s) => s.dynamicEnabled);
   const draftAddEntities = useAppStore((s) => s.draftAddEntities);
+  const dynamicEntities = useAppStore((s) => s.dynamicEntities);
 
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = 'copy';
   }, []);
 
-  const getHandlers = useCallback(
-    (): DropHandlers => ({
-      onComponentDrop,
-      updateComponentPosition,
-      addCapability: async (viewId, capId, x, y) => {
-        await addCapabilityToViewMutation.mutateAsync({
-          viewId: toViewId(viewId),
-          request: { capabilityId: capId, x, y },
-        });
-      },
-      updateCapabilityPosition,
-      addOriginEntity: async (viewId, originEntityId, x, y) => {
-        await addOriginEntityToViewMutation.mutateAsync({
-          viewId: toViewId(viewId),
-          request: { originEntityId, x, y },
-        });
-      },
-      currentViewId: currentViewId!,
-    }),
-    [
-      onComponentDrop,
-      currentViewId,
-      addCapabilityToViewMutation,
-      addOriginEntityToViewMutation,
-      updateComponentPosition,
-      updateCapabilityPosition,
-    ],
-  );
-
   const onDrop = useCallback(
-    async (event: React.DragEvent) => {
+    (event: React.DragEvent) => {
       event.preventDefault();
       if (!canDropOnView(reactFlowInstance, currentViewId, currentView)) return;
 
       const position = reactFlowInstance!.screenToFlowPosition({ x: event.clientX, y: event.clientY });
       const presence = buildViewPresence(currentView);
-      const items = parseDropItems(event.dataTransfer, presence);
+      const draftPresence = new Set(dynamicEntities.map((e) => e.id));
+      const items = parseDropItems(event.dataTransfer, presence, draftPresence);
       if (items.length === 0) return;
 
-      if (dynamicEnabled) {
-        applyDynamicDrop(items, position, draftAddEntities);
-        return;
-      }
-
-      const handlers = getHandlers();
-      for (let i = 0; i < items.length; i++) {
-        await addItemToView(items[i], position.x, position.y + i * MULTI_DROP_OFFSET_Y, handlers);
-      }
+      applyDraftDrop(items, position, draftAddEntities);
     },
-    [reactFlowInstance, currentViewId, currentView, getHandlers, dynamicEnabled, draftAddEntities],
+    [reactFlowInstance, currentViewId, currentView, draftAddEntities, dynamicEntities],
   );
 
   return { onDragOver, onDrop };
