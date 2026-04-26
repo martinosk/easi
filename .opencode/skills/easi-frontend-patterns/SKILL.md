@@ -251,3 +251,5 @@ grep -r "yourHookFunction(" frontend/src/ --include="*.tsx" --include="*.ts"
 10. **Never invent CSS class names** for UI elements — they will not exist in the EASI stylesheet
 11. **Wrap Mantine component tests** in `MantineTestWrapper` from `src/test/helpers/mantineTestWrapper.tsx`
 12. **Audit all call sites** before adding a dialog gate — grep first, update every entry point, not just the one you are coding
+13. **Gate ReactFlow node-wrapper HOCs on the feature flag** — do not wrap unconditionally; ReactFlow expects a stable root element.
+14. **Subscribe to atomic store fields, derive with `useMemo`**
