@@ -13,6 +13,13 @@ export interface DynamicModeSnapshot {
   positions: Record<string, Position>;
 }
 
+export interface DraftEntry {
+  original: DynamicModeSnapshot;
+  entities: EntityRef[];
+  positions: Record<string, Position>;
+  filters: DynamicFilters;
+}
+
 export interface DynamicModeState {
   dynamicEnabled: boolean;
   dynamicOriginal: DynamicModeSnapshot | null;
@@ -20,6 +27,7 @@ export interface DynamicModeState {
   dynamicEntities: EntityRef[];
   dynamicPositions: Record<string, Position>;
   dynamicFilters: DynamicFilters;
+  draftsByView: Record<string, DraftEntry>;
 }
 
 export interface DynamicModeActions {
@@ -32,6 +40,9 @@ export interface DynamicModeActions {
   draftSetPositions: (updates: Record<string, Position>) => void;
   draftSetEdgeFilter: (edge: EdgeType, enabled: boolean) => void;
   draftSetTypeFilter: (type: EntityType, enabled: boolean) => void;
+  stashCurrentDraft: (viewId: string) => void;
+  hydrateDraftForView: (viewId: string) => boolean;
+  discardDraftForView: (viewId: string) => void;
 }
 
 const defaultFilters: DynamicFilters = {
@@ -39,26 +50,58 @@ const defaultFilters: DynamicFilters = {
   types: { component: true, capability: true, originEntity: true },
 };
 
-export const createDynamicModeSlice: StateCreator<
-  DynamicModeState & DynamicModeActions,
-  [],
-  [],
-  DynamicModeState & DynamicModeActions
-> = (set) => ({
+type SliceState = DynamicModeState & DynamicModeActions;
+
+function snapshotEntry(s: DynamicModeState): DraftEntry | null {
+  if (!s.dynamicOriginal) return null;
+  return {
+    original: { entities: [...s.dynamicOriginal.entities], positions: { ...s.dynamicOriginal.positions } },
+    entities: [...s.dynamicEntities],
+    positions: { ...s.dynamicPositions },
+    filters: cloneFilters(s.dynamicFilters),
+  };
+}
+
+function cloneFilters(f: DynamicFilters): DynamicFilters {
+  return { edges: { ...f.edges }, types: { ...f.types } };
+}
+
+function withMirror(s: DynamicModeState, patch: Partial<DynamicModeState>): Partial<DynamicModeState> {
+  const next = { ...s, ...patch };
+  const id = next.dynamicViewId;
+  if (!id) return patch;
+  const entry = snapshotEntry(next);
+  if (!entry) return patch;
+  return { ...patch, draftsByView: { ...next.draftsByView, [id]: entry } };
+}
+
+export const createDynamicModeSlice: StateCreator<SliceState, [], [], SliceState> = (set) => ({
   dynamicEnabled: false,
   dynamicOriginal: null,
   dynamicViewId: null,
   dynamicEntities: [],
   dynamicPositions: {},
   dynamicFilters: defaultFilters,
+  draftsByView: {},
 
   enterDynamicMode: (initial, viewId = null) => {
-    set({
-      dynamicEnabled: true,
-      dynamicOriginal: { entities: [...initial.entities], positions: { ...initial.positions } },
-      dynamicViewId: viewId,
-      dynamicEntities: [...initial.entities],
-      dynamicPositions: { ...initial.positions },
+    set((s) => {
+      const original = { entities: [...initial.entities], positions: { ...initial.positions } };
+      const base: Partial<DynamicModeState> = {
+        dynamicEnabled: true,
+        dynamicOriginal: original,
+        dynamicViewId: viewId,
+        dynamicEntities: [...initial.entities],
+        dynamicPositions: { ...initial.positions },
+      };
+      if (!viewId) return base;
+      const entry: DraftEntry = {
+        original,
+        entities: [...initial.entities],
+        positions: { ...initial.positions },
+        filters: cloneFilters(s.dynamicFilters),
+      };
+      return { ...base, draftsByView: { ...s.draftsByView, [viewId]: entry } };
     });
   },
   exitDynamicMode: () => {
@@ -74,10 +117,11 @@ export const createDynamicModeSlice: StateCreator<
   resetDraft: () => {
     set((s) => {
       if (!s.dynamicOriginal) return {};
-      return {
+      const patch: Partial<DynamicModeState> = {
         dynamicEntities: [...s.dynamicOriginal.entities],
         dynamicPositions: { ...s.dynamicOriginal.positions },
       };
+      return withMirror(s, patch);
     });
   },
 
@@ -85,10 +129,11 @@ export const createDynamicModeSlice: StateCreator<
     set((s) => {
       const existing = new Set(s.dynamicEntities.map((e) => e.id));
       const additions = entities.filter((e) => !existing.has(e.id));
-      return {
+      const patch: Partial<DynamicModeState> = {
         dynamicEntities: [...s.dynamicEntities, ...additions],
         dynamicPositions: positions ? { ...s.dynamicPositions, ...positions } : s.dynamicPositions,
       };
+      return withMirror(s, patch);
     });
   },
 
@@ -99,31 +144,79 @@ export const createDynamicModeSlice: StateCreator<
       for (const [id, pos] of Object.entries(s.dynamicPositions)) {
         if (!drop.has(id)) nextPositions[id] = pos;
       }
-      return {
+      const patch: Partial<DynamicModeState> = {
         dynamicEntities: s.dynamicEntities.filter((e) => !drop.has(e.id)),
         dynamicPositions: nextPositions,
       };
+      return withMirror(s, patch);
     });
   },
 
   draftSetPosition: (id, x, y) => {
-    set((s) => ({ dynamicPositions: { ...s.dynamicPositions, [id]: { x, y } } }));
+    set((s) => withMirror(s, { dynamicPositions: { ...s.dynamicPositions, [id]: { x, y } } }));
   },
 
   draftSetPositions: (updates) => {
-    set((s) => ({ dynamicPositions: { ...s.dynamicPositions, ...updates } }));
+    set((s) => withMirror(s, { dynamicPositions: { ...s.dynamicPositions, ...updates } }));
   },
 
   draftSetEdgeFilter: (edge, enabled) => {
-    set((s) => ({
-      dynamicFilters: { ...s.dynamicFilters, edges: { ...s.dynamicFilters.edges, [edge]: enabled } },
-    }));
+    set((s) =>
+      withMirror(s, {
+        dynamicFilters: { ...s.dynamicFilters, edges: { ...s.dynamicFilters.edges, [edge]: enabled } },
+      }),
+    );
   },
 
   draftSetTypeFilter: (type, enabled) => {
-    set((s) => ({
-      dynamicFilters: { ...s.dynamicFilters, types: { ...s.dynamicFilters.types, [type]: enabled } },
-    }));
+    set((s) =>
+      withMirror(s, {
+        dynamicFilters: { ...s.dynamicFilters, types: { ...s.dynamicFilters.types, [type]: enabled } },
+      }),
+    );
+  },
+
+  stashCurrentDraft: (viewId) => {
+    set((s) => {
+      const entry = snapshotEntry(s);
+      if (!entry) return {};
+      return { draftsByView: { ...s.draftsByView, [viewId]: entry } };
+    });
+  },
+
+  hydrateDraftForView: (viewId) => {
+    let hydrated = false;
+    set((s) => {
+      const entry = s.draftsByView[viewId];
+      if (!entry) return {};
+      hydrated = true;
+      return {
+        dynamicEnabled: true,
+        dynamicViewId: viewId,
+        dynamicOriginal: { entities: [...entry.original.entities], positions: { ...entry.original.positions } },
+        dynamicEntities: [...entry.entities],
+        dynamicPositions: { ...entry.positions },
+        dynamicFilters: cloneFilters(entry.filters),
+      };
+    });
+    return hydrated;
+  },
+
+  discardDraftForView: (viewId) => {
+    set((s) => {
+      const { [viewId]: _, ...rest } = s.draftsByView;
+      const isActive = s.dynamicViewId === viewId;
+      if (!isActive) return { draftsByView: rest };
+      return {
+        draftsByView: rest,
+        dynamicEnabled: false,
+        dynamicOriginal: null,
+        dynamicViewId: null,
+        dynamicEntities: [],
+        dynamicPositions: {},
+        dynamicFilters: defaultFilters,
+      };
+    });
   },
 });
 
@@ -165,4 +258,30 @@ export function selectDynamicDirty(state: DynamicDiffState): boolean {
   if (selectDynamicRemovals(state).length > 0) return true;
   if (Object.keys(selectDynamicPositionDeltas(state)).length > 0) return true;
   return false;
+}
+
+function entryAsDiffState(entry: DraftEntry): DynamicDiffState {
+  return {
+    dynamicOriginal: entry.original,
+    dynamicEntities: entry.entities,
+    dynamicPositions: entry.positions,
+  };
+}
+
+export function selectDirtyForView(state: DynamicModeState, viewId: string): boolean {
+  if (state.dynamicViewId === viewId) return selectDynamicDirty(state);
+  const entry = state.draftsByView[viewId];
+  if (!entry) return false;
+  return selectDynamicDirty(entryAsDiffState(entry));
+}
+
+function dirtyOutsideDraftMap(state: DynamicModeState): boolean {
+  if (!state.dynamicViewId) return false;
+  if (state.draftsByView[state.dynamicViewId]) return false;
+  return selectDynamicDirty(state);
+}
+
+export function selectAnyDirty(state: DynamicModeState): boolean {
+  const stashedDirty = Object.keys(state.draftsByView).some((id) => selectDirtyForView(state, id));
+  return stashedDirty || dirtyOutsideDraftMap(state);
 }

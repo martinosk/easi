@@ -32,6 +32,7 @@ describe('useCreateDynamicView', () => {
         dynamicPositions: {},
         dynamicOriginal: null,
         dynamicViewId: null,
+        openViewIds: [],
       });
     });
     mockCreateViewMutation.mutateAsync.mockClear();
@@ -49,5 +50,15 @@ describe('useCreateDynamicView', () => {
     expect(state.dynamicViewId).toBe('view-99');
     expect(state.dynamicEntities).toEqual([{ id: 'comp-42', type: 'component' }]);
     expect(state.dynamicOriginal?.entities).toEqual([{ id: 'comp-42', type: 'component' }]);
+  });
+
+  it('opens the newly created view as a tab', async () => {
+    const { result } = renderHook(() => useCreateDynamicView(), { wrapper: Wrapper });
+
+    await act(async () => {
+      await result.current.create({ id: 'comp-42', type: 'component' }, 'My System');
+    });
+
+    expect(useAppStore.getState().openViewIds).toContain('view-99');
   });
 });

@@ -39,35 +39,33 @@ describe('AutoLayoutButton', () => {
     });
   });
 
-  it('shows warning dialog when auto-layout is clicked', () => {
+  it('runs auto-layout immediately on click without showing a dialog', () => {
     renderWithMantine(<AutoLayoutButton />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Auto layout canvas' }));
-
-    expect(screen.getByRole('alertdialog')).toBeDefined();
-    expect(
-      screen.getByText('Auto layout is an experimental feature that will completely re-arrange your view.'),
-    ).toBeDefined();
-    expect(mockApplyAutoLayout).not.toHaveBeenCalled();
-  });
-
-  it('cancels auto-layout when Cancel is clicked in warning dialog', () => {
-    renderWithMantine(<AutoLayoutButton />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Auto layout canvas' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-
-    expect(screen.queryByRole('alertdialog')).toBeNull();
-    expect(mockApplyAutoLayout).not.toHaveBeenCalled();
-  });
-
-  it('runs auto-layout when OK is clicked in warning dialog', () => {
-    renderWithMantine(<AutoLayoutButton />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Auto layout canvas' }));
-    fireEvent.click(screen.getByRole('button', { name: 'OK' }));
 
     expect(mockApplyAutoLayout).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('alertdialog')).toBeNull();
+  });
+
+  it('does not run auto-layout when there are no nodes', () => {
+    mockUseCanvasNodes.mockReturnValue([]);
+    renderWithMantine(<AutoLayoutButton />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Auto layout canvas' }));
+
+    expect(mockApplyAutoLayout).not.toHaveBeenCalled();
+  });
+
+  it('does not run auto-layout when the current view is not editable', () => {
+    mockUseCurrentView.mockReturnValue({
+      currentViewId: 'view-1',
+      currentView: { _links: {} },
+    });
+    renderWithMantine(<AutoLayoutButton />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Auto layout canvas' }));
+
+    expect(mockApplyAutoLayout).not.toHaveBeenCalled();
   });
 });

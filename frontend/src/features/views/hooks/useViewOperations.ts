@@ -7,6 +7,7 @@ import { useAddComponentToView, useRemoveComponentFromView } from './useViews';
 export function useViewOperations() {
   const { currentViewId } = useCurrentView();
   const setCurrentViewId = useAppStore((state) => state.setCurrentViewId);
+  const openView = useAppStore((state) => state.openView);
   const clearSelection = useAppStore((state) => state.clearSelection);
 
   const removeComponentMutation = useRemoveComponentFromView();
@@ -53,9 +54,10 @@ export function useViewOperations() {
 
   const switchView = useCallback(
     (viewId: ViewId) => {
+      openView(viewId);
       setCurrentViewId(viewId);
     },
-    [setCurrentViewId],
+    [openView, setCurrentViewId],
   );
 
   return {

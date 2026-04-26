@@ -10,13 +10,14 @@ function buildViewName(entityName: string): string {
   const prefix = 'Dynamic view for ';
   const maxEntityLength = MAX_VIEW_NAME_LENGTH - prefix.length;
   const truncatedName =
-    entityName.length > maxEntityLength ? entityName.slice(0, maxEntityLength - 1) + '…' : entityName;
+    entityName.length > maxEntityLength ? `${entityName.slice(0, maxEntityLength - 1)}…` : entityName;
   return `${prefix}${truncatedName}`;
 }
 
 export function useCreateDynamicView() {
   const createViewMutation = useCreateView();
   const setCurrentViewId = useAppStore((state) => state.setCurrentViewId);
+  const openView = useAppStore((state) => state.openView);
   const enterDynamicMode = useAppStore((state) => state.enterDynamicMode);
   const [isCreating, setIsCreating] = useState(false);
 
@@ -25,6 +26,7 @@ export function useCreateDynamicView() {
       setIsCreating(true);
       try {
         const newView = await createViewMutation.mutateAsync({ name: buildViewName(entityName) });
+        openView(newView.id);
         setCurrentViewId(newView.id);
         enterDynamicMode(
           {
@@ -40,7 +42,7 @@ export function useCreateDynamicView() {
         setIsCreating(false);
       }
     },
-    [createViewMutation, setCurrentViewId, enterDynamicMode],
+    [createViewMutation, setCurrentViewId, openView, enterDynamicMode],
   );
 
   return { create, isCreating };

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   createDynamicModeSlice,
+  selectAnyDirty,
+  selectDirtyForView,
   selectDynamicAdditions,
   selectDynamicDirty,
   selectDynamicPositionDeltas,
@@ -254,5 +256,187 @@ describe('dynamicModeSlice — diff selectors', () => {
     getState().enterDynamicMode(init);
     getState().draftSetPosition('A', 9, 9);
     expect(selectDynamicDirty(getState())).toBe(true);
+  });
+});
+
+describe('dynamicModeSlice — per-view drafts', () => {
+  const initA: Parameters<DynamicModeActions['enterDynamicMode']>[0] = {
+    entities: [{ id: 'A', type: 'component' }],
+    positions: { A: { x: 0, y: 0 } },
+  };
+  const initB: Parameters<DynamicModeActions['enterDynamicMode']>[0] = {
+    entities: [{ id: 'X', type: 'component' }],
+    positions: { X: { x: 100, y: 100 } },
+  };
+
+  it('enterDynamicMode populates draftsByView under the given viewId', () => {
+    const { getState } = createStore();
+
+    getState().enterDynamicMode(initA, 'view-a');
+
+    expect(getState().draftsByView['view-a']).toEqual({
+      original: initA,
+      entities: initA.entities,
+      positions: initA.positions,
+      filters: getState().dynamicFilters,
+    });
+  });
+
+  it('draftAddEntities writes through to draftsByView under dynamicViewId', () => {
+    const { getState } = createStore();
+    getState().enterDynamicMode(initA, 'view-a');
+
+    getState().draftAddEntities([{ id: 'B', type: 'component' }], { B: { x: 5, y: 5 } });
+
+    expect(getState().draftsByView['view-a'].entities).toEqual([
+      { id: 'A', type: 'component' },
+      { id: 'B', type: 'component' },
+    ]);
+    expect(getState().draftsByView['view-a'].positions).toEqual({
+      A: { x: 0, y: 0 },
+      B: { x: 5, y: 5 },
+    });
+  });
+
+  it('draftSetPosition, draftRemoveEntities, draftSetPositions all update draftsByView', () => {
+    const { getState } = createStore();
+    getState().enterDynamicMode(initA, 'view-a');
+
+    getState().draftSetPosition('A', 99, 99);
+    expect(getState().draftsByView['view-a'].positions.A).toEqual({ x: 99, y: 99 });
+
+    getState().draftAddEntities([{ id: 'B', type: 'component' }], { B: { x: 1, y: 1 } });
+    getState().draftSetPositions({ B: { x: 7, y: 7 } });
+    expect(getState().draftsByView['view-a'].positions.B).toEqual({ x: 7, y: 7 });
+
+    getState().draftRemoveEntities(['B']);
+    expect(getState().draftsByView['view-a'].entities).toEqual([{ id: 'A', type: 'component' }]);
+    expect(getState().draftsByView['view-a'].positions).toEqual({ A: { x: 99, y: 99 } });
+  });
+
+  it('draftSetEdgeFilter and draftSetTypeFilter mirror into draftsByView', () => {
+    const { getState } = createStore();
+    getState().enterDynamicMode(initA, 'view-a');
+
+    getState().draftSetEdgeFilter('relation', false);
+    getState().draftSetTypeFilter('capability', false);
+
+    expect(getState().draftsByView['view-a'].filters.edges.relation).toBe(false);
+    expect(getState().draftsByView['view-a'].filters.types.capability).toBe(false);
+  });
+
+  it('stashCurrentDraft copies active scalars into draftsByView', () => {
+    const { getState } = createStore();
+    getState().enterDynamicMode(initA, 'view-a');
+    getState().draftAddEntities([{ id: 'B', type: 'component' }], { B: { x: 9, y: 9 } });
+
+    getState().stashCurrentDraft('view-a');
+
+    expect(getState().draftsByView['view-a'].entities).toContainEqual({ id: 'B', type: 'component' });
+    expect(getState().draftsByView['view-a'].positions.B).toEqual({ x: 9, y: 9 });
+  });
+
+  it('hydrateDraftForView restores entities, positions, filters into scalars', () => {
+    const { getState } = createStore();
+    getState().enterDynamicMode(initA, 'view-a');
+    getState().draftAddEntities([{ id: 'B', type: 'component' }], { B: { x: 50, y: 50 } });
+    getState().draftSetEdgeFilter('relation', false);
+
+    getState().enterDynamicMode(initB, 'view-b');
+    expect(getState().dynamicEntities).toEqual(initB.entities);
+
+    const hydrated = getState().hydrateDraftForView('view-a');
+
+    expect(hydrated).toBe(true);
+    expect(getState().dynamicViewId).toBe('view-a');
+    expect(getState().dynamicEntities).toEqual([
+      { id: 'A', type: 'component' },
+      { id: 'B', type: 'component' },
+    ]);
+    expect(getState().dynamicPositions.B).toEqual({ x: 50, y: 50 });
+    expect(getState().dynamicFilters.edges.relation).toBe(false);
+    expect(getState().dynamicEnabled).toBe(true);
+  });
+
+  it('hydrateDraftForView returns false when no entry exists', () => {
+    const { getState } = createStore();
+
+    expect(getState().hydrateDraftForView('view-x')).toBe(false);
+    expect(getState().dynamicEnabled).toBe(false);
+  });
+
+  it('discardDraftForView removes the entry; clears scalars when active', () => {
+    const { getState } = createStore();
+    getState().enterDynamicMode(initA, 'view-a');
+    getState().draftAddEntities([{ id: 'B', type: 'component' }]);
+
+    getState().discardDraftForView('view-a');
+
+    expect(getState().draftsByView['view-a']).toBeUndefined();
+    expect(getState().dynamicEnabled).toBe(false);
+    expect(getState().dynamicEntities).toEqual([]);
+    expect(getState().dynamicViewId).toBeNull();
+  });
+
+  it('discardDraftForView leaves scalars alone when discarding a non-active view', () => {
+    const { getState } = createStore();
+    getState().enterDynamicMode(initA, 'view-a');
+    getState().draftAddEntities([{ id: 'B', type: 'component' }]);
+    getState().enterDynamicMode(initB, 'view-b');
+
+    getState().discardDraftForView('view-a');
+
+    expect(getState().draftsByView['view-a']).toBeUndefined();
+    expect(getState().dynamicViewId).toBe('view-b');
+    expect(getState().dynamicEntities).toEqual(initB.entities);
+  });
+
+  it('exitDynamicMode clears scalars but does not clear draftsByView', () => {
+    const { getState } = createStore();
+    getState().enterDynamicMode(initA, 'view-a');
+    getState().draftAddEntities([{ id: 'B', type: 'component' }]);
+
+    getState().exitDynamicMode();
+
+    expect(getState().dynamicEnabled).toBe(false);
+    expect(getState().draftsByView['view-a']).toBeDefined();
+  });
+
+  it('selectDirtyForView returns true for stashed dirty drafts even after switching away', () => {
+    const { getState } = createStore();
+    getState().enterDynamicMode(initA, 'view-a');
+    getState().draftAddEntities([{ id: 'B', type: 'component' }]);
+    getState().enterDynamicMode(initB, 'view-b');
+
+    expect(selectDirtyForView(getState(), 'view-a')).toBe(true);
+    expect(selectDirtyForView(getState(), 'view-b')).toBe(false);
+  });
+
+  it('selectDirtyForView reads active scalars when viewId === dynamicViewId', () => {
+    const { getState } = createStore();
+    getState().enterDynamicMode(initA, 'view-a');
+
+    expect(selectDirtyForView(getState(), 'view-a')).toBe(false);
+
+    getState().draftSetPosition('A', 50, 50);
+
+    expect(selectDirtyForView(getState(), 'view-a')).toBe(true);
+  });
+
+  it('selectAnyDirty is true if any stashed draft is dirty', () => {
+    const { getState } = createStore();
+    getState().enterDynamicMode(initA, 'view-a');
+    getState().draftAddEntities([{ id: 'B', type: 'component' }]);
+    getState().enterDynamicMode(initB, 'view-b');
+
+    expect(selectAnyDirty(getState())).toBe(true);
+  });
+
+  it('selectAnyDirty is false when no view is dirty', () => {
+    const { getState } = createStore();
+    getState().enterDynamicMode(initA, 'view-a');
+    getState().enterDynamicMode(initB, 'view-b');
+
+    expect(selectAnyDirty(getState())).toBe(false);
   });
 });

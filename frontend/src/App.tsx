@@ -11,6 +11,7 @@ import { useDialogContext } from './contexts/dialogs';
 import { ReleaseNotesOverlay } from './contexts/releases/components/ReleaseNotesOverlay';
 import { ChatButton, useChatStore } from './features/chat';
 import { useAppInitialization } from './hooks/useAppInitialization';
+import { useUnloadGuard } from './hooks/useUnloadGuard';
 import { useReleaseNotes } from './contexts/releases/store/useReleaseNotes';
 import { useUserStore } from './store/userStore';
 
@@ -162,6 +163,7 @@ interface AppProps {
 }
 
 function App({ view }: AppProps) {
+  useUnloadGuard();
   const { authError } = useAuthErrorHandler();
   const isAuthenticated = useUserStore((state) => state.isAuthenticated);
   const sessionLinks = useUserStore((state) => state.sessionLinks);

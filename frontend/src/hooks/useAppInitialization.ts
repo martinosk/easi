@@ -13,19 +13,29 @@ function findDefaultView(views: View[]): View {
   return views.find((v) => v.isDefault) ?? views[0];
 }
 
-function resolveViewFromDeepLink(views: View[], setCurrentViewId: (id: ViewId) => void): void {
+interface InitialViewSelector {
+  setCurrentViewId: (id: ViewId | null) => void;
+  setOpenViewIds: (ids: ViewId[]) => void;
+}
+
+function selectInitialView(viewId: ViewId, selector: InitialViewSelector): void {
+  selector.setCurrentViewId(viewId);
+  selector.setOpenViewIds([viewId]);
+}
+
+function resolveViewFromDeepLink(views: View[], selector: InitialViewSelector): void {
   const viewIdFromUrl = getParamValue(deepLinkParams.VIEW.param);
   if (!viewIdFromUrl) {
-    setCurrentViewId(findDefaultView(views).id);
+    selectInitialView(findDefaultView(views).id, selector);
     return;
   }
 
   const linkedView = views.find((v) => v.id === toViewId(viewIdFromUrl));
   if (linkedView) {
-    setCurrentViewId(linkedView.id);
+    selectInitialView(linkedView.id, selector);
   } else {
     toast.error('The linked view does not exist');
-    setCurrentViewId(findDefaultView(views).id);
+    selectInitialView(findDefaultView(views).id, selector);
   }
   clearParams([deepLinkParams.VIEW.param]);
 }
@@ -54,6 +64,7 @@ export function useAppInitialization() {
   const { data: views, isLoading: isLoadingViews, error: viewsError } = useViews();
   const createViewMutation = useCreateView();
   const setCurrentViewId = useAppStore((state) => state.setCurrentViewId);
+  const setOpenViewIds = useAppStore((state) => state.setOpenViewIds);
   const setInitialized = useAppStore((state) => state.setInitialized);
   const currentViewId = useAppStore((state) => state.currentViewId);
   const isInitialized = useAppStore((state) => state.isInitialized);
@@ -66,9 +77,9 @@ export function useAppInitialization() {
       name: 'Default View',
       description: 'Main application view',
     });
-    setCurrentViewId(newView.id);
+    selectInitialView(newView.id, { setCurrentViewId, setOpenViewIds });
     toast.success('Created default view');
-  }, [createViewMutation, setCurrentViewId]);
+  }, [createViewMutation, setCurrentViewId, setOpenViewIds]);
 
   useEffect(() => {
     if (!canInitialize(isInitialized, isLoadingViews, views, isInitializingRef.current) || !views) return;
@@ -81,7 +92,7 @@ export function useAppInitialization() {
         if (availableViews.length === 0) {
           await createDefaultView();
         } else {
-          resolveViewFromDeepLink(availableViews, setCurrentViewId);
+          resolveViewFromDeepLink(availableViews, { setCurrentViewId, setOpenViewIds });
         }
         setInitialized(true);
         toast.success('Data loaded successfully');
@@ -93,7 +104,15 @@ export function useAppInitialization() {
     };
 
     initializeView();
-  }, [views, isLoadingViews, isInitialized, setInitialized, createDefaultView, setCurrentViewId]);
+  }, [
+    views,
+    isLoadingViews,
+    isInitialized,
+    setInitialized,
+    createDefaultView,
+    setCurrentViewId,
+    setOpenViewIds,
+  ]);
 
   return {
     isLoading: isLoadingViews || (!isInitialized && !viewsError),

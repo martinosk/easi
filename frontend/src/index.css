@@ -372,6 +372,23 @@ body {
 }
 
 .view-tab {
+  display: flex;
+  align-items: center;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.view-tab:hover {
+  background: var(--color-gray-50);
+}
+
+.view-tab.active {
+  background: var(--color-primary-light);
+  border-bottom-color: var(--color-primary);
+}
+
+.view-tab-body {
   padding: var(--spacing-sm) var(--spacing-md);
   font-size: var(--font-size-sm);
   font-weight: 500;
@@ -379,25 +396,19 @@ body {
   background: transparent;
   color: var(--color-gray-600);
   cursor: pointer;
-  border-radius: var(--radius-md) var(--radius-md) 0 0;
-  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);
   white-space: nowrap;
-  border-bottom: 2px solid transparent;
 }
 
-.view-tab:hover {
-  background: var(--color-gray-50);
-  color: var(--color-gray-900);
-}
-
-.view-tab.active {
-  background: var(--color-primary-light);
+.view-tab.active .view-tab-body {
   color: var(--color-primary-dark);
-  border-bottom-color: var(--color-primary);
   font-weight: 600;
+}
+
+.view-tab-body:hover {
+  color: var(--color-gray-900);
 }
 
 .view-tab-name {
@@ -409,6 +420,36 @@ body {
 .default-indicator {
   font-size: 0.75rem;
   opacity: 0.8;
+}
+
+.view-tab-dirty {
+  color: var(--color-warning, #f59e0b);
+  font-size: 0.6rem;
+  margin-left: 4px;
+  line-height: 1;
+}
+
+.view-tab-close {
+  border: none;
+  background: transparent;
+  color: var(--color-gray-400);
+  cursor: pointer;
+  padding: 0 var(--spacing-sm);
+  font-size: 1.1rem;
+  line-height: 1;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  align-self: stretch;
+}
+
+.view-tab-close:hover:not(:disabled) {
+  background: var(--color-gray-200);
+  color: var(--color-gray-900);
+}
+
+.view-tab-close:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
 }
 
 .detail-section {
