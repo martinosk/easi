@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { ViewId } from '../../../api/types';
-import { saveDraft, type DraftSaveApi, type DraftSaveInput } from './saveDraft';
+import { ApiError, type ViewId } from '../../../api/types';
+import { type DraftSaveApi, type DraftSaveInput, saveDraft } from './saveDraft';
 
 function makeApi(): DraftSaveApi & { calls: string[] } {
   const calls: string[] = [];
@@ -146,5 +146,52 @@ describe('saveDraft', () => {
     expect(result.failures).toEqual([
       { entity: { id: 'cap-1', type: 'capability' }, operation: 'add', message: 'boom' },
     ]);
+  });
+
+  describe('idempotency', () => {
+    it.each([
+      {
+        scenario: '409 (already-in-view) on add',
+        configure: (api: ReturnType<typeof makeApi>) => {
+          api.addComponent = vi.fn(async () => {
+            throw new ApiError('Component already exists in view', 409);
+          });
+        },
+        input: { additions: [{ id: 'comp-already-there', type: 'component' as const, x: 0, y: 0 }] },
+      },
+      {
+        scenario: '404 (not-in-view) on remove',
+        configure: (api: ReturnType<typeof makeApi>) => {
+          api.removeCapability = vi.fn(async () => {
+            throw new ApiError('Capability not found in view', 404);
+          });
+        },
+        input: { removals: [{ id: 'cap-already-gone', type: 'capability' as const }] },
+      },
+    ])('treats $scenario as success', async ({ configure, input }) => {
+      const api = makeApi();
+      configure(api);
+
+      const result = await saveDraft(api, { ...emptyInput, ...input });
+
+      expect(result.successCount).toBe(1);
+      expect(result.failures).toEqual([]);
+    });
+
+    it('still surfaces non-idempotent errors (e.g. 500)', async () => {
+      const api = makeApi();
+      api.addComponent = vi.fn(async () => {
+        throw new ApiError('Internal server error', 500);
+      });
+
+      const result = await saveDraft(api, {
+        ...emptyInput,
+        additions: [{ id: 'comp-1', type: 'component', x: 0, y: 0 }],
+      });
+
+      expect(result.successCount).toBe(0);
+      expect(result.failures).toHaveLength(1);
+      expect(result.failures[0].operation).toBe('add');
+    });
   });
 });

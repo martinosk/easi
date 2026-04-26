@@ -1,4 +1,4 @@
-import type { ViewId } from '../../../api/types';
+import { ApiError, type ViewId } from '../../../api/types';
 import type { EntityRef, EntityType } from './dynamicMode';
 
 export type Operation = 'add' | 'remove' | 'position';
@@ -42,6 +42,13 @@ type AddFn = (id: string, x: number, y: number) => Promise<void>;
 type RemoveFn = (id: string) => Promise<void>;
 type PositionFn = AddFn;
 
+function isIdempotentSuccess(error: unknown, operation: Operation): boolean {
+  if (!(error instanceof ApiError)) return false;
+  if (operation === 'add' && error.statusCode === 409) return true;
+  if (operation === 'remove' && error.statusCode === 404) return true;
+  return false;
+}
+
 export async function saveDraft(api: DraftSaveApi, input: DraftSaveInput): Promise<DraftSaveResult> {
   const { viewId } = input;
   const failures: DraftSaveFailure[] = [];
@@ -68,6 +75,10 @@ export async function saveDraft(api: DraftSaveApi, input: DraftSaveInput): Promi
       await fn();
       successCount++;
     } catch (error) {
+      if (isIdempotentSuccess(error, operation)) {
+        successCount++;
+        return;
+      }
       const message = error instanceof Error ? error.message : String(error);
       failures.push({ entity: { id: entity.id, type: entity.type }, operation, message });
     }
