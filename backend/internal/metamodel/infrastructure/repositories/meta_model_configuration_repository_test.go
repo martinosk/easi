@@ -14,148 +14,172 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const testAdminEmail = "admin@example.com"
+
 func TestMetaModelConfigurationDeserializers_RoundTrip(t *testing.T) {
-	tenantID, _ := sharedvo.NewTenantID("tenant-123")
-	userEmail, _ := valueobjects.NewUserEmail("admin@example.com")
+	original, _ := newTestConfig(t, "tenant-123")
 
-	original, err := aggregates.NewMetaModelConfiguration(tenantID, userEmail)
-	require.NoError(t, err)
-
-	events := original.GetUncommittedChanges()
-	require.Len(t, events, 1, "Expected 1 event: Created")
-
-	storedEvents := simulateMetaModelEventStoreRoundTrip(t, events)
-	deserializedEvents, err := metaModelEventDeserializers.Deserialize(storedEvents)
-	require.NoError(t, err)
-
-	require.Len(t, deserializedEvents, 1, "All events should be deserialized")
-
-	loaded, err := aggregates.LoadMetaModelConfigurationFromHistory(deserializedEvents)
-	require.NoError(t, err)
+	loaded := roundTripAndLoad(t, original, 1)
 
 	assert.Equal(t, original.ID(), loaded.ID())
 	assert.Equal(t, original.TenantID().Value(), loaded.TenantID().Value())
 }
 
 func TestMetaModelConfigurationDeserializers_RoundTripWithMaturityUpdate(t *testing.T) {
-	tenantID, _ := sharedvo.NewTenantID("tenant-456")
-	userEmail, _ := valueobjects.NewUserEmail("admin@example.com")
+	original, _ := newTestConfig(t, "tenant-456")
 
-	original, err := aggregates.NewMetaModelConfiguration(tenantID, userEmail)
+	modifiedBy, err := valueobjects.NewUserEmail("modifier@example.com")
 	require.NoError(t, err)
+	require.NoError(t, original.UpdateMaturityScale(original.MaturityScaleConfig(), modifiedBy))
 
-	newConfig := original.MaturityScaleConfig()
-	modifiedBy, _ := valueobjects.NewUserEmail("modifier@example.com")
-	_ = original.UpdateMaturityScale(newConfig, modifiedBy)
-
-	events := original.GetUncommittedChanges()
-	require.Len(t, events, 2, "Expected 2 events: Created, Updated")
-
-	storedEvents := simulateMetaModelEventStoreRoundTrip(t, events)
-	deserializedEvents, err := metaModelEventDeserializers.Deserialize(storedEvents)
-	require.NoError(t, err)
-
-	require.Len(t, deserializedEvents, 2, "All events should be deserialized")
-
-	_, err = aggregates.LoadMetaModelConfigurationFromHistory(deserializedEvents)
-	require.NoError(t, err)
+	roundTripAndLoad(t, original, 2)
 }
 
 func TestMetaModelConfigurationDeserializers_RoundTripWithPillarChanges(t *testing.T) {
-	tenantID, _ := sharedvo.NewTenantID("tenant-789")
-	userEmail, _ := valueobjects.NewUserEmail("admin@example.com")
+	original, userEmail := newTestConfig(t, "tenant-789")
 
-	original, err := aggregates.NewMetaModelConfiguration(tenantID, userEmail)
+	addPillar(t, original, "Innovation", "Focus on innovation")
+	pillar := pickPillar(t, original.StrategyPillarsConfig().Pillars(), byPillarName("Innovation"))
+
+	updatedName, err := valueobjects.NewPillarName("Updated Pillar")
 	require.NoError(t, err)
-
-	pillarName, _ := valueobjects.NewPillarName("Innovation")
-	pillarDesc, _ := valueobjects.NewPillarDescription("Focus on innovation")
-	_ = original.AddStrategyPillar(pillarName, pillarDesc, userEmail)
-
-	pillars := original.StrategyPillarsConfig().Pillars()
-	if len(pillars) > 0 {
-		newName, _ := valueobjects.NewPillarName("Updated Pillar")
-		newDesc, _ := valueobjects.NewPillarDescription("Updated description")
-		_ = original.UpdateStrategyPillar(pillars[0].ID(), newName, newDesc, userEmail)
-	}
+	updatedDesc, err := valueobjects.NewPillarDescription("Updated description")
+	require.NoError(t, err)
+	require.NoError(t, original.UpdateStrategyPillar(pillar.ID(), updatedName, updatedDesc, userEmail))
 
 	events := original.GetUncommittedChanges()
-	require.GreaterOrEqual(t, len(events), 2, "Expected at least 2 events")
+	require.GreaterOrEqual(t, len(events), 2)
 
-	storedEvents := simulateMetaModelEventStoreRoundTrip(t, events)
-	deserializedEvents, err := metaModelEventDeserializers.Deserialize(storedEvents)
-	require.NoError(t, err)
-
-	require.Len(t, deserializedEvents, len(events), "All events should be deserialized")
-
-	_, err = aggregates.LoadMetaModelConfigurationFromHistory(deserializedEvents)
-	require.NoError(t, err)
+	roundTripAndLoad(t, original, len(events))
 }
 
 func TestMetaModelConfigurationDeserializers_AllEventsCanBeDeserialized(t *testing.T) {
-	tenantID, _ := sharedvo.NewTenantID("tenant-test")
-	userEmail, _ := valueobjects.NewUserEmail("admin@example.com")
+	config, userEmail := newTestConfig(t, "tenant-test")
 
-	config, err := aggregates.NewMetaModelConfiguration(tenantID, userEmail)
+	require.NoError(t, config.UpdateMaturityScale(config.MaturityScaleConfig(), userEmail))
+	require.NoError(t, config.ResetToDefaults(userEmail))
+
+	addPillar(t, config, "Test Pillar", "Test description")
+	pillar := pickPillar(t, config.StrategyPillarsConfig().Pillars(), byPillarName("Test Pillar"))
+
+	updatedName, err := valueobjects.NewPillarName("Updated Name")
 	require.NoError(t, err)
+	updatedDesc, err := valueobjects.NewPillarDescription("Updated desc")
+	require.NoError(t, err)
+	require.NoError(t, config.UpdateStrategyPillar(pillar.ID(), updatedName, updatedDesc, userEmail))
 
-	newConfig := config.MaturityScaleConfig()
-	_ = config.UpdateMaturityScale(newConfig, userEmail)
-	_ = config.ResetToDefaults(userEmail)
-
-	pillarName, _ := valueobjects.NewPillarName("Test Pillar")
-	pillarDesc, _ := valueobjects.NewPillarDescription("Test description")
-	_ = config.AddStrategyPillar(pillarName, pillarDesc, userEmail)
-
-	pillars := config.StrategyPillarsConfig().Pillars()
-	var addedPillarID valueobjects.StrategyPillarID
-	for _, p := range pillars {
-		if p.Name().Value() == "Test Pillar" {
-			addedPillarID = p.ID()
-			break
-		}
-	}
-
-	if addedPillarID.Value() != "" {
-		newName, _ := valueobjects.NewPillarName("Updated Name")
-		newDesc, _ := valueobjects.NewPillarDescription("Updated desc")
-		_ = config.UpdateStrategyPillar(addedPillarID, newName, newDesc, userEmail)
-
-		fitCriteria, _ := valueobjects.NewFitCriteria("Test criteria")
-		fitType, _ := valueobjects.NewFitType("TECHNICAL")
-		fitConfig := valueobjects.NewFitConfigurationParams(true, fitCriteria, fitType)
-		_ = config.UpdatePillarFitConfiguration(addedPillarID, fitConfig, userEmail)
-
-		_ = config.RemoveStrategyPillar(addedPillarID, userEmail)
-	}
+	require.NoError(t, config.UpdatePillarFitConfiguration(pillar.ID(), newTestFitConfig(t, "Test criteria"), userEmail))
+	require.NoError(t, config.RemoveStrategyPillar(pillar.ID(), userEmail))
 
 	events := config.GetUncommittedChanges()
+	requireEventTypesPresent(t, events,
+		"MetaModelConfigurationCreated",
+		"MaturityScaleConfigUpdated",
+		"MaturityScaleConfigReset",
+		"StrategyPillarAdded",
+		"StrategyPillarUpdated",
+		"PillarFitConfigurationUpdated",
+		"StrategyPillarRemoved",
+	)
 
-	expectedEventTypes := map[string]bool{
-		"MetaModelConfigurationCreated": false,
-		"MaturityScaleConfigUpdated":    false,
-		"MaturityScaleConfigReset":      false,
-		"StrategyPillarAdded":           false,
-		"StrategyPillarUpdated":         false,
-		"PillarFitConfigurationUpdated": false,
-		"StrategyPillarRemoved":         false,
-	}
+	loaded := roundTripAndLoad(t, config, len(events))
+	assert.Equal(t, config.Version(), loaded.Version(),
+		"Loaded aggregate version must match original after deserializing all events")
+}
 
-	for _, e := range events {
-		if _, exists := expectedEventTypes[e.EventType()]; exists {
-			expectedEventTypes[e.EventType()] = true
+func TestMetaModelConfigurationDeserializers_PillarFitConfigurationUpdated(t *testing.T) {
+	config, userEmail := newTestConfig(t, "tenant-fit-config")
+
+	addPillar(t, config, "Cloud Native", "Cloud native capabilities")
+	pillar := pickPillar(t, config.StrategyPillarsConfig().Pillars(), byPillarName("Cloud Native"))
+
+	require.NoError(t, config.UpdatePillarFitConfiguration(pillar.ID(),
+		newTestFitConfig(t, "Containerization, Kubernetes, CI/CD"), userEmail))
+
+	events := config.GetUncommittedChanges()
+	require.Len(t, events, 3, "Expected 3 events: Created, PillarAdded, FitConfigUpdated")
+	requireEventTypesPresent(t, events, "PillarFitConfigurationUpdated")
+
+	loaded := roundTripAndLoad(t, config, len(events))
+	assert.Equal(t, config.Version(), loaded.Version(),
+		"Loaded aggregate version must match original - version mismatch causes optimistic locking failures")
+
+	loadedPillar := pickPillar(t, loaded.StrategyPillarsConfig().Pillars(), byPillarID(pillar.ID()))
+	assert.True(t, loadedPillar.FitScoringEnabled(), "Fit scoring should be enabled after rehydration")
+	assert.Equal(t, "Containerization, Kubernetes, CI/CD", loadedPillar.FitCriteria().Value(),
+		"Fit criteria should be preserved after rehydration")
+}
+
+func newTestConfig(t *testing.T, tenantIDStr string) (*aggregates.MetaModelConfiguration, valueobjects.UserEmail) {
+	t.Helper()
+	tenantID, err := sharedvo.NewTenantID(tenantIDStr)
+	require.NoError(t, err)
+	userEmail, err := valueobjects.NewUserEmail(testAdminEmail)
+	require.NoError(t, err)
+	config, err := aggregates.NewMetaModelConfiguration(tenantID, userEmail)
+	require.NoError(t, err)
+	return config, userEmail
+}
+
+func addPillar(t *testing.T, config *aggregates.MetaModelConfiguration, name, description string) {
+	t.Helper()
+	pillarName, err := valueobjects.NewPillarName(name)
+	require.NoError(t, err)
+	pillarDesc, err := valueobjects.NewPillarDescription(description)
+	require.NoError(t, err)
+	userEmail, err := valueobjects.NewUserEmail(testAdminEmail)
+	require.NoError(t, err)
+	require.NoError(t, config.AddStrategyPillar(pillarName, pillarDesc, userEmail))
+}
+
+func newTestFitConfig(t *testing.T, criteria string) valueobjects.FitConfigurationParams {
+	t.Helper()
+	fitCriteria, err := valueobjects.NewFitCriteria(criteria)
+	require.NoError(t, err)
+	fitType, err := valueobjects.NewFitType("TECHNICAL")
+	require.NoError(t, err)
+	return valueobjects.NewFitConfigurationParams(true, fitCriteria, fitType)
+}
+
+func pickPillar(t *testing.T, pillars []valueobjects.StrategyPillar, match func(valueobjects.StrategyPillar) bool) valueobjects.StrategyPillar {
+	t.Helper()
+	for _, p := range pillars {
+		if match(p) {
+			return p
 		}
 	}
+	require.Fail(t, "pillar not found")
+	return valueobjects.StrategyPillar{}
+}
 
-	for eventType, found := range expectedEventTypes {
-		require.True(t, found, "Test should generate %s event to ensure deserializer coverage", eventType)
+func byPillarName(name string) func(valueobjects.StrategyPillar) bool {
+	return func(p valueobjects.StrategyPillar) bool { return p.Name().Value() == name }
+}
+
+func byPillarID(id valueobjects.StrategyPillarID) func(valueobjects.StrategyPillar) bool {
+	return func(p valueobjects.StrategyPillar) bool { return p.ID().Value() == id.Value() }
+}
+
+func requireEventTypesPresent(t *testing.T, events []domain.DomainEvent, expected ...string) {
+	t.Helper()
+	seen := make(map[string]bool, len(events))
+	for _, e := range events {
+		seen[e.EventType()] = true
 	}
+	for _, eventType := range expected {
+		require.Truef(t, seen[eventType], "Expected event type %q in events", eventType)
+	}
+}
+
+func roundTripAndLoad(t *testing.T, config *aggregates.MetaModelConfiguration, expectedEventCount int) *aggregates.MetaModelConfiguration {
+	t.Helper()
+	events := config.GetUncommittedChanges()
+	require.Len(t, events, expectedEventCount)
 
 	storedEvents := simulateMetaModelEventStoreRoundTrip(t, events)
 	deserializedEvents, err := metaModelEventDeserializers.Deserialize(storedEvents)
 	require.NoError(t, err)
-
-	require.Len(t, deserializedEvents, len(events),
+	require.Len(t, deserializedEvents, expectedEventCount,
 		"All events should be deserialized - missing deserializer for one or more event types")
 
 	for i, originalEvent := range events {
@@ -165,86 +189,18 @@ func TestMetaModelConfigurationDeserializers_AllEventsCanBeDeserialized(t *testi
 
 	loaded, err := aggregates.LoadMetaModelConfigurationFromHistory(deserializedEvents)
 	require.NoError(t, err)
-	assert.Equal(t, config.Version(), loaded.Version(),
-		"Loaded aggregate version must match original after deserializing all events")
-}
-
-func TestMetaModelConfigurationDeserializers_PillarFitConfigurationUpdated(t *testing.T) {
-	tenantID, _ := sharedvo.NewTenantID("tenant-fit-config")
-	userEmail, _ := valueobjects.NewUserEmail("admin@example.com")
-
-	config, err := aggregates.NewMetaModelConfiguration(tenantID, userEmail)
-	require.NoError(t, err)
-
-	pillarName, _ := valueobjects.NewPillarName("Cloud Native")
-	pillarDesc, _ := valueobjects.NewPillarDescription("Cloud native capabilities")
-	err = config.AddStrategyPillar(pillarName, pillarDesc, userEmail)
-	require.NoError(t, err)
-
-	pillars := config.StrategyPillarsConfig().Pillars()
-	var addedPillarID valueobjects.StrategyPillarID
-	for _, p := range pillars {
-		if p.Name().Value() == "Cloud Native" {
-			addedPillarID = p.ID()
-			break
-		}
-	}
-	require.NotEmpty(t, addedPillarID.Value(), "Should find added pillar")
-
-	fitCriteria, _ := valueobjects.NewFitCriteria("Containerization, Kubernetes, CI/CD")
-	fitType, _ := valueobjects.NewFitType("TECHNICAL")
-	fitConfig := valueobjects.NewFitConfigurationParams(true, fitCriteria, fitType)
-	err = config.UpdatePillarFitConfiguration(addedPillarID, fitConfig, userEmail)
-	require.NoError(t, err)
-
-	events := config.GetUncommittedChanges()
-	require.Len(t, events, 3, "Expected 3 events: Created, PillarAdded, FitConfigUpdated")
-
-	var hasFitConfigEvent bool
-	for _, e := range events {
-		if e.EventType() == "PillarFitConfigurationUpdated" {
-			hasFitConfigEvent = true
-			break
-		}
-	}
-	require.True(t, hasFitConfigEvent, "Should have PillarFitConfigurationUpdated event")
-
-	storedEvents := simulateMetaModelEventStoreRoundTrip(t, events)
-	deserializedEvents, err := metaModelEventDeserializers.Deserialize(storedEvents)
-	require.NoError(t, err)
-
-	require.Len(t, deserializedEvents, len(events),
-		"All events including PillarFitConfigurationUpdated must be deserialized - "+
-			"missing deserializer causes version mismatch and false concurrency conflicts")
-
-	loaded, err := aggregates.LoadMetaModelConfigurationFromHistory(deserializedEvents)
-	require.NoError(t, err)
-
-	assert.Equal(t, config.Version(), loaded.Version(),
-		"Loaded aggregate version must match original - version mismatch causes optimistic locking failures")
-
-	loadedPillars := loaded.StrategyPillarsConfig().Pillars()
-	var loadedPillar valueobjects.StrategyPillar
-	for _, p := range loadedPillars {
-		if p.ID().Value() == addedPillarID.Value() {
-			loadedPillar = p
-			break
-		}
-	}
-	assert.True(t, loadedPillar.FitScoringEnabled(), "Fit scoring should be enabled after rehydration")
-	assert.Equal(t, "Containerization, Kubernetes, CI/CD", loadedPillar.FitCriteria().Value(),
-		"Fit criteria should be preserved after rehydration")
+	return loaded
 }
 
 type metaModelStoredEventWrapper struct {
 	eventType string
-	eventData map[string]interface{}
+	eventData map[string]any
 }
 
-func (e *metaModelStoredEventWrapper) EventType() string                 { return e.eventType }
-func (e *metaModelStoredEventWrapper) EventData() map[string]interface{} { return e.eventData }
-func (e *metaModelStoredEventWrapper) AggregateID() string               { return "" }
-func (e *metaModelStoredEventWrapper) OccurredAt() time.Time             { return time.Time{} }
+func (e *metaModelStoredEventWrapper) EventType() string         { return e.eventType }
+func (e *metaModelStoredEventWrapper) EventData() map[string]any { return e.eventData }
+func (e *metaModelStoredEventWrapper) AggregateID() string       { return "" }
+func (e *metaModelStoredEventWrapper) OccurredAt() time.Time     { return time.Time{} }
 
 func simulateMetaModelEventStoreRoundTrip(t *testing.T, events []domain.DomainEvent) []domain.DomainEvent {
 	t.Helper()
@@ -255,7 +211,7 @@ func simulateMetaModelEventStoreRoundTrip(t *testing.T, events []domain.DomainEv
 		jsonBytes, err := json.Marshal(event.EventData())
 		require.NoError(t, err, "Failed to serialize event: %s", event.EventType())
 
-		var data map[string]interface{}
+		var data map[string]any
 		err = json.Unmarshal(jsonBytes, &data)
 		require.NoError(t, err, "Failed to unmarshal JSON for event: %s", event.EventType())
 
