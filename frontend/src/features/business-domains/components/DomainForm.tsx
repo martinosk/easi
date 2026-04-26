@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
 import type { BusinessDomain } from '../../../api/types';
+import type { User } from '../../users/types';
 import { useEAOwnerCandidates } from '../../users/hooks/useUsers';
+
+type SubmitFn = (name: string, description: string, domainArchitectId?: string) => Promise<void>;
 
 interface DomainFormProps {
   domain?: BusinessDomain;
   mode: 'create' | 'edit';
-  onSubmit: (name: string, description: string, domainArchitectId?: string) => Promise<void>;
+  onSubmit: SubmitFn;
   onCancel: () => void;
 }
 
@@ -20,28 +23,35 @@ interface FormErrors {
   description?: string;
 }
 
+function initialFormState(domain?: BusinessDomain): FormState {
+  return {
+    name: domain?.name || '',
+    description: domain?.description || '',
+    domainArchitectId: domain?.domainArchitectId || '',
+  };
+}
+
+function validateName(name: string): string | undefined {
+  const trimmed = name.trim();
+  if (!trimmed) return 'Name is required';
+  if (trimmed.length > 100) return 'Name must be 100 characters or less';
+  return undefined;
+}
+
+function validateDescription(description: string): string | undefined {
+  if (description.length > 500) return 'Description must be 500 characters or less';
+  return undefined;
+}
+
 function validateForm(form: FormState): FormErrors {
-  const errors: FormErrors = {};
-
-  if (!form.name.trim()) {
-    errors.name = 'Name is required';
-  } else if (form.name.trim().length > 100) {
-    errors.name = 'Name must be 100 characters or less';
-  }
-
-  if (form.description.length > 500) {
-    errors.description = 'Description must be 500 characters or less';
-  }
-
-  return errors;
+  return {
+    name: validateName(form.name),
+    description: validateDescription(form.description),
+  };
 }
 
-function getInputClassName(hasError: boolean): string {
-  return hasError ? 'form-input form-input-error' : 'form-input';
-}
-
-function getTextareaClassName(hasError: boolean): string {
-  return hasError ? 'form-textarea form-input-error' : 'form-textarea';
+function hasErrors(errors: FormErrors): boolean {
+  return Object.values(errors).some((v) => v !== undefined);
 }
 
 function getSubmitButtonText(isSubmitting: boolean, mode: 'create' | 'edit'): string {
@@ -49,25 +59,15 @@ function getSubmitButtonText(isSubmitting: boolean, mode: 'create' | 'edit'): st
   return mode === 'create' ? 'Create' : 'Save';
 }
 
-export function DomainForm({ domain, mode, onSubmit, onCancel }: DomainFormProps) {
-  const { data: eligibleUsers = [], isLoading: isLoadingUsers } = useEAOwnerCandidates();
-
-  const [form, setForm] = useState<FormState>({
-    name: domain?.name || '',
-    description: domain?.description || '',
-    domainArchitectId: domain?.domainArchitectId || '',
-  });
+function useDomainForm(domain: BusinessDomain | undefined, onSubmit: SubmitFn) {
+  const [form, setForm] = useState<FormState>(() => initialFormState(domain));
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [backendError, setBackendError] = useState<string | null>(null);
 
   useEffect(() => {
     if (domain) {
-      setForm({
-        name: domain.name,
-        description: domain.description || '',
-        domainArchitectId: domain.domainArchitectId || '',
-      });
+      setForm(initialFormState(domain));
     }
   }, [domain]);
 
@@ -86,7 +86,7 @@ export function DomainForm({ domain, mode, onSubmit, onCancel }: DomainFormProps
     setBackendError(null);
 
     const validationErrors = validateForm(form);
-    if (Object.keys(validationErrors).length > 0) {
+    if (hasErrors(validationErrors)) {
       setErrors(validationErrors);
       return;
     }
@@ -102,98 +102,163 @@ export function DomainForm({ domain, mode, onSubmit, onCancel }: DomainFormProps
     }
   };
 
+  return { form, errors, isSubmitting, backendError, handleFieldChange, handleSubmit };
+}
+
+interface TextFieldProps {
+  id: string;
+  label: React.ReactNode;
+  value: string;
+  error: string | undefined;
+  placeholder: string;
+  isSubmitting: boolean;
+  onChange: (value: string) => void;
+  multiline?: boolean;
+  testIdInput: string;
+  testIdError: string;
+  autoFocus?: boolean;
+}
+
+function TextField(props: TextFieldProps) {
+  const baseClass = props.multiline ? 'form-textarea' : 'form-input';
+  const className = props.error ? `${baseClass} form-input-error` : baseClass;
+  const sharedProps = {
+    id: props.id,
+    className,
+    value: props.value,
+    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => props.onChange(e.target.value),
+    placeholder: props.placeholder,
+    disabled: props.isSubmitting,
+    'data-testid': props.testIdInput,
+  };
+  return (
+    <div className="form-group">
+      <label htmlFor={props.id} className="form-label">
+        {props.label}
+      </label>
+      {props.multiline ? (
+        <textarea {...sharedProps} rows={4} />
+      ) : (
+        <input {...sharedProps} type="text" autoFocus={props.autoFocus} />
+      )}
+      {props.error && (
+        <div className="field-error" data-testid={props.testIdError}>
+          {props.error}
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface DomainArchitectFieldProps {
+  value: string;
+  eligibleUsers: User[];
+  isLoadingUsers: boolean;
+  isSubmitting: boolean;
+  onChange: (value: string) => void;
+}
+
+function DomainArchitectField({ value, eligibleUsers, isLoadingUsers, isSubmitting, onChange }: DomainArchitectFieldProps) {
+  return (
+    <div className="form-group">
+      <label htmlFor="domain-architect" className="form-label">
+        Domain Architect
+      </label>
+      <select
+        id="domain-architect"
+        className="form-input"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={isSubmitting || isLoadingUsers}
+        data-testid="domain-architect-select"
+      >
+        <option value="">-- Select Domain Architect (optional) --</option>
+        {eligibleUsers.map((user) => (
+          <option key={user.id} value={user.id}>
+            {user.name || user.email} ({user.role})
+          </option>
+        ))}
+      </select>
+      {isLoadingUsers && <div className="field-hint">Loading eligible users...</div>}
+    </div>
+  );
+}
+
+interface FormActionsProps {
+  mode: 'create' | 'edit';
+  isSubmitting: boolean;
+  canSubmit: boolean;
+  onCancel: () => void;
+}
+
+function FormActions({ mode, isSubmitting, canSubmit, onCancel }: FormActionsProps) {
+  return (
+    <div className="form-actions">
+      <button
+        type="button"
+        className="btn btn-secondary"
+        onClick={onCancel}
+        disabled={isSubmitting}
+        data-testid="domain-form-cancel"
+      >
+        Cancel
+      </button>
+      <button
+        type="submit"
+        className="btn btn-primary"
+        disabled={!canSubmit}
+        data-testid="domain-form-submit"
+      >
+        {getSubmitButtonText(isSubmitting, mode)}
+      </button>
+    </div>
+  );
+}
+
+export function DomainForm({ domain, mode, onSubmit, onCancel }: DomainFormProps) {
+  const { data: eligibleUsers = [], isLoading: isLoadingUsers } = useEAOwnerCandidates();
+  const { form, errors, isSubmitting, backendError, handleFieldChange, handleSubmit } = useDomainForm(domain, onSubmit);
+  const canSubmit = !isSubmitting && form.name.trim().length > 0;
+
   return (
     <form onSubmit={handleSubmit} className="domain-form" data-testid="domain-form">
-      <div className="form-group">
-        <label htmlFor="domain-name" className="form-label">
-          Name <span className="required">*</span>
-        </label>
-        <input
-          id="domain-name"
-          type="text"
-          className={getInputClassName(!!errors.name)}
-          value={form.name}
-          onChange={(e) => handleFieldChange('name', e.target.value)}
-          placeholder="Enter domain name"
-          autoFocus
-          disabled={isSubmitting}
-          data-testid="domain-name-input"
-        />
-        {errors.name && (
-          <div className="field-error" data-testid="domain-name-error">
-            {errors.name}
-          </div>
-        )}
-      </div>
-
-      <div className="form-group">
-        <label htmlFor="domain-description" className="form-label">
-          Description
-        </label>
-        <textarea
-          id="domain-description"
-          className={getTextareaClassName(!!errors.description)}
-          value={form.description}
-          onChange={(e) => handleFieldChange('description', e.target.value)}
-          placeholder="Enter domain description (optional)"
-          rows={4}
-          disabled={isSubmitting}
-          data-testid="domain-description-input"
-        />
-        {errors.description && (
-          <div className="field-error" data-testid="domain-description-error">
-            {errors.description}
-          </div>
-        )}
-      </div>
-
-      <div className="form-group">
-        <label htmlFor="domain-architect" className="form-label">
-          Domain Architect
-        </label>
-        <select
-          id="domain-architect"
-          className="form-input"
-          value={form.domainArchitectId}
-          onChange={(e) => handleFieldChange('domainArchitectId', e.target.value)}
-          disabled={isSubmitting || isLoadingUsers}
-          data-testid="domain-architect-select"
-        >
-          <option value="">-- Select Domain Architect (optional) --</option>
-          {eligibleUsers.map((user) => (
-            <option key={user.id} value={user.id}>
-              {user.name || user.email} ({user.role})
-            </option>
-          ))}
-        </select>
-        {isLoadingUsers && <div className="field-hint">Loading eligible users...</div>}
-      </div>
-
+      <TextField
+        id="domain-name"
+        label={<>Name <span className="required">*</span></>}
+        value={form.name}
+        error={errors.name}
+        placeholder="Enter domain name"
+        isSubmitting={isSubmitting}
+        onChange={(value) => handleFieldChange('name', value)}
+        autoFocus
+        testIdInput="domain-name-input"
+        testIdError="domain-name-error"
+      />
+      <TextField
+        id="domain-description"
+        label="Description"
+        value={form.description}
+        error={errors.description}
+        placeholder="Enter domain description (optional)"
+        isSubmitting={isSubmitting}
+        onChange={(value) => handleFieldChange('description', value)}
+        multiline
+        testIdInput="domain-description-input"
+        testIdError="domain-description-error"
+      />
+      <DomainArchitectField
+        value={form.domainArchitectId}
+        eligibleUsers={eligibleUsers}
+        isLoadingUsers={isLoadingUsers}
+        isSubmitting={isSubmitting}
+        onChange={(value) => handleFieldChange('domainArchitectId', value)}
+      />
       {backendError && (
         <div className="error-message" data-testid="domain-form-error">
           {backendError}
         </div>
       )}
-
-      <div className="form-actions">
-        <button
-          type="button"
-          className="btn btn-secondary"
-          onClick={onCancel}
-          disabled={isSubmitting}
-          data-testid="domain-form-cancel"
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          className="btn btn-primary"
-          disabled={isSubmitting || !form.name.trim()}
-          data-testid="domain-form-submit"
-        >
-          {getSubmitButtonText(isSubmitting, mode)}
-        </button>
-      </div>
+      <FormActions mode={mode} isSubmitting={isSubmitting} canSubmit={canSubmit} onCancel={onCancel} />
     </form>
   );
 }

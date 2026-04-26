@@ -30,70 +30,79 @@ const integrationStatusFromApi: Record<IntegrationStatus, string> = {
   COMPLETED: 'Completed',
 };
 
-export const EditAcquiredEntityDialog: React.FC<EditAcquiredEntityDialogProps> = ({ isOpen, onClose, entity }) => {
+function entityToFormValues(entity: AcquiredEntity): EditAcquiredEntityFormData {
+  const formStatus = entity.integrationStatus ? integrationStatusFromApi[entity.integrationStatus] : undefined;
+  return {
+    name: entity.name,
+    acquisitionDate: entity.acquisitionDate?.split('T')[0] || '',
+    integrationStatus: formStatus as EditAcquiredEntityFormData['integrationStatus'],
+    notes: entity.notes || '',
+  };
+}
+
+function formValuesToApiRequest(data: EditAcquiredEntityFormData) {
+  const apiStatus = data.integrationStatus ? integrationStatusToApi[data.integrationStatus] : undefined;
+  return {
+    name: data.name,
+    acquisitionDate: data.acquisitionDate || undefined,
+    integrationStatus: apiStatus,
+    notes: data.notes || undefined,
+  };
+}
+
+function useEditAcquiredEntityForm(entity: AcquiredEntity | null, isOpen: boolean, onClose: () => void) {
   const [backendError, setBackendError] = useState<string | null>(null);
   const updateMutation = useUpdateAcquiredEntity();
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    control,
-    formState: { errors, isValid },
-  } = useForm<EditAcquiredEntityFormData>({
+  const form = useForm<EditAcquiredEntityFormData>({
     resolver: zodResolver(editAcquiredEntitySchema),
     mode: 'onChange',
   });
 
   useLayoutEffect(() => {
     if (isOpen && entity) {
-      const formStatus = entity.integrationStatus ? integrationStatusFromApi[entity.integrationStatus] : undefined;
-      reset({
-        name: entity.name,
-        acquisitionDate: entity.acquisitionDate?.split('T')[0] || '',
-        integrationStatus: formStatus as EditAcquiredEntityFormData['integrationStatus'],
-        notes: entity.notes || '',
-      });
+      form.reset(entityToFormValues(entity));
       if (backendError !== null) queueMicrotask(() => setBackendError(null));
     }
-  }, [isOpen, entity, reset, backendError]);
+  }, [isOpen, entity, form, backendError]);
 
-  const handleClose = () => {
-    onClose();
-  };
-
-  const onSubmit = async (data: EditAcquiredEntityFormData) => {
+  const submit = async (data: EditAcquiredEntityFormData) => {
     if (!entity) return;
-
     setBackendError(null);
     try {
-      const apiStatus = data.integrationStatus ? integrationStatusToApi[data.integrationStatus] : undefined;
       await updateMutation.mutateAsync({
         id: entity.id as AcquiredEntityId,
-        request: {
-          name: data.name,
-          acquisitionDate: data.acquisitionDate || undefined,
-          integrationStatus: apiStatus,
-          notes: data.notes || undefined,
-        },
+        request: formValuesToApiRequest(data),
       });
-      handleClose();
+      onClose();
     } catch (err) {
       setBackendError(err instanceof Error ? err.message : 'Failed to update acquired entity');
     }
   };
+
+  return { form, submit, backendError, isPending: updateMutation.isPending };
+}
+
+export const EditAcquiredEntityDialog: React.FC<EditAcquiredEntityDialogProps> = ({ isOpen, onClose, entity }) => {
+  const { form, submit, backendError, isPending } = useEditAcquiredEntityForm(entity, isOpen, onClose);
+  const {
+    register,
+    handleSubmit,
+    control,
+    formState: { errors, isValid },
+  } = form;
 
   if (!entity) return null;
 
   return (
     <Modal
       opened={isOpen}
-      onClose={handleClose}
+      onClose={onClose}
       title="Edit Acquired Entity"
       centered
       data-testid="edit-acquired-entity-dialog"
     >
-      <form onSubmit={handleSubmit(onSubmit)}>
+      <form onSubmit={handleSubmit(submit)}>
         <Stack gap="md">
           <TextInput
             label="Name"
@@ -102,7 +111,7 @@ export const EditAcquiredEntityDialog: React.FC<EditAcquiredEntityDialogProps> =
             required
             withAsterisk
             autoFocus
-            disabled={updateMutation.isPending}
+            disabled={isPending}
             error={errors.name?.message}
             data-testid="edit-acquired-entity-name-input"
           />
@@ -111,7 +120,7 @@ export const EditAcquiredEntityDialog: React.FC<EditAcquiredEntityDialogProps> =
             label="Acquisition Date"
             type="date"
             {...register('acquisitionDate')}
-            disabled={updateMutation.isPending}
+            disabled={isPending}
             error={errors.acquisitionDate?.message}
             data-testid="edit-acquired-entity-date-input"
           />
@@ -124,7 +133,7 @@ export const EditAcquiredEntityDialog: React.FC<EditAcquiredEntityDialogProps> =
                 label="Integration Status"
                 data={INTEGRATION_STATUS_OPTIONS}
                 {...field}
-                disabled={updateMutation.isPending}
+                disabled={isPending}
                 error={errors.integrationStatus?.message}
                 data-testid="edit-acquired-entity-status-select"
               />
@@ -136,7 +145,7 @@ export const EditAcquiredEntityDialog: React.FC<EditAcquiredEntityDialogProps> =
             placeholder="Enter notes (optional)"
             {...register('notes')}
             rows={3}
-            disabled={updateMutation.isPending}
+            disabled={isPending}
             error={errors.notes?.message}
             data-testid="edit-acquired-entity-notes-input"
           />
@@ -150,15 +159,15 @@ export const EditAcquiredEntityDialog: React.FC<EditAcquiredEntityDialogProps> =
           <Group justify="flex-end" gap="sm">
             <Button
               variant="default"
-              onClick={handleClose}
-              disabled={updateMutation.isPending}
+              onClick={onClose}
+              disabled={isPending}
               data-testid="edit-acquired-entity-cancel"
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              loading={updateMutation.isPending}
+              loading={isPending}
               disabled={!isValid}
               data-testid="edit-acquired-entity-submit"
             >
