@@ -53,38 +53,38 @@ function renderMenu(props: {
   );
 }
 
-describe('NodeContextMenu - Generate View', () => {
-  it('shows generate view item for component when canCreateView is true', () => {
+describe('NodeContextMenu - Create dynamic view', () => {
+  it('shows create dynamic view item for component when canCreateView is true', () => {
     renderMenu({ menu: makeMenu(), canCreateView: true, onRequestGenerateView: vi.fn() });
-    expect(screen.getByText('Generate View for Test Component')).toBeDefined();
+    expect(screen.getByText('Create dynamic view from Test Component')).toBeDefined();
   });
 
-  it('shows generate view item for capability node', () => {
+  it('shows create dynamic view item for capability node', () => {
     renderMenu({
       menu: makeMenu({ nodeType: 'capability', nodeId: 'cap-1', nodeName: 'My Capability' }),
       canCreateView: true,
       onRequestGenerateView: vi.fn(),
     });
-    expect(screen.getByText('Generate View for My Capability')).toBeDefined();
+    expect(screen.getByText('Create dynamic view from My Capability')).toBeDefined();
   });
 
-  it('shows generate view item for origin entity node', () => {
+  it('shows create dynamic view item for origin entity node', () => {
     renderMenu({
       menu: makeMenu({ nodeType: 'originEntity', nodeId: 'vendor-1', nodeName: 'Acme Corp' }),
       canCreateView: true,
       onRequestGenerateView: vi.fn(),
     });
-    expect(screen.getByText('Generate View for Acme Corp')).toBeDefined();
+    expect(screen.getByText('Create dynamic view from Acme Corp')).toBeDefined();
   });
 
-  it('hides generate view item when canCreateView is false', () => {
+  it('hides create dynamic view item when canCreateView is false', () => {
     renderMenu({ menu: makeMenu(), canCreateView: false, onRequestGenerateView: vi.fn() });
-    expect(screen.queryByText(/Generate View/)).toBeNull();
+    expect(screen.queryByText(/Create dynamic view/)).toBeNull();
   });
 
-  it('hides generate view item when onRequestGenerateView is not provided', () => {
+  it('hides create dynamic view item when onRequestGenerateView is not provided', () => {
     renderMenu({ menu: makeMenu(), canCreateView: true });
-    expect(screen.queryByText(/Generate View/)).toBeNull();
+    expect(screen.queryByText(/Create dynamic view/)).toBeNull();
   });
 
   it('truncates long entity names at 30 chars with ellipsis', () => {
@@ -94,9 +94,9 @@ describe('NodeContextMenu - Generate View', () => {
       canCreateView: true,
       onRequestGenerateView: vi.fn(),
     });
-    const menuItem = screen.getByText(/Generate View for/);
+    const menuItem = screen.getByText(/Create dynamic view from/);
     expect(menuItem.textContent).toContain('\u2026');
-    expect(menuItem.textContent!.length).toBeLessThan(`Generate View for ${longName}`.length);
+    expect(menuItem.textContent!.length).toBeLessThan(`Create dynamic view from ${longName}`.length);
   });
 
   it('calls onRequestGenerateView with correct target on click', () => {
@@ -107,7 +107,7 @@ describe('NodeContextMenu - Generate View', () => {
       onRequestGenerateView: onGenerateView,
     });
 
-    fireEvent.click(screen.getByText('Generate View for My System'));
+    fireEvent.click(screen.getByText('Create dynamic view from My System'));
 
     expect(onGenerateView).toHaveBeenCalledWith({
       entityRef: { id: 'comp-42', type: 'component' },

@@ -66,7 +66,7 @@ function buildEntityMenuItems(config: EntityMenuConfig): ContextMenuItem[] {
   const hasDelete = config.links?.delete !== undefined;
 
   return filterNullItems([
-    createConditionalMenuItem(hasGenerate, { label: 'Generate View...', onClick: config.onGenerateView! }),
+    createConditionalMenuItem(hasGenerate, { label: 'Create dynamic view...', onClick: config.onGenerateView! }),
     createConditionalMenuItem(hasInvite, { label: 'Invite to Edit...', onClick: config.onInviteToEdit! }),
     createConditionalMenuItem(hasEdit, { label: 'Edit', onClick: config.onEdit! }),
     createConditionalMenuItem(hasDelete, {

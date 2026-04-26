@@ -104,7 +104,7 @@ function buildGenerateViewItem(ctx: MenuItemBuilderContext): ContextMenuItem | n
   if (!ctx.canCreateView || !ctx.onRequestGenerateView) return null;
   const displayName = truncateName(ctx.menu.nodeName, MENU_LABEL_MAX_NAME_LENGTH);
   return {
-    label: `Generate View for ${displayName}`,
+    label: `Create dynamic view from ${displayName}`,
     onClick: () => {
       ctx.onRequestGenerateView!({
         entityRef: { id: ctx.menu.nodeId, type: ctx.menu.nodeType },

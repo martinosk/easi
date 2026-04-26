@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useAppStore } from '../../../store/appStore';
-import { useGenerateView } from '../../canvas/hooks/useGenerateView';
+import { useCreateDynamicView } from '../../canvas/hooks/useCreateDynamicView';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
 import type { NavigationTreeProps } from '../types';
 import { useFilteredTreeData } from './useFilteredTreeData';
@@ -46,10 +46,10 @@ export function useNavigationTree(props: NavigationTreeProps) {
   const [selectedCapabilityId, setSelectedCapabilityId] = useState<string | null>(null);
 
   const treeState = useNavigationTreeState();
-  const { generateView } = useGenerateView();
+  const { create: createDynamicView } = useCreateDynamicView();
   const handleGenerateView = useCallback(
-    (target: GenerateViewTarget) => generateView(target.entityRef, target.entityName),
-    [generateView],
+    (target: GenerateViewTarget) => void createDynamicView(target.entityRef, target.entityName),
+    [createDynamicView],
   );
   const contextMenus = useTreeContextMenus({
     components,

@@ -21,6 +21,7 @@ import {
   useChangeCapabilityParent,
   useDeleteCapability,
   useDeleteRealization,
+  useRealizations,
 } from '../../capabilities/hooks/useCapabilities';
 import { useComponents, useDeleteComponent } from '../../components/hooks/useComponents';
 import {
@@ -35,6 +36,9 @@ import { useDeleteVendor, useUnlinkComponentFromVendor } from '../../origin-enti
 import { useDeleteRelation, useRelations } from '../../relations/hooks/useRelations';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { useRemoveCapabilityFromView, useRemoveComponentFromView } from '../../views/hooks/useViews';
+import { useAppStore } from '../../../store/appStore';
+import { useOriginRelationshipsQuery } from '../../origin-entities/hooks/useOriginRelationships';
+import { computeOrphans } from '../utils/dynamicMode';
 
 export type DeleteTargetType =
   | 'component-from-view'
@@ -237,6 +241,11 @@ function useDeleteHandlers() {
   );
 }
 
+const DYNAMIC_REMOVE_FROM_VIEW_TYPES = new Set<DeleteTargetType>([
+  'component-from-view',
+  'capability-from-canvas',
+]);
+
 export const useDeleteConfirmation = () => {
   const { currentViewId } = useCurrentView();
   const handlers = useDeleteHandlers();
@@ -244,12 +253,42 @@ export const useDeleteConfirmation = () => {
   const { data: components = [] } = useComponents();
   const { data: relations = [] } = useRelations();
   const { data: capabilities = [] } = useCapabilities();
+  const { data: realizations = [] } = useRealizations();
+  const { data: originRelationships = [] } = useOriginRelationshipsQuery();
+
+  const dynamicEnabled = useAppStore((s) => s.dynamicEnabled);
+  const dynamicEntities = useAppStore((s) => s.dynamicEntities);
+  const dynamicFilters = useAppStore((s) => s.dynamicFilters);
+  const draftRemoveEntities = useAppStore((s) => s.draftRemoveEntities);
 
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDeleteConfirm = useCallback(async () => {
     if (!deleteTarget) return;
+
+    if (dynamicEnabled && DYNAMIC_REMOVE_FROM_VIEW_TYPES.has(deleteTarget.type)) {
+      const removedId = deleteTarget.id;
+      const orphans = computeOrphans(
+        { relations, capabilities, realizations, originRelationships },
+        dynamicEntities,
+        removedId,
+        dynamicFilters,
+      );
+      const totalToRemove = 1 + orphans.length;
+      if (orphans.length >= 5) {
+        const proceed = window.confirm(
+          `Removing this entity will also remove ${orphans.length} orphaned descendant${orphans.length === 1 ? '' : 's'} (${totalToRemove} total). Continue?`,
+        );
+        if (!proceed) {
+          setDeleteTarget(null);
+          return;
+        }
+      }
+      draftRemoveEntities([removedId, ...orphans]);
+      setDeleteTarget(null);
+      return;
+    }
 
     setIsDeleting(true);
     try {
@@ -261,7 +300,20 @@ export const useDeleteConfirmation = () => {
     } finally {
       setIsDeleting(false);
     }
-  }, [deleteTarget, handlers, currentViewId, components, relations, capabilities]);
+  }, [
+    deleteTarget,
+    handlers,
+    currentViewId,
+    components,
+    relations,
+    capabilities,
+    realizations,
+    originRelationships,
+    dynamicEnabled,
+    dynamicEntities,
+    dynamicFilters,
+    draftRemoveEntities,
+  ]);
 
   const handleDeleteCancel = useCallback(() => {
     setDeleteTarget(null);

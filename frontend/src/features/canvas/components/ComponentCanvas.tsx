@@ -28,14 +28,16 @@ import { useCanvasNodes } from '../hooks/useCanvasNodes';
 import { useCanvasSelection } from '../hooks/useCanvasSelection';
 import { useCanvasViewport } from '../hooks/useCanvasViewport';
 import { useContextMenu } from '../hooks/useContextMenu';
+import { useCreateDynamicView } from '../hooks/useCreateDynamicView';
 import { useDeleteConfirmation } from '../hooks/useDeleteConfirmation';
-import { useGenerateView } from '../hooks/useGenerateView';
 import { AutoLayoutButton } from './AutoLayoutButton';
 import { EdgeContextMenu } from './context-menus/EdgeContextMenu';
 import { MultiSelectContextMenu } from './context-menus/MultiSelectContextMenu';
 import { type GenerateViewTarget, type InviteTarget, NodeContextMenu } from './context-menus/NodeContextMenu';
 import { BulkConfirmationDialog } from './dialogs/BulkConfirmationDialog';
 import { DeleteConfirmationWrapper } from './dialogs/DeleteConfirmationWrapper';
+import { DynamicModeContainer } from './DynamicModeContainer';
+import { withDynamicExpansion } from './withDynamicExpansion';
 
 interface ComponentCanvasProps {
   onConnect: (source: string, target: string) => void;
@@ -47,9 +49,9 @@ export interface ComponentCanvasRef {
 }
 
 const nodeTypes: NodeTypes = {
-  component: ComponentNode,
-  capability: CapabilityNode,
-  originEntity: OriginEntityNode,
+  component: withDynamicExpansion(ComponentNode),
+  capability: withDynamicExpansion(CapabilityNode),
+  originEntity: withDynamicExpansion(OriginEntityNode),
 };
 
 const multiSelectionKeys = ['Meta', 'Control', 'Shift'];
@@ -61,7 +63,7 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
     const selectedCapabilityId = useAppStore((state) => state.selectedCapabilityId);
     const hasPermission = useUserStore((state) => state.hasPermission);
     const canCreateView = hasPermission('views:write');
-    const { generateView } = useGenerateView();
+    const { create: createDynamicView } = useCreateDynamicView();
 
     const nodes = useCanvasNodes();
     const edges = useCanvasEdges(nodes);
@@ -105,9 +107,9 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
 
     const handleGenerateView = useCallback(
       (target: GenerateViewTarget) => {
-        generateView(target.entityRef, target.entityName);
+        void createDynamicView(target.entityRef, target.entityName);
       },
-      [generateView],
+      [createDynamicView],
     );
     const createGrant = useCreateEditGrant();
     const {
@@ -195,6 +197,7 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
         </ReactFlow>
 
         <AutoLayoutButton />
+        <DynamicModeContainer />
 
         <NodeContextMenu
           menu={nodeContextMenu}

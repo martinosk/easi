@@ -1,11 +1,21 @@
 import type { ReactFlowInstance } from '@xyflow/react';
 import { useCallback } from 'react';
 import { toCapabilityId, toComponentId, toViewId } from '../../../api/types';
+import { useAppStore } from '../../../store/appStore';
 import { canEdit } from '../../../utils/hateoas';
 import type { MultiDragPayload, TreeItemType } from '../../navigation/hooks/useTreeMultiSelect';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { useAddCapabilityToView, useAddOriginEntityToView } from '../../views/hooks/useViews';
 import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
+import type { EntityRef, EntityType } from '../utils/dynamicMode';
+
+const TREE_TYPE_TO_ENTITY_TYPE: Record<TreeItemType, EntityType> = {
+  component: 'component',
+  capability: 'capability',
+  acquired: 'originEntity',
+  vendor: 'originEntity',
+  team: 'originEntity',
+};
 
 const MULTI_DROP_OFFSET_Y = 100;
 
@@ -120,6 +130,8 @@ export const useCanvasDragDrop = (
   const addCapabilityToViewMutation = useAddCapabilityToView();
   const addOriginEntityToViewMutation = useAddOriginEntityToView();
   const { updateComponentPosition, updateCapabilityPosition } = useCanvasLayoutContext();
+  const dynamicEnabled = useAppStore((s) => s.dynamicEnabled);
+  const draftAddEntities = useAppStore((s) => s.draftAddEntities);
 
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
@@ -166,6 +178,26 @@ export const useCanvasDragDrop = (
         y: event.clientY,
       });
 
+      if (dynamicEnabled) {
+        const presence = buildViewPresence(currentView);
+        const items: { type: TreeItemType; id: string }[] = [];
+        const multiPayload = parseMultiDragPayload(event.dataTransfer);
+        if (multiPayload) {
+          items.push(...multiPayload.items.filter((item) => !isItemInView(item, presence)));
+        } else {
+          const singleItem = parseSingleDragItem(event.dataTransfer);
+          if (singleItem && !isItemInView(singleItem, presence)) items.push(singleItem);
+        }
+        if (items.length === 0) return;
+        const refs: EntityRef[] = items.map((it) => ({ id: it.id, type: TREE_TYPE_TO_ENTITY_TYPE[it.type] }));
+        const positions: Record<string, { x: number; y: number }> = {};
+        items.forEach((it, i) => {
+          positions[it.id] = { x: position.x, y: position.y + i * MULTI_DROP_OFFSET_Y };
+        });
+        draftAddEntities(refs, positions);
+        return;
+      }
+
       const handlers = getHandlers();
 
       const multiPayload = parseMultiDragPayload(event.dataTransfer);
@@ -183,7 +215,7 @@ export const useCanvasDragDrop = (
         await addItemToView(singleItem, position.x, position.y, handlers);
       }
     },
-    [reactFlowInstance, currentViewId, currentView, getHandlers],
+    [reactFlowInstance, currentViewId, currentView, getHandlers, dynamicEnabled, draftAddEntities],
   );
 
   return { onDragOver, onDrop };

@@ -1,6 +1,6 @@
 # Auto-Generate View from Entity
 
-**Status**: ongoing
+**Status**: superseded by spec 164 — Dynamic View Mode. The one-shot BFS Generate-View flow described here was replaced with an interactive dynamic-mode workbench. The original implementation (`useGenerateView`, `collectRelatedEntities`) was removed.
 
 ## User Value
 

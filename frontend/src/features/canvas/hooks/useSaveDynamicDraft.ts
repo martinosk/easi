@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { ViewId } from '../../../api/types';
+import { toCapabilityId, toComponentId, type ViewId } from '../../../api/types';
 import {
   useAddCapabilityToView,
   useAddComponentToView,
@@ -17,9 +17,6 @@ import {
   type DraftSaveInput,
   type DraftSaveResult,
 } from '../utils/saveDraft';
-
-type ComponentId = Parameters<DraftSaveApi['addComponent']>[1];
-type CapabilityId = Parameters<DraftSaveApi['addCapability']>[1];
 
 export function useSaveDynamicDraft(): {
   save: (input: DraftSaveInput) => Promise<DraftSaveResult>;
@@ -40,24 +37,24 @@ export function useSaveDynamicDraft(): {
   const save = async (input: DraftSaveInput): Promise<DraftSaveResult> => {
     const api: DraftSaveApi = {
       addComponent: (viewId, id, x, y) =>
-        addComponent.mutateAsync({ viewId, request: { componentId: id as ComponentId, x, y } }),
+        addComponent.mutateAsync({ viewId, request: { componentId: toComponentId(id), x, y } }),
       addCapability: (viewId, id, x, y) =>
-        addCapability.mutateAsync({ viewId, request: { capabilityId: id as CapabilityId, x, y } }),
+        addCapability.mutateAsync({ viewId, request: { capabilityId: toCapabilityId(id), x, y } }),
       addOriginEntity: (viewId, id, x, y) =>
         addOriginEntity.mutateAsync({ viewId, request: { originEntityId: id, x, y } }),
-      removeComponent: (viewId, id) => removeComponent.mutateAsync({ viewId, componentId: id as ComponentId }),
-      removeCapability: (viewId, id) => removeCapability.mutateAsync({ viewId, capabilityId: id as CapabilityId }),
+      removeComponent: (viewId, id) => removeComponent.mutateAsync({ viewId, componentId: toComponentId(id) }),
+      removeCapability: (viewId, id) => removeCapability.mutateAsync({ viewId, capabilityId: toCapabilityId(id) }),
       removeOriginEntity: (viewId, id) => removeOriginEntity.mutateAsync({ viewId, originEntityId: id }),
       updateComponentPosition: (viewId, id, x, y) =>
         updateComponentPosition.mutateAsync({
           viewId,
-          componentId: id as ComponentId,
+          componentId: toComponentId(id),
           request: { x, y },
         }),
       updateCapabilityPosition: (viewId, id, x, y) =>
         updateCapabilityPosition.mutateAsync({
           viewId,
-          capabilityId: id as CapabilityId,
+          capabilityId: toCapabilityId(id),
           position: { x, y },
         }),
       updateOriginEntityPosition: (viewId, id, x, y) =>

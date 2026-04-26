@@ -15,7 +15,21 @@ import { canEdit } from '../../../utils/hateoas';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { useUpdateOriginEntityPosition } from '../../views/hooks/useViews';
 import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
-import { getEntityId, toNodeId } from '../../../constants/entityIdentifiers';
+import { getEntityId, getEntityType, toNodeId } from '../../../constants/entityIdentifiers';
+import type { EntityType } from '../utils/dynamicMode';
+
+const NODE_TYPE_TO_ENTITY_TYPE: Record<string, EntityType> = {
+  component: 'component',
+  capability: 'capability',
+  acquired: 'originEntity',
+  vendor: 'originEntity',
+  team: 'originEntity',
+};
+
+function nodeIdToEntityKey(nodeId: string): { id: string; type: EntityType } {
+  const parsed = toNodeId(nodeId);
+  return { id: getEntityId(parsed), type: NODE_TYPE_TO_ENTITY_TYPE[getEntityType(parsed)] ?? 'component' };
+}
 
 function isMultiSelectModifier(event: React.MouseEvent): boolean {
   return event.shiftKey || event.ctrlKey || event.metaKey;
@@ -79,6 +93,8 @@ export const useCanvasSelection = () => {
   const selectEdge = useAppStore((state) => state.selectEdge);
   const clearSelection = useAppStore((state) => state.clearSelection);
   const selectCapability = useAppStore((state) => state.selectCapability);
+  const dynamicEnabled = useAppStore((state) => state.dynamicEnabled);
+  const draftSetPositions = useAppStore((state) => state.draftSetPositions);
   const { updateComponentPosition, updateCapabilityPosition, batchUpdatePositions } = useCanvasLayoutContext();
   const { currentView, currentViewId } = useCurrentView();
   const updateOriginEntityPositionMutation = useUpdateOriginEntityPosition();
@@ -127,6 +143,16 @@ export const useCanvasSelection = () => {
       const selectedNodes = reactFlowInstance.getNodes().filter((n) => n.selected);
       const nodesToPersist = getNodesToPersist(node, selectedNodes);
 
+      if (dynamicEnabled) {
+        const draftUpdates: Record<string, { x: number; y: number }> = {};
+        for (const n of nodesToPersist) {
+          const { id } = nodeIdToEntityKey(n.id);
+          draftUpdates[id] = { x: n.position.x, y: n.position.y };
+        }
+        draftSetPositions(draftUpdates);
+        return;
+      }
+
       if (nodesToPersist.length === 1) {
         updateSingleNode(nodesToPersist[0], persisters);
         return;
@@ -135,7 +161,7 @@ export const useCanvasSelection = () => {
       const updates = buildBatchUpdates(nodesToPersist, persisters.updateOriginEntity);
       if (updates.length > 0) batchUpdatePositions(updates);
     },
-    [persisters, currentView, currentViewId, reactFlowInstance, batchUpdatePositions],
+    [persisters, currentView, currentViewId, reactFlowInstance, batchUpdatePositions, dynamicEnabled, draftSetPositions],
   );
 
   return {
