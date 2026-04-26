@@ -1,0 +1,997 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Generate View — Interactive Expansion (Mockup)</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #f6f8fa;
+    color: #1f2328;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .header {
+    padding: 10px 16px;
+    background: white;
+    border-bottom: 1px solid #d0d7de;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .header h1 { font-size: 13px; font-weight: 600; margin: 0; }
+  .header .subtitle { font-size: 12px; color: #57606a; }
+  .header .seed {
+    background: #ddf4ff;
+    border: 1px solid #54aeff;
+    border-radius: 4px;
+    padding: 1px 8px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .header .spacer { flex: 1; }
+  .header .hint {
+    font-size: 11px;
+    color: #57606a;
+    background: #f6f8fa;
+    padding: 4px 8px;
+    border-radius: 4px;
+  }
+  .header .hint kbd {
+    background: white;
+    border: 1px solid #d0d7de;
+    border-radius: 3px;
+    padding: 0 4px;
+    font-family: ui-monospace, monospace;
+    font-size: 10px;
+  }
+
+  .layout {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    overflow: hidden;
+    min-height: 0;
+  }
+  .canvas {
+    background:
+      radial-gradient(circle, #e1e7ed 1px, transparent 1px),
+      white;
+    background-size: 20px 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .canvas svg { width: 100%; height: 100%; display: block; }
+
+  .panel {
+    background: #f6f8fa;
+    border-left: 1px solid #d0d7de;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    overflow-y: auto;
+  }
+  .section h2 {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #57606a;
+    margin: 0 0 6px 0;
+    letter-spacing: 0.6px;
+  }
+
+  .filter-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 13px;
+  }
+  .filter-row:hover { background: #eaeef2; }
+  .filter-row input { margin: 0; cursor: pointer; }
+  .filter-row .count {
+    margin-left: auto;
+    font-size: 11px;
+    color: #57606a;
+    font-variant-numeric: tabular-nums;
+  }
+  .filter-row .swatch {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    margin-left: auto;
+  }
+  .filter-row.disabled { opacity: 0.5; }
+
+  .stats {
+    background: white;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    padding: 10px 12px;
+  }
+  .stats .total {
+    font-size: 22px;
+    font-weight: 600;
+    color: #1f2328;
+    line-height: 1.1;
+  }
+  .stats .total-label {
+    font-size: 11px;
+    color: #57606a;
+    margin-bottom: 6px;
+  }
+  .stats .breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 12px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #eaeef2;
+  }
+  .stats .breakdown-row {
+    display: flex;
+    justify-content: space-between;
+    color: #57606a;
+  }
+  .stats .breakdown-row strong { color: #1f2328; font-weight: 500; }
+
+  .actions {
+    display: flex;
+    gap: 6px;
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid #d0d7de;
+  }
+  .btn {
+    flex: 1;
+    padding: 7px 10px;
+    border-radius: 5px;
+    border: 1px solid #d0d7de;
+    background: white;
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 500;
+    color: #1f2328;
+  }
+  .btn:hover { background: #f6f8fa; }
+  .btn.primary {
+    background: #1f883d;
+    color: white;
+    border-color: #1a7f37;
+  }
+  .btn.primary:hover { background: #1a7f37; }
+
+  .quick-action {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    padding: 5px 6px;
+  }
+  .quick-action .stepper {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: auto;
+  }
+  .quick-action .stepper button {
+    width: 22px; height: 22px;
+    border: 1px solid #d0d7de;
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    line-height: 1;
+    padding: 0;
+  }
+  .quick-action .depth-value {
+    min-width: 18px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+  }
+  .quick-action button.go {
+    width: auto;
+    padding: 3px 10px;
+    border: 1px solid #d0d7de;
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    margin-left: 6px;
+  }
+  .quick-action button.go:hover { background: #eaeef2; }
+
+  .legend {
+    font-size: 11px;
+    color: #57606a;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .legend-row {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .legend-row svg { flex-shrink: 0; }
+
+  /* Node */
+  .node { cursor: grab; }
+  .node:active { cursor: grabbing; }
+  .node.seed .node-shape {
+    stroke-width: 2.5;
+    stroke: #0969da;
+  }
+  .node-shape {
+    stroke: #24292f;
+    stroke-width: 1.2;
+  }
+  .node-label {
+    font-size: 11px;
+    text-anchor: middle;
+    pointer-events: none;
+    fill: #1f2328;
+    font-weight: 500;
+    user-select: none;
+  }
+  .node-type {
+    font-size: 9px;
+    text-anchor: middle;
+    pointer-events: none;
+    fill: #57606a;
+    user-select: none;
+  }
+
+  .badge { cursor: pointer; }
+  .badge circle {
+    fill: #0969da;
+    stroke: white;
+    stroke-width: 1.5;
+    transition: r 0.12s ease;
+  }
+  .badge:hover circle { fill: #0860ca; }
+  .badge text {
+    fill: white;
+    font-weight: 600;
+    font-size: 9px;
+    text-anchor: middle;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /* Expand popover */
+  .popover {
+    position: absolute;
+    background: white;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    padding: 6px;
+    min-width: 220px;
+    font-size: 12px;
+    z-index: 100;
+    display: none;
+  }
+  .popover.show { display: block; }
+  .popover-header {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #57606a;
+    padding: 4px 8px 6px 8px;
+    border-bottom: 1px solid #eaeef2;
+    margin-bottom: 4px;
+  }
+  .popover-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .popover-row:hover { background: #f3f6f8; }
+  .popover-row.disabled { opacity: 0.4; cursor: default; }
+  .popover-row.disabled:hover { background: transparent; }
+  .popover-row .swatch {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  }
+  .popover-row .label { flex: 1; color: #1f2328; }
+  .popover-row .label .hint { color: #57606a; font-size: 11px; margin-left: 4px; }
+  .popover-row .pill {
+    background: #ddf4ff;
+    color: #0969da;
+    border-radius: 10px;
+    padding: 1px 7px;
+    font-weight: 600;
+    font-size: 11px;
+  }
+  .popover-row.disabled .pill { background: #eaeef2; color: #57606a; }
+  .popover-divider {
+    height: 1px;
+    background: #eaeef2;
+    margin: 4px 0;
+  }
+  .popover-row.all { font-weight: 600; }
+  .popover-row.all .pill { background: #1f883d; color: white; }
+
+  .remove-btn {
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .node:hover .remove-btn { opacity: 1; }
+  .remove-btn circle {
+    fill: #cf222e;
+    stroke: white;
+    stroke-width: 1.5;
+  }
+  .remove-btn:hover circle { fill: #a40e26; }
+  .remove-btn line {
+    stroke: white;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+  }
+
+  .edge {
+    fill: none;
+    stroke: #6e7781;
+    stroke-width: 1.3;
+    opacity: 0.55;
+  }
+  .edge.realization { stroke: #8250df; stroke-dasharray: 5 3; }
+  .edge.origin { stroke: #bf8700; stroke-dasharray: 2 2; }
+  .edge.parentage { stroke: #1f883d; stroke-dasharray: 1 3; }
+
+  .empty-hint {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) translateY(120px);
+    font-size: 12px;
+    color: #57606a;
+    pointer-events: none;
+  }
+
+  .toast {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1f2328;
+    color: white;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .panel-header .reset {
+    font-size: 11px;
+    color: #0969da;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+  }
+  .panel-header .reset:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Generate View</h1>
+  <span class="subtitle">starting from</span>
+  <span class="seed" id="seed-name">Order Service</span>
+  <div class="spacer"></div>
+  <span class="hint">Click <kbd>+N</kbd> on a node → pick edge type · hover a node for remove · canvas is a preview until you Save</span>
+</div>
+
+<div class="layout">
+  <div class="canvas" id="canvas">
+    <svg id="graph">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#6e7781"/>
+        </marker>
+      </defs>
+      <g id="edges-layer"></g>
+      <g id="nodes-layer"></g>
+    </svg>
+    <div class="empty-hint" id="empty-hint" style="display:none">Click the <strong>+N</strong> badge on the seed node to start expanding</div>
+    <div class="popover" id="popover"></div>
+    <div class="toast" id="toast"></div>
+  </div>
+
+  <div class="panel">
+    <div class="section">
+      <div class="panel-header">
+        <h2>Edge types</h2>
+        <button class="reset" onclick="resetFilters()">reset</button>
+      </div>
+      <label class="filter-row">
+        <input type="checkbox" data-edge="relation" checked />
+        <span>Triggers / Serves</span>
+        <span class="swatch" style="background:#6e7781"></span>
+      </label>
+      <label class="filter-row">
+        <input type="checkbox" data-edge="realization" checked />
+        <span>Realizations</span>
+        <span class="swatch" style="background:#8250df"></span>
+      </label>
+      <label class="filter-row">
+        <input type="checkbox" data-edge="parentage" checked />
+        <span>Capability parentage</span>
+        <span class="swatch" style="background:#1f883d"></span>
+      </label>
+      <label class="filter-row">
+        <input type="checkbox" data-edge="origin" checked />
+        <span>Origin relations</span>
+        <span class="swatch" style="background:#bf8700"></span>
+      </label>
+    </div>
+
+    <div class="section">
+      <h2>Entity types</h2>
+      <label class="filter-row">
+        <input type="checkbox" data-type="component" checked />
+        <span>Components</span>
+        <span class="swatch" style="background:#54aeff"></span>
+      </label>
+      <label class="filter-row">
+        <input type="checkbox" data-type="capability" checked />
+        <span>Capabilities</span>
+        <span class="swatch" style="background:#dd7815"></span>
+      </label>
+      <label class="filter-row">
+        <input type="checkbox" data-type="origin" checked />
+        <span>Origin entities</span>
+        <span class="swatch" style="background:#a371f7"></span>
+      </label>
+    </div>
+
+    <div class="section">
+      <h2>Quick expand</h2>
+      <div class="quick-action">
+        <span>To depth</span>
+        <div class="stepper">
+          <button onclick="changeDepth(-1)">−</button>
+          <span class="depth-value" id="depth-value">2</span>
+          <button onclick="changeDepth(1)">+</button>
+        </div>
+        <button class="go" onclick="expandToDepth()">Fill canvas</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Selection</h2>
+      <div class="stats">
+        <div class="total-label">Entities in view</div>
+        <div class="total" id="total-count">1</div>
+        <div class="breakdown">
+          <div class="breakdown-row"><span>Components</span><strong id="count-component">1</strong></div>
+          <div class="breakdown-row"><span>Capabilities</span><strong id="count-capability">0</strong></div>
+          <div class="breakdown-row"><span>Origin entities</span><strong id="count-origin">0</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Legend</h2>
+      <div class="legend">
+        <div class="legend-row">
+          <svg width="24" height="6"><line x1="0" y1="3" x2="24" y2="3" stroke="#6e7781" stroke-width="1.5"/></svg>
+          <span>Triggers / Serves</span>
+        </div>
+        <div class="legend-row">
+          <svg width="24" height="6"><line x1="0" y1="3" x2="24" y2="3" stroke="#8250df" stroke-width="1.5" stroke-dasharray="5 3"/></svg>
+          <span>Realization</span>
+        </div>
+        <div class="legend-row">
+          <svg width="24" height="6"><line x1="0" y1="3" x2="24" y2="3" stroke="#1f883d" stroke-width="1.5" stroke-dasharray="1 3"/></svg>
+          <span>Capability parentage</span>
+        </div>
+        <div class="legend-row">
+          <svg width="24" height="6"><line x1="0" y1="3" x2="24" y2="3" stroke="#bf8700" stroke-width="1.5" stroke-dasharray="2 2"/></svg>
+          <span>Origin</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn" onclick="alert('In real impl: closes the workbench without creating a view.')">Cancel</button>
+      <button class="btn primary" id="create-btn">Save view (1)</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+// ------------------------------------------------------------
+// Mock EASI-flavored graph
+// ------------------------------------------------------------
+const ENTITIES = {
+  // Components (the seed in this mockup)
+  'comp-order':       { type: 'component', subtype: 'component', name: 'Order Service' },
+  'comp-payment':     { type: 'component', subtype: 'component', name: 'Payment Service' },
+  'comp-inventory':   { type: 'component', subtype: 'component', name: 'Inventory Service' },
+  'comp-notif':       { type: 'component', subtype: 'component', name: 'Notification Service' },
+  'comp-portal':      { type: 'component', subtype: 'component', name: 'Customer Portal' },
+  'comp-admin':       { type: 'component', subtype: 'component', name: 'Admin UI' },
+  'comp-auth':        { type: 'component', subtype: 'component', name: 'Auth Service' },
+  'comp-reporting':   { type: 'component', subtype: 'component', name: 'Reporting Service' },
+  'comp-pricing':     { type: 'component', subtype: 'component', name: 'Pricing Engine' },
+  'comp-catalog':     { type: 'component', subtype: 'component', name: 'Catalog Service' },
+  'comp-shipping':    { type: 'component', subtype: 'component', name: 'Shipping Service' },
+  'comp-fraud':       { type: 'component', subtype: 'component', name: 'Fraud Detection' },
+  'comp-loyalty':     { type: 'component', subtype: 'component', name: 'Loyalty Service' },
+
+  // Capabilities (some hierarchical)
+  'cap-sales':        { type: 'capability', subtype: 'capability', name: 'Sales' },
+  'cap-orders':       { type: 'capability', subtype: 'capability', name: 'Order Management' },
+  'cap-payments':     { type: 'capability', subtype: 'capability', name: 'Payment Processing' },
+  'cap-comm':         { type: 'capability', subtype: 'capability', name: 'Customer Communication' },
+  'cap-inventory':    { type: 'capability', subtype: 'capability', name: 'Inventory Tracking' },
+  'cap-reporting':    { type: 'capability', subtype: 'capability', name: 'Reporting' },
+  'cap-fulfillment':  { type: 'capability', subtype: 'capability', name: 'Fulfillment' },
+
+  // Origin entities
+  'org-stripe':       { type: 'origin', subtype: 'vendor',   name: 'Stripe' },
+  'org-twilio':       { type: 'origin', subtype: 'vendor',   name: 'Twilio' },
+  'org-acme':         { type: 'origin', subtype: 'acquired', name: 'AcmeCorp' },
+  'org-logistics':    { type: 'origin', subtype: 'internal', name: 'Logistics Team' },
+  'org-finance':      { type: 'origin', subtype: 'internal', name: 'Finance Team' },
+};
+
+// edges are undirected for traversal but we render arrows where meaningful
+const EDGES = [
+  // Component-component (triggers/serves)
+  { type: 'relation', a: 'comp-order',     b: 'comp-payment' },
+  { type: 'relation', a: 'comp-order',     b: 'comp-inventory' },
+  { type: 'relation', a: 'comp-order',     b: 'comp-notif' },
+  { type: 'relation', a: 'comp-order',     b: 'comp-pricing' },
+  { type: 'relation', a: 'comp-order',     b: 'comp-catalog' },
+  { type: 'relation', a: 'comp-order',     b: 'comp-shipping' },
+  { type: 'relation', a: 'comp-portal',    b: 'comp-order' },
+  { type: 'relation', a: 'comp-portal',    b: 'comp-auth' },
+  { type: 'relation', a: 'comp-portal',    b: 'comp-loyalty' },
+  { type: 'relation', a: 'comp-admin',     b: 'comp-order' },
+  { type: 'relation', a: 'comp-admin',     b: 'comp-auth' },
+  { type: 'relation', a: 'comp-admin',     b: 'comp-reporting' },
+  { type: 'relation', a: 'comp-payment',   b: 'comp-auth' },
+  { type: 'relation', a: 'comp-payment',   b: 'comp-fraud' },
+  { type: 'relation', a: 'comp-pricing',   b: 'comp-catalog' },
+  { type: 'relation', a: 'comp-reporting', b: 'comp-order' },
+  { type: 'relation', a: 'comp-reporting', b: 'comp-payment' },
+  { type: 'relation', a: 'comp-reporting', b: 'comp-inventory' },
+  { type: 'relation', a: 'comp-shipping',  b: 'comp-inventory' },
+
+  // Realizations (component -> capability)
+  { type: 'realization', a: 'comp-order',     b: 'cap-orders' },
+  { type: 'realization', a: 'comp-payment',   b: 'cap-payments' },
+  { type: 'realization', a: 'comp-inventory', b: 'cap-inventory' },
+  { type: 'realization', a: 'comp-notif',     b: 'cap-comm' },
+  { type: 'realization', a: 'comp-reporting', b: 'cap-reporting' },
+  { type: 'realization', a: 'comp-pricing',   b: 'cap-orders' },
+  { type: 'realization', a: 'comp-shipping',  b: 'cap-fulfillment' },
+
+  // Capability parentage
+  { type: 'parentage', a: 'cap-orders',      b: 'cap-sales' },
+  { type: 'parentage', a: 'cap-payments',    b: 'cap-sales' },
+  { type: 'parentage', a: 'cap-fulfillment', b: 'cap-sales' },
+
+  // Origin
+  { type: 'origin', a: 'comp-payment',   b: 'org-stripe' },
+  { type: 'origin', a: 'comp-payment',   b: 'org-finance' },
+  { type: 'origin', a: 'comp-notif',     b: 'org-twilio' },
+  { type: 'origin', a: 'comp-catalog',   b: 'org-acme' },
+  { type: 'origin', a: 'comp-shipping',  b: 'org-logistics' },
+  { type: 'origin', a: 'comp-inventory', b: 'org-logistics' },
+];
+
+// ------------------------------------------------------------
+// State
+// ------------------------------------------------------------
+const SEED_ID = 'comp-order';
+const state = {
+  // entities currently included in the (preview) view
+  included: new Set([SEED_ID]),
+  // pinned positions (we preserve seed in center)
+  pinned: new Map(),
+  filters: {
+    edges:   { relation: true, realization: true, parentage: true, origin: true },
+    types:   { component: true, capability: true, origin: true },
+  },
+  depth: 2,
+};
+
+// ------------------------------------------------------------
+// Adjacency (filter-aware)
+// ------------------------------------------------------------
+function neighborsOf(id) {
+  const out = [];
+  for (const e of EDGES) {
+    if (!state.filters.edges[e.type]) continue;
+    if (e.a === id) {
+      const ent = ENTITIES[e.b];
+      if (state.filters.types[ent.type]) out.push({ id: e.b, edgeType: e.type });
+    } else if (e.b === id) {
+      const ent = ENTITIES[e.a];
+      if (state.filters.types[ent.type]) out.push({ id: e.a, edgeType: e.type });
+    }
+  }
+  return out;
+}
+
+function unexpandedNeighborCount(id) {
+  let n = 0;
+  for (const { id: nb } of neighborsOf(id)) {
+    if (!state.included.has(nb)) n++;
+  }
+  return n;
+}
+
+function unexpandedByEdgeType(id) {
+  const out = { relation: [], realization: [], parentage: [], origin: [] };
+  for (const nb of neighborsOf(id)) {
+    if (!state.included.has(nb.id)) out[nb.edgeType].push(nb.id);
+  }
+  return out;
+}
+
+// ------------------------------------------------------------
+// Mutations
+// ------------------------------------------------------------
+function expand(id) {
+  for (const { id: nb } of neighborsOf(id)) {
+    state.included.add(nb);
+  }
+  render();
+}
+
+function expandByEdgeType(id, edgeType) {
+  for (const nb of neighborsOf(id)) {
+    if (nb.edgeType === edgeType && !state.included.has(nb.id)) state.included.add(nb.id);
+  }
+  render();
+}
+
+function expandToDepth() {
+  const visited = new Set([SEED_ID]);
+  let frontier = [SEED_ID];
+  for (let d = 0; d < state.depth; d++) {
+    const next = [];
+    for (const id of frontier) {
+      for (const { id: nb } of neighborsOf(id)) {
+        if (!visited.has(nb)) { visited.add(nb); next.push(nb); }
+      }
+    }
+    frontier = next;
+  }
+  state.included = visited;
+  render();
+  toast(`Expanded to depth ${state.depth} — ${visited.size} entities`);
+}
+
+function removeNode(id) {
+  if (id === SEED_ID) { toast("Can't remove the seed entity"); return; }
+  // Remove the node, then drop any descendant whose only path back to seed went through it
+  state.included.delete(id);
+  // Reachability check from seed using only currently-included nodes and active filters
+  const reachable = new Set([SEED_ID]);
+  const queue = [SEED_ID];
+  while (queue.length) {
+    const cur = queue.shift();
+    for (const { id: nb } of neighborsOf(cur)) {
+      if (state.included.has(nb) && !reachable.has(nb)) {
+        reachable.add(nb);
+        queue.push(nb);
+      }
+    }
+  }
+  // Drop orphans
+  let orphaned = 0;
+  for (const inc of [...state.included]) {
+    if (!reachable.has(inc)) { state.included.delete(inc); orphaned++; }
+  }
+  render();
+  if (orphaned > 0) toast(`Removed node + ${orphaned} orphaned descendant${orphaned === 1 ? '' : 's'}`);
+}
+
+function changeDepth(delta) {
+  state.depth = Math.max(1, Math.min(5, state.depth + delta));
+  document.getElementById('depth-value').textContent = state.depth;
+}
+
+function resetFilters() {
+  for (const k of Object.keys(state.filters.edges)) state.filters.edges[k] = true;
+  for (const k of Object.keys(state.filters.types)) state.filters.types[k] = true;
+  document.querySelectorAll('input[type=checkbox]').forEach((cb) => cb.checked = true);
+  render();
+}
+
+// ------------------------------------------------------------
+// Layout (d3-force)
+// ------------------------------------------------------------
+const svg = d3.select('#graph');
+const edgesLayer = d3.select('#edges-layer');
+const nodesLayer = d3.select('#nodes-layer');
+
+let simNodes = [];
+let simEdges = [];
+let simulation = null;
+
+function buildSim() {
+  const canvas = document.getElementById('canvas');
+  const W = canvas.clientWidth;
+  const H = canvas.clientHeight;
+
+  // Build sim node list, preserving previous positions where possible
+  const prev = new Map(simNodes.map((n) => [n.id, n]));
+  simNodes = [...state.included].map((id) => {
+    const existing = prev.get(id);
+    const ent = ENTITIES[id];
+    return {
+      id,
+      name: ent.name,
+      type: ent.type,
+      subtype: ent.subtype,
+      x: existing?.x ?? W / 2 + (Math.random() - 0.5) * 60,
+      y: existing?.y ?? H / 2 + (Math.random() - 0.5) * 60,
+      vx: existing?.vx ?? 0,
+      vy: existing?.vy ?? 0,
+      fx: id === SEED_ID ? W / 2 : (existing?.fx ?? null),
+      fy: id === SEED_ID ? H / 2 : (existing?.fy ?? null),
+    };
+  });
+  const idIndex = new Map(simNodes.map((n) => [n.id, n]));
+  simEdges = [];
+  for (const e of EDGES) {
+    if (!state.filters.edges[e.type]) continue;
+    if (state.included.has(e.a) && state.included.has(e.b)) {
+      simEdges.push({ source: idIndex.get(e.a), target: idIndex.get(e.b), type: e.type });
+    }
+  }
+
+  if (simulation) simulation.stop();
+  simulation = d3.forceSimulation(simNodes)
+    .force('link', d3.forceLink(simEdges).distance(110).strength(0.6))
+    .force('charge', d3.forceManyBody().strength(-380))
+    .force('center', d3.forceCenter(W / 2, H / 2).strength(0.04))
+    .force('collide', d3.forceCollide().radius(48))
+    .alpha(0.9)
+    .alphaDecay(0.06)
+    .on('tick', tick);
+}
+
+function tick() {
+  edgesLayer.selectAll('path.edge')
+    .attr('d', (d) => `M ${d.source.x} ${d.source.y} L ${d.target.x} ${d.target.y}`);
+  nodesLayer.selectAll('g.node')
+    .attr('transform', (d) => `translate(${d.x},${d.y})`);
+}
+
+// ------------------------------------------------------------
+// Rendering
+// ------------------------------------------------------------
+const TYPE_COLOR = {
+  component: '#ddf4ff',
+  capability: '#ffe7c2',
+  origin: '#f0e7ff',
+};
+const TYPE_STROKE = {
+  component: '#54aeff',
+  capability: '#dd7815',
+  origin: '#a371f7',
+};
+
+function nodeRadius(d) { return d.id === SEED_ID ? 32 : 28; }
+
+function render() {
+  buildSim();
+
+  // Edges
+  const edgeSel = edgesLayer.selectAll('path.edge').data(simEdges, (d) => `${d.source.id}__${d.target.id}__${d.type}`);
+  edgeSel.exit().remove();
+  edgeSel.enter().append('path')
+    .attr('class', (d) => `edge ${d.type}`)
+    .merge(edgeSel)
+    .attr('class', (d) => `edge ${d.type}`);
+
+  // Nodes
+  const nodeSel = nodesLayer.selectAll('g.node').data(simNodes, (d) => d.id);
+  nodeSel.exit().remove();
+
+  const enter = nodeSel.enter().append('g')
+    .attr('class', (d) => `node${d.id === SEED_ID ? ' seed' : ''}`)
+    .call(d3.drag()
+      .on('start', (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+      .on('drag',  (e, d) => { d.fx = e.x; d.fy = e.y; })
+      .on('end',   (e, d) => { if (!e.active) simulation.alphaTarget(0); if (d.id !== SEED_ID) { d.fx = null; d.fy = null; } }));
+
+  enter.append('circle')
+    .attr('class', 'node-shape')
+    .attr('r', nodeRadius)
+    .attr('fill', (d) => TYPE_COLOR[d.type])
+    .attr('stroke', (d) => TYPE_STROKE[d.type]);
+
+  enter.append('text')
+    .attr('class', 'node-label')
+    .attr('y', 2)
+    .text((d) => truncate(d.name, 16));
+
+  enter.append('text')
+    .attr('class', 'node-type')
+    .attr('y', 14)
+    .text((d) => d.subtype === 'component' || d.subtype === 'capability' ? d.subtype : `origin · ${d.subtype}`);
+
+  // Expand badge — click opens popover with per-edge-type breakdown
+  const badge = enter.append('g').attr('class', 'badge')
+    .attr('transform', (d) => `translate(${nodeRadius(d) - 4}, ${-nodeRadius(d) + 4})`)
+    .on('click', (e, d) => { e.stopPropagation(); openPopover(d, e); });
+  badge.append('circle').attr('r', 11);
+  badge.append('text').attr('y', 3);
+
+  // Remove btn
+  const rm = enter.append('g').attr('class', 'remove-btn')
+    .attr('transform', (d) => `translate(${-nodeRadius(d) + 4}, ${-nodeRadius(d) + 4})`)
+    .on('click', (e, d) => { e.stopPropagation(); removeNode(d.id); });
+  rm.append('circle').attr('r', 9);
+  rm.append('line').attr('x1', -3).attr('y1', 0).attr('x2', 3).attr('y2', 0);
+
+  // Update badge counts on all nodes (enter + update)
+  const allNodes = enter.merge(nodeSel);
+  allNodes.select('.badge')
+    .style('display', (d) => unexpandedNeighborCount(d.id) > 0 ? null : 'none');
+  allNodes.select('.badge text')
+    .text((d) => `+${unexpandedNeighborCount(d.id)}`);
+
+  updateStats();
+  document.getElementById('empty-hint').style.display = state.included.size === 1 ? 'block' : 'none';
+}
+
+function updateStats() {
+  const counts = { component: 0, capability: 0, origin: 0 };
+  for (const id of state.included) counts[ENTITIES[id].type]++;
+  document.getElementById('total-count').textContent = state.included.size;
+  document.getElementById('count-component').textContent = counts.component;
+  document.getElementById('count-capability').textContent = counts.capability;
+  document.getElementById('count-origin').textContent = counts.origin;
+  document.getElementById('create-btn').textContent = `Save view (${state.included.size})`;
+}
+
+function truncate(s, n) { return s.length <= n ? s : s.slice(0, n - 1) + '…'; }
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.classList.remove('show'), 1800);
+}
+
+// ------------------------------------------------------------
+// Per-edge-type expand popover
+// ------------------------------------------------------------
+const EDGE_META = {
+  relation:    { label: 'Triggers / Serves',  swatch: '#6e7781', hint: '(component ↔ component)' },
+  realization: { label: 'Realizations',        swatch: '#8250df', hint: '(component ↔ capability)' },
+  parentage:   { label: 'Capability parentage',swatch: '#1f883d', hint: '(capability ↔ capability)' },
+  origin:      { label: 'Origin',              swatch: '#bf8700', hint: '(component ↔ origin entity)' },
+};
+
+function openPopover(node, event) {
+  const pop = document.getElementById('popover');
+  const breakdown = unexpandedByEdgeType(node.id);
+  const total = Object.values(breakdown).reduce((s, arr) => s + arr.length, 0);
+  if (total === 0) { closePopover(); return; }
+
+  // Build content
+  const rows = [];
+  rows.push(`<div class="popover-header">Expand from ${escapeHtml(node.name)}</div>`);
+  for (const et of ['relation', 'realization', 'parentage', 'origin']) {
+    if (!state.filters.edges[et]) continue;
+    const meta = EDGE_META[et];
+    const ids = breakdown[et];
+    const disabled = ids.length === 0;
+    rows.push(`
+      <div class="popover-row ${disabled ? 'disabled' : ''}" data-edge="${et}">
+        <span class="swatch" style="background:${meta.swatch}"></span>
+        <span class="label">${meta.label}<span class="hint">${meta.hint}</span></span>
+        <span class="pill">+${ids.length}</span>
+      </div>`);
+  }
+  rows.push(`<div class="popover-divider"></div>`);
+  rows.push(`
+    <div class="popover-row all" data-edge="__all__">
+      <span class="swatch" style="background:#1f883d"></span>
+      <span class="label">Expand all</span>
+      <span class="pill">+${total}</span>
+    </div>`);
+  pop.innerHTML = rows.join('');
+
+  // Wire row clicks
+  pop.querySelectorAll('.popover-row').forEach((row) => {
+    if (row.classList.contains('disabled')) return;
+    row.addEventListener('click', () => {
+      const et = row.dataset.edge;
+      if (et === '__all__') expand(node.id);
+      else expandByEdgeType(node.id, et);
+      closePopover();
+    });
+  });
+
+  // Position next to the badge (in canvas coords)
+  const canvas = document.getElementById('canvas');
+  const cRect = canvas.getBoundingClientRect();
+  const x = event.clientX - cRect.left + 12;
+  const y = event.clientY - cRect.top + 8;
+  pop.style.left = Math.min(x, canvas.clientWidth - 240) + 'px';
+  pop.style.top  = Math.min(y, canvas.clientHeight - 220) + 'px';
+  pop.classList.add('show');
+}
+
+function closePopover() {
+  document.getElementById('popover').classList.remove('show');
+}
+
+document.addEventListener('click', (e) => {
+  const pop = document.getElementById('popover');
+  if (!pop.classList.contains('show')) return;
+  if (pop.contains(e.target)) return;
+  // Click landed somewhere else (including a badge — that handler reopens it)
+  closePopover();
+});
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
+// ------------------------------------------------------------
+// Wire up filter checkboxes
+// ------------------------------------------------------------
+document.querySelectorAll('input[data-edge]').forEach((cb) => {
+  cb.addEventListener('change', () => {
+    state.filters.edges[cb.dataset.edge] = cb.checked;
+    render();
+  });
+});
+document.querySelectorAll('input[data-type]').forEach((cb) => {
+  cb.addEventListener('change', () => {
+    state.filters.types[cb.dataset.type] = cb.checked;
+    // If a type was disabled, drop those entities (except seed)
+    if (!cb.checked) {
+      for (const id of [...state.included]) {
+        if (id !== SEED_ID && ENTITIES[id].type === cb.dataset.type) state.included.delete(id);
+      }
+    }
+    render();
+  });
+});
+
+document.getElementById('create-btn').addEventListener('click', () => {
+  toast(`Mock: would save view with ${state.included.size} entities (calls POST /views + add-* endpoints)`);
+});
+
+// initial paint after a tick so canvas has dimensions
+requestAnimationFrame(render);
+window.addEventListener('resize', () => render());
+</script>
+</body>
+</html>

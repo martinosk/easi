@@ -4,6 +4,11 @@ import {
   type CanvasCapabilityState,
   createCanvasCapabilitySlice,
 } from './slices/canvasCapabilitySlice';
+import {
+  createDynamicModeSlice,
+  type DynamicModeActions,
+  type DynamicModeState,
+} from './slices/dynamicModeSlice';
 import { createSelectionSlice, type SelectionActions, type SelectionState } from './slices/selectionSlice';
 import { createViewportSlice, type ViewportActions, type ViewportSliceState } from './slices/viewportSlice';
 import { createViewSlice, type ViewActions, type ViewState } from './slices/viewSlice';
@@ -15,13 +20,16 @@ export type AppStore = ViewState &
   SelectionState &
   SelectionActions &
   CanvasCapabilityState &
-  CanvasCapabilityActions;
+  CanvasCapabilityActions &
+  DynamicModeState &
+  DynamicModeActions;
 
 export const useAppStore = create<AppStore>()((...args) => ({
   ...createViewSlice(...args),
   ...createViewportSlice(...args),
   ...createSelectionSlice(...args),
   ...createCanvasCapabilitySlice(...args),
+  ...createDynamicModeSlice(...args),
 }));
 
 export type {
