@@ -305,3 +305,5 @@ backend/docs/swagger.json
 backend/docs/swagger.yaml
 backend/docs/docs.go
 .claude/settings.local.json
+.claude/skills
+.claude/commands
