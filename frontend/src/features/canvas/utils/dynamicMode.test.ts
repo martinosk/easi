@@ -11,13 +11,7 @@ import type {
   Relation,
   RelationId,
 } from '../../../api/types';
-import {
-  computeOrphans,
-  getNeighbors,
-  getUnexpandedByEdgeType,
-  type DynamicGraphData,
-  type EntityRef,
-} from './dynamicMode';
+import { type DynamicGraphData, type EntityRef, getNeighbors, getUnexpandedByEdgeType } from './dynamicMode';
 
 const links: HATEOASLinks = { self: { href: '/test', method: 'GET' } };
 
@@ -85,19 +79,13 @@ describe('getNeighbors', () => {
   });
 
   it('returns target component as relation neighbor when entity is the source', () => {
-    const result = neighbors(
-      { id: 'A', type: 'component' },
-      { relations: [makeRelation('A', 'B')] },
-    );
+    const result = neighbors({ id: 'A', type: 'component' }, { relations: [makeRelation('A', 'B')] });
 
     expect(result).toEqual([{ id: 'B', type: 'component', edgeType: 'relation' }]);
   });
 
   it('returns source component as relation neighbor when entity is the target', () => {
-    const result = neighbors(
-      { id: 'B', type: 'component' },
-      { relations: [makeRelation('A', 'B')] },
-    );
+    const result = neighbors({ id: 'B', type: 'component' }, { relations: [makeRelation('A', 'B')] });
 
     expect(result).toEqual([{ id: 'A', type: 'component', edgeType: 'relation' }]);
   });
@@ -186,12 +174,10 @@ describe('getUnexpandedByEdgeType', () => {
       originRelationships: [makeOriginRelationship('A', 'vendor-1')],
     };
 
-    const result = getUnexpandedByEdgeType(
-      { ...empty, ...data },
-      { id: 'A', type: 'component' },
-      new Set(),
-      { edges: allEdges, types: allTypes },
-    );
+    const result = getUnexpandedByEdgeType({ ...empty, ...data }, { id: 'A', type: 'component' }, new Set(), {
+      edges: allEdges,
+      types: allTypes,
+    });
 
     expect(result.relation).toEqual(['B', 'C']);
     expect(result.realization).toEqual(['cap-1']);
@@ -210,7 +196,16 @@ describe('getUnexpandedByEdgeType', () => {
     expect(result.relation).toEqual(['C']);
   });
 
-  it('excludes neighbors via disabled edge types', () => {
+  it.each([
+    {
+      name: 'edge type',
+      filters: { edges: { ...allEdges, realization: false }, types: allTypes },
+    },
+    {
+      name: 'entity type',
+      filters: { edges: allEdges, types: { ...allTypes, capability: false } },
+    },
+  ])('excludes neighbors filtered out by disabled $name', ({ filters }) => {
     const result = getUnexpandedByEdgeType(
       {
         ...empty,
@@ -219,97 +214,10 @@ describe('getUnexpandedByEdgeType', () => {
       },
       { id: 'A', type: 'component' },
       new Set(),
-      { edges: { ...allEdges, realization: false }, types: allTypes },
+      filters,
     );
 
     expect(result.relation).toEqual(['B']);
     expect(result.realization).toEqual([]);
-  });
-
-  it('excludes neighbors of disabled entity types', () => {
-    const result = getUnexpandedByEdgeType(
-      {
-        ...empty,
-        relations: [makeRelation('A', 'B')],
-        realizations: [makeRealization('A', 'cap-1')],
-      },
-      { id: 'A', type: 'component' },
-      new Set(),
-      { edges: allEdges, types: { ...allTypes, capability: false } },
-    );
-
-    expect(result.relation).toEqual(['B']);
-    expect(result.realization).toEqual([]);
-  });
-});
-
-describe('computeOrphans', () => {
-  const allEdges = { relation: true, realization: true, parentage: true, origin: true };
-  const allTypes = { component: true, capability: true, originEntity: true };
-
-  const c = (id: string): EntityRef => ({ id, type: 'component' });
-  const cap = (id: string): EntityRef => ({ id, type: 'capability' });
-
-  it('returns no orphans when remaining graph stays connected', () => {
-    const result = computeOrphans(
-      { ...empty, relations: [makeRelation('A', 'B'), makeRelation('B', 'C')] },
-      [c('A'), c('B'), c('C')],
-      'A',
-      { edges: allEdges, types: allTypes },
-    );
-
-    expect(result).toEqual([]);
-  });
-
-  it('returns entities that lose their only connection when a bridge is removed', () => {
-    const result = computeOrphans(
-      { ...empty, relations: [makeRelation('A', 'B'), makeRelation('B', 'C')] },
-      [c('A'), c('B'), c('C')],
-      'B',
-      { edges: allEdges, types: allTypes },
-    );
-
-    expect(result.sort()).toEqual(['A', 'C']);
-  });
-
-  it('preserves pre-existing isolated entities (not newly orphaned)', () => {
-    const result = computeOrphans(
-      { ...empty, relations: [makeRelation('A', 'B'), makeRelation('B', 'C')] },
-      [c('A'), c('B'), c('C'), c('isolated')],
-      'B',
-      { edges: allEdges, types: allTypes },
-    );
-
-    expect(result.sort()).toEqual(['A', 'C']);
-  });
-
-  it('respects edge filters when determining was-orphan and is-orphan', () => {
-    const data: DynamicGraphData = {
-      ...empty,
-      realizations: [makeRealization('A', 'cap-1'), makeRealization('B', 'cap-1')],
-      capabilities: [makeCapability('cap-1')],
-    };
-    const included = [c('A'), c('B'), cap('cap-1')];
-
-    const withRealization = computeOrphans(data, included, 'cap-1', { edges: allEdges, types: allTypes });
-    expect(withRealization.sort()).toEqual(['A', 'B']);
-
-    const withoutRealization = computeOrphans(data, included, 'cap-1', {
-      edges: { ...allEdges, realization: false },
-      types: allTypes,
-    });
-    expect(withoutRealization).toEqual([]);
-  });
-
-  it('does not include the removed id in orphan output', () => {
-    const result = computeOrphans(
-      { ...empty, relations: [makeRelation('A', 'B')] },
-      [c('A'), c('B')],
-      'A',
-      { edges: allEdges, types: allTypes },
-    );
-
-    expect(result).not.toContain('A');
-    expect(result).toEqual(['B']);
   });
 });

@@ -101,27 +101,3 @@ export function getUnexpandedByEdgeType(
   }
   return out;
 }
-
-function hasNeighborIn(
-  data: DynamicGraphData,
-  entity: EntityRef,
-  set: ReadonlySet<string>,
-  filters: DynamicFilters,
-): boolean {
-  return getNeighbors(data, entity).some((n) => passesFilters(n, filters) && n.id !== entity.id && set.has(n.id));
-}
-
-export function computeOrphans(
-  data: DynamicGraphData,
-  included: ReadonlyArray<EntityRef>,
-  removedId: string,
-  filters: DynamicFilters,
-): string[] {
-  const includedIds = new Set(included.map((e) => e.id));
-  const remainingIds = new Set(included.filter((e) => e.id !== removedId).map((e) => e.id));
-  return included
-    .filter((e) => e.id !== removedId)
-    .filter((e) => hasNeighborIn(data, e, includedIds, filters))
-    .filter((e) => !hasNeighborIn(data, e, remainingIds, filters))
-    .map((e) => e.id);
-}
