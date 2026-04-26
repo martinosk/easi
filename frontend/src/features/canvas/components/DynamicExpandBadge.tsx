@@ -5,12 +5,13 @@ import { selectDynamicAdditions } from '../../../store/slices/dynamicModeSlice';
 import { useCapabilities, useRealizations } from '../../capabilities/hooks/useCapabilities';
 import { useOriginRelationshipsQuery } from '../../origin-entities/hooks/useOriginRelationships';
 import { useRelations } from '../../relations/hooks/useRelations';
+import { useIsDraftActiveForCurrentView } from '../../views/hooks/useIsDraftActiveForCurrentView';
 import {
-  getUnexpandedByEdgeType,
   type DynamicFilters,
   type EdgeType,
   type EntityRef,
   type EntityType,
+  getUnexpandedByEdgeType,
   type UnexpandedByEdgeType,
 } from '../utils/dynamicMode';
 import { ExpandPopover } from './ExpandPopover';
@@ -46,11 +47,7 @@ function totalEnabled(breakdown: UnexpandedByEdgeType, filters: DynamicFilters):
   return EDGE_ORDER.reduce((sum, et) => sum + (filters.edges[et] ? breakdown[et].length : 0), 0);
 }
 
-function buildAllRefs(
-  breakdown: UnexpandedByEdgeType,
-  filters: DynamicFilters,
-  sourceType: EntityType,
-): EntityRef[] {
+function buildAllRefs(breakdown: UnexpandedByEdgeType, filters: DynamicFilters, sourceType: EntityType): EntityRef[] {
   return EDGE_ORDER.filter((et) => filters.edges[et]).flatMap((et) =>
     breakdown[et].map((id) => ({ id, type: inferNeighborType(et, sourceType) })),
   );
@@ -77,7 +74,7 @@ function fanOutPositions(
 }
 
 export function DynamicExpandBadge({ entityId, entityType, entityName }: DynamicExpandBadgeProps) {
-  const enabled = useAppStore((s) => s.dynamicEnabled);
+  const draftActive = useIsDraftActiveForCurrentView();
   const dynamicEntities = useAppStore((s) => s.dynamicEntities);
   const dynamicPositions = useAppStore((s) => s.dynamicPositions);
   const filters = useAppStore((s) => s.dynamicFilters);
@@ -90,7 +87,7 @@ export function DynamicExpandBadge({ entityId, entityType, entityName }: Dynamic
 
   const [popoverOpen, setPopoverOpen] = useState(false);
 
-  if (!enabled) return null;
+  if (!draftActive) return null;
 
   const includedIds = new Set(dynamicEntities.map((e) => e.id));
   const breakdown = getUnexpandedByEdgeType(
@@ -107,13 +104,25 @@ export function DynamicExpandBadge({ entityId, entityType, entityName }: Dynamic
 
   const handleExpandEdgeType = (edge: EdgeType) => {
     const refs = breakdown[edge].map((id) => ({ id, type: inferNeighborType(edge, entityType) }));
-    draftAddEntities(refs, fanOutPositions(refs.map((r) => r.id), origin));
+    draftAddEntities(
+      refs,
+      fanOutPositions(
+        refs.map((r) => r.id),
+        origin,
+      ),
+    );
     setPopoverOpen(false);
   };
 
   const handleExpandAll = () => {
     const refs = buildAllRefs(breakdown, filters, entityType);
-    draftAddEntities(refs, fanOutPositions(refs.map((r) => r.id), origin));
+    draftAddEntities(
+      refs,
+      fanOutPositions(
+        refs.map((r) => r.id),
+        origin,
+      ),
+    );
     setPopoverOpen(false);
   };
 

@@ -2,9 +2,9 @@ import type { Node, ReactFlowInstance } from '@xyflow/react';
 import { useReactFlow } from '@xyflow/react';
 import { useCallback, useState } from 'react';
 import toast from 'react-hot-toast';
+import { useAppStore } from '../../../store/appStore';
 import { calculateAutoLayout } from '../../../utils/autoLayout';
 import { canEdit } from '../../../utils/hateoas';
-import { useAppStore } from '../../../store/appStore';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { useUpdateOriginEntityPosition } from '../../views/hooks/useViews';
 import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
@@ -90,7 +90,8 @@ function isLayoutAvailable(
 export function useAutoLayout() {
   const reactFlowInstance = useReactFlow();
   const { currentView, currentViewId } = useCurrentView();
-  const dynamicEnabled = useAppStore((s) => s.dynamicEnabled);
+  const dynamicViewId = useAppStore((s) => s.dynamicViewId);
+  const draftActive = dynamicViewId !== null && dynamicViewId === currentViewId;
   const applyToDraft = useDraftApply();
   const applyToServer = useServerApply();
   const [isLayouting, setIsLayouting] = useState(false);
@@ -106,7 +107,7 @@ export function useAutoLayout() {
     setIsLayouting(true);
     try {
       const layoutedNodes = calculateAutoLayout(nodes, reactFlowInstance.getEdges());
-      if (dynamicEnabled) applyToDraft(layoutedNodes);
+      if (draftActive) applyToDraft(layoutedNodes);
       else await applyToServer(layoutedNodes);
       fitAfterRender(reactFlowInstance);
       toast.success('Layout applied successfully');
@@ -116,7 +117,7 @@ export function useAutoLayout() {
     } finally {
       setIsLayouting(false);
     }
-  }, [reactFlowInstance, currentViewId, currentView, dynamicEnabled, applyToDraft, applyToServer]);
+  }, [reactFlowInstance, currentViewId, currentView, draftActive, applyToDraft, applyToServer]);
 
   return { applyAutoLayout, isLayouting };
 }

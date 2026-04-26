@@ -45,7 +45,6 @@ describe('useDynamicSnapshot — per-view drafts', () => {
   beforeEach(() => {
     setActiveView(null);
     useAppStore.setState({
-      dynamicEnabled: false,
       dynamicOriginal: null,
       dynamicViewId: null,
       dynamicEntities: [],

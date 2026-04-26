@@ -10,6 +10,7 @@ import type {
   ViewCapability,
 } from '../../../api/types';
 import { useAppStore } from '../../../store/appStore';
+import type { Position } from '../../../store/slices/dynamicModeSlice';
 import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
 import { useComponents } from '../../components/hooks/useComponents';
 import { useAcquiredEntitiesQuery } from '../../origin-entities/hooks/useAcquiredEntities';
@@ -17,7 +18,6 @@ import { useInternalTeamsQuery } from '../../origin-entities/hooks/useInternalTe
 import { useVendorsQuery } from '../../origin-entities/hooks/useVendors';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
-import type { Position } from '../../../store/slices/dynamicModeSlice';
 import type { EntityRef } from '../utils/dynamicMode';
 import {
   createAcquiredEntityNode,
@@ -98,13 +98,13 @@ function originEntityPositions(view: View): Record<string, Position> {
 }
 
 function selectRefsAndPositions(
-  dynamicEnabled: boolean,
+  draftActive: boolean,
   dynamicEntities: readonly EntityRef[],
   dynamicPositions: Record<string, Position>,
   layoutPositions: Record<string, Position>,
   view: View,
 ): { refs: readonly EntityRef[]; positions: Record<string, Position> } {
-  if (dynamicEnabled) {
+  if (draftActive) {
     return { refs: dynamicEntities, positions: { ...layoutPositions, ...dynamicPositions } };
   }
   return {
@@ -115,7 +115,7 @@ function selectRefsAndPositions(
 
 export const useCanvasNodes = (): Node[] => {
   const { data: components = [] } = useComponents();
-  const { currentView } = useCurrentView();
+  const { currentView, currentViewId } = useCurrentView();
   const selectedNodeId = useAppStore((state) => state.selectedNodeId);
   const { data: capabilities = [] } = useCapabilities();
   const selectedCapabilityId = useAppStore((state) => state.selectedCapabilityId);
@@ -124,14 +124,15 @@ export const useCanvasNodes = (): Node[] => {
   const { data: vendors = [] } = useVendorsQuery();
   const { data: internalTeams = [] } = useInternalTeamsQuery();
 
-  const dynamicEnabled = useAppStore((state) => state.dynamicEnabled);
+  const dynamicViewId = useAppStore((state) => state.dynamicViewId);
   const dynamicEntities = useAppStore((state) => state.dynamicEntities);
   const dynamicPositions = useAppStore((state) => state.dynamicPositions);
+  const draftActive = dynamicViewId !== null && dynamicViewId === currentViewId;
 
   return useMemo(() => {
     if (!currentView) return [];
     const { refs, positions } = selectRefsAndPositions(
-      dynamicEnabled,
+      draftActive,
       dynamicEntities,
       dynamicPositions,
       layoutPositions,
@@ -158,7 +159,7 @@ export const useCanvasNodes = (): Node[] => {
     acquiredEntities,
     vendors,
     internalTeams,
-    dynamicEnabled,
+    draftActive,
     dynamicEntities,
     dynamicPositions,
   ]);

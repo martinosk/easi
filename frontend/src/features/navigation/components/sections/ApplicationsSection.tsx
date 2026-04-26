@@ -102,7 +102,7 @@ const ComponentItem: React.FC<ComponentItemProps> = ({
   </button>
 );
 
-function buildComponentViewMap(currentView: View | null): Map<string, { customColor?: string }> {
+function buildComponentColorMap(currentView: View | null): Map<string, { customColor?: string }> {
   const map = new Map<string, { customColor?: string }>();
   for (const vc of currentView?.components ?? []) {
     map.set(vc.componentId, { customColor: vc.customColor });
@@ -113,6 +113,7 @@ function buildComponentViewMap(currentView: View | null): Map<string, { customCo
 interface ApplicationsSectionProps {
   components: Component[];
   currentView: View | null;
+  componentsInView?: Set<string>;
   selectedNodeId: string | null;
   isExpanded: boolean;
   onToggle: () => void;
@@ -126,9 +127,14 @@ interface ApplicationsSectionProps {
   multiSelect: TreeMultiSelectProps;
 }
 
+function defaultComponentsInView(currentView: View | null): Set<string> {
+  return new Set((currentView?.components ?? []).map((c) => c.componentId));
+}
+
 export const ApplicationsSection: React.FC<ApplicationsSectionProps> = ({
   components,
   currentView,
+  componentsInView,
   selectedNodeId,
   isExpanded,
   onToggle,
@@ -159,7 +165,11 @@ export const ApplicationsSection: React.FC<ApplicationsSectionProps> = ({
     [filteredComponents],
   );
 
-  const componentViewMap = useMemo(() => buildComponentViewMap(currentView), [currentView]);
+  const componentColorMap = useMemo(() => buildComponentColorMap(currentView), [currentView]);
+  const effectiveComponentsInView = useMemo(
+    () => componentsInView ?? defaultComponentsInView(currentView),
+    [componentsInView, currentView],
+  );
 
   const handleSelect = (component: Component, event: React.MouseEvent) => {
     const result = multiSelect.handleItemClick(
@@ -182,7 +192,7 @@ export const ApplicationsSection: React.FC<ApplicationsSectionProps> = ({
 
   const handleDragStart = (e: React.DragEvent, component: Component) => {
     const handled = multiSelect.handleDragStart(e, component.id);
-    if (!handled && !componentViewMap.has(component.id)) {
+    if (!handled && !effectiveComponentsInView.has(component.id)) {
       e.dataTransfer.setData('componentId', component.id);
       e.dataTransfer.effectAllowed = 'copy';
     }
@@ -204,16 +214,16 @@ export const ApplicationsSection: React.FC<ApplicationsSectionProps> = ({
       );
     }
 
-    const viewEntry = componentViewMap.get(component.id);
+    const colorEntry = componentColorMap.get(component.id);
 
     return (
       <ComponentItem
         key={component.id}
         component={component}
         isSelected={selectedNodeId === component.id || multiSelect.isMultiSelected(component.id)}
-        isInView={!!viewEntry}
-        showColorIndicator={hasCustomColor(currentView?.colorScheme, viewEntry?.customColor)}
-        customColor={viewEntry?.customColor}
+        isInView={effectiveComponentsInView.has(component.id)}
+        showColorIndicator={hasCustomColor(currentView?.colorScheme, colorEntry?.customColor)}
+        customColor={colorEntry?.customColor}
         onClick={(e) => handleSelect(component, e)}
         onContextMenu={(e) => handleContextMenu(e, component)}
         onDragStart={(e) => handleDragStart(e, component)}

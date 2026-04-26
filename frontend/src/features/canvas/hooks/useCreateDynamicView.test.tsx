@@ -27,7 +27,6 @@ describe('useCreateDynamicView', () => {
   afterEach(() => {
     act(() => {
       useAppStore.setState({
-        dynamicEnabled: false,
         dynamicEntities: [],
         dynamicPositions: {},
         dynamicOriginal: null,
@@ -46,7 +45,6 @@ describe('useCreateDynamicView', () => {
     });
 
     const state = useAppStore.getState();
-    expect(state.dynamicEnabled).toBe(true);
     expect(state.dynamicViewId).toBe('view-99');
     expect(state.dynamicEntities).toEqual([{ id: 'comp-42', type: 'component' }]);
     expect(state.dynamicOriginal?.entities).toEqual([{ id: 'comp-42', type: 'component' }]);

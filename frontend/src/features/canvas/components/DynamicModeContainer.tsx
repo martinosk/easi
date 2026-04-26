@@ -1,6 +1,7 @@
-import toast from 'react-hot-toast';
-import { useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useCallback, useMemo } from 'react';
+import toast from 'react-hot-toast';
+import { invalidateFor } from '../../../lib/invalidateFor';
 import { useAppStore } from '../../../store/appStore';
 import {
   selectDynamicAdditions,
@@ -8,12 +9,11 @@ import {
   selectDynamicPositionDeltas,
   selectDynamicRemovals,
 } from '../../../store/slices/dynamicModeSlice';
-import { invalidateFor } from '../../../lib/invalidateFor';
-import { viewsMutationEffects } from '../../views/mutationEffects';
-import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { canEdit } from '../../../utils/hateoas';
-import { useSaveDynamicDraft } from '../hooks/useSaveDynamicDraft';
+import { useCurrentView } from '../../views/hooks/useCurrentView';
+import { viewsMutationEffects } from '../../views/mutationEffects';
 import { useDynamicSnapshot } from '../hooks/useDynamicSnapshot';
+import { useSaveDynamicDraft } from '../hooks/useSaveDynamicDraft';
 import type { EntityRef } from '../utils/dynamicMode';
 import { DynamicModeToolbar } from './DynamicModeToolbar';
 
@@ -57,9 +57,9 @@ function shouldRenderToolbar(
   editable: boolean,
   currentView: unknown,
   currentViewId: unknown,
-  enabled: boolean,
+  draftActive: boolean,
 ): boolean {
-  return editable && Boolean(currentView) && Boolean(currentViewId) && enabled;
+  return editable && Boolean(currentView) && Boolean(currentViewId) && draftActive;
 }
 
 function useDraftSummary(): DraftSummary {
@@ -89,11 +89,12 @@ export function DynamicModeContainer() {
   const { currentView, currentViewId } = useCurrentView();
   const editable = canEdit(currentView);
 
-  const enabled = useAppStore((s) => s.dynamicEnabled);
+  const dynamicViewId = useAppStore((s) => s.dynamicViewId);
   const dynamicEntities = useAppStore((s) => s.dynamicEntities);
   const dynamicPositions = useAppStore((s) => s.dynamicPositions);
   const enterDynamicMode = useAppStore((s) => s.enterDynamicMode);
   const resetDraft = useAppStore((s) => s.resetDraft);
+  const draftActive = dynamicViewId !== null && dynamicViewId === currentViewId;
 
   const { save, isSaving } = useSaveDynamicDraft();
   const { dirty, additions, removals, positionDeltas, totalChanges } = useDraftSummary();
@@ -111,10 +112,7 @@ export function DynamicModeContainer() {
     notifySaveResult(result);
 
     if (result.failures.length === 0) {
-      enterDynamicMode(
-        { entities: [...dynamicEntities], positions: { ...dynamicPositions } },
-        currentViewId,
-      );
+      enterDynamicMode({ entities: [...dynamicEntities], positions: { ...dynamicPositions } }, currentViewId);
     }
   }, [
     currentViewId,
@@ -133,7 +131,7 @@ export function DynamicModeContainer() {
     void handleSave();
   }, [handleSave]);
 
-  if (!shouldRenderToolbar(editable, currentView, currentViewId, enabled)) return null;
+  if (!shouldRenderToolbar(editable, currentView, currentViewId, draftActive)) return null;
 
   return (
     <DynamicModeToolbar

@@ -28,7 +28,6 @@ function setDirtyDraft(viewId: string) {
 describe('useUnloadGuard', () => {
   beforeEach(() => {
     useAppStore.setState({
-      dynamicEnabled: false,
       dynamicOriginal: null,
       dynamicViewId: null,
       dynamicEntities: [],

@@ -101,7 +101,7 @@ describe('NodeContextMenu - Create dynamic view', () => {
   it('shows Remove from View for drafted entities even without view-element links', () => {
     act(() => {
       useAppStore.setState({
-        dynamicEnabled: true,
+        dynamicViewId: 'view-1' as ViewId,
         dynamicEntities: [{ id: 'comp-42', type: 'component' }],
       });
     });
@@ -117,7 +117,7 @@ describe('NodeContextMenu - Create dynamic view', () => {
     expect(screen.getByText('Remove from View')).toBeDefined();
 
     act(() => {
-      useAppStore.setState({ dynamicEnabled: false, dynamicEntities: [] });
+      useAppStore.setState({ dynamicViewId: null, dynamicEntities: [] });
     });
   });
 

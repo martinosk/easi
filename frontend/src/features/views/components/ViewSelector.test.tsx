@@ -54,7 +54,6 @@ describe('ViewSelector', () => {
     useAppStore.setState({
       currentViewId: v1,
       openViewIds: [v1, v2],
-      dynamicEnabled: false,
       dynamicOriginal: null,
       dynamicViewId: null,
       dynamicEntities: [],

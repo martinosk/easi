@@ -1,19 +1,19 @@
 import type { Edge, Node } from '@xyflow/react';
 import { useMemo } from 'react';
 import type { Relation, View, ViewCapability, ViewComponent } from '../../../api/types';
+import { isOriginEntity, toNodeId } from '../../../constants/entityIdentifiers';
 import { useAppStore } from '../../../store/appStore';
 import { useCapabilities, useRealizations } from '../../capabilities/hooks/useCapabilities';
 import { useOriginRelationshipsQuery } from '../../origin-entities/hooks/useOriginRelationships';
 import { useRelations } from '../../relations/hooks/useRelations';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
+import type { EntityRef } from '../utils/dynamicMode';
 import {
   createOriginRelationshipEdges,
   createParentEdges,
   createRealizationEdges,
   createRelationEdges,
 } from '../utils/edgeCreators';
-import { isOriginEntity, toNodeId } from '../../../constants/entityIdentifiers';
-import type { EntityRef } from '../utils/dynamicMode';
 
 interface ViewProjection {
   components: ViewComponent[];
@@ -37,32 +37,27 @@ function projectionFromView(view: View | null): ViewProjection {
   return { components: view?.components ?? [], capabilities: view?.capabilities ?? [] };
 }
 
-function selectProjection(
-  dynamicEnabled: boolean,
-  dynamicEntities: EntityRef[],
-  view: View | null,
-): ViewProjection {
-  return dynamicEnabled ? projectionFromDraft(dynamicEntities) : projectionFromView(view);
+function selectProjection(draftActive: boolean, dynamicEntities: EntityRef[], view: View | null): ViewProjection {
+  return draftActive ? projectionFromDraft(dynamicEntities) : projectionFromView(view);
 }
 
 function relationsBetweenCanvasComponents(relations: Relation[], componentIds: Set<string>): Relation[] {
-  return relations.filter(
-    (r) => componentIds.has(r.sourceComponentId) && componentIds.has(r.targetComponentId),
-  );
+  return relations.filter((r) => componentIds.has(r.sourceComponentId) && componentIds.has(r.targetComponentId));
 }
 
 export const useCanvasEdges = (nodes: Node[]): Edge[] => {
   const { data: relations = [] } = useRelations();
   const selectedEdgeId = useAppStore((state) => state.selectedEdgeId);
-  const { currentView } = useCurrentView();
+  const { currentView, currentViewId } = useCurrentView();
   const { data: capabilities = [] } = useCapabilities();
   const { data: originRelationships = [] } = useOriginRelationshipsQuery();
   const { data: capabilityRealizations = [] } = useRealizations();
-  const dynamicEnabled = useAppStore((state) => state.dynamicEnabled);
+  const dynamicViewId = useAppStore((state) => state.dynamicViewId);
   const dynamicEntities = useAppStore((state) => state.dynamicEntities);
+  const draftActive = dynamicViewId !== null && dynamicViewId === currentViewId;
 
   return useMemo(() => {
-    const projection = selectProjection(dynamicEnabled, dynamicEntities, currentView);
+    const projection = selectProjection(draftActive, dynamicEntities, currentView);
     const ctx = {
       nodes,
       selectedEdgeId,
@@ -70,9 +65,7 @@ export const useCanvasEdges = (nodes: Node[]): Edge[] => {
       isClassicScheme: (currentView?.colorScheme ?? 'maturity') === 'classic',
     };
     const componentIdsOnCanvas = new Set(projection.components.map((vc) => vc.componentId));
-    const originEntityNodeIds = new Set(
-      nodes.filter((n) => isOriginEntity(toNodeId(n.id))).map((n) => n.id),
-    );
+    const originEntityNodeIds = new Set(nodes.filter((n) => isOriginEntity(toNodeId(n.id))).map((n) => n.id));
 
     return [
       ...createRelationEdges(relationsBetweenCanvasComponents(relations, componentIdsOnCanvas), ctx),
@@ -88,7 +81,7 @@ export const useCanvasEdges = (nodes: Node[]): Edge[] => {
     capabilities,
     capabilityRealizations,
     originRelationships,
-    dynamicEnabled,
+    draftActive,
     dynamicEntities,
   ]);
 };

@@ -8,6 +8,7 @@ import { TreeSection } from '../TreeSection';
 interface VendorsSectionProps {
   vendors: Vendor[];
   currentView: View | null;
+  originEntitiesInView?: Set<string>;
   selectedVendorId: string | null;
   isExpanded: boolean;
   onToggle: () => void;
@@ -15,6 +16,10 @@ interface VendorsSectionProps {
   onVendorSelect?: (vendorId: string) => void;
   onVendorContextMenu: (e: React.MouseEvent, vendor: Vendor) => void;
   multiSelect: TreeMultiSelectProps;
+}
+
+function defaultOriginEntitiesInView(currentView: View | null): Set<string> {
+  return new Set((currentView?.originEntities ?? []).map((oe) => oe.originEntityId));
 }
 
 function filterVendors(vendors: Vendor[], search: string): Vendor[] {
@@ -28,20 +33,10 @@ function filterVendors(vendors: Vendor[], search: string): Vendor[] {
   );
 }
 
-function buildVendorIdsOnCanvas(vendors: Vendor[], currentView: View | null): Set<string> {
-  const viewOriginEntityIds = new Set((currentView?.originEntities ?? []).map((oe) => oe.originEntityId));
-  const onCanvas = new Set<string>();
-  for (const vendor of vendors) {
-    if (viewOriginEntityIds.has(vendor.id)) {
-      onCanvas.add(vendor.id);
-    }
-  }
-  return onCanvas;
-}
-
 export const VendorsSection: React.FC<VendorsSectionProps> = ({
   vendors,
   currentView,
+  originEntitiesInView,
   selectedVendorId,
   isExpanded,
   onToggle,
@@ -51,8 +46,10 @@ export const VendorsSection: React.FC<VendorsSectionProps> = ({
   multiSelect,
 }) => {
   const [search, setSearch] = useState('');
-
-  const vendorIdsOnCanvas = useMemo(() => buildVendorIdsOnCanvas(vendors, currentView), [vendors, currentView]);
+  const vendorIdsOnCanvas = useMemo(
+    () => originEntitiesInView ?? defaultOriginEntitiesInView(currentView),
+    [originEntitiesInView, currentView],
+  );
 
   const filteredVendors = useMemo(() => filterVendors(vendors, search), [vendors, search]);
 

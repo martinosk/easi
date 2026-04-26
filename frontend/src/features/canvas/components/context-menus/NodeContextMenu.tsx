@@ -1,12 +1,13 @@
 import type { ViewId } from '../../../../api/types';
 import type { OriginEntityType } from '../../../../components/canvas';
 import { ContextMenu, type ContextMenuItem } from '../../../../components/shared/ContextMenu';
-import { hasLink } from '../../../../utils/hateoas';
 import { useAppStore } from '../../../../store/appStore';
+import { hasLink } from '../../../../utils/hateoas';
 import type { ArtifactType } from '../../../edit-grants/types';
 import { useCurrentView } from '../../../views/hooks/useCurrentView';
-import { useDraftRemoveFromView } from '../../hooks/useDraftRemoveFromView';
+import { useIsDraftActiveForCurrentView } from '../../../views/hooks/useIsDraftActiveForCurrentView';
 import type { NodeContextMenu as NodeContextMenuType } from '../../hooks/useContextMenu';
+import { useDraftRemoveFromView } from '../../hooks/useDraftRemoveFromView';
 import type { EntityType } from '../../utils/dynamicMode';
 
 export type NodeDeleteTarget = {
@@ -166,12 +167,12 @@ export const NodeContextMenu = ({
 }: NodeContextMenuProps) => {
   const { currentViewId } = useCurrentView();
   const draftRemove = useDraftRemoveFromView();
-  const dynamicEnabled = useAppStore((s) => s.dynamicEnabled);
+  const draftActive = useIsDraftActiveForCurrentView();
   const dynamicEntities = useAppStore((s) => s.dynamicEntities);
 
   if (!menu) return null;
 
-  const isDrafted = dynamicEnabled && dynamicEntities.some((e) => e.id === menu.nodeId);
+  const isDrafted = draftActive && dynamicEntities.some((e) => e.id === menu.nodeId);
   const canRemoveFromView = isDrafted || hasLink({ _links: menu.viewElementLinks }, 'x-remove');
   const canDeleteFromModel = hasLink({ _links: menu.modelLinks }, 'delete');
   const canInviteToEdit = hasLink({ _links: menu.modelLinks }, 'x-edit-grants');

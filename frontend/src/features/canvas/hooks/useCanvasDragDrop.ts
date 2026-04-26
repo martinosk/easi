@@ -4,7 +4,9 @@ import { useAppStore } from '../../../store/appStore';
 import { canEdit } from '../../../utils/hateoas';
 import type { MultiDragPayload, TreeItemType } from '../../navigation/hooks/useTreeMultiSelect';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
+import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
 import type { EntityRef, EntityType } from '../utils/dynamicMode';
+import { buildSnapshotFromView } from './useDynamicSnapshot';
 
 const TREE_TYPE_TO_ENTITY_TYPE: Record<TreeItemType, EntityType> = {
   component: 'component',
@@ -117,7 +119,10 @@ export const useCanvasDragDrop = (
   _onComponentDrop?: (componentId: string, x: number, y: number) => void,
 ) => {
   const { currentViewId, currentView } = useCurrentView();
+  const { positions: layoutPositions } = useCanvasLayoutContext();
   const draftAddEntities = useAppStore((s) => s.draftAddEntities);
+  const enterDynamicMode = useAppStore((s) => s.enterDynamicMode);
+  const dynamicViewId = useAppStore((s) => s.dynamicViewId);
   const dynamicEntities = useAppStore((s) => s.dynamicEntities);
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -130,15 +135,29 @@ export const useCanvasDragDrop = (
       event.preventDefault();
       if (!canDropOnView(reactFlowInstance, currentViewId, currentView)) return;
 
+      const isDraftForCurrentView = dynamicViewId === currentViewId;
+      if (!isDraftForCurrentView) {
+        enterDynamicMode(buildSnapshotFromView(currentView!, layoutPositions), currentViewId);
+      }
+
       const position = reactFlowInstance!.screenToFlowPosition({ x: event.clientX, y: event.clientY });
       const presence = buildViewPresence(currentView);
-      const draftPresence = new Set(dynamicEntities.map((e) => e.id));
+      const draftPresence = isDraftForCurrentView ? new Set(dynamicEntities.map((e) => e.id)) : new Set<string>();
       const items = parseDropItems(event.dataTransfer, presence, draftPresence);
       if (items.length === 0) return;
 
       applyDraftDrop(items, position, draftAddEntities);
     },
-    [reactFlowInstance, currentViewId, currentView, draftAddEntities, dynamicEntities],
+    [
+      reactFlowInstance,
+      currentViewId,
+      currentView,
+      dynamicViewId,
+      dynamicEntities,
+      layoutPositions,
+      enterDynamicMode,
+      draftAddEntities,
+    ],
   );
 
   return { onDragOver, onDrop };

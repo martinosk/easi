@@ -95,7 +95,7 @@ describe('Canvas in dynamic mode', () => {
   beforeEach(() => {
     Object.keys(mockLayoutPositions).forEach((key) => delete mockLayoutPositions[key]);
     seedDraft({
-      dynamicEnabled: true,
+      dynamicViewId: 'view-1',
       dynamicEntities: [
         { id: 'comp-1', type: 'component' },
         { id: 'comp-2', type: 'component' },
@@ -113,7 +113,7 @@ describe('Canvas in dynamic mode', () => {
 
   afterEach(() => {
     seedDraft({
-      dynamicEnabled: false,
+      dynamicViewId: null,
       dynamicEntities: [],
       dynamicPositions: {},
       dynamicOriginal: null,

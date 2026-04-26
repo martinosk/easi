@@ -8,6 +8,7 @@ import { TreeSection } from '../TreeSection';
 interface AcquiredEntitiesSectionProps {
   acquiredEntities: AcquiredEntity[];
   currentView: View | null;
+  originEntitiesInView?: Set<string>;
   selectedEntityId: string | null;
   isExpanded: boolean;
   onToggle: () => void;
@@ -15,6 +16,10 @@ interface AcquiredEntitiesSectionProps {
   onEntitySelect?: (entityId: string) => void;
   onEntityContextMenu: (e: React.MouseEvent, entity: AcquiredEntity) => void;
   multiSelect: TreeMultiSelectProps;
+}
+
+function defaultOriginEntitiesInView(currentView: View | null): Set<string> {
+  return new Set((currentView?.originEntities ?? []).map((oe) => oe.originEntityId));
 }
 
 function formatAcquisitionYear(acquisitionDate: string | undefined): string {
@@ -35,20 +40,10 @@ function filterEntities(entities: AcquiredEntity[], search: string): AcquiredEnt
   );
 }
 
-function buildEntityIdsOnCanvas(entities: AcquiredEntity[], currentView: View | null): Set<string> {
-  const viewOriginEntityIds = new Set((currentView?.originEntities ?? []).map((oe) => oe.originEntityId));
-  const onCanvas = new Set<string>();
-  for (const entity of entities) {
-    if (viewOriginEntityIds.has(entity.id)) {
-      onCanvas.add(entity.id);
-    }
-  }
-  return onCanvas;
-}
-
 export const AcquiredEntitiesSection: React.FC<AcquiredEntitiesSectionProps> = ({
   acquiredEntities,
   currentView,
+  originEntitiesInView,
   selectedEntityId,
   isExpanded,
   onToggle,
@@ -58,10 +53,9 @@ export const AcquiredEntitiesSection: React.FC<AcquiredEntitiesSectionProps> = (
   multiSelect,
 }) => {
   const [search, setSearch] = useState('');
-
   const entityIdsOnCanvas = useMemo(
-    () => buildEntityIdsOnCanvas(acquiredEntities, currentView),
-    [acquiredEntities, currentView],
+    () => originEntitiesInView ?? defaultOriginEntitiesInView(currentView),
+    [originEntitiesInView, currentView],
   );
 
   const filteredEntities = useMemo(() => filterEntities(acquiredEntities, search), [acquiredEntities, search]);

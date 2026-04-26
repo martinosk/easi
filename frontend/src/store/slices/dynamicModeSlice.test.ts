@@ -38,9 +38,9 @@ const singleEntityA: Parameters<DynamicModeActions['enterDynamicMode']>[0] = {
 };
 
 describe('dynamicModeSlice', () => {
-  it('starts with dynamic mode disabled and no draft', () => {
+  it('starts with no active draft', () => {
     const { getState } = createStore();
-    expect(getState().dynamicEnabled).toBe(false);
+    expect(getState().dynamicViewId).toBeNull();
     expect(getState().dynamicEntities).toEqual([]);
     expect(getState().dynamicOriginal).toBeNull();
   });
@@ -54,7 +54,6 @@ describe('dynamicModeSlice', () => {
 
     getState().enterDynamicMode(initial);
 
-    expect(getState().dynamicEnabled).toBe(true);
     expect(getState().dynamicOriginal).toEqual(initial);
     expect(getState().dynamicEntities).toEqual(initial.entities);
     expect(getState().dynamicPositions).toEqual(initial.positions);
@@ -69,7 +68,7 @@ describe('dynamicModeSlice', () => {
 
     getState().exitDynamicMode();
 
-    expect(getState().dynamicEnabled).toBe(false);
+    expect(getState().dynamicViewId).toBeNull();
     expect(getState().dynamicOriginal).toBeNull();
     expect(getState().dynamicEntities).toEqual([]);
     expect(getState().dynamicPositions).toEqual({});
@@ -355,14 +354,13 @@ describe('dynamicModeSlice — per-view drafts', () => {
     ]);
     expect(getState().dynamicPositions.B).toEqual({ x: 50, y: 50 });
     expect(getState().dynamicFilters.edges.relation).toBe(false);
-    expect(getState().dynamicEnabled).toBe(true);
   });
 
   it('hydrateDraftForView returns false when no entry exists', () => {
     const { getState } = createStore();
 
     expect(getState().hydrateDraftForView('view-x')).toBe(false);
-    expect(getState().dynamicEnabled).toBe(false);
+    expect(getState().dynamicViewId).toBeNull();
   });
 
   it('discardDraftForView removes the entry; clears scalars when active', () => {
@@ -373,7 +371,6 @@ describe('dynamicModeSlice — per-view drafts', () => {
     getState().discardDraftForView('view-a');
 
     expect(getState().draftsByView['view-a']).toBeUndefined();
-    expect(getState().dynamicEnabled).toBe(false);
     expect(getState().dynamicEntities).toEqual([]);
     expect(getState().dynamicViewId).toBeNull();
   });
@@ -398,7 +395,7 @@ describe('dynamicModeSlice — per-view drafts', () => {
 
     getState().exitDynamicMode();
 
-    expect(getState().dynamicEnabled).toBe(false);
+    expect(getState().dynamicViewId).toBeNull();
     expect(getState().draftsByView['view-a']).toBeDefined();
   });
 

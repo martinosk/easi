@@ -1,17 +1,8 @@
 import { useCallback } from 'react';
-import type { View, ViewCapability, ViewComponent } from '../../../api/types';
 import { toCapabilityId, toComponentId } from '../../../api/types';
 import { useAppStore } from '../../../store/appStore';
-import { useCurrentView } from '../../views/hooks/useCurrentView';
+import { useCurrentViewElementIds } from '../../views/hooks/useCurrentViewElementIds';
 import type { ComponentCanvasRef } from '../components/ComponentCanvas';
-
-function isComponentInView(view: View | null, componentId: string): boolean {
-  return view?.components.some((vc: ViewComponent) => vc.componentId === componentId) ?? false;
-}
-
-function isCapabilityInView(view: View | null, capabilityId: string): boolean {
-  return view?.capabilities?.some((vc: ViewCapability) => vc.capabilityId === capabilityId) ?? false;
-}
 
 function centerOnNodeIfNeeded(
   canvasRef: React.RefObject<ComponentCanvasRef | null>,
@@ -24,26 +15,26 @@ function centerOnNodeIfNeeded(
 }
 
 export function useCanvasNavigation(canvasRef: React.RefObject<ComponentCanvasRef | null>) {
-  const { currentView } = useCurrentView();
   const selectNode = useAppStore((state) => state.selectNode);
   const selectCapability = useAppStore((state) => state.selectCapability);
+  const { components: componentsInView, capabilities: capabilitiesInView } = useCurrentViewElementIds();
 
   const navigateToComponent = useCallback(
     (componentId: string) => {
       selectNode(toComponentId(componentId));
       selectCapability(null);
-      centerOnNodeIfNeeded(canvasRef, componentId, isComponentInView(currentView, componentId));
+      centerOnNodeIfNeeded(canvasRef, componentId, componentsInView.has(componentId));
     },
-    [currentView, selectNode, selectCapability, canvasRef],
+    [componentsInView, selectNode, selectCapability, canvasRef],
   );
 
   const navigateToCapability = useCallback(
     (capabilityId: string) => {
       selectCapability(toCapabilityId(capabilityId));
       selectNode(null);
-      centerOnNodeIfNeeded(canvasRef, `cap-${capabilityId}`, isCapabilityInView(currentView, capabilityId));
+      centerOnNodeIfNeeded(canvasRef, `cap-${capabilityId}`, capabilitiesInView.has(capabilityId));
     },
-    [currentView, selectCapability, selectNode, canvasRef],
+    [capabilitiesInView, selectCapability, selectNode, canvasRef],
   );
 
   const navigateToOriginEntity = useCallback(

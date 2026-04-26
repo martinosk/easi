@@ -8,6 +8,7 @@ import { TreeSection } from '../TreeSection';
 interface InternalTeamsSectionProps {
   internalTeams: InternalTeam[];
   currentView: View | null;
+  originEntitiesInView?: Set<string>;
   selectedTeamId: string | null;
   isExpanded: boolean;
   onToggle: () => void;
@@ -15,6 +16,10 @@ interface InternalTeamsSectionProps {
   onTeamSelect?: (teamId: string) => void;
   onTeamContextMenu: (e: React.MouseEvent, team: InternalTeam) => void;
   multiSelect: TreeMultiSelectProps;
+}
+
+function defaultOriginEntitiesInView(currentView: View | null): Set<string> {
+  return new Set((currentView?.originEntities ?? []).map((oe) => oe.originEntityId));
 }
 
 function filterTeams(teams: InternalTeam[], search: string): InternalTeam[] {
@@ -29,20 +34,10 @@ function filterTeams(teams: InternalTeam[], search: string): InternalTeam[] {
   );
 }
 
-function buildTeamIdsOnCanvas(teams: InternalTeam[], currentView: View | null): Set<string> {
-  const viewOriginEntityIds = new Set((currentView?.originEntities ?? []).map((oe) => oe.originEntityId));
-  const onCanvas = new Set<string>();
-  for (const team of teams) {
-    if (viewOriginEntityIds.has(team.id)) {
-      onCanvas.add(team.id);
-    }
-  }
-  return onCanvas;
-}
-
 export const InternalTeamsSection: React.FC<InternalTeamsSectionProps> = ({
   internalTeams,
   currentView,
+  originEntitiesInView,
   selectedTeamId,
   isExpanded,
   onToggle,
@@ -52,8 +47,10 @@ export const InternalTeamsSection: React.FC<InternalTeamsSectionProps> = ({
   multiSelect,
 }) => {
   const [search, setSearch] = useState('');
-
-  const teamIdsOnCanvas = useMemo(() => buildTeamIdsOnCanvas(internalTeams, currentView), [internalTeams, currentView]);
+  const teamIdsOnCanvas = useMemo(
+    () => originEntitiesInView ?? defaultOriginEntitiesInView(currentView),
+    [originEntitiesInView, currentView],
+  );
 
   const filteredTeams = useMemo(() => filterTeams(internalTeams, search), [internalTeams, search]);
 

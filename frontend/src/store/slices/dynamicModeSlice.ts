@@ -1,10 +1,5 @@
 import type { StateCreator } from 'zustand';
-import type {
-  DynamicFilters,
-  EdgeType,
-  EntityRef,
-  EntityType,
-} from '../../features/canvas/utils/dynamicMode';
+import type { DynamicFilters, EdgeType, EntityRef, EntityType } from '../../features/canvas/utils/dynamicMode';
 
 export type Position = { x: number; y: number };
 
@@ -21,7 +16,6 @@ export interface DraftEntry {
 }
 
 export interface DynamicModeState {
-  dynamicEnabled: boolean;
   dynamicOriginal: DynamicModeSnapshot | null;
   dynamicViewId: string | null;
   dynamicEntities: EntityRef[];
@@ -76,7 +70,6 @@ function withMirror(s: DynamicModeState, patch: Partial<DynamicModeState>): Part
 }
 
 export const createDynamicModeSlice: StateCreator<SliceState, [], [], SliceState> = (set) => ({
-  dynamicEnabled: false,
   dynamicOriginal: null,
   dynamicViewId: null,
   dynamicEntities: [],
@@ -88,7 +81,6 @@ export const createDynamicModeSlice: StateCreator<SliceState, [], [], SliceState
     set((s) => {
       const original = { entities: [...initial.entities], positions: { ...initial.positions } };
       const base: Partial<DynamicModeState> = {
-        dynamicEnabled: true,
         dynamicOriginal: original,
         dynamicViewId: viewId,
         dynamicEntities: [...initial.entities],
@@ -106,7 +98,6 @@ export const createDynamicModeSlice: StateCreator<SliceState, [], [], SliceState
   },
   exitDynamicMode: () => {
     set({
-      dynamicEnabled: false,
       dynamicOriginal: null,
       dynamicViewId: null,
       dynamicEntities: [],
@@ -191,7 +182,6 @@ export const createDynamicModeSlice: StateCreator<SliceState, [], [], SliceState
       if (!entry) return {};
       hydrated = true;
       return {
-        dynamicEnabled: true,
         dynamicViewId: viewId,
         dynamicOriginal: { entities: [...entry.original.entities], positions: { ...entry.original.positions } },
         dynamicEntities: [...entry.entities],
@@ -209,7 +199,6 @@ export const createDynamicModeSlice: StateCreator<SliceState, [], [], SliceState
       if (!isActive) return { draftsByView: rest };
       return {
         draftsByView: rest,
-        dynamicEnabled: false,
         dynamicOriginal: null,
         dynamicViewId: null,
         dynamicEntities: [],
@@ -220,10 +209,7 @@ export const createDynamicModeSlice: StateCreator<SliceState, [], [], SliceState
   },
 });
 
-export type DynamicDiffState = Pick<
-  DynamicModeState,
-  'dynamicOriginal' | 'dynamicEntities' | 'dynamicPositions'
->;
+export type DynamicDiffState = Pick<DynamicModeState, 'dynamicOriginal' | 'dynamicEntities' | 'dynamicPositions'>;
 
 export function selectDynamicAdditions(state: DynamicDiffState): EntityRef[] {
   if (!state.dynamicOriginal) return [];

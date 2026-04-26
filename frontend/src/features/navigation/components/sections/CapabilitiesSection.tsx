@@ -105,6 +105,7 @@ function collectExpandedIdsFromFilteredTree(tree: CapabilityTreeNode[]): Set<str
 interface CapabilitiesSectionProps {
   capabilities: Capability[];
   currentView: View | null;
+  capabilitiesInView?: Set<string>;
   isExpanded: boolean;
   onToggle: () => void;
   onAddCapability?: () => void;
@@ -117,9 +118,14 @@ interface CapabilitiesSectionProps {
   multiSelect: TreeMultiSelectProps;
 }
 
+function defaultCapabilitiesInView(currentView: View | null): Set<string> {
+  return new Set((currentView?.capabilities ?? []).map((vc) => vc.capabilityId));
+}
+
 export const CapabilitiesSection: React.FC<CapabilitiesSectionProps> = ({
   capabilities,
   currentView,
+  capabilitiesInView,
   isExpanded,
   onToggle,
   onAddCapability,
@@ -133,6 +139,10 @@ export const CapabilitiesSection: React.FC<CapabilitiesSectionProps> = ({
 }) => {
   const [search, setSearch] = useState('');
   const { getColorForValue, getSectionNameForValue } = useMaturityColorScale();
+  const effectiveCapabilitiesInView = useMemo(
+    () => capabilitiesInView ?? defaultCapabilitiesInView(currentView),
+    [capabilitiesInView, currentView],
+  );
   const capabilityTree = useMemo(() => buildCapabilityTree(capabilities), [capabilities]);
 
   const filteredTree = useMemo(() => filterCapabilityTree(capabilityTree, search), [capabilityTree, search]);
@@ -182,7 +192,7 @@ export const CapabilitiesSection: React.FC<CapabilitiesSectionProps> = ({
   const getCapabilityNodeData = (node: CapabilityTreeNode) => {
     const { capability } = node;
     const viewCapability = currentView?.capabilities.find((vc: ViewCapability) => vc.capabilityId === capability.id);
-    const isOnCanvas = !!viewCapability;
+    const isOnCanvas = effectiveCapabilitiesInView.has(capability.id);
     const customColor = viewCapability?.customColor;
     const colorScheme = currentView?.colorScheme ?? 'maturity';
 

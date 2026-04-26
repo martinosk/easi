@@ -1,11 +1,16 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { ReactFlowProvider } from '@xyflow/react';
 import { MantineProvider } from '@mantine/core';
 import type { ReactNode } from 'react';
+import type { ViewId } from '../../../api/types';
 import { useAppStore } from '../../../store/appStore';
 import { withDynamicExpansion } from './withDynamicExpansion';
+
+vi.mock('../../views/hooks/useCurrentView', () => ({
+  useCurrentView: () => ({ currentView: null, currentViewId: 'view-1', isLoading: false, error: null }),
+}));
 
 function InnerStub({ data }: { data: { label: string }; id: string; selected?: boolean }) {
   return <div data-testid="inner-node">{data.label}</div>;
@@ -23,8 +28,8 @@ function Wrapper({ children }: { children: ReactNode }) {
 }
 
 describe('withDynamicExpansion', () => {
-  it('renders the inner node directly when dynamic mode is disabled', () => {
-    useAppStore.setState({ dynamicEnabled: false });
+  it('renders the inner node directly when no draft is active for the current view', () => {
+    useAppStore.setState({ dynamicViewId: null });
     const Wrapped = withDynamicExpansion(InnerStub);
 
     render(
@@ -38,7 +43,7 @@ describe('withDynamicExpansion', () => {
   });
 
   it('does not enter an infinite render loop when disabled', () => {
-    useAppStore.setState({ dynamicEnabled: false });
+    useAppStore.setState({ dynamicViewId: null });
     let renderCount = 0;
     function CountingInner(props: { data: { label: string }; id: string; selected?: boolean }) {
       renderCount++;
@@ -58,7 +63,7 @@ describe('withDynamicExpansion', () => {
   it('does not enter an infinite render loop when enabled with no neighbors', async () => {
     act(() => {
       useAppStore.setState({
-        dynamicEnabled: true,
+        dynamicViewId: 'view-1' as ViewId,
         dynamicEntities: [{ id: 'comp-1', type: 'component' }],
         dynamicOriginal: { entities: [{ id: 'comp-1', type: 'component' }], positions: { 'comp-1': { x: 0, y: 0 } } },
       });
@@ -80,7 +85,7 @@ describe('withDynamicExpansion', () => {
     expect(renderCount).toBeLessThan(10);
 
     act(() => {
-      useAppStore.setState({ dynamicEnabled: false, dynamicOriginal: null, dynamicEntities: [] });
+      useAppStore.setState({ dynamicViewId: null, dynamicOriginal: null, dynamicEntities: [] });
     });
   });
 });
