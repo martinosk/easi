@@ -31,6 +31,25 @@ function nodeIdToEntityKey(nodeId: string): { id: string; type: EntityType } {
   return { id: getEntityId(parsed), type: NODE_TYPE_TO_ENTITY_TYPE[getEntityType(parsed)] ?? 'component' };
 }
 
+function buildDraftPositions(nodes: Node[]): Record<string, { x: number; y: number }> {
+  return Object.fromEntries(
+    nodes.map((n) => [nodeIdToEntityKey(n.id).id, { x: n.position.x, y: n.position.y }]),
+  );
+}
+
+function persistNonDynamic(
+  nodes: Node[],
+  persisters: PositionPersisters,
+  batchUpdatePositions: (updates: BatchUpdateItem[]) => void,
+): void {
+  if (nodes.length === 1) {
+    updateSingleNode(nodes[0], persisters);
+    return;
+  }
+  const updates = buildBatchUpdates(nodes, persisters.updateOriginEntity);
+  if (updates.length > 0) batchUpdatePositions(updates);
+}
+
 function isMultiSelectModifier(event: React.MouseEvent): boolean {
   return event.shiftKey || event.ctrlKey || event.metaKey;
 }
@@ -144,22 +163,10 @@ export const useCanvasSelection = () => {
       const nodesToPersist = getNodesToPersist(node, selectedNodes);
 
       if (dynamicEnabled) {
-        const draftUpdates: Record<string, { x: number; y: number }> = {};
-        for (const n of nodesToPersist) {
-          const { id } = nodeIdToEntityKey(n.id);
-          draftUpdates[id] = { x: n.position.x, y: n.position.y };
-        }
-        draftSetPositions(draftUpdates);
+        draftSetPositions(buildDraftPositions(nodesToPersist));
         return;
       }
-
-      if (nodesToPersist.length === 1) {
-        updateSingleNode(nodesToPersist[0], persisters);
-        return;
-      }
-
-      const updates = buildBatchUpdates(nodesToPersist, persisters.updateOriginEntity);
-      if (updates.length > 0) batchUpdatePositions(updates);
+      persistNonDynamic(nodesToPersist, persisters, batchUpdatePositions);
     },
     [persisters, currentView, currentViewId, reactFlowInstance, batchUpdatePositions, dynamicEnabled, draftSetPositions],
   );

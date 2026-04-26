@@ -7,9 +7,11 @@ import { useOriginRelationshipsQuery } from '../../origin-entities/hooks/useOrig
 import { useRelations } from '../../relations/hooks/useRelations';
 import {
   getUnexpandedByEdgeType,
+  type DynamicFilters,
   type EdgeType,
   type EntityRef,
   type EntityType,
+  type UnexpandedByEdgeType,
 } from '../utils/dynamicMode';
 import { ExpandPopover } from './ExpandPopover';
 
@@ -17,6 +19,41 @@ interface DynamicExpandBadgeProps {
   entityId: string;
   entityType: EntityType;
   entityName: string;
+}
+
+const EDGE_ORDER: EdgeType[] = ['relation', 'realization', 'parentage', 'origin'];
+
+const REALIZATION_TARGET: Record<EntityType, EntityType> = {
+  component: 'capability',
+  capability: 'component',
+  originEntity: 'component',
+};
+
+const ORIGIN_TARGET: Record<EntityType, EntityType> = {
+  component: 'originEntity',
+  capability: 'component',
+  originEntity: 'component',
+};
+
+function inferNeighborType(edge: EdgeType, sourceType: EntityType): EntityType {
+  if (edge === 'relation') return 'component';
+  if (edge === 'parentage') return 'capability';
+  if (edge === 'realization') return REALIZATION_TARGET[sourceType];
+  return ORIGIN_TARGET[sourceType];
+}
+
+function totalEnabled(breakdown: UnexpandedByEdgeType, filters: DynamicFilters): number {
+  return EDGE_ORDER.reduce((sum, et) => sum + (filters.edges[et] ? breakdown[et].length : 0), 0);
+}
+
+function buildAllRefs(
+  breakdown: UnexpandedByEdgeType,
+  filters: DynamicFilters,
+  sourceType: EntityType,
+): EntityRef[] {
+  return EDGE_ORDER.filter((et) => filters.edges[et]).flatMap((et) =>
+    breakdown[et].map((id) => ({ id, type: inferNeighborType(et, sourceType) })),
+  );
 }
 
 export function DynamicExpandBadge({ entityId, entityType, entityName }: DynamicExpandBadgeProps) {
@@ -41,35 +78,17 @@ export function DynamicExpandBadge({ entityId, entityType, entityName }: Dynamic
     includedIds,
     filters,
   );
-  const total =
-    (filters.edges.relation ? breakdown.relation.length : 0) +
-    (filters.edges.realization ? breakdown.realization.length : 0) +
-    (filters.edges.parentage ? breakdown.parentage.length : 0) +
-    (filters.edges.origin ? breakdown.origin.length : 0);
+  const total = totalEnabled(breakdown, filters);
 
   if (total === 0) return null;
 
-  const inferType = (edge: EdgeType, sourceType: EntityType): EntityType => {
-    if (edge === 'relation') return 'component';
-    if (edge === 'parentage') return 'capability';
-    if (edge === 'realization') return sourceType === 'component' ? 'capability' : 'component';
-    return sourceType === 'component' ? 'originEntity' : 'component';
-  };
-
-  const idsToRefs = (ids: string[], edge: EdgeType): EntityRef[] =>
-    ids.map((id) => ({ id, type: inferType(edge, entityType) }));
-
   const handleExpandEdgeType = (edge: EdgeType) => {
-    draftAddEntities(idsToRefs(breakdown[edge], edge));
+    draftAddEntities(breakdown[edge].map((id) => ({ id, type: inferNeighborType(edge, entityType) })));
     setPopoverOpen(false);
   };
 
   const handleExpandAll = () => {
-    const refs: EntityRef[] = [];
-    (['relation', 'realization', 'parentage', 'origin'] as EdgeType[]).forEach((et) => {
-      if (filters.edges[et]) refs.push(...idsToRefs(breakdown[et], et));
-    });
-    draftAddEntities(refs);
+    draftAddEntities(buildAllRefs(breakdown, filters, entityType));
     setPopoverOpen(false);
   };
 
@@ -87,13 +106,7 @@ export function DynamicExpandBadge({ entityId, entityType, entityName }: Dynamic
         size="md"
         variant="filled"
         color="blue"
-        style={{
-          position: 'absolute',
-          top: -8,
-          right: -8,
-          cursor: 'pointer',
-          zIndex: 5,
-        }}
+        style={{ position: 'absolute', top: -8, right: -8, cursor: 'pointer', zIndex: 5 }}
         aria-label={`Expand ${entityName} (+${total})`}
         onClick={(e) => {
           e.stopPropagation();
@@ -106,5 +119,4 @@ export function DynamicExpandBadge({ entityId, entityType, entityName }: Dynamic
   );
 }
 
-// Re-export for clarity at usage site
 export { selectDynamicAdditions };

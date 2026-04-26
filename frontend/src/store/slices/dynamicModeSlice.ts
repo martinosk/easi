@@ -125,17 +125,17 @@ export function selectDynamicRemovals(state: DynamicModeState): EntityRef[] {
   return state.dynamicOriginal.entities.filter((e) => !currentIds.has(e.id));
 }
 
+function isPositionChanged(orig: Position | undefined, cur: Position): boolean {
+  return !orig || orig.x !== cur.x || orig.y !== cur.y;
+}
+
 export function selectDynamicPositionDeltas(state: DynamicModeState): Record<string, Position> {
   if (!state.dynamicOriginal) return {};
-  const out: Record<string, Position> = {};
   const original = state.dynamicOriginal.positions;
+  const out: Record<string, Position> = {};
   for (const e of state.dynamicEntities) {
     const cur = state.dynamicPositions[e.id];
-    const orig = original[e.id];
-    if (!cur) continue;
-    if (!orig || orig.x !== cur.x || orig.y !== cur.y) {
-      out[e.id] = cur;
-    }
+    if (cur && isPositionChanged(original[e.id], cur)) out[e.id] = cur;
   }
   return out;
 }

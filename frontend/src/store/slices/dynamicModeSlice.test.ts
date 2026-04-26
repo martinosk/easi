@@ -24,6 +24,17 @@ function createStore() {
   return { getState };
 }
 
+function makeSeededStore(initial: Parameters<DynamicModeActions['enterDynamicMode']>[0]) {
+  const store = createStore();
+  store.getState().enterDynamicMode(initial);
+  return store;
+}
+
+const singleEntityA: Parameters<DynamicModeActions['enterDynamicMode']>[0] = {
+  entities: [{ id: 'A', type: 'component' }],
+  positions: { A: { x: 0, y: 0 } },
+};
+
 describe('dynamicModeSlice', () => {
   it('starts with dynamic mode disabled and no draft', () => {
     const { getState } = createStore();
@@ -87,11 +98,7 @@ describe('dynamicModeSlice', () => {
   });
 
   it('draftAddEntities does not duplicate already-included entities', () => {
-    const { getState } = createStore();
-    getState().enterDynamicMode({
-      entities: [{ id: 'A', type: 'component' }],
-      positions: { A: { x: 0, y: 0 } },
-    });
+    const { getState } = makeSeededStore(singleEntityA);
 
     getState().draftAddEntities([{ id: 'A', type: 'component' }, { id: 'B', type: 'component' }]);
 
@@ -174,11 +181,7 @@ describe('dynamicModeSlice', () => {
 
 describe('dynamicModeSlice — diff selectors', () => {
   it('selectDynamicAdditions returns entities present in current but not original', () => {
-    const { getState } = createStore();
-    getState().enterDynamicMode({
-      entities: [{ id: 'A', type: 'component' }],
-      positions: { A: { x: 0, y: 0 } },
-    });
+    const { getState } = makeSeededStore(singleEntityA);
     getState().draftAddEntities([{ id: 'B', type: 'component' }, { id: 'cap-1', type: 'capability' }]);
 
     expect(selectDynamicAdditions(getState())).toEqual([

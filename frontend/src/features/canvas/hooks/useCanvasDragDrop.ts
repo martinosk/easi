@@ -122,6 +122,31 @@ function canDropOnView(
   return !!reactFlowInstance && !!currentViewId && canEdit(currentView);
 }
 
+function parseDropItems(
+  dataTransfer: DataTransfer,
+  presence: ViewPresenceCheck,
+): { type: TreeItemType; id: string }[] {
+  const multiPayload = parseMultiDragPayload(dataTransfer);
+  if (multiPayload) return multiPayload.items.filter((item) => !isItemInView(item, presence));
+  const singleItem = parseSingleDragItem(dataTransfer);
+  if (singleItem && !isItemInView(singleItem, presence)) return [singleItem];
+  return [];
+}
+
+function applyDynamicDrop(
+  items: { type: TreeItemType; id: string }[],
+  origin: { x: number; y: number },
+  draftAddEntities: (refs: EntityRef[], positions: Record<string, { x: number; y: number }>) => void,
+): void {
+  if (items.length === 0) return;
+  const refs: EntityRef[] = items.map((it) => ({ id: it.id, type: TREE_TYPE_TO_ENTITY_TYPE[it.type] }));
+  const positions: Record<string, { x: number; y: number }> = {};
+  items.forEach((it, i) => {
+    positions[it.id] = { x: origin.x, y: origin.y + i * MULTI_DROP_OFFSET_Y };
+  });
+  draftAddEntities(refs, positions);
+}
+
 export const useCanvasDragDrop = (
   reactFlowInstance: ReactFlowInstance | null,
   onComponentDrop?: (componentId: string, x: number, y: number) => void,
@@ -170,49 +195,21 @@ export const useCanvasDragDrop = (
   const onDrop = useCallback(
     async (event: React.DragEvent) => {
       event.preventDefault();
-
       if (!canDropOnView(reactFlowInstance, currentViewId, currentView)) return;
 
-      const position = reactFlowInstance!.screenToFlowPosition({
-        x: event.clientX,
-        y: event.clientY,
-      });
+      const position = reactFlowInstance!.screenToFlowPosition({ x: event.clientX, y: event.clientY });
+      const presence = buildViewPresence(currentView);
+      const items = parseDropItems(event.dataTransfer, presence);
+      if (items.length === 0) return;
 
       if (dynamicEnabled) {
-        const presence = buildViewPresence(currentView);
-        const items: { type: TreeItemType; id: string }[] = [];
-        const multiPayload = parseMultiDragPayload(event.dataTransfer);
-        if (multiPayload) {
-          items.push(...multiPayload.items.filter((item) => !isItemInView(item, presence)));
-        } else {
-          const singleItem = parseSingleDragItem(event.dataTransfer);
-          if (singleItem && !isItemInView(singleItem, presence)) items.push(singleItem);
-        }
-        if (items.length === 0) return;
-        const refs: EntityRef[] = items.map((it) => ({ id: it.id, type: TREE_TYPE_TO_ENTITY_TYPE[it.type] }));
-        const positions: Record<string, { x: number; y: number }> = {};
-        items.forEach((it, i) => {
-          positions[it.id] = { x: position.x, y: position.y + i * MULTI_DROP_OFFSET_Y };
-        });
-        draftAddEntities(refs, positions);
+        applyDynamicDrop(items, position, draftAddEntities);
         return;
       }
 
       const handlers = getHandlers();
-
-      const multiPayload = parseMultiDragPayload(event.dataTransfer);
-      if (multiPayload) {
-        const presence = buildViewPresence(currentView);
-        const itemsToAdd = multiPayload.items.filter((item) => !isItemInView(item, presence));
-        for (let i = 0; i < itemsToAdd.length; i++) {
-          await addItemToView(itemsToAdd[i], position.x, position.y + i * MULTI_DROP_OFFSET_Y, handlers);
-        }
-        return;
-      }
-
-      const singleItem = parseSingleDragItem(event.dataTransfer);
-      if (singleItem) {
-        await addItemToView(singleItem, position.x, position.y, handlers);
+      for (let i = 0; i < items.length; i++) {
+        await addItemToView(items[i], position.x, position.y + i * MULTI_DROP_OFFSET_Y, handlers);
       }
     },
     [reactFlowInstance, currentViewId, currentView, getHandlers, dynamicEnabled, draftAddEntities],

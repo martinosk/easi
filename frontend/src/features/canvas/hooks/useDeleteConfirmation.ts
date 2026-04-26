@@ -246,6 +246,29 @@ const DYNAMIC_REMOVE_FROM_VIEW_TYPES = new Set<DeleteTargetType>([
   'capability-from-canvas',
 ]);
 
+const CASCADE_CONFIRM_THRESHOLD = 5;
+
+interface DynamicRemovalContext {
+  data: Parameters<typeof computeOrphans>[0];
+  dynamicEntities: Parameters<typeof computeOrphans>[1];
+  dynamicFilters: Parameters<typeof computeOrphans>[3];
+  draftRemoveEntities: (ids: string[]) => void;
+}
+
+function performDynamicRemoval(removedId: string, ctx: DynamicRemovalContext): boolean {
+  const orphans = computeOrphans(ctx.data, ctx.dynamicEntities, removedId, ctx.dynamicFilters);
+  if (orphans.length >= CASCADE_CONFIRM_THRESHOLD) {
+    const total = 1 + orphans.length;
+    const plural = orphans.length === 1 ? '' : 's';
+    const proceed = window.confirm(
+      `Removing this entity will also remove ${orphans.length} orphaned descendant${plural} (${total} total). Continue?`,
+    );
+    if (!proceed) return false;
+  }
+  ctx.draftRemoveEntities([removedId, ...orphans]);
+  return true;
+}
+
 export const useDeleteConfirmation = () => {
   const { currentViewId } = useCurrentView();
   const handlers = useDeleteHandlers();
@@ -268,24 +291,12 @@ export const useDeleteConfirmation = () => {
     if (!deleteTarget) return;
 
     if (dynamicEnabled && DYNAMIC_REMOVE_FROM_VIEW_TYPES.has(deleteTarget.type)) {
-      const removedId = deleteTarget.id;
-      const orphans = computeOrphans(
-        { relations, capabilities, realizations, originRelationships },
+      performDynamicRemoval(deleteTarget.id, {
+        data: { relations, capabilities, realizations, originRelationships },
         dynamicEntities,
-        removedId,
         dynamicFilters,
-      );
-      const totalToRemove = 1 + orphans.length;
-      if (orphans.length >= 5) {
-        const proceed = window.confirm(
-          `Removing this entity will also remove ${orphans.length} orphaned descendant${orphans.length === 1 ? '' : 's'} (${totalToRemove} total). Continue?`,
-        );
-        if (!proceed) {
-          setDeleteTarget(null);
-          return;
-        }
-      }
-      draftRemoveEntities([removedId, ...orphans]);
+        draftRemoveEntities,
+      });
       setDeleteTarget(null);
       return;
     }

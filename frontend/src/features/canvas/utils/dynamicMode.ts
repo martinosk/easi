@@ -27,32 +27,66 @@ export interface DynamicFilters {
 
 export type UnexpandedByEdgeType = Record<EdgeType, string[]>;
 
-export function computeOrphans(
-  data: DynamicGraphData,
-  included: ReadonlyArray<EntityRef>,
-  removedId: string,
-  filters: DynamicFilters,
-): string[] {
-  const includedIds = new Set(included.map((e) => e.id));
-  const remainingIds = new Set(included.filter((e) => e.id !== removedId).map((e) => e.id));
+function relationNeighbor(r: Relation, id: string): EntityNeighbor | null {
+  if (r.sourceComponentId === id) return { id: r.targetComponentId, type: 'component', edgeType: 'relation' };
+  if (r.targetComponentId === id) return { id: r.sourceComponentId, type: 'component', edgeType: 'relation' };
+  return null;
+}
 
-  const hasNeighborIn = (entity: EntityRef, set: ReadonlySet<string>): boolean => {
-    for (const n of getNeighbors(data, entity)) {
-      if (!filters.edges[n.edgeType]) continue;
-      if (!filters.types[n.type]) continue;
-      if (n.id === entity.id) continue;
-      if (set.has(n.id)) return true;
-    }
-    return false;
-  };
+function parentageNeighbor(cap: Capability, id: string): EntityNeighbor | null {
+  if (cap.id === id && cap.parentId) return { id: cap.parentId, type: 'capability', edgeType: 'parentage' };
+  if (cap.parentId === id) return { id: cap.id, type: 'capability', edgeType: 'parentage' };
+  return null;
+}
 
-  const orphans: string[] = [];
-  for (const e of included) {
-    if (e.id === removedId) continue;
-    if (!hasNeighborIn(e, includedIds)) continue;
-    if (!hasNeighborIn(e, remainingIds)) orphans.push(e.id);
+function compactMap<T, R>(items: readonly T[], fn: (t: T) => R | null): R[] {
+  const out: R[] = [];
+  for (const item of items) {
+    const r = fn(item);
+    if (r) out.push(r);
   }
-  return orphans;
+  return out;
+}
+
+function neighborsOfComponent(data: DynamicGraphData, id: string): EntityNeighbor[] {
+  return [
+    ...compactMap(data.relations, (r) => relationNeighbor(r, id)),
+    ...compactMap<CapabilityRealization, EntityNeighbor>(data.realizations, (rz) =>
+      rz.componentId === id ? { id: rz.capabilityId, type: 'capability', edgeType: 'realization' } : null,
+    ),
+    ...compactMap<OriginRelationship, EntityNeighbor>(data.originRelationships, (or) =>
+      or.componentId === id ? { id: or.originEntityId, type: 'originEntity', edgeType: 'origin' } : null,
+    ),
+  ];
+}
+
+function neighborsOfCapability(data: DynamicGraphData, id: string): EntityNeighbor[] {
+  return [
+    ...compactMap<CapabilityRealization, EntityNeighbor>(data.realizations, (rz) =>
+      rz.capabilityId === id ? { id: rz.componentId, type: 'component', edgeType: 'realization' } : null,
+    ),
+    ...compactMap(data.capabilities, (cap) => parentageNeighbor(cap, id)),
+  ];
+}
+
+function neighborsOfOriginEntity(data: DynamicGraphData, id: string): EntityNeighbor[] {
+  return compactMap<OriginRelationship, EntityNeighbor>(data.originRelationships, (or) =>
+    or.originEntityId === id ? { id: or.componentId, type: 'component', edgeType: 'origin' } : null,
+  );
+}
+
+const NEIGHBOR_LOOKUP: Record<EntityType, (data: DynamicGraphData, id: string) => EntityNeighbor[]> = {
+  component: neighborsOfComponent,
+  capability: neighborsOfCapability,
+  originEntity: neighborsOfOriginEntity,
+};
+
+export function getNeighbors(data: DynamicGraphData, entity: EntityRef): EntityNeighbor[] {
+  return NEIGHBOR_LOOKUP[entity.type](data, entity.id);
+}
+
+function passesFilters(n: EntityNeighbor, filters: DynamicFilters): boolean {
+  return filters.edges[n.edgeType] && filters.types[n.type];
 }
 
 export function getUnexpandedByEdgeType(
@@ -63,59 +97,31 @@ export function getUnexpandedByEdgeType(
 ): UnexpandedByEdgeType {
   const out: UnexpandedByEdgeType = { relation: [], realization: [], parentage: [], origin: [] };
   for (const n of getNeighbors(data, entity)) {
-    if (!filters.edges[n.edgeType]) continue;
-    if (!filters.types[n.type]) continue;
-    if (included.has(n.id)) continue;
-    out[n.edgeType].push(n.id);
+    if (passesFilters(n, filters) && !included.has(n.id)) out[n.edgeType].push(n.id);
   }
   return out;
 }
 
-export function getNeighbors(data: DynamicGraphData, entity: EntityRef): EntityNeighbor[] {
-  const out: EntityNeighbor[] = [];
+function hasNeighborIn(
+  data: DynamicGraphData,
+  entity: EntityRef,
+  set: ReadonlySet<string>,
+  filters: DynamicFilters,
+): boolean {
+  return getNeighbors(data, entity).some((n) => passesFilters(n, filters) && n.id !== entity.id && set.has(n.id));
+}
 
-  if (entity.type === 'component') {
-    for (const r of data.relations) {
-      if (r.sourceComponentId === entity.id) {
-        out.push({ id: r.targetComponentId, type: 'component', edgeType: 'relation' });
-      } else if (r.targetComponentId === entity.id) {
-        out.push({ id: r.sourceComponentId, type: 'component', edgeType: 'relation' });
-      }
-    }
-    for (const rz of data.realizations) {
-      if (rz.componentId === entity.id) {
-        out.push({ id: rz.capabilityId, type: 'capability', edgeType: 'realization' });
-      }
-    }
-    for (const or of data.originRelationships) {
-      if (or.componentId === entity.id) {
-        out.push({ id: or.originEntityId, type: 'originEntity', edgeType: 'origin' });
-      }
-    }
-  }
-
-  if (entity.type === 'capability') {
-    for (const rz of data.realizations) {
-      if (rz.capabilityId === entity.id) {
-        out.push({ id: rz.componentId, type: 'component', edgeType: 'realization' });
-      }
-    }
-    for (const cap of data.capabilities) {
-      if (cap.id === entity.id && cap.parentId) {
-        out.push({ id: cap.parentId, type: 'capability', edgeType: 'parentage' });
-      } else if (cap.parentId === entity.id) {
-        out.push({ id: cap.id, type: 'capability', edgeType: 'parentage' });
-      }
-    }
-  }
-
-  if (entity.type === 'originEntity') {
-    for (const or of data.originRelationships) {
-      if (or.originEntityId === entity.id) {
-        out.push({ id: or.componentId, type: 'component', edgeType: 'origin' });
-      }
-    }
-  }
-
-  return out;
+export function computeOrphans(
+  data: DynamicGraphData,
+  included: ReadonlyArray<EntityRef>,
+  removedId: string,
+  filters: DynamicFilters,
+): string[] {
+  const includedIds = new Set(included.map((e) => e.id));
+  const remainingIds = new Set(included.filter((e) => e.id !== removedId).map((e) => e.id));
+  return included
+    .filter((e) => e.id !== removedId)
+    .filter((e) => hasNeighborIn(data, e, includedIds, filters))
+    .filter((e) => !hasNeighborIn(data, e, remainingIds, filters))
+    .map((e) => e.id);
 }
