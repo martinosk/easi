@@ -87,21 +87,28 @@ func (ctx *testContext) trackID(id string) {
 	ctx.createdIDs = append(ctx.createdIDs, id)
 }
 
-func (ctx *testContext) makeRequest(t *testing.T, method, url string, body []byte, urlParams map[string]string) (*httptest.ResponseRecorder, *http.Request) {
+type requestSpec struct {
+	Method    string
+	URL       string
+	Body      []byte
+	URLParams map[string]string
+}
+
+func (ctx *testContext) makeRequest(t *testing.T, spec requestSpec) (*httptest.ResponseRecorder, *http.Request) {
 	var bodyReader io.Reader
-	if body != nil {
-		bodyReader = bytes.NewReader(body)
+	if spec.Body != nil {
+		bodyReader = bytes.NewReader(spec.Body)
 	}
 
-	req := httptest.NewRequest(method, url, bodyReader)
-	if body != nil {
+	req := httptest.NewRequest(spec.Method, spec.URL, bodyReader)
+	if spec.Body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
 	req = withTestTenant(req)
 
-	if len(urlParams) > 0 {
+	if len(spec.URLParams) > 0 {
 		rctx := chi.NewRouteContext()
-		for key, value := range urlParams {
+		for key, value := range spec.URLParams {
 			rctx.URLParams.Add(key, value)
 		}
 		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -117,7 +124,7 @@ func (ctx *testContext) createComponentViaAPI(t *testing.T, handlers *ComponentH
 	}
 	body, _ := json.Marshal(reqBody)
 
-	w, req := ctx.makeRequest(t, http.MethodPost, "/api/v1/components", body, nil)
+	w, req := ctx.makeRequest(t, requestSpec{Method: http.MethodPost, URL: "/api/v1/components", Body: body})
 	handlers.CreateApplicationComponent(w, req)
 	require.Equal(t, http.StatusCreated, w.Code)
 
@@ -293,8 +300,10 @@ func TestGetComponentByID_NotFound_Integration(t *testing.T) {
 	handlers, _ := setupHandlers(testCtx.db)
 
 	nonExistentID := fmt.Sprintf("non-existent-%d", time.Now().UnixNano())
-	w, req := testCtx.makeRequest(t, http.MethodGet, "/api/v1/components/"+nonExistentID, nil, map[string]string{
-		"id": nonExistentID,
+	w, req := testCtx.makeRequest(t, requestSpec{
+		Method:    http.MethodGet,
+		URL:       "/api/v1/components/" + nonExistentID,
+		URLParams: map[string]string{"id": nonExistentID},
 	})
 
 	handlers.GetComponentByID(w, req)
@@ -314,7 +323,7 @@ func TestCreateComponent_ValidationError_Integration(t *testing.T) {
 	}
 	body, _ := json.Marshal(reqBody)
 
-	w, req := testCtx.makeRequest(t, http.MethodPost, "/api/v1/components", body, nil)
+	w, req := testCtx.makeRequest(t, requestSpec{Method: http.MethodPost, URL: "/api/v1/components", Body: body})
 	handlers.CreateApplicationComponent(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -328,84 +337,73 @@ func TestCreateComponent_ValidationError_Integration(t *testing.T) {
 	assert.Equal(t, 0, count, "No events should be created for invalid request")
 }
 
+type paginatedComponentsResponse struct {
+	Data       []readmodels.ApplicationComponentDTO `json:"data"`
+	Pagination struct {
+		Cursor  string `json:"cursor"`
+		HasMore bool   `json:"hasMore"`
+		Limit   int    `json:"limit"`
+	} `json:"pagination"`
+}
+
+func fetchComponentsPage(t *testing.T, h *ComponentHandlers, query string) paginatedComponentsResponse {
+	t.Helper()
+	req := withTestTenant(httptest.NewRequest(http.MethodGet, "/api/v1/components"+query, nil))
+	w := httptest.NewRecorder()
+
+	h.GetAllComponents(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response paginatedComponentsResponse
+	require.NoError(t, json.NewDecoder(w.Body).Decode(&response))
+	return response
+}
+
+func seedPaginatedComponents(t *testing.T, testCtx *testContext, count int) {
+	t.Helper()
+	testCtx.setTenantContext(t)
+	for i := 1; i <= count; i++ {
+		id := fmt.Sprintf("comp-%s-%d-%d", testCtx.testID, i, time.Now().UnixNano())
+		_, err := testCtx.db.Exec(
+			"INSERT INTO architecturemodeling.application_components (id, name, description, tenant_id, created_at) VALUES ($1, $2, $3, $4, NOW() - INTERVAL '"+fmt.Sprintf("%d", i)+" seconds')",
+			id, fmt.Sprintf("Component %d", i), fmt.Sprintf("Description %d", i), testTenantID(),
+		)
+		require.NoError(t, err)
+		testCtx.trackID(id)
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func collectIDs(items []readmodels.ApplicationComponentDTO) map[string]bool {
+	ids := make(map[string]bool, len(items))
+	for _, item := range items {
+		ids[item.ID] = true
+	}
+	return ids
+}
+
 func TestGetAllComponentsPaginated_Integration(t *testing.T) {
 	testCtx, cleanup := setupTestDB(t)
 	defer cleanup()
 
 	handlers, _ := setupHandlers(testCtx.db)
 
-	// Create test data with unique IDs and different timestamps
-	testCtx.setTenantContext(t) // Set tenant context once for all inserts
-	for i := 1; i <= 5; i++ {
-		id := fmt.Sprintf("comp-%s-%d-%d", testCtx.testID, i, time.Now().UnixNano())
-		name := fmt.Sprintf("Component %d", i)
-		description := fmt.Sprintf("Description %d", i)
+	seedPaginatedComponents(t, testCtx, 5)
 
-		_, err := testCtx.db.Exec(
-			"INSERT INTO architecturemodeling.application_components (id, name, description, tenant_id, created_at) VALUES ($1, $2, $3, $4, NOW() - INTERVAL '"+fmt.Sprintf("%d", i)+" seconds')",
-			id, name, description, testTenantID(),
-		)
-		require.NoError(t, err)
-		testCtx.trackID(id)
+	firstPage := fetchComponentsPage(t, handlers, "?limit=2")
+	assert.GreaterOrEqual(t, len(firstPage.Data), 2, "Should return at least 2 components")
+	assert.Equal(t, 2, firstPage.Pagination.Limit)
 
-		// Small delay to ensure different timestamps
-		time.Sleep(10 * time.Millisecond)
+	if len(firstPage.Data) < 2 || !firstPage.Pagination.HasMore {
+		return
 	}
 
-	// Test GET first page with limit
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/components?limit=2", nil)
-	req = withTestTenant(req)
-	w := httptest.NewRecorder()
-
-	handlers.GetAllComponents(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-
-	var response struct {
-		Data       []readmodels.ApplicationComponentDTO `json:"data"`
-		Pagination struct {
-			Cursor  string `json:"cursor"`
-			HasMore bool   `json:"hasMore"`
-			Limit   int    `json:"limit"`
-		} `json:"pagination"`
-	}
-	err := json.NewDecoder(w.Body).Decode(&response)
-	require.NoError(t, err)
-
-	// Should have at least 2 components (our test data)
-	assert.GreaterOrEqual(t, len(response.Data), 2, "Should return at least 2 components")
-	assert.Equal(t, 2, response.Pagination.Limit)
-
-	if len(response.Data) >= 2 && response.Pagination.HasMore {
-		// Test GET second page using cursor
-		req2 := httptest.NewRequest(http.MethodGet, "/api/v1/components?limit=2&after="+response.Pagination.Cursor, nil)
-		req2 = withTestTenant(req2)
-		w2 := httptest.NewRecorder()
-
-		handlers.GetAllComponents(w2, req2)
-
-		assert.Equal(t, http.StatusOK, w2.Code)
-
-		var response2 struct {
-			Data       []readmodels.ApplicationComponentDTO `json:"data"`
-			Pagination struct {
-				Cursor  string `json:"cursor"`
-				HasMore bool   `json:"hasMore"`
-				Limit   int    `json:"limit"`
-			} `json:"pagination"`
-		}
-		err = json.NewDecoder(w2.Body).Decode(&response2)
-		require.NoError(t, err)
-
-		// Verify we got different components
-		firstPageIDs := make(map[string]bool)
-		for _, comp := range response.Data {
-			firstPageIDs[comp.ID] = true
-		}
-		for _, comp := range response2.Data {
-			if firstPageIDs[comp.ID] {
-				t.Logf("Warning: Component %s appears in both pages", comp.ID)
-			}
+	secondPage := fetchComponentsPage(t, handlers, "?limit=2&after="+firstPage.Pagination.Cursor)
+	firstPageIDs := collectIDs(firstPage.Data)
+	for _, comp := range secondPage.Data {
+		if firstPageIDs[comp.ID] {
+			t.Logf("Warning: Component %s appears in both pages", comp.ID)
 		}
 	}
 }
@@ -518,8 +516,10 @@ func TestDeleteComponent_Integration(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	w, req := testCtx.makeRequest(t, http.MethodDelete, "/api/v1/components/"+componentID, nil, map[string]string{
-		"id": componentID,
+	w, req := testCtx.makeRequest(t, requestSpec{
+		Method:    http.MethodDelete,
+		URL:       "/api/v1/components/" + componentID,
+		URLParams: map[string]string{"id": componentID},
 	})
 	handlers.DeleteApplicationComponent(w, req)
 
@@ -552,8 +552,10 @@ func TestDeleteComponent_NotFound_Integration(t *testing.T) {
 	handlers, _ := setupHandlers(testCtx.db)
 
 	nonExistentID := "00000000-0000-0000-0000-000000000000"
-	w, req := testCtx.makeRequest(t, http.MethodDelete, "/api/v1/components/"+nonExistentID, nil, map[string]string{
-		"id": nonExistentID,
+	w, req := testCtx.makeRequest(t, requestSpec{
+		Method:    http.MethodDelete,
+		URL:       "/api/v1/components/" + nonExistentID,
+		URLParams: map[string]string{"id": nonExistentID},
 	})
 
 	handlers.DeleteApplicationComponent(w, req)
@@ -574,17 +576,18 @@ func TestDeleteComponent_Idempotent_Integration(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	w, req := testCtx.makeRequest(t, http.MethodDelete, "/api/v1/components/"+componentID, nil, map[string]string{
-		"id": componentID,
-	})
+	deleteSpec := requestSpec{
+		Method:    http.MethodDelete,
+		URL:       "/api/v1/components/" + componentID,
+		URLParams: map[string]string{"id": componentID},
+	}
+	w, req := testCtx.makeRequest(t, deleteSpec)
 	handlers.DeleteApplicationComponent(w, req)
 	assert.Equal(t, http.StatusNoContent, w.Code)
 
 	time.Sleep(100 * time.Millisecond)
 
-	w2, req2 := testCtx.makeRequest(t, http.MethodDelete, "/api/v1/components/"+componentID, nil, map[string]string{
-		"id": componentID,
-	})
+	w2, req2 := testCtx.makeRequest(t, deleteSpec)
 	handlers.DeleteApplicationComponent(w2, req2)
 	assert.Equal(t, http.StatusNoContent, w2.Code)
 }
@@ -601,7 +604,7 @@ func TestCreateComponent_CommandResultFlow_Integration(t *testing.T) {
 	}
 	body, _ := json.Marshal(reqBody)
 
-	w, req := testCtx.makeRequest(t, http.MethodPost, "/api/v1/components", body, nil)
+	w, req := testCtx.makeRequest(t, requestSpec{Method: http.MethodPost, URL: "/api/v1/components", Body: body})
 	handlers.CreateApplicationComponent(w, req)
 
 	require.Equal(t, http.StatusCreated, w.Code)
@@ -645,7 +648,7 @@ func TestCreateComponent_LocationHeaderFormat_Integration(t *testing.T) {
 	}
 	body, _ := json.Marshal(reqBody)
 
-	w, req := testCtx.makeRequest(t, http.MethodPost, "/api/v1/components", body, nil)
+	w, req := testCtx.makeRequest(t, requestSpec{Method: http.MethodPost, URL: "/api/v1/components", Body: body})
 	handlers.CreateApplicationComponent(w, req)
 
 	require.Equal(t, http.StatusCreated, w.Code)

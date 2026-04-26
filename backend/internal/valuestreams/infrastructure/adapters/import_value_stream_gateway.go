@@ -18,7 +18,8 @@ func NewImportValueStreamGateway(bus cqrs.CommandBus) *ImportValueStreamGateway 
 
 func (g *ImportValueStreamGateway) CreateValueStream(ctx context.Context, name, description string) (string, error) {
 	result, err := g.commandBus.Dispatch(ctx, &commands.CreateValueStream{
-		Name: name, Description: description,
+		Name:        name,
+		Description: description,
 	})
 	if err != nil {
 		return "", fmt.Errorf("dispatch create value stream command for %s: %w", name, err)
@@ -28,7 +29,9 @@ func (g *ImportValueStreamGateway) CreateValueStream(ctx context.Context, name, 
 
 func (g *ImportValueStreamGateway) AddStage(ctx context.Context, valueStreamID, name, description string) (string, error) {
 	result, err := g.commandBus.Dispatch(ctx, &commands.AddStage{
-		ValueStreamID: valueStreamID, Name: name, Description: description,
+		ValueStreamID: valueStreamID,
+		Name:          name,
+		Description:   description,
 	})
 	if err != nil {
 		return "", fmt.Errorf("dispatch add stage command for value stream %s: %w", valueStreamID, err)
@@ -38,7 +41,9 @@ func (g *ImportValueStreamGateway) AddStage(ctx context.Context, valueStreamID, 
 
 func (g *ImportValueStreamGateway) MapCapabilityToStage(ctx context.Context, valueStreamID, stageID, capabilityID string) error {
 	_, err := g.commandBus.Dispatch(ctx, &commands.AddStageCapability{
-		ValueStreamID: valueStreamID, StageID: stageID, CapabilityID: capabilityID,
+		ValueStreamID: valueStreamID,
+		StageID:       stageID,
+		CapabilityID:  capabilityID,
 	})
 	if err != nil {
 		return fmt.Errorf("dispatch map capability to stage command for value stream %s stage %s capability %s: %w", valueStreamID, stageID, capabilityID, err)

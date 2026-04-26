@@ -53,6 +53,14 @@ type StoredEvent struct {
 	CreatedAt   time.Time
 }
 
+type saveBatch struct {
+	tx              *sql.Tx
+	tenantID        sharedvo.TenantID
+	aggregateID     string
+	events          []domain.DomainEvent
+	expectedVersion int
+}
+
 // SaveEvents saves events to the event store
 func (s *PostgresEventStore) SaveEvents(ctx context.Context, aggregateID string, events []domain.DomainEvent, expectedVersion int) error {
 	if len(events) == 0 {
@@ -70,11 +78,19 @@ func (s *PostgresEventStore) SaveEvents(ctx context.Context, aggregateID string,
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	if err := s.checkVersionConflict(ctx, tx, tenantID, aggregateID, expectedVersion); err != nil {
+	batch := saveBatch{
+		tx:              tx,
+		tenantID:        tenantID,
+		aggregateID:     aggregateID,
+		events:          events,
+		expectedVersion: expectedVersion,
+	}
+
+	if err := s.checkVersionConflict(ctx, batch); err != nil {
 		return err
 	}
 
-	if err := s.insertEvents(ctx, tx, tenantID, events, expectedVersion); err != nil {
+	if err := s.insertEvents(ctx, batch); err != nil {
 		return err
 	}
 
@@ -87,28 +103,28 @@ func (s *PostgresEventStore) SaveEvents(ctx context.Context, aggregateID string,
 	return nil
 }
 
-func (s *PostgresEventStore) checkVersionConflict(ctx context.Context, tx *sql.Tx, tenantID sharedvo.TenantID, aggregateID string, expectedVersion int) error {
+func (s *PostgresEventStore) checkVersionConflict(ctx context.Context, batch saveBatch) error {
 	var currentVersion int
-	err := tx.QueryRowContext(ctx,
+	err := batch.tx.QueryRowContext(ctx,
 		"SELECT COALESCE(MAX(version), 0) FROM infrastructure.events WHERE tenant_id = $1 AND aggregate_id = $2",
-		tenantID.Value(),
-		aggregateID,
+		batch.tenantID.Value(),
+		batch.aggregateID,
 	).Scan(&currentVersion)
 	if err != nil && err != sql.ErrNoRows {
 		return fmt.Errorf("failed to check current version: %w", err)
 	}
 
-	if currentVersion != expectedVersion {
-		return fmt.Errorf("%w: expected version %d, got %d", domain.ErrConcurrencyConflict, expectedVersion, currentVersion)
+	if currentVersion != batch.expectedVersion {
+		return fmt.Errorf("%w: expected version %d, got %d", domain.ErrConcurrencyConflict, batch.expectedVersion, currentVersion)
 	}
 
 	return nil
 }
 
-func (s *PostgresEventStore) insertEvents(ctx context.Context, tx *sql.Tx, tenantID sharedvo.TenantID, events []domain.DomainEvent, expectedVersion int) error {
+func (s *PostgresEventStore) insertEvents(ctx context.Context, batch saveBatch) error {
 	actor, hasActor := sharedctx.GetActor(ctx)
 
-	stmt, err := tx.PrepareContext(ctx,
+	stmt, err := batch.tx.PrepareContext(ctx,
 		"INSERT INTO infrastructure.events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
 	)
 	if err != nil {
@@ -116,13 +132,13 @@ func (s *PostgresEventStore) insertEvents(ctx context.Context, tx *sql.Tx, tenan
 	}
 	defer func() { _ = stmt.Close() }()
 
-	for i, event := range events {
+	for i, event := range batch.events {
 		eventData, err := json.Marshal(event.EventData())
 		if err != nil {
 			return fmt.Errorf("failed to marshal event data: %w", err)
 		}
 
-		version := expectedVersion + i + 1
+		version := batch.expectedVersion + i + 1
 
 		actorID := actor.ID
 		actorEmail := actor.Email
@@ -135,7 +151,7 @@ func (s *PostgresEventStore) insertEvents(ctx context.Context, tx *sql.Tx, tenan
 		}
 
 		_, err = stmt.ExecContext(ctx,
-			tenantID.Value(),
+			batch.tenantID.Value(),
 			event.AggregateID(),
 			event.EventType(),
 			eventData,

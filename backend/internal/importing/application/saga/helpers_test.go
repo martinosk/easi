@@ -6,22 +6,11 @@ import (
 
 	"easi/backend/internal/importing/application/saga"
 	"easi/backend/internal/importing/domain/aggregates"
+	"easi/backend/internal/importing/publishedlanguage"
 )
-
-type capabilityCreateCall struct {
-	Name, Description, ParentID, Level string
-}
 
 type metadataUpdateCall struct {
 	ID, EAOwner, Status string
-}
-
-type linkSystemCall struct {
-	CapabilityID, ComponentID, RealizationLevel, Notes string
-}
-
-type relationCreateCall struct {
-	SourceID, TargetID, RelationType, Name, Description string
 }
 
 type fakeEntityStore struct {
@@ -51,7 +40,7 @@ func (s *fakeEntityStore) create(prefix, name string) (string, error) {
 
 type fakeComponentGateway struct {
 	fakeEntityStore
-	relationCalls []relationCreateCall
+	relationCalls []publishedlanguage.CreateRelationInput
 }
 
 func newFakeComponentGateway() *fakeComponentGateway {
@@ -62,21 +51,19 @@ func (f *fakeComponentGateway) CreateComponent(_ context.Context, name, _ string
 	return f.create("comp-", name)
 }
 
-func (f *fakeComponentGateway) CreateRelation(
-	_ context.Context, sourceID, targetID, relationType, name, description string,
-) (string, error) {
-	f.relationCalls = append(f.relationCalls, relationCreateCall{sourceID, targetID, relationType, name, description})
+func (f *fakeComponentGateway) CreateRelation(_ context.Context, in publishedlanguage.CreateRelationInput) (string, error) {
+	f.relationCalls = append(f.relationCalls, in)
 	if f.err != nil {
 		return "", f.err
 	}
-	return "rel-" + sourceID + "-" + targetID + "-" + relationType, nil
+	return "rel-" + in.SourceID + "-" + in.TargetID + "-" + in.RelationType, nil
 }
 
 type fakeCapabilityGateway struct {
 	fakeEntityStore
-	createCalls     []capabilityCreateCall
+	createCalls     []publishedlanguage.CreateCapabilityInput
 	metadataCalls   []metadataUpdateCall
-	linkSystemCalls []linkSystemCall
+	linkSystemCalls []publishedlanguage.LinkSystemInput
 	linkErrByKey    map[string]error
 }
 
@@ -87,23 +74,19 @@ func newFakeCapabilityGateway() *fakeCapabilityGateway {
 	}
 }
 
-func (f *fakeCapabilityGateway) CreateCapability(
-	_ context.Context, name, description, parentID, level string,
-) (string, error) {
-	f.createCalls = append(f.createCalls, capabilityCreateCall{name, description, parentID, level})
-	return f.create("cap-", name)
+func (f *fakeCapabilityGateway) CreateCapability(_ context.Context, in publishedlanguage.CreateCapabilityInput) (string, error) {
+	f.createCalls = append(f.createCalls, in)
+	return f.create("cap-", in.Name)
 }
 
 func (f *fakeCapabilityGateway) UpdateMetadata(_ context.Context, id, eaOwner, status string) error {
-	f.metadataCalls = append(f.metadataCalls, metadataUpdateCall{id, eaOwner, status})
+	f.metadataCalls = append(f.metadataCalls, metadataUpdateCall{ID: id, EAOwner: eaOwner, Status: status})
 	return f.err
 }
 
-func (f *fakeCapabilityGateway) LinkSystem(
-	_ context.Context, capabilityID, componentID, realizationLevel, notes string,
-) (string, error) {
-	f.linkSystemCalls = append(f.linkSystemCalls, linkSystemCall{capabilityID, componentID, realizationLevel, notes})
-	key := componentID + "-" + capabilityID
+func (f *fakeCapabilityGateway) LinkSystem(_ context.Context, in publishedlanguage.LinkSystemInput) (string, error) {
+	f.linkSystemCalls = append(f.linkSystemCalls, in)
+	key := in.ComponentID + "-" + in.CapabilityID
 	if err, ok := f.linkErrByKey[key]; ok {
 		return "", err
 	}

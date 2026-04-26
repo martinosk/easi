@@ -12,25 +12,8 @@ import (
 	"easi/backend/internal/importing/application/ports"
 	"easi/backend/internal/importing/application/saga"
 	"easi/backend/internal/importing/infrastructure/repositories"
+	"easi/backend/internal/importing/publishedlanguage"
 )
-
-func TestConfirmImportHandler_WrapsLoadSessionErrorWithContext(t *testing.T) {
-	eventStore := newInMemoryEventStore()
-	repo := repositories.NewImportSessionRepository(eventStore)
-	handler := newConfirmImportHandlerForTests(repo, stubComponentGateway{}, context.Background(), 2*time.Second)
-
-	sessionID := "7f89f0c3-a0f5-4ce0-9f78-f4ccfe668d95"
-	_, err := handler.Handle(context.Background(), &commands.ConfirmImport{ID: sessionID})
-	if err == nil {
-		t.Fatal("expected error for missing import session")
-	}
-	if !strings.Contains(err.Error(), "load import session "+sessionID) {
-		t.Fatalf("expected wrapped context with session id, got %v", err)
-	}
-	if !errors.Is(err, repositories.ErrImportSessionNotFound) {
-		t.Fatalf("expected wrapped error to preserve cause %v, got %v", repositories.ErrImportSessionNotFound, err)
-	}
-}
 
 type stubComponentGateway struct {
 	createComponent func(ctx context.Context, name, description string) (string, error)
@@ -43,13 +26,13 @@ func (s stubComponentGateway) CreateComponent(ctx context.Context, name, descrip
 	return "component-1", nil
 }
 
-func (s stubComponentGateway) CreateRelation(_ context.Context, _, _, _, _, _ string) (string, error) {
+func (s stubComponentGateway) CreateRelation(_ context.Context, _ publishedlanguage.CreateRelationInput) (string, error) {
 	return "relation-1", nil
 }
 
 type stubCapabilityGateway struct{}
 
-func (s stubCapabilityGateway) CreateCapability(_ context.Context, _, _, _, _ string) (string, error) {
+func (s stubCapabilityGateway) CreateCapability(_ context.Context, _ publishedlanguage.CreateCapabilityInput) (string, error) {
 	return "capability-1", nil
 }
 
@@ -57,7 +40,7 @@ func (s stubCapabilityGateway) UpdateMetadata(_ context.Context, _, _, _ string)
 	return nil
 }
 
-func (s stubCapabilityGateway) LinkSystem(_ context.Context, _, _, _, _ string) (string, error) {
+func (s stubCapabilityGateway) LinkSystem(_ context.Context, _ publishedlanguage.LinkSystemInput) (string, error) {
 	return "link-1", nil
 }
 
@@ -77,6 +60,24 @@ func (s stubValueStreamGateway) AddStage(_ context.Context, _, _, _ string) (str
 
 func (s stubValueStreamGateway) MapCapabilityToStage(_ context.Context, _, _, _ string) error {
 	return nil
+}
+
+func TestConfirmImportHandler_WrapsLoadSessionErrorWithContext(t *testing.T) {
+	eventStore := newInMemoryEventStore()
+	repo := repositories.NewImportSessionRepository(eventStore)
+	handler := newConfirmImportHandlerForTests(repo, stubComponentGateway{}, context.Background(), 2*time.Second)
+
+	sessionID := "7f89f0c3-a0f5-4ce0-9f78-f4ccfe668d95"
+	_, err := handler.Handle(context.Background(), &commands.ConfirmImport{ID: sessionID})
+	if err == nil {
+		t.Fatal("expected error for missing import session")
+	}
+	if !strings.Contains(err.Error(), "load import session "+sessionID) {
+		t.Fatalf("expected wrapped context with session id, got %v", err)
+	}
+	if !errors.Is(err, repositories.ErrImportSessionNotFound) {
+		t.Fatalf("expected wrapped error to preserve cause %v, got %v", repositories.ErrImportSessionNotFound, err)
+	}
 }
 
 func TestConfirmImportHandler_FailureScenarios(t *testing.T) {

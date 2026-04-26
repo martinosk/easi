@@ -34,8 +34,14 @@ func (h *ArchitectureModelingLinks) ComponentLinksForActor(id string, actor shar
 		"collection":     h.Get("/components"),
 		"x-expert-roles": h.Get("/components/expert-roles"),
 	}
-	h.AddEditOrGrantLink(links, actor, "components", "components", id, h.Put(p), map[string]types.Link{
-		"x-add-expert": h.Post(p + "/experts"),
+	h.AddEditOrGrantLink(links, actor, sharedAPI.EditGrantParams{
+		Permission:   "components",
+		ArtifactType: "components",
+		ArtifactID:   id,
+		EditLink:     h.Put(p),
+		ExtraWrite: map[string]types.Link{
+			"x-add-expert": h.Post(p + "/experts"),
+		},
 	})
 	if actor.CanDelete("components") {
 		links["delete"] = h.Del(p)
@@ -72,7 +78,12 @@ func (h *ArchitectureModelingLinks) originEntityLinksForActor(cfg originResource
 		"self":       h.Get(p),
 		"collection": h.Get(cfg.Collection),
 	}
-	h.AddEditOrGrantLink(links, actor, cfg.Permission, cfg.ArtifactType, id, h.Put(p), nil)
+	h.AddEditOrGrantLink(links, actor, sharedAPI.EditGrantParams{
+		Permission:   cfg.Permission,
+		ArtifactType: cfg.ArtifactType,
+		ArtifactID:   id,
+		EditLink:     h.Put(p),
+	})
 	if actor.CanDelete(cfg.Permission) {
 		links["delete"] = h.Del(p)
 	}

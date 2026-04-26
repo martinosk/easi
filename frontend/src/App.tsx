@@ -11,7 +11,7 @@ import { useDialogContext } from './contexts/dialogs';
 import { ReleaseNotesOverlay } from './contexts/releases/components/ReleaseNotesOverlay';
 import { ChatButton, useChatStore } from './features/chat';
 import { useAppInitialization } from './hooks/useAppInitialization';
-import { useReleaseNotes } from './hooks/useReleaseNotes';
+import { useReleaseNotes } from './contexts/releases/store/useReleaseNotes';
 import { useUserStore } from './store/userStore';
 
 const CanvasContainer = lazy(() => import('./features/canvas/CanvasContainer'));

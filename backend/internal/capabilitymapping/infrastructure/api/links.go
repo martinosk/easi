@@ -33,8 +33,14 @@ func (h *CapabilityMappingLinks) capabilityBaseForActor(id string, actor sharedc
 		"collection":              h.Get("/capabilities"),
 		"x-expert-roles":          h.Get("/capabilities/expert-roles"),
 	}
-	h.AddEditOrGrantLink(links, actor, "capabilities", "capabilities", id, h.Put(p), map[string]types.Link{
-		"x-add-expert": h.Post(p + "/experts"),
+	h.AddEditOrGrantLink(links, actor, sharedAPI.EditGrantParams{
+		Permission:   "capabilities",
+		ArtifactType: "capabilities",
+		ArtifactID:   id,
+		EditLink:     h.Put(p),
+		ExtraWrite: map[string]types.Link{
+			"x-add-expert": h.Post(p + "/experts"),
+		},
 	})
 	if actor.CanDelete("capabilities") {
 		links["delete"] = h.Del(p)

@@ -1,16 +1,20 @@
 package ports
 
-import "context"
+import (
+	"context"
+
+	"easi/backend/internal/importing/publishedlanguage"
+)
 
 type ComponentGateway interface {
 	CreateComponent(ctx context.Context, name, description string) (string, error)
-	CreateRelation(ctx context.Context, sourceID, targetID, relationType, name, description string) (string, error)
+	CreateRelation(ctx context.Context, input publishedlanguage.CreateRelationInput) (string, error)
 }
 
 type CapabilityGateway interface {
-	CreateCapability(ctx context.Context, name, description, parentID, level string) (string, error)
+	CreateCapability(ctx context.Context, input publishedlanguage.CreateCapabilityInput) (string, error)
 	UpdateMetadata(ctx context.Context, id, eaOwner, status string) error
-	LinkSystem(ctx context.Context, capabilityID, componentID, realizationLevel, notes string) (string, error)
+	LinkSystem(ctx context.Context, input publishedlanguage.LinkSystemInput) (string, error)
 	AssignToDomain(ctx context.Context, capabilityID, businessDomainID string) error
 }
 

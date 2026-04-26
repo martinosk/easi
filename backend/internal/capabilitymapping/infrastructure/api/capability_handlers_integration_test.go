@@ -552,7 +552,7 @@ func TestDeleteCapability_HasChildren_Integration(t *testing.T) {
 	parentID := uuid.New().String()
 	childID := uuid.New().String()
 
-	testCtx.createCapabilityWithEvent(t, parentID, "Parent Capability", "L1")
+	testCtx.createCapabilityWithEvent(t, capabilitySpec{ID: parentID, Name: "Parent Capability", Level: "L1"})
 	testCtx.createTestCapability(t, childID, "Child Capability", "L2", parentID)
 
 	deleteReq := httptest.NewRequest(http.MethodDelete, "/api/v1/capabilities/"+parentID, nil)

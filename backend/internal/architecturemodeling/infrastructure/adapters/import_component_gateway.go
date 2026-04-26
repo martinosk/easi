@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"easi/backend/internal/architecturemodeling/application/commands"
+	"easi/backend/internal/importing/publishedlanguage"
 	"easi/backend/internal/shared/cqrs"
 )
 
@@ -18,7 +19,8 @@ func NewImportComponentGateway(bus cqrs.CommandBus) *ImportComponentGateway {
 
 func (g *ImportComponentGateway) CreateComponent(ctx context.Context, name, description string) (string, error) {
 	result, err := g.commandBus.Dispatch(ctx, &commands.CreateApplicationComponent{
-		Name: name, Description: description,
+		Name:        name,
+		Description: description,
 	})
 	if err != nil {
 		return "", fmt.Errorf("dispatch create application component command for %s: %w", name, err)
@@ -26,16 +28,16 @@ func (g *ImportComponentGateway) CreateComponent(ctx context.Context, name, desc
 	return result.CreatedID, nil
 }
 
-func (g *ImportComponentGateway) CreateRelation(ctx context.Context, sourceID, targetID, relationType, name, description string) (string, error) {
+func (g *ImportComponentGateway) CreateRelation(ctx context.Context, input publishedlanguage.CreateRelationInput) (string, error) {
 	result, err := g.commandBus.Dispatch(ctx, &commands.CreateComponentRelation{
-		SourceComponentID: sourceID,
-		TargetComponentID: targetID,
-		RelationType:      relationType,
-		Name:              name,
-		Description:       description,
+		SourceComponentID: input.SourceID,
+		TargetComponentID: input.TargetID,
+		RelationType:      input.RelationType,
+		Name:              input.Name,
+		Description:       input.Description,
 	})
 	if err != nil {
-		return "", fmt.Errorf("dispatch create component relation command for source %s target %s: %w", sourceID, targetID, err)
+		return "", fmt.Errorf("dispatch create component relation command for source %s target %s: %w", input.SourceID, input.TargetID, err)
 	}
 	return result.CreatedID, nil
 }

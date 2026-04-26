@@ -6,6 +6,7 @@ import (
 	"easi/backend/internal/importing/application/ports"
 	"easi/backend/internal/importing/domain/aggregates"
 	"easi/backend/internal/importing/domain/valueobjects"
+	"easi/backend/internal/importing/publishedlanguage"
 )
 
 type ImportSaga struct {
@@ -85,7 +86,12 @@ func (s *ImportSaga) createCapabilities(ctx context.Context, data aggregates.Par
 			if parentSourceID, hasParent := parentMap[sourceID]; hasParent {
 				parentID = string(state.sourceToCapabilityID[parentSourceID])
 			}
-			createdID, err := s.capabilities.CreateCapability(ctx, cap.Name, cap.Description, parentID, getLevelString(level))
+			createdID, err := s.capabilities.CreateCapability(ctx, publishedlanguage.CreateCapabilityInput{
+				Name:        cap.Name,
+				Description: cap.Description,
+				ParentID:    parentID,
+				Level:       getLevelString(level),
+			})
 			if err != nil {
 				result.Errors = append(result.Errors, valueobjects.NewImportError(cap.SourceID, cap.Name, err.Error(), "skipped"))
 				continue
@@ -138,7 +144,12 @@ func (s *ImportSaga) createRealizations(ctx context.Context, data aggregates.Par
 			continue
 		}
 		notes := buildNotes(rel.Name, rel.Documentation)
-		_, err := s.capabilities.LinkSystem(ctx, string(capabilityID), string(componentID), "full", notes)
+		_, err := s.capabilities.LinkSystem(ctx, publishedlanguage.LinkSystemInput{
+			CapabilityID:     string(capabilityID),
+			ComponentID:      string(componentID),
+			RealizationLevel: "full",
+			Notes:            notes,
+		})
 		if err != nil {
 			result.Errors = append(result.Errors, valueobjects.NewImportError(rel.SourceID, rel.Name, err.Error(), "skipped"))
 			continue
@@ -162,7 +173,13 @@ func (s *ImportSaga) createComponentRelations(ctx context.Context, data aggregat
 			relationType = "Serves"
 		}
 		notes := buildNotes(rel.Name, rel.Documentation)
-		_, err := s.components.CreateRelation(ctx, string(sourceComponentID), string(targetComponentID), relationType, rel.Name, notes)
+		_, err := s.components.CreateRelation(ctx, publishedlanguage.CreateRelationInput{
+			SourceID:     string(sourceComponentID),
+			TargetID:     string(targetComponentID),
+			RelationType: relationType,
+			Name:         rel.Name,
+			Description:  notes,
+		})
 		if err != nil {
 			result.Errors = append(result.Errors, valueobjects.NewImportError(rel.SourceID, rel.Name, err.Error(), "skipped"))
 			continue
@@ -217,7 +234,12 @@ func (s *ImportSaga) mapCapabilitiesToStages(ctx context.Context, data aggregate
 		if !state.hasStageMappingRefs(rel) {
 			continue
 		}
-		if err := s.valueStreams.MapCapabilityToStage(ctx, string(state.sourceToValueStreamID[rel.TargetRef]), string(state.sourceToStageID[rel.TargetRef]), string(state.sourceToCapabilityID[rel.SourceRef])); err != nil {
+		if err := s.valueStreams.MapCapabilityToStage(
+			ctx,
+			string(state.sourceToValueStreamID[rel.TargetRef]),
+			string(state.sourceToStageID[rel.TargetRef]),
+			string(state.sourceToCapabilityID[rel.SourceRef]),
+		); err != nil {
 			result.Errors = append(result.Errors, valueobjects.NewImportError(rel.SourceID, rel.Name, err.Error(), "skipped"))
 			continue
 		}

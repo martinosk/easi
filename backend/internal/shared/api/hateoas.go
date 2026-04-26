@@ -9,6 +9,16 @@ import (
 
 type Links = types.Links
 
+type Method string
+
+const (
+	MethodGet    Method = "GET"
+	MethodPut    Method = "PUT"
+	MethodPost   Method = "POST"
+	MethodDelete Method = "DELETE"
+	MethodPatch  Method = "PATCH"
+)
+
 type HATEOASLinks struct {
 	base string
 }
@@ -22,15 +32,11 @@ func NewHATEOASLinks(baseURL string) *HATEOASLinks {
 
 func (h *HATEOASLinks) Base() string { return h.base }
 
-func (h *HATEOASLinks) L(href, method string) types.Link {
-	return types.Link{Href: href, Method: method}
-}
-
-func (h *HATEOASLinks) Get(path string) types.Link   { return h.L(h.base+path, "GET") }
-func (h *HATEOASLinks) Put(path string) types.Link   { return h.L(h.base+path, "PUT") }
-func (h *HATEOASLinks) Post(path string) types.Link  { return h.L(h.base+path, "POST") }
-func (h *HATEOASLinks) Del(path string) types.Link   { return h.L(h.base+path, "DELETE") }
-func (h *HATEOASLinks) Patch(path string) types.Link { return h.L(h.base+path, "PATCH") }
+func (h *HATEOASLinks) Get(path string) types.Link   { return NewLink(h.base+path, MethodGet) }
+func (h *HATEOASLinks) Put(path string) types.Link   { return NewLink(h.base+path, MethodPut) }
+func (h *HATEOASLinks) Post(path string) types.Link  { return NewLink(h.base+path, MethodPost) }
+func (h *HATEOASLinks) Del(path string) types.Link   { return NewLink(h.base+path, MethodDelete) }
+func (h *HATEOASLinks) Patch(path string) types.Link { return NewLink(h.base+path, MethodPatch) }
 
 func (h *HATEOASLinks) Crud(path string) Links {
 	return Links{"self": h.Get(path), "edit": h.Put(path), "delete": h.Del(path)}
@@ -69,14 +75,22 @@ func (h *HATEOASLinks) ExpertRemoveLink(p ExpertParams, actor sharedctx.Actor, p
 	return links
 }
 
-func (h *HATEOASLinks) AddEditOrGrantLink(links Links, actor sharedctx.Actor, permission, artifactType sharedctx.ResourceName, artifactID string, editLink types.Link, extraWriteLinks map[string]types.Link) {
-	if actor.CanWrite(permission) {
-		links["edit"] = editLink
-		for k, v := range extraWriteLinks {
+type EditGrantParams struct {
+	Permission   sharedctx.ResourceName
+	ArtifactType sharedctx.ResourceName
+	ArtifactID   string
+	EditLink     types.Link
+	ExtraWrite   map[string]types.Link
+}
+
+func (h *HATEOASLinks) AddEditOrGrantLink(links Links, actor sharedctx.Actor, params EditGrantParams) {
+	if actor.CanWrite(params.Permission) {
+		links["edit"] = params.EditLink
+		for k, v := range params.ExtraWrite {
 			links[k] = v
 		}
-	} else if actor.HasEditGrant(artifactType, artifactID) {
-		links["edit"] = editLink
+	} else if actor.HasEditGrant(params.ArtifactType, params.ArtifactID) {
+		links["edit"] = params.EditLink
 	}
 }
 
@@ -90,6 +104,6 @@ func (h *HATEOASLinks) ReferenceDocLink(resourceType string) string {
 	return h.base + "/reference/" + resourceType
 }
 
-func NewLink(href, method string) types.Link {
-	return types.Link{Href: href, Method: method}
+func NewLink(href string, method Method) types.Link {
+	return types.Link{Href: href, Method: string(method)}
 }
