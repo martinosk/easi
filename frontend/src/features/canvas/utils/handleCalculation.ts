@@ -24,6 +24,25 @@ export const angleToHandleIndex = (angleDegrees: number): number => {
   return 3;
 };
 
+const HANDLE_OFFSETS: Record<string, { x: number; y: number }> = {
+  right: { x: 1, y: 0 },
+  left: { x: -1, y: 0 },
+  bottom: { x: 0, y: 1 },
+  top: { x: 0, y: -1 },
+};
+
+export const positionFromHandle = (
+  sourcePos: { x: number; y: number },
+  handlePosition: string,
+  offsetPx: number,
+): { x: number; y: number } => {
+  const dir = HANDLE_OFFSETS[handlePosition] ?? HANDLE_OFFSETS.right;
+  return {
+    x: sourcePos.x + dir.x * offsetPx,
+    y: sourcePos.y + dir.y * offsetPx,
+  };
+};
+
 export const getBestHandles = (sourceNode: Node | undefined, targetNode: Node | undefined): HandlePair => {
   if (!sourceNode || !targetNode) return DEFAULT_HANDLES;
 
