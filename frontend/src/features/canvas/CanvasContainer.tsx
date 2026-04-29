@@ -1,5 +1,6 @@
-import { useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import type { ComponentId, ViewId } from '../../api/types';
+import type { ConnectorClickInfo } from '../../components/canvas/ConnectorHandle';
 import { DockviewLayout } from '../../components/layout/DockviewLayout';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useAppStore } from '../../store/appStore';
@@ -39,6 +40,22 @@ export default function CanvasContainer() {
     }
   };
 
+  const handleConnectorClick = useCallback(
+    (info: ConnectorClickInfo) => {
+      const component = components.find((c) => c.id === info.nodeId);
+      if (!component) return;
+
+      dialogActions.openCreateConnectedEntityDialog({
+        sourceNodeId: info.nodeId,
+        sourceNodeType: 'component',
+        handlePosition: info.handlePosition,
+        sourcePosition: { x: 0, y: 0 },
+        links: component._links,
+      });
+    },
+    [components, dialogActions],
+  );
+
   useKeyboardShortcuts({ onDelete: handleRemoveFromView });
 
   return (
@@ -51,6 +68,7 @@ export default function CanvasContainer() {
       canCreateView={permissions.canCreateView}
       canCreateOriginEntity={permissions.canCreateOriginEntity}
       onConnect={dialogActions.openRelationDialog}
+      onConnectorClick={handleConnectorClick}
       onComponentDrop={(id, x, y) => addComponentToView(id as ComponentId, x, y)}
       onComponentSelect={navigateToComponent}
       onCapabilitySelect={navigateToCapability}

@@ -1,4 +1,4 @@
-import type { Capability, Component, Relation } from '../../api/types';
+import type { Capability, Component, HATEOASLinks, Relation } from '../../api/types';
 
 export type DialogId =
   | 'create-component'
@@ -7,7 +7,16 @@ export type DialogId =
   | 'edit-relation'
   | 'create-capability'
   | 'edit-capability'
-  | 'release-notes-browser';
+  | 'release-notes-browser'
+  | 'create-connected-entity';
+
+export interface CreateConnectedEntityDialogData {
+  sourceNodeId: string;
+  sourceNodeType: string;
+  handlePosition: string;
+  sourcePosition: { x: number; y: number };
+  links: HATEOASLinks;
+}
 
 export interface DialogDataMap {
   'create-component': undefined;
@@ -17,6 +26,7 @@ export interface DialogDataMap {
   'create-capability': undefined;
   'edit-capability': { capability: Capability };
   'release-notes-browser': undefined;
+  'create-connected-entity': CreateConnectedEntityDialogData;
 }
 
 export type DialogState<T extends DialogId = DialogId> = {

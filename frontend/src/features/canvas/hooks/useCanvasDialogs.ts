@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { Capability, Component, Relation } from '../../../api/types';
 import { toComponentId } from '../../../api/types';
+import type { CreateConnectedEntityDialogData } from '../../../contexts/dialogs/types';
 import { useDialogContext } from '../../../contexts/dialogs';
 import { useAppStore } from '../../../store/appStore';
 
@@ -12,6 +13,8 @@ export interface CanvasDialogActions {
   openEditComponentDialog: (componentId?: string) => void;
   openEditCapabilityDialog: (capability: Capability) => void;
   openReleaseNotesBrowser: () => void;
+  openCreateConnectedEntityDialog: (params: CreateConnectedEntityDialogData) => void;
+  closeCreateConnectedEntityDialog: () => void;
 }
 
 export function useCanvasDialogs(
@@ -19,7 +22,7 @@ export function useCanvasDialogs(
   relations: Relation[],
   components: Component[],
 ): CanvasDialogActions {
-  const { openDialog } = useDialogContext();
+  const { openDialog, closeDialog } = useDialogContext();
   const selectNode = useAppStore((state) => state.selectNode);
 
   const componentsRef = useRef(components);
@@ -73,6 +76,17 @@ export function useCanvasDialogs(
     openDialog('release-notes-browser');
   }, [openDialog]);
 
+  const openCreateConnectedEntityDialog = useCallback(
+    (params: CreateConnectedEntityDialogData) => {
+      openDialog('create-connected-entity', params);
+    },
+    [openDialog],
+  );
+
+  const closeCreateConnectedEntityDialog = useCallback(() => {
+    closeDialog('create-connected-entity');
+  }, [closeDialog]);
+
   return {
     openComponentDialog,
     openCapabilityDialog,
@@ -81,5 +95,7 @@ export function useCanvasDialogs(
     openEditComponentDialog,
     openEditCapabilityDialog,
     openReleaseNotesBrowser,
+    openCreateConnectedEntityDialog,
+    closeCreateConnectedEntityDialog,
   };
 }

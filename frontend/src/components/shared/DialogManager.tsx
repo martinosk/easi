@@ -3,6 +3,7 @@ import { useDialog } from '../../contexts/dialogs';
 import { ReleaseNotesBrowser } from '../../contexts/releases/components/ReleaseNotesBrowser';
 import { CreateCapabilityDialog, EditCapabilityDialog } from '../../features/capabilities';
 import { CreateComponentDialog, EditComponentDialog } from '../../features/components';
+import { CreateConnectedEntityDialogContainer } from '../../features/canvas/components/dialogs/CreateConnectedEntityDialogContainer';
 import { CreateRelationDialog, EditRelationDialog } from '../../features/relations';
 
 export const DialogManager: React.FC = () => {
@@ -52,6 +53,8 @@ export const DialogManager: React.FC = () => {
       )}
 
       <ReleaseNotesBrowser isOpen={releaseNotesBrowser.isOpen} onClose={releaseNotesBrowser.close} />
+
+      <CreateConnectedEntityDialogContainer />
     </>
   );
 };

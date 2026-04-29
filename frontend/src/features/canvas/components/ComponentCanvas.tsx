@@ -16,6 +16,7 @@ import '@xyflow/react/dist/style.css';
 import { CapabilityNode } from '../../../components/canvas/CapabilityNode';
 import { ComponentNode } from '../../../components/canvas/ComponentNode';
 import { OriginEntityNode } from '../../../components/canvas/OriginEntityNode';
+import type { ConnectorClickInfo } from '../../../components/canvas/ConnectorHandle';
 import { useAppStore } from '../../../store/appStore';
 import { useUserStore } from '../../../store/userStore';
 import { InviteToEditDialog } from '../../edit-grants/components/InviteToEditDialog';
@@ -42,6 +43,7 @@ import { withDynamicExpansion } from './withDynamicExpansion';
 interface ComponentCanvasProps {
   onConnect: (source: string, target: string) => void;
   onComponentDrop?: (componentId: string, x: number, y: number) => void;
+  onConnectorClick?: (info: ConnectorClickInfo) => void;
 }
 
 export interface ComponentCanvasRef {
@@ -57,7 +59,7 @@ const nodeTypes: NodeTypes = {
 const multiSelectionKeys = ['Meta', 'Control', 'Shift'];
 
 const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps>(
-  ({ onConnect, onComponentDrop }, ref) => {
+  ({ onConnect, onComponentDrop, onConnectorClick }, ref) => {
     const reactFlowInstance = useReactFlow();
     const selectedNodeId = useAppStore((state) => state.selectedNodeId);
     const selectedCapabilityId = useAppStore((state) => state.selectedCapabilityId);
@@ -65,7 +67,16 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
     const canCreateView = hasPermission('views:write');
     const { create: createDynamicView } = useCreateDynamicView();
 
-    const nodes = useCanvasNodes();
+    const rawNodes = useCanvasNodes();
+    const nodes = React.useMemo(
+      () =>
+        rawNodes.map((node) =>
+          node.type === 'component'
+            ? { ...node, data: { ...node.data, onConnectorClick } }
+            : node,
+        ),
+      [rawNodes, onConnectorClick],
+    );
     const edges = useCanvasEdges(nodes);
     const { onNodeClick, onEdgeClick, onPaneClick, onNodeDragStop } = useCanvasSelection();
     const { onDragOver, onDrop } = useCanvasDragDrop(reactFlowInstance, onComponentDrop);

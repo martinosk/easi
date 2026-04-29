@@ -2,6 +2,7 @@ import type { DockviewReadyEvent, IDockviewPanelHeaderProps, IDockviewPanelProps
 import { DockviewDefaultTab, DockviewReact, themeLight } from 'dockview';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { Capability } from '../../api/types';
+import type { ConnectorClickInfo } from '../canvas/ConnectorHandle';
 import { ComponentCanvas, type ComponentCanvasRef } from '../../features/canvas';
 import { CanvasLayoutProvider } from '../../features/canvas/context/CanvasLayoutContext';
 import { NavigationTree } from '../../features/navigation';
@@ -26,6 +27,7 @@ interface DockviewLayoutProps {
   canCreateView?: boolean;
   canCreateOriginEntity?: boolean;
   onConnect: (source: string, target: string) => void;
+  onConnectorClick?: (info: ConnectorClickInfo) => void;
   onComponentDrop: (componentId: string, x: number, y: number) => Promise<void>;
   onComponentSelect: (componentId: string) => void;
   onCapabilitySelect: (capabilityId: string) => void;
@@ -128,9 +130,10 @@ function usePanelParams(props: DockviewLayoutProps) {
     () => ({
       canvasRef: props.canvasRef,
       onConnect: props.onConnect,
+      onConnectorClick: props.onConnectorClick,
       onComponentDrop: props.onComponentDrop,
     }),
-    [props.canvasRef, props.onConnect, props.onComponentDrop],
+    [props.canvasRef, props.onConnect, props.onConnectorClick, props.onComponentDrop],
   );
 
   return { navigation, details, canvas };
@@ -293,10 +296,11 @@ const CanvasPanel = (
   props: IDockviewPanelProps<{
     canvasRef: React.RefObject<ComponentCanvasRef | null>;
     onConnect: (source: string, target: string) => void;
+    onConnectorClick?: (info: ConnectorClickInfo) => void;
     onComponentDrop: (componentId: string, x: number, y: number) => Promise<void>;
   }>,
 ) => {
-  const { canvasRef, onConnect, onComponentDrop } = props.params;
+  const { canvasRef, onConnect, onConnectorClick, onComponentDrop } = props.params;
   return (
     <div style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <ViewSelector />
@@ -304,7 +308,7 @@ const CanvasPanel = (
         <ErrorBoundary
           fallback={(error, reset) => <FeatureErrorFallback featureName="Canvas" error={error} onReset={reset} />}
         >
-          <ComponentCanvas ref={canvasRef} onConnect={onConnect} onComponentDrop={onComponentDrop} />
+          <ComponentCanvas ref={canvasRef} onConnect={onConnect} onConnectorClick={onConnectorClick} onComponentDrop={onComponentDrop} />
         </ErrorBoundary>
       </div>
     </div>
