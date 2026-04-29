@@ -29,10 +29,13 @@ var (
 func (h *ArchitectureModelingLinks) ComponentLinksForActor(id string, actor sharedctx.Actor) sharedAPI.Links {
 	p := "/components/" + id
 	links := sharedAPI.Links{
-		"self":           h.Get(p),
-		"describedby":    h.Get("/reference/components"),
-		"collection":     h.Get("/components"),
-		"x-expert-roles": h.Get("/components/expert-roles"),
+		"self":             h.Get(p),
+		"describedby":      h.Get("/reference/components"),
+		"collection":       h.Get("/components"),
+		"x-expert-roles":   h.Get("/components/expert-roles"),
+		"x-relations-from": h.Get("/relations/from/" + id),
+		"x-relations-to":   h.Get("/relations/to/" + id),
+		"x-origins":        h.Get(p + "/origins"),
 	}
 	h.AddEditOrGrantLink(links, actor, sharedAPI.EditGrantParams{
 		Permission:   "components",
@@ -40,7 +43,11 @@ func (h *ArchitectureModelingLinks) ComponentLinksForActor(id string, actor shar
 		ArtifactID:   id,
 		EditLink:     h.Put(p),
 		ExtraWrite: map[string]types.Link{
-			"x-add-expert": h.Post(p + "/experts"),
+			"x-add-expert":                h.Post(p + "/experts"),
+			"x-add-relation":              h.Post("/relations"),
+			"x-set-origin-acquired-via":   h.Put(p + "/origin/acquired-via"),
+			"x-set-origin-purchased-from": h.Put(p + "/origin/purchased-from"),
+			"x-set-origin-built-by":       h.Put(p + "/origin/built-by"),
 		},
 	})
 	if actor.CanDelete("components") {
