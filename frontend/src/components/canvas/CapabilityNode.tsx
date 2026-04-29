@@ -1,4 +1,4 @@
-import { Handle, Position } from '@xyflow/react';
+import { Position } from '@xyflow/react';
 import React from 'react';
 import {
   CLASSIC_COLOR,
@@ -8,6 +8,7 @@ import {
 } from '../../constants/maturityColors';
 import { useCurrentView } from '../../features/views/hooks/useCurrentView';
 import { useMaturityColorScale } from '../../hooks/useMaturityColorScale';
+import { ConnectorHandle, type ConnectorClickInfo } from './ConnectorHandle';
 
 type HexColor = string;
 type ColorScheme = 'maturity' | 'classic' | 'custom';
@@ -20,6 +21,7 @@ export interface CapabilityNodeData {
   maturitySection?: string;
   isSelected: boolean;
   customColor?: string;
+  onConnectorClick?: (info: ConnectorClickInfo) => void;
 }
 
 const getColorByScheme = (
@@ -96,11 +98,11 @@ export const CapabilityNode: React.FC<{ data: CapabilityNodeData; id: string; se
       }}
       data-capability-id={id}
     >
-      <Handle type="source" position={Position.Top} id="top" className="capability-handle capability-handle-top" />
-      <Handle type="target" position={Position.Top} id="top" className="capability-handle capability-handle-top" />
+      <ConnectorHandle type="source" position={Position.Top} id="top" className="capability-handle capability-handle-top" nodeId={id} onConnectorClick={data.onConnectorClick} />
+      <ConnectorHandle type="target" position={Position.Top} id="top" className="capability-handle capability-handle-top" nodeId={id} onConnectorClick={data.onConnectorClick} />
 
-      <Handle type="source" position={Position.Left} id="left" className="capability-handle capability-handle-left" />
-      <Handle type="target" position={Position.Left} id="left" className="capability-handle capability-handle-left" />
+      <ConnectorHandle type="source" position={Position.Left} id="left" className="capability-handle capability-handle-left" nodeId={id} onConnectorClick={data.onConnectorClick} />
+      <ConnectorHandle type="target" position={Position.Left} id="left" className="capability-handle capability-handle-left" nodeId={id} onConnectorClick={data.onConnectorClick} />
 
       <div className="capability-node-content">
         <div className="capability-node-header">
@@ -123,30 +125,38 @@ export const CapabilityNode: React.FC<{ data: CapabilityNodeData; id: string; se
         <div className="capability-node-maturity">{sectionName}</div>
       </div>
 
-      <Handle
+      <ConnectorHandle
         type="source"
         position={Position.Right}
         id="right"
         className="capability-handle capability-handle-right"
+        nodeId={id}
+        onConnectorClick={data.onConnectorClick}
       />
-      <Handle
+      <ConnectorHandle
         type="target"
         position={Position.Right}
         id="right"
         className="capability-handle capability-handle-right"
+        nodeId={id}
+        onConnectorClick={data.onConnectorClick}
       />
 
-      <Handle
+      <ConnectorHandle
         type="source"
         position={Position.Bottom}
         id="bottom"
         className="capability-handle capability-handle-bottom"
+        nodeId={id}
+        onConnectorClick={data.onConnectorClick}
       />
-      <Handle
+      <ConnectorHandle
         type="target"
         position={Position.Bottom}
         id="bottom"
         className="capability-handle capability-handle-bottom"
+        nodeId={id}
+        onConnectorClick={data.onConnectorClick}
       />
     </div>
   );

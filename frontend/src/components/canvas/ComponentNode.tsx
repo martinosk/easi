@@ -1,6 +1,7 @@
-import { Handle, Position } from '@xyflow/react';
+import { Position } from '@xyflow/react';
 import React from 'react';
 import { useCurrentView } from '../../features/views/hooks/useCurrentView';
+import { ConnectorHandle, type ConnectorClickInfo } from './ConnectorHandle';
 
 type HexColor = string;
 type ColorScheme = 'maturity' | 'classic' | 'custom';
@@ -10,6 +11,7 @@ export interface ComponentNodeData {
   description?: string;
   isSelected: boolean;
   customColor?: string;
+  onConnectorClick?: (info: ConnectorClickInfo) => void;
 }
 
 const COMPONENT_COLORS: Record<ColorScheme, HexColor> = {
@@ -72,31 +74,35 @@ export const ComponentNode: React.FC<{ data: ComponentNodeData; id: string; sele
       }}
       data-component-id={id}
     >
-      <Handle type="source" position={Position.Top} id="top" className="component-handle component-handle-top" />
-      <Handle type="target" position={Position.Top} id="top" className="component-handle component-handle-top" />
+      <ConnectorHandle type="source" position={Position.Top} id="top" className="component-handle component-handle-top" nodeId={id} onConnectorClick={data.onConnectorClick} />
+      <ConnectorHandle type="target" position={Position.Top} id="top" className="component-handle component-handle-top" nodeId={id} onConnectorClick={data.onConnectorClick} />
 
-      <Handle type="source" position={Position.Left} id="left" className="component-handle component-handle-left" />
-      <Handle type="target" position={Position.Left} id="left" className="component-handle component-handle-left" />
+      <ConnectorHandle type="source" position={Position.Left} id="left" className="component-handle component-handle-left" nodeId={id} onConnectorClick={data.onConnectorClick} />
+      <ConnectorHandle type="target" position={Position.Left} id="left" className="component-handle component-handle-left" nodeId={id} onConnectorClick={data.onConnectorClick} />
 
       <div className="component-node-content">
         <div className="component-node-header">{data.label}</div>
         {data.description && <div className="component-node-description">{data.description}</div>}
       </div>
 
-      <Handle type="source" position={Position.Right} id="right" className="component-handle component-handle-right" />
-      <Handle type="target" position={Position.Right} id="right" className="component-handle component-handle-right" />
+      <ConnectorHandle type="source" position={Position.Right} id="right" className="component-handle component-handle-right" nodeId={id} onConnectorClick={data.onConnectorClick} />
+      <ConnectorHandle type="target" position={Position.Right} id="right" className="component-handle component-handle-right" nodeId={id} onConnectorClick={data.onConnectorClick} />
 
-      <Handle
+      <ConnectorHandle
         type="source"
         position={Position.Bottom}
         id="bottom"
         className="component-handle component-handle-bottom"
+        nodeId={id}
+        onConnectorClick={data.onConnectorClick}
       />
-      <Handle
+      <ConnectorHandle
         type="target"
         position={Position.Bottom}
         id="bottom"
         className="component-handle component-handle-bottom"
+        nodeId={id}
+        onConnectorClick={data.onConnectorClick}
       />
     </div>
   );

@@ -1,6 +1,7 @@
-import { Handle, Position } from '@xyflow/react';
+import { Position } from '@xyflow/react';
 import React from 'react';
 import type { OriginEntityType } from '../../constants/entityIdentifiers';
+import { ConnectorHandle, type ConnectorClickInfo } from './ConnectorHandle';
 
 type HexColor = string;
 
@@ -11,6 +12,7 @@ export interface OriginEntityNodeData {
   entityType: OriginEntityType;
   isSelected: boolean;
   subtitle?: string;
+  onConnectorClick?: (info: ConnectorClickInfo) => void;
 }
 
 const ENTITY_COLORS: Record<OriginEntityType, HexColor> = {
@@ -83,30 +85,38 @@ export const OriginEntityNode: React.FC<{ data: OriginEntityNodeData; id: string
       }}
       data-origin-entity-id={id}
     >
-      <Handle
+      <ConnectorHandle
         type="source"
         position={Position.Top}
         id="top"
         className="origin-entity-handle origin-entity-handle-top"
+        nodeId={id}
+        onConnectorClick={data.onConnectorClick}
       />
-      <Handle
+      <ConnectorHandle
         type="target"
         position={Position.Top}
         id="top"
         className="origin-entity-handle origin-entity-handle-top"
+        nodeId={id}
+        onConnectorClick={data.onConnectorClick}
       />
 
-      <Handle
+      <ConnectorHandle
         type="source"
         position={Position.Left}
         id="left"
         className="origin-entity-handle origin-entity-handle-left"
+        nodeId={id}
+        onConnectorClick={data.onConnectorClick}
       />
-      <Handle
+      <ConnectorHandle
         type="target"
         position={Position.Left}
         id="left"
         className="origin-entity-handle origin-entity-handle-left"
+        nodeId={id}
+        onConnectorClick={data.onConnectorClick}
       />
 
       <div className="origin-entity-node-content" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -130,30 +140,38 @@ export const OriginEntityNode: React.FC<{ data: OriginEntityNodeData; id: string
         </div>
       </div>
 
-      <Handle
+      <ConnectorHandle
         type="source"
         position={Position.Right}
         id="right"
         className="origin-entity-handle origin-entity-handle-right"
+        nodeId={id}
+        onConnectorClick={data.onConnectorClick}
       />
-      <Handle
+      <ConnectorHandle
         type="target"
         position={Position.Right}
         id="right"
         className="origin-entity-handle origin-entity-handle-right"
+        nodeId={id}
+        onConnectorClick={data.onConnectorClick}
       />
 
-      <Handle
+      <ConnectorHandle
         type="source"
         position={Position.Bottom}
         id="bottom"
         className="origin-entity-handle origin-entity-handle-bottom"
+        nodeId={id}
+        onConnectorClick={data.onConnectorClick}
       />
-      <Handle
+      <ConnectorHandle
         type="target"
         position={Position.Bottom}
         id="bottom"
         className="origin-entity-handle origin-entity-handle-bottom"
+        nodeId={id}
+        onConnectorClick={data.onConnectorClick}
       />
     </div>
   );
