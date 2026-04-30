@@ -54,6 +54,48 @@ func (h *ArchitectureModelingLinks) ComponentExpertLinksForActor(p sharedAPI.Exp
 	return h.ExpertRemoveLink(p, actor, "components")
 }
 
+type componentRelationKind struct {
+	Title        string
+	RelationType string
+}
+
+var (
+	componentSelfRelation          = componentRelationKind{Title: "Component (related)", RelationType: "component-relation"}
+	componentAcquiredViaRelation   = componentRelationKind{Title: "Component (acquired-via)", RelationType: "origin-acquired-via"}
+	componentPurchasedFromRelation = componentRelationKind{Title: "Component (purchased-from)", RelationType: "origin-purchased-from"}
+	componentBuiltByRelation       = componentRelationKind{Title: "Component (built-by)", RelationType: "origin-built-by"}
+)
+
+func (h *ArchitectureModelingLinks) componentRelatedFor(kind componentRelationKind, actor sharedctx.Actor) []types.RelatedLink {
+	related := []types.RelatedLink{}
+	if actor.CanWrite("components") {
+		related = append(related, types.RelatedLink{
+			Href:         h.Base() + "/components",
+			Methods:      []string{"POST"},
+			Title:        kind.Title,
+			TargetType:   "component",
+			RelationType: kind.RelationType,
+		})
+	}
+	return related
+}
+
+func (h *ArchitectureModelingLinks) ComponentXRelatedForActor(actor sharedctx.Actor) []types.RelatedLink {
+	return h.componentRelatedFor(componentSelfRelation, actor)
+}
+
+func (h *ArchitectureModelingLinks) AcquiredEntityXRelatedForActor(actor sharedctx.Actor) []types.RelatedLink {
+	return h.componentRelatedFor(componentAcquiredViaRelation, actor)
+}
+
+func (h *ArchitectureModelingLinks) VendorXRelatedForActor(actor sharedctx.Actor) []types.RelatedLink {
+	return h.componentRelatedFor(componentPurchasedFromRelation, actor)
+}
+
+func (h *ArchitectureModelingLinks) InternalTeamXRelatedForActor(actor sharedctx.Actor) []types.RelatedLink {
+	return h.componentRelatedFor(componentBuiltByRelation, actor)
+}
+
 func (h *ArchitectureModelingLinks) RelationLinks(id string) sharedAPI.Links {
 	links := h.Crud("/relations/" + id)
 	links["describedby"] = h.Get("/reference/relations/generic")

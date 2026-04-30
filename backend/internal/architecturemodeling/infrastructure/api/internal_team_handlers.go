@@ -240,4 +240,5 @@ func (h *InternalTeamHandlers) DeleteInternalTeam(w http.ResponseWriter, r *http
 func (h *InternalTeamHandlers) enrichWithLinks(r *http.Request, team *readmodels.InternalTeamDTO) {
 	actor, _ := sharedctx.GetActor(r.Context())
 	team.Links = h.hateoas.InternalTeamLinksForActor(team.ID, actor)
+	team.XRelated = h.hateoas.InternalTeamXRelatedForActor(actor)
 }

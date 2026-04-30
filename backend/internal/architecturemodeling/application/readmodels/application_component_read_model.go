@@ -3,6 +3,7 @@ package readmodels
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -13,14 +14,23 @@ import (
 	"easi/backend/internal/shared/types"
 )
 
-// ApplicationComponentDTO represents the read model for application components
 type ApplicationComponentDTO struct {
-	ID          string      `json:"id"`
-	Name        string      `json:"name"`
-	Description string      `json:"description,omitempty"`
-	CreatedAt   time.Time   `json:"createdAt"`
-	Experts     []ExpertDTO `json:"experts,omitempty"`
-	Links       types.Links `json:"_links,omitempty"`
+	ID          string              `json:"id"`
+	Name        string              `json:"name"`
+	Description string              `json:"description,omitempty"`
+	CreatedAt   time.Time           `json:"createdAt"`
+	Experts     []ExpertDTO         `json:"experts,omitempty"`
+	Links       types.Links         `json:"_links,omitempty"`
+	XRelated    []types.RelatedLink `json:"-"`
+}
+
+func (d ApplicationComponentDTO) MarshalJSON() ([]byte, error) {
+	type alias ApplicationComponentDTO
+	base, err := json.Marshal(alias(d))
+	if err != nil {
+		return nil, err
+	}
+	return types.SpliceXRelated(base, d.XRelated)
 }
 
 type ExpertDTO struct {

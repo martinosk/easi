@@ -3,6 +3,7 @@ package readmodels
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"time"
 
 	"easi/backend/internal/infrastructure/database"
@@ -11,14 +12,24 @@ import (
 )
 
 type AcquiredEntityDTO struct {
-	ID                string      `json:"id"`
-	Name              string      `json:"name"`
-	AcquisitionDate   *time.Time  `json:"acquisitionDate,omitempty"`
-	IntegrationStatus string      `json:"integrationStatus,omitempty"`
-	Notes             string      `json:"notes,omitempty"`
-	CreatedAt         time.Time   `json:"createdAt"`
-	UpdatedAt         *time.Time  `json:"updatedAt,omitempty"`
-	Links             types.Links `json:"_links,omitempty"`
+	ID                string              `json:"id"`
+	Name              string              `json:"name"`
+	AcquisitionDate   *time.Time          `json:"acquisitionDate,omitempty"`
+	IntegrationStatus string              `json:"integrationStatus,omitempty"`
+	Notes             string              `json:"notes,omitempty"`
+	CreatedAt         time.Time           `json:"createdAt"`
+	UpdatedAt         *time.Time          `json:"updatedAt,omitempty"`
+	Links             types.Links         `json:"_links,omitempty"`
+	XRelated          []types.RelatedLink `json:"-"`
+}
+
+func (d AcquiredEntityDTO) MarshalJSON() ([]byte, error) {
+	type alias AcquiredEntityDTO
+	base, err := json.Marshal(alias(d))
+	if err != nil {
+		return nil, err
+	}
+	return types.SpliceXRelated(base, d.XRelated)
 }
 
 type AcquiredEntityReadModel struct {

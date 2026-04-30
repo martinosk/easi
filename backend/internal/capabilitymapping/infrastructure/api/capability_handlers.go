@@ -41,6 +41,7 @@ func NewCapabilityHandlers(
 
 func (h *CapabilityHandlers) addLinksToCapability(cap *readmodels.CapabilityDTO, actor sharedctx.Actor) {
 	cap.Links = h.hateoas.CapabilityLinksForActor(cap.ID, cap.ParentID, actor)
+	cap.XRelated = h.hateoas.CapabilityXRelatedForActor(cap.Level, actor)
 	for i := range cap.Experts {
 		cap.Experts[i].Links = h.hateoas.CapabilityExpertLinksForActor(sharedAPI.ExpertParams{
 			ResourcePath: "/capabilities/" + cap.ID,

@@ -3,12 +3,42 @@ package api
 import (
 	"net/http"
 
+	"easi/backend/internal/shared/types"
+
 	"github.com/go-chi/chi/v5"
 )
 
 type ReferenceDoc struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
+}
+
+type XRelatedReferenceDoc struct {
+	Title       string              `json:"title"`
+	Description string              `json:"description"`
+	Example     []types.RelatedLink `json:"example"`
+}
+
+var xRelatedReferenceDoc = XRelatedReferenceDoc{
+	Title: "x-related Links Contract",
+	Description: "Every canvas-renderable entity exposes an `x-related` array " +
+		"under `_links`, enumerating creation affordances toward related " +
+		"entities. Each entry carries href, methods, title, targetType, and " +
+		"relationType. Entries advertising POST in their methods are " +
+		"picker-eligible (clicking a canvas handle on the source entity " +
+		"opens the create dialog for targetType, then dispatches to the " +
+		"existing relation endpoint identified by relationType). Entries " +
+		"that advertise only GET are reserved for future list-existing-" +
+		"related UIs and are ignored by the picker.",
+	Example: []types.RelatedLink{
+		{
+			Href:         "/api/v1/components",
+			Methods:      []string{"POST"},
+			Title:        "Component (related)",
+			TargetType:   "component",
+			RelationType: "component-relation",
+		},
+	},
 }
 
 var referenceDocuments = map[string]ReferenceDoc{
@@ -70,11 +100,25 @@ func HandleGetGenericRelationReference(w http.ResponseWriter, r *http.Request) {
 	RespondJSON(w, http.StatusOK, referenceDocuments["relations/generic"])
 }
 
+// HandleGetXRelatedReference godoc
+// @Summary Get x-related HATEOAS contract reference
+// @Description Returns the contract for the `_links["x-related"]` array exposed on every canvas-renderable entity (Component, Capability, AcquiredEntity, Vendor, InternalTeam). Each entry advertises a creation affordance from the source entity to a related entity; entries with `POST` in `methods` are picker-eligible.
+// @Tags Reference
+// @Produce json
+// @Success 200 {object} XRelatedReferenceDoc
+// @Failure 401 {object} ErrorResponse "Unauthorized - authentication required"
+// @Failure 403 {object} ErrorResponse "Forbidden - insufficient permissions"
+// @Router /reference/x-related-links [get]
+func HandleGetXRelatedReference(w http.ResponseWriter, r *http.Request) {
+	RespondJSON(w, http.StatusOK, xRelatedReferenceDoc)
+}
+
 func SetupReferenceRoutes(r chi.Router) {
 	r.Route("/reference", func(r chi.Router) {
 		r.Get("/components", HandleGetComponentReference)
 		r.Get("/relations/triggering", HandleGetTriggeringRelationReference)
 		r.Get("/relations/serving", HandleGetServingRelationReference)
 		r.Get("/relations/generic", HandleGetGenericRelationReference)
+		r.Get("/x-related-links", HandleGetXRelatedReference)
 	})
 }

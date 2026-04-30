@@ -274,4 +274,5 @@ func parseAcquisitionDate(dateStr *string) (*time.Time, error) {
 func (h *AcquiredEntityHandlers) enrichWithLinks(r *http.Request, entity *readmodels.AcquiredEntityDTO) {
 	actor, _ := sharedctx.GetActor(r.Context())
 	entity.Links = h.hateoas.AcquiredEntityLinksForActor(entity.ID, actor)
+	entity.XRelated = h.hateoas.AcquiredEntityXRelatedForActor(actor)
 }

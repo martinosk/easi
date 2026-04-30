@@ -113,11 +113,11 @@ func (h *OriginRelationshipHandlers) GetAllOriginsByComponent(w http.ResponseWri
 		PurchasedFrom: purchasedFrom,
 		BuiltBy:       builtBy,
 		Links: types.Links{
-			"self":           {Href: sharedAPI.BuildSubResourceLink("/components", sharedAPI.ResourceID(componentID), "/origins"), Method: "GET"},
-			"component":      {Href: sharedAPI.BuildResourceLink("/components", sharedAPI.ResourceID(componentID)), Method: "GET"},
-			"acquired-via":   {Href: sharedAPI.BuildSubResourceLink("/components", sharedAPI.ResourceID(componentID), "/origin/acquired-via"), Method: "GET"},
-			"purchased-from": {Href: sharedAPI.BuildSubResourceLink("/components", sharedAPI.ResourceID(componentID), "/origin/purchased-from"), Method: "GET"},
-			"built-by":       {Href: sharedAPI.BuildSubResourceLink("/components", sharedAPI.ResourceID(componentID), "/origin/built-by"), Method: "GET"},
+			"self":           types.Link{Href: sharedAPI.BuildSubResourceLink("/components", sharedAPI.ResourceID(componentID), "/origins"), Method: "GET"},
+			"component":      types.Link{Href: sharedAPI.BuildResourceLink("/components", sharedAPI.ResourceID(componentID)), Method: "GET"},
+			"acquired-via":   types.Link{Href: sharedAPI.BuildSubResourceLink("/components", sharedAPI.ResourceID(componentID), "/origin/acquired-via"), Method: "GET"},
+			"purchased-from": types.Link{Href: sharedAPI.BuildSubResourceLink("/components", sharedAPI.ResourceID(componentID), "/origin/purchased-from"), Method: "GET"},
+			"built-by":       types.Link{Href: sharedAPI.BuildSubResourceLink("/components", sharedAPI.ResourceID(componentID), "/origin/built-by"), Method: "GET"},
 		},
 	}
 
@@ -162,7 +162,7 @@ func (h *OriginRelationshipHandlers) GetAllOriginRelationships(w http.ResponseWr
 		PurchasedFrom: purchasedFrom,
 		BuiltBy:       builtBy,
 		Links: types.Links{
-			"self": {Href: sharedAPI.BuildResourceLink("/origin-relationships", ""), Method: "GET"},
+			"self": types.Link{Href: sharedAPI.BuildResourceLink("/origin-relationships", ""), Method: "GET"},
 		},
 	}
 
@@ -433,8 +433,8 @@ func respondRelationshipsByComponent[T any](
 
 func buildComponentOriginLinks(componentID, originType string) types.Links {
 	return types.Links{
-		"self":      {Href: sharedAPI.BuildSubResourceLink("/components", sharedAPI.ResourceID(componentID), sharedAPI.ResourcePath("/origin/"+originType)), Method: "GET"},
-		"component": {Href: sharedAPI.BuildResourceLink("/components", sharedAPI.ResourceID(componentID)), Method: "GET"},
+		"self":      types.Link{Href: sharedAPI.BuildSubResourceLink("/components", sharedAPI.ResourceID(componentID), sharedAPI.ResourcePath("/origin/"+originType)), Method: "GET"},
+		"component": types.Link{Href: sharedAPI.BuildResourceLink("/components", sharedAPI.ResourceID(componentID)), Method: "GET"},
 	}
 }
 
@@ -449,9 +449,9 @@ type originLinkParams struct {
 func buildOriginLinks(actor sharedctx.Actor, p originLinkParams) types.Links {
 	baseURL := sharedAPI.BuildSubResourceLink("/components", sharedAPI.ResourceID(p.componentID), sharedAPI.ResourcePath("/origin/"+p.originType))
 	links := types.Links{
-		"self":           {Href: baseURL, Method: "GET"},
-		"component":      {Href: sharedAPI.BuildResourceLink("/components", sharedAPI.ResourceID(p.componentID)), Method: "GET"},
-		p.entityLinkName: {Href: sharedAPI.BuildResourceLink(sharedAPI.ResourcePath(p.entityResource), sharedAPI.ResourceID(p.entityID)), Method: "GET"},
+		"self":           types.Link{Href: baseURL, Method: "GET"},
+		"component":      types.Link{Href: sharedAPI.BuildResourceLink("/components", sharedAPI.ResourceID(p.componentID)), Method: "GET"},
+		p.entityLinkName: types.Link{Href: sharedAPI.BuildResourceLink(sharedAPI.ResourcePath(p.entityResource), sharedAPI.ResourceID(p.entityID)), Method: "GET"},
 	}
 	if actor.CanWrite("components") {
 		links["update"] = types.Link{Href: baseURL, Method: "PUT"}

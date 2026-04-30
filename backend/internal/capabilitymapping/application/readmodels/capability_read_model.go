@@ -3,6 +3,7 @@ package readmodels
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"time"
 
 	"easi/backend/internal/infrastructure/database"
@@ -39,6 +40,16 @@ type CapabilityDTO struct {
 	Tags            []string            `json:"tags,omitempty"`
 	CreatedAt       time.Time           `json:"createdAt"`
 	Links           types.Links         `json:"_links,omitempty"`
+	XRelated        []types.RelatedLink `json:"-"`
+}
+
+func (d CapabilityDTO) MarshalJSON() ([]byte, error) {
+	type alias CapabilityDTO
+	base, err := json.Marshal(alias(d))
+	if err != nil {
+		return nil, err
+	}
+	return types.SpliceXRelated(base, d.XRelated)
 }
 
 type ExpertDTO struct {

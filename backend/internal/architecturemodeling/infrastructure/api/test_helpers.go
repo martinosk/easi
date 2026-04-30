@@ -25,6 +25,12 @@ func withTestTenant(req *http.Request) *http.Request {
 	return req.WithContext(ctx)
 }
 
+func withArchitectActor(req *http.Request) *http.Request {
+	architect := sharedcontext.NewActor("test-architect", "architect@example.com", sharedcontext.RoleArchitect)
+	ctx := sharedcontext.WithActor(req.Context(), architect)
+	return req.WithContext(ctx)
+}
+
 // testTenantID returns the default tenant ID value for test data insertion
 func testTenantID() string {
 	return "default"

@@ -236,4 +236,5 @@ func (h *VendorHandlers) DeleteVendor(w http.ResponseWriter, r *http.Request) {
 func (h *VendorHandlers) enrichWithLinks(r *http.Request, vendor *readmodels.VendorDTO) {
 	actor, _ := sharedctx.GetActor(r.Context())
 	vendor.Links = h.hateoas.VendorLinksForActor(vendor.ID, actor)
+	vendor.XRelated = h.hateoas.VendorXRelatedForActor(actor)
 }

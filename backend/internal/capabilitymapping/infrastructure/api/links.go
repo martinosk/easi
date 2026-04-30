@@ -1,6 +1,7 @@
 package api
 
 import (
+	"easi/backend/internal/capabilitymapping/domain/valueobjects"
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/types"
@@ -52,6 +53,38 @@ func (h *CapabilityMappingLinks) capabilityBaseForActor(id string, actor sharedc
 
 func (h *CapabilityMappingLinks) CapabilityExpertLinksForActor(p sharedAPI.ExpertParams, actor sharedctx.Actor) sharedAPI.Links {
 	return h.ExpertRemoveLink(p, actor, "capabilities")
+}
+
+func (h *CapabilityMappingLinks) CapabilityXRelatedForActor(level string, actor sharedctx.Actor) []types.RelatedLink {
+	related := []types.RelatedLink{}
+	if actor.CanWrite("capabilities") && canHaveChildCapability(level) {
+		related = append(related, types.RelatedLink{
+			Href:         h.Base() + "/capabilities",
+			Methods:      []string{"POST"},
+			Title:        "Capability (child of)",
+			TargetType:   "capability",
+			RelationType: "capability-parent",
+		})
+	}
+	if actor.CanWrite("components") && actor.CanWrite("capabilities") {
+		related = append(related, types.RelatedLink{
+			Href:         h.Base() + "/components",
+			Methods:      []string{"POST"},
+			Title:        "Component (realization)",
+			TargetType:   "component",
+			RelationType: "capability-realization",
+		})
+	}
+	return related
+}
+
+func canHaveChildCapability(level string) bool {
+	switch valueobjects.CapabilityLevel(level) {
+	case valueobjects.LevelL1, valueobjects.LevelL2, valueobjects.LevelL3:
+		return true
+	default:
+		return false
+	}
 }
 
 func (h *CapabilityMappingLinks) DependencyLinks(id, srcCapID, tgtCapID string) sharedAPI.Links {

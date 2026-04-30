@@ -257,6 +257,7 @@ func (h *ComponentHandlers) validateComponentName(w http.ResponseWriter, name st
 func (h *ComponentHandlers) enrichWithLinks(r *http.Request, component *readmodels.ApplicationComponentDTO) {
 	actor, _ := sharedctx.GetActor(r.Context())
 	component.Links = h.hateoas.ComponentLinksForActor(component.ID, actor)
+	component.XRelated = h.hateoas.ComponentXRelatedForActor(actor)
 	for i := range component.Experts {
 		e := component.Experts[i]
 		component.Experts[i].Links = h.hateoas.ComponentExpertLinksForActor(sharedAPI.ExpertParams{
