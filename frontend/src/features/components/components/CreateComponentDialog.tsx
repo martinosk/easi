@@ -8,14 +8,20 @@ import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { useAddComponentToView } from '../../views/hooks/useViews';
 import { useCreateComponent } from '../hooks/useComponents';
 
+interface CreatedComponent {
+  id: string;
+  name: string;
+}
+
 interface CreateComponentDialogProps {
   isOpen: boolean;
   onClose: () => void;
+  onCreated?: (component: CreatedComponent) => void | Promise<void>;
 }
 
 const DEFAULT_VALUES: CreateComponentFormData = { name: '', description: '' };
 
-export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({ isOpen, onClose }) => {
+export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({ isOpen, onClose, onCreated }) => {
   const [backendError, setBackendError] = useState<string | null>(null);
 
   const { currentView } = useCurrentView();
@@ -54,7 +60,9 @@ export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({ is
         description: data.description || undefined,
       });
 
-      if (currentView && canEdit(currentView)) {
+      if (onCreated) {
+        await onCreated(newComponent);
+      } else if (currentView && canEdit(currentView)) {
         const defaultPosition = { x: 400, y: 300 };
         await addComponentToViewMutation.mutateAsync({
           viewId: currentView.id,

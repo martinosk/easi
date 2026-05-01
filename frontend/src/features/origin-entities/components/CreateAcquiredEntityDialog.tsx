@@ -6,9 +6,15 @@ import type { IntegrationStatus } from '../../../api/types';
 import { type CreateAcquiredEntityFormData, createAcquiredEntitySchema } from '../../../lib/schemas';
 import { useCreateAcquiredEntity } from '../hooks/useAcquiredEntities';
 
+interface CreatedAcquiredEntity {
+  id: string;
+  name: string;
+}
+
 interface CreateAcquiredEntityDialogProps {
   isOpen: boolean;
   onClose: () => void;
+  onCreated?: (entity: CreatedAcquiredEntity) => void | Promise<void>;
 }
 
 const INTEGRATION_STATUS_OPTIONS = [
@@ -30,7 +36,11 @@ const DEFAULT_VALUES: CreateAcquiredEntityFormData = {
   notes: '',
 };
 
-export const CreateAcquiredEntityDialog: React.FC<CreateAcquiredEntityDialogProps> = ({ isOpen, onClose }) => {
+export const CreateAcquiredEntityDialog: React.FC<CreateAcquiredEntityDialogProps> = ({
+  isOpen,
+  onClose,
+  onCreated,
+}) => {
   const [backendError, setBackendError] = useState<string | null>(null);
   const createMutation = useCreateAcquiredEntity();
 
@@ -61,12 +71,13 @@ export const CreateAcquiredEntityDialog: React.FC<CreateAcquiredEntityDialogProp
     setBackendError(null);
     try {
       const apiStatus = data.integrationStatus ? integrationStatusToApi[data.integrationStatus] : undefined;
-      await createMutation.mutateAsync({
+      const created = await createMutation.mutateAsync({
         name: data.name,
         acquisitionDate: data.acquisitionDate || undefined,
         integrationStatus: apiStatus,
         notes: data.notes || undefined,
       });
+      if (onCreated) await onCreated(created);
       handleClose();
     } catch (err) {
       setBackendError(err instanceof Error ? err.message : 'Failed to create acquired entity');

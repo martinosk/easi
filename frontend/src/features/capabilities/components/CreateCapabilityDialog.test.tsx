@@ -547,4 +547,63 @@ describe('CreateCapabilityDialog', () => {
       });
     });
   });
+
+  describe('prefill prop', () => {
+    it('uses prefill.level on the create call instead of the default L1', async () => {
+      mockCreateMutateAsync.mockResolvedValueOnce({ id: 'cap-1', name: 'Child', level: 'L2' });
+      mockUpdateMetadataMutateAsync.mockResolvedValueOnce({});
+
+      renderWithProviders(
+        <CreateCapabilityDialog isOpen onClose={mockOnClose} prefill={{ level: 'L2' }} />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('capability-status-select')).not.toBeDisabled();
+      });
+
+      fireEvent.change(screen.getByTestId('capability-name-input'), { target: { value: 'Child' } });
+
+      await waitFor(() => {
+        const submit = screen.getByTestId('create-capability-submit') as HTMLButtonElement;
+        expect(submit.disabled).toBe(false);
+      });
+      fireEvent.click(screen.getByTestId('create-capability-submit'));
+
+      await waitFor(() => {
+        expect(mockCreateMutateAsync).toHaveBeenCalledWith(
+          expect.objectContaining({ level: 'L2' }),
+        );
+      });
+    });
+  });
+
+  describe('onCreated handoff', () => {
+    it('calls onCreated and skips default behavior', async () => {
+      const created = { id: 'cap-1', name: 'Child', level: 'L2' };
+      mockCreateMutateAsync.mockResolvedValueOnce(created);
+      mockUpdateMetadataMutateAsync.mockResolvedValueOnce({});
+      const onCreated = vi.fn();
+
+      renderWithProviders(
+        <CreateCapabilityDialog isOpen onClose={mockOnClose} onCreated={onCreated} />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('capability-status-select')).not.toBeDisabled();
+      });
+
+      fireEvent.change(screen.getByTestId('capability-name-input'), { target: { value: 'Child' } });
+
+      await waitFor(() => {
+        const submit = screen.getByTestId('create-capability-submit') as HTMLButtonElement;
+        expect(submit.disabled).toBe(false);
+      });
+      fireEvent.click(screen.getByTestId('create-capability-submit'));
+
+      await waitFor(() => {
+        expect(onCreated).toHaveBeenCalledWith(expect.objectContaining({ id: 'cap-1' }));
+      });
+      await waitFor(() => expect(mockOnClose).toHaveBeenCalled());
+    });
+  });
 });

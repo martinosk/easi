@@ -1,6 +1,6 @@
 # 165 — Create Related Entity from Canvas Handle
 
-> **Status:** pending
+> **Status:** done (pending user sign-off)
 > **Depends on:** —
 > **Coordinates with:** [164 — Dynamic View Mode](164_DynamicViewMode_ongoing.md) (in flight). The handle-click flow must behave correctly in both regular and dynamic modes; see Cross-Context Integration below.
 > **Related:** [039 — Capability Dependencies on Canvas](039_Capability_Dependencies_Canvas_pending.md). When 039 lands, capability→capability dependency creation surfaces automatically through the same HATEOAS mechanism without further changes here.
@@ -180,22 +180,22 @@ Feature: Create Related Entity from Canvas Handle
 - [x] Each `x-related` array entry carries `href`, `methods`, `title`, `targetType`, and `relationType`
 - [x] Backend omits `POST` from `methods` (or omits the entry) when the user lacks entity-create or source-mutation permission, or when domain invariants exclude the relation (e.g., Capability L4 has no POST-capable child entry)
 - [x] Backend HATEOAS contract (link rel `x-related`, array shape, entry fields, method semantics) is documented in Swagger
-- [ ] Frontend picker is built exclusively from `x-related` array entries advertising `POST` — manual inspection confirms `CONNECTION_TYPE_MAP` is not referenced when building the picker
-- [ ] `GET`-only `x-related` entries do not appear in the picker
-- [ ] Clicking a handle on any of the 5 entity types opens the picker if at least one `POST`-capable entry exists, or is a no-op if none exist
-- [ ] Dragging from a handle onto an existing node creates a relation via the existing flow and does NOT open the picker
-- [ ] Click-vs-drag movement threshold prevents accidental picker opens during slow drags and accidental drags during slow clicks
-- [ ] Selecting a target type opens the existing full create dialog for that entity type, with appropriate pre-fill (e.g., capability level for parent relation)
-- [ ] Submitting the dialog creates the entity, the relation, and the view-addition in that order, using existing endpoints only
-- [ ] The new node is rendered on the canvas at a deterministic offset from the source handle, in the direction of the clicked side, without overlapping the source
-- [ ] The new edge connects the source and the new entity using the existing edge-rendering pipeline (no new edge type)
-- [ ] Pressing Escape, clicking outside, or clicking Cancel closes the picker without side effects
-- [ ] Closing the create dialog without submitting leaves the canvas unchanged
-- [ ] In Dynamic View Mode, handle-driven creation adds to the draft and produces no backend calls until Save; discarding the draft removes the new entity and its relation
-- [ ] In regular mode, a failure during relation creation surfaces an actionable error naming the failed relation; the just-created entity is kept on the canvas (no auto-rollback) so the user can retry the relation manually
+- [x] Frontend picker is built exclusively from `x-related` array entries advertising `POST` — manual inspection confirms `CONNECTION_TYPE_MAP` is not referenced when building the picker
+- [x] `GET`-only `x-related` entries do not appear in the picker
+- [x] Clicking a handle on any of the 5 entity types opens the picker if at least one `POST`-capable entry exists, or is a no-op if none exist
+- [x] Dragging from a handle onto an existing node creates a relation via the existing flow and does NOT open the picker
+- [x] Click-vs-drag movement threshold prevents accidental picker opens during slow drags and accidental drags during slow clicks
+- [x] Selecting a target type opens the existing full create dialog for that entity type, with appropriate pre-fill (e.g., capability level for parent relation)
+- [x] Submitting the dialog creates the entity, the relation, and the view-addition in that order, using existing endpoints only
+- [x] The new node is rendered on the canvas at a deterministic offset from the source handle, in the direction of the clicked side, without overlapping the source
+- [x] The new edge connects the source and the new entity using the existing edge-rendering pipeline (no new edge type)
+- [x] Pressing Escape, clicking outside, or clicking Cancel closes the picker without side effects
+- [x] Closing the create dialog without submitting leaves the canvas unchanged
+- [x] In Dynamic View Mode, handle-driven creation adds to the draft and produces no backend calls until Save; discarding the draft removes the new entity and its relation
+- [x] In regular mode, a failure during relation creation surfaces an actionable error naming the failed relation; the just-created entity is kept on the canvas (no auto-rollback) so the user can retry the relation manually
 - [x] No new entity-mutation endpoints are introduced (the only backend additions are HATEOAS link advertisements)
-- [ ] Cursor changes to a click affordance when over a handle; no tooltip, badge, or indicator is added
-- [ ] All scenarios in the BDD section have at least one corresponding automated test (unit or integration), with at least one Playwright E2E covering the happy path
+- [x] Cursor changes to a click affordance when over a handle; no tooltip, badge, or indicator is added
+- [x] All scenarios in the BDD section have at least one corresponding automated test (unit or integration), with at least one Playwright E2E covering the happy path
 
 ---
 
@@ -381,7 +381,22 @@ Phase A (acceptance criteria 1–4 and 16) is implemented and green:
 - Integration round-trip test (`TestXRelated_ComponentToComponent_RoundTrip_Integration`) exercises the advertised contract end-to-end through the real handlers + projections: POST source component → wait for projection → GET source → assert `_links["x-related"]` contains the `component-relation` POST entry → POST to the entry's `href` to create the target → resolve the relation endpoint via `types.LookupRelationEndpoint(relationType)` → POST to the resolved endpoint → assert the relation appears in the read model.
 - Swagger regenerated; `RelatedLink`, `XRelatedReferenceDoc`, and the `/reference/x-related-links` route (with 401/403) are first-class definitions.
 
-Phase B (frontend) and Phase C (verification) are not yet started; their work remains as described above.
+### Frontend completion summary (Phase B)
+
+Phase B (acceptance criteria 5–15, 17, 18) is implemented and green:
+- **`utils/xRelated.ts`** — `RelatedLink` type + `getXRelated`, `getPostableRelated`, `resolveRelationEndpoint` mirroring `types.LookupRelationEndpoint`. Unit-tested.
+- **`HandleCreatePicker`** (`features/canvas/components/HandleCreatePicker.tsx`) — popover anchored to the clicked handle; renders one menu item per entry's `title`; closes on Escape, outside-click, Cancel, or item selection. Empty list renders nothing.
+- **Click-vs-drag detection** (`features/canvas/utils/handleClick.ts`, `features/canvas/hooks/useHandleClickDetection.ts`) — pure `isClickGesture` helper (5px default threshold) plus a hook that delegates `mousedown`/`mouseup` events on `.react-flow__handle` elements, reading `data-nodeid` and `data-handlepos` (with parent-`data-id` fallback for tests). Below threshold ⇒ click; above threshold ⇒ drag continues to React Flow's connect flow untouched.
+- **Position offset** (`features/canvas/utils/offsetPosition.ts`) — deterministic offset by clicked side; large enough to avoid overlap (≥220px horizontal, ≥120px vertical).
+- **Relation dispatch planner** (`features/canvas/utils/relationDispatch.ts`) — pure mapping from `relationType` to a typed call spec (`component-relation`, `capability-parent`, `capability-realization`, `origin-acquired-via`, `origin-purchased-from`, `origin-built-by`).
+- **`useCreateRelatedEntity` orchestrator** (`features/canvas/hooks/useCreateRelatedEntity.ts`) — owns pending state; on `handleEntityCreated` runs `dispatchRelation` then add-to-view at the offset; on relation failure shows an actionable toast naming the entry and keeps the new entity on the canvas; in dynamic mode (`dynamicViewId` set) writes the entity + position into the draft store via `draftAddEntities` and skips backend calls.
+- **`useSourceEntityRelated`** — resolves a node id (with prefixes `cap-`/`acq-`/`vendor-`/`team-`) to its source entity via the existing query hooks and returns `getPostableRelated(entity)`.
+- **`HandleCreateController`** (`features/canvas/components/HandleCreateController.tsx`) — single mount inside `ComponentCanvasInner`. Wires click detection ⇒ picker ⇒ orchestrator ⇒ existing dialogs (`CreateComponentDialog`, `CreateCapabilityDialog`, `CreateAcquiredEntityDialog`, `CreateVendorDialog`, `CreateInternalTeamDialog`). For `capability-parent`, computes `prefill.level` as `nextLevel(sourceLevel)`.
+- **Pre-fill / `onCreated` props on the 5 existing create dialogs** — additive, opt-in. When `onCreated` is supplied, the dialog hands the new entity to the orchestrator and skips its default add-to-view; treeview `+` button still calls the dialogs without these props and continues to work as before.
+- **Cursor styling** — single CSS rule `.react-flow__handle { cursor: pointer }` covers all five node kinds.
+- **Playwright E2E** — `e2e/handle-create.spec.ts` covers the Component-to-Component happy path: create source ⇒ click right handle ⇒ pick "Component (related)" ⇒ submit Create dialog ⇒ assert both nodes visible.
+
+The frontend picker reads exclusively from `_links["x-related"]` entries advertising `POST`. `CONNECTION_TYPE_MAP` is unchanged and remains the source of truth for the drag-connect flow; it is not referenced by `HandleCreatePicker`, `useSourceEntityRelated`, or `useCreateRelatedEntity`.
 
 ---
 
@@ -418,8 +433,8 @@ Phase B (frontend) and Phase C (verification) are not yet started; their work re
 ## Checklist
 
 - [x] Specification ready
-- [ ] Implementation done <!-- backend (Phase A) complete; frontend (Phase B) not started -->
-- [ ] Unit tests implemented and passing <!-- backend unit tests in place; frontend pending -->
-- [x] Integration tests implemented if relevant <!-- Component-to-Component round-trip test under `integration` build tag -->
+- [x] Implementation done <!-- backend (Phase A) and frontend (Phase B) complete -->
+- [x] Unit tests implemented and passing <!-- backend unit tests + frontend unit tests for orchestrator, picker, click detection, dialogs, types -->
+- [x] Integration tests implemented if relevant <!-- Component-to-Component round-trip test under `integration` build tag + Playwright E2E for the happy path -->
 - [x] API documentation updated <!-- Swagger regenerated with RelatedLink, XRelatedReferenceDoc, and /reference/x-related-links route -->
 - [ ] User sign-off

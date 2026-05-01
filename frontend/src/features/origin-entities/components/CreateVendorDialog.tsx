@@ -5,9 +5,15 @@ import { useForm } from 'react-hook-form';
 import { type CreateVendorFormData, createVendorSchema } from '../../../lib/schemas';
 import { useCreateVendor } from '../hooks/useVendors';
 
+interface CreatedVendor {
+  id: string;
+  name: string;
+}
+
 interface CreateVendorDialogProps {
   isOpen: boolean;
   onClose: () => void;
+  onCreated?: (vendor: CreatedVendor) => void | Promise<void>;
 }
 
 const DEFAULT_VALUES: CreateVendorFormData = {
@@ -16,7 +22,7 @@ const DEFAULT_VALUES: CreateVendorFormData = {
   notes: '',
 };
 
-export const CreateVendorDialog: React.FC<CreateVendorDialogProps> = ({ isOpen, onClose }) => {
+export const CreateVendorDialog: React.FC<CreateVendorDialogProps> = ({ isOpen, onClose, onCreated }) => {
   const [backendError, setBackendError] = useState<string | null>(null);
   const createMutation = useCreateVendor();
 
@@ -45,11 +51,12 @@ export const CreateVendorDialog: React.FC<CreateVendorDialogProps> = ({ isOpen, 
   const onSubmit = async (data: CreateVendorFormData) => {
     setBackendError(null);
     try {
-      await createMutation.mutateAsync({
+      const created = await createMutation.mutateAsync({
         name: data.name,
         implementationPartner: data.implementationPartner || undefined,
         notes: data.notes || undefined,
       });
+      if (onCreated) await onCreated(created);
       handleClose();
     } catch (err) {
       setBackendError(err instanceof Error ? err.message : 'Failed to create vendor');

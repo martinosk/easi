@@ -9,9 +9,19 @@ import { type CreateCapabilityFormData, createCapabilitySchema } from '../../../
 import { getDefaultSections, getMaturityBounds } from '../../../utils/maturity';
 import { useCreateCapability, useUpdateCapabilityMetadata } from '../hooks/useCapabilities';
 
+export type CapabilityLevel = 'L1' | 'L2' | 'L3' | 'L4';
+
+interface CreatedCapability {
+  id: string;
+  name: string;
+  level: string;
+}
+
 interface CreateCapabilityDialogProps {
   isOpen: boolean;
   onClose: () => void;
+  prefill?: { level?: CapabilityLevel };
+  onCreated?: (capability: CreatedCapability) => void | Promise<void>;
 }
 
 const DEFAULT_STATUSES = [
@@ -27,7 +37,12 @@ const DEFAULT_VALUES: CreateCapabilityFormData = {
   maturityValue: 12,
 };
 
-function useCreateCapabilityForm(isOpen: boolean, onClose: () => void) {
+function useCreateCapabilityForm(
+  isOpen: boolean,
+  onClose: () => void,
+  prefill?: { level?: CapabilityLevel },
+  onCreated?: (capability: CreatedCapability) => void | Promise<void>,
+) {
   const [backendError, setBackendError] = useState<string | null>(null);
 
   const { data: statusesData, isLoading: isLoadingStatuses } = useStatuses();
@@ -71,7 +86,7 @@ function useCreateCapabilityForm(isOpen: boolean, onClose: () => void) {
       const capability = await createCapabilityMutation.mutateAsync({
         name: data.name,
         description: data.description || undefined,
-        level: 'L1',
+        level: prefill?.level ?? 'L1',
       });
       await updateMetadataMutation.mutateAsync({
         id: capability.id,
@@ -80,6 +95,7 @@ function useCreateCapabilityForm(isOpen: boolean, onClose: () => void) {
           maturityValue: data.maturityValue,
         },
       });
+      if (onCreated) await onCreated(capability);
       onClose();
     } catch (err) {
       setBackendError(err instanceof Error ? err.message : 'Failed to create capability');
@@ -100,7 +116,12 @@ function useCreateCapabilityForm(isOpen: boolean, onClose: () => void) {
   };
 }
 
-export const CreateCapabilityDialog: React.FC<CreateCapabilityDialogProps> = ({ isOpen, onClose }) => {
+export const CreateCapabilityDialog: React.FC<CreateCapabilityDialogProps> = ({
+  isOpen,
+  onClose,
+  prefill,
+  onCreated,
+}) => {
   const {
     register,
     handleSubmit,
@@ -112,7 +133,7 @@ export const CreateCapabilityDialog: React.FC<CreateCapabilityDialogProps> = ({ 
     isLoadingStatuses,
     statusOptions,
     onSubmit,
-  } = useCreateCapabilityForm(isOpen, onClose);
+  } = useCreateCapabilityForm(isOpen, onClose, prefill, onCreated);
 
   return (
     <Modal opened={isOpen} onClose={onClose} title="Create Capability" centered data-testid="create-capability-dialog">

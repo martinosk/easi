@@ -37,6 +37,7 @@ import { type GenerateViewTarget, type InviteTarget, NodeContextMenu } from './c
 import { BulkConfirmationDialog } from './dialogs/BulkConfirmationDialog';
 import { DeleteConfirmationWrapper } from './dialogs/DeleteConfirmationWrapper';
 import { DynamicModeContainer } from './DynamicModeContainer';
+import { HandleCreateController } from './HandleCreateController';
 import { withDynamicExpansion } from './withDynamicExpansion';
 
 interface ComponentCanvasProps {
@@ -200,6 +201,8 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
           <AutoLayoutButton />
           <DynamicModeContainer />
         </div>
+
+        <HandleCreateController />
 
         <NodeContextMenu
           menu={nodeContextMenu}

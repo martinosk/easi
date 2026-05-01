@@ -5,9 +5,15 @@ import { useForm } from 'react-hook-form';
 import { type CreateInternalTeamFormData, createInternalTeamSchema } from '../../../lib/schemas';
 import { useCreateInternalTeam } from '../hooks/useInternalTeams';
 
+interface CreatedInternalTeam {
+  id: string;
+  name: string;
+}
+
 interface CreateInternalTeamDialogProps {
   isOpen: boolean;
   onClose: () => void;
+  onCreated?: (team: CreatedInternalTeam) => void | Promise<void>;
 }
 
 const DEFAULT_VALUES: CreateInternalTeamFormData = {
@@ -17,7 +23,11 @@ const DEFAULT_VALUES: CreateInternalTeamFormData = {
   notes: '',
 };
 
-export const CreateInternalTeamDialog: React.FC<CreateInternalTeamDialogProps> = ({ isOpen, onClose }) => {
+export const CreateInternalTeamDialog: React.FC<CreateInternalTeamDialogProps> = ({
+  isOpen,
+  onClose,
+  onCreated,
+}) => {
   const [backendError, setBackendError] = useState<string | null>(null);
   const createMutation = useCreateInternalTeam();
 
@@ -46,12 +56,13 @@ export const CreateInternalTeamDialog: React.FC<CreateInternalTeamDialogProps> =
   const onSubmit = async (data: CreateInternalTeamFormData) => {
     setBackendError(null);
     try {
-      await createMutation.mutateAsync({
+      const created = await createMutation.mutateAsync({
         name: data.name,
         department: data.department || undefined,
         contactPerson: data.contactPerson || undefined,
         notes: data.notes || undefined,
       });
+      if (onCreated) await onCreated(created);
       handleClose();
     } catch (err) {
       setBackendError(err instanceof Error ? err.message : 'Failed to create internal team');

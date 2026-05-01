@@ -183,4 +183,33 @@ describe('CreateComponentDialog', () => {
       expect(mockOnClose).toHaveBeenCalled();
     });
   });
+
+  describe('onCreated handoff', () => {
+    const renderWithOnCreated = (onCreated: (entity: { id: string }) => void | Promise<void>) =>
+      render(
+        <QueryClientProvider client={queryClient}>
+          <CreateComponentDialog isOpen onClose={mockOnClose} onCreated={onCreated} />
+        </QueryClientProvider>,
+        { wrapper: MantineTestWrapper },
+      );
+
+    it('calls onCreated with the new entity instead of running default add-to-view', async () => {
+      mockMutateAsync.mockResolvedValueOnce({ id: 'new-id', name: 'X' });
+      const onCreated = vi.fn();
+
+      renderWithOnCreated(onCreated);
+
+      fireEvent.change(screen.getByLabelText(/Name/), { target: { value: 'X' } });
+      const buttons = screen.getAllByRole('button');
+      const submit = buttons.find((b) => b.textContent === 'Create Application')!;
+      await waitFor(() => expect(submit).not.toBeDisabled());
+      fireEvent.click(submit);
+
+      await waitFor(() => {
+        expect(onCreated).toHaveBeenCalledWith(expect.objectContaining({ id: 'new-id' }));
+      });
+      expect(mockAddToViewMutateAsync).not.toHaveBeenCalled();
+      await waitFor(() => expect(mockOnClose).toHaveBeenCalled());
+    });
+  });
 });
