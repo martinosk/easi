@@ -6,9 +6,9 @@ import { HandleCreatePicker } from './HandleCreatePicker';
 const entry = (overrides: Partial<RelatedLink> = {}): RelatedLink => ({
   href: '/api/v1/components',
   methods: ['POST'],
-  title: 'Component (related)',
+  title: 'Component (triggers)',
   targetType: 'component',
-  relationType: 'component-relation',
+  relationType: 'component-triggers',
   ...overrides,
 });
 
@@ -20,58 +20,31 @@ describe('HandleCreatePicker', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders Triggers and Serves variants for component-relation entries', () => {
-    render(
-      <HandleCreatePicker
-        x={0}
-        y={0}
-        entries={[entry({ relationType: 'component-relation', title: 'Component (related)' })]}
-        onSelect={() => {}}
-        onClose={() => {}}
-      />,
-    );
-    expect(screen.getByRole('menuitem', { name: 'Component (Triggers)' })).toBeTruthy();
-    expect(screen.getByRole('menuitem', { name: 'Component (Serves)' })).toBeTruthy();
-  });
-
-  it('renders one menu item per non-component-relation entry, labelled by title', () => {
+  it('renders one menu item per entry, labelled by the backend-supplied title', () => {
     const entries = [
-      entry({ relationType: 'capability-realization', title: 'Component (realization)', targetType: 'component' }),
+      entry({ relationType: 'component-triggers', title: 'Component (triggers)' }),
+      entry({ relationType: 'component-serves', title: 'Component (serves)' }),
       entry({ relationType: 'capability-parent', title: 'Capability (child of)', targetType: 'capability' }),
+      entry({ relationType: 'origin-acquired-via', title: 'Acquired Entity (acquired-via)', targetType: 'acquiredEntity' }),
     ];
     render(<HandleCreatePicker x={0} y={0} entries={entries} onSelect={() => {}} onClose={() => {}} />);
-    expect(screen.getByRole('menuitem', { name: 'Component (realization)' })).toBeTruthy();
+
+    expect(screen.getByRole('menuitem', { name: 'Component (triggers)' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: 'Component (serves)' })).toBeTruthy();
     expect(screen.getByRole('menuitem', { name: 'Capability (child of)' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: 'Acquired Entity (acquired-via)' })).toBeTruthy();
   });
 
-  it('invokes onSelect with the chosen entry and Triggers when Triggers variant clicked', () => {
+  it('invokes onSelect with the chosen entry, no string mutation, no synthesized variants', () => {
     const onSelect = vi.fn();
     const onClose = vi.fn();
-    render(
-      <HandleCreatePicker
-        x={0}
-        y={0}
-        entries={[entry({ relationType: 'component-relation', title: 'Component (related)' })]}
-        onSelect={onSelect}
-        onClose={onClose}
-      />,
-    );
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Component (Triggers)' }));
-    expect(onSelect).toHaveBeenCalledWith(
-      expect.objectContaining({
-        relationSubType: 'Triggers',
-        entry: expect.objectContaining({ relationType: 'component-relation', title: 'Component (Triggers)' }),
-      }),
-    );
-    expect(onClose).toHaveBeenCalledTimes(1);
-  });
+    const triggers = entry({ relationType: 'component-triggers', title: 'Component (triggers)' });
+    render(<HandleCreatePicker x={0} y={0} entries={[triggers]} onSelect={onSelect} onClose={onClose} />);
 
-  it('invokes onSelect without a sub-type for non-component-relation entries', () => {
-    const onSelect = vi.fn();
-    const target = entry({ relationType: 'capability-realization', title: 'Component (realization)' });
-    render(<HandleCreatePicker x={0} y={0} entries={[target]} onSelect={onSelect} onClose={() => {}} />);
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Component (realization)' }));
-    expect(onSelect).toHaveBeenCalledWith({ entry: target });
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Component (triggers)' }));
+
+    expect(onSelect).toHaveBeenCalledWith({ entry: triggers });
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it('calls onClose on Escape', () => {

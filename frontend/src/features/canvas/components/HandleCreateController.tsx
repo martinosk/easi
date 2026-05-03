@@ -48,7 +48,7 @@ export const HandleCreateController: React.FC = () => {
     [flow],
   );
 
-  const handleSelect = ({ entry, relationSubType }: HandleCreatePickerSelection) => {
+  const handleSelect = ({ entry }: HandleCreatePickerSelection) => {
     if (!picker) return;
     const sourcePosition = lookupSourcePosition(picker.sourceNodeId);
     const sourceEntityId = getEntityId(toNodeId(picker.sourceNodeId));
@@ -59,7 +59,6 @@ export const HandleCreateController: React.FC = () => {
       side: picker.side,
       sourcePosition,
       prefill,
-      relationSubType,
     });
     setPicker(null);
   };

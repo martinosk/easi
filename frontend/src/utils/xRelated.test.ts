@@ -5,9 +5,9 @@ import { getPostableRelated, getXRelated, type RelatedLink } from './xRelated';
 const link = (overrides: Partial<RelatedLink> = {}): RelatedLink => ({
   href: '/api/v1/components',
   methods: ['POST'],
-  title: 'Component (related)',
+  title: 'Component (triggers)',
   targetType: 'component',
-  relationType: 'component-relation',
+  relationType: 'component-triggers',
   ...overrides,
 });
 

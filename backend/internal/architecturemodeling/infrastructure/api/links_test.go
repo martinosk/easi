@@ -49,18 +49,48 @@ func findRelated(items []types.RelatedLink, relationType string) *types.RelatedL
 	return nil
 }
 
-func TestComponentXRelatedForActor_ArchitectGetsComponentRelationPOST(t *testing.T) {
+func TestComponentXRelatedForActor_ArchitectGetsTriggersAndServesEntries(t *testing.T) {
 	related := componentRelatedFor(t, sharedctx.RoleArchitect)
 
-	entry := findRelated(related, "component-relation")
-	require.NotNil(t, entry, "expected x-related entry with relationType=component-relation")
-	assert.Equal(t, "/api/v1/components", entry.Href)
-	assert.Contains(t, entry.Methods, "POST")
-	assert.Equal(t, "component", entry.TargetType)
-	assert.Equal(t, "Component (related)", entry.Title)
+	cases := []struct{ relationType, title string }{
+		{"component-triggers", "Component (triggers)"},
+		{"component-serves", "Component (serves)"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.relationType, func(t *testing.T) {
+			entry := findRelated(related, tc.relationType)
+			require.NotNil(t, entry, "expected x-related entry with relationType=%s", tc.relationType)
+			assert.Equal(t, "/api/v1/components", entry.Href)
+			assert.Contains(t, entry.Methods, "POST")
+			assert.Equal(t, "component", entry.TargetType)
+			assert.Equal(t, tc.title, entry.Title)
+		})
+	}
+	assert.Nil(t, findRelated(related, "component-relation"),
+		"the legacy component-relation entry must be replaced by component-triggers/component-serves")
 }
 
-func TestComponentXRelatedForActor_StakeholderGetsNoPOSTComponentRelation(t *testing.T) {
+func TestComponentXRelatedForActor_ArchitectGetsOriginFromComponentEntries(t *testing.T) {
+	related := componentRelatedFor(t, sharedctx.RoleArchitect)
+
+	cases := []struct{ relationType, targetType, href, title string }{
+		{"origin-acquired-via", "acquiredEntity", "/api/v1/acquired-entities", "Acquired Entity (acquired-via)"},
+		{"origin-purchased-from", "vendor", "/api/v1/vendors", "Vendor (purchased-from)"},
+		{"origin-built-by", "internalTeam", "/api/v1/internal-teams", "Internal Team (built-by)"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.relationType, func(t *testing.T) {
+			entry := findRelated(related, tc.relationType)
+			require.NotNil(t, entry, "expected origin-from-component entry with relationType=%s", tc.relationType)
+			assert.Equal(t, tc.href, entry.Href)
+			assert.Contains(t, entry.Methods, "POST")
+			assert.Equal(t, tc.targetType, entry.TargetType)
+			assert.Equal(t, tc.title, entry.Title)
+		})
+	}
+}
+
+func TestComponentXRelatedForActor_StakeholderGetsNoEntries(t *testing.T) {
 	related := componentRelatedFor(t, sharedctx.RoleStakeholder)
 
 	assert.Empty(t, related,
@@ -79,7 +109,11 @@ func TestEnrichWithLinks_PopulatesXRelatedFromActor(t *testing.T) {
 	h.enrichWithLinks(req, dto)
 
 	require.NotEmpty(t, dto.XRelated, "expected XRelated to be populated for architect")
-	require.NotNil(t, findRelated(dto.XRelated, "component-relation"))
+	require.NotNil(t, findRelated(dto.XRelated, "component-triggers"))
+	require.NotNil(t, findRelated(dto.XRelated, "component-serves"))
+	require.NotNil(t, findRelated(dto.XRelated, "origin-acquired-via"))
+	require.NotNil(t, findRelated(dto.XRelated, "origin-purchased-from"))
+	require.NotNil(t, findRelated(dto.XRelated, "origin-built-by"))
 }
 
 func originLinks(t *testing.T) *ArchitectureModelingLinks {

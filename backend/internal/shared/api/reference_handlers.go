@@ -34,9 +34,9 @@ var xRelatedReferenceDoc = XRelatedReferenceDoc{
 		{
 			Href:         "/api/v1/components",
 			Methods:      []string{"POST"},
-			Title:        "Component (related)",
+			Title:        "Component (triggers)",
 			TargetType:   "component",
-			RelationType: "component-relation",
+			RelationType: "component-triggers",
 		},
 	},
 }

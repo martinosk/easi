@@ -5,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ViewId } from '../../../api/types';
 import { useAppStore } from '../../../store/appStore';
 import type { RelatedLink } from '../../../utils/xRelated';
-import type { RelationSubType } from '../utils/relationDispatch';
 import { useCreateRelatedEntity } from './useCreateRelatedEntity';
 
 const toastError = vi.fn();
@@ -48,12 +47,20 @@ vi.mock('../../views/hooks/useViews', () => ({
   useAddOriginEntityToView: () => ({ mutateAsync: addOriginEntityToViewMutate }),
 }));
 
-const componentEntry: RelatedLink = {
+const triggersEntry: RelatedLink = {
   href: '/api/v1/components',
   methods: ['POST'],
-  title: 'Component (related)',
+  title: 'Component (triggers)',
   targetType: 'component',
-  relationType: 'component-relation',
+  relationType: 'component-triggers',
+};
+
+const servesEntry: RelatedLink = {
+  href: '/api/v1/components',
+  methods: ['POST'],
+  title: 'Component (serves)',
+  targetType: 'component',
+  relationType: 'component-serves',
 };
 
 const capabilityParentEntry: RelatedLink = {
@@ -72,7 +79,7 @@ const realizationEntry: RelatedLink = {
   relationType: 'capability-realization',
 };
 
-const acquiredViaEntry: RelatedLink = {
+const acquiredViaFromAcquiredEntity: RelatedLink = {
   href: '/api/v1/components',
   methods: ['POST'],
   title: 'Component (acquired-via)',
@@ -80,7 +87,15 @@ const acquiredViaEntry: RelatedLink = {
   relationType: 'origin-acquired-via',
 };
 
-const vendorEntry: RelatedLink = {
+const acquiredViaFromComponent: RelatedLink = {
+  href: '/api/v1/acquired-entities',
+  methods: ['POST'],
+  title: 'Acquired Entity (acquired-via)',
+  targetType: 'acquiredEntity',
+  relationType: 'origin-acquired-via',
+};
+
+const purchasedFromVendor: RelatedLink = {
   href: '/api/v1/components',
   methods: ['POST'],
   title: 'Component (purchased-from)',
@@ -88,11 +103,27 @@ const vendorEntry: RelatedLink = {
   relationType: 'origin-purchased-from',
 };
 
-const teamEntry: RelatedLink = {
+const purchasedFromComponent: RelatedLink = {
+  href: '/api/v1/vendors',
+  methods: ['POST'],
+  title: 'Vendor (purchased-from)',
+  targetType: 'vendor',
+  relationType: 'origin-purchased-from',
+};
+
+const builtByTeam: RelatedLink = {
   href: '/api/v1/components',
   methods: ['POST'],
   title: 'Component (built-by)',
   targetType: 'component',
+  relationType: 'origin-built-by',
+};
+
+const builtByFromComponent: RelatedLink = {
+  href: '/api/v1/internal-teams',
+  methods: ['POST'],
+  title: 'Internal Team (built-by)',
+  targetType: 'internalTeam',
   relationType: 'origin-built-by',
 };
 
@@ -145,7 +176,6 @@ interface StartArgs {
   newEntityId: string;
   side?: 'top' | 'right' | 'bottom' | 'left';
   sourcePosition?: { x: number; y: number };
-  relationSubType?: RelationSubType;
 }
 
 async function runFlow(args: StartArgs) {
@@ -156,7 +186,6 @@ async function runFlow(args: StartArgs) {
       sourceEntityId: args.sourceEntityId,
       side: args.side ?? 'right',
       sourcePosition: args.sourcePosition ?? { x: 100, y: 200 },
-      relationSubType: args.relationSubType,
     });
   });
   await act(async () => {
@@ -175,14 +204,14 @@ describe('useCreateRelatedEntity — pending state', () => {
     const { result } = renderOrchestrator();
     act(() => {
       result.current.start({
-        entry: componentEntry,
+        entry: triggersEntry,
         sourceEntityId: 'comp-a',
         side: 'right',
         sourcePosition: { x: 100, y: 200 },
       });
     });
     expect(result.current.pending).toMatchObject({
-      entry: componentEntry,
+      entry: triggersEntry,
       sourceEntityId: 'comp-a',
       side: 'right',
       sourcePosition: { x: 100, y: 200 },
@@ -193,7 +222,7 @@ describe('useCreateRelatedEntity — pending state', () => {
     const { result } = renderOrchestrator();
     act(() => {
       result.current.start({
-        entry: componentEntry,
+        entry: triggersEntry,
         sourceEntityId: 'comp-a',
         side: 'right',
         sourcePosition: { x: 0, y: 0 },
@@ -209,8 +238,8 @@ describe('useCreateRelatedEntity — pending state', () => {
 describe('useCreateRelatedEntity — handleEntityCreated regular mode dispatch', () => {
   it.each<[string, StartArgs, () => void]>([
     [
-      'component-relation defaults to Triggers when no subtype is supplied',
-      { entry: componentEntry, sourceEntityId: 'comp-source', newEntityId: 'comp-new' },
+      'component-triggers dispatches a Triggers component-relation',
+      { entry: triggersEntry, sourceEntityId: 'comp-source', newEntityId: 'comp-new' },
       () =>
         expect(createRelationMutate).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -221,11 +250,15 @@ describe('useCreateRelatedEntity — handleEntityCreated regular mode dispatch',
         ),
     ],
     [
-      'component-relation honors explicit Serves subtype',
-      { entry: componentEntry, sourceEntityId: 'comp-source', newEntityId: 'comp-new', relationSubType: 'Serves' },
+      'component-serves dispatches a Serves component-relation',
+      { entry: servesEntry, sourceEntityId: 'comp-source', newEntityId: 'comp-new' },
       () =>
         expect(createRelationMutate).toHaveBeenCalledWith(
-          expect.objectContaining({ relationType: 'Serves' }),
+          expect.objectContaining({
+            sourceComponentId: 'comp-source',
+            targetComponentId: 'comp-new',
+            relationType: 'Serves',
+          }),
         ),
     ],
     [
@@ -248,27 +281,51 @@ describe('useCreateRelatedEntity — handleEntityCreated regular mode dispatch',
         ),
     ],
     [
-      'origin-acquired-via attaches new component to source acquired entity',
-      { entry: acquiredViaEntry, sourceEntityId: 'acq-1', newEntityId: 'comp-new' },
+      'origin-acquired-via from acquired-entity source attaches new component',
+      { entry: acquiredViaFromAcquiredEntity, sourceEntityId: 'acq-1', newEntityId: 'comp-new' },
       () =>
         expect(linkComponentToAcquiredEntityMutate).toHaveBeenCalledWith(
           expect.objectContaining({ componentId: 'comp-new', entityId: 'acq-1' }),
         ),
     ],
     [
-      'origin-purchased-from attaches new component to source vendor',
-      { entry: vendorEntry, sourceEntityId: 'vendor-1', newEntityId: 'comp-new' },
+      'origin-acquired-via from component source attaches new acquired-entity',
+      { entry: acquiredViaFromComponent, sourceEntityId: 'comp-source', newEntityId: 'acq-new' },
+      () =>
+        expect(linkComponentToAcquiredEntityMutate).toHaveBeenCalledWith(
+          expect.objectContaining({ componentId: 'comp-source', entityId: 'acq-new' }),
+        ),
+    ],
+    [
+      'origin-purchased-from from vendor source attaches new component',
+      { entry: purchasedFromVendor, sourceEntityId: 'vendor-1', newEntityId: 'comp-new' },
       () =>
         expect(linkComponentToVendorMutate).toHaveBeenCalledWith(
           expect.objectContaining({ componentId: 'comp-new', vendorId: 'vendor-1' }),
         ),
     ],
     [
-      'origin-built-by attaches new component to source internal team',
-      { entry: teamEntry, sourceEntityId: 'team-1', newEntityId: 'comp-new' },
+      'origin-purchased-from from component source attaches new vendor',
+      { entry: purchasedFromComponent, sourceEntityId: 'comp-source', newEntityId: 'vendor-new' },
+      () =>
+        expect(linkComponentToVendorMutate).toHaveBeenCalledWith(
+          expect.objectContaining({ componentId: 'comp-source', vendorId: 'vendor-new' }),
+        ),
+    ],
+    [
+      'origin-built-by from team source attaches new component',
+      { entry: builtByTeam, sourceEntityId: 'team-1', newEntityId: 'comp-new' },
       () =>
         expect(linkComponentToInternalTeamMutate).toHaveBeenCalledWith(
           expect.objectContaining({ componentId: 'comp-new', teamId: 'team-1' }),
+        ),
+    ],
+    [
+      'origin-built-by from component source attaches new team',
+      { entry: builtByFromComponent, sourceEntityId: 'comp-source', newEntityId: 'team-new' },
+      () =>
+        expect(linkComponentToInternalTeamMutate).toHaveBeenCalledWith(
+          expect.objectContaining({ componentId: 'comp-source', teamId: 'team-new' }),
         ),
     ],
   ])('%s', async (_name, args, assertion) => {
@@ -279,7 +336,7 @@ describe('useCreateRelatedEntity — handleEntityCreated regular mode dispatch',
 
 describe('useCreateRelatedEntity — handleEntityCreated regular mode add-to-view', () => {
   it('adds the new component to the view at the offset right of the source', async () => {
-    await runFlow({ entry: componentEntry, sourceEntityId: 'comp-source', newEntityId: 'comp-new' });
+    await runFlow({ entry: triggersEntry, sourceEntityId: 'comp-source', newEntityId: 'comp-new' });
     expect(addComponentToViewMutate).toHaveBeenCalledTimes(1);
     const call = addComponentToViewMutate.mock.calls[0][0];
     expect(call.viewId).toBe('v1');
@@ -289,7 +346,7 @@ describe('useCreateRelatedEntity — handleEntityCreated regular mode add-to-vie
   });
 
   it('clears pending after a successful create', async () => {
-    const result = await runFlow({ entry: componentEntry, sourceEntityId: 'comp-source', newEntityId: 'comp-new' });
+    const result = await runFlow({ entry: triggersEntry, sourceEntityId: 'comp-source', newEntityId: 'comp-new' });
     expect(result.current.pending).toBeNull();
   });
 
@@ -298,10 +355,10 @@ describe('useCreateRelatedEntity — handleEntityCreated regular mode add-to-vie
     expect(addCapabilityToViewMutate).toHaveBeenCalled();
   });
 
-  it('uses addOriginEntityToView for origin-acquired-via flows', async () => {
+  it('uses addOriginEntityToView when creating an acquired-entity from a component', async () => {
     await runFlow({
-      entry: { ...acquiredViaEntry, targetType: 'acquiredEntity' },
-      sourceEntityId: 'acq-source',
+      entry: acquiredViaFromComponent,
+      sourceEntityId: 'comp-source',
       newEntityId: 'acq-new',
     });
     expect(addOriginEntityToViewMutate).toHaveBeenCalled();
@@ -312,9 +369,9 @@ describe('useCreateRelatedEntity — relation failure rollback', () => {
   it('keeps the just-created entity on the canvas by still adding it to the view (spec rule 13)', async () => {
     createRelationMutate.mockRejectedValueOnce(new Error('relation not allowed'));
 
-    const result = await runFlow({ entry: componentEntry, sourceEntityId: 'comp-source', newEntityId: 'comp-new' });
+    const result = await runFlow({ entry: triggersEntry, sourceEntityId: 'comp-source', newEntityId: 'comp-new' });
 
-    expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/Component \(related\)/));
+    expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/Component \(triggers\)/));
     expect(addComponentToViewMutate).toHaveBeenCalledTimes(1);
     expect(addComponentToViewMutate.mock.calls[0][0].request.componentId).toBe('comp-new');
     expect(result.current.pending).toBeNull();
@@ -324,7 +381,7 @@ describe('useCreateRelatedEntity — relation failure rollback', () => {
 describe('useCreateRelatedEntity — dynamic mode', () => {
   it('dispatches the relation to the backend immediately while drafting only the view placement', async () => {
     enableDynamicMode();
-    await runFlow({ entry: componentEntry, sourceEntityId: 'comp-source', newEntityId: 'comp-new' });
+    await runFlow({ entry: triggersEntry, sourceEntityId: 'comp-source', newEntityId: 'comp-new' });
 
     expect(createRelationMutate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -342,14 +399,9 @@ describe('useCreateRelatedEntity — dynamic mode', () => {
     expect(state.dynamicPositions['comp-new'].y).toBe(200);
   });
 
-  it('honors the chosen Serves subtype when dispatching the relation', async () => {
+  it('dispatches a Serves relation when the picker entry is component-serves', async () => {
     enableDynamicMode();
-    await runFlow({
-      entry: componentEntry,
-      sourceEntityId: 'comp-source',
-      newEntityId: 'comp-new',
-      relationSubType: 'Serves',
-    });
+    await runFlow({ entry: servesEntry, sourceEntityId: 'comp-source', newEntityId: 'comp-new' });
 
     expect(createRelationMutate).toHaveBeenCalledWith(
       expect.objectContaining({ relationType: 'Serves' }),
@@ -364,5 +416,22 @@ describe('useCreateRelatedEntity — dynamic mode', () => {
       expect.objectContaining({ id: 'cap-new', newParentId: 'cap-source' }),
     );
     expect(addCapabilityToViewMutate).not.toHaveBeenCalled();
+  });
+
+  it('dispatches origin-acquired-via immediately and adds origin entity to draft when creating from a component', async () => {
+    enableDynamicMode();
+    await runFlow({
+      entry: acquiredViaFromComponent,
+      sourceEntityId: 'comp-source',
+      newEntityId: 'acq-new',
+    });
+
+    expect(linkComponentToAcquiredEntityMutate).toHaveBeenCalledWith(
+      expect.objectContaining({ componentId: 'comp-source', entityId: 'acq-new' }),
+    );
+    expect(addOriginEntityToViewMutate).not.toHaveBeenCalled();
+
+    const state = useAppStore.getState();
+    expect(state.dynamicEntities.map((e) => e.id)).toContain('acq-new');
   });
 });

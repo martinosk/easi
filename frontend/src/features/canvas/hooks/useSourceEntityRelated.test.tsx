@@ -65,13 +65,13 @@ const seedCases: SeedCase[] = [
         id: 'comp-1',
         name: 'A',
         _links: linksWithRelated([
-          { href: '/x', methods: ['POST'], title: 'Component (related)', targetType: 'component', relationType: 'component-relation' },
+          { href: '/x', methods: ['POST'], title: 'Component (triggers)', targetType: 'component', relationType: 'component-triggers' },
           { href: '/y', methods: ['GET'], title: 'Hidden', targetType: 'component', relationType: 'capability-requires' },
         ]),
       });
     },
     nodeId: 'comp-1',
-    expectedRelationType: 'component-relation',
+    expectedRelationType: 'component-triggers',
   },
   {
     label: 'capability lookup via cap- prefix',
@@ -146,13 +146,13 @@ describe('useSourceEntityRelated', () => {
       id: 'comp-1',
       name: 'A',
       _links: linksWithRelated([
-        { href: '/x', methods: ['POST'], title: 'Component (related)', targetType: 'component', relationType: 'component-relation' },
+        { href: '/x', methods: ['POST'], title: 'Component (triggers)', targetType: 'component', relationType: 'component-triggers' },
         { href: '/y', methods: ['GET'], title: 'Read only', targetType: 'component', relationType: 'capability-requires' },
       ]),
     });
     const { result } = renderHook(() => useSourceEntityRelated('comp-1'), { wrapper: wrapper() });
     expect(result.current).toHaveLength(1);
-    expect(result.current[0].relationType).toBe('component-relation');
+    expect(result.current[0].relationType).toBe('component-triggers');
   });
 
   it('returns empty array when entity is not found', () => {

@@ -22,7 +22,7 @@ import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { useAddCapabilityToView, useAddComponentToView, useAddOriginEntityToView } from '../../views/hooks/useViews';
 import type { HandleSide } from '../utils/handleClick';
 import { computeOffsetPosition } from '../utils/offsetPosition';
-import { planRelationCall, type RelationCallSpec, type RelationSubType } from '../utils/relationDispatch';
+import { planRelationCall, type RelationCallSpec } from '../utils/relationDispatch';
 
 const targetTypeToEntityType: Record<RelatedTargetType, 'component' | 'capability' | 'originEntity'> = {
   component: 'component',
@@ -38,7 +38,6 @@ export interface PendingCreate {
   side: HandleSide;
   sourcePosition: Position;
   prefill?: { capabilityLevel?: 'L1' | 'L2' | 'L3' | 'L4' };
-  relationSubType?: RelationSubType;
 }
 
 export interface UseCreateRelatedEntityResult {
@@ -152,7 +151,7 @@ export function useCreateRelatedEntity(): UseCreateRelatedEntityResult {
         current.entry.relationType,
         current.sourceEntityId,
         entityId,
-        current.relationSubType,
+        current.entry.targetType,
       );
 
       await runRegularModePersist(spec, current, dispatchRelation);

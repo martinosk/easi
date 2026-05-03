@@ -124,7 +124,7 @@ func TestXRelated_ComponentToComponent_RoundTrip_Integration(t *testing.T) {
 	f.componentHandlers.GetComponentByID(w, req)
 	require.Equal(t, http.StatusOK, w.Code, "GET source component failed: %s", w.Body.String())
 
-	advertised := requireXRelatedEntry(t, w.Body.Bytes(), "component-relation")
+	advertised := requireXRelatedEntry(t, w.Body.Bytes(), "component-triggers")
 	require.Equal(t, "/api/v1/components", advertised.Href)
 	require.Contains(t, advertised.Methods, "POST")
 	require.Equal(t, "component", advertised.TargetType)
