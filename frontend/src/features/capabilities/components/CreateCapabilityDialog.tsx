@@ -9,9 +9,19 @@ import { type CreateCapabilityFormData, createCapabilitySchema } from '../../../
 import { getDefaultSections, getMaturityBounds } from '../../../utils/maturity';
 import { useCreateCapability, useUpdateCapabilityMetadata } from '../hooks/useCapabilities';
 
+export type CapabilityLevel = 'L1' | 'L2' | 'L3' | 'L4';
+
+interface CreatedCapability {
+  id: string;
+  name: string;
+  level: string;
+}
+
 interface CreateCapabilityDialogProps {
   isOpen: boolean;
   onClose: () => void;
+  prefill?: { level?: CapabilityLevel };
+  onCreated?: (capability: CreatedCapability) => void | Promise<void>;
 }
 
 const DEFAULT_STATUSES = [
@@ -27,20 +37,78 @@ const DEFAULT_VALUES: CreateCapabilityFormData = {
   maturityValue: 12,
 };
 
-function useCreateCapabilityForm(isOpen: boolean, onClose: () => void) {
-  const [backendError, setBackendError] = useState<string | null>(null);
-
+function useStatusOptions() {
   const { data: statusesData, isLoading: isLoadingStatuses } = useStatuses();
-  const { data: maturityScale } = useMaturityScale();
-  const createCapabilityMutation = useCreateCapability();
-  const updateMetadataMutation = useUpdateCapabilityMetadata();
-
-  const sections = maturityScale?.sections ?? getDefaultSections();
   const statuses = statusesData ?? DEFAULT_STATUSES;
-  const isCreating = createCapabilityMutation.isPending || updateMetadataMutation.isPending;
+  const statusOptions = [...statuses]
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((s) => ({ value: s.value, label: s.displayName }));
+  return { statusOptions, isLoadingStatuses };
+}
 
+function useMaturitySchema() {
+  const { data: maturityScale } = useMaturityScale();
+  const sections = maturityScale?.sections ?? getDefaultSections();
   const maturityBounds = useMemo(() => getMaturityBounds(sections), [sections]);
   const schema = useMemo(() => createCapabilitySchema(maturityBounds), [maturityBounds]);
+  return schema;
+}
+
+interface CapabilitySubmitDeps {
+  prefill?: { level?: CapabilityLevel };
+  onCreated?: (capability: CreatedCapability) => void | Promise<void>;
+  onClose: () => void;
+  setBackendError: (msg: string | null) => void;
+  setHandoffPending: (pending: boolean) => void;
+}
+
+function buildCapabilitySubmitter(
+  createCapability: ReturnType<typeof useCreateCapability>,
+  updateMetadata: ReturnType<typeof useUpdateCapabilityMetadata>,
+  deps: CapabilitySubmitDeps,
+) {
+  return async (data: CreateCapabilityFormData) => {
+    deps.setBackendError(null);
+    try {
+      const capability = await createCapability.mutateAsync({
+        name: data.name,
+        description: data.description || undefined,
+        level: deps.prefill?.level ?? 'L1',
+      });
+      await updateMetadata.mutateAsync({
+        id: capability.id,
+        request: { status: data.status, maturityValue: data.maturityValue },
+      });
+      if (deps.onCreated) {
+        deps.setHandoffPending(true);
+        try {
+          await deps.onCreated(capability);
+        } finally {
+          deps.setHandoffPending(false);
+        }
+      }
+      deps.onClose();
+    } catch (err) {
+      deps.setHandoffPending(false);
+      deps.setBackendError(err instanceof Error ? err.message : 'Failed to create capability');
+    }
+  };
+}
+
+function useCreateCapabilityForm(
+  isOpen: boolean,
+  onClose: () => void,
+  prefill?: { level?: CapabilityLevel },
+  onCreated?: (capability: CreatedCapability) => void | Promise<void>,
+) {
+  const [backendError, setBackendError] = useState<string | null>(null);
+  const [isHandoffPending, setHandoffPending] = useState(false);
+  const createCapability = useCreateCapability();
+  const updateMetadata = useUpdateCapabilityMetadata();
+  const { statusOptions, isLoadingStatuses } = useStatusOptions();
+  const schema = useMaturitySchema();
+
+  const isCreating = createCapability.isPending || updateMetadata.isPending || isHandoffPending;
 
   const {
     register,
@@ -55,36 +123,19 @@ function useCreateCapabilityForm(isOpen: boolean, onClose: () => void) {
   });
 
   useLayoutEffect(() => {
-    if (isOpen) {
-      reset(DEFAULT_VALUES);
-      if (backendError !== null) queueMicrotask(() => setBackendError(null));
-    }
-  }, [isOpen, reset, backendError]);
-
-  const statusOptions = [...statuses]
-    .sort((a, b) => a.sortOrder - b.sortOrder)
-    .map((s) => ({ value: s.value, label: s.displayName }));
-
-  const onSubmit = async (data: CreateCapabilityFormData) => {
+    if (!isOpen) return;
+    reset(DEFAULT_VALUES);
     setBackendError(null);
-    try {
-      const capability = await createCapabilityMutation.mutateAsync({
-        name: data.name,
-        description: data.description || undefined,
-        level: 'L1',
-      });
-      await updateMetadataMutation.mutateAsync({
-        id: capability.id,
-        request: {
-          status: data.status,
-          maturityValue: data.maturityValue,
-        },
-      });
-      onClose();
-    } catch (err) {
-      setBackendError(err instanceof Error ? err.message : 'Failed to create capability');
-    }
-  };
+    setHandoffPending(false);
+  }, [isOpen, reset]);
+
+  const onSubmit = buildCapabilitySubmitter(createCapability, updateMetadata, {
+    prefill,
+    onCreated,
+    onClose,
+    setBackendError,
+    setHandoffPending,
+  });
 
   return {
     register,
@@ -100,7 +151,12 @@ function useCreateCapabilityForm(isOpen: boolean, onClose: () => void) {
   };
 }
 
-export const CreateCapabilityDialog: React.FC<CreateCapabilityDialogProps> = ({ isOpen, onClose }) => {
+export const CreateCapabilityDialog: React.FC<CreateCapabilityDialogProps> = ({
+  isOpen,
+  onClose,
+  prefill,
+  onCreated,
+}) => {
   const {
     register,
     handleSubmit,
@@ -112,7 +168,7 @@ export const CreateCapabilityDialog: React.FC<CreateCapabilityDialogProps> = ({ 
     isLoadingStatuses,
     statusOptions,
     onSubmit,
-  } = useCreateCapabilityForm(isOpen, onClose);
+  } = useCreateCapabilityForm(isOpen, onClose, prefill, onCreated);
 
   return (
     <Modal opened={isOpen} onClose={onClose} title="Create Capability" centered data-testid="create-capability-dialog">

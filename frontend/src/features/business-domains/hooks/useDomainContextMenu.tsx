@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import type { BusinessDomain } from '../../../api/types';
-import type { ContextMenuItem } from '../../../components/shared/ContextMenu';
+import {
+  type ContextMenuItem,
+  PencilIcon,
+  ShareIcon,
+  TrashIcon,
+  UserPlusIcon,
+} from '../../../components/shared/ContextMenu';
 import { copyToClipboard, generateDomainShareUrl } from '../../../utils/clipboard';
 import { hasLink } from '../../../utils/hateoas';
 import type { ArtifactType } from '../../edit-grants/types';
@@ -35,6 +41,8 @@ export function useDomainContextMenu({ onEdit, onDelete }: UseDomainContextMenuP
     if (hasLink(menu.domain, 'x-edit-grants')) {
       items.push({
         label: 'Invite to Edit...',
+        description: 'Grant another user edit access',
+        icon: <UserPlusIcon />,
         onClick: () => {
           setDomainToInvite({ id: menu.domain.id, artifactType: 'domain' });
         },
@@ -43,6 +51,8 @@ export function useDomainContextMenu({ onEdit, onDelete }: UseDomainContextMenuP
 
     items.push({
       label: 'Share (copy URL)...',
+      description: 'Copy a shareable link to clipboard',
+      icon: <ShareIcon />,
       onClick: () => {
         const url = generateDomainShareUrl(menu.domain.id);
         copyToClipboard(url);
@@ -52,6 +62,8 @@ export function useDomainContextMenu({ onEdit, onDelete }: UseDomainContextMenuP
     if (menu.domain._links.update) {
       items.push({
         label: 'Edit',
+        description: 'Open the edit panel',
+        icon: <PencilIcon />,
         onClick: () => {
           onEdit(menu.domain);
         },
@@ -62,6 +74,8 @@ export function useDomainContextMenu({ onEdit, onDelete }: UseDomainContextMenuP
     if (canDelete) {
       items.push({
         label: 'Delete',
+        description: 'Permanently delete this domain',
+        icon: <TrashIcon />,
         onClick: () => onDelete(menu.domain),
         isDanger: true,
       });

@@ -8,21 +8,29 @@ import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { useAddComponentToView } from '../../views/hooks/useViews';
 import { useCreateComponent } from '../hooks/useComponents';
 
+interface CreatedComponent {
+  id: string;
+  name: string;
+}
+
 interface CreateComponentDialogProps {
   isOpen: boolean;
   onClose: () => void;
+  onCreated?: (component: CreatedComponent) => void | Promise<void>;
 }
 
 const DEFAULT_VALUES: CreateComponentFormData = { name: '', description: '' };
 
-export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({ isOpen, onClose }) => {
+export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({ isOpen, onClose, onCreated }) => {
   const [backendError, setBackendError] = useState<string | null>(null);
+  const [isHandoffPending, setHandoffPending] = useState(false);
 
   const { currentView } = useCurrentView();
   const createComponentMutation = useCreateComponent();
   const addComponentToViewMutation = useAddComponentToView();
 
-  const isCreating = createComponentMutation.isPending || addComponentToViewMutation.isPending;
+  const isCreating =
+    createComponentMutation.isPending || addComponentToViewMutation.isPending || isHandoffPending;
 
   const {
     register,
@@ -38,9 +46,10 @@ export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({ is
   useLayoutEffect(() => {
     if (isOpen) {
       reset(DEFAULT_VALUES);
-      if (backendError !== null) queueMicrotask(() => setBackendError(null));
+      setBackendError(null);
+      setHandoffPending(false);
     }
-  }, [isOpen, reset, backendError]);
+  }, [isOpen, reset]);
 
   const handleClose = () => {
     onClose();
@@ -54,7 +63,14 @@ export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({ is
         description: data.description || undefined,
       });
 
-      if (currentView && canEdit(currentView)) {
+      if (onCreated) {
+        setHandoffPending(true);
+        try {
+          await onCreated(newComponent);
+        } finally {
+          setHandoffPending(false);
+        }
+      } else if (currentView && canEdit(currentView)) {
         const defaultPosition = { x: 400, y: 300 };
         await addComponentToViewMutation.mutateAsync({
           viewId: currentView.id,
@@ -67,6 +83,7 @@ export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({ is
 
       handleClose();
     } catch (err) {
+      setHandoffPending(false);
       setBackendError(err instanceof Error ? err.message : 'Failed to create application');
     }
   };

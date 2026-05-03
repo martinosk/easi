@@ -1,5 +1,13 @@
-import { Badge, Button, Divider, Group, Popover, Stack, Text, UnstyledButton } from '@mantine/core';
-import type { ReactNode } from 'react';
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  AnchorIcon,
+  ContextMenu,
+  type ContextMenuItem,
+  ExpandIcon,
+  GitBranchIcon,
+  GitMergeIcon,
+  ZapIcon,
+} from '../../../components/shared/ContextMenu';
 import type { DynamicFilters, EdgeType, UnexpandedByEdgeType } from '../utils/dynamicMode';
 
 interface ExpandPopoverProps {
@@ -20,7 +28,72 @@ const EDGE_LABEL: Record<EdgeType, string> = {
   origin: 'Origin',
 };
 
+const EDGE_ICON: Record<EdgeType, ReactNode> = {
+  relation: <ZapIcon />,
+  realization: <GitMergeIcon />,
+  parentage: <GitBranchIcon />,
+  origin: <AnchorIcon />,
+};
+
 const EDGE_ORDER: EdgeType[] = ['relation', 'realization', 'parentage', 'origin'];
+
+interface MenuPosition {
+  x: number;
+  y: number;
+}
+
+function buildEdgeItems(
+  breakdown: UnexpandedByEdgeType,
+  enabled: DynamicFilters['edges'],
+  onExpandEdgeType: (edge: EdgeType) => void,
+): ContextMenuItem[] {
+  return EDGE_ORDER.filter((et) => enabled[et]).map((et) => {
+    const count = breakdown[et].length;
+    return {
+      label: EDGE_LABEL[et],
+      description: `+${count}`,
+      icon: EDGE_ICON[et],
+      disabled: count === 0,
+      ariaLabel: `${EDGE_LABEL[et]} +${count}`,
+      onClick: () => onExpandEdgeType(et),
+    };
+  });
+}
+
+function totalEnabled(breakdown: UnexpandedByEdgeType, enabled: DynamicFilters['edges']): number {
+  return EDGE_ORDER.reduce((acc, et) => (enabled[et] ? acc + breakdown[et].length : acc), 0);
+}
+
+function useTriggerCenter(triggerRef: React.RefObject<HTMLElement | null>, opened: boolean): MenuPosition | null {
+  const [position, setPosition] = useState<MenuPosition | null>(null);
+
+  useLayoutEffect(() => {
+    if (!opened || !triggerRef.current) {
+      setPosition(null);
+      return;
+    }
+    const rect = triggerRef.current.getBoundingClientRect();
+    setPosition({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+  }, [opened, triggerRef]);
+
+  useEffect(() => {
+    if (!opened) return;
+    const onScrollOrResize = () => {
+      const el = triggerRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      setPosition({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+    };
+    window.addEventListener('scroll', onScrollOrResize, true);
+    window.addEventListener('resize', onScrollOrResize);
+    return () => {
+      window.removeEventListener('scroll', onScrollOrResize, true);
+      window.removeEventListener('resize', onScrollOrResize);
+    };
+  }, [opened, triggerRef]);
+
+  return position;
+}
 
 export function ExpandPopover({
   entityName,
@@ -32,43 +105,36 @@ export function ExpandPopover({
   onExpandAll,
   children,
 }: ExpandPopoverProps) {
-  const total = EDGE_ORDER.reduce((acc, et) => (enabledEdgeTypes[et] ? acc + breakdown[et].length : acc), 0);
+  const triggerRef = useRef<HTMLSpanElement>(null);
+  const position = useTriggerCenter(triggerRef, opened);
+
+  const total = totalEnabled(breakdown, enabledEdgeTypes);
+  const items: ContextMenuItem[] = buildEdgeItems(breakdown, enabledEdgeTypes, onExpandEdgeType);
+
+  if (total > 0) {
+    items.push({
+      label: 'Expand all',
+      description: `+${total}`,
+      icon: <ExpandIcon />,
+      ariaLabel: `Expand all +${total}`,
+      onClick: onExpandAll,
+    });
+  }
 
   return (
-    <Popover opened={opened} onChange={(o) => !o && onClose()} position="right-start" withArrow shadow="md">
-      <Popover.Target>{children}</Popover.Target>
-      <Popover.Dropdown>
-        <Stack gap="xs" miw={220}>
-          <Text size="xs" tt="uppercase" c="dimmed">
-            Expand from {entityName}
-          </Text>
-          {EDGE_ORDER.filter((et) => enabledEdgeTypes[et]).map((et) => {
-            const count = breakdown[et].length;
-            return (
-              <UnstyledButton
-                key={et}
-                aria-label={EDGE_LABEL[et]}
-                disabled={count === 0}
-                onClick={() => onExpandEdgeType(et)}
-                style={{ opacity: count === 0 ? 0.5 : 1 }}
-              >
-                <Group justify="space-between" wrap="nowrap">
-                  <Text size="sm">{EDGE_LABEL[et]}</Text>
-                  <Badge size="sm" variant="light">+{count}</Badge>
-                </Group>
-              </UnstyledButton>
-            );
-          })}
-          {total > 0 && (
-            <>
-              <Divider />
-              <Button size="xs" onClick={onExpandAll}>
-                Expand all (+{total})
-              </Button>
-            </>
-          )}
-        </Stack>
-      </Popover.Dropdown>
-    </Popover>
+    <>
+      <span ref={triggerRef} className="ctx-menu-trigger">
+        {children}
+      </span>
+      {opened && position && (
+        <ContextMenu
+          x={position.x}
+          y={position.y}
+          items={items}
+          title={`Expand from ${entityName}`}
+          onClose={onClose}
+        />
+      )}
+    </>
   );
 }

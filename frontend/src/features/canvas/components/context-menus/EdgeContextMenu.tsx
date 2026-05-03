@@ -5,7 +5,12 @@ import type {
   OriginRelationshipId,
   OriginRelationshipType,
 } from '../../../../api/types';
-import { ContextMenu, type ContextMenuItem } from '../../../../components/shared/ContextMenu';
+import {
+  ContextMenu,
+  type ContextMenuItem,
+  LinkOffIcon,
+  TrashIcon,
+} from '../../../../components/shared/ContextMenu';
 import { hasLink } from '../../../../utils/hateoas';
 import type { EdgeContextMenu as EdgeContextMenuType } from '../../hooks/useContextMenu';
 
@@ -43,6 +48,8 @@ function buildParentEdgeItems(
   return [
     {
       label: 'Remove Parent Relationship',
+      description: 'Detach from parent capability',
+      icon: <LinkOffIcon />,
       onClick: () => {
         onRequestDelete({ type: 'parent-relation', id: menu.edgeId, name: 'Parent relationship', childId });
         onClose();
@@ -66,6 +73,8 @@ function buildRealizationEdgeItems(
   return [
     {
       label: 'Delete Realization',
+      description: 'Remove this capability/component link',
+      icon: <TrashIcon />,
       onClick: () => {
         onRequestDelete({
           type: 'realization',
@@ -94,6 +103,8 @@ function buildOriginRelationshipEdgeItems(
   return [
     {
       label: 'Delete Relationship',
+      description: 'Remove this origin relationship',
+      icon: <TrashIcon />,
       onClick: () => {
         onRequestDelete({
           type: 'origin-relationship',
@@ -124,6 +135,8 @@ function buildRelationEdgeItems(
   return [
     {
       label: 'Delete from Model',
+      description: 'Permanently remove this relation',
+      icon: <TrashIcon />,
       onClick: () => {
         onRequestDelete({ type: 'relation-from-model', id: menu.edgeId, name: menu.edgeName });
         onClose();
@@ -149,5 +162,5 @@ export const EdgeContextMenu = ({ menu, onClose, onRequestDelete }: EdgeContextM
   const items = edgeTypeHandlers[menu.edgeType]();
   if (items.length === 0) return null;
 
-  return <ContextMenu x={menu.x} y={menu.y} items={items} onClose={onClose} />;
+  return <ContextMenu x={menu.x} y={menu.y} items={items} title={menu.edgeName} onClose={onClose} />;
 };

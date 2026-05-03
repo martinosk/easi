@@ -19,7 +19,8 @@ type RelationEndpoint struct {
 }
 
 var relationEndpoints = map[string]RelationEndpoint{
-	"component-relation":     {Path: "/api/v1/relations", Method: "POST"},
+	"component-triggers":     {Path: "/api/v1/relations", Method: "POST"},
+	"component-serves":       {Path: "/api/v1/relations", Method: "POST"},
 	"capability-parent":      {Path: "/api/v1/capabilities/{id}/parent", Method: "PATCH"},
 	"capability-realization": {Path: "/api/v1/capabilities/{id}/systems", Method: "POST"},
 	"origin-acquired-via":    {Path: "/api/v1/components/{id}/origin/acquired-via", Method: "PUT"},

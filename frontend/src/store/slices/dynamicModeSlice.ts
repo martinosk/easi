@@ -246,7 +246,7 @@ export function selectDynamicDirty(state: DynamicDiffState): boolean {
   return false;
 }
 
-function entryAsDiffState(entry: DraftEntry): DynamicDiffState {
+function entryAsDirtyState(entry: DraftEntry): DynamicDiffState {
   return {
     dynamicOriginal: entry.original,
     dynamicEntities: entry.entities,
@@ -258,7 +258,7 @@ export function selectDirtyForView(state: DynamicModeState, viewId: string): boo
   if (state.dynamicViewId === viewId) return selectDynamicDirty(state);
   const entry = state.draftsByView[viewId];
   if (!entry) return false;
-  return selectDynamicDirty(entryAsDiffState(entry));
+  return selectDynamicDirty(entryAsDirtyState(entry));
 }
 
 function dirtyOutsideDraftMap(state: DynamicModeState): boolean {

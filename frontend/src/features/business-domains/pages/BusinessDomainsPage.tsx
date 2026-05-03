@@ -21,6 +21,7 @@ export function BusinessDomainsPage() {
         <ContextMenu
           x={domainContextMenu.contextMenu.x}
           y={domainContextMenu.contextMenu.y}
+          title={domainContextMenu.contextMenu.domain.name}
           items={domainContextMenu.getContextMenuItems(domainContextMenu.contextMenu)}
           onClose={domainContextMenu.closeContextMenu}
         />
@@ -30,6 +31,7 @@ export function BusinessDomainsPage() {
         <ContextMenu
           x={capabilityContextMenu.contextMenu.x}
           y={capabilityContextMenu.contextMenu.y}
+          title={capabilityContextMenu.contextMenu.capability.name}
           items={capabilityContextMenu.contextMenuItems}
           onClose={capabilityContextMenu.closeContextMenu}
         />

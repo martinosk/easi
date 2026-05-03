@@ -41,30 +41,27 @@ export const useCanvasConnection = (onConnect: (source: string, target: string) 
   const { handleCapabilityParentConnection, handleCapabilityComponentConnection } = useCapabilityConnection();
   const { handleOriginComponentConnection } = useOriginConnection();
 
+  const dispatchByType = useCallback(
+    async (type: ConnectionType, source: string, target: string): Promise<void> => {
+      const dispatchers: Record<ConnectionType, () => Promise<void> | void> = {
+        'capability-to-capability': () => handleCapabilityParentConnection(source, target),
+        'component-to-component': () => onConnect(target, source),
+        'capability-component-mixed': () => handleCapabilityComponentConnection(source, target),
+        'origin-component-mixed': () => handleOriginComponentConnection(source, target),
+        invalid: () => undefined,
+      };
+      await dispatchers[type]();
+    },
+    [onConnect, handleCapabilityParentConnection, handleCapabilityComponentConnection, handleOriginComponentConnection],
+  );
+
   const onConnectHandler = useCallback(
     async (connection: Connection) => {
       if (!connection.source || !connection.target) return;
-
-      const connectionType = getConnectionType(connection.source, connection.target);
-
-      switch (connectionType) {
-        case 'capability-to-capability':
-          await handleCapabilityParentConnection(connection.source, connection.target);
-          break;
-        case 'component-to-component':
-          onConnect(connection.target, connection.source);
-          break;
-        case 'capability-component-mixed':
-          await handleCapabilityComponentConnection(connection.source, connection.target);
-          break;
-        case 'origin-component-mixed':
-          await handleOriginComponentConnection(connection.source, connection.target);
-          break;
-        case 'invalid':
-          break;
-      }
+      if (connection.source === connection.target) return;
+      await dispatchByType(getConnectionType(connection.source, connection.target), connection.source, connection.target);
     },
-    [onConnect, handleCapabilityParentConnection, handleCapabilityComponentConnection, handleOriginComponentConnection],
+    [dispatchByType],
   );
 
   return { onConnectHandler };

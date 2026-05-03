@@ -18,9 +18,9 @@ func TestApplicationComponentDTO_MarshalJSON_SplicesXRelatedIntoLinks(t *testing
 		XRelated: []types.RelatedLink{{
 			Href:         "/api/v1/components",
 			Methods:      []string{"POST"},
-			Title:        "Component (related)",
+			Title:        "Component (triggers)",
 			TargetType:   "component",
-			RelationType: "component-relation",
+			RelationType: "component-triggers",
 		}},
 	}
 
@@ -40,9 +40,9 @@ func TestApplicationComponentDTO_MarshalJSON_SplicesXRelatedIntoLinks(t *testing
 	entry := related[0].(map[string]any)
 	assert.Equal(t, "/api/v1/components", entry["href"])
 	assert.Equal(t, []any{"POST"}, entry["methods"])
-	assert.Equal(t, "Component (related)", entry["title"])
+	assert.Equal(t, "Component (triggers)", entry["title"])
 	assert.Equal(t, "component", entry["targetType"])
-	assert.Equal(t, "component-relation", entry["relationType"])
+	assert.Equal(t, "component-triggers", entry["relationType"])
 }
 
 func TestApplicationComponentDTO_MarshalJSON_OmitsXRelatedWhenEmpty(t *testing.T) {

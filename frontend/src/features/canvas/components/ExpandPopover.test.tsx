@@ -1,7 +1,5 @@
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { MantineTestWrapper } from '../../../test/helpers/mantineTestWrapper';
 import type { DynamicFilters, UnexpandedByEdgeType } from '../utils/dynamicMode';
 import { ExpandPopover } from './ExpandPopover';
 
@@ -21,30 +19,28 @@ const emptyBreakdown: UnexpandedByEdgeType = {
 
 function renderPopover(props: Partial<React.ComponentProps<typeof ExpandPopover>> = {}) {
   return render(
-    <MantineTestWrapper>
-      <ExpandPopover
-        entityName="Order Service"
-        breakdown={emptyBreakdown}
-        enabledEdgeTypes={allEnabled}
-        opened
-        onClose={vi.fn()}
-        onExpandEdgeType={vi.fn()}
-        onExpandAll={vi.fn()}
-        {...props}
-      >
-        <button type="button">Trigger</button>
-      </ExpandPopover>
-    </MantineTestWrapper>,
+    <ExpandPopover
+      entityName="Order Service"
+      breakdown={emptyBreakdown}
+      enabledEdgeTypes={allEnabled}
+      opened
+      onClose={vi.fn()}
+      onExpandEdgeType={vi.fn()}
+      onExpandAll={vi.fn()}
+      {...props}
+    >
+      <button type="button">Trigger</button>
+    </ExpandPopover>,
   );
 }
 
 describe('ExpandPopover', () => {
-  it('shows the entity name in the header when opened', () => {
+  it('shows the entity name as the menu title when opened', () => {
     renderPopover();
-    expect(screen.getByText(/Expand from Order Service/i)).toBeInTheDocument();
+    expect(screen.getByText(/Expand from Order Service/i)).toBeTruthy();
   });
 
-  it('renders one row per enabled edge type with its unexpanded count', () => {
+  it('renders one menuitem per enabled edge type, with the unexpanded count in its accessible name', () => {
     renderPopover({
       breakdown: {
         relation: ['B', 'C', 'D'],
@@ -54,14 +50,10 @@ describe('ExpandPopover', () => {
       },
     });
 
-    expect(screen.getByText(/Triggers \/ Serves/i)).toBeInTheDocument();
-    expect(screen.getByText('+3')).toBeInTheDocument();
-    expect(screen.getByText(/Realization/i)).toBeInTheDocument();
-    expect(screen.getByText('+1')).toBeInTheDocument();
-    expect(screen.getByText(/Origin/i)).toBeInTheDocument();
-    expect(screen.getByText('+2')).toBeInTheDocument();
-    expect(screen.getByText(/Capability parentage/i)).toBeInTheDocument();
-    expect(screen.getByText('+0')).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /Triggers \/ Serves \+3/i })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: /Realization \+1/i })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: /Origin \+2/i })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: /Capability parentage \+0/i })).toBeTruthy();
   });
 
   it('hides edge types disabled in filters', () => {
@@ -75,45 +67,51 @@ describe('ExpandPopover', () => {
       },
     });
 
-    expect(screen.getByText(/Triggers \/ Serves/i)).toBeInTheDocument();
-    expect(screen.queryByText(/Realization/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Origin/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /Triggers \/ Serves/i })).toBeTruthy();
+    expect(screen.queryByRole('menuitem', { name: /^Realization/i })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: /^Origin/i })).toBeNull();
   });
 
-  it('clicking an edge-type row calls onExpandEdgeType with that type', async () => {
+  it('clicking an edge-type petal calls onExpandEdgeType with that type', () => {
     const onExpandEdgeType = vi.fn();
     renderPopover({
       breakdown: { ...emptyBreakdown, relation: ['B', 'C'] },
       onExpandEdgeType,
     });
 
-    await userEvent.click(screen.getByRole('button', { name: /triggers \/ serves/i }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Triggers \/ Serves \+2/i }));
     expect(onExpandEdgeType).toHaveBeenCalledWith('relation');
   });
 
-  it('rows with zero unexpanded neighbors are not clickable', async () => {
+  it('petals with zero unexpanded neighbors are disabled and do not invoke the handler', () => {
     const onExpandEdgeType = vi.fn();
     renderPopover({ breakdown: emptyBreakdown, onExpandEdgeType });
 
-    const row = screen.getByRole('button', { name: /triggers \/ serves/i });
-    expect(row).toBeDisabled();
+    const petal = screen.getByRole('menuitem', { name: /Triggers \/ Serves \+0/i }) as HTMLButtonElement;
+    expect(petal.disabled).toBe(true);
+    fireEvent.click(petal);
+    expect(onExpandEdgeType).not.toHaveBeenCalled();
   });
 
-  it('renders an Expand all action when total > 0', async () => {
+  it('renders an Expand all petal when total > 0', () => {
     const onExpandAll = vi.fn();
     renderPopover({
       breakdown: { ...emptyBreakdown, relation: ['B'], realization: ['cap-1'] },
       onExpandAll,
     });
 
-    const expandAll = screen.getByRole('button', { name: /expand all/i });
-    expect(expandAll).toHaveTextContent('+2');
-    await userEvent.click(expandAll);
+    const expandAll = screen.getByRole('menuitem', { name: /Expand all \+2/i });
+    fireEvent.click(expandAll);
     expect(onExpandAll).toHaveBeenCalled();
   });
 
-  it('hides the Expand all action when total = 0', () => {
+  it('hides the Expand all petal when total = 0', () => {
     renderPopover({ breakdown: emptyBreakdown });
-    expect(screen.queryByRole('button', { name: /expand all/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /Expand all/i })).toBeNull();
+  });
+
+  it('does not render the menu when not opened', () => {
+    renderPopover({ opened: false });
+    expect(screen.queryByRole('menu')).toBeNull();
   });
 });

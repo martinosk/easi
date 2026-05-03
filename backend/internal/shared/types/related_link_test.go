@@ -12,9 +12,9 @@ func TestRelatedLink_MarshalsToSpecJSONShape(t *testing.T) {
 	rl := RelatedLink{
 		Href:         "/api/v1/components",
 		Methods:      []string{"POST"},
-		Title:        "Component (related)",
+		Title:        "Component (triggers)",
 		TargetType:   "component",
-		RelationType: "component-relation",
+		RelationType: "component-triggers",
 	}
 
 	data, err := json.Marshal(rl)
@@ -25,9 +25,9 @@ func TestRelatedLink_MarshalsToSpecJSONShape(t *testing.T) {
 
 	assert.Equal(t, "/api/v1/components", got["href"])
 	assert.Equal(t, []any{"POST"}, got["methods"])
-	assert.Equal(t, "Component (related)", got["title"])
+	assert.Equal(t, "Component (triggers)", got["title"])
 	assert.Equal(t, "component", got["targetType"])
-	assert.Equal(t, "component-relation", got["relationType"])
+	assert.Equal(t, "component-triggers", got["relationType"])
 }
 
 func TestRelatedLink_MultipleMethodsArePreserved(t *testing.T) {
@@ -52,7 +52,7 @@ func TestSpliceXRelated_AddsXRelatedToExistingLinks(t *testing.T) {
 	in := []byte(`{"id":"c1","_links":{"self":{"href":"/api/v1/components/c1","method":"GET"}}}`)
 	related := []RelatedLink{{
 		Href: "/api/v1/components", Methods: []string{"POST"},
-		Title: "Component (related)", TargetType: "component", RelationType: "component-relation",
+		Title: "Component (related)", TargetType: "component", RelationType: "component-triggers",
 	}}
 
 	out, err := SpliceXRelated(in, related)
@@ -65,14 +65,14 @@ func TestSpliceXRelated_AddsXRelatedToExistingLinks(t *testing.T) {
 	xr := links["x-related"].([]any)
 	require.Len(t, xr, 1)
 	entry := xr[0].(map[string]any)
-	assert.Equal(t, "component-relation", entry["relationType"])
+	assert.Equal(t, "component-triggers", entry["relationType"])
 }
 
 func TestSpliceXRelated_CreatesLinksWhenAbsent(t *testing.T) {
 	in := []byte(`{"id":"c1"}`)
 	related := []RelatedLink{{
 		Href: "/api/v1/components", Methods: []string{"POST"},
-		Title: "Component (related)", TargetType: "component", RelationType: "component-relation",
+		Title: "Component (related)", TargetType: "component", RelationType: "component-triggers",
 	}}
 
 	out, err := SpliceXRelated(in, related)

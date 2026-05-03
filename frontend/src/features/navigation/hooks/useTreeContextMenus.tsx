@@ -8,7 +8,17 @@ import type {
   Vendor,
   View,
 } from '../../../api/types';
-import type { ContextMenuItem } from '../../../components/shared/ContextMenu';
+import {
+  type ContextMenuItem,
+  EyeIcon,
+  LockIcon,
+  PencilIcon,
+  ShareIcon,
+  SparklesIcon,
+  StarIcon,
+  TrashIcon,
+  UserPlusIcon,
+} from '../../../components/shared/ContextMenu';
 import { copyToClipboard, generateViewShareUrl } from '../../../utils/clipboard';
 import { hasLink } from '../../../utils/hateoas';
 import { useDeleteComponent, useUpdateComponent } from '../../components/hooks/useComponents';
@@ -66,11 +76,28 @@ function buildEntityMenuItems(config: EntityMenuConfig): ContextMenuItem[] {
   const hasDelete = config.links?.delete !== undefined;
 
   return filterNullItems([
-    createConditionalMenuItem(hasGenerate, { label: 'Create dynamic view...', onClick: config.onGenerateView! }),
-    createConditionalMenuItem(hasInvite, { label: 'Invite to Edit...', onClick: config.onInviteToEdit! }),
-    createConditionalMenuItem(hasEdit, { label: 'Edit', onClick: config.onEdit! }),
+    createConditionalMenuItem(hasGenerate, {
+      label: 'Create dynamic view...',
+      description: 'Build a focused view starting here',
+      icon: <SparklesIcon />,
+      onClick: config.onGenerateView!,
+    }),
+    createConditionalMenuItem(hasInvite, {
+      label: 'Invite to Edit...',
+      description: 'Grant another user edit access',
+      icon: <UserPlusIcon />,
+      onClick: config.onInviteToEdit!,
+    }),
+    createConditionalMenuItem(hasEdit, {
+      label: 'Edit',
+      description: 'Open the edit panel',
+      icon: <PencilIcon />,
+      onClick: config.onEdit!,
+    }),
     createConditionalMenuItem(hasDelete, {
       label: config.deleteLabel,
+      description: 'Permanently remove from the model',
+      icon: <TrashIcon />,
       onClick: config.onDelete,
       isDanger: true,
       ariaLabel: config.deleteAriaLabel,
@@ -260,29 +287,41 @@ export function useTreeContextMenus({
 
     const shareItem: ContextMenuItem = {
       label: 'Share (copy URL)...',
+      description: 'Copy a shareable link to clipboard',
+      icon: <ShareIcon />,
       onClick: () => copyToClipboard(generateViewShareUrl(view.id)),
     };
 
     return filterNullItems([
       createConditionalMenuItem(canInvite, {
         label: 'Invite to Edit...',
+        description: 'Grant another user edit access',
+        icon: <UserPlusIcon />,
         onClick: () => setInviteTarget({ id: view.id, artifactType: 'view' }),
       }),
       shareItem,
       createConditionalMenuItem(canEdit, {
         label: 'Rename View',
+        description: 'Change the view name',
+        icon: <PencilIcon />,
         onClick: () => setEditingState({ viewId: view.id, name: view.name }),
       }),
       createConditionalMenuItem(canChangeVisibility, {
         label: visibilityLabel,
+        description: view.isPrivate ? 'Make this view visible to everyone' : 'Restrict to invited users',
+        icon: view.isPrivate ? <EyeIcon /> : <LockIcon />,
         onClick: () => changeVisibilityMutation.mutate({ viewId: view.id, isPrivate: !view.isPrivate }),
       }),
       createConditionalMenuItem(!view.isDefault, {
         label: 'Set as Default',
+        description: 'Open this view first when loading',
+        icon: <StarIcon />,
         onClick: () => setDefaultViewMutation.mutate(view.id),
       }),
       createConditionalMenuItem(canDelete, {
         label: 'Delete View',
+        description: 'Permanently delete this view',
+        icon: <TrashIcon />,
         onClick: () => setDeleteTarget({ type: 'view', view }),
         isDanger: true,
       }),

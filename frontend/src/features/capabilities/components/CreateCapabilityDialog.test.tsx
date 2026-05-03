@@ -202,48 +202,36 @@ describe('CreateCapabilityDialog', () => {
       });
     });
 
-    it('should show error for name exceeding 200 characters', async () => {
+    it.each([
+      {
+        label: 'name',
+        nameValue: 'a'.repeat(201),
+        descriptionValue: undefined,
+        expectedMessage: 'Name must be 200 characters or less',
+      },
+      {
+        label: 'description',
+        nameValue: 'Test Capability',
+        descriptionValue: 'a'.repeat(1001),
+        expectedMessage: 'Description must be 1000 characters or less',
+      },
+    ])('rejects $label exceeding the length limit', async ({ nameValue, descriptionValue, expectedMessage }) => {
       renderWithProviders(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('maturity-slider')).toBeInTheDocument();
       });
 
-      const nameInput = screen.getByTestId('capability-name-input');
-      const longName = 'a'.repeat(201);
-      fireEvent.change(nameInput, { target: { value: longName } });
+      fireEvent.change(screen.getByTestId('capability-name-input'), { target: { value: nameValue } });
+      if (descriptionValue !== undefined) {
+        fireEvent.change(screen.getByTestId('capability-description-input'), { target: { value: descriptionValue } });
+      }
 
-      const submitButton = screen.getByTestId('create-capability-submit');
-      fireEvent.click(submitButton);
-
-      await waitFor(() => {
-        expect(screen.getByText('Name must be 200 characters or less')).toBeInTheDocument();
-      });
-
-      expect(mockCreateMutateAsync).not.toHaveBeenCalled();
-    });
-
-    it('should show error for description exceeding 1000 characters', async () => {
-      renderWithProviders(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
+      fireEvent.click(screen.getByTestId('create-capability-submit'));
 
       await waitFor(() => {
-        expect(screen.getByTestId('maturity-slider')).toBeInTheDocument();
+        expect(screen.getByText(expectedMessage)).toBeInTheDocument();
       });
-
-      const nameInput = screen.getByTestId('capability-name-input');
-      const descriptionInput = screen.getByTestId('capability-description-input');
-      const longDescription = 'a'.repeat(1001);
-
-      fireEvent.change(nameInput, { target: { value: 'Test Capability' } });
-      fireEvent.change(descriptionInput, { target: { value: longDescription } });
-
-      const submitButton = screen.getByTestId('create-capability-submit');
-      fireEvent.click(submitButton);
-
-      await waitFor(() => {
-        expect(screen.getByText('Description must be 1000 characters or less')).toBeInTheDocument();
-      });
-
       expect(mockCreateMutateAsync).not.toHaveBeenCalled();
     });
 
@@ -394,7 +382,18 @@ describe('CreateCapabilityDialog', () => {
       });
     });
 
-    it('should disable submit button during creation', async () => {
+    it.each([
+      {
+        label: 'submit shows loading',
+        testid: 'create-capability-submit',
+        assertion: (el: HTMLElement) => expect(el).toHaveAttribute('data-loading', 'true'),
+      },
+      {
+        label: 'name input is disabled',
+        testid: 'capability-name-input',
+        assertion: (el: HTMLElement) => expect((el as HTMLInputElement).disabled).toBe(true),
+      },
+    ])('while pending: $label', async ({ testid, assertion }) => {
       vi.mocked(useCreateCapability).mockReturnValue({
         mutateAsync: mockCreateMutateAsync,
         isPending: true,
@@ -408,36 +407,26 @@ describe('CreateCapabilityDialog', () => {
 
       renderWithProviders(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
 
-      await waitFor(() => {
-        const submitButton = screen.getByTestId('create-capability-submit') as HTMLButtonElement;
-        expect(submitButton).toHaveAttribute('data-loading', 'true');
-      });
-    });
-
-    it('should disable inputs while creating', async () => {
-      vi.mocked(useCreateCapability).mockReturnValue({
-        mutateAsync: mockCreateMutateAsync,
-        isPending: true,
-        isError: false,
-        isSuccess: false,
-        error: null,
-        data: undefined,
-        mutate: vi.fn(),
-        reset: vi.fn(),
-      } as unknown as ReturnType<typeof useCreateCapability>);
-
-      renderWithProviders(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
-
-      await waitFor(() => {
-        const nameInput = screen.getByTestId('capability-name-input') as HTMLInputElement;
-        expect(nameInput.disabled).toBe(true);
-      });
+      await waitFor(() => assertion(screen.getByTestId(testid)));
     });
   });
 
   describe('Error handling', () => {
-    it('should display backend errors', async () => {
-      mockCreateMutateAsync.mockRejectedValueOnce(new Error('Duplicate capability name'));
+    it.each([
+      {
+        label: 'rejects with an Error',
+        rejection: new Error('Duplicate capability name'),
+        expectedText: 'Duplicate capability name',
+        expectClose: false,
+      },
+      {
+        label: 'rejects with a non-Error value',
+        rejection: 'Unknown error',
+        expectedText: 'Failed to create capability',
+        expectClose: false,
+      },
+    ])('shows $label as backend error', async ({ rejection, expectedText, expectClose }) => {
+      mockCreateMutateAsync.mockRejectedValueOnce(rejection);
 
       renderWithProviders(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
 
@@ -445,47 +434,18 @@ describe('CreateCapabilityDialog', () => {
         expect(screen.getByTestId('maturity-slider')).toBeInTheDocument();
       });
 
-      const nameInput = screen.getByTestId('capability-name-input');
-      fireEvent.change(nameInput, { target: { value: 'Test Capability' } });
+      fireEvent.change(screen.getByTestId('capability-name-input'), { target: { value: 'Test Capability' } });
 
       await waitFor(() => {
-        const submitButton = screen.getByTestId('create-capability-submit') as HTMLButtonElement;
-        expect(submitButton.disabled).toBe(false);
+        expect((screen.getByTestId('create-capability-submit') as HTMLButtonElement).disabled).toBe(false);
       });
 
-      const submitButton = screen.getByTestId('create-capability-submit');
-      fireEvent.click(submitButton);
+      fireEvent.click(screen.getByTestId('create-capability-submit'));
 
       await waitFor(() => {
-        expect(screen.getByTestId('create-capability-error')).toHaveTextContent('Duplicate capability name');
+        expect(screen.getByTestId('create-capability-error')).toHaveTextContent(expectedText);
       });
-
-      expect(mockOnClose).not.toHaveBeenCalled();
-    });
-
-    it('should display generic error for non-Error exceptions', async () => {
-      mockCreateMutateAsync.mockRejectedValueOnce('Unknown error');
-
-      renderWithProviders(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('maturity-slider')).toBeInTheDocument();
-      });
-
-      const nameInput = screen.getByTestId('capability-name-input');
-      fireEvent.change(nameInput, { target: { value: 'Test Capability' } });
-
-      await waitFor(() => {
-        const submitButton = screen.getByTestId('create-capability-submit') as HTMLButtonElement;
-        expect(submitButton.disabled).toBe(false);
-      });
-
-      const submitButton = screen.getByTestId('create-capability-submit');
-      fireEvent.click(submitButton);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('create-capability-error')).toHaveTextContent('Failed to create capability');
-      });
+      if (!expectClose) expect(mockOnClose).not.toHaveBeenCalled();
     });
 
     it('should clear error when form is resubmitted', async () => {
@@ -545,6 +505,65 @@ describe('CreateCapabilityDialog', () => {
       await waitFor(() => {
         expect(mockOnClose).toHaveBeenCalled();
       });
+    });
+  });
+
+  describe('prefill prop', () => {
+    it('uses prefill.level on the create call instead of the default L1', async () => {
+      mockCreateMutateAsync.mockResolvedValueOnce({ id: 'cap-1', name: 'Child', level: 'L2' });
+      mockUpdateMetadataMutateAsync.mockResolvedValueOnce({});
+
+      renderWithProviders(
+        <CreateCapabilityDialog isOpen onClose={mockOnClose} prefill={{ level: 'L2' }} />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('capability-status-select')).not.toBeDisabled();
+      });
+
+      fireEvent.change(screen.getByTestId('capability-name-input'), { target: { value: 'Child' } });
+
+      await waitFor(() => {
+        const submit = screen.getByTestId('create-capability-submit') as HTMLButtonElement;
+        expect(submit.disabled).toBe(false);
+      });
+      fireEvent.click(screen.getByTestId('create-capability-submit'));
+
+      await waitFor(() => {
+        expect(mockCreateMutateAsync).toHaveBeenCalledWith(
+          expect.objectContaining({ level: 'L2' }),
+        );
+      });
+    });
+  });
+
+  describe('onCreated handoff', () => {
+    it('calls onCreated and skips default behavior', async () => {
+      const created = { id: 'cap-1', name: 'Child', level: 'L2' };
+      mockCreateMutateAsync.mockResolvedValueOnce(created);
+      mockUpdateMetadataMutateAsync.mockResolvedValueOnce({});
+      const onCreated = vi.fn();
+
+      renderWithProviders(
+        <CreateCapabilityDialog isOpen onClose={mockOnClose} onCreated={onCreated} />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('capability-status-select')).not.toBeDisabled();
+      });
+
+      fireEvent.change(screen.getByTestId('capability-name-input'), { target: { value: 'Child' } });
+
+      await waitFor(() => {
+        const submit = screen.getByTestId('create-capability-submit') as HTMLButtonElement;
+        expect(submit.disabled).toBe(false);
+      });
+      fireEvent.click(screen.getByTestId('create-capability-submit'));
+
+      await waitFor(() => {
+        expect(onCreated).toHaveBeenCalledWith(expect.objectContaining({ id: 'cap-1' }));
+      });
+      await waitFor(() => expect(mockOnClose).toHaveBeenCalled());
     });
   });
 });

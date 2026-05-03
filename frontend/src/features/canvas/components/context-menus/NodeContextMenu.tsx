@@ -1,6 +1,13 @@
 import type { ViewId } from '../../../../api/types';
 import type { OriginEntityType } from '../../../../components/canvas';
-import { ContextMenu, type ContextMenuItem } from '../../../../components/shared/ContextMenu';
+import {
+  ContextMenu,
+  type ContextMenuItem,
+  EyeOffIcon,
+  SparklesIcon,
+  TrashIcon,
+  UserPlusIcon,
+} from '../../../../components/shared/ContextMenu';
 import { useAppStore } from '../../../../store/appStore';
 import { hasLink } from '../../../../utils/hateoas';
 import type { ArtifactType } from '../../../edit-grants/types';
@@ -90,6 +97,8 @@ function buildInviteToEditItem(ctx: MenuItemBuilderContext): ContextMenuItem | n
   const artifactType = resolveArtifactType(ctx.menu);
   return {
     label: 'Invite to Edit...',
+    description: 'Grant another user edit access',
+    icon: <UserPlusIcon />,
     onClick: () => {
       ctx.onRequestInviteToEdit!({ id: ctx.menu.nodeId, artifactType });
       ctx.onClose();
@@ -108,6 +117,8 @@ function buildGenerateViewItem(ctx: MenuItemBuilderContext): ContextMenuItem | n
   const displayName = truncateName(ctx.menu.nodeName, MENU_LABEL_MAX_NAME_LENGTH);
   return {
     label: `Create dynamic view from ${displayName}`,
+    description: 'Build a focused view starting here',
+    icon: <SparklesIcon />,
     onClick: () => {
       ctx.onRequestGenerateView!({
         entityRef: { id: ctx.menu.nodeId, type: ctx.menu.nodeType },
@@ -130,6 +141,8 @@ function buildMenuItems(ctx: MenuItemBuilderContext, config: ViewElementConfig):
   if (ctx.canRemoveFromView) {
     items.push({
       label: 'Remove from View',
+      description: 'Hide here; keep in the model',
+      icon: <EyeOffIcon />,
       onClick: () => {
         ctx.removeFromView(ctx.menu.nodeId, config.entityType);
         ctx.onClose();
@@ -140,6 +153,8 @@ function buildMenuItems(ctx: MenuItemBuilderContext, config: ViewElementConfig):
   if (ctx.canDeleteFromModel) {
     items.push({
       label: 'Delete from Model',
+      description: `Permanently remove this ${config.entityLabel}`,
+      icon: <TrashIcon />,
       onClick: () => {
         ctx.onRequestDelete({
           type: config.deleteTargetType,
@@ -195,5 +210,5 @@ export const NodeContextMenu = ({
   const items = buildMenuItems(ctx, viewElementConfig);
   if (items.length === 0) return null;
 
-  return <ContextMenu x={menu.x} y={menu.y} items={items} onClose={onClose} />;
+  return <ContextMenu x={menu.x} y={menu.y} items={items} title={menu.nodeName} onClose={onClose} />;
 };

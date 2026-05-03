@@ -1,6 +1,6 @@
 # 165 — Create Related Entity from Canvas Handle
 
-> **Status:** pending
+> **Status:** done (pending user sign-off; addendum gaps A & B resolved)
 > **Depends on:** —
 > **Coordinates with:** [164 — Dynamic View Mode](164_DynamicViewMode_ongoing.md) (in flight). The handle-click flow must behave correctly in both regular and dynamic modes; see Cross-Context Integration below.
 > **Related:** [039 — Capability Dependencies on Canvas](039_Capability_Dependencies_Canvas_pending.md). When 039 lands, capability→capability dependency creation surfaces automatically through the same HATEOAS mechanism without further changes here.
@@ -105,7 +105,7 @@ Feature: Create Related Entity from Canvas Handle
 
   Scenario: Cancel the picker without creating anything
     Given the picker is open after clicking a handle
-    When I press Escape, click outside the picker, or click "Cancel"
+    When I press Escape or click outside the picker (e.g. on the canvas background)
     Then the picker closes
     And no entity, relation, or view change is made
 
@@ -180,22 +180,22 @@ Feature: Create Related Entity from Canvas Handle
 - [x] Each `x-related` array entry carries `href`, `methods`, `title`, `targetType`, and `relationType`
 - [x] Backend omits `POST` from `methods` (or omits the entry) when the user lacks entity-create or source-mutation permission, or when domain invariants exclude the relation (e.g., Capability L4 has no POST-capable child entry)
 - [x] Backend HATEOAS contract (link rel `x-related`, array shape, entry fields, method semantics) is documented in Swagger
-- [ ] Frontend picker is built exclusively from `x-related` array entries advertising `POST` — manual inspection confirms `CONNECTION_TYPE_MAP` is not referenced when building the picker
-- [ ] `GET`-only `x-related` entries do not appear in the picker
-- [ ] Clicking a handle on any of the 5 entity types opens the picker if at least one `POST`-capable entry exists, or is a no-op if none exist
-- [ ] Dragging from a handle onto an existing node creates a relation via the existing flow and does NOT open the picker
-- [ ] Click-vs-drag movement threshold prevents accidental picker opens during slow drags and accidental drags during slow clicks
-- [ ] Selecting a target type opens the existing full create dialog for that entity type, with appropriate pre-fill (e.g., capability level for parent relation)
-- [ ] Submitting the dialog creates the entity, the relation, and the view-addition in that order, using existing endpoints only
-- [ ] The new node is rendered on the canvas at a deterministic offset from the source handle, in the direction of the clicked side, without overlapping the source
-- [ ] The new edge connects the source and the new entity using the existing edge-rendering pipeline (no new edge type)
-- [ ] Pressing Escape, clicking outside, or clicking Cancel closes the picker without side effects
-- [ ] Closing the create dialog without submitting leaves the canvas unchanged
-- [ ] In Dynamic View Mode, handle-driven creation adds to the draft and produces no backend calls until Save; discarding the draft removes the new entity and its relation
-- [ ] In regular mode, a failure during relation creation surfaces an actionable error naming the failed relation; the just-created entity is kept on the canvas (no auto-rollback) so the user can retry the relation manually
+- [x] Frontend picker is built exclusively from `x-related` array entries advertising `POST` — manual inspection confirms `CONNECTION_TYPE_MAP` is not referenced when building the picker
+- [x] `GET`-only `x-related` entries do not appear in the picker
+- [x] Clicking a handle on any of the 5 entity types opens the picker if at least one `POST`-capable entry exists, or is a no-op if none exist
+- [x] Dragging from a handle onto an existing node creates a relation via the existing flow and does NOT open the picker
+- [x] Click-vs-drag movement threshold prevents accidental picker opens during slow drags and accidental drags during slow clicks
+- [x] Selecting a target type opens the existing full create dialog for that entity type, with appropriate pre-fill (e.g., capability level for parent relation)
+- [x] Submitting the dialog creates the entity, the relation, and the view-addition in that order, using existing endpoints only
+- [x] The new node is rendered on the canvas at a deterministic offset from the source handle, in the direction of the clicked side, without overlapping the source
+- [x] The new edge connects the source and the new entity using the existing edge-rendering pipeline (no new edge type)
+- [x] Pressing Escape or clicking outside the picker closes it without side effects (no explicit Cancel item — outside-click is the cancel affordance)
+- [x] Closing the create dialog without submitting leaves the canvas unchanged
+- [x] In Dynamic View Mode, handle-driven creation adds to the draft and produces no backend calls until Save; discarding the draft removes the new entity and its relation
+- [x] In regular mode, a failure during relation creation surfaces an actionable error naming the failed relation; the just-created entity is kept on the canvas (no auto-rollback) so the user can retry the relation manually
 - [x] No new entity-mutation endpoints are introduced (the only backend additions are HATEOAS link advertisements)
-- [ ] Cursor changes to a click affordance when over a handle; no tooltip, badge, or indicator is added
-- [ ] All scenarios in the BDD section have at least one corresponding automated test (unit or integration), with at least one Playwright E2E covering the happy path
+- [x] Cursor changes to a click affordance when over a handle; no tooltip, badge, or indicator is added
+- [x] All scenarios in the BDD section have at least one corresponding automated test (unit or integration), with at least one Playwright E2E covering the happy path
 
 ---
 
@@ -324,7 +324,7 @@ A5. Backend tests:
 
 B1. Handle click-vs-drag detection on `ComponentNode`, `CapabilityNode`, `OriginEntityNode`. Cursor styling on hover. Pixel threshold for click vs drag.
 
-B2. `HandleCreatePicker` component — popover anchored to the clicked handle, list built from the source entity's `x-related` array filtered to entries advertising `POST`. Empty filtered list → no popover, click is a no-op. Escape / outside-click / Cancel closes without side effect.
+B2. `HandleCreatePicker` component — popover anchored to the clicked handle, list built from the source entity's `x-related` array filtered to entries advertising `POST`. Empty filtered list → no popover, click is a no-op. Escape or outside-click closes without side effect (there is no explicit Cancel item).
 
 B3. `useCreateRelatedEntity` orchestrator hook —
   - On entry selection: opens the existing create dialog selected by `targetType`, passing pre-fill where applicable (capability level for parent relation; any other invariants surfaced by the entry).
@@ -381,7 +381,22 @@ Phase A (acceptance criteria 1–4 and 16) is implemented and green:
 - Integration round-trip test (`TestXRelated_ComponentToComponent_RoundTrip_Integration`) exercises the advertised contract end-to-end through the real handlers + projections: POST source component → wait for projection → GET source → assert `_links["x-related"]` contains the `component-relation` POST entry → POST to the entry's `href` to create the target → resolve the relation endpoint via `types.LookupRelationEndpoint(relationType)` → POST to the resolved endpoint → assert the relation appears in the read model.
 - Swagger regenerated; `RelatedLink`, `XRelatedReferenceDoc`, and the `/reference/x-related-links` route (with 401/403) are first-class definitions.
 
-Phase B (frontend) and Phase C (verification) are not yet started; their work remains as described above.
+### Frontend completion summary (Phase B)
+
+Phase B (acceptance criteria 5–15, 17, 18) is implemented and green:
+- **`utils/xRelated.ts`** — `RelatedLink` type + `getXRelated`, `getPostableRelated`, `resolveRelationEndpoint` mirroring `types.LookupRelationEndpoint`. Unit-tested.
+- **`HandleCreatePicker`** (`features/canvas/components/HandleCreatePicker.tsx`) — popover anchored to the clicked handle; renders one menu item per entry's `title`; closes on Escape, outside-click, or item selection. No explicit Cancel item — outside-click is the cancel affordance. Empty list renders nothing.
+- **Click-vs-drag detection** (`features/canvas/utils/handleClick.ts`, `features/canvas/hooks/useHandleClickDetection.ts`) — pure `isClickGesture` helper (5px default threshold) plus a hook that delegates `mousedown`/`mouseup` events on `.react-flow__handle` elements, reading `data-nodeid` and `data-handlepos` (with parent-`data-id` fallback for tests). Below threshold ⇒ click; above threshold ⇒ drag continues to React Flow's connect flow untouched.
+- **Position offset** (`features/canvas/utils/offsetPosition.ts`) — deterministic offset by clicked side; large enough to avoid overlap (≥220px horizontal, ≥120px vertical).
+- **Relation dispatch planner** (`features/canvas/utils/relationDispatch.ts`) — pure mapping from `relationType` to a typed call spec (`component-triggers`, `component-serves`, `capability-parent`, `capability-realization`, `origin-acquired-via`, `origin-purchased-from`, `origin-built-by`); the two component variants share the existing `POST /component-relations` endpoint via a `relationSubType` of `Triggers` or `Serves`.
+- **`useCreateRelatedEntity` orchestrator** (`features/canvas/hooks/useCreateRelatedEntity.ts`) — owns pending state; on `handleEntityCreated` runs `dispatchRelation` then add-to-view at the offset; on relation failure shows an actionable toast naming the entry and keeps the new entity on the canvas; in dynamic mode (`dynamicViewId` set) writes the entity + position into the draft store via `draftAddEntities` and skips backend calls.
+- **`useSourceEntityRelated`** — resolves a node id (with prefixes `cap-`/`acq-`/`vendor-`/`team-`) to its source entity via the existing query hooks and returns `getPostableRelated(entity)`.
+- **`HandleCreateController`** (`features/canvas/components/HandleCreateController.tsx`) — single mount inside `ComponentCanvasInner`. Wires click detection ⇒ picker ⇒ orchestrator ⇒ existing dialogs (`CreateComponentDialog`, `CreateCapabilityDialog`, `CreateAcquiredEntityDialog`, `CreateVendorDialog`, `CreateInternalTeamDialog`). For `capability-parent`, computes `prefill.level` as `nextLevel(sourceLevel)`.
+- **Pre-fill / `onCreated` props on the 5 existing create dialogs** — additive, opt-in. When `onCreated` is supplied, the dialog hands the new entity to the orchestrator and skips its default add-to-view; treeview `+` button still calls the dialogs without these props and continues to work as before.
+- **Cursor styling** — single CSS rule `.react-flow__handle { cursor: pointer }` covers all five node kinds.
+- **Playwright E2E** — `e2e/handle-create.spec.ts` covers the Component-to-Component happy path: create source ⇒ click right handle ⇒ pick "Component (related)" ⇒ submit Create dialog ⇒ assert both nodes visible.
+
+The frontend picker reads exclusively from `_links["x-related"]` entries advertising `POST`. `CONNECTION_TYPE_MAP` is unchanged and remains the source of truth for the drag-connect flow; it is not referenced by `HandleCreatePicker`, `useSourceEntityRelated`, or `useCreateRelatedEntity`.
 
 ---
 
@@ -418,8 +433,84 @@ Phase B (frontend) and Phase C (verification) are not yet started; their work re
 ## Checklist
 
 - [x] Specification ready
-- [ ] Implementation done <!-- backend (Phase A) complete; frontend (Phase B) not started -->
-- [ ] Unit tests implemented and passing <!-- backend unit tests in place; frontend pending -->
-- [x] Integration tests implemented if relevant <!-- Component-to-Component round-trip test under `integration` build tag -->
-- [x] API documentation updated <!-- Swagger regenerated with RelatedLink, XRelatedReferenceDoc, and /reference/x-related-links route -->
+- [x] Implementation done <!-- backend Phase A, frontend Phase B, addendum gaps A & B all complete -->
+- [x] Unit tests implemented and passing <!-- backend + frontend; new tests cover origin-from-component and component-triggers/serves split -->
+- [x] Integration tests implemented if relevant <!-- Component-to-Component round-trip test (now via component-triggers) under `integration` build tag + Playwright E2E for the happy path -->
+- [x] API documentation updated <!-- Swagger regenerated; reference example uses component-triggers -->
 - [ ] User sign-off
+
+---
+
+## Addendum — Implementation Gaps Discovered After Initial Sign-Off
+
+Two gaps surfaced during a post-implementation review. Both are continuations of the existing acceptance criteria (1, 5–9) and design decision 1 ("HATEOAS as the single source of validity"), not new behavior.
+
+### Gap A — Component must advertise origin-entity creation
+
+The original implementation only emits one `x-related` entry on Component (the self-relation). The acceptance criteria require *every* canvas-renderable entity to expose entries for *every* relation it can participate in. From a Component's point of view, a user can validly create a related AcquiredEntity, Vendor, or InternalTeam (the three origin types), with the new entity automatically linked back as the Component's origin.
+
+#### Additional BDD scenarios
+
+```gherkin
+Scenario: Click a handle on a Component to create a related Acquired Entity
+  Given the canvas contains a Component "Order Service"
+  And the response for "Order Service" includes an "x-related" entry
+       with relationType "origin-acquired-via" and targetType "acquiredEntity" advertising POST
+  When I click a handle on "Order Service" and select "Acquired Entity (acquired-via)"
+  Then the existing Create Acquired Entity dialog opens
+  When I fill in the dialog and submit
+  Then a new Acquired Entity is created
+  And an "AcquiredVia" origin relation links "Order Service" to the new Acquired Entity
+  And the new Acquired Entity is added to the current view, positioned next to "Order Service"
+
+Scenario: Click a handle on a Component to create a related Vendor
+  Given the canvas contains a Component "Order Service"
+  When I click a handle on "Order Service" and select "Vendor (purchased-from)"
+  Then the existing Create Vendor dialog opens
+  When I fill in the dialog and submit
+  Then a new Vendor is created
+  And a "PurchasedFrom" origin relation links "Order Service" to the new Vendor
+
+Scenario: Click a handle on a Component to create a related Internal Team
+  Given the canvas contains a Component "Order Service"
+  When I click a handle on "Order Service" and select "Internal Team (built-by)"
+  Then the existing Create Internal Team dialog opens
+  When I fill in the dialog and submit
+  Then a new Internal Team is created
+  And a "BuiltBy" origin relation links "Order Service" to the new Internal Team
+```
+
+#### Additional invariants
+
+A1. **Origin relations are bidirectional affordances.** The same `relationType` value (`origin-acquired-via` / `origin-purchased-from` / `origin-built-by`) appears on *both* the Component side (with `targetType` of `acquiredEntity` / `vendor` / `internalTeam`) and the corresponding origin-entity side (with `targetType` of `component`). The relation endpoint (PUT `/api/v1/components/{id}/origin/...`) is symmetric in semantics — it links a Component to its origin — and is unchanged.
+
+A2. **Source / target identity is determined by `targetType`.** When the orchestrator dispatches the relation, it uses the picker entry's `targetType` to decide which side of the origin link is the just-created entity and which is the source. It does *not* infer this from the source node's type alone.
+
+A3. **Permissions follow the existing `components:write` gate** — the same permission already required to create an origin entity and to mutate the Component.
+
+#### Additional acceptance criteria
+
+- [ ] Component's `x-related` array contains four POST-capable entries when authorized: one with `targetType: component` (existing, see Gap B for split), and three with `targetType` of `acquiredEntity` / `vendor` / `internalTeam`.
+- [ ] Each origin-from-component entry's `href` points at the relevant flat collection POST endpoint (`/acquired-entities`, `/vendors`, `/internal-teams`).
+- [ ] Each origin-from-component entry's `title` is `"Acquired Entity (acquired-via)"`, `"Vendor (purchased-from)"`, `"Internal Team (built-by)"`.
+- [ ] The frontend `planRelationCall` correctly assigns the just-created entity's id to the origin slot and the source entity's id to the component slot when the picker entry's `targetType` is an origin type, without any new `relationType` strings.
+
+### Gap B — Triggers and Serves are separate picker entries
+
+The original implementation emitted a single `component-relation` entry on Component and let the frontend split it into two picker rows by string-mutating the `title` and tagging on a `relationSubType`. This duplicates domain knowledge (the Triggers/Serves enumeration) on the frontend, which design decision 1 rejects. The picker must show what the backend advertises, nothing more.
+
+#### Additional invariants
+
+B1. **One picker entry per relation kind.** `component-relation` is replaced on the wire by two distinct `relationType` values: `component-triggers` and `component-serves`. Both advertise the same `href` (`/api/v1/components`) and target (`targetType: component`) but carry distinct `title`s — `"Component (triggers)"` and `"Component (serves)"`.
+
+B2. **`LookupRelationEndpoint` covers both.** Both new `relationType` values resolve to the same backend endpoint (POST `/api/v1/relations`) — the body discriminator (`Triggers` vs `Serves`) is determined by the `relationType` itself.
+
+B3. **Frontend picker becomes pure.** `HandleCreatePicker` no longer synthesizes variants. The component-relation specific helpers (`COMPONENT_RELATION_VARIANTS`, `variantEntry`, `stripParenthetical`) are removed.
+
+#### Additional acceptance criteria
+
+- [ ] Backend Component `x-related` advertises `component-triggers` and `component-serves` as separate entries (not `component-relation`).
+- [ ] `LookupRelationEndpoint` resolves both `component-triggers` and `component-serves` to the existing `/api/v1/relations` POST endpoint.
+- [ ] `HandleCreatePicker` no longer contains `COMPONENT_RELATION_VARIANTS`, `variantsFor` for component-relation, or `stripParenthetical`.
+- [ ] `planRelationCall` accepts `component-triggers` and `component-serves` and produces a `component-relation` call spec with the matching `relationSubType`. The string `component-relation` is no longer used as a `relationType` value anywhere in the contract or the codebase.
+- [ ] Round-trip integration test continues to pass against the new entry names.

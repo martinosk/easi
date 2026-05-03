@@ -54,46 +54,67 @@ func (h *ArchitectureModelingLinks) ComponentExpertLinksForActor(p sharedAPI.Exp
 	return h.ExpertRemoveLink(p, actor, "components")
 }
 
-type componentRelationKind struct {
+type relatedLinkSpec struct {
+	HrefSuffix   string
 	Title        string
+	TargetType   string
 	RelationType string
 }
 
 var (
-	componentSelfRelation          = componentRelationKind{Title: "Component (related)", RelationType: "component-relation"}
-	componentAcquiredViaRelation   = componentRelationKind{Title: "Component (acquired-via)", RelationType: "origin-acquired-via"}
-	componentPurchasedFromRelation = componentRelationKind{Title: "Component (purchased-from)", RelationType: "origin-purchased-from"}
-	componentBuiltByRelation       = componentRelationKind{Title: "Component (built-by)", RelationType: "origin-built-by"}
+	componentTriggersSpec   = relatedLinkSpec{HrefSuffix: "/components", Title: "Component (triggers)", TargetType: "component", RelationType: "component-triggers"}
+	componentServesSpec     = relatedLinkSpec{HrefSuffix: "/components", Title: "Component (serves)", TargetType: "component", RelationType: "component-serves"}
+	componentAcquiredVia    = relatedLinkSpec{HrefSuffix: "/acquired-entities", Title: "Acquired Entity (acquired-via)", TargetType: "acquiredEntity", RelationType: "origin-acquired-via"}
+	componentPurchasedFrom  = relatedLinkSpec{HrefSuffix: "/vendors", Title: "Vendor (purchased-from)", TargetType: "vendor", RelationType: "origin-purchased-from"}
+	componentBuiltBy        = relatedLinkSpec{HrefSuffix: "/internal-teams", Title: "Internal Team (built-by)", TargetType: "internalTeam", RelationType: "origin-built-by"}
+	acquiredEntitySpec      = relatedLinkSpec{HrefSuffix: "/components", Title: "Component (acquired-via)", TargetType: "component", RelationType: "origin-acquired-via"}
+	vendorSpec              = relatedLinkSpec{HrefSuffix: "/components", Title: "Component (purchased-from)", TargetType: "component", RelationType: "origin-purchased-from"}
+	internalTeamSpec        = relatedLinkSpec{HrefSuffix: "/components", Title: "Component (built-by)", TargetType: "component", RelationType: "origin-built-by"}
 )
 
-func (h *ArchitectureModelingLinks) componentRelatedFor(kind componentRelationKind, actor sharedctx.Actor) []types.RelatedLink {
-	related := []types.RelatedLink{}
-	if actor.CanWrite("components") {
-		related = append(related, types.RelatedLink{
-			Href:         h.Base() + "/components",
-			Methods:      []string{"POST"},
-			Title:        kind.Title,
-			TargetType:   "component",
-			RelationType: kind.RelationType,
-		})
+func (h *ArchitectureModelingLinks) buildRelated(spec relatedLinkSpec) types.RelatedLink {
+	return types.RelatedLink{
+		Href:         h.Base() + spec.HrefSuffix,
+		Methods:      []string{"POST"},
+		Title:        spec.Title,
+		TargetType:   spec.TargetType,
+		RelationType: spec.RelationType,
+	}
+}
+
+func (h *ArchitectureModelingLinks) gatedRelated(specs []relatedLinkSpec, actor sharedctx.Actor) []types.RelatedLink {
+	if !actor.CanWrite("components") {
+		return []types.RelatedLink{}
+	}
+	related := make([]types.RelatedLink, 0, len(specs))
+	for _, spec := range specs {
+		related = append(related, h.buildRelated(spec))
 	}
 	return related
 }
 
+var componentXRelatedSpecs = []relatedLinkSpec{
+	componentTriggersSpec,
+	componentServesSpec,
+	componentAcquiredVia,
+	componentPurchasedFrom,
+	componentBuiltBy,
+}
+
 func (h *ArchitectureModelingLinks) ComponentXRelatedForActor(actor sharedctx.Actor) []types.RelatedLink {
-	return h.componentRelatedFor(componentSelfRelation, actor)
+	return h.gatedRelated(componentXRelatedSpecs, actor)
 }
 
 func (h *ArchitectureModelingLinks) AcquiredEntityXRelatedForActor(actor sharedctx.Actor) []types.RelatedLink {
-	return h.componentRelatedFor(componentAcquiredViaRelation, actor)
+	return h.gatedRelated([]relatedLinkSpec{acquiredEntitySpec}, actor)
 }
 
 func (h *ArchitectureModelingLinks) VendorXRelatedForActor(actor sharedctx.Actor) []types.RelatedLink {
-	return h.componentRelatedFor(componentPurchasedFromRelation, actor)
+	return h.gatedRelated([]relatedLinkSpec{vendorSpec}, actor)
 }
 
 func (h *ArchitectureModelingLinks) InternalTeamXRelatedForActor(actor sharedctx.Actor) []types.RelatedLink {
-	return h.componentRelatedFor(componentBuiltByRelation, actor)
+	return h.gatedRelated([]relatedLinkSpec{internalTeamSpec}, actor)
 }
 
 func (h *ArchitectureModelingLinks) RelationLinks(id string) sharedAPI.Links {
