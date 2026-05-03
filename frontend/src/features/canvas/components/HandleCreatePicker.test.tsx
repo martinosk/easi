@@ -64,12 +64,8 @@ describe('HandleCreatePicker', () => {
     document.body.removeChild(outside);
   });
 
-  it('renders a Cancel control that calls onClose without onSelect', () => {
-    const onSelect = vi.fn();
-    const onClose = vi.fn();
-    render(<HandleCreatePicker x={0} y={0} entries={[entry()]} onSelect={onSelect} onClose={onClose} />);
-    fireEvent.click(screen.getByRole('menuitem', { name: /cancel/i }));
-    expect(onSelect).not.toHaveBeenCalled();
-    expect(onClose).toHaveBeenCalled();
+  it('does not render a Cancel control — outside-click handles cancellation', () => {
+    render(<HandleCreatePicker x={0} y={0} entries={[entry()]} onSelect={() => {}} onClose={() => {}} />);
+    expect(screen.queryByRole('menuitem', { name: /cancel/i })).toBeNull();
   });
 });

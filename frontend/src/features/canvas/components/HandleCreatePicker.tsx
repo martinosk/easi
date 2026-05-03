@@ -22,7 +22,5 @@ export const HandleCreatePicker: React.FC<HandleCreatePickerProps> = ({ x, y, en
     onClick: () => onSelect({ entry }),
   }));
 
-  items.push({ label: 'Cancel', onClick: onClose, ariaLabel: 'Cancel' });
-
   return <ContextMenu x={x} y={y} items={items} onClose={onClose} />;
 };

@@ -105,7 +105,7 @@ Feature: Create Related Entity from Canvas Handle
 
   Scenario: Cancel the picker without creating anything
     Given the picker is open after clicking a handle
-    When I press Escape, click outside the picker, or click "Cancel"
+    When I press Escape or click outside the picker (e.g. on the canvas background)
     Then the picker closes
     And no entity, relation, or view change is made
 
@@ -189,7 +189,7 @@ Feature: Create Related Entity from Canvas Handle
 - [x] Submitting the dialog creates the entity, the relation, and the view-addition in that order, using existing endpoints only
 - [x] The new node is rendered on the canvas at a deterministic offset from the source handle, in the direction of the clicked side, without overlapping the source
 - [x] The new edge connects the source and the new entity using the existing edge-rendering pipeline (no new edge type)
-- [x] Pressing Escape, clicking outside, or clicking Cancel closes the picker without side effects
+- [x] Pressing Escape or clicking outside the picker closes it without side effects (no explicit Cancel item — outside-click is the cancel affordance)
 - [x] Closing the create dialog without submitting leaves the canvas unchanged
 - [x] In Dynamic View Mode, handle-driven creation adds to the draft and produces no backend calls until Save; discarding the draft removes the new entity and its relation
 - [x] In regular mode, a failure during relation creation surfaces an actionable error naming the failed relation; the just-created entity is kept on the canvas (no auto-rollback) so the user can retry the relation manually
@@ -324,7 +324,7 @@ A5. Backend tests:
 
 B1. Handle click-vs-drag detection on `ComponentNode`, `CapabilityNode`, `OriginEntityNode`. Cursor styling on hover. Pixel threshold for click vs drag.
 
-B2. `HandleCreatePicker` component — popover anchored to the clicked handle, list built from the source entity's `x-related` array filtered to entries advertising `POST`. Empty filtered list → no popover, click is a no-op. Escape / outside-click / Cancel closes without side effect.
+B2. `HandleCreatePicker` component — popover anchored to the clicked handle, list built from the source entity's `x-related` array filtered to entries advertising `POST`. Empty filtered list → no popover, click is a no-op. Escape or outside-click closes without side effect (there is no explicit Cancel item).
 
 B3. `useCreateRelatedEntity` orchestrator hook —
   - On entry selection: opens the existing create dialog selected by `targetType`, passing pre-fill where applicable (capability level for parent relation; any other invariants surfaced by the entry).
@@ -385,7 +385,7 @@ Phase A (acceptance criteria 1–4 and 16) is implemented and green:
 
 Phase B (acceptance criteria 5–15, 17, 18) is implemented and green:
 - **`utils/xRelated.ts`** — `RelatedLink` type + `getXRelated`, `getPostableRelated`, `resolveRelationEndpoint` mirroring `types.LookupRelationEndpoint`. Unit-tested.
-- **`HandleCreatePicker`** (`features/canvas/components/HandleCreatePicker.tsx`) — popover anchored to the clicked handle; renders one menu item per entry's `title`; closes on Escape, outside-click, Cancel, or item selection. Empty list renders nothing.
+- **`HandleCreatePicker`** (`features/canvas/components/HandleCreatePicker.tsx`) — popover anchored to the clicked handle; renders one menu item per entry's `title`; closes on Escape, outside-click, or item selection. No explicit Cancel item — outside-click is the cancel affordance. Empty list renders nothing.
 - **Click-vs-drag detection** (`features/canvas/utils/handleClick.ts`, `features/canvas/hooks/useHandleClickDetection.ts`) — pure `isClickGesture` helper (5px default threshold) plus a hook that delegates `mousedown`/`mouseup` events on `.react-flow__handle` elements, reading `data-nodeid` and `data-handlepos` (with parent-`data-id` fallback for tests). Below threshold ⇒ click; above threshold ⇒ drag continues to React Flow's connect flow untouched.
 - **Position offset** (`features/canvas/utils/offsetPosition.ts`) — deterministic offset by clicked side; large enough to avoid overlap (≥220px horizontal, ≥120px vertical).
 - **Relation dispatch planner** (`features/canvas/utils/relationDispatch.ts`) — pure mapping from `relationType` to a typed call spec (`component-relation`, `capability-parent`, `capability-realization`, `origin-acquired-via`, `origin-purchased-from`, `origin-built-by`).
