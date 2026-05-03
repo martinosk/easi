@@ -110,7 +110,6 @@ function resetStore() {
       dynamicEntities: [],
       dynamicOriginal: null,
       dynamicPositions: {},
-      dynamicRelations: [],
       draftsByView: {},
     });
   });
@@ -124,7 +123,6 @@ function enableDynamicMode() {
       dynamicOriginal: { entities: [], positions: {} },
       dynamicEntities: [],
       dynamicPositions: {},
-      dynamicRelations: [],
     });
   });
 }
@@ -324,11 +322,17 @@ describe('useCreateRelatedEntity — relation failure rollback', () => {
 });
 
 describe('useCreateRelatedEntity — dynamic mode', () => {
-  it('writes the entity, position, and relation to the draft store and skips backend calls', async () => {
+  it('dispatches the relation to the backend immediately while drafting only the view placement', async () => {
     enableDynamicMode();
     await runFlow({ entry: componentEntry, sourceEntityId: 'comp-source', newEntityId: 'comp-new' });
 
-    expect(createRelationMutate).not.toHaveBeenCalled();
+    expect(createRelationMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceComponentId: 'comp-source',
+        targetComponentId: 'comp-new',
+        relationType: 'Triggers',
+      }),
+    );
     expect(addComponentToViewMutate).not.toHaveBeenCalled();
 
     const state = useAppStore.getState();
@@ -336,17 +340,9 @@ describe('useCreateRelatedEntity — dynamic mode', () => {
     expect(state.dynamicPositions['comp-new']).toBeDefined();
     expect(state.dynamicPositions['comp-new'].x).toBeGreaterThan(100);
     expect(state.dynamicPositions['comp-new'].y).toBe(200);
-    expect(state.dynamicRelations).toEqual([
-      expect.objectContaining({
-        kind: 'component-relation',
-        sourceComponentId: 'comp-source',
-        targetComponentId: 'comp-new',
-        relationSubType: 'Triggers',
-      }),
-    ]);
   });
 
-  it('records the chosen Serves subtype on the draft relation', async () => {
+  it('honors the chosen Serves subtype when dispatching the relation', async () => {
     enableDynamicMode();
     await runFlow({
       entry: componentEntry,
@@ -355,7 +351,18 @@ describe('useCreateRelatedEntity — dynamic mode', () => {
       relationSubType: 'Serves',
     });
 
-    const state = useAppStore.getState();
-    expect(state.dynamicRelations[0]).toMatchObject({ kind: 'component-relation', relationSubType: 'Serves' });
+    expect(createRelationMutate).toHaveBeenCalledWith(
+      expect.objectContaining({ relationType: 'Serves' }),
+    );
+  });
+
+  it('dispatches a capability-parent relation immediately when the source is a capability', async () => {
+    enableDynamicMode();
+    await runFlow({ entry: capabilityParentEntry, sourceEntityId: 'cap-source', newEntityId: 'cap-new' });
+
+    expect(changeCapabilityParentMutate).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'cap-new', newParentId: 'cap-source' }),
+    );
+    expect(addCapabilityToViewMutate).not.toHaveBeenCalled();
   });
 });

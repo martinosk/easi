@@ -278,7 +278,6 @@ describe('dynamicModeSlice — per-view drafts', () => {
       entities: initA.entities,
       positions: initA.positions,
       filters: getState().dynamicFilters,
-      relations: [],
     });
   });
 

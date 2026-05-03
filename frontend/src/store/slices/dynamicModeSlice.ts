@@ -1,6 +1,5 @@
 import type { StateCreator } from 'zustand';
 import type { DynamicFilters, EdgeType, EntityRef, EntityType } from '../../features/canvas/utils/dynamicMode';
-import type { RelationCallSpec } from '../../features/canvas/utils/relationDispatch';
 
 export type Position = { x: number; y: number };
 
@@ -14,7 +13,6 @@ export interface DraftEntry {
   entities: EntityRef[];
   positions: Record<string, Position>;
   filters: DynamicFilters;
-  relations?: RelationCallSpec[];
 }
 
 export interface DynamicModeState {
@@ -23,7 +21,6 @@ export interface DynamicModeState {
   dynamicEntities: EntityRef[];
   dynamicPositions: Record<string, Position>;
   dynamicFilters: DynamicFilters;
-  dynamicRelations: RelationCallSpec[];
   draftsByView: Record<string, DraftEntry>;
 }
 
@@ -35,7 +32,6 @@ export interface DynamicModeActions {
   draftRemoveEntities: (ids: string[]) => void;
   draftSetPosition: (id: string, x: number, y: number) => void;
   draftSetPositions: (updates: Record<string, Position>) => void;
-  draftAddRelation: (spec: RelationCallSpec) => void;
   draftSetEdgeFilter: (edge: EdgeType, enabled: boolean) => void;
   draftSetTypeFilter: (type: EntityType, enabled: boolean) => void;
   stashCurrentDraft: (viewId: string) => void;
@@ -57,7 +53,6 @@ function snapshotEntry(s: DynamicModeState): DraftEntry | null {
     entities: [...s.dynamicEntities],
     positions: { ...s.dynamicPositions },
     filters: cloneFilters(s.dynamicFilters),
-    relations: [...s.dynamicRelations],
   };
 }
 
@@ -80,7 +75,6 @@ export const createDynamicModeSlice: StateCreator<SliceState, [], [], SliceState
   dynamicEntities: [],
   dynamicPositions: {},
   dynamicFilters: defaultFilters,
-  dynamicRelations: [],
   draftsByView: {},
 
   enterDynamicMode: (initial, viewId = null) => {
@@ -91,7 +85,6 @@ export const createDynamicModeSlice: StateCreator<SliceState, [], [], SliceState
         dynamicViewId: viewId,
         dynamicEntities: [...initial.entities],
         dynamicPositions: { ...initial.positions },
-        dynamicRelations: [],
       };
       if (!viewId) return base;
       const entry: DraftEntry = {
@@ -99,7 +92,6 @@ export const createDynamicModeSlice: StateCreator<SliceState, [], [], SliceState
         entities: [...initial.entities],
         positions: { ...initial.positions },
         filters: cloneFilters(s.dynamicFilters),
-        relations: [],
       };
       return { ...base, draftsByView: { ...s.draftsByView, [viewId]: entry } };
     });
@@ -111,7 +103,6 @@ export const createDynamicModeSlice: StateCreator<SliceState, [], [], SliceState
       dynamicEntities: [],
       dynamicPositions: {},
       dynamicFilters: defaultFilters,
-      dynamicRelations: [],
     });
   },
   resetDraft: () => {
@@ -120,7 +111,6 @@ export const createDynamicModeSlice: StateCreator<SliceState, [], [], SliceState
       const patch: Partial<DynamicModeState> = {
         dynamicEntities: [...s.dynamicOriginal.entities],
         dynamicPositions: { ...s.dynamicOriginal.positions },
-        dynamicRelations: [],
       };
       return withMirror(s, patch);
     });
@@ -148,7 +138,6 @@ export const createDynamicModeSlice: StateCreator<SliceState, [], [], SliceState
       const patch: Partial<DynamicModeState> = {
         dynamicEntities: s.dynamicEntities.filter((e) => !drop.has(e.id)),
         dynamicPositions: nextPositions,
-        dynamicRelations: s.dynamicRelations.filter((r) => !relationTouchesIds(r, drop)),
       };
       return withMirror(s, patch);
     });
@@ -160,10 +149,6 @@ export const createDynamicModeSlice: StateCreator<SliceState, [], [], SliceState
 
   draftSetPositions: (updates) => {
     set((s) => withMirror(s, { dynamicPositions: { ...s.dynamicPositions, ...updates } }));
-  },
-
-  draftAddRelation: (spec) => {
-    set((s) => withMirror(s, { dynamicRelations: [...s.dynamicRelations, spec] }));
   },
 
   draftSetEdgeFilter: (edge, enabled) => {
@@ -202,7 +187,6 @@ export const createDynamicModeSlice: StateCreator<SliceState, [], [], SliceState
         dynamicEntities: [...entry.entities],
         dynamicPositions: { ...entry.positions },
         dynamicFilters: cloneFilters(entry.filters),
-        dynamicRelations: entry.relations ? [...entry.relations] : [],
       };
     });
     return hydrated;
@@ -220,32 +204,10 @@ export const createDynamicModeSlice: StateCreator<SliceState, [], [], SliceState
         dynamicEntities: [],
         dynamicPositions: {},
         dynamicFilters: defaultFilters,
-        dynamicRelations: [],
       };
     });
   },
 });
-
-function relationEndpoints(spec: RelationCallSpec): readonly string[] {
-  switch (spec.kind) {
-    case 'component-relation':
-      return [spec.sourceComponentId, spec.targetComponentId];
-    case 'capability-parent':
-      return [spec.childCapabilityId, spec.parentCapabilityId];
-    case 'capability-realization':
-      return [spec.capabilityId, spec.componentId];
-    case 'origin-acquired-via':
-      return [spec.componentId, spec.acquiredEntityId];
-    case 'origin-purchased-from':
-      return [spec.componentId, spec.vendorId];
-    case 'origin-built-by':
-      return [spec.componentId, spec.internalTeamId];
-  }
-}
-
-function relationTouchesIds(spec: RelationCallSpec, ids: ReadonlySet<string>): boolean {
-  return relationEndpoints(spec).some((id) => ids.has(id));
-}
 
 export type DynamicDiffState = Pick<DynamicModeState, 'dynamicOriginal' | 'dynamicEntities' | 'dynamicPositions'>;
 
@@ -276,25 +238,19 @@ export function selectDynamicPositionDeltas(state: DynamicDiffState): Record<str
   return out;
 }
 
-interface DirtyState extends DynamicDiffState {
-  dynamicRelations?: RelationCallSpec[];
-}
-
-export function selectDynamicDirty(state: DirtyState): boolean {
+export function selectDynamicDirty(state: DynamicDiffState): boolean {
   if (!state.dynamicOriginal) return false;
   if (selectDynamicAdditions(state).length > 0) return true;
   if (selectDynamicRemovals(state).length > 0) return true;
   if (Object.keys(selectDynamicPositionDeltas(state)).length > 0) return true;
-  if ((state.dynamicRelations?.length ?? 0) > 0) return true;
   return false;
 }
 
-function entryAsDirtyState(entry: DraftEntry): DirtyState {
+function entryAsDirtyState(entry: DraftEntry): DynamicDiffState {
   return {
     dynamicOriginal: entry.original,
     dynamicEntities: entry.entities,
     dynamicPositions: entry.positions,
-    dynamicRelations: entry.relations ?? [],
   };
 }
 

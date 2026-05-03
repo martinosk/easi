@@ -135,7 +135,6 @@ export function useCreateRelatedEntity(): UseCreateRelatedEntityResult {
   const [pending, setPending] = useState<PendingCreate | null>(null);
   const dynamicViewId = useAppStore((s) => s.dynamicViewId);
   const draftAddEntities = useAppStore((s) => s.draftAddEntities);
-  const draftAddRelation = useAppStore((s) => s.draftAddRelation);
 
   const dispatchRelation = useRelationDispatcher();
   const addToView = useViewAdder();
@@ -156,21 +155,21 @@ export function useCreateRelatedEntity(): UseCreateRelatedEntityResult {
         current.relationSubType,
       );
 
+      await runRegularModePersist(spec, current, dispatchRelation);
+
       if (dynamicViewId) {
         draftAddEntities(
           [{ id: entityId, type: targetTypeToEntityType[current.entry.targetType] }],
           { [entityId]: targetPosition },
         );
-        if (spec) draftAddRelation(spec);
         setPending(null);
         return;
       }
 
-      await runRegularModePersist(spec, current, dispatchRelation);
       await safeAddToView(addToView, current.entry.targetType, entityId, targetPosition);
       setPending(null);
     },
-    [pending, dynamicViewId, draftAddEntities, draftAddRelation, dispatchRelation, addToView],
+    [pending, dynamicViewId, draftAddEntities, dispatchRelation, addToView],
   );
 
   return { pending, start, cancel, handleEntityCreated };

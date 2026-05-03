@@ -42,7 +42,6 @@ function makeDirtyDraftFor(viewId: string) {
         entities: [{ id: 'X', type: 'component' }],
         positions: { X: { x: 0, y: 0 } },
         filters: allFiltersEnabled,
-        relations: [],
       },
     },
   });
