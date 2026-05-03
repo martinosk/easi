@@ -172,6 +172,7 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
           onMoveEnd={onMoveEnd}
           nodeTypes={nodeTypes}
           connectionMode={ConnectionMode.Loose}
+          connectOnClick={false}
           multiSelectionKeyCode={multiSelectionKeys}
           minZoom={0.1}
           maxZoom={2}

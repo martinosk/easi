@@ -27,7 +27,7 @@ test.describe('Spec 165 — handle-click create related component', () => {
     await page.mouse.down();
     await page.mouse.up();
 
-    const pickerItem = page.getByRole('menuitem', { name: 'Component (Triggers)' });
+    const pickerItem = page.getByRole('menuitem', { name: 'Component (triggers)' });
     await expect(pickerItem).toBeVisible();
     await pickerItem.click();
 
@@ -38,5 +38,37 @@ test.describe('Spec 165 — handle-click create related component', () => {
 
     await expect(page.locator('.component-node-header').filter({ hasText: 'Order Service' })).toBeVisible();
     await expect(page.locator('.component-node-header').filter({ hasText: 'Payment Service' })).toBeVisible();
+  });
+
+  test('clicking one handle then another does not create a relation (drag-only)', async ({ page }) => {
+    await page.click('[data-testid="create-component-button"]');
+    await page.fill('[data-testid="component-name-input"]', 'Alpha');
+    await page.click('[data-testid="create-component-submit"]');
+    await expect(page.locator('[data-testid="create-component-dialog"]')).not.toBeVisible();
+
+    await page.click('[data-testid="create-component-button"]');
+    await page.fill('[data-testid="component-name-input"]', 'Beta');
+    await page.click('[data-testid="create-component-submit"]');
+    await expect(page.locator('[data-testid="create-component-dialog"]')).not.toBeVisible();
+
+    const alpha = page.locator('[data-component-id]').filter({ hasText: 'Alpha' }).first();
+    const beta = page.locator('[data-component-id]').filter({ hasText: 'Beta' }).first();
+    await expect(alpha).toBeVisible();
+    await expect(beta).toBeVisible();
+
+    const clickHandle = async (node: ReturnType<typeof page.locator>) => {
+      const handle = node.locator('.component-handle-right').first();
+      const box = await handle.boundingBox();
+      if (!box) throw new Error('handle had no bounding box');
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      await page.mouse.down();
+      await page.mouse.up();
+    };
+
+    await clickHandle(alpha);
+    await page.keyboard.press('Escape');
+    await clickHandle(beta);
+
+    await expect(page.locator('[data-testid="relation-name-input"]')).toHaveCount(0);
   });
 });
