@@ -1,6 +1,11 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { Capability, CapabilityId } from '../../../api/types';
-import type { ContextMenuItem } from '../../../components/shared/ContextMenu';
+import {
+  type ContextMenuItem,
+  FolderMinusIcon,
+  TrashIcon,
+  UserPlusIcon,
+} from '../../../components/shared/ContextMenu';
 import { hasLink } from '../../../utils/hateoas';
 
 interface CapabilityContextMenuState {
@@ -80,13 +85,29 @@ function buildMenuItems(
 ): ContextMenuItem[] {
   const items: ContextMenuItem[] = [];
   if (permissions.canRemoveFromDomain) {
-    items.push({ label: 'Remove from Business Domain', onClick: actions.handleRemoveFromDomain });
+    items.push({
+      label: 'Remove from Business Domain',
+      description: 'Detach from this domain (keep in model)',
+      icon: <FolderMinusIcon />,
+      onClick: actions.handleRemoveFromDomain,
+    });
   }
   if (permissions.canDeleteFromModel) {
-    items.push({ label: 'Delete from Model', onClick: actions.handleDeleteFromModel, isDanger: true });
+    items.push({
+      label: 'Delete from Model',
+      description: 'Permanently remove this capability',
+      icon: <TrashIcon />,
+      onClick: actions.handleDeleteFromModel,
+      isDanger: true,
+    });
   }
   if (contextMenu?.capability && hasLink(contextMenu.capability, 'x-edit-grants')) {
-    items.unshift({ label: 'Invite to Edit...', onClick: actions.handleInviteToEdit });
+    items.unshift({
+      label: 'Invite to Edit...',
+      description: 'Grant another user edit access',
+      icon: <UserPlusIcon />,
+      onClick: actions.handleInviteToEdit,
+    });
   }
   return items;
 }

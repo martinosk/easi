@@ -38,6 +38,7 @@ export const TreeContextMenus: React.FC<TreeContextMenusProps> = ({
       <ContextMenu
         x={viewContextMenu.x}
         y={viewContextMenu.y}
+        title={viewContextMenu.view.name}
         items={getViewContextMenuItems(viewContextMenu)}
         onClose={() => setViewContextMenu(null)}
       />
@@ -46,6 +47,7 @@ export const TreeContextMenus: React.FC<TreeContextMenusProps> = ({
       <ContextMenu
         x={componentContextMenu.x}
         y={componentContextMenu.y}
+        title={componentContextMenu.component.name}
         items={getComponentContextMenuItems(componentContextMenu)}
         onClose={() => setComponentContextMenu(null)}
       />
@@ -54,6 +56,7 @@ export const TreeContextMenus: React.FC<TreeContextMenusProps> = ({
       <ContextMenu
         x={capabilityContextMenu.x}
         y={capabilityContextMenu.y}
+        title={capabilityContextMenu.capability.name}
         items={getCapabilityContextMenuItems(capabilityContextMenu)}
         onClose={() => setCapabilityContextMenu(null)}
       />
@@ -62,6 +65,7 @@ export const TreeContextMenus: React.FC<TreeContextMenusProps> = ({
       <ContextMenu
         x={originEntityContextMenu.x}
         y={originEntityContextMenu.y}
+        title={originEntityContextMenu.entity.name}
         items={getOriginEntityContextMenuItems(originEntityContextMenu)}
         onClose={() => setOriginEntityContextMenu(null)}
       />

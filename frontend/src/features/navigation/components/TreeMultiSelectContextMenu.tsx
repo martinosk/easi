@@ -1,4 +1,4 @@
-import { ContextMenu, type ContextMenuItem } from '../../../components/shared/ContextMenu';
+import { ContextMenu, type ContextMenuItem, TrashIcon } from '../../../components/shared/ContextMenu';
 import type { TreeSelectedItem } from '../hooks/useTreeMultiSelect';
 import type { TreeBulkAction, TreeMultiSelectMenuState } from '../hooks/useTreeMultiSelectMenu';
 
@@ -13,6 +13,10 @@ interface TreeMultiSelectContextMenuProps {
   onRequestBulkOperation: (request: TreeBulkOperationRequest) => void;
 }
 
+const ACTION_META: Record<TreeBulkAction['type'], { icon: ContextMenuItem['icon']; description: string }> = {
+  deleteFromModel: { icon: <TrashIcon />, description: 'Permanently remove selected items' },
+};
+
 export const TreeMultiSelectContextMenu = ({
   menu,
   onClose,
@@ -20,19 +24,25 @@ export const TreeMultiSelectContextMenu = ({
 }: TreeMultiSelectContextMenuProps) => {
   if (!menu) return null;
 
-  const items: ContextMenuItem[] = menu.actions.map((action) => ({
-    label: action.label,
-    isDanger: action.isDanger,
-    onClick: () => {
-      onRequestBulkOperation({
-        type: action.type,
-        items: menu.items,
-      });
-      onClose();
-    },
-  }));
+  const items: ContextMenuItem[] = menu.actions.map((action) => {
+    const meta = ACTION_META[action.type];
+    return {
+      label: action.label,
+      isDanger: action.isDanger,
+      icon: meta?.icon,
+      description: meta?.description,
+      onClick: () => {
+        onRequestBulkOperation({
+          type: action.type,
+          items: menu.items,
+        });
+        onClose();
+      },
+    };
+  });
 
   if (items.length === 0) return null;
 
-  return <ContextMenu x={menu.x} y={menu.y} items={items} onClose={onClose} />;
+  const title = `${menu.items.length} selected`;
+  return <ContextMenu x={menu.x} y={menu.y} items={items} title={title} onClose={onClose} />;
 };
