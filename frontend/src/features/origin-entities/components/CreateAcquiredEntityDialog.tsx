@@ -131,6 +131,7 @@ function useAcquiredEntityFormState(
   onCreated?: (entity: CreatedAcquiredEntity) => void | Promise<void>,
 ) {
   const [backendError, setBackendError] = useState<string | null>(null);
+  const [isHandoffPending, setHandoffPending] = useState(false);
   const createMutation = useCreateAcquiredEntity();
   const form = useForm<CreateAcquiredEntityFormData>({
     resolver: zodResolver(createAcquiredEntitySchema),
@@ -141,8 +142,9 @@ function useAcquiredEntityFormState(
   useLayoutEffect(() => {
     if (!isOpen) return;
     form.reset(DEFAULT_VALUES);
-    if (backendError !== null) queueMicrotask(() => setBackendError(null));
-  }, [isOpen, form, backendError]);
+    setBackendError(null);
+    setHandoffPending(false);
+  }, [isOpen, form]);
 
   const onSubmit = async (data: CreateAcquiredEntityFormData) => {
     setBackendError(null);
@@ -154,14 +156,22 @@ function useAcquiredEntityFormState(
         integrationStatus: apiStatus,
         notes: data.notes || undefined,
       });
-      if (onCreated) await onCreated(created);
+      if (onCreated) {
+        setHandoffPending(true);
+        try {
+          await onCreated(created);
+        } finally {
+          setHandoffPending(false);
+        }
+      }
       onClose();
     } catch (err) {
+      setHandoffPending(false);
       setBackendError(err instanceof Error ? err.message : 'Failed to create acquired entity');
     }
   };
 
-  return { form, onSubmit, backendError, isPending: createMutation.isPending };
+  return { form, onSubmit, backendError, isPending: createMutation.isPending || isHandoffPending };
 }
 
 export const CreateAcquiredEntityDialog: React.FC<CreateAcquiredEntityDialogProps> = ({

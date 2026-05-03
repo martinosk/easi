@@ -41,6 +41,21 @@ describe('getXRelated', () => {
     const malformed = { _links: { 'x-related': { href: 'x', method: 'GET' } } as unknown as HATEOASLinks };
     expect(getXRelated(malformed)).toEqual([]);
   });
+
+  it('drops malformed entries while keeping valid ones', () => {
+    const valid = link();
+    const malformed: HATEOASLinks = {
+      'x-related': [
+        valid,
+        null,
+        'not an object',
+        { href: '/x', methods: 'POST', title: 't', targetType: 'component', relationType: 'r' },
+        { href: '/x', methods: ['POST'], title: 't', targetType: 'unknownTarget', relationType: 'r' },
+        { href: '/x', methods: ['POST'], title: 't', targetType: 'component' },
+      ],
+    } as unknown as HATEOASLinks;
+    expect(getXRelated({ _links: malformed })).toEqual([valid]);
+  });
 });
 
 describe('getPostableRelated', () => {

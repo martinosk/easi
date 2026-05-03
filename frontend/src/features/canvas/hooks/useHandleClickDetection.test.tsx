@@ -13,7 +13,8 @@ const Harness: React.FC<{ onHandleClick: ClickFn; threshold?: number }> = ({
   return (
     <div>
       <div data-id="comp-1">
-        <div className="react-flow__handle react-flow__handle-right" data-handlepos="right" data-testid="h-right" />
+        <div className="react-flow__handle react-flow__handle-right" data-handlepos="right" data-testid="h-right-source" />
+        <div className="react-flow__handle react-flow__handle-right" data-handlepos="right" data-testid="h-right-target" />
         <div className="react-flow__handle react-flow__handle-left" data-handlepos="left" data-testid="h-left" />
       </div>
       <div data-id="comp-2">
@@ -34,7 +35,7 @@ describe('useHandleClickDetection', () => {
   it('fires onHandleClick when mousedown and mouseup happen on the same handle without movement', () => {
     const onHandleClick = vi.fn();
     const { getByTestId } = render(<Harness onHandleClick={onHandleClick} />);
-    const handle = getByTestId('h-right');
+    const handle = getByTestId('h-right-source');
 
     fireEvent.mouseDown(handle, { clientX: 50, clientY: 60 });
     fireEvent.mouseUp(handle, { clientX: 50, clientY: 60 });
@@ -48,10 +49,26 @@ describe('useHandleClickDetection', () => {
     });
   });
 
+  it('fires when mouseup lands on the sibling source/target handle on the same side', () => {
+    const onHandleClick = vi.fn();
+    const { getByTestId } = render(<Harness onHandleClick={onHandleClick} />);
+
+    fireEvent.mouseDown(getByTestId('h-right-source'), { clientX: 50, clientY: 60 });
+    fireEvent.mouseUp(getByTestId('h-right-target'), { clientX: 50, clientY: 60 });
+
+    expect(onHandleClick).toHaveBeenCalledTimes(1);
+    expect(onHandleClick).toHaveBeenCalledWith({
+      nodeId: 'comp-1',
+      side: 'right',
+      clientX: 50,
+      clientY: 60,
+    });
+  });
+
   it('does not fire when movement exceeds the threshold (drag)', () => {
     const onHandleClick = vi.fn();
     const { getByTestId } = render(<Harness onHandleClick={onHandleClick} threshold={5} />);
-    const handle = getByTestId('h-right');
+    const handle = getByTestId('h-right-source');
 
     fireEvent.mouseDown(handle, { clientX: 50, clientY: 60 });
     fireEvent.mouseUp(handle, { clientX: 100, clientY: 60 });
@@ -70,12 +87,23 @@ describe('useHandleClickDetection', () => {
     expect(onHandleClick).not.toHaveBeenCalled();
   });
 
-  it('does not fire when mouseup happens on a different handle', () => {
+  it('does not fire when mouseup happens on a handle on a different side', () => {
     const onHandleClick = vi.fn();
     const { getByTestId } = render(<Harness onHandleClick={onHandleClick} />);
 
-    fireEvent.mouseDown(getByTestId('h-right'), { clientX: 50, clientY: 60 });
+    fireEvent.mouseDown(getByTestId('h-right-source'), { clientX: 50, clientY: 60 });
     fireEvent.mouseUp(getByTestId('h-left'), { clientX: 51, clientY: 61 });
+
+    expect(onHandleClick).not.toHaveBeenCalled();
+  });
+
+  it('ignores non-primary mouse buttons (right-click)', () => {
+    const onHandleClick = vi.fn();
+    const { getByTestId } = render(<Harness onHandleClick={onHandleClick} />);
+    const handle = getByTestId('h-right-source');
+
+    fireEvent.mouseDown(handle, { button: 2, clientX: 50, clientY: 60 });
+    fireEvent.mouseUp(handle, { button: 2, clientX: 50, clientY: 60 });
 
     expect(onHandleClick).not.toHaveBeenCalled();
   });

@@ -100,6 +100,7 @@ function useInternalTeamFormState(
   onCreated?: (team: CreatedInternalTeam) => void | Promise<void>,
 ) {
   const [backendError, setBackendError] = useState<string | null>(null);
+  const [isHandoffPending, setHandoffPending] = useState(false);
   const createMutation = useCreateInternalTeam();
   const form = useForm<CreateInternalTeamFormData>({
     resolver: zodResolver(createInternalTeamSchema),
@@ -110,8 +111,9 @@ function useInternalTeamFormState(
   useLayoutEffect(() => {
     if (!isOpen) return;
     form.reset(DEFAULT_VALUES);
-    if (backendError !== null) queueMicrotask(() => setBackendError(null));
-  }, [isOpen, form, backendError]);
+    setBackendError(null);
+    setHandoffPending(false);
+  }, [isOpen, form]);
 
   const onSubmit = async (data: CreateInternalTeamFormData) => {
     setBackendError(null);
@@ -122,14 +124,22 @@ function useInternalTeamFormState(
         contactPerson: data.contactPerson || undefined,
         notes: data.notes || undefined,
       });
-      if (onCreated) await onCreated(created);
+      if (onCreated) {
+        setHandoffPending(true);
+        try {
+          await onCreated(created);
+        } finally {
+          setHandoffPending(false);
+        }
+      }
       onClose();
     } catch (err) {
+      setHandoffPending(false);
       setBackendError(err instanceof Error ? err.message : 'Failed to create internal team');
     }
   };
 
-  return { form, onSubmit, backendError, isPending: createMutation.isPending };
+  return { form, onSubmit, backendError, isPending: createMutation.isPending || isHandoffPending };
 }
 
 export const CreateInternalTeamDialog: React.FC<CreateInternalTeamDialogProps> = ({

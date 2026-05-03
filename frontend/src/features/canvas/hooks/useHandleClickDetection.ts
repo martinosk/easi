@@ -3,15 +3,34 @@ import {
   findHandleElement,
   type HandleClickEvent,
   HANDLE_CLICK_THRESHOLD_PX,
+  type HandleSide,
   isClickGesture,
   readHandleSide,
   readNodeId,
 } from '../utils/handleClick';
 
 interface PendingClick {
-  handle: HTMLElement;
+  nodeId: string;
+  side: HandleSide;
   x: number;
   y: number;
+}
+
+const PRIMARY_MOUSE_BUTTON = 0;
+
+function readPendingClick(target: EventTarget | null, x: number, y: number): PendingClick | null {
+  const handle = findHandleElement(target);
+  if (!handle) return null;
+  const side = readHandleSide(handle);
+  const nodeId = readNodeId(handle);
+  if (!side || !nodeId) return null;
+  return { nodeId, side, x, y };
+}
+
+function matchesPending(target: EventTarget | null, start: PendingClick): boolean {
+  const handle = findHandleElement(target);
+  if (!handle) return false;
+  return readNodeId(handle) === start.nodeId && readHandleSide(handle) === start.side;
 }
 
 export function useHandleClickDetection(
@@ -27,29 +46,26 @@ export function useHandleClickDetection(
     let pending: PendingClick | null = null;
 
     const onMouseDown = (e: MouseEvent) => {
-      const handle = findHandleElement(e.target);
-      pending = handle ? { handle, x: e.clientX, y: e.clientY } : null;
+      if (e.button !== PRIMARY_MOUSE_BUTTON) {
+        pending = null;
+        return;
+      }
+      pending = readPendingClick(e.target, e.clientX, e.clientY);
     };
 
     const onMouseUp = (e: MouseEvent) => {
       const start = pending;
       pending = null;
       if (!start) return;
-
-      const upHandle = findHandleElement(e.target);
-      if (upHandle !== start.handle) return;
-
+      if (e.button !== PRIMARY_MOUSE_BUTTON) return;
+      if (!matchesPending(e.target, start)) return;
       if (!isClickGesture({ x: start.x, y: start.y }, { x: e.clientX, y: e.clientY }, thresholdPx)) {
         return;
       }
 
-      const side = readHandleSide(start.handle);
-      const nodeId = readNodeId(start.handle);
-      if (!side || !nodeId) return;
-
       onHandleClickRef.current({
-        nodeId,
-        side,
+        nodeId: start.nodeId,
+        side: start.side,
         clientX: e.clientX,
         clientY: e.clientY,
       });

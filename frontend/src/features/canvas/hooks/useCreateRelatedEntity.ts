@@ -146,14 +146,19 @@ export function useCreateRelatedEntity(): UseCreateRelatedEntityResult {
       const current = pending;
       if (!current) return;
 
-      const targetPosition = computeOffsetPosition(current.sourcePosition, current.side);
       const spec = planRelationCall(
         current.entry.relationType,
         current.sourceEntityId,
         entityId,
         current.entry.targetType,
       );
+      if (!spec) {
+        toast.error(`Unknown relation type "${current.entry.relationType}". Please retry manually.`);
+        setPending(null);
+        return;
+      }
 
+      const targetPosition = computeOffsetPosition(current.sourcePosition, current.side);
       await runRegularModePersist(spec, current, dispatchRelation);
 
       if (dynamicViewId) {
@@ -175,14 +180,10 @@ export function useCreateRelatedEntity(): UseCreateRelatedEntityResult {
 }
 
 async function runRegularModePersist(
-  spec: RelationCallSpec | null,
+  spec: RelationCallSpec,
   current: PendingCreate,
   dispatchRelation: (spec: RelationCallSpec) => Promise<void>,
 ): Promise<void> {
-  if (!spec) {
-    toast.error(`Unknown relation type "${current.entry.relationType}". Please retry manually.`);
-    return;
-  }
   try {
     await dispatchRelation(spec);
   } catch (error) {

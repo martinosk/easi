@@ -376,6 +376,40 @@ describe('useCreateRelatedEntity — relation failure rollback', () => {
     expect(addComponentToViewMutate.mock.calls[0][0].request.componentId).toBe('comp-new');
     expect(result.current.pending).toBeNull();
   });
+
+  it('aborts and does not add to view when the relationType is unknown to the planner', async () => {
+    const unknownEntry: RelatedLink = {
+      href: '/api/v1/components',
+      methods: ['POST'],
+      title: 'Mystery (unknown)',
+      targetType: 'component',
+      relationType: 'totally-unknown-relation-type',
+    };
+
+    const result = await runFlow({ entry: unknownEntry, sourceEntityId: 'comp-source', newEntityId: 'comp-new' });
+
+    expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/totally-unknown-relation-type/));
+    expect(createRelationMutate).not.toHaveBeenCalled();
+    expect(addComponentToViewMutate).not.toHaveBeenCalled();
+    expect(result.current.pending).toBeNull();
+  });
+
+  it('aborts and does not draft the entity in dynamic mode when the relationType is unknown', async () => {
+    enableDynamicMode();
+    const unknownEntry: RelatedLink = {
+      href: '/api/v1/components',
+      methods: ['POST'],
+      title: 'Mystery (unknown)',
+      targetType: 'component',
+      relationType: 'totally-unknown-relation-type',
+    };
+
+    await runFlow({ entry: unknownEntry, sourceEntityId: 'comp-source', newEntityId: 'comp-new' });
+
+    expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/totally-unknown-relation-type/));
+    const state = useAppStore.getState();
+    expect(state.dynamicEntities.map((e) => e.id)).not.toContain('comp-new');
+  });
 });
 
 describe('useCreateRelatedEntity — dynamic mode', () => {

@@ -59,6 +59,7 @@ interface CapabilitySubmitDeps {
   onCreated?: (capability: CreatedCapability) => void | Promise<void>;
   onClose: () => void;
   setBackendError: (msg: string | null) => void;
+  setHandoffPending: (pending: boolean) => void;
 }
 
 function buildCapabilitySubmitter(
@@ -78,9 +79,17 @@ function buildCapabilitySubmitter(
         id: capability.id,
         request: { status: data.status, maturityValue: data.maturityValue },
       });
-      if (deps.onCreated) await deps.onCreated(capability);
+      if (deps.onCreated) {
+        deps.setHandoffPending(true);
+        try {
+          await deps.onCreated(capability);
+        } finally {
+          deps.setHandoffPending(false);
+        }
+      }
       deps.onClose();
     } catch (err) {
+      deps.setHandoffPending(false);
       deps.setBackendError(err instanceof Error ? err.message : 'Failed to create capability');
     }
   };
@@ -93,12 +102,13 @@ function useCreateCapabilityForm(
   onCreated?: (capability: CreatedCapability) => void | Promise<void>,
 ) {
   const [backendError, setBackendError] = useState<string | null>(null);
+  const [isHandoffPending, setHandoffPending] = useState(false);
   const createCapability = useCreateCapability();
   const updateMetadata = useUpdateCapabilityMetadata();
   const { statusOptions, isLoadingStatuses } = useStatusOptions();
   const schema = useMaturitySchema();
 
-  const isCreating = createCapability.isPending || updateMetadata.isPending;
+  const isCreating = createCapability.isPending || updateMetadata.isPending || isHandoffPending;
 
   const {
     register,
@@ -115,14 +125,16 @@ function useCreateCapabilityForm(
   useLayoutEffect(() => {
     if (!isOpen) return;
     reset(DEFAULT_VALUES);
-    if (backendError !== null) queueMicrotask(() => setBackendError(null));
-  }, [isOpen, reset, backendError]);
+    setBackendError(null);
+    setHandoffPending(false);
+  }, [isOpen, reset]);
 
   const onSubmit = buildCapabilitySubmitter(createCapability, updateMetadata, {
     prefill,
     onCreated,
     onClose,
     setBackendError,
+    setHandoffPending,
   });
 
   return {

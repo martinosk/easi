@@ -26,11 +26,11 @@ describe('useCanvasConnection — self-loop rejection', () => {
     { kind: 'component', id: 'comp-1' },
     { kind: 'capability', id: 'cap-1' },
     { kind: 'origin (acquired)', id: 'acq-1' },
-  ])('does not dispatch any handler when source equals target ($kind)', ({ id }) => {
+  ])('does not dispatch any handler when source equals target ($kind)', async ({ id }) => {
     const onConnect = vi.fn();
     const { result } = renderHook(() => useCanvasConnection(onConnect));
 
-    void result.current.onConnectHandler({
+    await result.current.onConnectHandler({
       source: id,
       target: id,
       sourceHandle: 'right',

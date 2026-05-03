@@ -90,6 +90,7 @@ function useVendorFormState(
   onCreated?: (vendor: CreatedVendor) => void | Promise<void>,
 ) {
   const [backendError, setBackendError] = useState<string | null>(null);
+  const [isHandoffPending, setHandoffPending] = useState(false);
   const createMutation = useCreateVendor();
   const form = useForm<CreateVendorFormData>({
     resolver: zodResolver(createVendorSchema),
@@ -100,8 +101,9 @@ function useVendorFormState(
   useLayoutEffect(() => {
     if (!isOpen) return;
     form.reset(DEFAULT_VALUES);
-    if (backendError !== null) queueMicrotask(() => setBackendError(null));
-  }, [isOpen, form, backendError]);
+    setBackendError(null);
+    setHandoffPending(false);
+  }, [isOpen, form]);
 
   const onSubmit = async (data: CreateVendorFormData) => {
     setBackendError(null);
@@ -111,14 +113,22 @@ function useVendorFormState(
         implementationPartner: data.implementationPartner || undefined,
         notes: data.notes || undefined,
       });
-      if (onCreated) await onCreated(created);
+      if (onCreated) {
+        setHandoffPending(true);
+        try {
+          await onCreated(created);
+        } finally {
+          setHandoffPending(false);
+        }
+      }
       onClose();
     } catch (err) {
+      setHandoffPending(false);
       setBackendError(err instanceof Error ? err.message : 'Failed to create vendor');
     }
   };
 
-  return { form, onSubmit, backendError, isPending: createMutation.isPending };
+  return { form, onSubmit, backendError, isPending: createMutation.isPending || isHandoffPending };
 }
 
 export const CreateVendorDialog: React.FC<CreateVendorDialogProps> = ({ isOpen, onClose, onCreated }) => {
