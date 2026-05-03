@@ -46,13 +46,31 @@ describe('CreateComponentDialog', () => {
     });
   });
 
-  const renderDialog = (isOpen = true) => {
+  const renderDialog = (props: { isOpen?: boolean; onCreated?: (e: { id: string }) => void | Promise<void> } = {}) => {
+    const { isOpen = true, onCreated } = props;
     return render(
       <QueryClientProvider client={queryClient}>
-        <CreateComponentDialog isOpen={isOpen} onClose={mockOnClose} />
+        <CreateComponentDialog isOpen={isOpen} onClose={mockOnClose} onCreated={onCreated} />
       </QueryClientProvider>,
       { wrapper: MantineTestWrapper },
     );
+  };
+
+  const findSubmit = (): HTMLElement => {
+    const buttons = screen.getAllByRole('button');
+    const submit = buttons.find((b) => b.textContent === 'Create Application');
+    if (!submit) throw new Error('Create Application button not found');
+    return submit;
+  };
+
+  const submitWith = async (name: string, description?: string): Promise<void> => {
+    fireEvent.change(screen.getByLabelText(/Name/), { target: { value: name } });
+    if (description !== undefined) {
+      fireEvent.change(screen.getByLabelText(/Description/), { target: { value: description } });
+    }
+    const submit = findSubmit();
+    await waitFor(() => expect(submit).not.toBeDisabled());
+    fireEvent.click(submit);
   };
 
   it('should render dialog when open', () => {
@@ -64,7 +82,7 @@ describe('CreateComponentDialog', () => {
   });
 
   it('should not show modal when isOpen is false', () => {
-    renderDialog(false);
+    renderDialog({ isOpen: false });
 
     expect(screen.queryByText('Create Application')).not.toBeInTheDocument();
   });
@@ -78,10 +96,7 @@ describe('CreateComponentDialog', () => {
   it('should disable submit button when name is empty', () => {
     renderDialog();
 
-    const buttons = screen.getAllByRole('button');
-    const submitButton = buttons.find((btn) => btn.textContent === 'Create Application') as HTMLButtonElement;
-
-    expect(submitButton.disabled).toBe(true);
+    expect((findSubmit() as HTMLButtonElement).disabled).toBe(true);
     expect(mockMutateAsync).not.toHaveBeenCalled();
   });
 
@@ -89,20 +104,7 @@ describe('CreateComponentDialog', () => {
     mockMutateAsync.mockResolvedValueOnce({ id: '1', name: 'Test Component' });
 
     renderDialog();
-
-    const nameInput = screen.getByLabelText(/Name/);
-    const descriptionInput = screen.getByLabelText(/Description/);
-    const buttons = screen.getAllByRole('button');
-    const submitButton = buttons.find((btn) => btn.textContent === 'Create Application');
-
-    fireEvent.change(nameInput, { target: { value: 'Test Component' } });
-    fireEvent.change(descriptionInput, { target: { value: 'Test Description' } });
-
-    await waitFor(() => {
-      expect(submitButton).not.toBeDisabled();
-    });
-
-    fireEvent.click(submitButton!);
+    await submitWith('Test Component', 'Test Description');
 
     await waitFor(() => {
       expect(mockMutateAsync).toHaveBeenCalledWith({
@@ -110,28 +112,14 @@ describe('CreateComponentDialog', () => {
         description: 'Test Description',
       });
     });
-
-    await waitFor(() => {
-      expect(mockOnClose).toHaveBeenCalled();
-    });
+    await waitFor(() => expect(mockOnClose).toHaveBeenCalled());
   });
 
   it('should trim whitespace from inputs', async () => {
     mockMutateAsync.mockResolvedValueOnce({ id: '1', name: 'Test Component' });
 
     renderDialog();
-
-    const nameInput = screen.getByLabelText(/Name/);
-    const buttons = screen.getAllByRole('button');
-    const submitButton = buttons.find((btn) => btn.textContent === 'Create Application');
-
-    fireEvent.change(nameInput, { target: { value: '  Test Component  ' } });
-
-    await waitFor(() => {
-      expect(submitButton).not.toBeDisabled();
-    });
-
-    fireEvent.click(submitButton!);
+    await submitWith('  Test Component  ');
 
     await waitFor(() => {
       expect(mockMutateAsync).toHaveBeenCalledWith({
@@ -145,23 +133,11 @@ describe('CreateComponentDialog', () => {
     mockMutateAsync.mockRejectedValueOnce(new Error('Creation failed'));
 
     renderDialog();
-
-    const nameInput = screen.getByLabelText(/Name/);
-    const buttons = screen.getAllByRole('button');
-    const submitButton = buttons.find((btn) => btn.textContent === 'Create Application');
-
-    fireEvent.change(nameInput, { target: { value: 'Test Component' } });
-
-    await waitFor(() => {
-      expect(submitButton).not.toBeDisabled();
-    });
-
-    fireEvent.click(submitButton!);
+    await submitWith('Test Component');
 
     await waitFor(() => {
       expect(screen.getByText('Creation failed')).toBeInTheDocument();
     });
-
     expect(mockOnClose).not.toHaveBeenCalled();
   });
 
@@ -169,41 +145,20 @@ describe('CreateComponentDialog', () => {
     renderDialog();
 
     const nameInput = screen.getByLabelText(/Name/) as HTMLInputElement;
-    const cancelButton = screen.getByText('Cancel');
-
     fireEvent.change(nameInput, { target: { value: 'Test Component' } });
+    await waitFor(() => expect(nameInput.value).toBe('Test Component'));
 
-    await waitFor(() => {
-      expect(nameInput.value).toBe('Test Component');
-    });
-
-    fireEvent.click(cancelButton);
-
-    await waitFor(() => {
-      expect(mockOnClose).toHaveBeenCalled();
-    });
+    fireEvent.click(screen.getByText('Cancel'));
+    await waitFor(() => expect(mockOnClose).toHaveBeenCalled());
   });
 
   describe('onCreated handoff', () => {
-    const renderWithOnCreated = (onCreated: (entity: { id: string }) => void | Promise<void>) =>
-      render(
-        <QueryClientProvider client={queryClient}>
-          <CreateComponentDialog isOpen onClose={mockOnClose} onCreated={onCreated} />
-        </QueryClientProvider>,
-        { wrapper: MantineTestWrapper },
-      );
-
     it('calls onCreated with the new entity instead of running default add-to-view', async () => {
       mockMutateAsync.mockResolvedValueOnce({ id: 'new-id', name: 'X' });
       const onCreated = vi.fn();
 
-      renderWithOnCreated(onCreated);
-
-      fireEvent.change(screen.getByLabelText(/Name/), { target: { value: 'X' } });
-      const buttons = screen.getAllByRole('button');
-      const submit = buttons.find((b) => b.textContent === 'Create Application')!;
-      await waitFor(() => expect(submit).not.toBeDisabled());
-      fireEvent.click(submit);
+      renderDialog({ onCreated });
+      await submitWith('X');
 
       await waitFor(() => {
         expect(onCreated).toHaveBeenCalledWith(expect.objectContaining({ id: 'new-id' }));

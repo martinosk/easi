@@ -559,12 +559,10 @@ body {
   color: rgba(0, 0, 0, 0.8);
 }
 
-/* Click-create affordance: handles act as both drag-to-connect and click-to-create */
 .react-flow__handle {
   cursor: pointer;
 }
 
-/* Component Connection Handles */
 .component-handle {
   width: 12px;
   height: 12px;
@@ -572,7 +570,6 @@ body {
   border: 2px solid var(--color-primary);
   border-radius: 50%;
   transition: all 0.2s ease;
-  cursor: pointer;
 }
 
 .component-handle:hover {
@@ -581,7 +578,6 @@ body {
   background: var(--color-primary);
   border-color: var(--color-primary-dark);
   box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
-  cursor: pointer;
 }
 
 /* Handle specific positions */
@@ -674,7 +670,6 @@ body {
   background: rgba(0, 0, 0, 0.1);
 }
 
-/* Capability Connection Handles */
 .capability-handle {
   width: 12px;
   height: 12px;
@@ -682,7 +677,6 @@ body {
   border: 2px solid #374151;
   border-radius: 50%;
   transition: all 0.2s ease;
-  cursor: pointer;
 }
 
 .capability-handle:hover {
@@ -691,7 +685,6 @@ body {
   background: #374151;
   border-color: #1f2937;
   box-shadow: 0 0 0 4px rgba(55, 65, 81, 0.2);
-  cursor: pointer;
 }
 
 .capability-handle-top {

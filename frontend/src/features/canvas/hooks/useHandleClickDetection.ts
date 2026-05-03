@@ -15,7 +15,6 @@ interface PendingClick {
 }
 
 export function useHandleClickDetection(
-  rootRef: React.RefObject<HTMLElement | null> | null,
   onHandleClick: (event: HandleClickEvent) => void,
   thresholdPx: number = HANDLE_CLICK_THRESHOLD_PX,
 ): void {
@@ -25,9 +24,6 @@ export function useHandleClickDetection(
   });
 
   useEffect(() => {
-    const root: EventTarget = rootRef?.current ?? document;
-    if (rootRef && !rootRef.current) return;
-
     let pending: PendingClick | null = null;
 
     const onMouseDown = (e: MouseEvent) => {
@@ -59,11 +55,11 @@ export function useHandleClickDetection(
       });
     };
 
-    root.addEventListener('mousedown', onMouseDown);
-    root.addEventListener('mouseup', onMouseUp);
+    document.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('mouseup', onMouseUp);
     return () => {
-      root.removeEventListener('mousedown', onMouseDown);
-      root.removeEventListener('mouseup', onMouseUp);
+      document.removeEventListener('mousedown', onMouseDown);
+      document.removeEventListener('mouseup', onMouseUp);
     };
-  }, [rootRef, thresholdPx]);
+  }, [thresholdPx]);
 }

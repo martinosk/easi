@@ -20,6 +20,7 @@ function setDirtyDraft(viewId: string) {
           edges: { relation: true, realization: true, parentage: true, origin: true },
           types: { component: true, capability: true, originEntity: true },
         },
+        relations: [],
       },
     },
   });

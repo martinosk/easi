@@ -50,52 +50,109 @@ beforeEach(() => {
 
 afterEach(() => vi.clearAllMocks());
 
+interface SeedCase {
+  label: string;
+  seed: () => void;
+  nodeId: string;
+  expectedRelationType: string;
+}
+
+const seedCases: SeedCase[] = [
+  {
+    label: 'component lookup by raw id',
+    seed: () => {
+      componentsData.push({
+        id: 'comp-1',
+        name: 'A',
+        _links: linksWithRelated([
+          { href: '/x', methods: ['POST'], title: 'Component (related)', targetType: 'component', relationType: 'component-relation' },
+          { href: '/y', methods: ['GET'], title: 'Hidden', targetType: 'component', relationType: 'capability-requires' },
+        ]),
+      });
+    },
+    nodeId: 'comp-1',
+    expectedRelationType: 'component-relation',
+  },
+  {
+    label: 'capability lookup via cap- prefix',
+    seed: () => {
+      capabilitiesData.push({
+        id: 'cap-uuid',
+        name: 'B',
+        _links: linksWithRelated([
+          { href: '/c', methods: ['POST'], title: 'Capability (child of)', targetType: 'capability', relationType: 'capability-parent' },
+        ]),
+      });
+    },
+    nodeId: 'cap-cap-uuid',
+    expectedRelationType: 'capability-parent',
+  },
+  {
+    label: 'acquired entity lookup via acq- prefix',
+    seed: () => {
+      acquiredData.push({
+        id: 'a1',
+        _links: linksWithRelated([
+          { href: '/c', methods: ['POST'], title: 'Component (acquired-via)', targetType: 'component', relationType: 'origin-acquired-via' },
+        ]),
+      });
+    },
+    nodeId: 'acq-a1',
+    expectedRelationType: 'origin-acquired-via',
+  },
+  {
+    label: 'vendor lookup via vendor- prefix',
+    seed: () => {
+      vendorData.push({
+        id: 'v1',
+        _links: linksWithRelated([
+          { href: '/c', methods: ['POST'], title: 'Component (purchased-from)', targetType: 'component', relationType: 'origin-purchased-from' },
+        ]),
+      });
+    },
+    nodeId: 'vendor-v1',
+    expectedRelationType: 'origin-purchased-from',
+  },
+  {
+    label: 'internal team lookup via team- prefix',
+    seed: () => {
+      teamData.push({
+        id: 't1',
+        _links: linksWithRelated([
+          { href: '/c', methods: ['POST'], title: 'Component (built-by)', targetType: 'component', relationType: 'origin-built-by' },
+        ]),
+      });
+    },
+    nodeId: 'team-t1',
+    expectedRelationType: 'origin-built-by',
+  },
+];
+
 describe('useSourceEntityRelated', () => {
   it('returns empty when nodeId is null', () => {
     const { result } = renderHook(() => useSourceEntityRelated(null), { wrapper: wrapper() });
     expect(result.current).toEqual([]);
   });
 
-  it('looks up a component by nodeId and returns POST-capable x-related entries', () => {
+  it.each(seedCases)('$label', ({ seed, nodeId, expectedRelationType }) => {
+    seed();
+    const { result } = renderHook(() => useSourceEntityRelated(nodeId), { wrapper: wrapper() });
+    expect(result.current).toHaveLength(1);
+    expect(result.current[0].relationType).toBe(expectedRelationType);
+  });
+
+  it('filters out GET-only entries', () => {
     componentsData.push({
       id: 'comp-1',
       name: 'A',
       _links: linksWithRelated([
         { href: '/x', methods: ['POST'], title: 'Component (related)', targetType: 'component', relationType: 'component-relation' },
-        { href: '/y', methods: ['GET'], title: 'Hidden', targetType: 'component', relationType: 'capability-requires' },
+        { href: '/y', methods: ['GET'], title: 'Read only', targetType: 'component', relationType: 'capability-requires' },
       ]),
     });
-
     const { result } = renderHook(() => useSourceEntityRelated('comp-1'), { wrapper: wrapper() });
     expect(result.current).toHaveLength(1);
     expect(result.current[0].relationType).toBe('component-relation');
-  });
-
-  it('looks up a capability by prefixed nodeId', () => {
-    capabilitiesData.push({
-      id: 'cap-uuid',
-      name: 'B',
-      _links: linksWithRelated([
-        { href: '/c', methods: ['POST'], title: 'Capability (child of)', targetType: 'capability', relationType: 'capability-parent' },
-      ]),
-    });
-
-    const { result } = renderHook(() => useSourceEntityRelated('cap-cap-uuid'), { wrapper: wrapper() });
-    expect(result.current).toHaveLength(1);
-    expect(result.current[0].relationType).toBe('capability-parent');
-  });
-
-  it('looks up an acquired entity', () => {
-    acquiredData.push({
-      id: 'a1',
-      _links: linksWithRelated([
-        { href: '/c', methods: ['POST'], title: 'Component (acquired-via)', targetType: 'component', relationType: 'origin-acquired-via' },
-      ]),
-    });
-
-    const { result } = renderHook(() => useSourceEntityRelated('acq-a1'), { wrapper: wrapper() });
-    expect(result.current).toHaveLength(1);
-    expect(result.current[0].relationType).toBe('origin-acquired-via');
   });
 
   it('returns empty array when entity is not found', () => {

@@ -37,6 +37,55 @@ const DEFAULT_VALUES: CreateCapabilityFormData = {
   maturityValue: 12,
 };
 
+function useStatusOptions() {
+  const { data: statusesData, isLoading: isLoadingStatuses } = useStatuses();
+  const statuses = statusesData ?? DEFAULT_STATUSES;
+  const statusOptions = [...statuses]
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((s) => ({ value: s.value, label: s.displayName }));
+  return { statusOptions, isLoadingStatuses };
+}
+
+function useMaturitySchema() {
+  const { data: maturityScale } = useMaturityScale();
+  const sections = maturityScale?.sections ?? getDefaultSections();
+  const maturityBounds = useMemo(() => getMaturityBounds(sections), [sections]);
+  const schema = useMemo(() => createCapabilitySchema(maturityBounds), [maturityBounds]);
+  return schema;
+}
+
+interface CapabilitySubmitDeps {
+  prefill?: { level?: CapabilityLevel };
+  onCreated?: (capability: CreatedCapability) => void | Promise<void>;
+  onClose: () => void;
+  setBackendError: (msg: string | null) => void;
+}
+
+function buildCapabilitySubmitter(
+  createCapability: ReturnType<typeof useCreateCapability>,
+  updateMetadata: ReturnType<typeof useUpdateCapabilityMetadata>,
+  deps: CapabilitySubmitDeps,
+) {
+  return async (data: CreateCapabilityFormData) => {
+    deps.setBackendError(null);
+    try {
+      const capability = await createCapability.mutateAsync({
+        name: data.name,
+        description: data.description || undefined,
+        level: deps.prefill?.level ?? 'L1',
+      });
+      await updateMetadata.mutateAsync({
+        id: capability.id,
+        request: { status: data.status, maturityValue: data.maturityValue },
+      });
+      if (deps.onCreated) await deps.onCreated(capability);
+      deps.onClose();
+    } catch (err) {
+      deps.setBackendError(err instanceof Error ? err.message : 'Failed to create capability');
+    }
+  };
+}
+
 function useCreateCapabilityForm(
   isOpen: boolean,
   onClose: () => void,
@@ -44,18 +93,12 @@ function useCreateCapabilityForm(
   onCreated?: (capability: CreatedCapability) => void | Promise<void>,
 ) {
   const [backendError, setBackendError] = useState<string | null>(null);
+  const createCapability = useCreateCapability();
+  const updateMetadata = useUpdateCapabilityMetadata();
+  const { statusOptions, isLoadingStatuses } = useStatusOptions();
+  const schema = useMaturitySchema();
 
-  const { data: statusesData, isLoading: isLoadingStatuses } = useStatuses();
-  const { data: maturityScale } = useMaturityScale();
-  const createCapabilityMutation = useCreateCapability();
-  const updateMetadataMutation = useUpdateCapabilityMetadata();
-
-  const sections = maturityScale?.sections ?? getDefaultSections();
-  const statuses = statusesData ?? DEFAULT_STATUSES;
-  const isCreating = createCapabilityMutation.isPending || updateMetadataMutation.isPending;
-
-  const maturityBounds = useMemo(() => getMaturityBounds(sections), [sections]);
-  const schema = useMemo(() => createCapabilitySchema(maturityBounds), [maturityBounds]);
+  const isCreating = createCapability.isPending || updateMetadata.isPending;
 
   const {
     register,
@@ -70,37 +113,17 @@ function useCreateCapabilityForm(
   });
 
   useLayoutEffect(() => {
-    if (isOpen) {
-      reset(DEFAULT_VALUES);
-      if (backendError !== null) queueMicrotask(() => setBackendError(null));
-    }
+    if (!isOpen) return;
+    reset(DEFAULT_VALUES);
+    if (backendError !== null) queueMicrotask(() => setBackendError(null));
   }, [isOpen, reset, backendError]);
 
-  const statusOptions = [...statuses]
-    .sort((a, b) => a.sortOrder - b.sortOrder)
-    .map((s) => ({ value: s.value, label: s.displayName }));
-
-  const onSubmit = async (data: CreateCapabilityFormData) => {
-    setBackendError(null);
-    try {
-      const capability = await createCapabilityMutation.mutateAsync({
-        name: data.name,
-        description: data.description || undefined,
-        level: prefill?.level ?? 'L1',
-      });
-      await updateMetadataMutation.mutateAsync({
-        id: capability.id,
-        request: {
-          status: data.status,
-          maturityValue: data.maturityValue,
-        },
-      });
-      if (onCreated) await onCreated(capability);
-      onClose();
-    } catch (err) {
-      setBackendError(err instanceof Error ? err.message : 'Failed to create capability');
-    }
-  };
+  const onSubmit = buildCapabilitySubmitter(createCapability, updateMetadata, {
+    prefill,
+    onCreated,
+    onClose,
+    setBackendError,
+  });
 
   return {
     register,

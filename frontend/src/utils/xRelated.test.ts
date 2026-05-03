@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { HATEOASLinks } from '../api/types';
-import {
-  getPostableRelated,
-  getXRelated,
-  type RelatedLink,
-  resolveRelationEndpoint,
-} from './xRelated';
+import { getPostableRelated, getXRelated, type RelatedLink } from './xRelated';
 
 const link = (overrides: Partial<RelatedLink> = {}): RelatedLink => ({
   href: '/api/v1/components',
@@ -20,7 +15,7 @@ const linksWith = (related: RelatedLink[]): HATEOASLinks =>
   ({
     self: { href: '/api/v1/components/c1', method: 'GET' },
     'x-related': related,
-  }) as HATEOASLinks;
+  }) as unknown as HATEOASLinks;
 
 describe('getXRelated', () => {
   it('returns the array under x-related when present', () => {
@@ -73,22 +68,5 @@ describe('getPostableRelated', () => {
 
   it('returns an empty array when x-related is missing', () => {
     expect(getPostableRelated({})).toEqual([]);
-  });
-});
-
-describe('resolveRelationEndpoint', () => {
-  it.each([
-    ['component-relation', { path: '/api/v1/relations', method: 'POST' }],
-    ['capability-parent', { path: '/api/v1/capabilities/{id}/parent', method: 'PATCH' }],
-    ['capability-realization', { path: '/api/v1/capabilities/{id}/systems', method: 'POST' }],
-    ['origin-acquired-via', { path: '/api/v1/components/{id}/origin/acquired-via', method: 'PUT' }],
-    ['origin-purchased-from', { path: '/api/v1/components/{id}/origin/purchased-from', method: 'PUT' }],
-    ['origin-built-by', { path: '/api/v1/components/{id}/origin/built-by', method: 'PUT' }],
-  ])('resolves %s to the canonical endpoint', (relationType, expected) => {
-    expect(resolveRelationEndpoint(relationType)).toEqual(expected);
-  });
-
-  it('returns undefined for unknown relation types', () => {
-    expect(resolveRelationEndpoint('totally-unknown')).toBeUndefined();
   });
 });

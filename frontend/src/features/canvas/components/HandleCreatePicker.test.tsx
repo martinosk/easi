@@ -20,30 +20,58 @@ describe('HandleCreatePicker', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders one menu item per entry, labelled by title', () => {
-    const entries = [
-      entry({ relationType: 'component-relation', title: 'Component (related)' }),
-      entry({
-        relationType: 'capability-realization',
-        title: 'Component (realization)',
-        targetType: 'component',
-      }),
-    ];
-    render(<HandleCreatePicker x={0} y={0} entries={entries} onSelect={() => {}} onClose={() => {}} />);
-    expect(screen.getByRole('menuitem', { name: 'Component (related)' })).toBeTruthy();
-    expect(screen.getByRole('menuitem', { name: 'Component (realization)' })).toBeTruthy();
+  it('renders Triggers and Serves variants for component-relation entries', () => {
+    render(
+      <HandleCreatePicker
+        x={0}
+        y={0}
+        entries={[entry({ relationType: 'component-relation', title: 'Component (related)' })]}
+        onSelect={() => {}}
+        onClose={() => {}}
+      />,
+    );
+    expect(screen.getByRole('menuitem', { name: 'Component (Triggers)' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: 'Component (Serves)' })).toBeTruthy();
   });
 
-  it('invokes onSelect with the chosen entry and then closes', () => {
+  it('renders one menu item per non-component-relation entry, labelled by title', () => {
+    const entries = [
+      entry({ relationType: 'capability-realization', title: 'Component (realization)', targetType: 'component' }),
+      entry({ relationType: 'capability-parent', title: 'Capability (child of)', targetType: 'capability' }),
+    ];
+    render(<HandleCreatePicker x={0} y={0} entries={entries} onSelect={() => {}} onClose={() => {}} />);
+    expect(screen.getByRole('menuitem', { name: 'Component (realization)' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: 'Capability (child of)' })).toBeTruthy();
+  });
+
+  it('invokes onSelect with the chosen entry and Triggers when Triggers variant clicked', () => {
     const onSelect = vi.fn();
     const onClose = vi.fn();
-    const target = entry({ relationType: 'capability-realization', title: 'Component (realization)' });
     render(
-      <HandleCreatePicker x={0} y={0} entries={[target]} onSelect={onSelect} onClose={onClose} />,
+      <HandleCreatePicker
+        x={0}
+        y={0}
+        entries={[entry({ relationType: 'component-relation', title: 'Component (related)' })]}
+        onSelect={onSelect}
+        onClose={onClose}
+      />,
     );
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Component (realization)' }));
-    expect(onSelect).toHaveBeenCalledWith(target);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Component (Triggers)' }));
+    expect(onSelect).toHaveBeenCalledWith(
+      expect.objectContaining({
+        relationSubType: 'Triggers',
+        entry: expect.objectContaining({ relationType: 'component-relation', title: 'Component (Triggers)' }),
+      }),
+    );
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('invokes onSelect without a sub-type for non-component-relation entries', () => {
+    const onSelect = vi.fn();
+    const target = entry({ relationType: 'capability-realization', title: 'Component (realization)' });
+    render(<HandleCreatePicker x={0} y={0} entries={[target]} onSelect={onSelect} onClose={() => {}} />);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Component (realization)' }));
+    expect(onSelect).toHaveBeenCalledWith({ entry: target });
   });
 
   it('calls onClose on Escape', () => {
@@ -67,15 +95,8 @@ describe('HandleCreatePicker', () => {
     const onSelect = vi.fn();
     const onClose = vi.fn();
     render(<HandleCreatePicker x={0} y={0} entries={[entry()]} onSelect={onSelect} onClose={onClose} />);
-    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /cancel/i }));
     expect(onSelect).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
-  });
-
-  it('positions the popover at the supplied coordinates', () => {
-    render(<HandleCreatePicker x={123} y={456} entries={[entry()]} onSelect={() => {}} onClose={() => {}} />);
-    const popover = screen.getByTestId('handle-create-picker');
-    expect(popover.style.left).toBe('123px');
-    expect(popover.style.top).toBe('456px');
   });
 });

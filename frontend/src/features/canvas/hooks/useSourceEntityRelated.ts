@@ -1,11 +1,16 @@
 import { useMemo } from 'react';
 import { getEntityId, getEntityType, toNodeId } from '../../../constants/entityIdentifiers';
-import { getPostableRelated, type RelatedLink } from '../../../utils/xRelated';
+import { getPostableRelated, type RelatedLink, type ResourceWithRelated } from '../../../utils/xRelated';
 import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
 import { useComponents } from '../../components/hooks/useComponents';
 import { useAcquiredEntitiesQuery } from '../../origin-entities/hooks/useAcquiredEntities';
 import { useInternalTeamsQuery } from '../../origin-entities/hooks/useInternalTeams';
 import { useVendorsQuery } from '../../origin-entities/hooks/useVendors';
+
+type Identifiable = ResourceWithRelated & { id: string };
+
+const findById = (list: ReadonlyArray<Identifiable>, id: string): ResourceWithRelated | undefined =>
+  list.find((e) => e.id === id);
 
 export function useSourceEntityRelated(nodeId: string | null): RelatedLink[] {
   const { data: components = [] } = useComponents();
@@ -20,20 +25,14 @@ export function useSourceEntityRelated(nodeId: string | null): RelatedLink[] {
     const type = getEntityType(node);
     const id = getEntityId(node);
 
-    const finder = (list: ReadonlyArray<{ id: string }>) => list.find((e) => e.id === id);
-
-    const entity =
-      type === 'component'
-        ? finder(components)
-        : type === 'capability'
-          ? finder(capabilities)
-          : type === 'acquired'
-            ? finder(acquired)
-            : type === 'vendor'
-              ? finder(vendors)
-              : type === 'team'
-                ? finder(teams)
-                : undefined;
+    const sources: Record<typeof type, ReadonlyArray<Identifiable>> = {
+      component: components,
+      capability: capabilities,
+      acquired,
+      vendor: vendors,
+      team: teams,
+    };
+    const entity = findById(sources[type], id);
 
     return entity ? getPostableRelated(entity) : [];
   }, [nodeId, components, capabilities, acquired, vendors, teams]);

@@ -2,7 +2,6 @@ import { useReactFlow } from '@xyflow/react';
 import React, { useCallback, useState } from 'react';
 import { getEntityId, toNodeId } from '../../../constants/entityIdentifiers';
 import type { Position } from '../../../api/types';
-import type { RelatedLink } from '../../../utils/xRelated';
 import { CreateCapabilityDialog, type CapabilityLevel } from '../../capabilities/components/CreateCapabilityDialog';
 import { CreateComponentDialog } from '../../components/components/CreateComponentDialog';
 import { CreateAcquiredEntityDialog } from '../../origin-entities/components/CreateAcquiredEntityDialog';
@@ -12,7 +11,7 @@ import { useCreateRelatedEntity } from '../hooks/useCreateRelatedEntity';
 import { useHandleClickDetection } from '../hooks/useHandleClickDetection';
 import { useSourceEntityRelated } from '../hooks/useSourceEntityRelated';
 import type { HandleSide } from '../utils/handleClick';
-import { HandleCreatePicker } from './HandleCreatePicker';
+import { HandleCreatePicker, type HandleCreatePickerSelection } from './HandleCreatePicker';
 
 interface PickerState {
   sourceNodeId: string;
@@ -35,7 +34,7 @@ export const HandleCreateController: React.FC = () => {
   const [picker, setPicker] = useState<PickerState | null>(null);
   const orchestrator = useCreateRelatedEntity();
 
-  useHandleClickDetection(null, ({ nodeId, side, clientX, clientY }) => {
+  useHandleClickDetection(({ nodeId, side, clientX, clientY }) => {
     setPicker({ sourceNodeId: nodeId, side, x: clientX, y: clientY });
   });
 
@@ -49,17 +48,18 @@ export const HandleCreateController: React.FC = () => {
     [flow],
   );
 
-  const handleSelect = (entry: RelatedLink) => {
+  const handleSelect = ({ entry, relationSubType }: HandleCreatePickerSelection) => {
     if (!picker) return;
     const sourcePosition = lookupSourcePosition(picker.sourceNodeId);
     const sourceEntityId = getEntityId(toNodeId(picker.sourceNodeId));
-    const prefill = buildPrefill(entry, picker.sourceNodeId, flow);
+    const prefill = buildPrefill(entry.relationType, picker.sourceNodeId, flow);
     orchestrator.start({
       entry,
       sourceEntityId,
       side: picker.side,
       sourcePosition,
       prefill,
+      relationSubType,
     });
     setPicker(null);
   };
@@ -83,11 +83,11 @@ export const HandleCreateController: React.FC = () => {
 };
 
 function buildPrefill(
-  entry: RelatedLink,
+  relationType: string,
   sourceNodeId: string,
   flow: ReturnType<typeof useReactFlow>,
 ): { capabilityLevel?: CapabilityLevel } | undefined {
-  if (entry.relationType !== 'capability-parent') return undefined;
+  if (relationType !== 'capability-parent') return undefined;
   const node = flow.getNode(sourceNodeId);
   const sourceLevel = (node?.data as { level?: string } | undefined)?.level;
   const childLevel = nextLevel(sourceLevel);
@@ -101,41 +101,31 @@ interface PendingDialogsProps {
 const PendingDialogs: React.FC<PendingDialogsProps> = ({ orchestrator }) => {
   const { pending, cancel, handleEntityCreated } = orchestrator;
   const targetType = pending?.entry.targetType ?? null;
-
   const onClose = () => cancel();
   const onCreated = (entity: { id: string }) => handleEntityCreated(entity.id);
+  const capabilityPrefill = pending?.prefill?.capabilityLevel
+    ? { level: pending.prefill.capabilityLevel }
+    : undefined;
 
   return (
     <>
-      <CreateComponentDialog
-        isOpen={targetType === 'component'}
-        onClose={onClose}
-        onCreated={targetType === 'component' ? onCreated : undefined}
-      />
+      <CreateComponentDialog isOpen={targetType === 'component'} onClose={onClose} onCreated={onCreated} />
       <CreateCapabilityDialog
         isOpen={targetType === 'capability'}
         onClose={onClose}
-        onCreated={targetType === 'capability' ? onCreated : undefined}
-        prefill={
-          targetType === 'capability' && pending?.prefill?.capabilityLevel
-            ? { level: pending.prefill.capabilityLevel }
-            : undefined
-        }
+        onCreated={onCreated}
+        prefill={capabilityPrefill}
       />
       <CreateAcquiredEntityDialog
         isOpen={targetType === 'acquiredEntity'}
         onClose={onClose}
-        onCreated={targetType === 'acquiredEntity' ? onCreated : undefined}
+        onCreated={onCreated}
       />
-      <CreateVendorDialog
-        isOpen={targetType === 'vendor'}
-        onClose={onClose}
-        onCreated={targetType === 'vendor' ? onCreated : undefined}
-      />
+      <CreateVendorDialog isOpen={targetType === 'vendor'} onClose={onClose} onCreated={onCreated} />
       <CreateInternalTeamDialog
         isOpen={targetType === 'internalTeam'}
         onClose={onClose}
-        onCreated={targetType === 'internalTeam' ? onCreated : undefined}
+        onCreated={onCreated}
       />
     </>
   );
