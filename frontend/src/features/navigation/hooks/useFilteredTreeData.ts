@@ -8,6 +8,7 @@ import { useActiveUsers } from '../../users/hooks/useUsers';
 import { useViews } from '../../views/hooks/useViews';
 import { filterByCreator } from '../utils/filterByCreator';
 import { filterByDomain } from '../utils/filterByDomain';
+import { filterViewsByCreator } from '../utils/filterViewsByCreator';
 import { preserveCapabilityHierarchy } from '../utils/preserveCapabilityHierarchy';
 import { useArtifactCreators } from './useArtifactCreators';
 import { useDomainFilterData } from './useDomainFilterData';
@@ -54,6 +55,8 @@ export function useFilteredTreeData() {
     domainFilterData,
   ]);
 
+  const filteredViews = useMemo(() => filterViewsByCreator(views, selectedCreatorIds), [views, selectedCreatorIds]);
+
   const hasActiveFilters = selectedCreatorIds.length > 0 || selectedDomainIds.length > 0;
 
   const clearAllFilters = () => {
@@ -63,7 +66,7 @@ export function useFilteredTreeData() {
 
   return {
     components,
-    views,
+    views: filteredViews,
     filtered,
     artifactCreators,
     activeUsers,
