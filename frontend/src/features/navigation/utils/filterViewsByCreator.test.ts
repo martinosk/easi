@@ -44,7 +44,7 @@ describe('filterViewsByCreator', () => {
   });
 
   describe('when switching between users', () => {
-    it('should return the correct views for each selected user', () => {
+    it('should return the correct views for the selected user', () => {
       const view1 = buildView({ id: toViewId('view-1'), name: 'Alice View', ownerUserId: USER_ALICE });
       const view2 = buildView({ id: toViewId('view-2'), name: 'Bob View', ownerUserId: USER_BOB });
       const view3 = buildView({ id: toViewId('view-3'), name: 'Carol View', ownerUserId: USER_CAROL });
@@ -56,6 +56,16 @@ describe('filterViewsByCreator', () => {
 
       const resultBob = filterViewsByCreator(views, [USER_BOB]);
       expect(resultBob).toEqual([view2]);
+    });
+  });
+
+  describe('when multiple users are selected', () => {
+    it('should return the union of views for all selected creators', () => {
+      const view1 = buildView({ id: toViewId('view-1'), name: 'Alice View', ownerUserId: USER_ALICE });
+      const view2 = buildView({ id: toViewId('view-2'), name: 'Bob View', ownerUserId: USER_BOB });
+      const view3 = buildView({ id: toViewId('view-3'), name: 'Carol View', ownerUserId: USER_CAROL });
+
+      const views = [view1, view2, view3];
 
       const resultAliceAndCarol = filterViewsByCreator(views, [USER_ALICE, USER_CAROL]);
       expect(resultAliceAndCarol).toEqual([view1, view3]);
