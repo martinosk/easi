@@ -1,7 +1,8 @@
+import { artifactCreatorsQueryKeys } from '../navigation/hooks/useArtifactCreators';
 import { viewsQueryKeys } from './queryKeys';
 
 export const viewsMutationEffects = {
-  create: () => [viewsQueryKeys.lists()],
+  create: () => [viewsQueryKeys.lists(), artifactCreatorsQueryKeys.all],
 
   delete: (viewId: string) => [viewsQueryKeys.lists(), viewsQueryKeys.detail(viewId)],
 

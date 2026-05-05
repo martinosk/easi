@@ -20,6 +20,7 @@ import {
   originRelationshipsQueryKeys,
   vendorsQueryKeys,
 } from '../features/origin-entities/queryKeys';
+import { viewsMutationEffects } from '../features/views/mutationEffects';
 
 describe('mutationEffects', () => {
   describe('capabilitiesMutationEffects.linkSystem', () => {
@@ -254,6 +255,11 @@ describe('mutationEffects', () => {
 
     it('should invalidate artifact-creators when an internal team is created', () => {
       const effects = internalTeamsMutationEffects.create();
+      expect(effects).toContainEqual(artifactCreatorsQueryKeys.all);
+    });
+
+    it('should invalidate artifact-creators when a view is created', () => {
+      const effects = viewsMutationEffects.create();
       expect(effects).toContainEqual(artifactCreatorsQueryKeys.all);
     });
   });

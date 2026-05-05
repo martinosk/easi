@@ -1,15 +1,23 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { toAcquiredEntityId, toCapabilityId, toComponentId, toInternalTeamId, toVendorId } from '../../../api/types';
+import {
+  toAcquiredEntityId,
+  toCapabilityId,
+  toComponentId,
+  toInternalTeamId,
+  toVendorId,
+  toViewId,
+} from '../../../api/types';
 import {
   buildAcquiredEntity,
   buildCapability,
   buildComponent,
   buildInternalTeam,
   buildVendor,
+  buildView,
   resetIdCounter,
 } from '../../../test/helpers';
 import type { FilterableArtifacts } from './filterByCreator';
-import { filterByCreator } from './filterByCreator';
+import { filterByCreator, filterEntitiesByCreator } from './filterByCreator';
 
 describe('filterByCreator', () => {
   beforeEach(() => {
@@ -121,58 +129,63 @@ describe('filterByCreator', () => {
   });
 
   describe('filtering origin entity types by creator', () => {
-    it('should filter acquired entities by creator', () => {
-      const ae1 = buildAcquiredEntity({ id: toAcquiredEntityId('ae-1'), name: 'Acquired A' });
-      const ae2 = buildAcquiredEntity({ id: toAcquiredEntityId('ae-2'), name: 'Acquired B' });
+    type OriginCase = {
+      label: string;
+      key: keyof FilterableArtifacts;
+      keptId: string;
+      droppedId: string;
+      keptCreator: string;
+      droppedCreator: string;
+      selected: string;
+      build: (id: string) => { id: string };
+    };
 
-      const artifacts = buildArtifacts({
-        acquiredEntities: [ae1, ae2],
-      });
+    const cases: OriginCase[] = [
+      {
+        label: 'acquired entities',
+        key: 'acquiredEntities',
+        keptId: 'ae-1',
+        droppedId: 'ae-2',
+        keptCreator: USER_ALICE,
+        droppedCreator: USER_BOB,
+        selected: USER_ALICE,
+        build: (id) => buildAcquiredEntity({ id: toAcquiredEntityId(id) }),
+      },
+      {
+        label: 'vendors',
+        key: 'vendors',
+        keptId: 'vendor-1',
+        droppedId: 'vendor-2',
+        keptCreator: USER_BOB,
+        droppedCreator: USER_BOB,
+        selected: USER_ALICE,
+        build: (id) => buildVendor({ id: toVendorId(id) }),
+      },
+      {
+        label: 'internal teams',
+        key: 'internalTeams',
+        keptId: 'team-1',
+        droppedId: 'team-2',
+        keptCreator: USER_CAROL,
+        droppedCreator: USER_ALICE,
+        selected: USER_CAROL,
+        build: (id) => buildInternalTeam({ id: toInternalTeamId(id) }),
+      },
+    ];
 
+    it.each(cases)('should filter $label by creator', (c) => {
+      const kept = c.build(c.keptId);
+      const dropped = c.build(c.droppedId);
+      const artifacts = buildArtifacts({ [c.key]: [kept, dropped] });
       const creatorMap = buildCreatorMap([
-        ['ae-1', USER_ALICE],
-        ['ae-2', USER_BOB],
+        [c.keptId, c.keptCreator],
+        [c.droppedId, c.droppedCreator],
       ]);
 
-      const result = filterByCreator(artifacts, [USER_ALICE], creatorMap);
+      const result = filterByCreator(artifacts, [c.selected], creatorMap);
 
-      expect(result.acquiredEntities).toEqual([ae1]);
-    });
-
-    it('should filter vendors by creator', () => {
-      const v1 = buildVendor({ id: toVendorId('vendor-1'), name: 'Vendor Alpha' });
-      const v2 = buildVendor({ id: toVendorId('vendor-2'), name: 'Vendor Beta' });
-
-      const artifacts = buildArtifacts({
-        vendors: [v1, v2],
-      });
-
-      const creatorMap = buildCreatorMap([
-        ['vendor-1', USER_BOB],
-        ['vendor-2', USER_BOB],
-      ]);
-
-      const result = filterByCreator(artifacts, [USER_ALICE], creatorMap);
-
-      expect(result.vendors).toEqual([]);
-    });
-
-    it('should filter internal teams by creator', () => {
-      const team1 = buildInternalTeam({ id: toInternalTeamId('team-1'), name: 'Platform' });
-      const team2 = buildInternalTeam({ id: toInternalTeamId('team-2'), name: 'Mobile' });
-
-      const artifacts = buildArtifacts({
-        internalTeams: [team1, team2],
-      });
-
-      const creatorMap = buildCreatorMap([
-        ['team-1', USER_CAROL],
-        ['team-2', USER_ALICE],
-      ]);
-
-      const result = filterByCreator(artifacts, [USER_CAROL], creatorMap);
-
-      expect(result.internalTeams).toEqual([team1]);
+      const expected = c.selected === c.keptCreator ? [kept] : [];
+      expect(result[c.key]).toEqual(expected);
     });
   });
 
@@ -191,6 +204,46 @@ describe('filterByCreator', () => {
 
       expect(result.components).toEqual([comp1]);
       expect(result.components).not.toContainEqual(expect.objectContaining({ name: 'Unknown Creator' }));
+    });
+  });
+
+  describe('filterEntitiesByCreator (used for views)', () => {
+    it('should return all items unchanged when no creators are selected', () => {
+      const v1 = buildView({ id: toViewId('view-1') });
+      const v2 = buildView({ id: toViewId('view-2') });
+      const creatorMap = buildCreatorMap([
+        ['view-1', USER_ALICE],
+        ['view-2', USER_BOB],
+      ]);
+
+      const result = filterEntitiesByCreator([v1, v2], [], creatorMap);
+
+      expect(result).toEqual([v1, v2]);
+    });
+
+    it('should return only views created by the selected creator', () => {
+      const v1 = buildView({ id: toViewId('view-1'), name: 'Alice view' });
+      const v2 = buildView({ id: toViewId('view-2'), name: 'Bob view' });
+      const v3 = buildView({ id: toViewId('view-3'), name: 'Alice second view' });
+      const creatorMap = buildCreatorMap([
+        ['view-1', USER_ALICE],
+        ['view-2', USER_BOB],
+        ['view-3', USER_ALICE],
+      ]);
+
+      const result = filterEntitiesByCreator([v1, v2, v3], [USER_ALICE], creatorMap);
+
+      expect(result).toEqual([v1, v3]);
+    });
+
+    it('should drop views with no entry in creatorMap when filter is active', () => {
+      const v1 = buildView({ id: toViewId('view-1'), name: 'Known' });
+      const v2 = buildView({ id: toViewId('view-2'), name: 'Unknown' });
+      const creatorMap = buildCreatorMap([['view-1', USER_ALICE]]);
+
+      const result = filterEntitiesByCreator([v1, v2], [USER_ALICE], creatorMap);
+
+      expect(result).toEqual([v1]);
     });
   });
 

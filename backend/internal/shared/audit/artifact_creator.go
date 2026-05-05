@@ -50,7 +50,8 @@ func (rm *ArtifactCreatorReadModel) GetArtifactCreators(ctx context.Context) ([]
 			    'CapabilityCreated',
 			    'VendorCreated',
 			    'InternalTeamCreated',
-			    'AcquiredEntityCreated'
+			    'AcquiredEntityCreated',
+			    'ViewCreated'
 			  )
 		`, tenantID.Value())
 		if err != nil {

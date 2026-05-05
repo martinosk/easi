@@ -21,7 +21,7 @@ func NewArtifactCreatorHandlers(reader ArtifactCreatorReader, hateoas ...*AuditL
 
 // GetArtifactCreators godoc
 // @Summary List artifact creators
-// @Description Returns the creator (first event actor) for each tree-relevant aggregate: components, capabilities, vendors, internal teams, and acquired entities. Requires audit:read permission.
+// @Description Returns the creator (first event actor) for each tree-relevant aggregate: components, capabilities, vendors, internal teams, acquired entities, and views. Requires audit:read permission.
 // @Tags audit
 // @Produce json
 // @Success 200 {object} ArtifactCreatorsResponse

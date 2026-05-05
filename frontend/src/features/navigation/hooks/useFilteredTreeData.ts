@@ -6,7 +6,7 @@ import { useInternalTeamsQuery } from '../../origin-entities/hooks/useInternalTe
 import { useVendorsQuery } from '../../origin-entities/hooks/useVendors';
 import { useActiveUsers } from '../../users/hooks/useUsers';
 import { useViews } from '../../views/hooks/useViews';
-import { filterByCreator } from '../utils/filterByCreator';
+import { filterByCreator, filterEntitiesByCreator } from '../utils/filterByCreator';
 import { filterByDomain } from '../utils/filterByDomain';
 import { preserveCapabilityHierarchy } from '../utils/preserveCapabilityHierarchy';
 import { useArtifactCreators } from './useArtifactCreators';
@@ -54,6 +54,11 @@ export function useFilteredTreeData() {
     domainFilterData,
   ]);
 
+  const filteredViews = useMemo(
+    () => filterEntitiesByCreator(views, selectedCreatorIds, creatorMap),
+    [views, selectedCreatorIds, creatorMap],
+  );
+
   const hasActiveFilters = selectedCreatorIds.length > 0 || selectedDomainIds.length > 0;
 
   const clearAllFilters = () => {
@@ -63,7 +68,7 @@ export function useFilteredTreeData() {
 
   return {
     components,
-    views,
+    views: filteredViews,
     filtered,
     artifactCreators,
     activeUsers,

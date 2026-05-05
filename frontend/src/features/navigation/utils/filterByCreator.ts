@@ -15,11 +15,14 @@ export interface FilterableArtifacts {
 
 export type FilteredArtifacts = FilterableArtifacts;
 
-function filterById<T extends { id: string }>(
+export function filterEntitiesByCreator<T extends { id: string }>(
   items: T[],
   selectedCreatorIds: string[],
   creatorMap: Map<string, string>,
 ): T[] {
+  if (selectedCreatorIds.length === 0) {
+    return items;
+  }
   const selectedSet = new Set(selectedCreatorIds);
   return items.filter((item) => {
     const creatorId = creatorMap.get(item.id);
@@ -37,10 +40,10 @@ export function filterByCreator(
   }
 
   return {
-    components: filterById(artifacts.components, selectedCreatorIds, creatorMap),
-    capabilities: filterById(artifacts.capabilities, selectedCreatorIds, creatorMap),
-    acquiredEntities: filterById(artifacts.acquiredEntities, selectedCreatorIds, creatorMap),
-    vendors: filterById(artifacts.vendors, selectedCreatorIds, creatorMap),
-    internalTeams: filterById(artifacts.internalTeams, selectedCreatorIds, creatorMap),
+    components: filterEntitiesByCreator(artifacts.components, selectedCreatorIds, creatorMap),
+    capabilities: filterEntitiesByCreator(artifacts.capabilities, selectedCreatorIds, creatorMap),
+    acquiredEntities: filterEntitiesByCreator(artifacts.acquiredEntities, selectedCreatorIds, creatorMap),
+    vendors: filterEntitiesByCreator(artifacts.vendors, selectedCreatorIds, creatorMap),
+    internalTeams: filterEntitiesByCreator(artifacts.internalTeams, selectedCreatorIds, creatorMap),
   };
 }
