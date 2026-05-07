@@ -29,24 +29,6 @@ export {
 } from './entityBuilders';
 export { createMantineTestWrapper, MantineTestWrapper } from './mantineTestWrapper';
 export {
-  type AllMockApis,
-  createAllMockApis,
-  createMockBusinessDomainsApi,
-  createMockCapabilitiesApi,
-  createMockComponentsApi,
-  createMockLayoutsApi,
-  createMockMetadataApi,
-  createMockRelationsApi,
-  createMockViewsApi,
-  type MockBusinessDomainsApi,
-  type MockCapabilitiesApi,
-  type MockComponentsApi,
-  type MockLayoutsApi,
-  type MockMetadataApi,
-  type MockRelationsApi,
-  type MockViewsApi,
-} from './mockApiClient';
-export {
   createTestQueryClient,
   type RenderWithProvidersOptions,
   renderWithProviders,
