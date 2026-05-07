@@ -68,83 +68,6 @@ func (m *mockCapabilityReadModelForAssignmentProjector) GetByID(ctx context.Cont
 	return cap, nil
 }
 
-type assignmentReadModelInterface interface {
-	Insert(ctx context.Context, dto readmodels.AssignmentDTO) error
-	Delete(ctx context.Context, assignmentID string) error
-}
-
-type businessDomainReadModelForProjectorInterface interface {
-	GetByID(ctx context.Context, id string) (*readmodels.BusinessDomainDTO, error)
-}
-
-type capabilityReadModelForAssignmentInterface interface {
-	GetByID(ctx context.Context, id string) (*readmodels.CapabilityDTO, error)
-}
-
-type testableBusinessDomainAssignmentProjector struct {
-	assignmentReadModel assignmentReadModelInterface
-	domainReadModel     businessDomainReadModelForProjectorInterface
-	capabilityReadModel capabilityReadModelForAssignmentInterface
-}
-
-func newTestableBusinessDomainAssignmentProjector(
-	assignmentReadModel assignmentReadModelInterface,
-	domainReadModel businessDomainReadModelForProjectorInterface,
-	capabilityReadModel capabilityReadModelForAssignmentInterface,
-) *testableBusinessDomainAssignmentProjector {
-	return &testableBusinessDomainAssignmentProjector{
-		assignmentReadModel: assignmentReadModel,
-		domainReadModel:     domainReadModel,
-		capabilityReadModel: capabilityReadModel,
-	}
-}
-
-func (p *testableBusinessDomainAssignmentProjector) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
-	switch eventType {
-	case "CapabilityAssignedToDomain":
-		return p.handleCapabilityAssignedToDomain(ctx, eventData)
-	case "CapabilityUnassignedFromDomain":
-		return p.handleCapabilityUnassignedFromDomain(ctx, eventData)
-	}
-	return nil
-}
-
-func (p *testableBusinessDomainAssignmentProjector) handleCapabilityAssignedToDomain(ctx context.Context, eventData []byte) error {
-	var event events.CapabilityAssignedToDomain
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		return err
-	}
-
-	domain, err := p.domainReadModel.GetByID(ctx, event.BusinessDomainID)
-	if err != nil || domain == nil {
-		return err
-	}
-
-	capability, err := p.capabilityReadModel.GetByID(ctx, event.CapabilityID)
-	if err != nil || capability == nil {
-		return err
-	}
-
-	dto := readmodels.AssignmentDTO{
-		AssignmentID:       event.ID,
-		BusinessDomainID:   event.BusinessDomainID,
-		BusinessDomainName: domain.Name,
-		CapabilityID:       event.CapabilityID,
-		CapabilityName:     capability.Name,
-		CapabilityLevel:    capability.Level,
-		AssignedAt:         event.AssignedAt,
-	}
-	return p.assignmentReadModel.Insert(ctx, dto)
-}
-
-func (p *testableBusinessDomainAssignmentProjector) handleCapabilityUnassignedFromDomain(ctx context.Context, eventData []byte) error {
-	var event events.CapabilityUnassignedFromDomain
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		return err
-	}
-	return p.assignmentReadModel.Delete(ctx, event.ID)
-}
-
 func TestBusinessDomainAssignmentProjector_HandleCapabilityAssignedToDomain(t *testing.T) {
 	assignmentMock := &mockAssignmentReadModel{}
 	domainMock := &mockBusinessDomainReadModelForProjector{
@@ -165,7 +88,7 @@ func TestBusinessDomainAssignmentProjector_HandleCapabilityAssignedToDomain(t *t
 		},
 	}
 
-	projector := newTestableBusinessDomainAssignmentProjector(assignmentMock, domainMock, capabilityMock)
+	projector := NewBusinessDomainAssignmentProjector(assignmentMock, domainMock, capabilityMock)
 
 	event := events.NewCapabilityAssignedToDomain(
 		"assign-123",
@@ -195,7 +118,7 @@ func TestBusinessDomainAssignmentProjector_HandleCapabilityUnassignedFromDomain(
 	domainMock := &mockBusinessDomainReadModelForProjector{}
 	capabilityMock := &mockCapabilityReadModelForAssignmentProjector{}
 
-	projector := newTestableBusinessDomainAssignmentProjector(assignmentMock, domainMock, capabilityMock)
+	projector := NewBusinessDomainAssignmentProjector(assignmentMock, domainMock, capabilityMock)
 
 	event := events.NewCapabilityUnassignedFromDomain(
 		"assign-123",

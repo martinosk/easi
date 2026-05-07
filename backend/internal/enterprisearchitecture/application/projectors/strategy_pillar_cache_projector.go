@@ -11,11 +11,17 @@ import (
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
-type StrategyPillarCacheProjector struct {
-	readModel *readmodels.StrategyPillarCacheReadModel
+type StrategyPillarCacheStore interface {
+	Insert(ctx context.Context, dto readmodels.StrategyPillarCacheDTO) error
+	Delete(ctx context.Context, pillarID string) error
+	GetActivePillar(ctx context.Context, pillarID string) (*readmodels.StrategyPillarCacheDTO, error)
 }
 
-func NewStrategyPillarCacheProjector(readModel *readmodels.StrategyPillarCacheReadModel) *StrategyPillarCacheProjector {
+type StrategyPillarCacheProjector struct {
+	readModel StrategyPillarCacheStore
+}
+
+func NewStrategyPillarCacheProjector(readModel StrategyPillarCacheStore) *StrategyPillarCacheProjector {
 	return &StrategyPillarCacheProjector{readModel: readModel}
 }
 

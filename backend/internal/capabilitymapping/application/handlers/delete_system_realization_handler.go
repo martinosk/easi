@@ -4,16 +4,21 @@ import (
 	"context"
 
 	"easi/backend/internal/capabilitymapping/application/commands"
-	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
+	"easi/backend/internal/capabilitymapping/domain/aggregates"
 	"easi/backend/internal/shared/cqrs"
 )
 
+type DeleteSystemRealizationRepository interface {
+	GetByID(ctx context.Context, id string) (*aggregates.CapabilityRealization, error)
+	Save(ctx context.Context, realization *aggregates.CapabilityRealization) error
+}
+
 type DeleteSystemRealizationHandler struct {
-	repository *repositories.RealizationRepository
+	repository DeleteSystemRealizationRepository
 }
 
 func NewDeleteSystemRealizationHandler(
-	repository *repositories.RealizationRepository,
+	repository DeleteSystemRealizationRepository,
 ) *DeleteSystemRealizationHandler {
 	return &DeleteSystemRealizationHandler{
 		repository: repository,

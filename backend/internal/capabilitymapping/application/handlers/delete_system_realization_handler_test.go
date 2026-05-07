@@ -49,44 +49,6 @@ func (m *mockRealizationRepositoryForDelete) addRealization(realization *aggrega
 	m.realizations[realization.ID()] = realization
 }
 
-type realizationRepositoryForDelete interface {
-	GetByID(ctx context.Context, id string) (*aggregates.CapabilityRealization, error)
-	Save(ctx context.Context, realization *aggregates.CapabilityRealization) error
-}
-
-type testableDeleteSystemRealizationHandler struct {
-	repository realizationRepositoryForDelete
-}
-
-func newTestableDeleteSystemRealizationHandler(
-	repository realizationRepositoryForDelete,
-) *testableDeleteSystemRealizationHandler {
-	return &testableDeleteSystemRealizationHandler{
-		repository: repository,
-	}
-}
-
-func (h *testableDeleteSystemRealizationHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
-	command, ok := cmd.(*commands.DeleteSystemRealization)
-	if !ok {
-		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
-	}
-
-	realization, err := h.repository.GetByID(ctx, command.ID)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	if err := realization.Delete(); err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	if err := h.repository.Save(ctx, realization); err != nil {
-		return cqrs.EmptyResult(), err
-	}
-	return cqrs.EmptyResult(), nil
-}
-
 func createRealization(t *testing.T) *aggregates.CapabilityRealization {
 	t.Helper()
 
@@ -110,7 +72,7 @@ func TestDeleteSystemRealizationHandler_DeletesRealization(t *testing.T) {
 	mockRepo := newMockRealizationRepositoryForDelete()
 	mockRepo.addRealization(realization)
 
-	handler := newTestableDeleteSystemRealizationHandler(mockRepo)
+	handler := NewDeleteSystemRealizationHandler(mockRepo)
 
 	cmd := &commands.DeleteSystemRealization{
 		ID: realizationID,
@@ -125,7 +87,7 @@ func TestDeleteSystemRealizationHandler_DeletesRealization(t *testing.T) {
 func TestDeleteSystemRealizationHandler_RealizationNotFound_ReturnsError(t *testing.T) {
 	mockRepo := newMockRealizationRepositoryForDelete()
 
-	handler := newTestableDeleteSystemRealizationHandler(mockRepo)
+	handler := NewDeleteSystemRealizationHandler(mockRepo)
 
 	cmd := &commands.DeleteSystemRealization{
 		ID: "non-existent-id",
@@ -138,7 +100,7 @@ func TestDeleteSystemRealizationHandler_RealizationNotFound_ReturnsError(t *test
 func TestDeleteSystemRealizationHandler_InvalidCommand_ReturnsError(t *testing.T) {
 	mockRepo := newMockRealizationRepositoryForDelete()
 
-	handler := newTestableDeleteSystemRealizationHandler(mockRepo)
+	handler := NewDeleteSystemRealizationHandler(mockRepo)
 
 	invalidCmd := &commands.LinkSystemToCapability{}
 

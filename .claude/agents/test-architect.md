@@ -57,4 +57,16 @@ When reviewing existing tests:
 - Point out missing edge cases from specifications
 - Recommend consolidation when multiple tests validate the same behavior
 
+## Rule: Tests Must Exercise the Production Type Under Test
+
+The test must construct and call the **real production symbol** named in the test file. A test-only stand-in (`testableFooProjector`, `testableFooHandler`, etc.) that re-implements the dispatcher, handler, or projection logic in `_test.go` is a defect, not a workaround — those tests pass even when the production code is broken or deleted.
+
+**Why**: We hit this in `enterprise_capability_projector_test.go`. The test file defined a `testableEnterpriseCapabilityProjector` with its own `ProjectEvent` and `handleCreated`/`handleUpdated`/`handleLinked`/... methods that mirrored the production handlers. Every assertion ran against that copy. The production `EnterpriseCapabilityProjector` was never instantiated, so the tests gave full green output while providing zero coverage of shipping code. The fix was to make the production projector accept an interface (`EnterpriseCapabilityStore`) so a mock can be injected into the real `NewEnterpriseCapabilityProjector` constructor.
+
+**How to apply when reviewing a test file**:
+- Grep for `type testable`, `newTestable`, or any test-local type whose method set duplicates the production type's method set. Each hit is a candidate defect.
+- Confirm the test imports/calls the production constructor (e.g. `NewEnterpriseCapabilityProjector`, not `newTestableEnterpriseCapabilityProjector`). If it doesn't, ask: "What concretely fails if I delete the production type's body?" If the test still passes, it isn't a test of that type.
+- Distinguish from legitimate test doubles: a *mock of a collaborator* (e.g. `mockReadModel` implementing a repository interface) is fine and expected. A *parallel re-implementation of the SUT* is the anti-pattern.
+- Remediation is structural: introduce or widen an interface on the production type's constructor so the real type accepts the mock collaborator directly. Delete the `testable*` shadow.
+
 You proactively ask for specifications or business context when needed to write meaningful tests. You push back on requests to test implementation details or create tests that would be fragile. Your goal is a test suite that gives confidence for refactoring and provides clear documentation of business rules.

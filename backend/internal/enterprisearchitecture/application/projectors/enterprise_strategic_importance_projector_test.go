@@ -55,69 +55,9 @@ func (m *mockEnterpriseStrategicImportanceReadModel) Delete(ctx context.Context,
 	return nil
 }
 
-type enterpriseStrategicImportanceReadModelForProjector interface {
-	Insert(ctx context.Context, dto readmodels.EnterpriseStrategicImportanceDTO) error
-	Update(ctx context.Context, id string, importance int, rationale string) error
-	Delete(ctx context.Context, id string) error
-}
-
-type testableEnterpriseStrategicImportanceProjector struct {
-	readModel enterpriseStrategicImportanceReadModelForProjector
-}
-
-func newTestableEnterpriseStrategicImportanceProjector(readModel enterpriseStrategicImportanceReadModelForProjector) *testableEnterpriseStrategicImportanceProjector {
-	return &testableEnterpriseStrategicImportanceProjector{readModel: readModel}
-}
-
-func (p *testableEnterpriseStrategicImportanceProjector) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
-	handlers := map[string]func(context.Context, []byte) error{
-		"EnterpriseStrategicImportanceSet":     p.handleSet,
-		"EnterpriseStrategicImportanceUpdated": p.handleUpdated,
-		"EnterpriseStrategicImportanceRemoved": p.handleRemoved,
-	}
-
-	if handler, exists := handlers[eventType]; exists {
-		return handler(ctx, eventData)
-	}
-	return nil
-}
-
-func (p *testableEnterpriseStrategicImportanceProjector) handleSet(ctx context.Context, eventData []byte) error {
-	var event events.EnterpriseStrategicImportanceSet
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		return err
-	}
-	dto := readmodels.EnterpriseStrategicImportanceDTO{
-		ID:                     event.ID,
-		EnterpriseCapabilityID: event.EnterpriseCapabilityID,
-		PillarID:               event.PillarID,
-		PillarName:             event.PillarName,
-		Importance:             event.Importance,
-		Rationale:              event.Rationale,
-		SetAt:                  event.SetAt,
-	}
-	return p.readModel.Insert(ctx, dto)
-}
-
-func (p *testableEnterpriseStrategicImportanceProjector) handleUpdated(ctx context.Context, eventData []byte) error {
-	var event events.EnterpriseStrategicImportanceUpdated
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		return err
-	}
-	return p.readModel.Update(ctx, event.ID, event.Importance, event.Rationale)
-}
-
-func (p *testableEnterpriseStrategicImportanceProjector) handleRemoved(ctx context.Context, eventData []byte) error {
-	var event events.EnterpriseStrategicImportanceRemoved
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		return err
-	}
-	return p.readModel.Delete(ctx, event.ID)
-}
-
 func TestEnterpriseStrategicImportanceProjector_Set_InsertsRating(t *testing.T) {
 	mockReadModel := &mockEnterpriseStrategicImportanceReadModel{}
-	projector := newTestableEnterpriseStrategicImportanceProjector(mockReadModel)
+	projector := NewEnterpriseStrategicImportanceProjector(mockReadModel)
 
 	enterpriseCapabilityID := uuid.New().String()
 	pillarID := uuid.New().String()
@@ -149,7 +89,7 @@ func TestEnterpriseStrategicImportanceProjector_Set_InsertsRating(t *testing.T) 
 
 func TestEnterpriseStrategicImportanceProjector_Updated_UpdatesRating(t *testing.T) {
 	mockReadModel := &mockEnterpriseStrategicImportanceReadModel{}
-	projector := newTestableEnterpriseStrategicImportanceProjector(mockReadModel)
+	projector := NewEnterpriseStrategicImportanceProjector(mockReadModel)
 
 	ratingID := uuid.New().String()
 	event := events.NewEnterpriseStrategicImportanceUpdated(events.EnterpriseStrategicImportanceUpdatedParams{
@@ -175,7 +115,7 @@ func TestEnterpriseStrategicImportanceProjector_Updated_UpdatesRating(t *testing
 
 func TestEnterpriseStrategicImportanceProjector_Removed_DeletesRating(t *testing.T) {
 	mockReadModel := &mockEnterpriseStrategicImportanceReadModel{}
-	projector := newTestableEnterpriseStrategicImportanceProjector(mockReadModel)
+	projector := NewEnterpriseStrategicImportanceProjector(mockReadModel)
 
 	ratingID := uuid.New().String()
 	event := events.NewEnterpriseStrategicImportanceRemoved(
@@ -196,7 +136,7 @@ func TestEnterpriseStrategicImportanceProjector_Removed_DeletesRating(t *testing
 
 func TestEnterpriseStrategicImportanceProjector_UnknownEvent_Ignored(t *testing.T) {
 	mockReadModel := &mockEnterpriseStrategicImportanceReadModel{}
-	projector := newTestableEnterpriseStrategicImportanceProjector(mockReadModel)
+	projector := NewEnterpriseStrategicImportanceProjector(mockReadModel)
 
 	err := projector.ProjectEvent(context.Background(), "UnknownEvent", []byte("{}"))
 	require.NoError(t, err)
@@ -206,71 +146,51 @@ func TestEnterpriseStrategicImportanceProjector_UnknownEvent_Ignored(t *testing.
 	assert.Empty(t, mockReadModel.deletedIDs)
 }
 
-func TestEnterpriseStrategicImportanceProjector_InsertError_ReturnsError(t *testing.T) {
-	mockReadModel := &mockEnterpriseStrategicImportanceReadModel{
-		insertErr: errors.New("database error"),
+func TestEnterpriseStrategicImportanceProjector_StoreErrorPropagation(t *testing.T) {
+	tests := []struct {
+		name      string
+		mock      *mockEnterpriseStrategicImportanceReadModel
+		eventType string
+		event     projectableEvent
+	}{
+		{
+			name:      "insert error during set",
+			mock:      &mockEnterpriseStrategicImportanceReadModel{insertErr: errors.New("database error")},
+			eventType: "EnterpriseStrategicImportanceSet",
+			event: events.NewEnterpriseStrategicImportanceSet(events.EnterpriseStrategicImportanceSetParams{
+				ID: uuid.New().String(), EnterpriseCapabilityID: uuid.New().String(), PillarID: uuid.New().String(),
+				PillarName: "Test", Importance: 3,
+			}),
+		},
+		{
+			name:      "update error during update",
+			mock:      &mockEnterpriseStrategicImportanceReadModel{updateErr: errors.New("database error")},
+			eventType: "EnterpriseStrategicImportanceUpdated",
+			event: events.NewEnterpriseStrategicImportanceUpdated(events.EnterpriseStrategicImportanceUpdatedParams{
+				ID: uuid.New().String(), Importance: 4, Rationale: "Test", OldImportance: 3, OldRationale: "Old",
+			}),
+		},
+		{
+			name:      "delete error during remove",
+			mock:      &mockEnterpriseStrategicImportanceReadModel{deleteErr: errors.New("database error")},
+			eventType: "EnterpriseStrategicImportanceRemoved",
+			event:     events.NewEnterpriseStrategicImportanceRemoved(uuid.New().String(), uuid.New().String(), uuid.New().String()),
+		},
 	}
-	projector := newTestableEnterpriseStrategicImportanceProjector(mockReadModel)
 
-	event := events.NewEnterpriseStrategicImportanceSet(events.EnterpriseStrategicImportanceSetParams{
-		ID:                     uuid.New().String(),
-		EnterpriseCapabilityID: uuid.New().String(),
-		PillarID:               uuid.New().String(),
-		PillarName:             "Test",
-		Importance:             3,
-		Rationale:              "",
-	})
-
-	eventData, err := json.Marshal(event.EventData())
-	require.NoError(t, err)
-
-	err = projector.ProjectEvent(context.Background(), "EnterpriseStrategicImportanceSet", eventData)
-	assert.Error(t, err)
-}
-
-func TestEnterpriseStrategicImportanceProjector_UpdateError_ReturnsError(t *testing.T) {
-	mockReadModel := &mockEnterpriseStrategicImportanceReadModel{
-		updateErr: errors.New("database error"),
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			projector := NewEnterpriseStrategicImportanceProjector(tt.mock)
+			eventData, err := json.Marshal(tt.event.EventData())
+			require.NoError(t, err)
+			assert.Error(t, projector.ProjectEvent(context.Background(), tt.eventType, eventData))
+		})
 	}
-	projector := newTestableEnterpriseStrategicImportanceProjector(mockReadModel)
-
-	event := events.NewEnterpriseStrategicImportanceUpdated(events.EnterpriseStrategicImportanceUpdatedParams{
-		ID:            uuid.New().String(),
-		Importance:    4,
-		Rationale:     "Test",
-		OldImportance: 3,
-		OldRationale:  "Old",
-	})
-
-	eventData, err := json.Marshal(event.EventData())
-	require.NoError(t, err)
-
-	err = projector.ProjectEvent(context.Background(), "EnterpriseStrategicImportanceUpdated", eventData)
-	assert.Error(t, err)
-}
-
-func TestEnterpriseStrategicImportanceProjector_DeleteError_ReturnsError(t *testing.T) {
-	mockReadModel := &mockEnterpriseStrategicImportanceReadModel{
-		deleteErr: errors.New("database error"),
-	}
-	projector := newTestableEnterpriseStrategicImportanceProjector(mockReadModel)
-
-	event := events.NewEnterpriseStrategicImportanceRemoved(
-		uuid.New().String(),
-		uuid.New().String(),
-		uuid.New().String(),
-	)
-
-	eventData, err := json.Marshal(event.EventData())
-	require.NoError(t, err)
-
-	err = projector.ProjectEvent(context.Background(), "EnterpriseStrategicImportanceRemoved", eventData)
-	assert.Error(t, err)
 }
 
 func TestEnterpriseStrategicImportanceProjector_InvalidJSON_ReturnsError(t *testing.T) {
 	mockReadModel := &mockEnterpriseStrategicImportanceReadModel{}
-	projector := newTestableEnterpriseStrategicImportanceProjector(mockReadModel)
+	projector := NewEnterpriseStrategicImportanceProjector(mockReadModel)
 
 	err := projector.ProjectEvent(context.Background(), "EnterpriseStrategicImportanceSet", []byte("invalid json"))
 	assert.Error(t, err)

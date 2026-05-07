@@ -19,11 +19,21 @@ func handleProjection[T any](ctx context.Context, eventData []byte, fn func(cont
 	return fn(ctx, event)
 }
 
-type EnterpriseCapabilityProjector struct {
-	readModel *readmodels.EnterpriseCapabilityReadModel
+type EnterpriseCapabilityStore interface {
+	Insert(ctx context.Context, dto readmodels.EnterpriseCapabilityDTO) error
+	Update(ctx context.Context, params readmodels.UpdateCapabilityParams) error
+	Delete(ctx context.Context, id string) error
+	IncrementLinkCount(ctx context.Context, id string) error
+	DecrementLinkCount(ctx context.Context, id string) error
+	RecalculateDomainCount(ctx context.Context, enterpriseCapabilityID string) error
+	UpdateTargetMaturity(ctx context.Context, id string, targetMaturity int) error
 }
 
-func NewEnterpriseCapabilityProjector(readModel *readmodels.EnterpriseCapabilityReadModel) *EnterpriseCapabilityProjector {
+type EnterpriseCapabilityProjector struct {
+	readModel EnterpriseCapabilityStore
+}
+
+func NewEnterpriseCapabilityProjector(readModel EnterpriseCapabilityStore) *EnterpriseCapabilityProjector {
 	return &EnterpriseCapabilityProjector{
 		readModel: readModel,
 	}

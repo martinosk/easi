@@ -13,11 +13,34 @@ import (
 	"easi/backend/internal/shared/types"
 )
 
+type EnterpriseCapabilityQueries interface {
+	GetAll(ctx context.Context) ([]readmodels.EnterpriseCapabilityDTO, error)
+	GetByID(ctx context.Context, id string) (*readmodels.EnterpriseCapabilityDTO, error)
+}
+
+type EnterpriseCapabilityLinkQueries interface {
+	GetByID(ctx context.Context, id string) (*readmodels.EnterpriseCapabilityLinkDTO, error)
+	GetByEnterpriseCapabilityID(ctx context.Context, enterpriseCapabilityID string) ([]readmodels.EnterpriseCapabilityLinkDTO, error)
+	GetByDomainCapabilityID(ctx context.Context, domainCapabilityID string) (*readmodels.EnterpriseCapabilityLinkDTO, error)
+	GetLinkStatus(ctx context.Context, domainCapabilityID string) (*readmodels.CapabilityLinkStatusDTO, error)
+	GetBatchLinkStatus(ctx context.Context, domainCapabilityIDs []string) ([]readmodels.CapabilityLinkStatusDTO, error)
+}
+
+type EnterpriseStrategicImportanceQueries interface {
+	GetByID(ctx context.Context, id string) (*readmodels.EnterpriseStrategicImportanceDTO, error)
+	GetByEnterpriseCapabilityID(ctx context.Context, enterpriseCapabilityID string) ([]readmodels.EnterpriseStrategicImportanceDTO, error)
+}
+
+type MaturityAnalysisQueries interface {
+	GetMaturityAnalysisCandidates(ctx context.Context, sortBy string) ([]readmodels.MaturityAnalysisCandidateDTO, readmodels.MaturityAnalysisSummaryDTO, error)
+	GetMaturityGapDetail(ctx context.Context, enterpriseCapabilityID string) (*readmodels.MaturityGapDetailDTO, error)
+}
+
 type EnterpriseCapabilityReadModels struct {
-	Capability       *readmodels.EnterpriseCapabilityReadModel
-	Link             *readmodels.EnterpriseCapabilityLinkReadModel
-	Importance       *readmodels.EnterpriseStrategicImportanceReadModel
-	MaturityAnalysis *readmodels.MaturityAnalysisReadModel
+	Capability       EnterpriseCapabilityQueries
+	Link             EnterpriseCapabilityLinkQueries
+	Importance       EnterpriseStrategicImportanceQueries
+	MaturityAnalysis MaturityAnalysisQueries
 }
 
 type EnterpriseCapabilityHandlers struct {

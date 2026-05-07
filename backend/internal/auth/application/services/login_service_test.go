@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"easi/backend/internal/auth/application/readmodels"
 )
@@ -27,43 +28,16 @@ func (m *mockUserReadModel) UpdateLastLogin(ctx context.Context, id uuid.UUID, l
 	return nil
 }
 
-type userReadModelForLogin interface {
-	GetByEmail(ctx context.Context, email string) (*readmodels.UserDTO, error)
-	UpdateLastLogin(ctx context.Context, id uuid.UUID, lastLoginAt time.Time) error
+type mockInvitationReadModel struct {
+	invitation *readmodels.InvitationDTO
 }
 
-type testableLoginService struct {
-	userReadModel userReadModelForLogin
+func (m *mockInvitationReadModel) GetAnyPendingByEmail(ctx context.Context, email string) (*readmodels.InvitationDTO, error) {
+	return m.invitation, nil
 }
 
-func newTestableLoginService(userReadModel userReadModelForLogin) *testableLoginService {
-	return &testableLoginService{
-		userReadModel: userReadModel,
-	}
-}
-
-func (s *testableLoginService) ProcessLogin(ctx context.Context, email, name string) (*LoginResult, error) {
-	existingUser, err := s.userReadModel.GetByEmail(ctx, email)
-	if err != nil {
-		return nil, err
-	}
-
-	if existingUser != nil {
-		if existingUser.Status == "disabled" {
-			return nil, ErrUserDisabled
-		}
-		if err := s.userReadModel.UpdateLastLogin(ctx, existingUser.ID, time.Now().UTC()); err != nil {
-			return nil, err
-		}
-		return &LoginResult{
-			UserID: existingUser.ID,
-			Email:  existingUser.Email,
-			Role:   existingUser.Role,
-			IsNew:  false,
-		}, nil
-	}
-
-	return nil, ErrNoValidInvitation
+func newLoginServiceForExistingUserTest(userReadModel LoginUserReadModel) *LoginService {
+	return NewLoginService(userReadModel, &mockInvitationReadModel{}, nil, nil)
 }
 
 func TestLoginService_DisabledUser_ReturnsError(t *testing.T) {
@@ -76,7 +50,7 @@ func TestLoginService_DisabledUser_ReturnsError(t *testing.T) {
 	}
 
 	mockReadModel := &mockUserReadModel{userByEmail: disabledUser}
-	service := newTestableLoginService(mockReadModel)
+	service := newLoginServiceForExistingUserTest(mockReadModel)
 
 	result, err := service.ProcessLogin(context.Background(), "disabled@example.com", "Disabled User")
 
@@ -94,14 +68,24 @@ func TestLoginService_ActiveUser_Succeeds(t *testing.T) {
 	}
 
 	mockReadModel := &mockUserReadModel{userByEmail: activeUser}
-	service := newTestableLoginService(mockReadModel)
+	service := newLoginServiceForExistingUserTest(mockReadModel)
 
 	result, err := service.ProcessLogin(context.Background(), "active@example.com", "Active User")
 
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
+	require.NoError(t, err)
+	require.NotNil(t, result)
 	assert.Equal(t, userID, result.UserID)
 	assert.Equal(t, "active@example.com", result.Email)
 	assert.Equal(t, "architect", result.Role)
 	assert.False(t, result.IsNew)
+}
+
+func TestLoginService_NoExistingUserAndNoInvitation_ReturnsError(t *testing.T) {
+	mockReadModel := &mockUserReadModel{userByEmail: nil}
+	service := newLoginServiceForExistingUserTest(mockReadModel)
+
+	result, err := service.ProcessLogin(context.Background(), "stranger@example.com", "Stranger")
+
+	assert.ErrorIs(t, err, ErrNoValidInvitation)
+	assert.Nil(t, result)
 }

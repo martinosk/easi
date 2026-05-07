@@ -96,200 +96,9 @@ func (m *mockImportSessionReadModel) MarkCancelled(ctx context.Context, id strin
 	return nil
 }
 
-type importSessionReadModelInterface interface {
-	Insert(ctx context.Context, dto readmodels.ImportSessionDTO) error
-	UpdateStatus(ctx context.Context, id, status string) error
-	UpdateProgress(ctx context.Context, id string, progress readmodels.ProgressDTO) error
-	MarkCompleted(ctx context.Context, id string, result readmodels.ResultDTO, completedAt time.Time) error
-	MarkFailed(ctx context.Context, id string, failedAt time.Time) error
-	MarkCancelled(ctx context.Context, id string) error
-}
-
-type testableImportSessionProjector struct {
-	readModel importSessionReadModelInterface
-}
-
-func newTestableImportSessionProjector(readModel importSessionReadModelInterface) *testableImportSessionProjector {
-	return &testableImportSessionProjector{readModel: readModel}
-}
-
-func (p *testableImportSessionProjector) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
-	switch eventType {
-	case "ImportSessionCreated":
-		return p.handleImportSessionCreated(ctx, eventData)
-	case "ImportStarted":
-		return p.handleImportStarted(ctx, eventData)
-	case "ImportProgressUpdated":
-		return p.handleImportProgressUpdated(ctx, eventData)
-	case "ImportCompleted":
-		return p.handleImportCompleted(ctx, eventData)
-	case "ImportFailed":
-		return p.handleImportFailed(ctx, eventData)
-	case "ImportSessionCancelled":
-		return p.handleImportSessionCancelled(ctx, eventData)
-	}
-	return nil
-}
-
-func (p *testableImportSessionProjector) handleImportSessionCreated(ctx context.Context, eventData []byte) error {
-	var data struct {
-		ID               string                 `json:"id"`
-		SourceFormat     string                 `json:"sourceFormat"`
-		BusinessDomainID string                 `json:"businessDomainId"`
-		Preview          map[string]interface{} `json:"preview"`
-		CreatedAt        time.Time              `json:"createdAt"`
-	}
-	if err := json.Unmarshal(eventData, &data); err != nil {
-		return err
-	}
-
-	preview := readmodels.PreviewDTO{}
-	if supported, ok := data.Preview["supported"].(map[string]interface{}); ok {
-		preview.Supported = readmodels.SupportedCountsDTO{
-			Capabilities:                    getIntFromMap(supported, "capabilities"),
-			Components:                      getIntFromMap(supported, "components"),
-			ValueStreams:                    getIntFromMap(supported, "valueStreams"),
-			ParentChildRelationships:        getIntFromMap(supported, "parentChildRelationships"),
-			Realizations:                    getIntFromMap(supported, "realizations"),
-			ComponentRelationships:          getIntFromMap(supported, "componentRelationships"),
-			CapabilityToValueStreamMappings: getIntFromMap(supported, "capabilityToValueStreamMappings"),
-		}
-	}
-	if unsupported, ok := data.Preview["unsupported"].(map[string]interface{}); ok {
-		preview.Unsupported = readmodels.UnsupportedCountsDTO{
-			Elements:      getStringIntMap(unsupported, "elements"),
-			Relationships: getStringIntMap(unsupported, "relationships"),
-		}
-	}
-
-	dto := readmodels.ImportSessionDTO{
-		ID:               data.ID,
-		SourceFormat:     data.SourceFormat,
-		BusinessDomainID: data.BusinessDomainID,
-		Status:           "pending",
-		Preview:          &preview,
-		CreatedAt:        data.CreatedAt,
-	}
-
-	return p.readModel.Insert(ctx, dto)
-}
-
-func (p *testableImportSessionProjector) handleImportStarted(ctx context.Context, eventData []byte) error {
-	var data struct {
-		ID         string `json:"id"`
-		TotalItems int    `json:"totalItems"`
-	}
-	if err := json.Unmarshal(eventData, &data); err != nil {
-		return err
-	}
-
-	if err := p.readModel.UpdateStatus(ctx, data.ID, "importing"); err != nil {
-		return err
-	}
-
-	progress := readmodels.ProgressDTO{
-		Phase:          "creating_components",
-		TotalItems:     data.TotalItems,
-		CompletedItems: 0,
-	}
-
-	return p.readModel.UpdateProgress(ctx, data.ID, progress)
-}
-
-func (p *testableImportSessionProjector) handleImportProgressUpdated(ctx context.Context, eventData []byte) error {
-	var data struct {
-		ID             string `json:"id"`
-		Phase          string `json:"phase"`
-		TotalItems     int    `json:"totalItems"`
-		CompletedItems int    `json:"completedItems"`
-	}
-	if err := json.Unmarshal(eventData, &data); err != nil {
-		return err
-	}
-
-	progress := readmodels.ProgressDTO{
-		Phase:          data.Phase,
-		TotalItems:     data.TotalItems,
-		CompletedItems: data.CompletedItems,
-	}
-
-	return p.readModel.UpdateProgress(ctx, data.ID, progress)
-}
-
-func (p *testableImportSessionProjector) handleImportCompleted(ctx context.Context, eventData []byte) error {
-	var data struct {
-		ID                        string                   `json:"id"`
-		CapabilitiesCreated       int                      `json:"capabilitiesCreated"`
-		ComponentsCreated         int                      `json:"componentsCreated"`
-		ValueStreamsCreated       int                      `json:"valueStreamsCreated"`
-		RealizationsCreated       int                      `json:"realizationsCreated"`
-		ComponentRelationsCreated int                      `json:"componentRelationsCreated"`
-		CapabilityMappings        int                      `json:"capabilityMappings"`
-		DomainAssignments         int                      `json:"domainAssignments"`
-		Errors                    []map[string]interface{} `json:"errors"`
-		CompletedAt               time.Time                `json:"completedAt"`
-	}
-	if err := json.Unmarshal(eventData, &data); err != nil {
-		return err
-	}
-
-	errors := make([]readmodels.ImportErrorDTO, 0, len(data.Errors))
-	for _, e := range data.Errors {
-		errors = append(errors, readmodels.ImportErrorDTO{
-			SourceElement: getString(e, "sourceElement"),
-			SourceName:    getString(e, "sourceName"),
-			Error:         getString(e, "error"),
-			Action:        getString(e, "action"),
-		})
-	}
-
-	result := readmodels.ResultDTO{
-		CapabilitiesCreated:       data.CapabilitiesCreated,
-		ComponentsCreated:         data.ComponentsCreated,
-		ValueStreamsCreated:       data.ValueStreamsCreated,
-		RealizationsCreated:       data.RealizationsCreated,
-		ComponentRelationsCreated: data.ComponentRelationsCreated,
-		CapabilityMappings:        data.CapabilityMappings,
-		DomainAssignments:         data.DomainAssignments,
-		Errors:                    errors,
-	}
-
-	return p.readModel.MarkCompleted(ctx, data.ID, result, data.CompletedAt)
-}
-
-func unmarshalEventID(eventData []byte) (string, error) {
-	var data struct {
-		ID string `json:"id"`
-	}
-	if err := json.Unmarshal(eventData, &data); err != nil {
-		return "", err
-	}
-	return data.ID, nil
-}
-
-func (p *testableImportSessionProjector) handleImportFailed(ctx context.Context, eventData []byte) error {
-	var data struct {
-		ID       string    `json:"id"`
-		FailedAt time.Time `json:"failedAt"`
-	}
-	if err := json.Unmarshal(eventData, &data); err != nil {
-		return err
-	}
-
-	return p.readModel.MarkFailed(ctx, data.ID, data.FailedAt)
-}
-
-func (p *testableImportSessionProjector) handleImportSessionCancelled(ctx context.Context, eventData []byte) error {
-	id, err := unmarshalEventID(eventData)
-	if err != nil {
-		return err
-	}
-	return p.readModel.MarkCancelled(ctx, id)
-}
-
 func TestImportSessionProjector_HandleImportCompleted_WithNoErrors_ReturnsEmptySlice(t *testing.T) {
 	mockRM := &mockImportSessionReadModel{}
-	projector := newTestableImportSessionProjector(mockRM)
+	projector := NewImportSessionProjector(mockRM)
 
 	completedAt := time.Now()
 	eventData, err := json.Marshal(map[string]interface{}{
@@ -330,7 +139,7 @@ func TestImportSessionProjector_HandleImportCompleted_WithNoErrors_ReturnsEmptyS
 
 func TestImportSessionProjector_HandleImportCompleted_WithErrors_ReturnsPopulatedSlice(t *testing.T) {
 	mockRM := &mockImportSessionReadModel{}
-	projector := newTestableImportSessionProjector(mockRM)
+	projector := NewImportSessionProjector(mockRM)
 
 	completedAt := time.Now()
 	eventData, err := json.Marshal(map[string]interface{}{
@@ -375,7 +184,7 @@ func TestImportSessionProjector_HandleImportCompleted_WithErrors_ReturnsPopulate
 
 func TestImportSessionProjector_HandleImportSessionCreated(t *testing.T) {
 	mockRM := &mockImportSessionReadModel{}
-	projector := newTestableImportSessionProjector(mockRM)
+	projector := NewImportSessionProjector(mockRM)
 
 	createdAt := time.Now()
 	eventData, err := json.Marshal(map[string]interface{}{
@@ -420,7 +229,7 @@ func TestImportSessionProjector_HandleImportSessionCreated(t *testing.T) {
 
 func TestImportSessionProjector_HandleImportStarted(t *testing.T) {
 	mockRM := &mockImportSessionReadModel{}
-	projector := newTestableImportSessionProjector(mockRM)
+	projector := NewImportSessionProjector(mockRM)
 
 	eventData, err := json.Marshal(map[string]interface{}{
 		"id":         "import-789",
@@ -444,7 +253,7 @@ func TestImportSessionProjector_HandleImportStarted(t *testing.T) {
 
 func TestImportSessionProjector_HandleImportProgressUpdated(t *testing.T) {
 	mockRM := &mockImportSessionReadModel{}
-	projector := newTestableImportSessionProjector(mockRM)
+	projector := NewImportSessionProjector(mockRM)
 
 	eventData, err := json.Marshal(map[string]interface{}{
 		"id":             "import-789",
@@ -499,7 +308,7 @@ func TestImportSessionProjector_HandleTerminalEvents(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockRM := &mockImportSessionReadModel{}
-			projector := newTestableImportSessionProjector(mockRM)
+			projector := NewImportSessionProjector(mockRM)
 
 			eventData, err := json.Marshal(tt.eventData)
 			require.NoError(t, err)
@@ -514,7 +323,7 @@ func TestImportSessionProjector_HandleTerminalEvents(t *testing.T) {
 
 func TestImportSessionProjector_UnknownEventType_NoOp(t *testing.T) {
 	mockRM := &mockImportSessionReadModel{}
-	projector := newTestableImportSessionProjector(mockRM)
+	projector := NewImportSessionProjector(mockRM)
 
 	err := projector.ProjectEvent(context.Background(), "UnknownEvent", []byte(`{}`))
 	require.NoError(t, err)

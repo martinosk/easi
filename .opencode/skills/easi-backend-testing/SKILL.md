@@ -88,3 +88,13 @@ Running `go test ./...` (no tags) executes **only unit tests**. Integration test
 3. **Never skip the build tag** on integration test files — without it, `go test ./...` will try to run them without a DB and fail
 4. **Use `-count=1`** on integration tests to bypass the test cache when verifying DB interactions
 5. **Run unit tests in CI without a database** — integration tests require the compose stack
+
+## Rule: Tests Must Call the Production Type
+
+A unit test for `FooProjector` must construct `NewFooProjector(...)` (or the real struct literal) and exercise its actual methods. **Re-implementing the projector / handler / dispatcher inside `_test.go` as a `testableFoo` shadow type is forbidden.**
+
+**When you need to inject a mock collaborator into a Go projector/handler/service**:
+- Promote the collaborator's contract to an exported (or package-level) interface that the production constructor accepts. Production code keeps using the concrete read model; tests pass a mock that implements the interface.
+- Mocks may stand in for *collaborators* (read models, repositories, command bus). Mocks must never stand in for the *system under test*.
+
+**Review smell to grep for**: `type testable`, `newTestable*`, or any test-file type whose `ProjectEvent` / `Handle` / dispatcher method mirrors the production type's. Treat each as suspect until you confirm the production constructor is actually called in the test bodies.

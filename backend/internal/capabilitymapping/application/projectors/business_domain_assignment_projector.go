@@ -11,16 +11,29 @@ import (
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
+type AssignmentStore interface {
+	Insert(ctx context.Context, dto readmodels.AssignmentDTO) error
+	Delete(ctx context.Context, assignmentID string) error
+}
+
+type BusinessDomainLookup interface {
+	GetByID(ctx context.Context, id string) (*readmodels.BusinessDomainDTO, error)
+}
+
+type CapabilityLookup interface {
+	GetByID(ctx context.Context, id string) (*readmodels.CapabilityDTO, error)
+}
+
 type BusinessDomainAssignmentProjector struct {
-	assignmentReadModel *readmodels.DomainCapabilityAssignmentReadModel
-	domainReadModel     *readmodels.BusinessDomainReadModel
-	capabilityReadModel *readmodels.CapabilityReadModel
+	assignmentReadModel AssignmentStore
+	domainReadModel     BusinessDomainLookup
+	capabilityReadModel CapabilityLookup
 }
 
 func NewBusinessDomainAssignmentProjector(
-	assignmentReadModel *readmodels.DomainCapabilityAssignmentReadModel,
-	domainReadModel *readmodels.BusinessDomainReadModel,
-	capabilityReadModel *readmodels.CapabilityReadModel,
+	assignmentReadModel AssignmentStore,
+	domainReadModel BusinessDomainLookup,
+	capabilityReadModel CapabilityLookup,
 ) *BusinessDomainAssignmentProjector {
 	return &BusinessDomainAssignmentProjector{
 		assignmentReadModel: assignmentReadModel,

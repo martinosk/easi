@@ -12,11 +12,22 @@ import (
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
-type EnterpriseCapabilityLinkProjector struct {
-	readModel *readmodels.EnterpriseCapabilityLinkReadModel
+type EnterpriseCapabilityLinkStore interface {
+	Insert(ctx context.Context, dto readmodels.EnterpriseCapabilityLinkDTO) error
+	Delete(ctx context.Context, id string) error
+	GetLinksForCapabilities(ctx context.Context, capabilityIDs []string) ([]readmodels.EnterpriseCapabilityLinkDTO, error)
+	QueryHierarchy(ctx context.Context, capabilityID string, direction readmodels.HierarchyDirection) ([]string, error)
+	QueryName(ctx context.Context, id string, kind readmodels.NameKind) (string, error)
+	InsertBlocking(ctx context.Context, blocking readmodels.BlockingDTO) error
+	DeleteBlockingByBlocker(ctx context.Context, blockedByCapabilityID string) error
+	DeleteBlockingForCapabilities(ctx context.Context, capabilityIDs []string) error
 }
 
-func NewEnterpriseCapabilityLinkProjector(readModel *readmodels.EnterpriseCapabilityLinkReadModel) *EnterpriseCapabilityLinkProjector {
+type EnterpriseCapabilityLinkProjector struct {
+	readModel EnterpriseCapabilityLinkStore
+}
+
+func NewEnterpriseCapabilityLinkProjector(readModel EnterpriseCapabilityLinkStore) *EnterpriseCapabilityLinkProjector {
 	return &EnterpriseCapabilityLinkProjector{
 		readModel: readModel,
 	}

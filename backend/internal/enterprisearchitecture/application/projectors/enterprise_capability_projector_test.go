@@ -16,20 +16,26 @@ import (
 )
 
 type mockEnterpriseCapabilityReadModel struct {
-	insertedDTOs               []readmodels.EnterpriseCapabilityDTO
-	updatedParams              []readmodels.UpdateCapabilityParams
-	deletedIDs                 []string
-	incrementedLinkIDs         []string
-	decrementedLinkIDs         []string
-	incrementAndRecalculateIDs []string
-	decrementAndRecalculateIDs []string
-	insertErr                  error
-	updateErr                  error
-	deleteErr                  error
-	incrementErr               error
-	decrementErr               error
-	incrementAndRecalculateErr error
-	decrementAndRecalculateErr error
+	insertedDTOs            []readmodels.EnterpriseCapabilityDTO
+	updatedParams           []readmodels.UpdateCapabilityParams
+	deletedIDs              []string
+	incrementedLinkIDs      []string
+	decrementedLinkIDs      []string
+	recalculatedDomainIDs   []string
+	updatedTargetMaturities []targetMaturityUpdate
+
+	insertErr            error
+	updateErr            error
+	deleteErr            error
+	incrementErr         error
+	decrementErr         error
+	recalculateErr       error
+	updateMaturityErr    error
+}
+
+type targetMaturityUpdate struct {
+	ID             string
+	TargetMaturity int
 }
 
 func (m *mockEnterpriseCapabilityReadModel) Insert(ctx context.Context, dto readmodels.EnterpriseCapabilityDTO) error {
@@ -72,261 +78,91 @@ func (m *mockEnterpriseCapabilityReadModel) DecrementLinkCount(ctx context.Conte
 	return nil
 }
 
-func (m *mockEnterpriseCapabilityReadModel) IncrementLinkCountAndRecalculateDomainCount(ctx context.Context, id string) error {
-	if m.incrementAndRecalculateErr != nil {
-		return m.incrementAndRecalculateErr
+func (m *mockEnterpriseCapabilityReadModel) RecalculateDomainCount(ctx context.Context, id string) error {
+	if m.recalculateErr != nil {
+		return m.recalculateErr
 	}
-	m.incrementAndRecalculateIDs = append(m.incrementAndRecalculateIDs, id)
+	m.recalculatedDomainIDs = append(m.recalculatedDomainIDs, id)
 	return nil
 }
 
-func (m *mockEnterpriseCapabilityReadModel) DecrementLinkCountAndRecalculateDomainCount(ctx context.Context, id string) error {
-	if m.decrementAndRecalculateErr != nil {
-		return m.decrementAndRecalculateErr
+func (m *mockEnterpriseCapabilityReadModel) UpdateTargetMaturity(ctx context.Context, id string, targetMaturity int) error {
+	if m.updateMaturityErr != nil {
+		return m.updateMaturityErr
 	}
-	m.decrementAndRecalculateIDs = append(m.decrementAndRecalculateIDs, id)
+	m.updatedTargetMaturities = append(m.updatedTargetMaturities, targetMaturityUpdate{ID: id, TargetMaturity: targetMaturity})
 	return nil
 }
 
-type enterpriseCapabilityReadModelForProjector interface {
-	Insert(ctx context.Context, dto readmodels.EnterpriseCapabilityDTO) error
-	Update(ctx context.Context, params readmodels.UpdateCapabilityParams) error
-	Delete(ctx context.Context, id string) error
-	IncrementLinkCount(ctx context.Context, id string) error
-	DecrementLinkCount(ctx context.Context, id string) error
-	IncrementLinkCountAndRecalculateDomainCount(ctx context.Context, id string) error
-	DecrementLinkCountAndRecalculateDomainCount(ctx context.Context, id string) error
+func newProjectorWithMock(mock *mockEnterpriseCapabilityReadModel) *EnterpriseCapabilityProjector {
+	return NewEnterpriseCapabilityProjector(mock)
 }
 
-type testableEnterpriseCapabilityProjector struct {
-	readModel enterpriseCapabilityReadModelForProjector
+type projectableEvent interface {
+	EventType() string
+	EventData() map[string]interface{}
 }
 
-func newTestableEnterpriseCapabilityProjector(readModel enterpriseCapabilityReadModelForProjector) *testableEnterpriseCapabilityProjector {
-	return &testableEnterpriseCapabilityProjector{readModel: readModel}
+type eventProjector interface {
+	ProjectEvent(ctx context.Context, eventType string, eventData []byte) error
 }
 
-func (p *testableEnterpriseCapabilityProjector) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
-	handlers := map[string]func(context.Context, []byte) error{
-		"EnterpriseCapabilityCreated":  p.handleCreated,
-		"EnterpriseCapabilityUpdated":  p.handleUpdated,
-		"EnterpriseCapabilityDeleted":  p.handleDeleted,
-		"EnterpriseCapabilityLinked":   p.handleLinked,
-		"EnterpriseCapabilityUnlinked": p.handleUnlinked,
-	}
-
-	if handler, exists := handlers[eventType]; exists {
-		return handler(ctx, eventData)
-	}
-	return nil
-}
-
-func (p *testableEnterpriseCapabilityProjector) handleCreated(ctx context.Context, eventData []byte) error {
-	var event events.EnterpriseCapabilityCreated
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		return err
-	}
-	dto := readmodels.EnterpriseCapabilityDTO{
-		ID:          event.ID,
-		Name:        event.Name,
-		Description: event.Description,
-		Category:    event.Category,
-		Active:      event.Active,
-		CreatedAt:   event.CreatedAt,
-	}
-	return p.readModel.Insert(ctx, dto)
-}
-
-func (p *testableEnterpriseCapabilityProjector) handleUpdated(ctx context.Context, eventData []byte) error {
-	var event events.EnterpriseCapabilityUpdated
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		return err
-	}
-	return p.readModel.Update(ctx, readmodels.UpdateCapabilityParams{
-		ID:          event.ID,
-		Name:        event.Name,
-		Description: event.Description,
-		Category:    event.Category,
-	})
-}
-
-func (p *testableEnterpriseCapabilityProjector) handleDeleted(ctx context.Context, eventData []byte) error {
-	var event events.EnterpriseCapabilityDeleted
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		return err
-	}
-	return p.readModel.Delete(ctx, event.ID)
-}
-
-func (p *testableEnterpriseCapabilityProjector) handleLinked(ctx context.Context, eventData []byte) error {
-	var event events.EnterpriseCapabilityLinked
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		return err
-	}
-	return p.readModel.IncrementLinkCountAndRecalculateDomainCount(ctx, event.EnterpriseCapabilityID)
-}
-
-func (p *testableEnterpriseCapabilityProjector) handleUnlinked(ctx context.Context, eventData []byte) error {
-	var event events.EnterpriseCapabilityUnlinked
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		return err
-	}
-	return p.readModel.DecrementLinkCountAndRecalculateDomainCount(ctx, event.EnterpriseCapabilityID)
-}
-
-func TestEnterpriseCapabilityProjector_Created_InsertsReadModel(t *testing.T) {
-	mockReadModel := &mockEnterpriseCapabilityReadModel{}
-	projector := newTestableEnterpriseCapabilityProjector(mockReadModel)
-
-	event := events.NewEnterpriseCapabilityCreated(
-		uuid.New().String(),
-		"Test Capability",
-		"Test Description",
-		"Test Category",
-	)
-
+func projectEvent(t *testing.T, projector eventProjector, event projectableEvent) error {
+	t.Helper()
 	eventData, err := json.Marshal(event.EventData())
 	require.NoError(t, err)
-
-	err = projector.ProjectEvent(context.Background(), "EnterpriseCapabilityCreated", eventData)
-	require.NoError(t, err)
-
-	require.Len(t, mockReadModel.insertedDTOs, 1)
-	dto := mockReadModel.insertedDTOs[0]
-	assert.Equal(t, event.ID, dto.ID)
-	assert.Equal(t, "Test Capability", dto.Name)
-	assert.Equal(t, "Test Description", dto.Description)
-	assert.Equal(t, "Test Category", dto.Category)
-	assert.True(t, dto.Active)
+	return projector.ProjectEvent(context.Background(), event.EventType(), eventData)
 }
 
-func TestEnterpriseCapabilityProjector_Updated_UpdatesReadModel(t *testing.T) {
-	mockReadModel := &mockEnterpriseCapabilityReadModel{}
-	projector := newTestableEnterpriseCapabilityProjector(mockReadModel)
+func TestEnterpriseCapabilityProjector_CreateUpdate_WritesReadModel(t *testing.T) {
+	id := uuid.New().String()
 
-	event := events.NewEnterpriseCapabilityUpdated(
-		uuid.New().String(),
-		"Updated Name",
-		"Updated Description",
-		"Updated Category",
-	)
-
-	eventData, err := json.Marshal(event.EventData())
-	require.NoError(t, err)
-
-	err = projector.ProjectEvent(context.Background(), "EnterpriseCapabilityUpdated", eventData)
-	require.NoError(t, err)
-
-	require.Len(t, mockReadModel.updatedParams, 1)
-	params := mockReadModel.updatedParams[0]
-	assert.Equal(t, event.ID, params.ID)
-	assert.Equal(t, "Updated Name", params.Name)
-	assert.Equal(t, "Updated Description", params.Description)
-	assert.Equal(t, "Updated Category", params.Category)
-}
-
-func TestEnterpriseCapabilityProjector_Deleted_MarksInactive(t *testing.T) {
-	mockReadModel := &mockEnterpriseCapabilityReadModel{}
-	projector := newTestableEnterpriseCapabilityProjector(mockReadModel)
-
-	event := events.NewEnterpriseCapabilityDeleted(uuid.New().String())
-
-	eventData, err := json.Marshal(event.EventData())
-	require.NoError(t, err)
-
-	err = projector.ProjectEvent(context.Background(), "EnterpriseCapabilityDeleted", eventData)
-	require.NoError(t, err)
-
-	require.Len(t, mockReadModel.deletedIDs, 1)
-	assert.Equal(t, event.ID, mockReadModel.deletedIDs[0])
-}
-
-func TestEnterpriseCapabilityProjector_Linked_IncrementsLinkCountAndRecalculatesDomainCount(t *testing.T) {
-	mockReadModel := &mockEnterpriseCapabilityReadModel{}
-	projector := newTestableEnterpriseCapabilityProjector(mockReadModel)
-
-	enterpriseCapabilityID := uuid.New().String()
-	event := events.NewEnterpriseCapabilityLinked(
-		uuid.New().String(),
-		enterpriseCapabilityID,
-		uuid.New().String(),
-		"user@example.com",
-	)
-
-	eventData, err := json.Marshal(event.EventData())
-	require.NoError(t, err)
-
-	err = projector.ProjectEvent(context.Background(), "EnterpriseCapabilityLinked", eventData)
-	require.NoError(t, err)
-
-	require.Len(t, mockReadModel.incrementAndRecalculateIDs, 1)
-	assert.Equal(t, enterpriseCapabilityID, mockReadModel.incrementAndRecalculateIDs[0])
-}
-
-func TestEnterpriseCapabilityProjector_Unlinked_DecrementsLinkCountAndRecalculatesDomainCount(t *testing.T) {
-	mockReadModel := &mockEnterpriseCapabilityReadModel{}
-	projector := newTestableEnterpriseCapabilityProjector(mockReadModel)
-
-	enterpriseCapabilityID := uuid.New().String()
-	event := events.NewEnterpriseCapabilityUnlinked(
-		uuid.New().String(),
-		enterpriseCapabilityID,
-		uuid.New().String(),
-	)
-
-	eventData, err := json.Marshal(event.EventData())
-	require.NoError(t, err)
-
-	err = projector.ProjectEvent(context.Background(), "EnterpriseCapabilityUnlinked", eventData)
-	require.NoError(t, err)
-
-	require.Len(t, mockReadModel.decrementAndRecalculateIDs, 1)
-	assert.Equal(t, enterpriseCapabilityID, mockReadModel.decrementAndRecalculateIDs[0])
-}
-
-func TestEnterpriseCapabilityProjector_UnknownEvent_Ignored(t *testing.T) {
-	mockReadModel := &mockEnterpriseCapabilityReadModel{}
-	projector := newTestableEnterpriseCapabilityProjector(mockReadModel)
-
-	err := projector.ProjectEvent(context.Background(), "UnknownEvent", []byte("{}"))
-	require.NoError(t, err)
-
-	assert.Empty(t, mockReadModel.insertedDTOs)
-	assert.Empty(t, mockReadModel.updatedParams)
-	assert.Empty(t, mockReadModel.deletedIDs)
-}
-
-func TestEnterpriseCapabilityProjector_ReadModelError_ReturnsError(t *testing.T) {
-	mockReadModel := &mockEnterpriseCapabilityReadModel{
-		insertErr: errors.New("database error"),
+	tests := []struct {
+		name   string
+		event  projectableEvent
+		verify func(t *testing.T, mock *mockEnterpriseCapabilityReadModel)
+	}{
+		{
+			name:  "created inserts active dto with all fields",
+			event: events.NewEnterpriseCapabilityCreated(id, "Test Capability", "Test Description", "Test Category"),
+			verify: func(t *testing.T, mock *mockEnterpriseCapabilityReadModel) {
+				require.Len(t, mock.insertedDTOs, 1)
+				dto := mock.insertedDTOs[0]
+				assert.Equal(t, id, dto.ID)
+				assert.Equal(t, "Test Capability", dto.Name)
+				assert.Equal(t, "Test Description", dto.Description)
+				assert.Equal(t, "Test Category", dto.Category)
+				assert.True(t, dto.Active)
+			},
+		},
+		{
+			name:  "updated applies new field values",
+			event: events.NewEnterpriseCapabilityUpdated(id, "Updated Name", "Updated Description", "Updated Category"),
+			verify: func(t *testing.T, mock *mockEnterpriseCapabilityReadModel) {
+				require.Len(t, mock.updatedParams, 1)
+				params := mock.updatedParams[0]
+				assert.Equal(t, id, params.ID)
+				assert.Equal(t, "Updated Name", params.Name)
+				assert.Equal(t, "Updated Description", params.Description)
+				assert.Equal(t, "Updated Category", params.Category)
+			},
+		},
 	}
-	projector := newTestableEnterpriseCapabilityProjector(mockReadModel)
 
-	event := events.NewEnterpriseCapabilityCreated(
-		uuid.New().String(),
-		"Test Capability",
-		"Test Description",
-		"Test Category",
-	)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mock := &mockEnterpriseCapabilityReadModel{}
+			projector := newProjectorWithMock(mock)
 
-	eventData, err := json.Marshal(event.EventData())
-	require.NoError(t, err)
-
-	err = projector.ProjectEvent(context.Background(), "EnterpriseCapabilityCreated", eventData)
-	assert.Error(t, err)
-}
-
-func TestEnterpriseCapabilityProjector_InvalidJSON_ReturnsError(t *testing.T) {
-	mockReadModel := &mockEnterpriseCapabilityReadModel{}
-	projector := newTestableEnterpriseCapabilityProjector(mockReadModel)
-
-	err := projector.ProjectEvent(context.Background(), "EnterpriseCapabilityCreated", []byte("invalid json"))
-	assert.Error(t, err)
+			require.NoError(t, projectEvent(t, projector, tt.event))
+			tt.verify(t, mock)
+		})
+	}
 }
 
 func TestEnterpriseCapabilityProjector_Created_PreservesTimestamp(t *testing.T) {
-	mockReadModel := &mockEnterpriseCapabilityReadModel{}
-	projector := newTestableEnterpriseCapabilityProjector(mockReadModel)
+	mock := &mockEnterpriseCapabilityReadModel{}
+	projector := newProjectorWithMock(mock)
 
 	event := events.NewEnterpriseCapabilityCreated(
 		uuid.New().String(),
@@ -336,12 +172,166 @@ func TestEnterpriseCapabilityProjector_Created_PreservesTimestamp(t *testing.T) 
 	)
 	event.CreatedAt = time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
 
-	eventData, err := json.Marshal(event.EventData())
+	require.NoError(t, projectEvent(t, projector, event))
+
+	require.Len(t, mock.insertedDTOs, 1)
+	assert.Equal(t, event.CreatedAt, mock.insertedDTOs[0].CreatedAt)
+}
+
+func TestEnterpriseCapabilityProjector_Deleted_MarksInactive(t *testing.T) {
+	mock := &mockEnterpriseCapabilityReadModel{}
+	projector := newProjectorWithMock(mock)
+
+	event := events.NewEnterpriseCapabilityDeleted(uuid.New().String())
+
+	require.NoError(t, projectEvent(t, projector, event))
+
+	require.Len(t, mock.deletedIDs, 1)
+	assert.Equal(t, event.ID, mock.deletedIDs[0])
+}
+
+func TestEnterpriseCapabilityProjector_LinkUnlink_UpdatesCountAndRecalculates(t *testing.T) {
+	enterpriseCapabilityID := uuid.New().String()
+
+	tests := []struct {
+		name         string
+		event        projectableEvent
+		wantCountIDs func(*mockEnterpriseCapabilityReadModel) []string
+	}{
+		{
+			name:         "linked increments link count",
+			event:        events.NewEnterpriseCapabilityLinked(uuid.New().String(), enterpriseCapabilityID, uuid.New().String(), "user@example.com"),
+			wantCountIDs: func(m *mockEnterpriseCapabilityReadModel) []string { return m.incrementedLinkIDs },
+		},
+		{
+			name:         "unlinked decrements link count",
+			event:        events.NewEnterpriseCapabilityUnlinked(uuid.New().String(), enterpriseCapabilityID, uuid.New().String()),
+			wantCountIDs: func(m *mockEnterpriseCapabilityReadModel) []string { return m.decrementedLinkIDs },
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mock := &mockEnterpriseCapabilityReadModel{}
+			projector := newProjectorWithMock(mock)
+
+			require.NoError(t, projectEvent(t, projector, tt.event))
+
+			require.Equal(t, []string{enterpriseCapabilityID}, tt.wantCountIDs(mock))
+			require.Equal(t, []string{enterpriseCapabilityID}, mock.recalculatedDomainIDs)
+		})
+	}
+}
+
+func TestEnterpriseCapabilityProjector_LinkUnlink_CountUpdateError_SkipsRecalculate(t *testing.T) {
+	tests := []struct {
+		name      string
+		event     projectableEvent
+		mockSetup func(*mockEnterpriseCapabilityReadModel)
+	}{
+		{
+			name:      "increment failure aborts before recalculate",
+			event:     events.NewEnterpriseCapabilityLinked(uuid.New().String(), uuid.New().String(), uuid.New().String(), "user@example.com"),
+			mockSetup: func(m *mockEnterpriseCapabilityReadModel) { m.incrementErr = errors.New("increment failed") },
+		},
+		{
+			name:      "decrement failure aborts before recalculate",
+			event:     events.NewEnterpriseCapabilityUnlinked(uuid.New().String(), uuid.New().String(), uuid.New().String()),
+			mockSetup: func(m *mockEnterpriseCapabilityReadModel) { m.decrementErr = errors.New("decrement failed") },
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mock := &mockEnterpriseCapabilityReadModel{}
+			tt.mockSetup(mock)
+			projector := newProjectorWithMock(mock)
+
+			require.Error(t, projectEvent(t, projector, tt.event))
+			assert.Empty(t, mock.recalculatedDomainIDs, "recalculate must not run when count update fails")
+		})
+	}
+}
+
+func TestEnterpriseCapabilityProjector_Linked_RecalculateError_PropagatesError(t *testing.T) {
+	mock := &mockEnterpriseCapabilityReadModel{recalculateErr: errors.New("recalculate failed")}
+	projector := newProjectorWithMock(mock)
+
+	enterpriseCapabilityID := uuid.New().String()
+	event := events.NewEnterpriseCapabilityLinked(
+		uuid.New().String(),
+		enterpriseCapabilityID,
+		uuid.New().String(),
+		"user@example.com",
+	)
+
+	require.Error(t, projectEvent(t, projector, event))
+	assert.Equal(t, []string{enterpriseCapabilityID}, mock.incrementedLinkIDs)
+}
+
+func TestEnterpriseCapabilityProjector_TargetMaturitySet_UpdatesTargetMaturity(t *testing.T) {
+	mock := &mockEnterpriseCapabilityReadModel{}
+	projector := newProjectorWithMock(mock)
+
+	id := uuid.New().String()
+	event := events.NewEnterpriseCapabilityTargetMaturitySet(id, 4)
+
+	require.NoError(t, projectEvent(t, projector, event))
+
+	require.Len(t, mock.updatedTargetMaturities, 1)
+	assert.Equal(t, targetMaturityUpdate{ID: id, TargetMaturity: 4}, mock.updatedTargetMaturities[0])
+}
+
+func TestEnterpriseCapabilityProjector_UnknownEvent_Ignored(t *testing.T) {
+	mock := &mockEnterpriseCapabilityReadModel{}
+	projector := newProjectorWithMock(mock)
+
+	err := projector.ProjectEvent(context.Background(), "UnknownEvent", []byte("{}"))
 	require.NoError(t, err)
 
-	err = projector.ProjectEvent(context.Background(), "EnterpriseCapabilityCreated", eventData)
-	require.NoError(t, err)
+	assert.Empty(t, mock.insertedDTOs)
+	assert.Empty(t, mock.updatedParams)
+	assert.Empty(t, mock.deletedIDs)
+	assert.Empty(t, mock.incrementedLinkIDs)
+	assert.Empty(t, mock.decrementedLinkIDs)
+	assert.Empty(t, mock.recalculatedDomainIDs)
+	assert.Empty(t, mock.updatedTargetMaturities)
+}
 
-	require.Len(t, mockReadModel.insertedDTOs, 1)
-	assert.Equal(t, event.CreatedAt, mockReadModel.insertedDTOs[0].CreatedAt)
+func TestEnterpriseCapabilityProjector_ReadModelError_ReturnsError(t *testing.T) {
+	mock := &mockEnterpriseCapabilityReadModel{insertErr: errors.New("database error")}
+	projector := newProjectorWithMock(mock)
+
+	event := events.NewEnterpriseCapabilityCreated(
+		uuid.New().String(),
+		"Test Capability",
+		"Test Description",
+		"Test Category",
+	)
+
+	assert.Error(t, projectEvent(t, projector, event))
+}
+
+func TestEnterpriseCapabilityProjector_InvalidJSON_ReturnsError(t *testing.T) {
+	tests := []struct {
+		name      string
+		eventType string
+	}{
+		{"created", "EnterpriseCapabilityCreated"},
+		{"updated", "EnterpriseCapabilityUpdated"},
+		{"deleted", "EnterpriseCapabilityDeleted"},
+		{"linked", "EnterpriseCapabilityLinked"},
+		{"unlinked", "EnterpriseCapabilityUnlinked"},
+		{"target maturity set", "EnterpriseCapabilityTargetMaturitySet"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mock := &mockEnterpriseCapabilityReadModel{}
+			projector := newProjectorWithMock(mock)
+
+			err := projector.ProjectEvent(context.Background(), tt.eventType, []byte("invalid json"))
+			assert.Error(t, err)
+		})
+	}
 }

@@ -10,11 +10,17 @@ import (
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
-type UserProjector struct {
-	readModel *readmodels.UserReadModel
+type UserReadModelStore interface {
+	InsertFromEvent(ctx context.Context, data readmodels.UserEventData) error
+	UpdateRole(ctx context.Context, id string, role string) error
+	UpdateStatus(ctx context.Context, id string, status string) error
 }
 
-func NewUserProjector(readModel *readmodels.UserReadModel) *UserProjector {
+type UserProjector struct {
+	readModel UserReadModelStore
+}
+
+func NewUserProjector(readModel UserReadModelStore) *UserProjector {
 	return &UserProjector{
 		readModel: readModel,
 	}

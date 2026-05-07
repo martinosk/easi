@@ -11,11 +11,17 @@ import (
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
-type EnterpriseStrategicImportanceProjector struct {
-	readModel *readmodels.EnterpriseStrategicImportanceReadModel
+type EnterpriseStrategicImportanceStore interface {
+	Insert(ctx context.Context, dto readmodels.EnterpriseStrategicImportanceDTO) error
+	Update(ctx context.Context, id string, importance int, rationale string) error
+	Delete(ctx context.Context, id string) error
 }
 
-func NewEnterpriseStrategicImportanceProjector(readModel *readmodels.EnterpriseStrategicImportanceReadModel) *EnterpriseStrategicImportanceProjector {
+type EnterpriseStrategicImportanceProjector struct {
+	readModel EnterpriseStrategicImportanceStore
+}
+
+func NewEnterpriseStrategicImportanceProjector(readModel EnterpriseStrategicImportanceStore) *EnterpriseStrategicImportanceProjector {
 	return &EnterpriseStrategicImportanceProjector{
 		readModel: readModel,
 	}

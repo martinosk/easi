@@ -11,11 +11,19 @@ import (
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
-type BusinessDomainProjector struct {
-	readModel *readmodels.BusinessDomainReadModel
+type BusinessDomainStore interface {
+	Insert(ctx context.Context, dto readmodels.BusinessDomainDTO) error
+	Update(ctx context.Context, id string, update readmodels.BusinessDomainUpdate) error
+	Delete(ctx context.Context, id string) error
+	IncrementCapabilityCount(ctx context.Context, id string) error
+	DecrementCapabilityCount(ctx context.Context, id string) error
 }
 
-func NewBusinessDomainProjector(readModel *readmodels.BusinessDomainReadModel) *BusinessDomainProjector {
+type BusinessDomainProjector struct {
+	readModel BusinessDomainStore
+}
+
+func NewBusinessDomainProjector(readModel BusinessDomainStore) *BusinessDomainProjector {
 	return &BusinessDomainProjector{
 		readModel: readModel,
 	}

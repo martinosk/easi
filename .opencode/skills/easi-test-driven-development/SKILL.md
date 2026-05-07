@@ -92,9 +92,14 @@ Before completing a unit of work:
 - [ ] Minimal code written to pass each test
 - [ ] All tests passing with clean output (no errors, no warnings)
 - [ ] Tests use real code (mocks only when unavoidable)
+- [ ] Each test instantiates the production type it claims to test. If you'd delete the production type's body, the test must turn red.
 - [ ] Edge cases and error conditions covered
 
 Missing any checkbox = TDD was skipped. Restart from RED.
+
+## Anti-Pattern: The Shadow SUT
+
+If your RED step "fails" because the production type doesn't yet take the collaborator you want to mock, the right move is to widen the production constructor to accept an interface — not to fabricate a parallel `testableFoo` in the test file. Mocks substitute for the SUT's collaborators, never for the SUT itself.
 
 ## Exception Permissions
 

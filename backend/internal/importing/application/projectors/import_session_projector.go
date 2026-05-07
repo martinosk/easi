@@ -12,11 +12,20 @@ import (
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
-type ImportSessionProjector struct {
-	readModel *readmodels.ImportSessionReadModel
+type ImportSessionStore interface {
+	Insert(ctx context.Context, dto readmodels.ImportSessionDTO) error
+	UpdateStatus(ctx context.Context, id, status string) error
+	UpdateProgress(ctx context.Context, id string, progress readmodels.ProgressDTO) error
+	MarkCompleted(ctx context.Context, id string, result readmodels.ResultDTO, completedAt time.Time) error
+	MarkFailed(ctx context.Context, id string, failedAt time.Time) error
+	MarkCancelled(ctx context.Context, id string) error
 }
 
-func NewImportSessionProjector(readModel *readmodels.ImportSessionReadModel) *ImportSessionProjector {
+type ImportSessionProjector struct {
+	readModel ImportSessionStore
+}
+
+func NewImportSessionProjector(readModel ImportSessionStore) *ImportSessionProjector {
 	return &ImportSessionProjector{
 		readModel: readModel,
 	}

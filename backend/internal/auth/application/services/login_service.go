@@ -11,25 +11,37 @@ import (
 	"easi/backend/internal/auth/application/readmodels"
 	"easi/backend/internal/auth/domain/aggregates"
 	"easi/backend/internal/auth/domain/valueobjects"
-	"easi/backend/internal/auth/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
 var ErrNoValidInvitation = errors.New("no valid invitation found for this email")
 var ErrUserDisabled = errors.New("user account is disabled")
 
+type LoginUserReadModel interface {
+	GetByEmail(ctx context.Context, email string) (*readmodels.UserDTO, error)
+	UpdateLastLogin(ctx context.Context, id uuid.UUID, lastLoginAt time.Time) error
+}
+
+type LoginInvitationReadModel interface {
+	GetAnyPendingByEmail(ctx context.Context, email string) (*readmodels.InvitationDTO, error)
+}
+
+type LoginUserAggregateRepository interface {
+	Save(ctx context.Context, user *aggregates.User) error
+}
+
 type LoginService struct {
-	userReadModel       *readmodels.UserReadModel
-	invitationReadModel *readmodels.InvitationReadModel
+	userReadModel       LoginUserReadModel
+	invitationReadModel LoginInvitationReadModel
 	commandBus          cqrs.CommandBus
-	userAggregateRepo   *repositories.UserAggregateRepository
+	userAggregateRepo   LoginUserAggregateRepository
 }
 
 func NewLoginService(
-	userReadModel *readmodels.UserReadModel,
-	invitationReadModel *readmodels.InvitationReadModel,
+	userReadModel LoginUserReadModel,
+	invitationReadModel LoginInvitationReadModel,
 	commandBus cqrs.CommandBus,
-	userAggregateRepo *repositories.UserAggregateRepository,
+	userAggregateRepo LoginUserAggregateRepository,
 ) *LoginService {
 	return &LoginService{
 		userReadModel:       userReadModel,
@@ -51,20 +63,8 @@ func (s *LoginService) ProcessLogin(ctx context.Context, email, name string) (*L
 	if err != nil {
 		return nil, err
 	}
-
 	if existingUser != nil {
-		if existingUser.Status == "disabled" {
-			return nil, ErrUserDisabled
-		}
-		if err := s.userReadModel.UpdateLastLogin(ctx, existingUser.ID, time.Now().UTC()); err != nil {
-			return nil, err
-		}
-		return &LoginResult{
-			UserID: existingUser.ID,
-			Email:  existingUser.Email,
-			Role:   existingUser.Role,
-			IsNew:  false,
-		}, nil
+		return s.loginExistingUser(ctx, existingUser)
 	}
 
 	invitation, err := s.invitationReadModel.GetAnyPendingByEmail(ctx, email)
@@ -74,41 +74,39 @@ func (s *LoginService) ProcessLogin(ctx context.Context, email, name string) (*L
 	if invitation == nil {
 		return nil, ErrNoValidInvitation
 	}
-
-	now := time.Now().UTC()
-	if invitation.ExpiresAt.Before(now) {
-		expireCmd := &commands.MarkInvitationExpired{
-			ID: invitation.ID,
-		}
-		if _, err := s.commandBus.Dispatch(ctx, expireCmd); err != nil {
-			return nil, err
-		}
-		return nil, ErrNoValidInvitation
+	if invitation.ExpiresAt.Before(time.Now().UTC()) {
+		return s.expirePendingInvitation(ctx, invitation.ID)
 	}
 
-	cmd := &commands.AcceptInvitation{
-		Email: email,
+	return s.createUserFromInvitation(ctx, email, name, invitation)
+}
+
+func (s *LoginService) loginExistingUser(ctx context.Context, user *readmodels.UserDTO) (*LoginResult, error) {
+	if user.Status == "disabled" {
+		return nil, ErrUserDisabled
 	}
-	if _, err := s.commandBus.Dispatch(ctx, cmd); err != nil {
+	if err := s.userReadModel.UpdateLastLogin(ctx, user.ID, time.Now().UTC()); err != nil {
+		return nil, err
+	}
+	return &LoginResult{UserID: user.ID, Email: user.Email, Role: user.Role, IsNew: false}, nil
+}
+
+func (s *LoginService) expirePendingInvitation(ctx context.Context, invitationID string) (*LoginResult, error) {
+	if _, err := s.commandBus.Dispatch(ctx, &commands.MarkInvitationExpired{ID: invitationID}); err != nil {
+		return nil, err
+	}
+	return nil, ErrNoValidInvitation
+}
+
+func (s *LoginService) createUserFromInvitation(ctx context.Context, email, name string, invitation *readmodels.InvitationDTO) (*LoginResult, error) {
+	if _, err := s.commandBus.Dispatch(ctx, &commands.AcceptInvitation{Email: email}); err != nil {
 		return nil, err
 	}
 
-	emailVO, err := valueobjects.NewEmail(email)
+	user, err := buildUserAggregate(email, name, invitation)
 	if err != nil {
 		return nil, err
 	}
-
-	role, err := valueobjects.RoleFromString(invitation.Role)
-	if err != nil {
-		return nil, err
-	}
-
-	profile := valueobjects.NewExternalProfile(name, "")
-	user, err := aggregates.NewUser(emailVO, profile, role, invitation.ID)
-	if err != nil {
-		return nil, err
-	}
-
 	if err := s.userAggregateRepo.Save(ctx, user); err != nil {
 		return nil, err
 	}
@@ -117,11 +115,18 @@ func (s *LoginService) ProcessLogin(ctx context.Context, email, name string) (*L
 	if err != nil {
 		return nil, err
 	}
+	return &LoginResult{UserID: newUserID, Email: email, Role: invitation.Role, IsNew: true}, nil
+}
 
-	return &LoginResult{
-		UserID: newUserID,
-		Email:  email,
-		Role:   invitation.Role,
-		IsNew:  true,
-	}, nil
+func buildUserAggregate(email, name string, invitation *readmodels.InvitationDTO) (*aggregates.User, error) {
+	emailVO, err := valueobjects.NewEmail(email)
+	if err != nil {
+		return nil, err
+	}
+	role, err := valueobjects.RoleFromString(invitation.Role)
+	if err != nil {
+		return nil, err
+	}
+	profile := valueobjects.NewExternalProfile(name, "")
+	return aggregates.NewUser(emailVO, profile, role, invitation.ID)
 }
