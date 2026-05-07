@@ -13,22 +13,55 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRealizationDeserializers_RoundTrip(t *testing.T) {
-	capabilityID := valueobjects.NewCapabilityID()
-	componentID, _ := valueobjects.NewComponentIDFromString("550e8400-e29b-41d4-a716-446655440000")
-	realizationLevel, _ := valueobjects.NewRealizationLevel("primary")
-	notes := valueobjects.MustNewDescription("Main implementation")
+type realizationFixture struct {
+	componentUUID    string
+	realizationLevel string
+	componentName    string
+	notes            string
+}
 
-	original, err := aggregates.NewCapabilityRealization(capabilityID, componentID, "Test Component", realizationLevel, notes)
+func newRealizationFromFixture(t *testing.T, f realizationFixture) *aggregates.CapabilityRealization {
+	t.Helper()
+
+	componentID, err := valueobjects.NewComponentIDFromString(f.componentUUID)
 	require.NoError(t, err)
+	level, err := valueobjects.NewRealizationLevel(f.realizationLevel)
+	require.NoError(t, err)
+
+	realization, err := aggregates.NewCapabilityRealization(
+		valueobjects.NewCapabilityID(),
+		componentID,
+		f.componentName,
+		level,
+		valueobjects.MustNewDescription(f.notes),
+	)
+	require.NoError(t, err)
+
+	return realization
+}
+
+func roundTripDeserializeRealization(t *testing.T, events []domain.DomainEvent) []domain.DomainEvent {
+	t.Helper()
+
+	storedEvents := simulateRealizationEventStoreRoundTrip(t, events)
+	deserialized, err := realizationEventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
+
+	return deserialized
+}
+
+func TestRealizationDeserializers_RoundTrip(t *testing.T) {
+	original := newRealizationFromFixture(t, realizationFixture{
+		componentUUID:    "550e8400-e29b-41d4-a716-446655440000",
+		realizationLevel: "Full",
+		componentName:    "Test Component",
+		notes:            "Main implementation",
+	})
 
 	events := original.GetUncommittedChanges()
 	require.Len(t, events, 1, "Expected 1 event: SystemLinkedToCapability")
 
-	storedEvents := simulateRealizationEventStoreRoundTrip(t, events)
-	deserializedEvents, err := realizationEventDeserializers.Deserialize(storedEvents)
-	require.NoError(t, err)
-
+	deserializedEvents := roundTripDeserializeRealization(t, events)
 	require.Len(t, deserializedEvents, 1, "All events should be deserialized")
 
 	loaded, err := aggregates.LoadCapabilityRealizationFromHistory(deserializedEvents)
@@ -42,25 +75,21 @@ func TestRealizationDeserializers_RoundTrip(t *testing.T) {
 }
 
 func TestRealizationDeserializers_RoundTripWithUpdate(t *testing.T) {
-	capabilityID := valueobjects.NewCapabilityID()
-	componentID, _ := valueobjects.NewComponentIDFromString("550e8400-e29b-41d4-a716-446655440001")
-	realizationLevel, _ := valueobjects.NewRealizationLevel("supporting")
-	notes := valueobjects.MustNewDescription("Initial notes")
+	original := newRealizationFromFixture(t, realizationFixture{
+		componentUUID:    "550e8400-e29b-41d4-a716-446655440001",
+		realizationLevel: "Partial",
+		componentName:    "Test Component",
+		notes:            "Initial notes",
+	})
 
-	original, err := aggregates.NewCapabilityRealization(capabilityID, componentID, "Test Component", realizationLevel, notes)
-	require.NoError(t, err)
-
-	newLevel, _ := valueobjects.NewRealizationLevel("primary")
+	newLevel, _ := valueobjects.NewRealizationLevel("Full")
 	newNotes := valueobjects.MustNewDescription("Updated notes")
 	_ = original.Update(newLevel, newNotes)
 
 	events := original.GetUncommittedChanges()
 	require.Len(t, events, 2, "Expected 2 events: Linked, Updated")
 
-	storedEvents := simulateRealizationEventStoreRoundTrip(t, events)
-	deserializedEvents, err := realizationEventDeserializers.Deserialize(storedEvents)
-	require.NoError(t, err)
-
+	deserializedEvents := roundTripDeserializeRealization(t, events)
 	require.Len(t, deserializedEvents, 2, "All events should be deserialized")
 
 	loaded, err := aggregates.LoadCapabilityRealizationFromHistory(deserializedEvents)
@@ -71,27 +100,21 @@ func TestRealizationDeserializers_RoundTripWithUpdate(t *testing.T) {
 }
 
 func TestRealizationDeserializers_AllEventsCanBeDeserialized(t *testing.T) {
-	capabilityID := valueobjects.NewCapabilityID()
-	componentID, _ := valueobjects.NewComponentIDFromString("550e8400-e29b-41d4-a716-446655440002")
-	realizationLevel, _ := valueobjects.NewRealizationLevel("primary")
-	notes := valueobjects.MustNewDescription("Test notes")
+	realization := newRealizationFromFixture(t, realizationFixture{
+		componentUUID:    "550e8400-e29b-41d4-a716-446655440002",
+		realizationLevel: "Full",
+		componentName:    "Test Component",
+		notes:            "Test notes",
+	})
 
-	realization, err := aggregates.NewCapabilityRealization(capabilityID, componentID, "Test Component", realizationLevel, notes)
-	require.NoError(t, err)
-
-	newLevel, _ := valueobjects.NewRealizationLevel("supporting")
-	newNotes := valueobjects.MustNewDescription("Updated notes")
-	_ = realization.Update(newLevel, newNotes)
-
+	newLevel, _ := valueobjects.NewRealizationLevel("Partial")
+	_ = realization.Update(newLevel, valueobjects.MustNewDescription("Updated notes"))
 	_ = realization.Delete()
 
 	events := realization.GetUncommittedChanges()
 	require.Len(t, events, 3, "Expected 3 events: Linked, Updated, Deleted")
 
-	storedEvents := simulateRealizationEventStoreRoundTrip(t, events)
-	deserializedEvents, err := realizationEventDeserializers.Deserialize(storedEvents)
-	require.NoError(t, err)
-
+	deserializedEvents := roundTripDeserializeRealization(t, events)
 	require.Len(t, deserializedEvents, len(events),
 		"All events should be deserialized - missing deserializer for one or more event types")
 

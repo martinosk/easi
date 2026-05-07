@@ -45,16 +45,7 @@ func TestNewCapabilityDependency_SelfDependency_ShouldFail(t *testing.T) {
 }
 
 func TestCapabilityDependency_RaisesCreatedEvent(t *testing.T) {
-	sourceID := valueobjects.NewCapabilityID()
-	targetID := valueobjects.NewCapabilityID()
-
-	dependencyType, err := valueobjects.NewDependencyType("Enables")
-	require.NoError(t, err)
-
-	description := valueobjects.MustNewDescription("Digital channels enable customer engagement")
-
-	dependency, err := NewCapabilityDependency(sourceID, targetID, dependencyType, description)
-	require.NoError(t, err)
+	dependency := newCapabilityDependency(t, "Enables", "Digital channels enable customer engagement")
 
 	uncommittedEvents := dependency.GetUncommittedChanges()
 	assert.Len(t, uncommittedEvents, 1)
@@ -62,20 +53,10 @@ func TestCapabilityDependency_RaisesCreatedEvent(t *testing.T) {
 }
 
 func TestCapabilityDependency_Delete(t *testing.T) {
-	sourceID := valueobjects.NewCapabilityID()
-	targetID := valueobjects.NewCapabilityID()
-
-	dependencyType, err := valueobjects.NewDependencyType("Supports")
-	require.NoError(t, err)
-
-	description := valueobjects.MustNewDescription("Analytics supports decision making")
-
-	dependency, err := NewCapabilityDependency(sourceID, targetID, dependencyType, description)
-	require.NoError(t, err)
-
+	dependency := newCapabilityDependency(t, "Supports", "Analytics supports decision making")
 	dependency.MarkChangesAsCommitted()
 
-	err = dependency.Delete()
+	err := dependency.Delete()
 	require.NoError(t, err)
 
 	uncommittedEvents := dependency.GetUncommittedChanges()
@@ -84,16 +65,7 @@ func TestCapabilityDependency_Delete(t *testing.T) {
 }
 
 func TestCapabilityDependency_LoadFromHistory(t *testing.T) {
-	sourceID := valueobjects.NewCapabilityID()
-	targetID := valueobjects.NewCapabilityID()
-
-	dependencyType, err := valueobjects.NewDependencyType("Requires")
-	require.NoError(t, err)
-
-	description := valueobjects.MustNewDescription("Test dependency")
-
-	dependency, err := NewCapabilityDependency(sourceID, targetID, dependencyType, description)
-	require.NoError(t, err)
+	dependency := newCapabilityDependency(t, "Requires", "Test dependency")
 
 	events := dependency.GetUncommittedChanges()
 
@@ -119,16 +91,7 @@ func TestCapabilityDependency_AllDependencyTypes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sourceID := valueobjects.NewCapabilityID()
-			targetID := valueobjects.NewCapabilityID()
-
-			dependencyType, err := valueobjects.NewDependencyType(tt.dependencyType)
-			require.NoError(t, err)
-
-			description := valueobjects.MustNewDescription("Test dependency")
-
-			dependency, err := NewCapabilityDependency(sourceID, targetID, dependencyType, description)
-			require.NoError(t, err)
+			dependency := newCapabilityDependency(t, tt.dependencyType, "Test dependency")
 			assert.NotNil(t, dependency)
 			assert.Equal(t, tt.dependencyType, dependency.DependencyType().Value())
 		})
@@ -151,45 +114,51 @@ func TestValidateNewDependency_SelfDependency_Fails(t *testing.T) {
 	assert.Equal(t, ErrCannotCreateSelfDependency, err)
 }
 
-func TestValidateNewDependency_DuplicateDependency_Fails(t *testing.T) {
-	sourceID := valueobjects.NewCapabilityID()
-	targetID := valueobjects.NewCapabilityID()
-
-	existingDeps := []ExistingDependency{
-		{SourceID: sourceID, TargetID: targetID},
-	}
-
-	err := ValidateNewDependency(sourceID, targetID, existingDeps)
-	assert.Error(t, err)
-	assert.Equal(t, ErrDuplicateDependencyExists, err)
-}
-
-func TestValidateNewDependency_DirectCircularDependency_Fails(t *testing.T) {
-	capA := valueobjects.NewCapabilityID()
-	capB := valueobjects.NewCapabilityID()
-
-	existingDeps := []ExistingDependency{
-		{SourceID: capA, TargetID: capB},
-	}
-
-	err := ValidateNewDependency(capB, capA, existingDeps)
-	assert.Error(t, err)
-	assert.Equal(t, ErrCircularDependencyDetected, err)
-}
-
-func TestValidateNewDependency_IndirectCircularDependency_Fails(t *testing.T) {
+func TestValidateNewDependency_RejectsInvalidDependencies(t *testing.T) {
 	capA := valueobjects.NewCapabilityID()
 	capB := valueobjects.NewCapabilityID()
 	capC := valueobjects.NewCapabilityID()
 
-	existingDeps := []ExistingDependency{
-		{SourceID: capA, TargetID: capB},
-		{SourceID: capB, TargetID: capC},
+	tests := []struct {
+		name         string
+		source       valueobjects.CapabilityID
+		target       valueobjects.CapabilityID
+		existingDeps []ExistingDependency
+		wantErr      error
+	}{
+		{
+			name:         "duplicate dependency",
+			source:       capA,
+			target:       capB,
+			existingDeps: []ExistingDependency{{SourceID: capA, TargetID: capB}},
+			wantErr:      ErrDuplicateDependencyExists,
+		},
+		{
+			name:         "direct circular dependency",
+			source:       capB,
+			target:       capA,
+			existingDeps: []ExistingDependency{{SourceID: capA, TargetID: capB}},
+			wantErr:      ErrCircularDependencyDetected,
+		},
+		{
+			name:   "indirect circular dependency",
+			source: capC,
+			target: capA,
+			existingDeps: []ExistingDependency{
+				{SourceID: capA, TargetID: capB},
+				{SourceID: capB, TargetID: capC},
+			},
+			wantErr: ErrCircularDependencyDetected,
+		},
 	}
 
-	err := ValidateNewDependency(capC, capA, existingDeps)
-	assert.Error(t, err)
-	assert.Equal(t, ErrCircularDependencyDetected, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateNewDependency(tt.source, tt.target, tt.existingDeps)
+			assert.Error(t, err)
+			assert.Equal(t, tt.wantErr, err)
+		})
+	}
 }
 
 func TestValidateNewDependency_NoCircularWithDifferentTarget(t *testing.T) {
@@ -205,4 +174,21 @@ func TestValidateNewDependency_NoCircularWithDifferentTarget(t *testing.T) {
 
 	err := ValidateNewDependency(capD, capA, existingDeps)
 	assert.NoError(t, err)
+}
+
+func newCapabilityDependency(t *testing.T, dependencyTypeName, descriptionText string) *CapabilityDependency {
+	t.Helper()
+
+	sourceID := valueobjects.NewCapabilityID()
+	targetID := valueobjects.NewCapabilityID()
+
+	dependencyType, err := valueobjects.NewDependencyType(dependencyTypeName)
+	require.NoError(t, err)
+
+	description := valueobjects.MustNewDescription(descriptionText)
+
+	dependency, err := NewCapabilityDependency(sourceID, targetID, dependencyType, description)
+	require.NoError(t, err)
+
+	return dependency
 }

@@ -9,46 +9,44 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSetEnterpriseStrategicImportance(t *testing.T) {
-	enterpriseCapabilityID := valueobjects.NewEnterpriseCapabilityID()
-	pillarID := valueobjects.NewPillarID()
-	importance, _ := valueobjects.NewImportance(5)
-	rationale, _ := valueobjects.NewRationale("Critical for business operations")
+func newEnterpriseImportanceParams(t *testing.T) NewEnterpriseImportanceParams {
+	t.Helper()
 
-	params := NewEnterpriseImportanceParams{
-		EnterpriseCapabilityID: enterpriseCapabilityID,
-		PillarID:               pillarID,
-		PillarName:             "Standardization",
+	importance, _ := valueobjects.NewImportance(3)
+	rationale, _ := valueobjects.NewRationale("Test rationale")
+
+	return NewEnterpriseImportanceParams{
+		EnterpriseCapabilityID: valueobjects.NewEnterpriseCapabilityID(),
+		PillarID:               valueobjects.NewPillarID(),
+		PillarName:             "Test Pillar",
 		Importance:             importance,
 		Rationale:              rationale,
 	}
+}
+
+func TestSetEnterpriseStrategicImportance(t *testing.T) {
+	params := newEnterpriseImportanceParams(t)
+	params.PillarName = "Standardization"
+	importance, _ := valueobjects.NewImportance(5)
+	params.Importance = importance
+	rationale, _ := valueobjects.NewRationale("Critical for business operations")
+	params.Rationale = rationale
 
 	si, err := SetEnterpriseStrategicImportance(params)
 	require.NoError(t, err)
 
 	assert.NotNil(t, si)
 	assert.NotEmpty(t, si.ID())
-	assert.True(t, enterpriseCapabilityID.Equals(si.EnterpriseCapabilityID()))
-	assert.True(t, pillarID.Equals(si.PillarID()))
-	assert.True(t, importance.Equals(si.Importance()))
-	assert.True(t, rationale.Equals(si.Rationale()))
+	assert.True(t, params.EnterpriseCapabilityID.Equals(si.EnterpriseCapabilityID()))
+	assert.True(t, params.PillarID.Equals(si.PillarID()))
+	assert.True(t, params.Importance.Equals(si.Importance()))
+	assert.True(t, params.Rationale.Equals(si.Rationale()))
 	assert.False(t, si.SetAt().IsZero())
 	assert.Len(t, si.GetUncommittedChanges(), 1)
 }
 
 func TestSetEnterpriseStrategicImportance_DeterministicID(t *testing.T) {
-	enterpriseCapabilityID := valueobjects.NewEnterpriseCapabilityID()
-	pillarID := valueobjects.NewPillarID()
-	importance, _ := valueobjects.NewImportance(5)
-	rationale, _ := valueobjects.NewRationale("Test rationale")
-
-	params := NewEnterpriseImportanceParams{
-		EnterpriseCapabilityID: enterpriseCapabilityID,
-		PillarID:               pillarID,
-		PillarName:             "Test Pillar",
-		Importance:             importance,
-		Rationale:              rationale,
-	}
+	params := newEnterpriseImportanceParams(t)
 
 	si1, _ := SetEnterpriseStrategicImportance(params)
 	si2, _ := SetEnterpriseStrategicImportance(params)
@@ -57,18 +55,12 @@ func TestSetEnterpriseStrategicImportance_DeterministicID(t *testing.T) {
 }
 
 func TestEnterpriseStrategicImportance_RaisesSetEvent(t *testing.T) {
-	enterpriseCapabilityID := valueobjects.NewEnterpriseCapabilityID()
-	pillarID := valueobjects.NewPillarID()
+	params := newEnterpriseImportanceParams(t)
+	params.PillarName = "Innovation"
 	importance, _ := valueobjects.NewImportance(4)
+	params.Importance = importance
 	rationale, _ := valueobjects.NewRationale("Important for strategy")
-
-	params := NewEnterpriseImportanceParams{
-		EnterpriseCapabilityID: enterpriseCapabilityID,
-		PillarID:               pillarID,
-		PillarName:             "Innovation",
-		Importance:             importance,
-		Rationale:              rationale,
-	}
+	params.Rationale = rationale
 
 	si, _ := SetEnterpriseStrategicImportance(params)
 
@@ -78,8 +70,8 @@ func TestEnterpriseStrategicImportance_RaisesSetEvent(t *testing.T) {
 
 	eventData := uncommittedEvents[0].EventData()
 	assert.Equal(t, si.ID(), eventData["id"])
-	assert.Equal(t, enterpriseCapabilityID.Value(), eventData["enterpriseCapabilityId"])
-	assert.Equal(t, pillarID.Value(), eventData["pillarId"])
+	assert.Equal(t, params.EnterpriseCapabilityID.Value(), eventData["enterpriseCapabilityId"])
+	assert.Equal(t, params.PillarID.Value(), eventData["pillarId"])
 	assert.Equal(t, "Innovation", eventData["pillarName"])
 	assert.Equal(t, 4, eventData["importance"])
 	assert.Equal(t, "Important for strategy", eventData["rationale"])
@@ -121,18 +113,7 @@ func TestEnterpriseStrategicImportance_Remove(t *testing.T) {
 }
 
 func TestEnterpriseStrategicImportance_LoadFromHistory(t *testing.T) {
-	enterpriseCapabilityID := valueobjects.NewEnterpriseCapabilityID()
-	pillarID := valueobjects.NewPillarID()
-	importance, _ := valueobjects.NewImportance(3)
-	rationale, _ := valueobjects.NewRationale("Test rationale")
-
-	params := NewEnterpriseImportanceParams{
-		EnterpriseCapabilityID: enterpriseCapabilityID,
-		PillarID:               pillarID,
-		PillarName:             "Test Pillar",
-		Importance:             importance,
-		Rationale:              rationale,
-	}
+	params := newEnterpriseImportanceParams(t)
 
 	si, _ := SetEnterpriseStrategicImportance(params)
 
@@ -142,10 +123,10 @@ func TestEnterpriseStrategicImportance_LoadFromHistory(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, si.ID(), loadedSI.ID())
-	assert.Equal(t, enterpriseCapabilityID.Value(), loadedSI.EnterpriseCapabilityID().Value())
-	assert.Equal(t, pillarID.Value(), loadedSI.PillarID().Value())
-	assert.Equal(t, importance.Value(), loadedSI.Importance().Value())
-	assert.Equal(t, rationale.Value(), loadedSI.Rationale().Value())
+	assert.Equal(t, params.EnterpriseCapabilityID.Value(), loadedSI.EnterpriseCapabilityID().Value())
+	assert.Equal(t, params.PillarID.Value(), loadedSI.PillarID().Value())
+	assert.Equal(t, params.Importance.Value(), loadedSI.Importance().Value())
+	assert.Equal(t, params.Rationale.Value(), loadedSI.Rationale().Value())
 }
 
 func TestEnterpriseStrategicImportance_LoadFromHistoryWithUpdate(t *testing.T) {
@@ -219,20 +200,7 @@ func TestEnterpriseStrategicImportance_LoadFromHistoryWithRemove(t *testing.T) {
 func createEnterpriseStrategicImportance(t *testing.T) *EnterpriseStrategicImportance {
 	t.Helper()
 
-	enterpriseCapabilityID := valueobjects.NewEnterpriseCapabilityID()
-	pillarID := valueobjects.NewPillarID()
-	importance, _ := valueobjects.NewImportance(3)
-	rationale, _ := valueobjects.NewRationale("Test rationale")
-
-	params := NewEnterpriseImportanceParams{
-		EnterpriseCapabilityID: enterpriseCapabilityID,
-		PillarID:               pillarID,
-		PillarName:             "Test Pillar",
-		Importance:             importance,
-		Rationale:              rationale,
-	}
-
-	si, err := SetEnterpriseStrategicImportance(params)
+	si, err := SetEnterpriseStrategicImportance(newEnterpriseImportanceParams(t))
 	require.NoError(t, err)
 
 	return si

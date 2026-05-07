@@ -95,22 +95,67 @@ func TestNewInvitation_RaisesInvitationCreatedEvent(t *testing.T) {
 	assert.Equal(t, role.String(), event.Role)
 }
 
-func TestInvitation_Accept_FromPendingStatus(t *testing.T) {
-	invitation := newPendingInvitation(t)
+func TestInvitation_PendingTransitions_Succeed(t *testing.T) {
+	tests := []struct {
+		name        string
+		transition  func(*Invitation) error
+		assertEvent func(t *testing.T, event domain.DomainEvent, inv *Invitation)
+		assertState func(t *testing.T, inv *Invitation)
+	}{
+		{
+			name:       "Accept transitions to accepted",
+			transition: (*Invitation).Accept,
+			assertEvent: func(t *testing.T, ev domain.DomainEvent, inv *Invitation) {
+				event, ok := ev.(events.InvitationAccepted)
+				require.True(t, ok)
+				assert.Equal(t, inv.ID(), event.ID)
+				assert.Equal(t, inv.Email().Value(), event.Email)
+			},
+			assertState: func(t *testing.T, inv *Invitation) {
+				assert.True(t, inv.Status().IsAccepted())
+				assert.NotNil(t, inv.AcceptedAt())
+			},
+		},
+		{
+			name:       "Revoke transitions to revoked",
+			transition: (*Invitation).Revoke,
+			assertEvent: func(t *testing.T, ev domain.DomainEvent, inv *Invitation) {
+				event, ok := ev.(events.InvitationRevoked)
+				require.True(t, ok)
+				assert.Equal(t, inv.ID(), event.ID)
+			},
+			assertState: func(t *testing.T, inv *Invitation) {
+				assert.True(t, inv.Status().IsRevoked())
+				assert.NotNil(t, inv.RevokedAt())
+			},
+		},
+		{
+			name:       "MarkExpired transitions to expired",
+			transition: (*Invitation).MarkExpired,
+			assertEvent: func(t *testing.T, ev domain.DomainEvent, inv *Invitation) {
+				event, ok := ev.(events.InvitationExpired)
+				require.True(t, ok)
+				assert.Equal(t, inv.ID(), event.ID)
+			},
+			assertState: func(t *testing.T, inv *Invitation) {
+				assert.True(t, inv.Status().IsExpired())
+			},
+		},
+	}
 
-	err := invitation.Accept()
-	require.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			invitation := newPendingInvitation(t)
 
-	assert.True(t, invitation.Status().IsAccepted())
-	assert.NotNil(t, invitation.AcceptedAt())
+			require.NoError(t, tt.transition(invitation))
 
-	uncommittedEvents := invitation.GetUncommittedChanges()
-	require.Len(t, uncommittedEvents, 1)
+			tt.assertState(t, invitation)
 
-	event, ok := uncommittedEvents[0].(events.InvitationAccepted)
-	require.True(t, ok)
-	assert.Equal(t, invitation.ID(), event.ID)
-	assert.Equal(t, invitation.Email().Value(), event.Email)
+			uncommittedEvents := invitation.GetUncommittedChanges()
+			require.Len(t, uncommittedEvents, 1)
+			tt.assertEvent(t, uncommittedEvents[0], invitation)
+		})
+	}
 }
 
 func TestInvitation_Accept_WhenTTLElapsed(t *testing.T) {
@@ -121,102 +166,57 @@ func TestInvitation_Accept_WhenTTLElapsed(t *testing.T) {
 	assert.ErrorIs(t, err, ErrInvitationExpired)
 }
 
-func TestInvitation_Accept_RejectsTerminalStates(t *testing.T) {
+func TestInvitation_TransitionsRejectedFromTerminalStates(t *testing.T) {
+	type rejection struct {
+		terminalState string
+		enter         func(*Invitation)
+		wantErr       error
+	}
+
 	tests := []struct {
 		name       string
-		transition func(*Invitation)
-		wantErr    error
+		action     func(*Invitation) error
+		rejections []rejection
 	}{
-		{"WhenAlreadyAccepted", func(inv *Invitation) { _ = inv.Accept() }, ErrInvitationAlreadyAccepted},
-		{"WhenRevoked", func(inv *Invitation) { _ = inv.Revoke() }, ErrInvitationAlreadyRevoked},
-		{"WhenExpired", func(inv *Invitation) { _ = inv.MarkExpired() }, ErrInvitationAlreadyExpired},
+		{
+			name:   "Accept",
+			action: (*Invitation).Accept,
+			rejections: []rejection{
+				{"WhenAlreadyAccepted", func(inv *Invitation) { _ = inv.Accept() }, ErrInvitationAlreadyAccepted},
+				{"WhenRevoked", func(inv *Invitation) { _ = inv.Revoke() }, ErrInvitationAlreadyRevoked},
+				{"WhenExpired", func(inv *Invitation) { _ = inv.MarkExpired() }, ErrInvitationAlreadyExpired},
+			},
+		},
+		{
+			name:   "Revoke",
+			action: (*Invitation).Revoke,
+			rejections: []rejection{
+				{"WhenAlreadyRevoked", func(inv *Invitation) { _ = inv.Revoke() }, ErrInvitationAlreadyRevoked},
+				{"WhenAccepted", func(inv *Invitation) { _ = inv.Accept() }, ErrInvitationNotPending},
+			},
+		},
+		{
+			name:   "MarkExpired",
+			action: (*Invitation).MarkExpired,
+			rejections: []rejection{
+				{"WhenAlreadyExpired", func(inv *Invitation) { _ = inv.MarkExpired() }, ErrInvitationAlreadyExpired},
+				{"WhenAccepted", func(inv *Invitation) { _ = inv.Accept() }, ErrInvitationNotPending},
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			invitation := newPendingInvitation(t)
-			tt.transition(invitation)
-			invitation.MarkChangesAsCommitted()
+			for _, r := range tt.rejections {
+				t.Run(r.terminalState, func(t *testing.T) {
+					invitation := newPendingInvitation(t)
+					r.enter(invitation)
+					invitation.MarkChangesAsCommitted()
 
-			err := invitation.Accept()
-			assert.ErrorIs(t, err, tt.wantErr)
-		})
-	}
-}
-
-func TestInvitation_Revoke_FromPendingStatus(t *testing.T) {
-	invitation := newPendingInvitation(t)
-
-	err := invitation.Revoke()
-	require.NoError(t, err)
-
-	assert.True(t, invitation.Status().IsRevoked())
-	assert.NotNil(t, invitation.RevokedAt())
-
-	uncommittedEvents := invitation.GetUncommittedChanges()
-	require.Len(t, uncommittedEvents, 1)
-
-	event, ok := uncommittedEvents[0].(events.InvitationRevoked)
-	require.True(t, ok)
-	assert.Equal(t, invitation.ID(), event.ID)
-}
-
-func TestInvitation_Revoke_RejectsTerminalStates(t *testing.T) {
-	tests := []struct {
-		name       string
-		transition func(*Invitation)
-		wantErr    error
-	}{
-		{"WhenAlreadyRevoked", func(inv *Invitation) { _ = inv.Revoke() }, ErrInvitationAlreadyRevoked},
-		{"WhenAccepted", func(inv *Invitation) { _ = inv.Accept() }, ErrInvitationNotPending},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			invitation := newPendingInvitation(t)
-			tt.transition(invitation)
-			invitation.MarkChangesAsCommitted()
-
-			err := invitation.Revoke()
-			assert.ErrorIs(t, err, tt.wantErr)
-		})
-	}
-}
-
-func TestInvitation_MarkExpired_FromPendingStatus(t *testing.T) {
-	invitation := newPendingInvitation(t)
-
-	err := invitation.MarkExpired()
-	require.NoError(t, err)
-
-	assert.True(t, invitation.Status().IsExpired())
-
-	uncommittedEvents := invitation.GetUncommittedChanges()
-	require.Len(t, uncommittedEvents, 1)
-
-	event, ok := uncommittedEvents[0].(events.InvitationExpired)
-	require.True(t, ok)
-	assert.Equal(t, invitation.ID(), event.ID)
-}
-
-func TestInvitation_MarkExpired_RejectsTerminalStates(t *testing.T) {
-	tests := []struct {
-		name       string
-		transition func(*Invitation)
-		wantErr    error
-	}{
-		{"WhenAlreadyExpired", func(inv *Invitation) { _ = inv.MarkExpired() }, ErrInvitationAlreadyExpired},
-		{"WhenAccepted", func(inv *Invitation) { _ = inv.Accept() }, ErrInvitationNotPending},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			invitation := newPendingInvitation(t)
-			tt.transition(invitation)
-			invitation.MarkChangesAsCommitted()
-
-			err := invitation.MarkExpired()
-			assert.ErrorIs(t, err, tt.wantErr)
+					err := tt.action(invitation)
+					assert.ErrorIs(t, err, r.wantErr)
+				})
+			}
 		})
 	}
 }

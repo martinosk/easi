@@ -18,19 +18,35 @@ func testOwner() valueobjects.ViewOwner {
 	return owner
 }
 
-func TestArchitectureViewDeserializers_RoundTrip(t *testing.T) {
-	name, _ := valueobjects.NewViewName("Main View")
+func newArchitectureView(t *testing.T, nameStr, description string, isDefault bool) *aggregates.ArchitectureView {
+	t.Helper()
 
-	original, err := aggregates.NewArchitectureView(name, "Main architecture view", false, testOwner())
+	name, err := valueobjects.NewViewName(nameStr)
 	require.NoError(t, err)
+
+	view, err := aggregates.NewArchitectureView(name, description, isDefault, testOwner())
+	require.NoError(t, err)
+
+	return view
+}
+
+func roundTripDeserializeView(t *testing.T, events []domain.DomainEvent) []domain.DomainEvent {
+	t.Helper()
+
+	storedEvents := simulateViewEventStoreRoundTrip(t, events)
+	deserialized, err := eventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
+
+	return deserialized
+}
+
+func TestArchitectureViewDeserializers_RoundTrip(t *testing.T) {
+	original := newArchitectureView(t, "Main View", "Main architecture view", false)
 
 	events := original.GetUncommittedChanges()
 	require.Len(t, events, 1, "Expected 1 event: ViewCreated")
 
-	storedEvents := simulateViewEventStoreRoundTrip(t, events)
-	deserializedEvents, err := eventDeserializers.Deserialize(storedEvents)
-	require.NoError(t, err)
-
+	deserializedEvents := roundTripDeserializeView(t, events)
 	require.Len(t, deserializedEvents, 1, "All events should be deserialized")
 
 	loaded, err := aggregates.LoadArchitectureViewFromHistory(deserializedEvents)
@@ -42,18 +58,12 @@ func TestArchitectureViewDeserializers_RoundTrip(t *testing.T) {
 }
 
 func TestArchitectureViewDeserializers_RoundTripWithDefault(t *testing.T) {
-	name, _ := valueobjects.NewViewName("Default View")
-
-	original, err := aggregates.NewArchitectureView(name, "Default architecture view", true, testOwner())
-	require.NoError(t, err)
+	original := newArchitectureView(t, "Default View", "Default architecture view", true)
 
 	events := original.GetUncommittedChanges()
 	require.Len(t, events, 2, "Expected 2 events: ViewCreated, DefaultViewChanged")
 
-	storedEvents := simulateViewEventStoreRoundTrip(t, events)
-	deserializedEvents, err := eventDeserializers.Deserialize(storedEvents)
-	require.NoError(t, err)
-
+	deserializedEvents := roundTripDeserializeView(t, events)
 	require.Len(t, deserializedEvents, 2, "All events should be deserialized")
 
 	loaded, err := aggregates.LoadArchitectureViewFromHistory(deserializedEvents)
@@ -63,10 +73,7 @@ func TestArchitectureViewDeserializers_RoundTripWithDefault(t *testing.T) {
 }
 
 func TestArchitectureViewDeserializers_RoundTripWithComponentAndRename(t *testing.T) {
-	name, _ := valueobjects.NewViewName("Component View")
-
-	original, err := aggregates.NewArchitectureView(name, "View with components", false, testOwner())
-	require.NoError(t, err)
+	original := newArchitectureView(t, "Component View", "View with components", false)
 
 	_ = original.AddComponent("component-1")
 	_ = original.AddComponent("component-2")
@@ -77,10 +84,7 @@ func TestArchitectureViewDeserializers_RoundTripWithComponentAndRename(t *testin
 	events := original.GetUncommittedChanges()
 	require.Len(t, events, 4, "Expected 4 events: ViewCreated, 2x ComponentAdded, ViewRenamed")
 
-	storedEvents := simulateViewEventStoreRoundTrip(t, events)
-	deserializedEvents, err := eventDeserializers.Deserialize(storedEvents)
-	require.NoError(t, err)
-
+	deserializedEvents := roundTripDeserializeView(t, events)
 	require.Len(t, deserializedEvents, 4, "All events should be deserialized")
 
 	loaded, err := aggregates.LoadArchitectureViewFromHistory(deserializedEvents)
@@ -92,10 +96,7 @@ func TestArchitectureViewDeserializers_RoundTripWithComponentAndRename(t *testin
 }
 
 func TestArchitectureViewDeserializers_AllEventsCanBeDeserialized(t *testing.T) {
-	name, _ := valueobjects.NewViewName("Test View")
-
-	view, err := aggregates.NewArchitectureView(name, "Test description", false, testOwner())
-	require.NoError(t, err)
+	view := newArchitectureView(t, "Test View", "Test description", false)
 
 	_ = view.AddComponent("component-1")
 	_ = view.RemoveComponent("component-1")
@@ -111,10 +112,7 @@ func TestArchitectureViewDeserializers_AllEventsCanBeDeserialized(t *testing.T) 
 	events := view.GetUncommittedChanges()
 	require.GreaterOrEqual(t, len(events), 6, "Expected at least 6 events")
 
-	storedEvents := simulateViewEventStoreRoundTrip(t, events)
-	deserializedEvents, err := eventDeserializers.Deserialize(storedEvents)
-	require.NoError(t, err)
-
+	deserializedEvents := roundTripDeserializeView(t, events)
 	require.Len(t, deserializedEvents, len(events),
 		"All events should be deserialized - missing deserializer for one or more event types")
 

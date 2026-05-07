@@ -10,68 +10,34 @@ import (
 )
 
 func TestSetApplicationFitScore(t *testing.T) {
-	componentID, _ := valueobjects.NewComponentIDFromString("550e8400-e29b-41d4-a716-446655440000")
-	pillarID, _ := valueobjects.NewPillarIDFromString("550e8400-e29b-41d4-a716-446655440001")
-	pillarName, _ := valueobjects.NewPillarName("Digital Transformation")
-	score, _ := valueobjects.NewFitScore(4)
-	rationale, _ := valueobjects.NewFitRationale("Strong alignment with digital strategy")
-	scoredBy, _ := valueobjects.NewUserIdentifier("user@example.com")
+	params := newFitScoreParams(t)
 
-	aggregate, err := SetApplicationFitScore(NewFitScoreParams{
-		ComponentID: componentID,
-		PillarID:    pillarID,
-		PillarName:  pillarName,
-		Score:       score,
-		Rationale:   rationale,
-		ScoredBy:    scoredBy,
-	})
+	aggregate, err := SetApplicationFitScore(params)
 	require.NoError(t, err)
 	assert.NotNil(t, aggregate)
 	assert.NotEmpty(t, aggregate.ID())
-	assert.Equal(t, componentID, aggregate.ComponentID())
-	assert.Equal(t, pillarID, aggregate.PillarID())
-	assert.Equal(t, score, aggregate.Score())
-	assert.Equal(t, rationale, aggregate.Rationale())
-	assert.Equal(t, scoredBy, aggregate.ScoredBy())
+	assert.Equal(t, params.ComponentID, aggregate.ComponentID())
+	assert.Equal(t, params.PillarID, aggregate.PillarID())
+	assert.Equal(t, params.Score, aggregate.Score())
+	assert.Equal(t, params.Rationale, aggregate.Rationale())
+	assert.Equal(t, params.ScoredBy, aggregate.ScoredBy())
 	assert.Len(t, aggregate.GetUncommittedChanges(), 1)
 }
 
 func TestSetApplicationFitScore_WithEmptyRationale(t *testing.T) {
-	componentID, _ := valueobjects.NewComponentIDFromString("550e8400-e29b-41d4-a716-446655440000")
-	pillarID, _ := valueobjects.NewPillarIDFromString("550e8400-e29b-41d4-a716-446655440001")
-	pillarName, _ := valueobjects.NewPillarName("Customer Focus")
-	score, _ := valueobjects.NewFitScore(5)
-	rationale, _ := valueobjects.NewFitRationale("")
-	scoredBy, _ := valueobjects.NewUserIdentifier("user@example.com")
+	params := newFitScoreParams(t)
+	emptyRationale, _ := valueobjects.NewFitRationale("")
+	params.Rationale = emptyRationale
 
-	aggregate, err := SetApplicationFitScore(NewFitScoreParams{
-		ComponentID: componentID,
-		PillarID:    pillarID,
-		PillarName:  pillarName,
-		Score:       score,
-		Rationale:   rationale,
-		ScoredBy:    scoredBy,
-	})
+	aggregate, err := SetApplicationFitScore(params)
 	require.NoError(t, err)
 	assert.True(t, aggregate.Rationale().IsEmpty())
 }
 
 func TestSetApplicationFitScore_RaisesEvent(t *testing.T) {
-	componentID, _ := valueobjects.NewComponentIDFromString("550e8400-e29b-41d4-a716-446655440000")
-	pillarID, _ := valueobjects.NewPillarIDFromString("550e8400-e29b-41d4-a716-446655440001")
-	pillarName, _ := valueobjects.NewPillarName("Innovation")
-	score, _ := valueobjects.NewFitScore(3)
-	rationale, _ := valueobjects.NewFitRationale("Supports innovation goals")
-	scoredBy, _ := valueobjects.NewUserIdentifier("user@example.com")
+	params := newFitScoreParams(t)
 
-	aggregate, err := SetApplicationFitScore(NewFitScoreParams{
-		ComponentID: componentID,
-		PillarID:    pillarID,
-		PillarName:  pillarName,
-		Score:       score,
-		Rationale:   rationale,
-		ScoredBy:    scoredBy,
-	})
+	aggregate, err := SetApplicationFitScore(params)
 	require.NoError(t, err)
 
 	events := aggregate.GetUncommittedChanges()
@@ -80,12 +46,12 @@ func TestSetApplicationFitScore_RaisesEvent(t *testing.T) {
 
 	eventData := events[0].EventData()
 	assert.Equal(t, aggregate.ID(), eventData["id"])
-	assert.Equal(t, componentID.Value(), eventData["componentId"])
-	assert.Equal(t, pillarID.Value(), eventData["pillarId"])
-	assert.Equal(t, "Innovation", eventData["pillarName"])
-	assert.Equal(t, 3, eventData["score"])
-	assert.Equal(t, "Supports innovation goals", eventData["rationale"])
-	assert.Equal(t, "user@example.com", eventData["scoredBy"])
+	assert.Equal(t, params.ComponentID.Value(), eventData["componentId"])
+	assert.Equal(t, params.PillarID.Value(), eventData["pillarId"])
+	assert.Equal(t, params.PillarName.Value(), eventData["pillarName"])
+	assert.Equal(t, params.Score.Value(), eventData["score"])
+	assert.Equal(t, params.Rationale.Value(), eventData["rationale"])
+	assert.Equal(t, params.ScoredBy.Value(), eventData["scoredBy"])
 }
 
 func TestUpdateApplicationFitScore(t *testing.T) {
@@ -175,7 +141,7 @@ func TestLoadApplicationFitScoreFromHistory_WithUpdate(t *testing.T) {
 	assert.Equal(t, "Updated", loaded.Rationale().Value())
 }
 
-func createApplicationFitScore(t *testing.T) *ApplicationFitScore {
+func newFitScoreParams(t *testing.T) NewFitScoreParams {
 	t.Helper()
 
 	componentID, _ := valueobjects.NewComponentIDFromString("550e8400-e29b-41d4-a716-446655440000")
@@ -185,14 +151,20 @@ func createApplicationFitScore(t *testing.T) *ApplicationFitScore {
 	rationale, _ := valueobjects.NewFitRationale("Initial rationale")
 	scoredBy, _ := valueobjects.NewUserIdentifier("user@example.com")
 
-	aggregate, err := SetApplicationFitScore(NewFitScoreParams{
+	return NewFitScoreParams{
 		ComponentID: componentID,
 		PillarID:    pillarID,
 		PillarName:  pillarName,
 		Score:       score,
 		Rationale:   rationale,
 		ScoredBy:    scoredBy,
-	})
+	}
+}
+
+func createApplicationFitScore(t *testing.T) *ApplicationFitScore {
+	t.Helper()
+
+	aggregate, err := SetApplicationFitScore(newFitScoreParams(t))
 	require.NoError(t, err)
 
 	return aggregate

@@ -10,65 +10,33 @@ import (
 )
 
 func TestSetStrategyImportance(t *testing.T) {
-	businessDomainID, _ := valueobjects.NewBusinessDomainIDFromString("550e8400-e29b-41d4-a716-446655440000")
-	capabilityID, _ := valueobjects.NewCapabilityIDFromString("550e8400-e29b-41d4-a716-446655440001")
-	pillarID, _ := valueobjects.NewPillarIDFromString("550e8400-e29b-41d4-a716-446655440002")
-	importance, _ := valueobjects.NewImportance(4)
-	rationale, _ := valueobjects.NewRationale("Critical for digital transformation")
+	params := newImportanceParams(t)
 
-	aggregate, err := SetStrategyImportance(NewImportanceParams{
-		BusinessDomainID: businessDomainID,
-		CapabilityID:     capabilityID,
-		PillarID:         pillarID,
-		PillarName:       "Growth Pillar",
-		Importance:       importance,
-		Rationale:        rationale,
-	})
+	aggregate, err := SetStrategyImportance(params)
 	require.NoError(t, err)
 	assert.NotNil(t, aggregate)
 	assert.NotEmpty(t, aggregate.ID())
-	assert.Equal(t, businessDomainID, aggregate.BusinessDomainID())
-	assert.Equal(t, capabilityID, aggregate.CapabilityID())
-	assert.Equal(t, pillarID, aggregate.PillarID())
-	assert.Equal(t, importance, aggregate.Importance())
-	assert.Equal(t, rationale, aggregate.Rationale())
+	assert.Equal(t, params.BusinessDomainID, aggregate.BusinessDomainID())
+	assert.Equal(t, params.CapabilityID, aggregate.CapabilityID())
+	assert.Equal(t, params.PillarID, aggregate.PillarID())
+	assert.Equal(t, params.Importance, aggregate.Importance())
+	assert.Equal(t, params.Rationale, aggregate.Rationale())
 	assert.Len(t, aggregate.GetUncommittedChanges(), 1)
 }
 
 func TestSetStrategyImportance_WithEmptyRationale(t *testing.T) {
-	businessDomainID, _ := valueobjects.NewBusinessDomainIDFromString("550e8400-e29b-41d4-a716-446655440000")
-	capabilityID, _ := valueobjects.NewCapabilityIDFromString("550e8400-e29b-41d4-a716-446655440001")
-	pillarID, _ := valueobjects.NewPillarIDFromString("550e8400-e29b-41d4-a716-446655440002")
-	importance, _ := valueobjects.NewImportance(5)
-	rationale := valueobjects.EmptyRationale()
+	params := newImportanceParams(t)
+	params.Rationale = valueobjects.EmptyRationale()
 
-	aggregate, err := SetStrategyImportance(NewImportanceParams{
-		BusinessDomainID: businessDomainID,
-		CapabilityID:     capabilityID,
-		PillarID:         pillarID,
-		PillarName:       "Growth Pillar",
-		Importance:       importance,
-		Rationale:        rationale,
-	})
+	aggregate, err := SetStrategyImportance(params)
 	require.NoError(t, err)
 	assert.True(t, aggregate.Rationale().IsEmpty())
 }
 
 func TestSetStrategyImportance_RaisesEvent(t *testing.T) {
-	businessDomainID, _ := valueobjects.NewBusinessDomainIDFromString("550e8400-e29b-41d4-a716-446655440000")
-	capabilityID, _ := valueobjects.NewCapabilityIDFromString("550e8400-e29b-41d4-a716-446655440001")
-	pillarID, _ := valueobjects.NewPillarIDFromString("550e8400-e29b-41d4-a716-446655440002")
-	importance, _ := valueobjects.NewImportance(3)
-	rationale, _ := valueobjects.NewRationale("Supports our strategy")
+	params := newImportanceParams(t)
 
-	aggregate, err := SetStrategyImportance(NewImportanceParams{
-		BusinessDomainID: businessDomainID,
-		CapabilityID:     capabilityID,
-		PillarID:         pillarID,
-		PillarName:       "Growth Pillar",
-		Importance:       importance,
-		Rationale:        rationale,
-	})
+	aggregate, err := SetStrategyImportance(params)
 	require.NoError(t, err)
 
 	events := aggregate.GetUncommittedChanges()
@@ -77,12 +45,12 @@ func TestSetStrategyImportance_RaisesEvent(t *testing.T) {
 
 	eventData := events[0].EventData()
 	assert.Equal(t, aggregate.ID(), eventData["id"])
-	assert.Equal(t, businessDomainID.Value(), eventData["businessDomainId"])
-	assert.Equal(t, capabilityID.Value(), eventData["capabilityId"])
-	assert.Equal(t, pillarID.Value(), eventData["pillarId"])
-	assert.Equal(t, "Growth Pillar", eventData["pillarName"])
-	assert.Equal(t, 3, eventData["importance"])
-	assert.Equal(t, "Supports our strategy", eventData["rationale"])
+	assert.Equal(t, params.BusinessDomainID.Value(), eventData["businessDomainId"])
+	assert.Equal(t, params.CapabilityID.Value(), eventData["capabilityId"])
+	assert.Equal(t, params.PillarID.Value(), eventData["pillarId"])
+	assert.Equal(t, params.PillarName, eventData["pillarName"])
+	assert.Equal(t, params.Importance.Value(), eventData["importance"])
+	assert.Equal(t, params.Rationale.Value(), eventData["rationale"])
 }
 
 func TestUpdateStrategyImportance(t *testing.T) {
@@ -167,7 +135,7 @@ func TestLoadStrategyImportanceFromHistory_WithUpdate(t *testing.T) {
 	assert.Equal(t, "Updated", loaded.Rationale().Value())
 }
 
-func createStrategyImportance(t *testing.T) *StrategyImportance {
+func newImportanceParams(t *testing.T) NewImportanceParams {
 	t.Helper()
 
 	businessDomainID, _ := valueobjects.NewBusinessDomainIDFromString("550e8400-e29b-41d4-a716-446655440000")
@@ -176,14 +144,20 @@ func createStrategyImportance(t *testing.T) *StrategyImportance {
 	importance, _ := valueobjects.NewImportance(3)
 	rationale, _ := valueobjects.NewRationale("Initial rationale")
 
-	aggregate, err := SetStrategyImportance(NewImportanceParams{
+	return NewImportanceParams{
 		BusinessDomainID: businessDomainID,
 		CapabilityID:     capabilityID,
 		PillarID:         pillarID,
 		PillarName:       "Test Pillar",
 		Importance:       importance,
 		Rationale:        rationale,
-	})
+	}
+}
+
+func createStrategyImportance(t *testing.T) *StrategyImportance {
+	t.Helper()
+
+	aggregate, err := SetStrategyImportance(newImportanceParams(t))
 	require.NoError(t, err)
 
 	return aggregate

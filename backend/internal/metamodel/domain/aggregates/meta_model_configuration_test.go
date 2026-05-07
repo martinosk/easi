@@ -12,6 +12,35 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func newCommittedMetaModelConfig(t *testing.T) *MetaModelConfiguration {
+	t.Helper()
+	tenantID, _ := sharedvo.NewTenantID("tenant-123")
+	createdBy, _ := valueobjects.NewUserEmail("admin@example.com")
+	config, err := NewMetaModelConfiguration(tenantID, createdBy)
+	require.NoError(t, err)
+	config.MarkChangesAsCommitted()
+	return config
+}
+
+func newDefaultConfigCreatedEvent() events.MetaModelConfigurationCreated {
+	return events.NewMetaModelConfigurationCreated(events.CreateConfigParams{
+		ID:       "config-uuid",
+		TenantID: "tenant-123",
+		Sections: []events.MaturitySectionData{
+			{Order: 1, Name: "Genesis", MinValue: 0, MaxValue: 24},
+			{Order: 2, Name: "Custom Built", MinValue: 25, MaxValue: 49},
+			{Order: 3, Name: "Product", MinValue: 50, MaxValue: 74},
+			{Order: 4, Name: "Commodity", MinValue: 75, MaxValue: 99},
+		},
+		Pillars: []events.StrategyPillarData{
+			{ID: "pillar-1", Name: "Always On", Description: "Core capabilities", Active: true},
+			{ID: "pillar-2", Name: "Grow", Description: "Growth capabilities", Active: true},
+			{ID: "pillar-3", Name: "Transform", Description: "Transformation capabilities", Active: true},
+		},
+		CreatedBy: "admin@example.com",
+	})
+}
+
 func TestNewMetaModelConfiguration(t *testing.T) {
 	tenantID, _ := sharedvo.NewTenantID("tenant-123")
 	createdBy, _ := valueobjects.NewUserEmail("admin@example.com")
@@ -44,10 +73,7 @@ func TestNewMetaModelConfiguration_RaisesCreatedEvent(t *testing.T) {
 }
 
 func TestMetaModelConfiguration_UpdateMaturityScale(t *testing.T) {
-	tenantID, _ := sharedvo.NewTenantID("tenant-123")
-	createdBy, _ := valueobjects.NewUserEmail("admin@example.com")
-	config, _ := NewMetaModelConfiguration(tenantID, createdBy)
-	config.MarkChangesAsCommitted()
+	config := newCommittedMetaModelConfig(t)
 
 	newConfig := createCustomMaturityScaleConfig()
 	modifiedBy, _ := valueobjects.NewUserEmail("editor@example.com")
@@ -69,10 +95,7 @@ func TestMetaModelConfiguration_UpdateMaturityScale(t *testing.T) {
 }
 
 func TestMetaModelConfiguration_ResetToDefaults(t *testing.T) {
-	tenantID, _ := sharedvo.NewTenantID("tenant-123")
-	createdBy, _ := valueobjects.NewUserEmail("admin@example.com")
-	config, _ := NewMetaModelConfiguration(tenantID, createdBy)
-	config.MarkChangesAsCommitted()
+	config := newCommittedMetaModelConfig(t)
 
 	newConfig := createCustomMaturityScaleConfig()
 	modifiedBy, _ := valueobjects.NewUserEmail("editor@example.com")
@@ -97,24 +120,7 @@ func TestMetaModelConfiguration_ResetToDefaults(t *testing.T) {
 }
 
 func TestLoadMetaModelConfigurationFromHistory(t *testing.T) {
-	createdEvent := events.NewMetaModelConfigurationCreated(events.CreateConfigParams{
-		ID:       "config-uuid",
-		TenantID: "tenant-123",
-		Sections: []events.MaturitySectionData{
-			{Order: 1, Name: "Genesis", MinValue: 0, MaxValue: 24},
-			{Order: 2, Name: "Custom Built", MinValue: 25, MaxValue: 49},
-			{Order: 3, Name: "Product", MinValue: 50, MaxValue: 74},
-			{Order: 4, Name: "Commodity", MinValue: 75, MaxValue: 99},
-		},
-		Pillars: []events.StrategyPillarData{
-			{ID: "pillar-1", Name: "Always On", Description: "Core capabilities", Active: true},
-			{ID: "pillar-2", Name: "Grow", Description: "Growth capabilities", Active: true},
-			{ID: "pillar-3", Name: "Transform", Description: "Transformation capabilities", Active: true},
-		},
-		CreatedBy: "admin@example.com",
-	})
-
-	history := []domain.DomainEvent{createdEvent}
+	history := []domain.DomainEvent{newDefaultConfigCreatedEvent()}
 
 	config, err := LoadMetaModelConfigurationFromHistory(history)
 
@@ -125,23 +131,6 @@ func TestLoadMetaModelConfigurationFromHistory(t *testing.T) {
 }
 
 func TestLoadMetaModelConfigurationFromHistory_WithUpdates(t *testing.T) {
-	createdEvent := events.NewMetaModelConfigurationCreated(events.CreateConfigParams{
-		ID:       "config-uuid",
-		TenantID: "tenant-123",
-		Sections: []events.MaturitySectionData{
-			{Order: 1, Name: "Genesis", MinValue: 0, MaxValue: 24},
-			{Order: 2, Name: "Custom Built", MinValue: 25, MaxValue: 49},
-			{Order: 3, Name: "Product", MinValue: 50, MaxValue: 74},
-			{Order: 4, Name: "Commodity", MinValue: 75, MaxValue: 99},
-		},
-		Pillars: []events.StrategyPillarData{
-			{ID: "pillar-1", Name: "Always On", Description: "Core capabilities", Active: true},
-			{ID: "pillar-2", Name: "Grow", Description: "Growth capabilities", Active: true},
-			{ID: "pillar-3", Name: "Transform", Description: "Transformation capabilities", Active: true},
-		},
-		CreatedBy: "admin@example.com",
-	})
-
 	updatedEvent := events.NewMaturityScaleConfigUpdated(
 		"config-uuid",
 		"tenant-123",
@@ -155,7 +144,7 @@ func TestLoadMetaModelConfigurationFromHistory_WithUpdates(t *testing.T) {
 		"editor@example.com",
 	)
 
-	history := []domain.DomainEvent{createdEvent, updatedEvent}
+	history := []domain.DomainEvent{newDefaultConfigCreatedEvent(), updatedEvent}
 
 	config, err := LoadMetaModelConfigurationFromHistory(history)
 
@@ -166,10 +155,7 @@ func TestLoadMetaModelConfigurationFromHistory_WithUpdates(t *testing.T) {
 }
 
 func TestMetaModelConfiguration_AddStrategyPillar(t *testing.T) {
-	tenantID, _ := sharedvo.NewTenantID("tenant-123")
-	createdBy, _ := valueobjects.NewUserEmail("admin@example.com")
-	config, _ := NewMetaModelConfiguration(tenantID, createdBy)
-	config.MarkChangesAsCommitted()
+	config := newCommittedMetaModelConfig(t)
 
 	pillarName, _ := valueobjects.NewPillarName("Innovation")
 	pillarDesc, _ := valueobjects.NewPillarDescription("Innovation capabilities")
@@ -191,10 +177,7 @@ func TestMetaModelConfiguration_AddStrategyPillar(t *testing.T) {
 }
 
 func TestMetaModelConfiguration_AddStrategyPillar_DuplicateName(t *testing.T) {
-	tenantID, _ := sharedvo.NewTenantID("tenant-123")
-	createdBy, _ := valueobjects.NewUserEmail("admin@example.com")
-	config, _ := NewMetaModelConfiguration(tenantID, createdBy)
-	config.MarkChangesAsCommitted()
+	config := newCommittedMetaModelConfig(t)
 
 	pillarName, _ := valueobjects.NewPillarName("always on")
 	pillarDesc, _ := valueobjects.NewPillarDescription("")
@@ -207,10 +190,7 @@ func TestMetaModelConfiguration_AddStrategyPillar_DuplicateName(t *testing.T) {
 }
 
 func TestMetaModelConfiguration_UpdateStrategyPillar(t *testing.T) {
-	tenantID, _ := sharedvo.NewTenantID("tenant-123")
-	createdBy, _ := valueobjects.NewUserEmail("admin@example.com")
-	config, _ := NewMetaModelConfiguration(tenantID, createdBy)
-	config.MarkChangesAsCommitted()
+	config := newCommittedMetaModelConfig(t)
 
 	pillarID := config.StrategyPillarsConfig().Pillars()[0].ID()
 	newName, _ := valueobjects.NewPillarName("Updated Pillar")
@@ -226,10 +206,7 @@ func TestMetaModelConfiguration_UpdateStrategyPillar(t *testing.T) {
 }
 
 func TestMetaModelConfiguration_RemoveStrategyPillar(t *testing.T) {
-	tenantID, _ := sharedvo.NewTenantID("tenant-123")
-	createdBy, _ := valueobjects.NewUserEmail("admin@example.com")
-	config, _ := NewMetaModelConfiguration(tenantID, createdBy)
-	config.MarkChangesAsCommitted()
+	config := newCommittedMetaModelConfig(t)
 
 	pillarID := config.StrategyPillarsConfig().Pillars()[0].ID()
 	modifiedBy, _ := valueobjects.NewUserEmail("editor@example.com")
@@ -249,10 +226,7 @@ func TestMetaModelConfiguration_RemoveStrategyPillar(t *testing.T) {
 }
 
 func TestMetaModelConfiguration_RemoveStrategyPillar_LastActive(t *testing.T) {
-	tenantID, _ := sharedvo.NewTenantID("tenant-123")
-	createdBy, _ := valueobjects.NewUserEmail("admin@example.com")
-	config, _ := NewMetaModelConfiguration(tenantID, createdBy)
-	config.MarkChangesAsCommitted()
+	config := newCommittedMetaModelConfig(t)
 
 	pillars := config.StrategyPillarsConfig().Pillars()
 	modifiedBy, _ := valueobjects.NewUserEmail("editor@example.com")

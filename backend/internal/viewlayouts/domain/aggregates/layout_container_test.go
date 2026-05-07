@@ -10,6 +10,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func newTestLayoutContainer(t *testing.T) *LayoutContainer {
+	t.Helper()
+	contextType, err := valueobjects.NewLayoutContextType("business-domain-grid")
+	require.NoError(t, err)
+	contextRef, err := valueobjects.NewContextRef("domain-finance")
+	require.NoError(t, err)
+
+	container, err := NewLayoutContainer(contextType, contextRef, valueobjects.NewLayoutPreferences(nil))
+	require.NoError(t, err)
+	return container
+}
+
+func newTestElementPosition(t *testing.T, x, y float64) (valueobjects.ElementID, valueobjects.ElementPosition) {
+	t.Helper()
+	elementID, err := valueobjects.NewElementID("cap-123")
+	require.NoError(t, err)
+	pos, err := valueobjects.NewElementPosition(elementID, x, y)
+	require.NoError(t, err)
+	return elementID, pos
+}
+
 func TestNewLayoutContainer(t *testing.T) {
 	contextType, _ := valueobjects.NewLayoutContextType("business-domain-grid")
 	contextRef, _ := valueobjects.NewContextRef("domain-finance")
@@ -45,12 +66,8 @@ func TestLayoutContainer_WithID(t *testing.T) {
 }
 
 func TestLayoutContainer_UpsertElement(t *testing.T) {
-	contextType, _ := valueobjects.NewLayoutContextType("business-domain-grid")
-	contextRef, _ := valueobjects.NewContextRef("domain-finance")
-	container, _ := NewLayoutContainer(contextType, contextRef, valueobjects.NewLayoutPreferences(nil))
-
-	elementID, _ := valueobjects.NewElementID("cap-123")
-	pos, _ := valueobjects.NewElementPosition(elementID, 100, 200)
+	container := newTestLayoutContainer(t)
+	_, pos := newTestElementPosition(t, 100, 200)
 
 	err := container.UpsertElement(pos)
 	require.NoError(t, err)
@@ -62,12 +79,8 @@ func TestLayoutContainer_UpsertElement(t *testing.T) {
 }
 
 func TestLayoutContainer_UpsertElement_Update(t *testing.T) {
-	contextType, _ := valueobjects.NewLayoutContextType("business-domain-grid")
-	contextRef, _ := valueobjects.NewContextRef("domain-finance")
-	container, _ := NewLayoutContainer(contextType, contextRef, valueobjects.NewLayoutPreferences(nil))
-
-	elementID, _ := valueobjects.NewElementID("cap-123")
-	pos1, _ := valueobjects.NewElementPosition(elementID, 100, 200)
+	container := newTestLayoutContainer(t)
+	elementID, pos1 := newTestElementPosition(t, 100, 200)
 	pos2, _ := valueobjects.NewElementPosition(elementID, 300, 400)
 
 	_ = container.UpsertElement(pos1)
@@ -80,12 +93,8 @@ func TestLayoutContainer_UpsertElement_Update(t *testing.T) {
 }
 
 func TestLayoutContainer_RemoveElement(t *testing.T) {
-	contextType, _ := valueobjects.NewLayoutContextType("business-domain-grid")
-	contextRef, _ := valueobjects.NewContextRef("domain-finance")
-	container, _ := NewLayoutContainer(contextType, contextRef, valueobjects.NewLayoutPreferences(nil))
-
-	elementID, _ := valueobjects.NewElementID("cap-123")
-	pos, _ := valueobjects.NewElementPosition(elementID, 100, 200)
+	container := newTestLayoutContainer(t)
+	elementID, pos := newTestElementPosition(t, 100, 200)
 	_ = container.UpsertElement(pos)
 
 	err := container.RemoveElement(elementID)
@@ -95,9 +104,7 @@ func TestLayoutContainer_RemoveElement(t *testing.T) {
 }
 
 func TestLayoutContainer_RemoveElement_NotFound(t *testing.T) {
-	contextType, _ := valueobjects.NewLayoutContextType("business-domain-grid")
-	contextRef, _ := valueobjects.NewContextRef("domain-finance")
-	container, _ := NewLayoutContainer(contextType, contextRef, valueobjects.NewLayoutPreferences(nil))
+	container := newTestLayoutContainer(t)
 
 	elementID, _ := valueobjects.NewElementID("cap-123")
 	err := container.RemoveElement(elementID)
@@ -123,12 +130,8 @@ func TestLayoutContainer_UpdatePreferences(t *testing.T) {
 }
 
 func TestLayoutContainer_GetElement(t *testing.T) {
-	contextType, _ := valueobjects.NewLayoutContextType("business-domain-grid")
-	contextRef, _ := valueobjects.NewContextRef("domain-finance")
-	container, _ := NewLayoutContainer(contextType, contextRef, valueobjects.NewLayoutPreferences(nil))
-
-	elementID, _ := valueobjects.NewElementID("cap-123")
-	pos, _ := valueobjects.NewElementPosition(elementID, 100, 200)
+	container := newTestLayoutContainer(t)
+	elementID, pos := newTestElementPosition(t, 100, 200)
 	_ = container.UpsertElement(pos)
 
 	found := container.GetElement(elementID)
@@ -138,9 +141,7 @@ func TestLayoutContainer_GetElement(t *testing.T) {
 }
 
 func TestLayoutContainer_GetElement_NotFound(t *testing.T) {
-	contextType, _ := valueobjects.NewLayoutContextType("business-domain-grid")
-	contextRef, _ := valueobjects.NewContextRef("domain-finance")
-	container, _ := NewLayoutContainer(contextType, contextRef, valueobjects.NewLayoutPreferences(nil))
+	container := newTestLayoutContainer(t)
 
 	elementID, _ := valueobjects.NewElementID("cap-123")
 	found := container.GetElement(elementID)
@@ -148,9 +149,7 @@ func TestLayoutContainer_GetElement_NotFound(t *testing.T) {
 }
 
 func TestLayoutContainer_IncrementVersion(t *testing.T) {
-	contextType, _ := valueobjects.NewLayoutContextType("business-domain-grid")
-	contextRef, _ := valueobjects.NewContextRef("domain-finance")
-	container, _ := NewLayoutContainer(contextType, contextRef, valueobjects.NewLayoutPreferences(nil))
+	container := newTestLayoutContainer(t)
 
 	assert.Equal(t, 1, container.Version())
 	container.IncrementVersion()

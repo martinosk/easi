@@ -74,16 +74,37 @@ func TestImportSession_StartImport(t *testing.T) {
 	}
 }
 
-func TestImportSession_StartImport_AlreadyStarted(t *testing.T) {
-	session := createTestSession(t)
-	_ = session.StartImport()
-
-	err := session.StartImport()
-	if err == nil {
-		t.Error("expected error when starting already started import")
+func TestImportSession_TransitionsRejectedAfterStart(t *testing.T) {
+	cases := []struct {
+		name    string
+		action  func(*ImportSession) error
+		wantErr error
+	}{
+		{
+			name:    "StartImport rejected when already started",
+			action:  func(s *ImportSession) error { return s.StartImport() },
+			wantErr: ErrImportAlreadyStarted,
+		},
+		{
+			name:    "Cancel rejected when already started",
+			action:  func(s *ImportSession) error { return s.Cancel() },
+			wantErr: ErrCannotCancelStartedImport,
+		},
 	}
-	if err != ErrImportAlreadyStarted {
-		t.Errorf("expected ErrImportAlreadyStarted, got %v", err)
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			session := createTestSession(t)
+			_ = session.StartImport()
+
+			err := tc.action(session)
+			if err == nil {
+				t.Error("expected error, got nil")
+			}
+			if err != tc.wantErr {
+				t.Errorf("expected %v, got %v", tc.wantErr, err)
+			}
+		})
 	}
 }
 
@@ -162,19 +183,6 @@ func TestImportSession_Cancel(t *testing.T) {
 
 	if !session.IsCancelled() {
 		t.Error("expected session to be cancelled")
-	}
-}
-
-func TestImportSession_Cancel_AlreadyStarted(t *testing.T) {
-	session := createTestSession(t)
-	_ = session.StartImport()
-
-	err := session.Cancel()
-	if err == nil {
-		t.Error("expected error when cancelling started import")
-	}
-	if err != ErrCannotCancelStartedImport {
-		t.Errorf("expected ErrCannotCancelStartedImport, got %v", err)
 	}
 }
 

@@ -13,31 +13,61 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestComponentRelationDeserializers_RoundTrip(t *testing.T) {
-	sourceID, _ := valueobjects.NewComponentIDFromString("550e8400-e29b-41d4-a716-446655440000")
-	targetID, _ := valueobjects.NewComponentIDFromString("550e8400-e29b-41d4-a716-446655440001")
-	relationType, _ := valueobjects.NewRelationType("uses")
-	name := valueobjects.MustNewDescription("API Call")
-	description := valueobjects.MustNewDescription("Service A calls Service B")
+type relationFixture struct {
+	sourceUUID   string
+	targetUUID   string
+	relationType string
+	name         string
+	description  string
+}
+
+func newRelationFromFixture(t *testing.T, f relationFixture) *aggregates.ComponentRelation {
+	t.Helper()
+
+	sourceID, err := valueobjects.NewComponentIDFromString(f.sourceUUID)
+	require.NoError(t, err)
+	targetID, err := valueobjects.NewComponentIDFromString(f.targetUUID)
+	require.NoError(t, err)
+	relType, err := valueobjects.NewRelationType(f.relationType)
+	require.NoError(t, err)
 
 	properties := valueobjects.NewRelationProperties(valueobjects.RelationPropertiesParams{
 		SourceID:     sourceID,
 		TargetID:     targetID,
-		RelationType: relationType,
-		Name:         name,
-		Description:  description,
+		RelationType: relType,
+		Name:         valueobjects.MustNewDescription(f.name),
+		Description:  valueobjects.MustNewDescription(f.description),
 	})
 
-	original, err := aggregates.NewComponentRelation(properties)
+	relation, err := aggregates.NewComponentRelation(properties)
 	require.NoError(t, err)
+
+	return relation
+}
+
+func roundTripDeserialize(t *testing.T, events []domain.DomainEvent) []domain.DomainEvent {
+	t.Helper()
+
+	storedEvents := simulateRelationEventStoreRoundTrip(t, events)
+	deserialized, err := relationEventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
+
+	return deserialized
+}
+
+func TestComponentRelationDeserializers_RoundTrip(t *testing.T) {
+	original := newRelationFromFixture(t, relationFixture{
+		sourceUUID:   "550e8400-e29b-41d4-a716-446655440000",
+		targetUUID:   "550e8400-e29b-41d4-a716-446655440001",
+		relationType: "Triggers",
+		name:         "API Call",
+		description:  "Service A calls Service B",
+	})
 
 	events := original.GetUncommittedChanges()
 	require.Len(t, events, 1, "Expected 1 event: Created")
 
-	storedEvents := simulateRelationEventStoreRoundTrip(t, events)
-	deserializedEvents, err := relationEventDeserializers.Deserialize(storedEvents)
-	require.NoError(t, err)
-
+	deserializedEvents := roundTripDeserialize(t, events)
 	require.Len(t, deserializedEvents, 1, "All events should be deserialized")
 
 	loaded, err := aggregates.LoadComponentRelationFromHistory(deserializedEvents)
@@ -50,22 +80,13 @@ func TestComponentRelationDeserializers_RoundTrip(t *testing.T) {
 }
 
 func TestComponentRelationDeserializers_RoundTripWithUpdate(t *testing.T) {
-	sourceID, _ := valueobjects.NewComponentIDFromString("550e8400-e29b-41d4-a716-446655440002")
-	targetID, _ := valueobjects.NewComponentIDFromString("550e8400-e29b-41d4-a716-446655440003")
-	relationType, _ := valueobjects.NewRelationType("depends-on")
-	name := valueobjects.MustNewDescription("Dependency")
-	description := valueobjects.MustNewDescription("Initial description")
-
-	properties := valueobjects.NewRelationProperties(valueobjects.RelationPropertiesParams{
-		SourceID:     sourceID,
-		TargetID:     targetID,
-		RelationType: relationType,
-		Name:         name,
-		Description:  description,
+	original := newRelationFromFixture(t, relationFixture{
+		sourceUUID:   "550e8400-e29b-41d4-a716-446655440002",
+		targetUUID:   "550e8400-e29b-41d4-a716-446655440003",
+		relationType: "Serves",
+		name:         "Dependency",
+		description:  "Initial description",
 	})
-
-	original, err := aggregates.NewComponentRelation(properties)
-	require.NoError(t, err)
 
 	newName := valueobjects.MustNewDescription("Updated Dependency")
 	newDescription := valueobjects.MustNewDescription("Updated description")
@@ -74,10 +95,7 @@ func TestComponentRelationDeserializers_RoundTripWithUpdate(t *testing.T) {
 	events := original.GetUncommittedChanges()
 	require.Len(t, events, 2, "Expected 2 events: Created, Updated")
 
-	storedEvents := simulateRelationEventStoreRoundTrip(t, events)
-	deserializedEvents, err := relationEventDeserializers.Deserialize(storedEvents)
-	require.NoError(t, err)
-
+	deserializedEvents := roundTripDeserialize(t, events)
 	require.Len(t, deserializedEvents, 2, "All events should be deserialized")
 
 	loaded, err := aggregates.LoadComponentRelationFromHistory(deserializedEvents)
@@ -88,34 +106,23 @@ func TestComponentRelationDeserializers_RoundTripWithUpdate(t *testing.T) {
 }
 
 func TestComponentRelationDeserializers_AllEventsCanBeDeserialized(t *testing.T) {
-	sourceID, _ := valueobjects.NewComponentIDFromString("550e8400-e29b-41d4-a716-446655440004")
-	targetID, _ := valueobjects.NewComponentIDFromString("550e8400-e29b-41d4-a716-446655440005")
-	relationType, _ := valueobjects.NewRelationType("uses")
-	name := valueobjects.MustNewDescription("Test Relation")
-	description := valueobjects.MustNewDescription("Test description")
-
-	properties := valueobjects.NewRelationProperties(valueobjects.RelationPropertiesParams{
-		SourceID:     sourceID,
-		TargetID:     targetID,
-		RelationType: relationType,
-		Name:         name,
-		Description:  description,
+	relation := newRelationFromFixture(t, relationFixture{
+		sourceUUID:   "550e8400-e29b-41d4-a716-446655440004",
+		targetUUID:   "550e8400-e29b-41d4-a716-446655440005",
+		relationType: "Triggers",
+		name:         "Test Relation",
+		description:  "Test description",
 	})
 
-	relation, err := aggregates.NewComponentRelation(properties)
-	require.NoError(t, err)
-
-	newName := valueobjects.MustNewDescription("Updated Name")
-	newDescription := valueobjects.MustNewDescription("Updated description")
-	_ = relation.Update(newName, newDescription)
+	_ = relation.Update(
+		valueobjects.MustNewDescription("Updated Name"),
+		valueobjects.MustNewDescription("Updated description"),
+	)
 
 	events := relation.GetUncommittedChanges()
 	require.Len(t, events, 2, "Expected 2 events: Created, Updated")
 
-	storedEvents := simulateRelationEventStoreRoundTrip(t, events)
-	deserializedEvents, err := relationEventDeserializers.Deserialize(storedEvents)
-	require.NoError(t, err)
-
+	deserializedEvents := roundTripDeserialize(t, events)
 	require.Len(t, deserializedEvents, len(events),
 		"All events should be deserialized - missing deserializer for one or more event types")
 

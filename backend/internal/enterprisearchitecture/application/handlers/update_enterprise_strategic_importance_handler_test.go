@@ -59,11 +59,9 @@ func createTestEnterpriseStrategicImportance(t *testing.T) *aggregates.Enterpris
 	return si
 }
 
-func TestUpdateEnterpriseStrategicImportanceHandler_UpdatesImportance(t *testing.T) {
+func TestUpdateEnterpriseStrategicImportanceHandler_UpdatesImportanceAndRaisesEvent(t *testing.T) {
 	existingImportance := createTestEnterpriseStrategicImportance(t)
-
 	mockRepo := &mockUpdateImportanceRepository{existingImportance: existingImportance}
-
 	handler := NewUpdateEnterpriseStrategicImportanceHandler(mockRepo)
 
 	cmd := &commands.UpdateEnterpriseStrategicImportance{
@@ -79,25 +77,7 @@ func TestUpdateEnterpriseStrategicImportanceHandler_UpdatesImportance(t *testing
 	updated := mockRepo.savedImportances[0]
 	assert.Equal(t, 5, updated.Importance().Value())
 	assert.Equal(t, "Updated rationale", updated.Rationale().Value())
-}
 
-func TestUpdateEnterpriseStrategicImportanceHandler_RaisesUpdatedEvent(t *testing.T) {
-	existingImportance := createTestEnterpriseStrategicImportance(t)
-
-	mockRepo := &mockUpdateImportanceRepository{existingImportance: existingImportance}
-
-	handler := NewUpdateEnterpriseStrategicImportanceHandler(mockRepo)
-
-	cmd := &commands.UpdateEnterpriseStrategicImportance{
-		ID:         existingImportance.ID(),
-		Importance: 4,
-		Rationale:  "Updated rationale",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	require.NoError(t, err)
-
-	updated := mockRepo.savedImportances[0]
 	uncommittedEvents := updated.GetUncommittedChanges()
 	require.Len(t, uncommittedEvents, 1)
 	assert.Equal(t, "EnterpriseStrategicImportanceUpdated", uncommittedEvents[0].EventType())
@@ -118,40 +98,50 @@ func TestUpdateEnterpriseStrategicImportanceHandler_NonExistent_ReturnsError(t *
 	assert.ErrorIs(t, err, repositories.ErrEnterpriseStrategicImportanceNotFound)
 }
 
-func TestUpdateEnterpriseStrategicImportanceHandler_InvalidImportance_ReturnsError(t *testing.T) {
-	existingImportance := createTestEnterpriseStrategicImportance(t)
-
-	mockRepo := &mockUpdateImportanceRepository{existingImportance: existingImportance}
-
-	handler := NewUpdateEnterpriseStrategicImportanceHandler(mockRepo)
-
-	cmd := &commands.UpdateEnterpriseStrategicImportance{
-		ID:         existingImportance.ID(),
-		Importance: 0,
-		Rationale:  "",
+func TestUpdateEnterpriseStrategicImportanceHandler_FailureCases(t *testing.T) {
+	tests := []struct {
+		name           string
+		makeRepo       func(existing *aggregates.EnterpriseStrategicImportance) *mockUpdateImportanceRepository
+		importance     int
+		expectNoSaves  bool
+	}{
+		{
+			name: "invalid importance value rejected before save",
+			makeRepo: func(existing *aggregates.EnterpriseStrategicImportance) *mockUpdateImportanceRepository {
+				return &mockUpdateImportanceRepository{existingImportance: existing}
+			},
+			importance:    0,
+			expectNoSaves: true,
+		},
+		{
+			name: "repository save failure surfaces",
+			makeRepo: func(existing *aggregates.EnterpriseStrategicImportance) *mockUpdateImportanceRepository {
+				return &mockUpdateImportanceRepository{
+					existingImportance: existing,
+					saveErr:            errors.New("save error"),
+				}
+			},
+			importance: 4,
+		},
 	}
 
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.Error(t, err)
-	assert.Empty(t, mockRepo.savedImportances)
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			existingImportance := createTestEnterpriseStrategicImportance(t)
+			mockRepo := tt.makeRepo(existingImportance)
+			handler := NewUpdateEnterpriseStrategicImportanceHandler(mockRepo)
 
-func TestUpdateEnterpriseStrategicImportanceHandler_RepositoryError_ReturnsError(t *testing.T) {
-	existingImportance := createTestEnterpriseStrategicImportance(t)
+			cmd := &commands.UpdateEnterpriseStrategicImportance{
+				ID:         existingImportance.ID(),
+				Importance: tt.importance,
+				Rationale:  "",
+			}
 
-	mockRepo := &mockUpdateImportanceRepository{
-		existingImportance: existingImportance,
-		saveErr:            errors.New("save error"),
+			_, err := handler.Handle(context.Background(), cmd)
+			assert.Error(t, err)
+			if tt.expectNoSaves {
+				assert.Empty(t, mockRepo.savedImportances)
+			}
+		})
 	}
-
-	handler := NewUpdateEnterpriseStrategicImportanceHandler(mockRepo)
-
-	cmd := &commands.UpdateEnterpriseStrategicImportance{
-		ID:         existingImportance.ID(),
-		Importance: 4,
-		Rationale:  "",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.Error(t, err)
 }

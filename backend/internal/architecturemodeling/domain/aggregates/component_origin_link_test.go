@@ -38,6 +38,15 @@ func allOriginLinkCases() []originLinkTestCase {
 	}
 }
 
+func forAllOriginTypes(t *testing.T, run func(t *testing.T, tc originLinkTestCase)) {
+	t.Helper()
+	for _, tc := range allOriginLinkCases() {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, tc)
+		})
+	}
+}
+
 func createOriginLink(t *testing.T, tc originLinkTestCase) *ComponentOriginLink {
 	t.Helper()
 	componentID := valueobjects.NewComponentID()
@@ -59,23 +68,21 @@ func createOriginLinkWithEntity(t *testing.T, tc originLinkTestCase) (*Component
 }
 
 func TestNewComponentOriginLink(t *testing.T) {
-	for _, tc := range allOriginLinkCases() {
-		t.Run(tc.name, func(t *testing.T) {
-			componentID := valueobjects.NewComponentID()
-			originType, err := valueobjects.NewOriginType(tc.originType)
-			require.NoError(t, err)
+	forAllOriginTypes(t, func(t *testing.T, tc originLinkTestCase) {
+		componentID := valueobjects.NewComponentID()
+		originType, err := valueobjects.NewOriginType(tc.originType)
+		require.NoError(t, err)
 
-			link, err := NewComponentOriginLink(componentID, originType)
+		link, err := NewComponentOriginLink(componentID, originType)
 
-			require.NoError(t, err)
-			assert.NotNil(t, link)
-			expectedID := "origin-link:" + tc.originType + ":" + componentID.String()
-			assert.Equal(t, expectedID, link.ID())
-			assert.True(t, link.Link().IsEmpty())
-			assert.NotZero(t, link.CreatedAt())
-			assert.False(t, link.IsDeleted())
-		})
-	}
+		require.NoError(t, err)
+		assert.NotNil(t, link)
+		expectedID := "origin-link:" + tc.originType + ":" + componentID.String()
+		assert.Equal(t, expectedID, link.ID())
+		assert.True(t, link.Link().IsEmpty())
+		assert.NotZero(t, link.CreatedAt())
+		assert.False(t, link.IsDeleted())
+	})
 }
 
 func TestComponentOriginLink_AggregateIDFormat(t *testing.T) {
@@ -90,110 +97,109 @@ func TestComponentOriginLink_AggregateIDFormat(t *testing.T) {
 }
 
 func TestComponentOriginLink_SetFirstTime(t *testing.T) {
-	for _, tc := range allOriginLinkCases() {
-		t.Run(tc.name, func(t *testing.T) {
-			link := createOriginLink(t, tc)
-			entityID := tc.newID()
-			notes, _ := valueobjects.NewNotes("First time notes")
+	forAllOriginTypes(t, func(t *testing.T, tc originLinkTestCase) {
+		link := createOriginLink(t, tc)
+		entityID := tc.newID()
+		notes, _ := valueobjects.NewNotes("First time notes")
 
-			err := link.Set(entityID, notes)
+		err := link.Set(entityID, notes)
 
-			require.NoError(t, err)
-			assert.False(t, link.Link().IsEmpty())
-			assert.Equal(t, entityID, link.Link().EntityID())
-			assert.Equal(t, notes, link.Link().Notes())
+		require.NoError(t, err)
+		assert.False(t, link.Link().IsEmpty())
+		assert.Equal(t, entityID, link.Link().EntityID())
+		assert.Equal(t, notes, link.Link().Notes())
 
-			evts := link.GetUncommittedChanges()
-			assert.Len(t, evts, 2)
-			assert.Equal(t, "OriginLinkCreated", evts[0].EventType())
-			assert.Equal(t, "OriginLinkSet", evts[1].EventType())
-		})
-	}
+		evts := link.GetUncommittedChanges()
+		assert.Len(t, evts, 2)
+		assert.Equal(t, "OriginLinkCreated", evts[0].EventType())
+		assert.Equal(t, "OriginLinkSet", evts[1].EventType())
+	})
 }
 
-func TestComponentOriginLink_Replace(t *testing.T) {
-	for _, tc := range allOriginLinkCases() {
-		t.Run(tc.name, func(t *testing.T) {
-			link, _ := createOriginLinkWithEntity(t, tc)
-			newEntityID := tc.newID()
-			notes, _ := valueobjects.NewNotes("Replacement")
-
-			err := link.Set(newEntityID, notes)
-
-			require.NoError(t, err)
-			assert.Equal(t, newEntityID, link.Link().EntityID())
-			assertSingleEvent(t, link, "OriginLinkReplaced")
-		})
+func TestComponentOriginLink_SetAfterInitial(t *testing.T) {
+	cases := []struct {
+		name      string
+		useNewID  bool
+		notesText string
+		check     func(t *testing.T, link *ComponentOriginLink, entityID string, notes valueobjects.Notes)
+	}{
+		{
+			name:      "Replace with different entity emits replaced event",
+			useNewID:  true,
+			notesText: "Replacement",
+			check: func(t *testing.T, link *ComponentOriginLink, entityID string, _ valueobjects.Notes) {
+				assert.Equal(t, entityID, link.Link().EntityID())
+				assertSingleEvent(t, link, "OriginLinkReplaced")
+			},
+		},
+		{
+			name:      "Update notes on same entity emits notes-updated event",
+			useNewID:  false,
+			notesText: "Updated notes",
+			check: func(t *testing.T, link *ComponentOriginLink, _ string, notes valueobjects.Notes) {
+				assert.Equal(t, notes, link.Link().Notes())
+				assertSingleEvent(t, link, "OriginLinkNotesUpdated")
+			},
+		},
+		{
+			name:      "Same entity and notes is idempotent",
+			useNewID:  false,
+			notesText: "Initial",
+			check: func(t *testing.T, link *ComponentOriginLink, _ string, _ valueobjects.Notes) {
+				assert.Empty(t, link.GetUncommittedChanges())
+			},
+		},
 	}
-}
 
-func TestComponentOriginLink_UpdateNotesOnly(t *testing.T) {
-	for _, tc := range allOriginLinkCases() {
-		t.Run(tc.name, func(t *testing.T) {
-			link, entityID := createOriginLinkWithEntity(t, tc)
-			notes2, _ := valueobjects.NewNotes("Updated notes")
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			forAllOriginTypes(t, func(t *testing.T, tc originLinkTestCase) {
+				link, entityID := createOriginLinkWithEntity(t, tc)
+				if c.useNewID {
+					entityID = tc.newID()
+				}
+				notes, _ := valueobjects.NewNotes(c.notesText)
 
-			err := link.Set(entityID, notes2)
+				require.NoError(t, link.Set(entityID, notes))
 
-			require.NoError(t, err)
-			assert.Equal(t, notes2, link.Link().Notes())
-			assertSingleEvent(t, link, "OriginLinkNotesUpdated")
-		})
-	}
-}
-
-func TestComponentOriginLink_IdempotentSet(t *testing.T) {
-	for _, tc := range allOriginLinkCases() {
-		t.Run(tc.name, func(t *testing.T) {
-			link, entityID := createOriginLinkWithEntity(t, tc)
-			notes, _ := valueobjects.NewNotes("Initial")
-
-			err := link.Set(entityID, notes)
-
-			require.NoError(t, err)
-			assert.Empty(t, link.GetUncommittedChanges())
+				c.check(t, link, entityID, notes)
+			})
 		})
 	}
 }
 
 func TestComponentOriginLink_Clear(t *testing.T) {
-	for _, tc := range allOriginLinkCases() {
-		t.Run(tc.name, func(t *testing.T) {
-			link, _ := createOriginLinkWithEntity(t, tc)
+	forAllOriginTypes(t, func(t *testing.T, tc originLinkTestCase) {
+		link, _ := createOriginLinkWithEntity(t, tc)
 
-			err := link.Clear()
+		err := link.Clear()
 
-			require.NoError(t, err)
-			assert.True(t, link.Link().IsEmpty())
-			assertSingleEvent(t, link, "OriginLinkCleared")
-		})
-	}
+		require.NoError(t, err)
+		assert.True(t, link.Link().IsEmpty())
+		assertSingleEvent(t, link, "OriginLinkCleared")
+	})
 }
 
 func TestComponentOriginLink_ClearWhenEmpty(t *testing.T) {
-	for _, tc := range allOriginLinkCases() {
-		t.Run(tc.name, func(t *testing.T) {
-			link := createOriginLink(t, tc)
+	forAllOriginTypes(t, func(t *testing.T, tc originLinkTestCase) {
+		link := createOriginLink(t, tc)
 
-			err := link.Clear()
+		err := link.Clear()
 
-			assert.ErrorIs(t, err, ErrNoOriginLink)
-		})
-	}
+		assert.ErrorIs(t, err, ErrNoOriginLink)
+	})
 }
 
 func TestComponentOriginLink_Delete(t *testing.T) {
-	for _, tc := range allOriginLinkCases() {
-		t.Run(tc.name, func(t *testing.T) {
-			link, _ := createOriginLinkWithEntity(t, tc)
+	forAllOriginTypes(t, func(t *testing.T, tc originLinkTestCase) {
+		link, _ := createOriginLinkWithEntity(t, tc)
 
-			err := link.Delete()
+		err := link.Delete()
 
-			require.NoError(t, err)
-			assert.True(t, link.IsDeleted())
-			assertSingleEvent(t, link, "OriginLinkDeleted")
-		})
-	}
+		require.NoError(t, err)
+		assert.True(t, link.IsDeleted())
+		assertSingleEvent(t, link, "OriginLinkDeleted")
+	})
 }
 
 func assertSingleEvent(t *testing.T, link *ComponentOriginLink, expectedEventType string) {
@@ -204,46 +210,42 @@ func assertSingleEvent(t *testing.T, link *ComponentOriginLink, expectedEventTyp
 }
 
 func TestComponentOriginLink_LoadFromHistory(t *testing.T) {
-	for _, tc := range allOriginLinkCases() {
-		t.Run(tc.name, func(t *testing.T) {
-			componentID := valueobjects.NewComponentID()
-			aggregateID := BuildOriginLinkAggregateID(tc.originType, componentID.String())
-			entityID := tc.newID()
-			notes, _ := valueobjects.NewNotes("Test notes")
-			now := time.Now().UTC()
+	forAllOriginTypes(t, func(t *testing.T, tc originLinkTestCase) {
+		componentID := valueobjects.NewComponentID()
+		aggregateID := BuildOriginLinkAggregateID(tc.originType, componentID.String())
+		entityID := tc.newID()
+		notes, _ := valueobjects.NewNotes("Test notes")
+		now := time.Now().UTC()
 
-			base := events.NewOriginLinkBase(aggregateID, componentID.String(), tc.originType)
-			createdEvent := events.NewOriginLinkCreatedEvent(base, now)
-			setEvent := events.NewOriginLinkSetEvent(base, entityID, notes.String(), now)
+		base := events.NewOriginLinkBase(aggregateID, componentID.String(), tc.originType)
+		createdEvent := events.NewOriginLinkCreatedEvent(base, now)
+		setEvent := events.NewOriginLinkSetEvent(base, entityID, notes.String(), now)
 
-			link, err := LoadComponentOriginLinkFromHistory([]domain.DomainEvent{createdEvent, setEvent})
+		link, err := LoadComponentOriginLinkFromHistory([]domain.DomainEvent{createdEvent, setEvent})
 
-			require.NoError(t, err)
-			assert.Equal(t, aggregateID, link.ID())
-			assert.False(t, link.Link().IsEmpty())
-			assert.Equal(t, entityID, link.Link().EntityID())
-			assert.Equal(t, 2, link.Version())
-		})
-	}
+		require.NoError(t, err)
+		assert.Equal(t, aggregateID, link.ID())
+		assert.False(t, link.Link().IsEmpty())
+		assert.Equal(t, entityID, link.Link().EntityID())
+		assert.Equal(t, 2, link.Version())
+	})
 }
 
 func TestComponentOriginLink_AllEventsContainCorrectAggregateID(t *testing.T) {
-	for _, tc := range allOriginLinkCases() {
-		t.Run(tc.name, func(t *testing.T) {
-			link := createOriginLink(t, tc)
-			expectedID := link.ID()
-			entityID := tc.newID()
-			notes, _ := valueobjects.NewNotes("Test")
+	forAllOriginTypes(t, func(t *testing.T, tc originLinkTestCase) {
+		link := createOriginLink(t, tc)
+		expectedID := link.ID()
+		entityID := tc.newID()
+		notes, _ := valueobjects.NewNotes("Test")
 
-			_ = link.Set(entityID, notes)
+		_ = link.Set(entityID, notes)
 
-			evts := link.GetUncommittedChanges()
-			for _, event := range evts {
-				assert.Equal(t, expectedID, event.AggregateID(),
-					"Event %s must have correct aggregate ID", event.EventType())
-			}
-		})
-	}
+		evts := link.GetUncommittedChanges()
+		for _, event := range evts {
+			assert.Equal(t, expectedID, event.AggregateID(),
+				"Event %s must have correct aggregate ID", event.EventType())
+		}
+	})
 }
 
 func TestBuildOriginLinkAggregateID(t *testing.T) {

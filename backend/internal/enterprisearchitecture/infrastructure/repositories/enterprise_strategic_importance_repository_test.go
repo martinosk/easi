@@ -13,28 +13,53 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestEnterpriseStrategicImportanceDeserializers_RoundTrip(t *testing.T) {
-	enterpriseCapabilityID := valueobjects.NewEnterpriseCapabilityID()
-	pillarID := valueobjects.NewPillarID()
-	importance, _ := valueobjects.NewImportance(4)
-	rationale, _ := valueobjects.NewRationale("Critical for growth")
+type enterpriseImportanceFixture struct {
+	pillarName     string
+	importanceRank int
+	rationale      string
+}
+
+func newEnterpriseImportanceFromFixture(t *testing.T, f enterpriseImportanceFixture) *aggregates.EnterpriseStrategicImportance {
+	t.Helper()
+
+	importance, err := valueobjects.NewImportance(f.importanceRank)
+	require.NoError(t, err)
+	rationale, err := valueobjects.NewRationale(f.rationale)
+	require.NoError(t, err)
 
 	original, err := aggregates.SetEnterpriseStrategicImportance(aggregates.NewEnterpriseImportanceParams{
-		EnterpriseCapabilityID: enterpriseCapabilityID,
-		PillarID:               pillarID,
-		PillarName:             "Growth",
+		EnterpriseCapabilityID: valueobjects.NewEnterpriseCapabilityID(),
+		PillarID:               valueobjects.NewPillarID(),
+		PillarName:             f.pillarName,
 		Importance:             importance,
 		Rationale:              rationale,
 	})
 	require.NoError(t, err)
 
+	return original
+}
+
+func roundTripDeserializeEnterpriseImportance(t *testing.T, events []domain.DomainEvent) []domain.DomainEvent {
+	t.Helper()
+
+	storedEvents := simulateImportanceEventStoreRoundTrip(t, events)
+	deserialized, err := enterpriseStrategicImportanceEventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
+
+	return deserialized
+}
+
+func TestEnterpriseStrategicImportanceDeserializers_RoundTrip(t *testing.T) {
+	original := newEnterpriseImportanceFromFixture(t, enterpriseImportanceFixture{
+		pillarName:     "Growth",
+		importanceRank: 4,
+		rationale:      "Critical for growth",
+	})
+
 	events := original.GetUncommittedChanges()
 	require.Len(t, events, 1, "Expected 1 event: Set")
 
-	storedEvents := simulateImportanceEventStoreRoundTrip(t, events)
-	deserializedEvents, err := enterpriseStrategicImportanceEventDeserializers.Deserialize(storedEvents)
-	require.NoError(t, err)
-
+	deserializedEvents := roundTripDeserializeEnterpriseImportance(t, events)
 	require.Len(t, deserializedEvents, 1, "All events should be deserialized")
 
 	loaded, err := aggregates.LoadEnterpriseStrategicImportanceFromHistory(deserializedEvents)
@@ -48,19 +73,11 @@ func TestEnterpriseStrategicImportanceDeserializers_RoundTrip(t *testing.T) {
 }
 
 func TestEnterpriseStrategicImportanceDeserializers_RoundTripWithUpdate(t *testing.T) {
-	enterpriseCapabilityID := valueobjects.NewEnterpriseCapabilityID()
-	pillarID := valueobjects.NewPillarID()
-	importance, _ := valueobjects.NewImportance(3)
-	rationale, _ := valueobjects.NewRationale("Initial rationale")
-
-	original, err := aggregates.SetEnterpriseStrategicImportance(aggregates.NewEnterpriseImportanceParams{
-		EnterpriseCapabilityID: enterpriseCapabilityID,
-		PillarID:               pillarID,
-		PillarName:             "Innovation",
-		Importance:             importance,
-		Rationale:              rationale,
+	original := newEnterpriseImportanceFromFixture(t, enterpriseImportanceFixture{
+		pillarName:     "Innovation",
+		importanceRank: 3,
+		rationale:      "Initial rationale",
 	})
-	require.NoError(t, err)
 
 	newImportance, _ := valueobjects.NewImportance(5)
 	newRationale, _ := valueobjects.NewRationale("Updated rationale")
@@ -69,10 +86,7 @@ func TestEnterpriseStrategicImportanceDeserializers_RoundTripWithUpdate(t *testi
 	events := original.GetUncommittedChanges()
 	require.Len(t, events, 2, "Expected 2 events: Set, Updated")
 
-	storedEvents := simulateImportanceEventStoreRoundTrip(t, events)
-	deserializedEvents, err := enterpriseStrategicImportanceEventDeserializers.Deserialize(storedEvents)
-	require.NoError(t, err)
-
+	deserializedEvents := roundTripDeserializeEnterpriseImportance(t, events)
 	require.Len(t, deserializedEvents, 2, "All events should be deserialized")
 
 	loaded, err := aggregates.LoadEnterpriseStrategicImportanceFromHistory(deserializedEvents)
@@ -83,19 +97,11 @@ func TestEnterpriseStrategicImportanceDeserializers_RoundTripWithUpdate(t *testi
 }
 
 func TestEnterpriseStrategicImportanceDeserializers_AllEventsCanBeDeserialized(t *testing.T) {
-	enterpriseCapabilityID := valueobjects.NewEnterpriseCapabilityID()
-	pillarID := valueobjects.NewPillarID()
-	importance, _ := valueobjects.NewImportance(2)
-	rationale, _ := valueobjects.NewRationale("Test rationale")
-
-	original, err := aggregates.SetEnterpriseStrategicImportance(aggregates.NewEnterpriseImportanceParams{
-		EnterpriseCapabilityID: enterpriseCapabilityID,
-		PillarID:               pillarID,
-		PillarName:             "Efficiency",
-		Importance:             importance,
-		Rationale:              rationale,
+	original := newEnterpriseImportanceFromFixture(t, enterpriseImportanceFixture{
+		pillarName:     "Efficiency",
+		importanceRank: 2,
+		rationale:      "Test rationale",
 	})
-	require.NoError(t, err)
 
 	newImportance, _ := valueobjects.NewImportance(4)
 	newRationale, _ := valueobjects.NewRationale("Updated")
@@ -105,10 +111,7 @@ func TestEnterpriseStrategicImportanceDeserializers_AllEventsCanBeDeserialized(t
 	events := original.GetUncommittedChanges()
 	require.Len(t, events, 3, "Expected 3 events: Set, Updated, Removed")
 
-	storedEvents := simulateImportanceEventStoreRoundTrip(t, events)
-	deserializedEvents, err := enterpriseStrategicImportanceEventDeserializers.Deserialize(storedEvents)
-	require.NoError(t, err)
-
+	deserializedEvents := roundTripDeserializeEnterpriseImportance(t, events)
 	require.Len(t, deserializedEvents, len(events),
 		"All events should be deserialized - missing deserializer for one or more event types")
 
