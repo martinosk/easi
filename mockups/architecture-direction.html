@@ -1,0 +1,2409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Architecture Direction — EASI mockup</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  :root {
+    --bg: #fafaf9;
+    --surface: #ffffff;
+    --surface-alt: #f5f5f4;
+    --border: #e7e5e4;
+    --border-strong: #d6d3d1;
+    --text: #1c1917;
+    --text-muted: #57534e;
+    --text-faint: #a8a29e;
+    --accent: #4338ca;
+    --accent-soft: #eef2ff;
+    --inbound: #15803d;
+    --inbound-soft: #ecfdf5;
+    --decomposed: #7c3aed;
+    --decomposed-soft: #f5f3ff;
+    --draft: #78716c;
+    --proposed: #b45309;
+    --proposed-soft: #fef3c7;
+    --agreed: #166534;
+    --agreed-soft: #dcfce7;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+    --shadow-lg: 0 12px 28px rgba(0,0,0,0.12);
+    --r-sm: 4px;
+    --r-md: 6px;
+    --r-lg: 10px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, 'Inter', sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  body { color: var(--text); background: var(--bg); }
+
+  .app { max-width: 1320px; margin: 0 auto; padding: 24px; }
+
+  header.top-bar {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 16px;
+    margin-bottom: 20px;
+    gap: 16px;
+  }
+  header.top-bar h1 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  header.top-bar .subtitle {
+    color: var(--text-muted);
+    font-size: 13px;
+    margin-top: 4px;
+    max-width: 720px;
+  }
+  .mockup-badge {
+    background: var(--proposed-soft);
+    color: var(--proposed);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: var(--r-sm);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+
+  nav.view-tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+  nav.view-tabs button {
+    background: transparent;
+    border: none;
+    padding: 12px 18px;
+    font: inherit;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    font-weight: 500;
+    transition: color 0.1s ease, border-color 0.1s ease;
+  }
+  nav.view-tabs button:hover { color: var(--text); }
+  nav.view-tabs button.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  .filter-bar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .filter-bar label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .filter-bar select {
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-md);
+    padding: 6px 10px;
+    background: var(--surface);
+    font: inherit;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .filter-bar select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+
+  /* Direction Board */
+  .board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .board-column {
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 14px;
+    min-height: 400px;
+  }
+  .board-column h2 {
+    margin: 0 0 14px 4px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .board-column h2 .horizon-hint {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--text-faint);
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .board-column h2 .count {
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    padding: 1px 8px;
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-left: auto;
+  }
+
+  .direction-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 14px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+  }
+  .direction-card:hover {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-md);
+  }
+  .direction-card .cap-name {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    line-height: 1.35;
+  }
+  .direction-card .narrative {
+    font-size: 12.5px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+    line-height: 1.45;
+  }
+  .direction-card .from-row {
+    font-size: 11.5px;
+    color: var(--text-faint);
+    margin-bottom: 8px;
+  }
+  .direction-card .from-row .from-domains { color: var(--text-muted); }
+  .direction-card .arrow { color: var(--text-faint); margin: 0 4px; }
+  .direction-card .target-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 500;
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--text);
+  }
+  .chip.target {
+    background: var(--accent-soft);
+    border-color: transparent;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .chip.app { background: var(--surface-alt); }
+
+  .direction-card .footer-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+  }
+  .status-pill {
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: var(--r-sm);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: inline-block;
+  }
+  .status-pill.draft { background: #f5f5f4; color: var(--draft); border: 1px solid var(--border-strong); }
+  .status-pill.proposed { background: var(--proposed-soft); color: var(--proposed); }
+  .status-pill.agreed { background: var(--agreed-soft); color: var(--agreed); }
+  .placement-indicator {
+    font-size: 10.5px;
+    color: var(--decomposed);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .direction-card.multi-placement::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 14px; bottom: 14px;
+    width: 3px;
+    background: var(--decomposed);
+    border-radius: var(--r-sm) 0 0 var(--r-sm);
+  }
+
+  /* Target Architecture view */
+  .horizon-toggle {
+    display: inline-flex;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-md);
+    overflow: hidden;
+  }
+  .horizon-toggle button {
+    background: transparent;
+    border: none;
+    padding: 7px 14px;
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-right: 1px solid var(--border);
+  }
+  .horizon-toggle button:last-child { border-right: none; }
+  .horizon-toggle button:hover { background: var(--surface-alt); color: var(--text); }
+  .horizon-toggle button.active {
+    background: var(--accent);
+    color: white;
+  }
+
+  .target-domains {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .domain-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 16px;
+  }
+  .domain-card h3 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .domain-card h3 .count {
+    font-size: 11px;
+    color: var(--text-muted);
+    background: var(--surface-alt);
+    border-radius: 999px;
+    padding: 1px 9px;
+    font-weight: 500;
+  }
+  .capability-row {
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    margin-bottom: 6px;
+    cursor: default;
+    transition: border-color 0.15s ease, background 0.1s ease;
+  }
+  .capability-row.clickable { cursor: pointer; }
+  .capability-row.clickable:hover {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .capability-row.inbound {
+    border-left: 3px solid var(--inbound);
+    background: var(--inbound-soft);
+  }
+  .capability-row.decomposed {
+    border-left: 3px solid var(--decomposed);
+    background: var(--decomposed-soft);
+  }
+  .capability-row.transitional {
+    opacity: 0.6;
+    border-style: dashed;
+  }
+  .capability-row .cap-row-name {
+    font-weight: 500;
+    font-size: 13px;
+    line-height: 1.3;
+  }
+  .capability-row .cap-row-meta {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    margin-top: 4px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+  .move-badge {
+    font-size: 10px;
+    padding: 1px 7px;
+    border-radius: var(--r-sm);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .move-badge.from { background: var(--inbound); color: white; }
+  .move-badge.split { background: var(--decomposed); color: white; }
+  .move-badge.horizon { background: #f5f5f4; color: var(--text-muted); border: 1px solid var(--border-strong); }
+  .move-badge.transitional { background: transparent; color: var(--text-faint); border: 1px solid var(--border-strong); font-style: italic; }
+
+  .legend {
+    display: flex;
+    gap: 18px;
+    align-items: center;
+    margin-bottom: 16px;
+    font-size: 11.5px;
+    color: var(--text-muted);
+    flex-wrap: wrap;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid; }
+
+  /* Migration Canvas (Direction view) */
+  .migration-canvas {
+    position: relative;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 14px;
+  }
+  .zones-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-auto-rows: minmax(220px, auto);
+    gap: 12px;
+    position: relative;
+    z-index: 1;
+  }
+  .arrows-layer {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 4;
+    overflow: visible;
+  }
+  .zone {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 10px 10px 12px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .zone-header {
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+  }
+  .zone-header .name {
+    font-size: 12px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--text);
+  }
+  .zone-header .meta {
+    font-size: 10.5px; color: var(--text-faint);
+    font-weight: 500;
+  }
+  .zone-content {
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .zone-empty {
+    color: var(--text-faint);
+    font-size: 11px;
+    font-style: italic;
+    padding: 14px 4px;
+    text-align: center;
+  }
+
+  .cap-node {
+    position: relative;
+    background: var(--surface);
+    border: 2px solid var(--border-strong);
+    border-radius: var(--r-md);
+    padding: 7px 10px;
+    cursor: grab;
+    transition: transform 0.1s ease, box-shadow 0.15s ease;
+    z-index: 3;
+  }
+  .cap-node:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+  .cap-node:active { cursor: grabbing; }
+
+  /* Type-based node coloring (replaces horizon-based) */
+  .cap-node.t-consolidate { border-color: var(--accent); }
+  .cap-node.t-decompose   { border-color: var(--accent); }
+  .cap-node.t-stay        { border-color: var(--text-faint); background: #fafaf9; }
+
+  .cap-node.s-draft    { border-style: dashed; }
+  .cap-node.s-agreed.t-consolidate { background: var(--accent-soft); }
+  .cap-node.s-agreed.t-decompose   { background: var(--accent-soft); }
+  .cap-node.s-agreed.t-stay        { background: #f0fdf4; border-color: #4ade80; }
+
+  /* Type-2 standardize pill — small teal badge inside stay nodes when scope is application-only */
+  .std-pill {
+    display: inline-block;
+    margin-top: 4px;
+    padding: 1px 6px;
+    background: #ccfbf1;
+    color: #0f766e;
+    border: 1px solid #5eead4;
+    border-radius: 999px;
+    font-size: 9.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Stay-as-is annotation */
+  .stay-tag {
+    display: inline-block;
+    margin-top: 4px;
+    padding: 1px 6px;
+    background: #f5f5f4;
+    color: var(--text-muted);
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    font-size: 9.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .cap-node.decomposed::before {
+    content: '';
+    position: absolute;
+    top: -2px; bottom: -2px; left: -2px;
+    width: 4px;
+    background: var(--decomposed);
+    border-radius: var(--r-md) 0 0 var(--r-md);
+  }
+
+  .cap-node .node-name {
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .cap-node .node-sub {
+    font-size: 10.5px;
+    color: var(--decomposed);
+    font-weight: 600;
+    margin-top: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .cap-node.ghost {
+    background: transparent;
+    border-style: dashed;
+    border-color: var(--border-strong);
+    opacity: 0.6;
+  }
+  .cap-node.ghost .node-name { color: var(--text-muted); font-weight: 500; }
+  .cap-node.ghost .node-sub { color: var(--text-faint); font-weight: 400; text-transform: none; letter-spacing: 0; font-style: italic; }
+
+  .canvas-key {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 12px;
+    font-size: 11.5px;
+    color: var(--text-muted);
+    flex-wrap: wrap;
+  }
+  .key-item { display: inline-flex; align-items: center; gap: 6px; }
+  .key-swatch {
+    display: inline-block;
+    width: 22px; height: 12px;
+    border-radius: 3px;
+    border: 2px solid;
+    background: var(--surface);
+  }
+  .key-swatch.h-now { border-color: var(--accent); }
+  .key-swatch.h-next { border-color: var(--proposed); }
+  .key-swatch.h-later { border-color: var(--text-faint); }
+  .key-swatch.s-draft { border-style: dashed; border-color: var(--text-muted); }
+  .key-swatch.decomposed {
+    border-color: var(--text-muted);
+    background: linear-gradient(90deg, var(--decomposed) 4px, var(--surface) 4px);
+  }
+  .key-swatch.ghost {
+    border-style: dashed;
+    border-color: var(--text-faint);
+    opacity: 0.7;
+  }
+
+  .status-toggle {
+    display: inline-flex;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-md);
+    overflow: hidden;
+    margin-left: auto;
+  }
+  .status-toggle button {
+    background: transparent; border: none;
+    padding: 5px 12px;
+    font: inherit; font-size: 11.5px; font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-right: 1px solid var(--border);
+  }
+  .status-toggle button:last-child { border-right: none; }
+  .status-toggle button.active { background: var(--accent); color: white; }
+  .status-toggle button:not(.active):hover { background: var(--surface-alt); color: var(--text); }
+
+  /* Discover view — capability theme matrix */
+  .discover-intro {
+    background: var(--accent-soft);
+    border-left: 3px solid var(--accent);
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    border-radius: 0 var(--r-md) var(--r-md) 0;
+    font-size: 12.5px;
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .discover-intro strong { font-weight: 600; }
+
+  .matrix-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    overflow: auto;
+  }
+  .matrix {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  .matrix th, .matrix td {
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 10px;
+    vertical-align: top;
+    text-align: left;
+  }
+  .matrix th:last-child, .matrix td:last-child { border-right: none; }
+  .matrix tr:last-child td { border-bottom: none; }
+  .matrix thead th {
+    background: var(--surface-alt);
+    font-weight: 700;
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+  .matrix th.theme-col {
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .matrix th.theme-col:hover { background: var(--accent-soft); color: var(--accent); }
+  .matrix th.theme-col.candidate {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-bottom: 2px solid var(--accent);
+  }
+  .matrix th.theme-col.modeled {
+    background: var(--surface-alt);
+    color: var(--text-muted);
+  }
+  .matrix th.theme-col.modeled .theme-name { text-decoration: line-through; opacity: 0.7; }
+  .matrix .theme-name {
+    font-size: 11.5px;
+    font-weight: 700;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .matrix .theme-meta {
+    font-size: 10px;
+    font-weight: 500;
+    margin-top: 2px;
+    color: inherit;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .matrix .domain-cell {
+    font-weight: 700;
+    font-size: 11px;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: var(--surface-alt);
+    width: 130px;
+    position: sticky;
+    left: 0;
+    z-index: 1;
+  }
+  .matrix td.cell {
+    min-width: 140px;
+    color: var(--text);
+  }
+  .matrix td.cell.candidate { background: rgba(67, 56, 202, 0.04); }
+  .matrix td.cell.modeled    { background: var(--surface-alt); color: var(--text-muted); }
+  .matrix td.cell.empty      { color: var(--text-faint); font-style: italic; }
+  .cell-cap {
+    display: block;
+    line-height: 1.35;
+    padding: 2px 0;
+  }
+  .cell-cap.modeled-cap { color: var(--text-muted); text-decoration: line-through; opacity: 0.7; }
+
+  .matrix-row.candidate {
+    box-shadow: inset 3px 0 0 var(--accent);
+  }
+  .matrix-row.modeled {
+    opacity: 0.6;
+  }
+
+  .candidate-badge {
+    display: inline-block;
+    background: var(--accent);
+    color: white;
+    font-size: 9.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 1px 6px;
+    border-radius: 999px;
+    margin-left: 6px;
+  }
+  .modeled-badge {
+    display: inline-block;
+    background: var(--agreed-soft);
+    color: var(--agreed);
+    font-size: 9.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 1px 6px;
+    border-radius: 999px;
+    margin-left: 6px;
+    border: 1px solid #86efac;
+  }
+
+  /* Provenance pills (AI vs manual) */
+  .prov-pill {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 1px 5px;
+    border-radius: 3px;
+    line-height: 1.4;
+    margin-left: 6px;
+    vertical-align: 1px;
+  }
+  .prov-pill.ai      { background: #dbeafe; color: #1d4ed8; }
+  .prov-pill.manual  { background: #f5f5f4; color: var(--text-muted); border: 1px solid var(--border-strong); padding: 0 4px; }
+
+  /* Proposed target-domain badge in column headers */
+  .target-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-top: 4px;
+  }
+  .target-badge .arrow { color: var(--text-faint); font-size: 11px; }
+
+  /* Cells in candidate matrix */
+  .cell-cap-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 0;
+    line-height: 1.35;
+  }
+  .cell-cap-row .cap-name-text { flex: 1; }
+
+  .add-cap {
+    background: transparent;
+    border: 1px dashed var(--border-strong);
+    color: var(--text-faint);
+    font: inherit;
+    font-size: 10.5px;
+    padding: 3px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+    margin-top: 4px;
+    width: 100%;
+    text-align: left;
+    transition: all 0.1s;
+  }
+  .add-cap:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+  .discover-toggles {
+    display: inline-flex;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-md);
+    overflow: hidden;
+    margin-left: auto;
+  }
+  .discover-toggles button {
+    background: transparent; border: none;
+    padding: 6px 12px;
+    font: inherit; font-size: 11.5px; font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-right: 1px solid var(--border);
+  }
+  .discover-toggles button:last-child { border-right: none; }
+  .discover-toggles button.active { background: var(--accent); color: white; }
+  .discover-toggles button:not(.active):hover { background: var(--surface-alt); color: var(--text); }
+
+  .discover-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .discover-toolbar label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .discover-toolbar input {
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-md);
+    padding: 6px 10px;
+    background: var(--surface);
+    font: inherit;
+    width: 240px;
+  }
+  .discover-toolbar input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+  /* Application Portfolio — theme cards */
+  .theme-cards {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+  }
+  .theme-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    position: relative;
+    box-shadow: var(--shadow-sm);
+  }
+  .theme-card:hover { border-color: var(--accent); box-shadow: var(--shadow-md); }
+  .theme-card.candidate { border-left: 3px solid var(--accent); }
+  .theme-card.standardized.proposed { background: var(--proposed-soft); }
+  .theme-card.standardized.agreed { border-color: #86efac; background: var(--agreed-soft); }
+  .theme-card.single-app { opacity: 0.6; }
+
+  .theme-card-head {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 12px; margin-bottom: 4px;
+  }
+  .theme-card h4 {
+    margin: 0;
+    font-size: 14.5px;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  .theme-card .domains-line {
+    font-size: 11.5px; color: var(--text-muted);
+    margin-bottom: 12px;
+  }
+  .apps-block {
+    display: flex; flex-direction: column;
+    gap: 5px;
+    margin-bottom: 12px;
+  }
+  .apps-block .label {
+    font-size: 10.5px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--text-muted);
+  }
+  .app-row {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    gap: 8px;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .app-row .domain { color: var(--text-faint); font-weight: 500; }
+  .app-row .app { color: var(--text); }
+  .app-row .app .same-as-std { color: var(--agreed); font-weight: 500; }
+  .app-row .app .different { color: var(--text-muted); }
+
+  .standard-row {
+    display: flex; align-items: center; gap: 8px;
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+    margin-top: 4px;
+    font-size: 12.5px;
+  }
+  .standard-row .label {
+    font-size: 10.5px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--text-muted);
+  }
+  .standard-row .star {
+    color: var(--accent);
+    font-size: 14px;
+  }
+  .standard-row .app-name { font-weight: 600; }
+  .standard-row .app-name.tbd { color: var(--text-muted); font-style: italic; font-weight: 500; }
+
+  .badge-portfolio {
+    display: inline-block;
+    font-size: 9.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 2px 8px;
+    border-radius: 999px;
+  }
+  .badge-portfolio.candidate { background: var(--accent); color: white; }
+  .badge-portfolio.proposed { background: var(--proposed-soft); color: var(--proposed); border: 1px solid #fcd34d; }
+  .badge-portfolio.agreed { background: var(--agreed-soft); color: var(--agreed); border: 1px solid #86efac; }
+  .badge-portfolio.split { background: var(--decomposed-soft); color: var(--decomposed); border: 1px solid #c4b5fd; }
+  .badge-portfolio.single { background: #f5f5f4; color: var(--text-muted); border: 1px solid var(--border-strong); }
+
+  /* Cross-tab linkage (A + B) */
+  .cross-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--accent);
+    cursor: pointer;
+    background: var(--accent-soft);
+    border: 1px solid transparent;
+    padding: 2px 9px;
+    border-radius: 999px;
+    transition: all 0.12s;
+    text-decoration: none;
+    user-select: none;
+  }
+  .cross-link:hover { background: var(--accent); color: white; }
+  .cross-link.subtle {
+    background: transparent;
+    color: var(--accent);
+    padding: 0;
+    border: none;
+    text-decoration: underline;
+    font-weight: 500;
+  }
+
+  .deferral-note {
+    background: #fffbeb;
+    border-left: 3px solid var(--proposed);
+    padding: 8px 12px;
+    border-radius: 0 var(--r-md) var(--r-md) 0;
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.5;
+    margin-top: 4px;
+  }
+  .deferral-note strong { color: var(--proposed); font-weight: 700; }
+
+  .deferral-actions {
+    display: flex; gap: 8px; align-items: center;
+    margin-top: 8px;
+  }
+  .deferral-actions .override-link {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-decoration: underline;
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    padding: 4px;
+  }
+  .deferral-actions .override-link:hover { color: var(--text); }
+
+  /* Drawer */
+  .drawer-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(28, 25, 23, 0.4);
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 50;
+  }
+  .drawer-backdrop.open { opacity: 1; pointer-events: auto; }
+  .drawer {
+    position: fixed; top: 0; right: 0; bottom: 0;
+    width: min(580px, 100vw);
+    background: var(--surface);
+    box-shadow: var(--shadow-lg);
+    transform: translateX(100%);
+    transition: transform 0.25s ease;
+    z-index: 51;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .drawer.open { transform: translateX(0); }
+  .drawer header {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .drawer header h2 { margin: 0; font-size: 18px; font-weight: 600; }
+  .drawer header .close {
+    background: transparent;
+    border: none;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 0;
+    width: 28px; height: 28px;
+    border-radius: var(--r-sm);
+  }
+  .drawer header .close:hover { background: var(--surface-alt); color: var(--text); }
+  .drawer-body { overflow-y: auto; padding: 18px 24px; flex: 1; }
+
+  .section { margin-bottom: 28px; }
+  .section h3 {
+    margin: 0 0 10px 0;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .source-table {
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    overflow: hidden;
+    font-size: 13px;
+  }
+  .source-row {
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: 12px;
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .source-row:last-child { border-bottom: none; }
+  .source-row .domain { color: var(--text-muted); font-weight: 500; font-size: 12px; }
+
+  .placement {
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    background: var(--surface-alt);
+  }
+  .placement-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 10px;
+  }
+  .placement-header .placement-num {
+    font-size: 11px; font-weight: 700;
+    color: var(--decomposed);
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .placement-header .placement-num.single { color: var(--text-muted); }
+  .placement-fields {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: 6px 12px;
+    font-size: 13px;
+  }
+  .placement-fields .label { color: var(--text-muted); font-size: 12px; padding-top: 1px; }
+  .placement-fields .value { color: var(--text); }
+  .add-placement {
+    width: 100%;
+    padding: 10px;
+    background: transparent;
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--r-md);
+    color: var(--text-muted);
+    cursor: pointer;
+    font: inherit;
+    font-size: 12.5px;
+    transition: all 0.15s;
+    margin-top: 4px;
+  }
+  .add-placement:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+  .narrative-block {
+    background: var(--accent-soft);
+    border-left: 3px solid var(--accent);
+    padding: 12px 14px;
+    border-radius: 0 var(--r-md) var(--r-md) 0;
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.55;
+  }
+  .status-control {
+    display: flex; gap: 8px; align-items: center;
+    margin-top: 12px;
+  }
+  .btn {
+    font-size: 12px; font-weight: 500;
+    padding: 5px 12px;
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    color: var(--text);
+  }
+  .btn:hover { background: var(--surface-alt); }
+  .btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
+  .btn.primary:hover { background: #3730a3; }
+
+  .comment {
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background: var(--surface);
+    font-size: 12.5px;
+  }
+  .comment .author { font-weight: 600; color: var(--text); margin-right: 8px; }
+  .comment .meta { color: var(--text-faint); font-size: 11px; }
+  .comment .body { color: var(--text-muted); margin-top: 4px; line-height: 1.5; }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .stat-tile {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 14px;
+  }
+  .stat-tile .stat-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+  }
+  .stat-tile .stat-value {
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 1.1;
+  }
+
+  @media (max-width: 1080px) {
+    .board, .target-domains { grid-template-columns: repeat(2, 1fr); }
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 700px) {
+    .board, .target-domains { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top-bar">
+    <div>
+      <h1>Architecture Direction</h1>
+      <div class="subtitle">Target architecture and the path there. For the architect group's strategic conversations with domain stakeholders — not a project plan.</div>
+    </div>
+    <span class="mockup-badge">Mockup &middot; not implemented</span>
+  </header>
+
+  <nav class="view-tabs">
+    <button class="active" data-view="discover">Discover</button>
+    <button data-view="board">Direction <span style="font-size: 10px; color: var(--text-faint); margin-left: 4px;">business</span></button>
+    <button data-view="apps">Application Portfolio</button>
+    <button data-view="target">Target Architecture</button>
+    <button data-view="discussion">Open Discussions</button>
+  </nav>
+
+  <section id="view-discover" class="view">
+    <div class="discover-intro">
+      <strong>Consolidation candidates.</strong> Themes that span multiple domains and don't yet have a direction. Each column is a candidate consolidation with a proposed target domain. Click a column header to review and either promote it to a direction or reject it. Themes that have a direction already (consolidating, decomposing, or staying) live on those tabs &mdash; not here.
+    </div>
+    <div class="discover-toolbar">
+      <label>Show:</label>
+      <div class="discover-toggles" id="discover-toggles">
+        <button class="active" data-f="all">All candidates</button>
+        <button data-f="ai">AI-suggested</button>
+        <button data-f="manual">Manually added</button>
+      </div>
+      <button class="btn primary" id="new-candidate-btn" style="margin-left: auto; padding: 6px 12px; font-size: 12px;">+ New candidate theme</button>
+    </div>
+    <div class="matrix-wrap">
+      <table class="matrix" id="matrix">
+      </table>
+    </div>
+  </section>
+
+  <section id="view-board" class="view" style="display:none">
+    <div class="canvas-key">
+      <span style="font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-right: 6px;">Business arch &middot;</span>
+      <span class="key-item"><span class="key-swatch" style="border-color: var(--accent)"></span> Consolidate</span>
+      <span class="key-item"><span class="key-swatch decomposed" style="border-color: var(--accent)"></span> Decompose</span>
+      <span class="key-item"><span class="key-swatch" style="border-color: var(--text-faint); background: #fafaf9"></span> Stay as-is</span>
+      <span style="color: var(--border-strong)">|</span>
+      <span class="key-item"><span class="key-swatch s-draft"></span> Draft</span>
+      <span class="key-item"><span class="key-swatch ghost"></span> Leaving</span>
+      <div class="status-toggle" id="status-filter">
+        <button class="active" data-s="all">All</button>
+        <button data-s="Draft">Draft</button>
+        <button data-s="Proposed">Proposed</button>
+        <button data-s="Agreed">Agreed</button>
+      </div>
+    </div>
+    <div class="migration-canvas" id="migration-canvas">
+      <svg class="arrows-layer" id="arrows-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div class="zones-grid" id="zones-grid"></div>
+    </div>
+  </section>
+
+  <section id="view-apps" class="view" style="display:none">
+    <div class="discover-intro">
+      <strong>Target application portfolio.</strong> For each theme, what is the standard application going to be? Independent of business consolidation — a theme can standardize on one app even when the underlying capabilities stay distributed across domains <em>(Type-2)</em>.
+    </div>
+    <div class="discover-toolbar">
+      <label>Show:</label>
+      <div class="discover-toggles" id="apps-toggles">
+        <button class="active" data-f="all">All</button>
+        <button data-f="candidate">Candidates &mdash; multi-app</button>
+        <button data-f="proposed">Standard proposed</button>
+        <button data-f="agreed">Standard agreed</button>
+        <button data-f="single">Single-app (no work)</button>
+      </div>
+    </div>
+    <div class="theme-cards" id="apps-cards"></div>
+  </section>
+
+  <section id="view-target" class="view" style="display:none">
+    <div class="filter-bar">
+      <label>Snapshot as of:</label>
+      <div class="horizon-toggle" id="horizon-toggle">
+        <button data-h="now">Now &middot; current initiatives</button>
+        <button data-h="next">Next &middot; consider prioritising</button>
+        <button class="active" data-h="later">Later &middot; target architecture</button>
+      </div>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><span class="legend-swatch" style="border-color: var(--inbound); background: var(--inbound-soft);"></span> Moving in from another domain</div>
+      <div class="legend-item"><span class="legend-swatch" style="border-color: var(--decomposed); background: var(--decomposed-soft);"></span> Decomposed from a multi-domain capability</div>
+      <div class="legend-item"><span class="legend-swatch" style="border-color: var(--border-strong); background: var(--surface);"></span> Native / unchanged</div>
+      <div class="legend-item"><span class="legend-swatch" style="border-color: var(--border-strong); background: var(--surface); border-style: dashed; opacity: 0.6;"></span> Transitional (still here, leaves later)</div>
+    </div>
+    <div class="target-domains" id="target-domains"></div>
+  </section>
+
+  <section id="view-discussion" class="view" style="display:none">
+    <div style="color: var(--text-muted); font-size: 13px; margin-bottom: 18px;">
+      Items in <strong>Draft</strong> or <strong>Proposed</strong> status — what the group still needs to decide. Click any item to open its discussion thread.
+    </div>
+    <div id="discussion-list"></div>
+  </section>
+</div>
+
+<div class="drawer-backdrop" id="drawer-backdrop"></div>
+<aside class="drawer" id="drawer">
+  <header>
+    <div>
+      <h2 id="drawer-title">—</h2>
+      <div id="drawer-status" style="margin-top:6px"></div>
+    </div>
+    <button class="close" id="drawer-close" aria-label="Close">&times;</button>
+  </header>
+  <div class="drawer-body" id="drawer-body"></div>
+</aside>
+
+<script>
+  const sourceDomains = ['People', 'Finance', 'Customer', 'Operations', 'Vessel & Fleet', 'Technology'];
+  const stableCapabilities = [
+    { domain: 'Finance', name: 'General Ledger', standardApp: 'SAP S/4HANA' },
+    { domain: 'Finance', name: 'Accounts Payable', standardApp: 'SAP S/4HANA' },
+    { domain: 'Finance', name: 'Treasury', standardApp: 'Kyriba' },
+    { domain: 'Vessel & Fleet', name: 'Vessel Maintenance', standardApp: 'AMOS' },
+    { domain: 'Vessel & Fleet', name: 'Crew Scheduling', standardApp: 'OneOcean' },
+    { domain: 'Customer', name: 'Customer Service', standardApp: 'Salesforce Service Cloud' },
+    { domain: 'Customer', name: 'Marketing & Campaigns', standardApp: 'HubSpot' },
+    { domain: 'Operations', name: 'Port Operations', standardApp: 'Navis' },
+    { domain: 'Operations', name: 'Terminal Yard Mgmt', standardApp: 'Navis' },
+    { domain: 'People', name: 'Talent Acquisition', standardApp: 'Workday Recruiting' },
+    { domain: 'People', name: 'Performance & Goals', standardApp: 'Workday HCM' },
+    { domain: 'Technology', name: 'Cloud Platform', standardApp: 'Azure' },
+    { domain: 'Technology', name: 'Enterprise Integration', standardApp: 'MuleSoft' },
+  ];
+
+  // Themes for both Discover (business) and Application Portfolio.
+  // ecId on a capability = part of an existing direction.
+  // currentApp = what realizes it today (the messy reality).
+  // proposedStandard = the target standard app (if any) — derived from the EC's direction or set on the theme.
+  const themes = [
+    {
+      name: 'Payroll & Compensation',
+      capabilities: [
+        { domain: 'People', name: 'HR / Payroll', currentApp: 'SAP HR', ecId: 'ec-payroll' },
+        { domain: 'Finance', name: 'Salary Processing', currentApp: 'Custom (legacy)', ecId: 'ec-payroll' },
+        { domain: 'Operations', name: 'Crew Compensation Admin', currentApp: 'Excel + manual', ecId: 'ec-payroll' }
+      ],
+      proposedStandard: { app: 'Workday HCM', source: 'ec-payroll' }
+    },
+    {
+      name: 'Order Management',
+      capabilities: [
+        { domain: 'Customer', name: 'Booking & Order Capture', currentApp: 'Salesforce Sales Cloud', ecId: 'ec-order-mgmt' },
+        { domain: 'Operations', name: 'Order Fulfillment & Routing', currentApp: 'Legacy TMS', ecId: 'ec-order-mgmt' },
+        { domain: 'Finance', name: 'Order-to-Cash', currentApp: 'SAP S/4HANA', ecId: 'ec-order-mgmt' }
+      ]
+      // No single standard — decomposition splits this across multiple apps. Apps tab will show "n/a"
+    },
+    {
+      name: 'Identity & Access',
+      capabilities: [
+        { domain: 'Customer', name: 'Customer Login', currentApp: 'Auth0', ecId: 'ec-customer-identity' },
+        { domain: 'Operations', name: 'Driver Portal Access', currentApp: 'Custom OIDC', ecId: 'ec-customer-identity' },
+        { domain: 'Technology', name: 'IAM (external)', currentApp: 'Keycloak', ecId: 'ec-customer-identity' }
+      ],
+      proposedStandard: { app: 'Auth0', source: 'ec-customer-identity' }
+    },
+    {
+      name: 'Knowledge / Help Content',
+      capabilities: [
+        { domain: 'People', name: 'Employee Knowledge Base', currentApp: 'Confluence', ecId: 'ec-knowledge' },
+        { domain: 'Operations', name: 'Operational Procedures', currentApp: 'SharePoint', ecId: 'ec-knowledge' },
+        { domain: 'Customer', name: 'Help Center', currentApp: 'Zendesk Guide', ecId: 'ec-knowledge' }
+      ],
+      proposedStandard: { app: 'TBD', source: 'ec-knowledge' }
+    },
+    {
+      name: 'Procurement & Sourcing',
+      capabilities: [
+        { domain: 'Finance', name: 'Procurement', currentApp: 'Custom + email', ecId: 'ec-procurement' },
+        { domain: 'Operations', name: 'Fleet Sourcing', currentApp: 'Custom', ecId: 'ec-procurement' },
+        { domain: 'Vessel & Fleet', name: 'Bunker Procurement', currentApp: 'BunkerPlanner', ecId: 'ec-procurement' }
+      ]
+      // Decomposition — different standard per piece
+    },
+    {
+      name: 'Incident Management',
+      capabilities: [
+        { domain: 'Technology', name: 'IT Incident Management', currentApp: 'ServiceNow ITSM', ecId: 'ec-incident-mgmt' },
+        { domain: 'Operations', name: 'Operational Incidents', currentApp: 'Custom + email', ecId: 'ec-incident-mgmt' }
+      ],
+      proposedStandard: { app: 'ServiceNow', source: 'ec-incident-mgmt' }
+    },
+    {
+      name: 'Analytics & BI',
+      capabilities: [
+        { domain: 'Technology', name: 'Data Lakehouse', currentApp: 'Databricks', ecId: 'ec-data-platform' },
+        { domain: 'Customer', name: 'Customer Analytics', currentApp: 'Tableau', ecId: 'ec-data-platform' },
+        { domain: 'Finance', name: 'Finance BI', currentApp: 'Power BI', ecId: 'ec-data-platform' },
+        { domain: 'Operations', name: 'Ops BI', currentApp: 'Custom dashboards', ecId: 'ec-data-platform' }
+      ],
+      proposedStandard: { app: 'Databricks', source: 'ec-data-platform' }
+    },
+    {
+      name: 'Documents',
+      capabilities: [
+        { domain: 'Vessel & Fleet', name: 'Vessel Documents', currentApp: 'AMOS Docs', ecId: 'ec-doc-mgmt' },
+        { domain: 'People', name: 'Employee Documents', currentApp: 'SharePoint', ecId: 'ec-doc-mgmt' },
+        { domain: 'Operations', name: 'Operational Docs', currentApp: 'Network drives', ecId: 'ec-doc-mgmt' }
+      ],
+      proposedStandard: { app: 'TBD', source: 'ec-doc-mgmt' }
+    },
+    {
+      name: 'Sales (CRM)',
+      capabilities: [
+        { domain: 'Customer', name: 'Passenger Sales', currentApp: 'Salesforce', ecId: 'ec-sales' },
+        { domain: 'Operations', name: 'Freight Sales', currentApp: 'Microsoft Dynamics', ecId: 'ec-sales' },
+        { domain: 'Vessel & Fleet', name: 'Charter Sales', currentApp: 'HubSpot Sales', ecId: 'ec-sales' },
+        { domain: 'Finance', name: 'Trade Sales', currentApp: 'Custom (Excel-heavy)', ecId: 'ec-sales' }
+      ],
+      proposedStandard: { app: 'Salesforce', source: 'ec-sales' }
+    },
+    // --- UNMODELLED CONSOLIDATION CANDIDATES ---
+    // proposedTargetDomain = where this would consolidate to if approved
+    // theme.source = who suggested the candidate theme (ai | manual)
+    // capability.source = who added that specific row to the theme (ai | manual)
+    {
+      name: 'Reporting & Dashboards',
+      proposedTargetDomain: 'Technology',
+      source: 'ai',
+      capabilities: [
+        { domain: 'Finance', name: 'Financial Reporting', currentApp: 'Power BI', source: 'ai' },
+        { domain: 'Operations', name: 'Ops Reporting', currentApp: 'Tableau', source: 'ai' },
+        { domain: 'People', name: 'HR Reporting', currentApp: 'Excel + Workday', source: 'ai' },
+        { domain: 'People', name: 'Salary Reporting', currentApp: 'Excel', source: 'manual' },
+        { domain: 'Vessel & Fleet', name: 'Fleet KPI Dashboards', currentApp: 'Grafana', source: 'ai' }
+      ]
+    },
+    {
+      name: 'Workflow & Approvals',
+      proposedTargetDomain: 'Technology',
+      source: 'manual',
+      capabilities: [
+        { domain: 'Finance', name: 'AP Approvals', currentApp: 'SAP workflow', source: 'manual' },
+        { domain: 'People', name: 'Leave Approval', currentApp: 'Workday', source: 'manual' },
+        { domain: 'Operations', name: 'Voyage Sign-off', currentApp: 'Email', source: 'manual' }
+      ]
+    },
+    {
+      name: 'Master Data Management',
+      proposedTargetDomain: 'Technology',
+      source: 'ai',
+      capabilities: [
+        { domain: 'Customer', name: 'Customer Master', currentApp: 'Salesforce', source: 'ai' },
+        { domain: 'Operations', name: 'Vehicle/Cargo Master', currentApp: 'Custom', source: 'ai' },
+        { domain: 'Vessel & Fleet', name: 'Vessel Master', currentApp: 'AMOS', source: 'ai' },
+        { domain: 'Finance', name: 'Vendor Master', currentApp: 'SAP S/4HANA', source: 'ai' }
+      ]
+    },
+    {
+      name: 'Crew & Employee Welfare',
+      proposedTargetDomain: 'People',
+      source: 'manual',
+      capabilities: [
+        { domain: 'People', name: 'Employee Wellness Programs', currentApp: 'Workday', source: 'manual' },
+        { domain: 'People', name: 'Mental Health Support', currentApp: 'Lyra', source: 'manual' },
+        { domain: 'Vessel & Fleet', name: 'Crew Welfare', currentApp: 'Custom + paper', source: 'ai' },
+        { domain: 'Operations', name: 'Driver Wellbeing', currentApp: 'Custom', source: 'ai' }
+      ]
+    },
+    // --- Single-domain themes — not consolidation candidates ---
+    {
+      name: 'General Ledger',
+      capabilities: [{ domain: 'Finance', name: 'General Ledger', currentApp: 'SAP S/4HANA' }]
+    },
+    {
+      name: 'Vessel Maintenance',
+      capabilities: [{ domain: 'Vessel & Fleet', name: 'Vessel Maintenance', currentApp: 'AMOS' }]
+    },
+    {
+      name: 'Talent Acquisition',
+      capabilities: [{ domain: 'People', name: 'Talent Acquisition', currentApp: 'Workday Recruiting' }]
+    }
+  ];
+
+  const ecs = [
+    {
+      id: 'ec-payroll',
+      name: 'Payroll Management',
+      sourceLinks: [
+        { domain: 'People', capability: 'HR / Payroll' },
+        { domain: 'Finance', capability: 'Salary Processing' },
+        { domain: 'Operations', capability: 'Crew Compensation Admin' }
+      ],
+      direction: {
+        type: 'consolidate',
+        scope: 'business+application',
+        status: 'Proposed',
+        standardApp: 'Workday HCM',
+        narrative: 'Consolidate under People. Workday HCM becomes the system of record. Finance retains a postings interface only — they no longer own the capability.',
+        placements: [
+          { targetDomain: 'People', standardApp: 'Workday HCM', horizon: 'Next' }
+        ]
+      },
+      comments: [
+        { author: 'Lara (People EA)', when: '3 days ago', body: 'On board with Workday as the standard. Need a transition plan for crew compensation — Operations has unique union rules.' },
+        { author: 'Tomas (Finance EA)', when: '2 days ago', body: 'OK as long as the GL postings interface stays clean and Finance still owns the chart-of-accounts mapping.' }
+      ]
+    },
+    {
+      id: 'ec-order-mgmt',
+      name: 'Order Management',
+      sourceLinks: [
+        { domain: 'Customer', capability: 'Booking & Order Capture' },
+        { domain: 'Operations', capability: 'Order Fulfillment & Routing' },
+        { domain: 'Finance', capability: 'Order-to-Cash' }
+      ],
+      direction: {
+        type: 'decompose',
+        scope: 'business+application',
+        status: 'Proposed',
+        narrative: 'Decompose. Customer-facing capture stays in Customer (already realized). Fulfillment moves to Operations on the new TMS. Revenue side stays in Finance and is renamed to Revenue Recognition.',
+        placements: [
+          { targetDomain: 'Customer', standardApp: 'Salesforce Sales Cloud', horizon: 'Now', label: 'Order Capture' },
+          { targetDomain: 'Operations', standardApp: 'New TMS (selection in progress)', horizon: 'Next', label: 'Order Fulfillment' }
+        ]
+      },
+      comments: [
+        { author: 'Sara (Customer EA)', when: '1 week ago', body: 'Decomposition reflects how the work already flows. Endorse.' }
+      ]
+    },
+    {
+      id: 'ec-customer-identity',
+      name: 'Customer Identity & Access',
+      sourceLinks: [
+        { domain: 'Customer', capability: 'Customer Login' },
+        { domain: 'Operations', capability: 'Driver Portal Access' },
+        { domain: 'Technology', capability: 'IAM (external)' }
+      ],
+      direction: {
+        type: 'consolidate',
+        scope: 'business+application',
+        status: 'Agreed',
+        standardApp: 'Auth0',
+        narrative: 'All external identity moves to Customer domain on Auth0. Internal IAM (employees) stays in Technology and is a separate capability.',
+        placements: [
+          { targetDomain: 'Customer', standardApp: 'Auth0', horizon: 'Now' }
+        ]
+      },
+      comments: [
+        { author: 'Architecture Group', when: '2026-04-22', body: 'Agreed unanimously. Migration of driver portal in progress.' }
+      ]
+    },
+    {
+      id: 'ec-knowledge',
+      name: 'Knowledge Management',
+      sourceLinks: [
+        { domain: 'People', capability: 'Employee Knowledge Base' },
+        { domain: 'Operations', capability: 'Operational Procedures' },
+        { domain: 'Customer', capability: 'Help Center' }
+      ],
+      direction: {
+        type: 'consolidate',
+        scope: 'business+application',
+        status: 'Draft',
+        standardApp: 'TBD',
+        narrative: 'Open question: should this consolidate (one KM platform), or split along audience boundaries (employee-facing vs customer-facing)?',
+        placements: [
+          { targetDomain: 'Technology', standardApp: 'TBD', horizon: 'Later' }
+        ]
+      },
+      comments: [
+        { author: 'Martin (lead)', when: 'yesterday', body: 'Putting this in Draft pending the May architecture group discussion. Bring use cases.' }
+      ]
+    },
+    {
+      id: 'ec-procurement',
+      name: 'Procurement & Vendor Management',
+      sourceLinks: [
+        { domain: 'Finance', capability: 'Procurement' },
+        { domain: 'Operations', capability: 'Fleet Sourcing' },
+        { domain: 'Vessel & Fleet', capability: 'Bunker Procurement' }
+      ],
+      direction: {
+        type: 'decompose',
+        scope: 'business+application',
+        status: 'Proposed',
+        narrative: 'Strategic sourcing consolidates under Finance. Bunker procurement is specialized enough to stay in Vessel & Fleet.',
+        placements: [
+          { targetDomain: 'Finance', standardApp: 'Coupa', horizon: 'Later', label: 'Strategic sourcing' },
+          { targetDomain: 'Vessel & Fleet', standardApp: 'BunkerPlanner', horizon: 'Now', label: 'Bunker (stays)' }
+        ]
+      },
+      comments: []
+    },
+    {
+      id: 'ec-incident-mgmt',
+      name: 'Incident Management',
+      sourceLinks: [
+        { domain: 'Technology', capability: 'IT Incident Management' },
+        { domain: 'Operations', capability: 'Operational Incidents' }
+      ],
+      direction: {
+        type: 'stay',
+        scope: 'application-only',
+        status: 'Proposed',
+        standardApp: 'ServiceNow',
+        narrative: 'Keep the two-pillar split (IT vs operational incidents) — capabilities stay in their domains. Standardize tooling on ServiceNow with separate workspaces. Type-2 standardization: app-led, not business-led.',
+        placements: [
+          { targetDomain: 'Technology', standardApp: 'ServiceNow ITSM', horizon: 'Now', label: 'IT incidents' },
+          { targetDomain: 'Operations', standardApp: 'ServiceNow Ops Workspace', horizon: 'Next', label: 'Operational incidents' }
+        ]
+      },
+      comments: []
+    },
+    {
+      id: 'ec-data-platform',
+      name: 'Data & Analytics Platform',
+      sourceLinks: [
+        { domain: 'Technology', capability: 'Data Lakehouse' },
+        { domain: 'Customer', capability: 'Customer Analytics' },
+        { domain: 'Finance', capability: 'Finance BI' },
+        { domain: 'Operations', capability: 'Ops BI' }
+      ],
+      direction: {
+        type: 'stay',
+        scope: 'application-only',
+        status: 'Agreed',
+        standardApp: 'Databricks',
+        narrative: 'Each domain keeps ownership of its analytics. Standardize on Databricks as the shared platform underneath. Type-2 standardization.',
+        placements: [
+          { targetDomain: 'Technology', standardApp: 'Databricks', horizon: 'Now' }
+        ]
+      },
+      comments: []
+    },
+    {
+      id: 'ec-doc-mgmt',
+      name: 'Document Management',
+      sourceLinks: [
+        { domain: 'Vessel & Fleet', capability: 'Vessel Documents' },
+        { domain: 'People', capability: 'Employee Documents' },
+        { domain: 'Operations', capability: 'Operational Docs' }
+      ],
+      direction: {
+        type: 'consolidate',
+        scope: 'business+application',
+        status: 'Draft',
+        standardApp: 'TBD',
+        narrative: 'Investigate whether this consolidates or stays specialized. Vessel docs have regulatory constraints that may force separation.',
+        placements: [
+          { targetDomain: 'Technology', standardApp: 'TBD', horizon: 'Later' }
+        ]
+      },
+      comments: []
+    },
+    {
+      id: 'ec-sales',
+      name: 'Sales (CRM)',
+      sourceLinks: [
+        { domain: 'Customer', capability: 'Passenger Sales' },
+        { domain: 'Operations', capability: 'Freight Sales' },
+        { domain: 'Vessel & Fleet', capability: 'Charter Sales' },
+        { domain: 'Finance', capability: 'Trade Sales' }
+      ],
+      direction: {
+        type: 'stay',
+        scope: 'application-only',
+        status: 'Proposed',
+        standardApp: 'Salesforce',
+        narrative: 'Type-2 example: 4 sales departments stay in their domains for now (consolidating the business is a separate, later conversation). Standardize all on Salesforce — same data model, same opportunities object, same reporting. Quick win on system landscape.',
+        placements: []
+      },
+      comments: [
+        { author: 'Group meeting', when: '2 weeks ago', body: 'Agreed to pursue Type-2 here. Type-1 (consolidate sales departments) is a CEO-level conversation; not for this group to drive.' }
+      ]
+    }
+  ];
+
+  const horizonOrder = { Now: 0, Next: 1, Later: 2 };
+  const statusClass = s => s.toLowerCase();
+  const $ = sel => document.querySelector(sel);
+  const $$ = sel => document.querySelectorAll(sel);
+
+  function getInMotionPlacements() {
+    const arr = [];
+    ecs.forEach(ec => {
+      ec.direction.placements.forEach((p, i) => {
+        arr.push({ ec, placement: p, idx: i, total: ec.direction.placements.length });
+      });
+    });
+    return arr;
+  }
+
+  // --- Migration Canvas (Direction view) ---
+  let activeStatusFilter = 'all';
+
+  function renderCanvas() {
+    const grid = $('#zones-grid');
+    grid.innerHTML = '';
+
+    // Build per-zone target nodes & ghosts
+    const byDomain = {};
+    sourceDomains.forEach(d => byDomain[d] = { targets: [], ghosts: [] });
+
+    ecs.forEach(ec => {
+      if (activeStatusFilter !== 'all' && ec.direction.status !== activeStatusFilter) return;
+      const type = ec.direction.type;
+      const isMulti = ec.direction.placements.length > 1;
+
+      if (type === 'stay') {
+        // Capabilities stay in their source domains. Render an anchored node per source link.
+        ec.sourceLinks.forEach(link => {
+          byDomain[link.domain].targets.push({
+            ec, role: 'anchor',
+            anchorName: link.capability,
+            isMulti: false
+          });
+        });
+      } else {
+        // consolidate / decompose: target nodes in target domains, ghosts in non-target source domains
+        const targetDomains = ec.direction.placements.map(p => p.targetDomain);
+        ec.direction.placements.forEach((p, i) => {
+          byDomain[p.targetDomain].targets.push({ ec, role: 'target', placement: p, idx: i, isMulti });
+        });
+        ec.sourceLinks.forEach(link => {
+          if (!targetDomains.includes(link.domain)) {
+            byDomain[link.domain].ghosts.push({ ec, sourceLink: link, isMulti });
+          }
+        });
+      }
+    });
+
+    sourceDomains.forEach(d => {
+      const zone = document.createElement('div');
+      zone.className = 'zone';
+      zone.dataset.domain = d;
+      const data = byDomain[d];
+      const isEmpty = data.targets.length === 0 && data.ghosts.length === 0;
+      const meta = isEmpty ? 'no changes' :
+        `${data.targets.length} arriving / staying${data.ghosts.length ? ` &middot; ${data.ghosts.length} leaving` : ''}`;
+
+      zone.innerHTML = `
+        <div class="zone-header">
+          <span class="name">${d}</span>
+          <span class="meta">${meta}</span>
+        </div>
+        <div class="zone-content"></div>
+      `;
+      const content = zone.querySelector('.zone-content');
+
+      if (isEmpty) {
+        content.innerHTML = '<div class="zone-empty">no movement &mdash; see Target Architecture</div>';
+      } else {
+        // Render target nodes first, then ghosts
+        data.targets.forEach(t => {
+          const node = document.createElement('div');
+          const type = t.ec.direction.type;
+          const classes = ['cap-node', 't-' + type, 's-' + t.ec.direction.status.toLowerCase()];
+          if (t.isMulti) classes.push('decomposed');
+          node.className = classes.join(' ');
+          node.dataset.ecId = t.ec.id;
+          node.dataset.role = t.role === 'anchor' ? 'anchor' : 'target';
+          if (t.placement) node.dataset.placementIdx = t.idx;
+
+          if (t.role === 'anchor') {
+            // type === 'stay' branch: business-only — capability stays put.
+            // App standardization (Type-2) is shown on the Application Portfolio tab, not here.
+            node.innerHTML = `
+              <div class="node-name">${t.anchorName}</div>
+              <div style="font-size: 10.5px; color: var(--text-faint); margin-top: 2px;">part of ${t.ec.name}</div>
+              <span class="stay-tag">stays</span>
+            `;
+          } else {
+            node.innerHTML = `
+              <div class="node-name">${t.ec.name}</div>
+              ${t.placement.label ? `<div class="node-sub">${t.placement.label}</div>` : ''}
+            `;
+          }
+          node.addEventListener('click', () => openDrawer(t.ec.id));
+          content.appendChild(node);
+        });
+        data.ghosts.forEach(g => {
+          const node = document.createElement('div');
+          node.className = 'cap-node ghost';
+          node.dataset.ecId = g.ec.id;
+          node.dataset.role = 'ghost';
+          node.innerHTML = `
+            <div class="node-name">${g.sourceLink.capability}</div>
+            <div class="node-sub">&rarr; ${g.ec.name}</div>
+          `;
+          node.addEventListener('click', () => openDrawer(g.ec.id));
+          content.appendChild(node);
+        });
+      }
+      grid.appendChild(zone);
+    });
+
+    requestAnimationFrame(renderArrows);
+  }
+
+  function renderArrows() {
+    const svg = $('#arrows-svg');
+    const canvas = $('#migration-canvas');
+    if (!svg || !canvas) return;
+    const cRect = canvas.getBoundingClientRect();
+    svg.setAttribute('width', cRect.width);
+    svg.setAttribute('height', cRect.height);
+
+    svg.innerHTML = `
+      <defs>
+        <marker id="arr-default" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent)"/>
+        </marker>
+      </defs>
+    `;
+
+    const findNodes = (ecId, role) =>
+      Array.from(canvas.querySelectorAll(`.cap-node[data-ec-id="${ecId}"][data-role="${role}"]`));
+
+    const pickAnchor = (rect, otherCx, otherCy) => {
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const horiz = Math.abs(otherCx - cx) > Math.abs(otherCy - cy);
+      if (horiz) {
+        return otherCx > cx
+          ? { x: rect.right, y: cy }
+          : { x: rect.left, y: cy };
+      } else {
+        return otherCy > cy
+          ? { x: cx, y: rect.bottom }
+          : { x: cx, y: rect.top };
+      }
+    };
+
+    ecs.forEach(ec => {
+      if (activeStatusFilter !== 'all' && ec.direction.status !== activeStatusFilter) return;
+      // Stay-type directions don't have arrows — capabilities don't move.
+      if (ec.direction.type === 'stay') return;
+      const ghostNodes = findNodes(ec.id, 'ghost');
+      const targetNodes = findNodes(ec.id, 'target');
+      if (ghostNodes.length === 0 || targetNodes.length === 0) return;
+
+      ghostNodes.forEach(ghost => {
+        const gRect = ghost.getBoundingClientRect();
+        targetNodes.forEach(target => {
+          const tRect = target.getBoundingClientRect();
+          const tCx = tRect.left + tRect.width / 2;
+          const tCy = tRect.top + tRect.height / 2;
+          const gCx = gRect.left + gRect.width / 2;
+          const gCy = gRect.top + gRect.height / 2;
+
+          const start = pickAnchor(gRect, tCx, tCy);
+          const end = pickAnchor(tRect, gCx, gCy);
+
+          const sx = start.x - cRect.left;
+          const sy = start.y - cRect.top;
+          const ex = end.x - cRect.left;
+          const ey = end.y - cRect.top;
+
+          const dx = ex - sx;
+          const dy = ey - sy;
+          const offset = Math.max(40, Math.abs(dx) * 0.4, Math.abs(dy) * 0.3);
+          const horizSpring = Math.abs(dx) >= Math.abs(dy);
+          const c1x = horizSpring ? sx + Math.sign(dx) * offset : sx;
+          const c1y = horizSpring ? sy : sy + Math.sign(dy) * offset;
+          const c2x = horizSpring ? ex - Math.sign(dx) * offset : ex;
+          const c2y = horizSpring ? ey : ey - Math.sign(dy) * offset;
+
+          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          path.setAttribute('d', `M ${sx} ${sy} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${ex} ${ey}`);
+          path.setAttribute('fill', 'none');
+          path.setAttribute('stroke', 'var(--accent)');
+          path.setAttribute('stroke-width', '1.5');
+          path.setAttribute('marker-end', 'url(#arr-default)');
+          if (ec.direction.status === 'Draft') path.setAttribute('stroke-dasharray', '5 4');
+          path.setAttribute('opacity', '0.8');
+          svg.appendChild(path);
+        });
+      });
+    });
+  }
+
+  // --- Discover view (consolidation-candidate matrix) ---
+  let discoverFilter = 'all';
+
+  function isCandidateTheme(theme) {
+    const noneModeled = theme.capabilities.every(c => !c.ecId);
+    const distinctDomains = new Set(theme.capabilities.map(c => c.domain)).size;
+    return noneModeled && distinctDomains >= 2;
+  }
+
+  function provPill(source) {
+    if (source === 'ai') return '<span class="prov-pill ai" title="AI-suggested">AI</span>';
+    if (source === 'manual') return '<span class="prov-pill manual" title="Manually added">manual</span>';
+    return '';
+  }
+
+  function renderDiscover() {
+    const table = $('#matrix');
+    if (!table) return;
+
+    // Discover only shows unmodelled multi-domain candidates.
+    let visible = themes.filter(isCandidateTheme);
+    if (discoverFilter === 'ai')      visible = visible.filter(t => t.source === 'ai');
+    if (discoverFilter === 'manual')  visible = visible.filter(t => t.source === 'manual');
+
+    if (visible.length === 0) {
+      table.innerHTML = `<thead><tr><th class="domain-cell">&nbsp;</th><th style="padding: 30px; text-align: center; color: var(--text-faint); font-style: italic;">No candidate themes match this filter</th></tr></thead>`;
+      return;
+    }
+
+    // Header row: candidate theme columns
+    let html = '<thead><tr><th class="domain-cell">&nbsp;</th>';
+    visible.forEach(t => {
+      const distinctDomains = new Set(t.capabilities.map(c => c.domain)).size;
+      html += `
+        <th class="theme-col candidate" data-theme="${t.name}">
+          <div class="theme-name">${t.name}${provPill(t.source)}</div>
+          <div class="target-badge"><span class="arrow">&rarr;</span> ${t.proposedTargetDomain}</div>
+          <div class="theme-meta">${t.capabilities.length} capabilit${t.capabilities.length === 1 ? 'y' : 'ies'} &middot; ${distinctDomains} domains</div>
+        </th>`;
+    });
+    html += '</tr></thead><tbody>';
+
+    sourceDomains.forEach(domain => {
+      html += `<tr><td class="domain-cell">${domain}</td>`;
+      visible.forEach(t => {
+        const matches = t.capabilities.filter(c => c.domain === domain);
+        if (matches.length === 0) {
+          html += `<td class="cell empty"><button class="add-cap" data-theme="${t.name}" data-domain="${domain}">+ search and add</button></td>`;
+        } else {
+          const caps = matches.map(c =>
+            `<div class="cell-cap-row"><span class="cap-name-text">${c.name}</span>${provPill(c.source)}</div>`
+          ).join('');
+          html += `<td class="cell candidate">
+            ${caps}
+            <button class="add-cap" data-theme="${t.name}" data-domain="${domain}">+ add another</button>
+          </td>`;
+        }
+      });
+      html += '</tr>';
+    });
+    html += '</tbody>';
+    table.innerHTML = html;
+
+    $$('#matrix .theme-col').forEach(th => {
+      th.addEventListener('click', () => openDiscoveryDrawer(th.dataset.theme));
+    });
+    $$('#matrix .add-cap').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        // Mockup: would open a search-and-add dialog scoped to this domain + theme.
+      });
+    });
+  }
+
+  function openDiscoveryDrawer(themeName) {
+    const theme = themes.find(t => t.name === themeName);
+    if (!theme) return;
+    $('#drawer-title').textContent = theme.name;
+    $('#drawer-status').innerHTML = `<span class="status-pill draft">Candidate</span> ${provPill(theme.source)}`;
+
+    const rows = theme.capabilities.map(c => `
+      <div class="source-row" style="grid-template-columns: 130px 1fr 130px;">
+        <span class="domain">${c.domain}</span>
+        <span>${c.name}${provPill(c.source)}</span>
+        <span style="color: var(--text-muted); font-size: 11.5px; text-align: right;">${c.currentApp || '—'}</span>
+      </div>`).join('');
+
+    const distinctDomains = new Set(theme.capabilities.map(c => c.domain)).size;
+    const distinctApps = new Set(theme.capabilities.map(c => c.currentApp).filter(Boolean)).size;
+
+    const targetDomainOptions = sourceDomains.map(d =>
+      `<option ${d === theme.proposedTargetDomain ? 'selected' : ''}>${d}</option>`
+    ).join('');
+
+    $('#drawer-body').innerHTML = `
+      <div class="section">
+        <h3>Proposed target domain</h3>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <select style="flex: 1; padding: 7px 10px; border: 1px solid var(--border-strong); border-radius: var(--r-md); font: inherit;">
+            ${targetDomainOptions}
+          </select>
+          <span style="font-size: 11.5px; color: var(--text-faint);">where this would consolidate to</span>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Capabilities in this candidate (${theme.capabilities.length} across ${distinctDomains} domains, ${distinctApps} apps in use)</h3>
+        <div class="source-table">${rows}</div>
+        <button class="btn" style="margin-top: 8px; width: 100%;">+ Search and add another capability</button>
+        ${distinctApps > 1 ? `
+          <div style="margin-top: 10px; font-size: 11.5px; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
+            ${distinctApps} different applications in use today &mdash;
+            <span class="cross-link subtle" data-action="goto-apps">also a candidate on Application Portfolio &rarr;</span>
+          </div>` : ''}
+      </div>
+
+      <div class="section">
+        <h3>Decision</h3>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <button class="btn primary" style="text-align: left; padding: 10px 14px;">
+            <strong>Promote to consolidation direction</strong> &nbsp;&rarr;&nbsp; capabilities consolidate to ${theme.proposedTargetDomain}
+          </button>
+          <button class="btn" style="text-align: left; padding: 10px 14px;">
+            Reject candidate &mdash; not a real consolidation
+          </button>
+        </div>
+        <div style="margin-top: 12px; padding: 10px 12px; background: var(--surface-alt); border-radius: var(--r-md); font-size: 11.5px; color: var(--text-muted); line-height: 1.5;">
+          <strong>Decomposition?</strong> Decomposition starts from a single capability, not a theme &mdash; open the capability in the source map and decompose it from there. <br>
+          <strong>App standardization only?</strong> If the business should stay distributed but the apps should consolidate, set the standard app on the <em>Application Portfolio</em> tab instead.
+        </div>
+      </div>
+    `;
+    $('#drawer').classList.add('open');
+    $('#drawer-backdrop').classList.add('open');
+  }
+
+  // --- Application Portfolio view ---
+  let appsFilter = 'all';
+
+  function classifyAppPortfolio(theme) {
+    const distinctApps = new Set(theme.capabilities.map(c => c.currentApp).filter(Boolean));
+    const ec = theme.capabilities[0]?.ecId ? ecs.find(e => e.id === theme.capabilities[0].ecId) : null;
+    const dirType = ec?.direction.type;
+
+    if (distinctApps.size <= 1) return 'single';
+    if (dirType === 'decompose') return 'split';
+    if (theme.proposedStandard) {
+      const status = ec?.direction.status;
+      return status === 'Agreed' ? 'agreed' : 'proposed';
+    }
+    return 'candidate';
+  }
+
+  function renderApps() {
+    const container = $('#apps-cards');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const visible = themes.filter(t => {
+      const c = classifyAppPortfolio(t);
+      if (appsFilter === 'all') return true;
+      return c === appsFilter;
+    });
+
+    visible.forEach(theme => {
+      const cls = classifyAppPortfolio(theme);
+      const card = document.createElement('div');
+      const cardClasses = ['theme-card'];
+      if (cls === 'candidate') cardClasses.push('candidate');
+      else if (cls === 'proposed') cardClasses.push('standardized', 'proposed');
+      else if (cls === 'agreed') cardClasses.push('standardized', 'agreed');
+      else if (cls === 'single') cardClasses.push('single-app');
+      else if (cls === 'split') cardClasses.push('split');
+      card.className = cardClasses.join(' ');
+
+      const ec = theme.capabilities[0]?.ecId ? ecs.find(e => e.id === theme.capabilities[0].ecId) : null;
+      const ecId = ec?.id || '';
+
+      // Cross-tab linkage: is this theme ALSO an open Discover (consolidation) candidate?
+      const alsoDiscoverOpen = !ec && isCandidateTheme(theme);
+
+      const badge = {
+        candidate: '<span class="badge-portfolio candidate">Candidate</span>',
+        proposed:  '<span class="badge-portfolio proposed">Standard proposed</span>',
+        agreed:    '<span class="badge-portfolio agreed">Standard agreed</span>',
+        single:    '<span class="badge-portfolio single">Single app</span>',
+        split:     '<span class="badge-portfolio split">Decomposed &mdash; split apps</span>'
+      }[cls] || '';
+
+      const crossLink = alsoDiscoverOpen
+        ? '<span class="cross-link" data-action="goto-discover">&#x21AA; Discover candidate</span>'
+        : '';
+
+      const domains = [...new Set(theme.capabilities.map(c => c.domain))];
+      const domainsLine = domains.length === 1
+        ? `${domains[0]}`
+        : `${domains.length} domains: ${domains.join(', ')}`;
+
+      const stdApp = theme.proposedStandard?.app;
+
+      const apps = theme.capabilities.map(c => {
+        const sameAsStd = stdApp && c.currentApp && c.currentApp.toLowerCase().includes(stdApp.toLowerCase().split(' ')[0]);
+        const acls = sameAsStd ? 'same-as-std' : 'different';
+        const marker = sameAsStd ? '✓ ' : '';
+        return `<div class="app-row"><span class="domain">${c.domain}</span><span class="app"><span class="${acls}">${marker}${c.currentApp || '—'}</span></span></div>`;
+      }).join('');
+
+      let standardBlock = '';
+      if (alsoDiscoverOpen) {
+        // Option B: bias toward consolidation-decision-first.
+        standardBlock = `
+          <div class="deferral-note">
+            <strong>Consolidation pending.</strong> Decide whether these capabilities consolidate (and into which domain) on the <strong>Discover</strong> tab first &mdash; that may resolve the app question.
+          </div>
+          <div class="deferral-actions">
+            <button class="btn primary" data-action="goto-discover" style="font-size: 11.5px; padding: 5px 11px;">Open on Discover &rarr;</button>
+            <button class="override-link" data-action="standardize-anyway">or standardize anyway</button>
+          </div>`;
+      } else if (cls === 'split') {
+        standardBlock = `
+          <div class="standard-row">
+            <span class="label">Standard:</span>
+            <span style="color: var(--text-muted); font-size: 12px;">Per-piece (decomposed) &mdash; see Direction tab</span>
+          </div>`;
+      } else if (cls === 'single') {
+        standardBlock = `
+          <div class="standard-row">
+            <span class="label">Standard:</span>
+            <span class="star">★</span>
+            <span class="app-name">${theme.capabilities[0].currentApp || '—'}</span>
+            <span style="color: var(--text-faint); font-size: 11px; margin-left: 4px;">(de facto, no work)</span>
+          </div>`;
+      } else if (cls === 'candidate') {
+        // Apps-only candidate (rare in current data): no Discover candidacy, just multiple apps.
+        standardBlock = `
+          <div class="standard-row">
+            <span class="label">Standard:</span>
+            <span class="app-name tbd">— not set —</span>
+            <button class="btn primary" data-action="standardize" style="margin-left: auto; font-size: 11px; padding: 4px 10px;">Standardize</button>
+          </div>`;
+      } else {
+        standardBlock = `
+          <div class="standard-row">
+            <span class="label">Standard:</span>
+            <span class="star">★</span>
+            <span class="app-name ${stdApp === 'TBD' ? 'tbd' : ''}">${stdApp || '—'}</span>
+          </div>`;
+      }
+
+      card.innerHTML = `
+        <div class="theme-card-head">
+          <h4>${theme.name}</h4>
+          <div style="display: flex; gap: 6px; align-items: center; flex-shrink: 0;">
+            ${badge}
+            ${crossLink}
+          </div>
+        </div>
+        <div class="domains-line">${domainsLine}</div>
+        <div class="apps-block">
+          <span class="label">Currently in use</span>
+          ${apps}
+        </div>
+        ${standardBlock}
+      `;
+
+      // Card click opens the drawer. Action buttons inside stop propagation and route accordingly.
+      card.addEventListener('click', () => {
+        if (ecId) openDrawer(ecId);
+        else openDiscoveryDrawer(theme.name);
+      });
+      card.querySelectorAll('[data-action]').forEach(el => {
+        el.addEventListener('click', e => {
+          e.stopPropagation();
+          const action = el.dataset.action;
+          if (action === 'goto-discover') switchTab('discover');
+          // 'standardize' / 'standardize-anyway' are mockup stubs.
+        });
+      });
+      container.appendChild(card);
+    });
+  }
+
+  function switchTab(view) {
+    const btn = document.querySelector(`nav.view-tabs button[data-view="${view}"]`);
+    if (btn) btn.click();
+  }
+
+  // --- Discover view (theme matrix) ---
+  let currentHorizon = 'later';
+
+  function renderTarget() {
+    const container = $('#target-domains');
+    container.innerHTML = '';
+    const horizonIdx = { now: 0, next: 1, later: 2 }[currentHorizon];
+
+    const byDomain = {};
+    sourceDomains.forEach(d => byDomain[d] = []);
+
+    // Stable: always present in their domain
+    stableCapabilities.forEach(c => {
+      byDomain[c.domain].push({ name: c.name, standardApp: c.standardApp, kind: 'native' });
+    });
+
+    ecs.forEach(ec => {
+      const realized = ec.direction.placements.filter(p => horizonOrder[p.horizon] <= horizonIdx);
+      const pending  = ec.direction.placements.filter(p => horizonOrder[p.horizon] > horizonIdx);
+      const isMulti = ec.direction.placements.length > 1;
+      const sourceDomList = [...new Set(ec.sourceLinks.map(l => l.domain))];
+
+      realized.forEach(p => {
+        const inboundFrom = sourceDomList.filter(d => d !== p.targetDomain);
+        let kind = 'native';
+        if (isMulti) kind = 'decomposed';
+        else if (inboundFrom.length > 0) kind = 'inbound';
+
+        byDomain[p.targetDomain].push({
+          ecId: ec.id,
+          name: ec.name + (p.label ? ` — ${p.label}` : ''),
+          standardApp: p.standardApp,
+          kind,
+          fromDomains: inboundFrom,
+          arrivingHorizon: p.horizon
+        });
+      });
+
+      // Source capabilities still alive in source domains until their corresponding target placement is realized.
+      // For mockup simplicity: a source domain capability shows as transitional if ANY pending placement still exists
+      // and that source domain is one of the consolidating-out domains (i.e. not also a target).
+      pending.forEach(p => {
+        ec.sourceLinks.forEach(link => {
+          // skip if the source domain is itself a target placement at this horizon (it's already shown there)
+          const stillTargetingHere = ec.direction.placements.some(pp => pp.targetDomain === link.domain && horizonOrder[pp.horizon] <= horizonIdx);
+          if (stillTargetingHere) return;
+          byDomain[link.domain].push({
+            ecId: ec.id,
+            name: link.capability,
+            standardApp: 'current',
+            kind: 'transitional',
+            note: `Leaves in ${p.horizon}`
+          });
+        });
+      });
+    });
+
+    sourceDomains.forEach(d => {
+      const card = document.createElement('div');
+      card.className = 'domain-card';
+      const items = byDomain[d];
+      const seen = new Set();
+      const unique = items.filter(it => {
+        const key = it.name + '|' + it.kind;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      unique.sort((a, b) => {
+        const order = { native: 0, inbound: 1, decomposed: 1, transitional: 2 };
+        return (order[a.kind] - order[b.kind]) || a.name.localeCompare(b.name);
+      });
+
+      card.innerHTML = `<h3>${d} <span class="count">${unique.length}</span></h3>`;
+
+      unique.forEach(it => {
+        const row = document.createElement('div');
+        row.className = 'capability-row ' + (it.kind === 'native' ? '' : it.kind) + (it.ecId ? ' clickable' : '');
+        if (it.ecId) row.dataset.ecId = it.ecId;
+
+        let movePill = '';
+        if (it.kind === 'inbound' && it.fromDomains?.length) {
+          movePill = `<span class="move-badge from">&larr; from ${it.fromDomains.join(', ')}</span>`;
+        } else if (it.kind === 'decomposed' && it.fromDomains?.length) {
+          movePill = `<span class="move-badge split">split from ${it.fromDomains.join(', ')}</span>`;
+        }
+        let horizonPill = '';
+        if (it.arrivingHorizon && it.arrivingHorizon !== 'Now') {
+          horizonPill = `<span class="move-badge horizon">arrived ${it.arrivingHorizon}</span>`;
+        }
+        let transPill = '';
+        if (it.kind === 'transitional') {
+          transPill = `<span class="move-badge transitional">${it.note}</span>`;
+        }
+
+        row.innerHTML = `
+          <div class="cap-row-name">${it.name}</div>
+          <div class="cap-row-meta">
+            <span>${it.standardApp}</span>
+            ${movePill}
+            ${horizonPill}
+            ${transPill}
+          </div>
+        `;
+        if (it.ecId) row.addEventListener('click', () => openDrawer(it.ecId));
+        card.appendChild(row);
+      });
+      container.appendChild(card);
+    });
+  }
+
+  function renderDiscussion() {
+    const list = $('#discussion-list');
+    const open = ecs.filter(e => e.direction.status !== 'Agreed');
+    list.innerHTML = '';
+    open.forEach(ec => {
+      const item = document.createElement('div');
+      item.className = 'direction-card';
+      item.style.marginBottom = '10px';
+      const placements = ec.direction.placements.map(p =>
+        `<span class="chip target">${p.targetDomain}</span> <span class="chip app">${p.standardApp}</span>`
+      ).join(' &nbsp; ');
+      item.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+          <div style="flex: 1">
+            <div class="cap-name">${ec.name}</div>
+            <div class="narrative">${ec.direction.narrative}</div>
+            <div class="target-row">${placements}</div>
+          </div>
+          <div style="text-align: right;">
+            <span class="status-pill ${statusClass(ec.direction.status)}">${ec.direction.status}</span>
+            <div style="font-size: 11px; color: var(--text-faint); margin-top: 6px;">${ec.comments.length} comment${ec.comments.length === 1 ? '' : 's'}</div>
+          </div>
+        </div>
+      `;
+      item.addEventListener('click', () => openDrawer(ec.id));
+      list.appendChild(item);
+    });
+  }
+
+  function openDrawer(ecId) {
+    const ec = ecs.find(e => e.id === ecId);
+    if (!ec) return;
+
+    $('#drawer-title').textContent = ec.name;
+    $('#drawer-status').innerHTML = `<span class="status-pill ${statusClass(ec.direction.status)}">${ec.direction.status}</span>`;
+
+    const sources = ec.sourceLinks.map(l => `
+      <div class="source-row">
+        <span class="domain">${l.domain}</span>
+        <span>${l.capability}</span>
+      </div>`).join('');
+
+    const placements = ec.direction.placements.map((p, i) => {
+      const isMulti = ec.direction.placements.length > 1;
+      const numLabel = isMulti
+        ? `Placement ${i+1} of ${ec.direction.placements.length}${p.label ? ` &middot; ${p.label}` : ''}`
+        : `Target placement${p.label ? ` &middot; ${p.label}` : ''}`;
+      return `
+      <div class="placement">
+        <div class="placement-header">
+          <span class="placement-num ${isMulti ? '' : 'single'}">${numLabel}</span>
+          <span class="status-pill ${p.horizon === 'Now' ? 'agreed' : p.horizon === 'Next' ? 'proposed' : 'draft'}">${p.horizon}</span>
+        </div>
+        <div class="placement-fields">
+          <span class="label">Target domain</span><span class="value">${p.targetDomain}</span>
+          <span class="label">Standard app</span><span class="value">${p.standardApp}</span>
+          <span class="label">Horizon</span><span class="value">${p.horizon}</span>
+        </div>
+      </div>
+    `}).join('');
+
+    const comments = ec.comments.length
+      ? ec.comments.map(c => `
+          <div class="comment">
+            <span class="author">${c.author}</span><span class="meta">${c.when}</span>
+            <div class="body">${c.body}</div>
+          </div>`).join('')
+      : `<div style="color: var(--text-faint); font-size: 12.5px; font-style: italic;">No discussion yet.</div>`;
+
+    const nextStatus = { Draft: 'Proposed', Proposed: 'Agreed', Agreed: null };
+    const advanceLabel = nextStatus[ec.direction.status] ? `Advance to ${nextStatus[ec.direction.status]} &rarr;` : 'Reopen';
+
+    $('#drawer-body').innerHTML = `
+      <div class="section">
+        <h3>Direction (stakeholder narrative)</h3>
+        <div class="narrative-block">${ec.direction.narrative}</div>
+        <div class="status-control">
+          <span style="font-size: 12px; color: var(--text-muted);">Group decision:</span>
+          <span class="status-pill ${statusClass(ec.direction.status)}">${ec.direction.status}</span>
+          <button class="btn primary" style="margin-left: auto;">${advanceLabel}</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Source capabilities (linked from existing capability map)</h3>
+        <div class="source-table">${sources}</div>
+      </div>
+
+      <div class="section">
+        <h3>Target placements${ec.direction.placements.length > 1 ? ` &middot; decomposed into ${ec.direction.placements.length}` : ''}</h3>
+        ${placements}
+        <button class="add-placement">+ Add placement (decompose)</button>
+      </div>
+
+      <div class="section">
+        <h3>Group discussion (${ec.comments.length})</h3>
+        <div>${comments}</div>
+        <textarea placeholder="Add a comment for the group..." style="width: 100%; margin-top: 8px; padding: 10px; border: 1px solid var(--border-strong); border-radius: var(--r-md); font: inherit; resize: vertical; min-height: 60px;"></textarea>
+        <div style="text-align: right; margin-top: 6px;"><button class="btn">Post comment</button></div>
+      </div>
+    `;
+
+    $('#drawer').classList.add('open');
+    $('#drawer-backdrop').classList.add('open');
+  }
+
+  function closeDrawer() {
+    $('#drawer').classList.remove('open');
+    $('#drawer-backdrop').classList.remove('open');
+  }
+  $('#drawer-close').addEventListener('click', closeDrawer);
+  $('#drawer-backdrop').addEventListener('click', closeDrawer);
+
+  // Delegated cross-link handling inside the drawer body
+  $('#drawer-body').addEventListener('click', e => {
+    const target = e.target.closest('[data-action]');
+    if (!target) return;
+    const action = target.dataset.action;
+    if (action === 'goto-discover') { closeDrawer(); switchTab('discover'); }
+    if (action === 'goto-apps')     { closeDrawer(); switchTab('apps'); }
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+
+  $$('nav.view-tabs button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      $$('nav.view-tabs button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const view = btn.dataset.view;
+      $$('section.view').forEach(s => s.style.display = 'none');
+      const target = $('#view-' + view);
+      target.style.display = '';
+      if (view === 'discover') renderDiscover();
+      if (view === 'board') requestAnimationFrame(renderArrows);
+      if (view === 'apps') renderApps();
+      if (view === 'target') renderTarget();
+      if (view === 'discussion') renderDiscussion();
+    });
+  });
+
+  $$('#status-filter button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      $$('#status-filter button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeStatusFilter = btn.dataset.s;
+      renderCanvas();
+    });
+  });
+
+  $$('#discover-toggles button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      $$('#discover-toggles button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      discoverFilter = btn.dataset.f;
+      renderDiscover();
+    });
+  });
+
+  $$('#apps-toggles button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      $$('#apps-toggles button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      appsFilter = btn.dataset.f;
+      renderApps();
+    });
+  });
+
+  $$('#horizon-toggle button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      $$('#horizon-toggle button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentHorizon = btn.dataset.h;
+      renderTarget();
+    });
+  });
+
+  let resizeT;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeT);
+    resizeT = setTimeout(renderArrows, 80);
+  });
+
+  renderCanvas();
+  renderDiscover();
+  renderApps();
+</script>
+</body>
+</html>
