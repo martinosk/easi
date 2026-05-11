@@ -93,6 +93,12 @@ Non-trivial features must have an approved spec in `/specs/` before any code is 
 
 ---
 
+## Code Health
+
+Before claiming any code change is done, run the `easi-codehealth` skill on every modified and untracked file in the change set.
+
+---
+
 ## Conventions
 
 - Frontend source lives in `frontend/src/`.
