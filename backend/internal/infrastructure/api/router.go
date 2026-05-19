@@ -15,6 +15,7 @@ import (
 	archAssistantAPI "easi/backend/internal/archassistant/infrastructure/api"
 	archAssistantRateLimit "easi/backend/internal/archassistant/infrastructure/ratelimit"
 	archAssistantRepos "easi/backend/internal/archassistant/infrastructure/repositories"
+	directionAPI "easi/backend/internal/architecturedirection/infrastructure/api"
 	archReadModels "easi/backend/internal/architecturemodeling/application/readmodels"
 	archAdapters "easi/backend/internal/architecturemodeling/infrastructure/adapters"
 	architectureAPI "easi/backend/internal/architecturemodeling/infrastructure/api"
@@ -266,6 +267,17 @@ func setupDomainRoutes(r chi.Router, deps routerDependencies) {
 		AuthMiddleware:  deps.authDeps.AuthMiddleware,
 		SessionProvider: deps.authDeps.SessionManager,
 	}), "enterprise architecture routes")
+
+	mustSetup(directionAPI.SetupRoutes(directionAPI.RoutesDeps{
+		Router:          r,
+		CommandBus:      deps.commandBus,
+		EventStore:      deps.eventStore,
+		EventBus:        deps.eventBus,
+		DB:              deps.db,
+		HATEOAS:         deps.hateoas,
+		AuthMiddleware:  deps.authDeps.AuthMiddleware,
+		SessionProvider: deps.authDeps.SessionManager,
+	}), "architecture direction routes")
 
 	viewlayoutsAPI.SubscribeEvents(deps.eventBus, deps.db)
 	viewlayoutsAPI.RegisterRoutes(r, deps.db, deps.hateoas, deps.authDeps.AuthMiddleware)

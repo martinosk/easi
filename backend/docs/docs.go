@@ -323,7 +323,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Returns the creator (first event actor) for each tree-relevant aggregate: components, capabilities, vendors, internal teams, and acquired entities. Requires audit:read permission.",
+                "description": "Returns the creator (first event actor) for each tree-relevant aggregate: components, capabilities, vendors, internal teams, acquired entities, and views. Requires audit:read permission.",
                 "produces": [
                     "application/json"
                 ],
@@ -4254,6 +4254,144 @@ const docTemplate = `{
                 }
             }
         },
+        "/directions/{id}": {
+            "get": {
+                "tags": [
+                    "directions"
+                ],
+                "summary": "Get a direction by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Direction ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.DirectionDTO"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "directions"
+                ],
+                "summary": "Update a draft or proposed direction",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Direction ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Updates",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.UpdateDirectionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.DirectionDTO"
+                        }
+                    }
+                }
+            }
+        },
+        "/directions/{id}/advance/{target}": {
+            "post": {
+                "tags": [
+                    "directions"
+                ],
+                "summary": "Advance a direction to proposed or agreed",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Direction ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Target status: proposed or agreed",
+                        "name": "target",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.DirectionDTO"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/directions/{id}/reject": {
+            "post": {
+                "tags": [
+                    "directions"
+                ],
+                "summary": "Reject a direction",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Direction ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.DirectionDTO"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/domain-capabilities/enterprise-link-status": {
             "get": {
                 "description": "Batch check link eligibility for domain capabilities, optionally filtered by business domain",
@@ -4932,6 +5070,92 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/enterprise-capabilities/{id}/direction": {
+            "get": {
+                "description": "Returns the current active direction on an enterprise capability, or null if none",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "directions"
+                ],
+                "summary": "Get direction for enterprise capability",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Enterprise capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.ECDirectionResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Creates a new direction in draft status; rejected if an active direction already exists",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "directions"
+                ],
+                "summary": "Capture a draft direction on an enterprise capability",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Enterprise capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Direction data",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.CaptureDirectionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.DirectionDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
@@ -10405,6 +10629,75 @@ const docTemplate = `{
                 }
             }
         },
+        "easi_backend_internal_architecturedirection_application_readmodels.DirectionDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "enterpriseCapabilityId": {
+                    "type": "string"
+                },
+                "hasStaleReferences": {
+                    "type": "boolean"
+                },
+                "horizon": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "narrative": {
+                    "type": "string"
+                },
+                "placements": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.DirectionPlacementDTO"
+                    }
+                },
+                "sourceCapabilities": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.DirectionSourceCapabilityDTO"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "easi_backend_internal_architecturedirection_application_readmodels.DirectionPlacementDTO": {
+            "type": "object",
+            "properties": {
+                "resultingName": {
+                    "type": "string"
+                },
+                "targetBusinessDomainId": {
+                    "type": "string"
+                }
+            }
+        },
+        "easi_backend_internal_architecturedirection_application_readmodels.DirectionSourceCapabilityDTO": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "stale": {
+                    "type": "boolean"
+                }
+            }
+        },
         "easi_backend_internal_architecturemodeling_application_readmodels.AcquiredEntityDTO": {
             "type": "object",
             "properties": {
@@ -12016,6 +12309,77 @@ const docTemplate = `{
                 },
                 "temperature": {
                     "type": "number"
+                }
+            }
+        },
+        "internal_architecturedirection_infrastructure_api.CaptureDirectionRequest": {
+            "type": "object",
+            "properties": {
+                "horizon": {
+                    "type": "string"
+                },
+                "narrative": {
+                    "type": "string"
+                },
+                "placements": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.PlacementRequest"
+                    }
+                },
+                "sourceCapabilityIds": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_architecturedirection_infrastructure_api.ECDirectionResponse": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_api.Links"
+                },
+                "direction": {
+                    "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.DirectionDTO"
+                }
+            }
+        },
+        "internal_architecturedirection_infrastructure_api.PlacementRequest": {
+            "type": "object",
+            "properties": {
+                "resultingName": {
+                    "type": "string"
+                },
+                "targetBusinessDomainId": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_architecturedirection_infrastructure_api.UpdateDirectionRequest": {
+            "type": "object",
+            "properties": {
+                "horizon": {
+                    "type": "string"
+                },
+                "narrative": {
+                    "type": "string"
+                },
+                "placements": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.PlacementRequest"
+                    }
+                },
+                "sourceCapabilityIds": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },

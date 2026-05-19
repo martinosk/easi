@@ -28,6 +28,9 @@ func (h *EnterpriseArchLinks) EnterpriseCapabilityLinksForActor(id string, actor
 		"x-links":                h.Get(p + "/links"),
 		"x-strategic-importance": h.Get(p + "/strategic-importance"),
 	}
+	if actor.CanRead("architecture-direction") {
+		links["x-direction"] = h.Get(p + "/direction")
+	}
 	if actor.CanWrite("enterprise-arch") {
 		links["edit"] = h.Put(p)
 		links["x-create-link"] = h.Post(p + "/links")

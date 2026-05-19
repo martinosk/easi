@@ -39,6 +39,7 @@ DECLARE
 BEGIN
     FOREACH schema_name IN ARRAY ARRAY[
         'infrastructure', 'shared', 'architecturemodeling', 'architectureviews',
+        'architecturedirection',
         'capabilitymapping', 'enterprisearchitecture', 'viewlayouts', 'importing',
         'platform', 'auth', 'accessdelegation', 'metamodel', 'releases', 'valuestreams',
         'archassistant'

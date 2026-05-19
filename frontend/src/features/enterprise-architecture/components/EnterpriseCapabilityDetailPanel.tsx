@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { DirectionPanel } from '../../architecture-direction/components/DirectionPanel';
 import { useEnterpriseCapabilityLinks, useUnlinkDomainCapability } from '../hooks/useEnterpriseCapabilities';
 import type { EnterpriseCapability, EnterpriseCapabilityLink } from '../types';
 
@@ -142,6 +143,10 @@ export function EnterpriseCapabilityDetailPanel({ capability, onClose }: Enterpr
           <span className="stat-label">Domains:</span>
           <span className="stat-value">{capability.domainCount}</span>
         </div>
+      </div>
+
+      <div className="detail-panel-section">
+        <DirectionPanel enterpriseCapabilityId={capability.id} />
       </div>
 
       <div className="detail-panel-section">
