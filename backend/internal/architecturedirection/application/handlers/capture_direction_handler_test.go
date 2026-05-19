@@ -38,6 +38,31 @@ func (m *mockActiveDirectionLookup) HasActiveDirectionForEnterpriseCapability(_ 
 	return m.hasActive, nil
 }
 
+type stubReferenceChecker struct {
+	enterpriseCapabilityExists bool
+	physicalCapabilityExists   bool
+	businessDomainExists       bool
+	err                        error
+}
+
+func (s *stubReferenceChecker) EnterpriseCapabilityExists(_ context.Context, _ string) (bool, error) {
+	return s.enterpriseCapabilityExists, s.err
+}
+func (s *stubReferenceChecker) PhysicalCapabilityExists(_ context.Context, _ string) (bool, error) {
+	return s.physicalCapabilityExists, s.err
+}
+func (s *stubReferenceChecker) BusinessDomainExists(_ context.Context, _ string) (bool, error) {
+	return s.businessDomainExists, s.err
+}
+
+func allReferencesExist() *stubReferenceChecker {
+	return &stubReferenceChecker{
+		enterpriseCapabilityExists: true,
+		physicalCapabilityExists:   true,
+		businessDomainExists:       true,
+	}
+}
+
 func validCaptureCmd() *commands.CaptureDirection {
 	return &commands.CaptureDirection{
 		EnterpriseCapabilityID: uuid.New().String(),
@@ -53,7 +78,7 @@ func TestCaptureDirectionHandler_CreatesDraft(t *testing.T) {
 	repo := &mockDirectionRepository{}
 	lookup := &mockActiveDirectionLookup{hasActive: false}
 
-	handler := NewCaptureDirectionHandler(repo, lookup)
+	handler := NewCaptureDirectionHandler(repo, lookup, allReferencesExist())
 	result, err := handler.Handle(context.Background(), validCaptureCmd())
 	require.NoError(t, err)
 
@@ -67,7 +92,7 @@ func TestCaptureDirectionHandler_RejectsSecondActiveDirection(t *testing.T) {
 	repo := &mockDirectionRepository{}
 	lookup := &mockActiveDirectionLookup{hasActive: true}
 
-	handler := NewCaptureDirectionHandler(repo, lookup)
+	handler := NewCaptureDirectionHandler(repo, lookup, allReferencesExist())
 	_, err := handler.Handle(context.Background(), validCaptureCmd())
 	assert.ErrorIs(t, err, ErrActiveDirectionAlreadyExists)
 	assert.Empty(t, repo.saved)
@@ -76,7 +101,7 @@ func TestCaptureDirectionHandler_RejectsSecondActiveDirection(t *testing.T) {
 func TestCaptureDirectionHandler_InvalidType_Fails(t *testing.T) {
 	repo := &mockDirectionRepository{}
 	lookup := &mockActiveDirectionLookup{}
-	handler := NewCaptureDirectionHandler(repo, lookup)
+	handler := NewCaptureDirectionHandler(repo, lookup, allReferencesExist())
 
 	cmd := validCaptureCmd()
 	cmd.Type = "explode"
@@ -87,7 +112,7 @@ func TestCaptureDirectionHandler_InvalidType_Fails(t *testing.T) {
 func TestCaptureDirectionHandler_InvalidSourceCount_Fails(t *testing.T) {
 	repo := &mockDirectionRepository{}
 	lookup := &mockActiveDirectionLookup{}
-	handler := NewCaptureDirectionHandler(repo, lookup)
+	handler := NewCaptureDirectionHandler(repo, lookup, allReferencesExist())
 
 	cmd := validCaptureCmd()
 	cmd.SourceCapabilityIDs = []string{uuid.New().String()} // only 1 for consolidate
@@ -98,8 +123,32 @@ func TestCaptureDirectionHandler_InvalidSourceCount_Fails(t *testing.T) {
 func TestCaptureDirectionHandler_LookupError_Fails(t *testing.T) {
 	repo := &mockDirectionRepository{}
 	lookup := &mockActiveDirectionLookup{err: errors.New("db error")}
-	handler := NewCaptureDirectionHandler(repo, lookup)
+	handler := NewCaptureDirectionHandler(repo, lookup, allReferencesExist())
 
 	_, err := handler.Handle(context.Background(), validCaptureCmd())
 	assert.Error(t, err)
+}
+
+func TestCaptureDirectionHandler_UnknownReference_Fails(t *testing.T) {
+	cases := []struct {
+		name string
+		mark func(*stubReferenceChecker)
+	}{
+		{"unknown enterprise capability", func(r *stubReferenceChecker) { r.enterpriseCapabilityExists = false }},
+		{"unknown source capability", func(r *stubReferenceChecker) { r.physicalCapabilityExists = false }},
+		{"unknown target business domain", func(r *stubReferenceChecker) { r.businessDomainExists = false }},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := &mockDirectionRepository{}
+			lookup := &mockActiveDirectionLookup{}
+			refs := allReferencesExist()
+			tc.mark(refs)
+
+			handler := NewCaptureDirectionHandler(repo, lookup, refs)
+			_, err := handler.Handle(context.Background(), validCaptureCmd())
+			assert.ErrorIs(t, err, ErrReferencedEntityNotFound)
+			assert.Empty(t, repo.saved)
+		})
+	}
 }

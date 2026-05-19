@@ -28,20 +28,21 @@ export interface Direction {
   hasStaleReferences: boolean;
   createdAt: string;
   updatedAt?: string;
-  _links?: HATEOASLinks & {
+  _links: HATEOASLinks & {
     self?: HATEOASLink;
+    up?: HATEOASLink;
     edit?: HATEOASLink;
-    'x-enterprise-capability'?: HATEOASLink;
-    'x-advance-proposed'?: HATEOASLink;
-    'x-advance-agreed'?: HATEOASLink;
+    'x-propose'?: HATEOASLink;
+    'x-agree'?: HATEOASLink;
     'x-reject'?: HATEOASLink;
   };
 }
 
 export interface ECDirectionResponse {
   direction: Direction | null;
-  _links?: HATEOASLinks & {
+  _links: HATEOASLinks & {
     self?: HATEOASLink;
+    up?: HATEOASLink;
     'x-capture-direction'?: HATEOASLink;
   };
 }

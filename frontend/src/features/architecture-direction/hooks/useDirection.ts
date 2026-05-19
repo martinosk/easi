@@ -1,97 +1,101 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { type QueryKey, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { invalidateFor } from '../../../lib/invalidateFor';
 import type { EnterpriseCapabilityId } from '../../../api/types';
 import { directionApi } from '../api/directionApi';
+import { directionMutationEffects } from '../mutationEffects';
 import { directionQueryKeys } from '../queryKeys';
 import type {
   CaptureDirectionRequest,
   Direction,
-  DirectionId,
   UpdateDirectionRequest,
 } from '../types';
 
-function hasStringMessage(err: unknown): err is { message: string } {
-  if (!err || typeof err !== 'object') return false;
-  const candidate = (err as { message?: unknown }).message;
-  return typeof candidate === 'string';
-}
-
-function getMessage(err: unknown, fallback: string): string {
-  return hasStringMessage(err) ? err.message : fallback;
+function getErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof Error) return err.message;
+  return fallback;
 }
 
 export function useDirectionForEnterpriseCapability(enterpriseCapabilityId: EnterpriseCapabilityId | undefined) {
   return useQuery({
-    queryKey: directionQueryKeys.forEnterpriseCapability(enterpriseCapabilityId ?? ''),
+    queryKey: directionQueryKeys.byEnterpriseCapability(enterpriseCapabilityId ?? ''),
     queryFn: () => directionApi.getForEnterpriseCapability(enterpriseCapabilityId!),
     enabled: !!enterpriseCapabilityId,
   });
 }
 
-interface CaptureArgs {
-  enterpriseCapabilityId: EnterpriseCapabilityId;
-  request: CaptureDirectionRequest;
+interface DirectionMutationConfig<TVars> {
+  call: (vars: TVars) => Promise<Direction>;
+  invalidate: (vars: TVars) => QueryKey[];
+  successMessage: string;
+  failureMessage: string;
 }
 
-export function useCaptureDirection() {
+function useDirectionMutation<TVars>({ call, invalidate, successMessage, failureMessage }: DirectionMutationConfig<TVars>) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ enterpriseCapabilityId, request }: CaptureArgs) =>
-      directionApi.capture(enterpriseCapabilityId, request),
-    onSuccess: (_result: Direction, { enterpriseCapabilityId }) => {
-      invalidateFor(queryClient, [directionQueryKeys.forEnterpriseCapability(enterpriseCapabilityId)]);
-      toast.success('Direction captured as draft');
+    mutationFn: call,
+    onSuccess: (_result, vars) => {
+      invalidateFor(queryClient, invalidate(vars));
+      toast.success(successMessage);
     },
-    onError: (err) => toast.error(getMessage(err, 'Failed to capture direction')),
+    onError: (err) => toast.error(getErrorMessage(err, failureMessage)),
   });
 }
 
-interface IDArgs {
-  directionId: DirectionId;
+interface ByECArgs {
   enterpriseCapabilityId: EnterpriseCapabilityId;
 }
 
-interface AdvanceArgs extends IDArgs {
-  target: 'proposed' | 'agreed';
+interface CaptureArgs extends ByECArgs {
+  request: CaptureDirectionRequest;
 }
 
-export function useAdvanceDirection() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ directionId, target }: AdvanceArgs) => directionApi.advance(directionId, target),
-    onSuccess: (_result, { enterpriseCapabilityId, target }) => {
-      invalidateFor(queryClient, [directionQueryKeys.forEnterpriseCapability(enterpriseCapabilityId)]);
-      toast.success(`Direction advanced to ${target}`);
-    },
-    onError: (err) => toast.error(getMessage(err, 'Failed to advance direction')),
+interface UpdateArgs extends ByECArgs {
+  request: UpdateDirectionRequest;
+}
+
+export function useCaptureDirection() {
+  return useDirectionMutation<CaptureArgs>({
+    call: ({ enterpriseCapabilityId, request }) => directionApi.capture(enterpriseCapabilityId, request),
+    invalidate: ({ enterpriseCapabilityId }) => directionMutationEffects.capture(enterpriseCapabilityId),
+    successMessage: 'Direction captured as draft',
+    failureMessage: 'Failed to capture direction',
+  });
+}
+
+export function useUpdateDirection() {
+  return useDirectionMutation<UpdateArgs>({
+    call: ({ enterpriseCapabilityId, request }) => directionApi.update(enterpriseCapabilityId, request),
+    invalidate: ({ enterpriseCapabilityId }) => directionMutationEffects.update(enterpriseCapabilityId),
+    successMessage: 'Direction updated',
+    failureMessage: 'Failed to update direction',
+  });
+}
+
+export function useProposeDirection() {
+  return useDirectionMutation<ByECArgs>({
+    call: ({ enterpriseCapabilityId }) => directionApi.propose(enterpriseCapabilityId),
+    invalidate: ({ enterpriseCapabilityId }) => directionMutationEffects.propose(enterpriseCapabilityId),
+    successMessage: 'Direction advanced to proposed',
+    failureMessage: 'Failed to propose direction',
+  });
+}
+
+export function useAgreeDirection() {
+  return useDirectionMutation<ByECArgs>({
+    call: ({ enterpriseCapabilityId }) => directionApi.agree(enterpriseCapabilityId),
+    invalidate: ({ enterpriseCapabilityId }) => directionMutationEffects.agree(enterpriseCapabilityId),
+    successMessage: 'Direction advanced to agreed',
+    failureMessage: 'Failed to agree direction',
   });
 }
 
 export function useRejectDirection() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ directionId }: IDArgs) => directionApi.reject(directionId),
-    onSuccess: (_result, { enterpriseCapabilityId }) => {
-      invalidateFor(queryClient, [directionQueryKeys.forEnterpriseCapability(enterpriseCapabilityId)]);
-      toast.success('Direction rejected');
-    },
-    onError: (err) => toast.error(getMessage(err, 'Failed to reject direction')),
-  });
-}
-
-interface UpdateArgs extends IDArgs {
-  request: UpdateDirectionRequest;
-}
-
-export function useUpdateDirection() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ directionId, request }: UpdateArgs) => directionApi.update(directionId, request),
-    onSuccess: (_result, { enterpriseCapabilityId }) => {
-      invalidateFor(queryClient, [directionQueryKeys.forEnterpriseCapability(enterpriseCapabilityId)]);
-      toast.success('Direction updated');
-    },
-    onError: (err) => toast.error(getMessage(err, 'Failed to update direction')),
+  return useDirectionMutation<ByECArgs>({
+    call: ({ enterpriseCapabilityId }) => directionApi.reject(enterpriseCapabilityId),
+    invalidate: ({ enterpriseCapabilityId }) => directionMutationEffects.reject(enterpriseCapabilityId),
+    successMessage: 'Direction rejected',
+    failureMessage: 'Failed to reject direction',
   });
 }

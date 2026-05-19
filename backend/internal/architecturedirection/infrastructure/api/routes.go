@@ -24,14 +24,15 @@ type AuthMiddleware interface {
 }
 
 type RoutesDeps struct {
-	Router          chi.Router
-	CommandBus      *cqrs.InMemoryCommandBus
-	EventStore      eventstore.EventStore
-	EventBus        events.EventBus
-	DB              *database.TenantAwareDB
-	HATEOAS         *sharedAPI.HATEOASLinks
-	AuthMiddleware  AuthMiddleware
-	SessionProvider authPL.SessionProvider
+	Router           chi.Router
+	CommandBus       *cqrs.InMemoryCommandBus
+	EventStore       eventstore.EventStore
+	EventBus         events.EventBus
+	DB               *database.TenantAwareDB
+	HATEOAS          *sharedAPI.HATEOASLinks
+	AuthMiddleware   AuthMiddleware
+	SessionProvider  authPL.SessionProvider
+	ReferenceChecker handlers.ReferenceChecker
 }
 
 func SetupRoutes(deps RoutesDeps) error {
@@ -39,7 +40,7 @@ func SetupRoutes(deps RoutesDeps) error {
 	repo := repositories.NewDirectionRepository(deps.EventStore)
 
 	subscribeEvents(deps.EventBus, readModel)
-	registerCommandHandlers(deps.CommandBus, repo, readModel)
+	registerCommandHandlers(deps.CommandBus, repo, readModel, deps.ReferenceChecker)
 
 	links := NewDirectionLinks(deps.HATEOAS)
 	httpHandlers := NewDirectionHandlers(deps.CommandBus, readModel, deps.SessionProvider, links)
@@ -73,8 +74,9 @@ func registerCommandHandlers(
 	commandBus *cqrs.InMemoryCommandBus,
 	repo *repositories.DirectionRepository,
 	rm *readmodels.DirectionReadModel,
+	refs handlers.ReferenceChecker,
 ) {
-	commandBus.Register("CaptureDirection", handlers.NewCaptureDirectionHandler(repo, rm))
+	commandBus.Register("CaptureDirection", handlers.NewCaptureDirectionHandler(repo, rm, refs))
 	commandBus.Register("AdvanceDirection", handlers.NewAdvanceDirectionHandler(repo))
 	commandBus.Register("RejectDirection", handlers.NewRejectDirectionHandler(repo))
 	commandBus.Register("UpdateDirectionNarrative", handlers.NewUpdateDirectionNarrativeHandler(repo))
@@ -92,19 +94,10 @@ func registerRoutes(r chi.Router, h *DirectionHandlers, authMiddleware AuthMiddl
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequirePermission(authPL.PermArchitectureDirectionWrite))
 			r.Post("/", h.CaptureDirection)
-		})
-	})
-
-	r.Route("/directions", func(r chi.Router) {
-		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authPL.PermArchitectureDirectionRead))
-			r.Get("/{id}", h.GetDirection)
-		})
-		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authPL.PermArchitectureDirectionWrite))
-			r.Put("/{id}", h.UpdateDirection)
-			r.Post("/{id}/advance/{target}", h.AdvanceDirection)
-			r.Post("/{id}/reject", h.RejectDirection)
+			r.Put("/", h.UpdateDirection)
+			r.Post("/propose", h.ProposeDirection)
+			r.Post("/agree", h.AgreeDirection)
+			r.Post("/reject", h.RejectDirection)
 		})
 	})
 }

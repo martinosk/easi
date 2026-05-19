@@ -3,39 +3,41 @@ import type { EnterpriseCapabilityId } from '../../../api/types';
 import type {
   CaptureDirectionRequest,
   Direction,
-  DirectionId,
   ECDirectionResponse,
   UpdateDirectionRequest,
 } from '../types';
 
+const path = (ecId: EnterpriseCapabilityId, suffix = '') =>
+  `/api/v1/enterprise-capabilities/${ecId}/direction${suffix}`;
+
 export const directionApi = {
   async getForEnterpriseCapability(id: EnterpriseCapabilityId): Promise<ECDirectionResponse> {
-    const response = await httpClient.get<ECDirectionResponse>(`/api/v1/enterprise-capabilities/${id}/direction`);
+    const response = await httpClient.get<ECDirectionResponse>(path(id));
     return response.data;
   },
 
   async capture(id: EnterpriseCapabilityId, request: CaptureDirectionRequest): Promise<Direction> {
-    const response = await httpClient.post<Direction>(`/api/v1/enterprise-capabilities/${id}/direction`, request);
+    const response = await httpClient.post<Direction>(path(id), request);
     return response.data;
   },
 
-  async getById(id: DirectionId): Promise<Direction> {
-    const response = await httpClient.get<Direction>(`/api/v1/directions/${id}`);
+  async update(id: EnterpriseCapabilityId, request: UpdateDirectionRequest): Promise<Direction> {
+    const response = await httpClient.put<Direction>(path(id), request);
     return response.data;
   },
 
-  async update(id: DirectionId, request: UpdateDirectionRequest): Promise<Direction> {
-    const response = await httpClient.put<Direction>(`/api/v1/directions/${id}`, request);
+  async propose(id: EnterpriseCapabilityId): Promise<Direction> {
+    const response = await httpClient.post<Direction>(path(id, '/propose'));
     return response.data;
   },
 
-  async advance(id: DirectionId, target: 'proposed' | 'agreed'): Promise<Direction> {
-    const response = await httpClient.post<Direction>(`/api/v1/directions/${id}/advance/${target}`);
+  async agree(id: EnterpriseCapabilityId): Promise<Direction> {
+    const response = await httpClient.post<Direction>(path(id, '/agree'));
     return response.data;
   },
 
-  async reject(id: DirectionId): Promise<Direction> {
-    const response = await httpClient.post<Direction>(`/api/v1/directions/${id}/reject`);
+  async reject(id: EnterpriseCapabilityId): Promise<Direction> {
+    const response = await httpClient.post<Direction>(path(id, '/reject'));
     return response.data;
   },
 };

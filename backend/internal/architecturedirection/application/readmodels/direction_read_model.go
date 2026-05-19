@@ -4,12 +4,24 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"time"
+
+	"github.com/lib/pq"
 
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/types"
 )
+
+// ErrActiveDirectionAlreadyExists surfaces when a unique-violation on the
+// uq_directions_active_per_ec partial index fires during projection. The
+// command-handler check (HasActiveDirectionForEnterpriseCapability) is racy;
+// this is the DB-side backstop translated into a meaningful error.
+var ErrActiveDirectionAlreadyExists = errors.New("an active direction already exists on this enterprise capability")
+
+const pgUniqueViolation = "23505"
+const activeDirectionUniqueConstraint = "uq_directions_active_per_ec"
 
 type DirectionPlacementDTO struct {
 	TargetBusinessDomainID string `json:"targetBusinessDomainId"`
@@ -57,34 +69,44 @@ type InsertDirectionParams struct {
 }
 
 func (rm *DirectionReadModel) Insert(ctx context.Context, p InsertDirectionParams) error {
-	tenantID, err := tenantOf(ctx)
-	if err != nil {
-		return err
-	}
 	placementsJSON, err := json.Marshal(p.Placements)
 	if err != nil {
 		return err
 	}
+	return rm.withTx(ctx, func(tx *sql.Tx, tenantID string) error {
+		if _, err := tx.ExecContext(ctx,
+			`INSERT INTO architecturedirection.directions
+			 (id, tenant_id, enterprise_capability_id, type, status, horizon, narrative, placements, created_at)
+			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9)
+			 ON CONFLICT (tenant_id, id) DO UPDATE SET
+			   enterprise_capability_id = EXCLUDED.enterprise_capability_id,
+			   type = EXCLUDED.type,
+			   status = EXCLUDED.status,
+			   horizon = EXCLUDED.horizon,
+			   narrative = EXCLUDED.narrative,
+			   placements = EXCLUDED.placements,
+			   created_at = EXCLUDED.created_at`,
+			p.ID, tenantID, p.EnterpriseCapabilityID, p.Type, p.Status, p.Horizon, p.Narrative, string(placementsJSON), p.CreatedAt,
+		); err != nil {
+			return mapInsertError(err)
+		}
+		return sourceRowReplacement{tx: tx, tenantID: tenantID, directionID: p.ID, sourceCapabilityIDs: p.SourceCapabilityIDs}.execute(ctx)
+	})
+}
 
-	_, err = rm.db.ExecContext(ctx,
-		`INSERT INTO architecturedirection.directions
-		 (id, tenant_id, enterprise_capability_id, type, status, horizon, narrative, placements, created_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9)
-		 ON CONFLICT (tenant_id, id) DO UPDATE SET
-		   enterprise_capability_id = EXCLUDED.enterprise_capability_id,
-		   type = EXCLUDED.type,
-		   status = EXCLUDED.status,
-		   horizon = EXCLUDED.horizon,
-		   narrative = EXCLUDED.narrative,
-		   placements = EXCLUDED.placements,
-		   created_at = EXCLUDED.created_at`,
-		p.ID, tenantID, p.EnterpriseCapabilityID, p.Type, p.Status, p.Horizon, p.Narrative, string(placementsJSON), p.CreatedAt,
-	)
-	if err != nil {
-		return err
+func mapInsertError(err error) error {
+	if isActiveDirectionUniqueViolation(err) {
+		return ErrActiveDirectionAlreadyExists
 	}
+	return err
+}
 
-	return rm.replaceSourceRows(ctx, tenantID, p.ID, p.SourceCapabilityIDs)
+func isActiveDirectionUniqueViolation(err error) bool {
+	var pqErr *pq.Error
+	if !errors.As(err, &pqErr) {
+		return false
+	}
+	return string(pqErr.Code) == pgUniqueViolation && pqErr.Constraint == activeDirectionUniqueConstraint
 }
 
 func (rm *DirectionReadModel) UpdateStatus(ctx context.Context, id, status string) error {
@@ -117,18 +139,17 @@ func (rm *DirectionReadModel) UpdatePlacements(ctx context.Context, id string, p
 }
 
 func (rm *DirectionReadModel) ReplaceSourceCapabilities(ctx context.Context, id string, sourceCapabilityIDs []string) error {
-	tenantID, err := tenantOf(ctx)
-	if err != nil {
+	return rm.withTx(ctx, func(tx *sql.Tx, tenantID string) error {
+		replacement := sourceRowReplacement{tx: tx, tenantID: tenantID, directionID: id, sourceCapabilityIDs: sourceCapabilityIDs}
+		if err := replacement.execute(ctx); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(ctx,
+			`UPDATE architecturedirection.directions SET updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $1 AND id = $2`,
+			tenantID, id,
+		)
 		return err
-	}
-	if err := rm.replaceSourceRows(ctx, tenantID, id, sourceCapabilityIDs); err != nil {
-		return err
-	}
-	_, err = rm.db.ExecContext(ctx,
-		`UPDATE architecturedirection.directions SET updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $1 AND id = $2`,
-		tenantID, id,
-	)
-	return err
+	})
 }
 
 func (rm *DirectionReadModel) MarkSourceCapabilityStale(ctx context.Context, capabilityID string) error {
@@ -202,18 +223,41 @@ func (rm *DirectionReadModel) updateColumn(ctx context.Context, id, column, valu
 	return err
 }
 
-func (rm *DirectionReadModel) replaceSourceRows(ctx context.Context, tenantID, directionID string, sourceCapabilityIDs []string) error {
-	if _, err := rm.db.ExecContext(ctx,
+func (rm *DirectionReadModel) withTx(ctx context.Context, fn func(tx *sql.Tx, tenantID string) error) error {
+	tenantID, err := tenantOf(ctx)
+	if err != nil {
+		return err
+	}
+	tx, err := rm.db.BeginTxWithTenant(ctx, nil)
+	if err != nil {
+		return err
+	}
+	if err := fn(tx, tenantID); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	return tx.Commit()
+}
+
+type sourceRowReplacement struct {
+	tx                  *sql.Tx
+	tenantID            string
+	directionID         string
+	sourceCapabilityIDs []string
+}
+
+func (r sourceRowReplacement) execute(ctx context.Context) error {
+	if _, err := r.tx.ExecContext(ctx,
 		`DELETE FROM architecturedirection.direction_source_capabilities WHERE tenant_id = $1 AND direction_id = $2`,
-		tenantID, directionID,
+		r.tenantID, r.directionID,
 	); err != nil {
 		return err
 	}
-	for _, sid := range sourceCapabilityIDs {
-		if _, err := rm.db.ExecContext(ctx,
+	for _, sid := range r.sourceCapabilityIDs {
+		if _, err := r.tx.ExecContext(ctx,
 			`INSERT INTO architecturedirection.direction_source_capabilities
 			 (tenant_id, direction_id, capability_id) VALUES ($1, $2, $3)`,
-			tenantID, directionID, sid,
+			r.tenantID, r.directionID, sid,
 		); err != nil {
 			return err
 		}

@@ -248,10 +248,21 @@ func TestReject_FromProposed_Succeeds(t *testing.T) {
 	assert.True(t, d.Status().IsRejected())
 }
 
-func TestReject_FromAgreed_Fails(t *testing.T) {
+func TestReject_FromAgreed_Succeeds(t *testing.T) {
 	d := draftConsolidate(t)
 	require.NoError(t, d.Propose())
 	require.NoError(t, d.Agree())
+	d.MarkChangesAsCommitted()
+
+	err := d.Reject()
+	require.NoError(t, err)
+	assert.True(t, d.Status().IsRejected())
+	assert.False(t, d.Status().IsActive())
+}
+
+func TestReject_FromRejected_Fails(t *testing.T) {
+	d := draftConsolidate(t)
+	require.NoError(t, d.Reject())
 	d.MarkChangesAsCommitted()
 
 	err := d.Reject()

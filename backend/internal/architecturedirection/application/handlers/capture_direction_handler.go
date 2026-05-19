@@ -3,14 +3,31 @@ package handlers
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"easi/backend/internal/architecturedirection/application/commands"
+	"easi/backend/internal/architecturedirection/application/readmodels"
 	"easi/backend/internal/architecturedirection/domain/aggregates"
 	"easi/backend/internal/architecturedirection/domain/valueobjects"
 	"easi/backend/internal/shared/cqrs"
 )
 
-var ErrActiveDirectionAlreadyExists = errors.New("an active direction already exists on this enterprise capability; reject it before capturing another")
+// ErrActiveDirectionAlreadyExists is returned both from the handler's pre-write
+// read-model check and (via the projector) from the DB-side partial-unique
+// backstop. Single sentinel so HTTP mapping is uniform.
+var ErrActiveDirectionAlreadyExists = readmodels.ErrActiveDirectionAlreadyExists
+
+var ErrReferencedEntityNotFound = errors.New("a referenced entity does not exist or is not accessible in this tenant")
+
+// ReferenceChecker validates that the IDs supplied at capture time resolve to
+// entities the caller's tenant can see. Lookups go through the upstream read
+// models, which apply RLS — so a cross-tenant ID returns "not found" without
+// disclosing existence.
+type ReferenceChecker interface {
+	EnterpriseCapabilityExists(ctx context.Context, id string) (bool, error)
+	PhysicalCapabilityExists(ctx context.Context, id string) (bool, error)
+	BusinessDomainExists(ctx context.Context, id string) (bool, error)
+}
 
 type DirectionRepository interface {
 	Save(ctx context.Context, d *aggregates.Direction) error
@@ -21,18 +38,22 @@ type ActiveDirectionLookup interface {
 }
 
 type CaptureDirectionHandler struct {
-	repo   DirectionRepository
-	lookup ActiveDirectionLookup
+	repo       DirectionRepository
+	lookup     ActiveDirectionLookup
+	references ReferenceChecker
 }
 
-func NewCaptureDirectionHandler(repo DirectionRepository, lookup ActiveDirectionLookup) *CaptureDirectionHandler {
-	return &CaptureDirectionHandler{repo: repo, lookup: lookup}
+func NewCaptureDirectionHandler(repo DirectionRepository, lookup ActiveDirectionLookup, references ReferenceChecker) *CaptureDirectionHandler {
+	return &CaptureDirectionHandler{repo: repo, lookup: lookup, references: references}
 }
 
 func (h *CaptureDirectionHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.CaptureDirection)
 	if !ok {
 		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
+	}
+	if err := h.verifyReferences(ctx, command); err != nil {
+		return cqrs.EmptyResult(), err
 	}
 	if err := h.ensureNoActiveDirection(ctx, command.EnterpriseCapabilityID); err != nil {
 		return cqrs.EmptyResult(), err
@@ -49,6 +70,47 @@ func (h *CaptureDirectionHandler) Handle(ctx context.Context, cmd cqrs.Command) 
 		return cqrs.EmptyResult(), err
 	}
 	return cqrs.NewResult(direction.ID()), nil
+}
+
+func (h *CaptureDirectionHandler) verifyReferences(ctx context.Context, cmd *commands.CaptureDirection) error {
+	if h.references == nil {
+		return nil
+	}
+	if err := requireExists(ctx, h.references.EnterpriseCapabilityExists, cmd.EnterpriseCapabilityID, "enterprise capability"); err != nil {
+		return err
+	}
+	if err := verifyAll(ctx, h.references.PhysicalCapabilityExists, cmd.SourceCapabilityIDs, "source capability"); err != nil {
+		return err
+	}
+	return verifyAll(ctx, h.references.BusinessDomainExists, placementDomainIDs(cmd.Placements), "target business domain")
+}
+
+func placementDomainIDs(placements []commands.PlacementInput) []string {
+	ids := make([]string, len(placements))
+	for i, p := range placements {
+		ids[i] = p.TargetBusinessDomainID
+	}
+	return ids
+}
+
+func verifyAll(ctx context.Context, check func(context.Context, string) (bool, error), ids []string, label string) error {
+	for _, id := range ids {
+		if err := requireExists(ctx, check, id, label); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func requireExists(ctx context.Context, check func(context.Context, string) (bool, error), id, label string) error {
+	exists, err := check(ctx, id)
+	if err != nil {
+		return fmt.Errorf("verify %s %s: %w", label, id, err)
+	}
+	if !exists {
+		return fmt.Errorf("%w: %s %s", ErrReferencedEntityNotFound, label, id)
+	}
+	return nil
 }
 
 func (h *CaptureDirectionHandler) ensureNoActiveDirection(ctx context.Context, enterpriseCapabilityID string) error {

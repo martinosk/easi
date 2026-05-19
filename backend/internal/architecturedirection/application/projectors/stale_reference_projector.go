@@ -5,10 +5,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
 	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	domain "easi/backend/internal/shared/eventsourcing"
 )
+
+// capabilityDeletedPayload mirrors capabilitymapping's CapabilityDeletedPayload.
+// The architecture-test forbids importing /publishedlanguage/contracts across
+// bounded contexts, so the shape is duplicated here. If the upstream contract
+// changes, update this struct alongside it.
+type capabilityDeletedPayload struct {
+	ID        string    `json:"id"`
+	DeletedAt time.Time `json:"deletedAt"`
+}
 
 type StaleReferenceStore interface {
 	MarkSourceCapabilityStale(ctx context.Context, capabilityID string) error
@@ -36,14 +46,12 @@ func (p *StaleReferenceProjector) ProjectEvent(ctx context.Context, eventType st
 	if eventType != cmPL.CapabilityDeleted {
 		return nil
 	}
-	var generic struct {
-		ID string `json:"id"`
+	var payload capabilityDeletedPayload
+	if err := json.Unmarshal(eventData, &payload); err != nil {
+		return fmt.Errorf("unmarshal CapabilityDeleted payload: %w", err)
 	}
-	if err := json.Unmarshal(eventData, &generic); err != nil {
-		return err
-	}
-	if generic.ID == "" {
+	if payload.ID == "" {
 		return nil
 	}
-	return p.readModel.MarkSourceCapabilityStale(ctx, generic.ID)
+	return p.readModel.MarkSourceCapabilityStale(ctx, payload.ID)
 }

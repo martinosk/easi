@@ -2,6 +2,7 @@ package aggregates
 
 import (
 	"errors"
+	"fmt"
 
 	"easi/backend/internal/architecturedirection/domain/events"
 	"easi/backend/internal/architecturedirection/domain/valueobjects"
@@ -15,6 +16,7 @@ var (
 	ErrNarrativeRequiredToPropose  = errors.New("narrative is required before advancing a direction to proposed")
 	ErrInvalidStatusTransition     = errors.New("status transition not allowed from current status")
 	ErrDirectionAgreedImmutable    = errors.New("agreed directions are immutable; reject and replace to change")
+	ErrCorruptedEvent              = errors.New("corrupted event store: cannot rehydrate direction")
 )
 
 type Direction struct {
@@ -67,9 +69,16 @@ func LoadDirectionFromHistory(eventHistory []domain.DomainEvent) (*Direction, er
 	aggregate := &Direction{
 		AggregateRoot: domain.NewAggregateRoot(),
 	}
+	var applyErr error
 	aggregate.LoadFromHistory(eventHistory, func(event domain.DomainEvent) {
-		aggregate.apply(event)
+		if applyErr != nil {
+			return
+		}
+		applyErr = aggregate.apply(event)
 	})
+	if applyErr != nil {
+		return nil, applyErr
+	}
 	return aggregate, nil
 }
 
@@ -172,57 +181,132 @@ func (d *Direction) requireEditable() error {
 }
 
 func (d *Direction) raise(event domain.DomainEvent) {
-	d.apply(event)
+	// In-process events constructed from valid value objects; an apply error
+	// here is a programmer error, not a corrupted store.
+	if err := d.apply(event); err != nil {
+		panic(fmt.Sprintf("architecturedirection: in-process apply failed: %v", err))
+	}
 	d.RaiseEvent(event)
 }
 
-func (d *Direction) apply(event domain.DomainEvent) {
+func (d *Direction) apply(event domain.DomainEvent) error {
 	if drafted, ok := event.(events.DirectionDrafted); ok {
-		d.applyDrafted(drafted)
-		return
+		return d.applyDrafted(drafted)
 	}
-	if d.applyStatusTransition(event) {
-		return
+	if ok, err := d.applyStatusTransition(event); ok {
+		return err
 	}
-	d.applyFieldUpdate(event)
+	return d.applyFieldUpdate(event)
 }
 
-func (d *Direction) applyStatusTransition(event domain.DomainEvent) bool {
+func (d *Direction) applyStatusTransition(event domain.DomainEvent) (bool, error) {
+	var target string
 	switch event.(type) {
 	case events.DirectionProposed:
-		d.status = mustStatus(valueobjects.DirectionStatusProposed)
+		target = valueobjects.DirectionStatusProposed
 	case events.DirectionAgreed:
-		d.status = mustStatus(valueobjects.DirectionStatusAgreed)
+		target = valueobjects.DirectionStatusAgreed
 	case events.DirectionRejected:
-		d.status = mustStatus(valueobjects.DirectionStatusRejected)
+		target = valueobjects.DirectionStatusRejected
 	default:
-		return false
+		return false, nil
 	}
-	return true
+	status, err := valueobjects.NewDirectionStatus(target)
+	if err != nil {
+		return true, fmt.Errorf("%w: invalid status %q: %v", ErrCorruptedEvent, target, err)
+	}
+	d.status = status
+	return true, nil
 }
 
-func (d *Direction) applyFieldUpdate(event domain.DomainEvent) {
+func (d *Direction) applyFieldUpdate(event domain.DomainEvent) error {
 	switch evt := event.(type) {
 	case events.DirectionNarrativeUpdated:
-		d.narrative = mustNarrative(evt.Narrative)
+		return d.applyNarrativeUpdated(evt)
 	case events.DirectionHorizonChanged:
-		d.horizon = mustHorizon(evt.Horizon)
+		return d.applyHorizonChanged(evt)
 	case events.DirectionSourceCapabilitiesChanged:
-		d.sourceCapabilityIDs = mustPhysicalRefs(evt.SourceCapabilityIDs)
+		return d.applySourceCapabilitiesChanged(evt)
 	case events.DirectionPlacementsChanged:
-		d.placements = mustPlacements(evt.Placements)
+		return d.applyPlacementsChanged(evt)
 	}
+	return nil
 }
 
-func (d *Direction) applyDrafted(evt events.DirectionDrafted) {
+func (d *Direction) applyNarrativeUpdated(evt events.DirectionNarrativeUpdated) error {
+	n, err := valueobjects.NewNarrative(evt.Narrative)
+	if err != nil {
+		return fmt.Errorf("%w: narrative: %v", ErrCorruptedEvent, err)
+	}
+	d.narrative = n
+	return nil
+}
+
+func (d *Direction) applyHorizonChanged(evt events.DirectionHorizonChanged) error {
+	h, err := valueobjects.NewHorizon(evt.Horizon)
+	if err != nil {
+		return fmt.Errorf("%w: horizon %q: %v", ErrCorruptedEvent, evt.Horizon, err)
+	}
+	d.horizon = h
+	return nil
+}
+
+func (d *Direction) applySourceCapabilitiesChanged(evt events.DirectionSourceCapabilitiesChanged) error {
+	refs, err := decodePhysicalRefs(evt.SourceCapabilityIDs)
+	if err != nil {
+		return err
+	}
+	d.sourceCapabilityIDs = refs
+	return nil
+}
+
+func (d *Direction) applyPlacementsChanged(evt events.DirectionPlacementsChanged) error {
+	placements, err := decodePlacements(evt.Placements)
+	if err != nil {
+		return err
+	}
+	d.placements = placements
+	return nil
+}
+
+func (d *Direction) applyDrafted(evt events.DirectionDrafted) error {
+	ecRef, err := valueobjects.NewEnterpriseCapabilityRef(evt.EnterpriseCapabilityID)
+	if err != nil {
+		return fmt.Errorf("%w: enterprise capability ref %q: %v", ErrCorruptedEvent, evt.EnterpriseCapabilityID, err)
+	}
+	dt, err := valueobjects.NewDirectionType(evt.Type)
+	if err != nil {
+		return fmt.Errorf("%w: direction type %q: %v", ErrCorruptedEvent, evt.Type, err)
+	}
+	sourceRefs, err := decodePhysicalRefs(evt.SourceCapabilityIDs)
+	if err != nil {
+		return err
+	}
+	placements, err := decodePlacements(evt.Placements)
+	if err != nil {
+		return err
+	}
+	horizon, err := valueobjects.NewHorizon(evt.Horizon)
+	if err != nil {
+		return fmt.Errorf("%w: horizon %q: %v", ErrCorruptedEvent, evt.Horizon, err)
+	}
+	narrative, err := valueobjects.NewNarrative(evt.Narrative)
+	if err != nil {
+		return fmt.Errorf("%w: narrative: %v", ErrCorruptedEvent, err)
+	}
+	status, err := valueobjects.NewDirectionStatus(valueobjects.DirectionStatusDraft)
+	if err != nil {
+		return fmt.Errorf("%w: status: %v", ErrCorruptedEvent, err)
+	}
 	d.AggregateRoot = domain.NewAggregateRootWithID(evt.ID)
-	d.enterpriseCapabilityID = mustECRef(evt.EnterpriseCapabilityID)
-	d.directionType = mustDirectionType(evt.Type)
-	d.sourceCapabilityIDs = mustPhysicalRefs(evt.SourceCapabilityIDs)
-	d.placements = mustPlacements(evt.Placements)
-	d.horizon = mustHorizon(evt.Horizon)
-	d.status = mustStatus(valueobjects.DirectionStatusDraft)
-	d.narrative = mustNarrative(evt.Narrative)
+	d.enterpriseCapabilityID = ecRef
+	d.directionType = dt
+	d.sourceCapabilityIDs = sourceRefs
+	d.placements = placements
+	d.horizon = horizon
+	d.status = status
+	d.narrative = narrative
+	return nil
 }
 
 func validateSourceCardinality(t valueobjects.DirectionType, refs []valueobjects.PhysicalCapabilityRef) error {
@@ -278,66 +362,26 @@ func placementsToData(placements []valueobjects.Placement) []events.PlacementDat
 	return out
 }
 
-func mustStatus(value string) valueobjects.DirectionStatus {
-	s, err := valueobjects.NewDirectionStatus(value)
-	if err != nil {
-		panic("corrupted event store: invalid direction status: " + value)
-	}
-	return s
-}
-
-func mustHorizon(value string) valueobjects.Horizon {
-	h, err := valueobjects.NewHorizon(value)
-	if err != nil {
-		panic("corrupted event store: invalid horizon: " + value)
-	}
-	return h
-}
-
-func mustNarrative(value string) valueobjects.Narrative {
-	n, err := valueobjects.NewNarrative(value)
-	if err != nil {
-		panic("corrupted event store: invalid narrative")
-	}
-	return n
-}
-
-func mustDirectionType(value string) valueobjects.DirectionType {
-	t, err := valueobjects.NewDirectionType(value)
-	if err != nil {
-		panic("corrupted event store: invalid direction type: " + value)
-	}
-	return t
-}
-
-func mustECRef(value string) valueobjects.EnterpriseCapabilityRef {
-	r, err := valueobjects.NewEnterpriseCapabilityRef(value)
-	if err != nil {
-		panic("corrupted event store: invalid enterprise capability ref: " + value)
-	}
-	return r
-}
-
-func mustPhysicalRefs(values []string) []valueobjects.PhysicalCapabilityRef {
+func decodePhysicalRefs(values []string) ([]valueobjects.PhysicalCapabilityRef, error) {
 	out := make([]valueobjects.PhysicalCapabilityRef, len(values))
 	for i, v := range values {
 		r, err := valueobjects.NewPhysicalCapabilityRef(v)
 		if err != nil {
-			panic("corrupted event store: invalid physical capability ref: " + v)
+			return nil, fmt.Errorf("%w: physical capability ref %q: %v", ErrCorruptedEvent, v, err)
 		}
 		out[i] = r
 	}
-	return out
+	return out, nil
 }
 
-func mustPlacements(values []events.PlacementData) []valueobjects.Placement {
+func decodePlacements(values []events.PlacementData) ([]valueobjects.Placement, error) {
 	out := make([]valueobjects.Placement, len(values))
 	for i, v := range values {
 		p, err := valueobjects.NewPlacement(v.TargetBusinessDomainID, v.ResultingName)
 		if err != nil {
-			panic("corrupted event store: invalid placement")
+			return nil, fmt.Errorf("%w: placement %d: %v", ErrCorruptedEvent, i, err)
 		}
 		out[i] = p
 	}
-	return out
+	return out, nil
 }

@@ -3,6 +3,7 @@ package projectors
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 
@@ -73,7 +74,7 @@ func (p *DirectionProjector) handleDrafted(ctx context.Context, eventData []byte
 				ResultingName:          pl.ResultingName,
 			}
 		}
-		return p.readModel.Insert(ctx, readmodels.InsertDirectionParams{
+		err := p.readModel.Insert(ctx, readmodels.InsertDirectionParams{
 			ID:                     e.ID,
 			EnterpriseCapabilityID: e.EnterpriseCapabilityID,
 			Type:                   e.Type,
@@ -84,6 +85,11 @@ func (p *DirectionProjector) handleDrafted(ctx context.Context, eventData []byte
 			Placements:             placements,
 			CreatedAt:              e.CreatedAt,
 		})
+		if errors.Is(err, readmodels.ErrActiveDirectionAlreadyExists) {
+			log.Printf("architecturedirection: orphan DirectionDrafted event %s for EC %s lost the race against an existing active direction; reject it before retrying capture",
+				e.ID, e.EnterpriseCapabilityID)
+		}
+		return err
 	})
 }
 

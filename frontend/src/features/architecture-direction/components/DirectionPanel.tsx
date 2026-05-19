@@ -1,11 +1,16 @@
+import { Alert, Anchor, Badge, Box, Button, Group, List, Loader, Modal, Stack, Text, Title } from '@mantine/core';
 import { useMemo, useState } from 'react';
 import type { EnterpriseCapabilityId } from '../../../api/types';
 import { useBusinessDomainsQuery } from '../../business-domains/hooks/useBusinessDomains';
 import { useEnterpriseCapabilityLinks } from '../../enterprise-architecture/hooks/useEnterpriseCapabilities';
-import { useAdvanceDirection, useDirectionForEnterpriseCapability, useRejectDirection } from '../hooks/useDirection';
+import {
+  useAgreeDirection,
+  useDirectionForEnterpriseCapability,
+  useProposeDirection,
+  useRejectDirection,
+} from '../hooks/useDirection';
 import type { Direction } from '../types';
 import { CaptureDirectionForm } from './CaptureDirectionForm';
-import './DirectionPanel.css';
 import { DirectionStatusBadge } from './DirectionStatusBadge';
 
 interface DirectionPanelProps {
@@ -30,64 +35,82 @@ export function DirectionPanel({ enterpriseCapabilityId }: DirectionPanelProps) 
 
   if (isLoading) {
     return (
-      <section className="direction-panel" aria-busy="true">
-        <h3>Direction</h3>
-        <p>Loading direction…</p>
-      </section>
+      <PanelShell aria-busy="true">
+        <Group justify="space-between" align="center" mb="sm">
+          <Title order={4}>Direction</Title>
+        </Group>
+        <Loader size="sm" />
+      </PanelShell>
     );
   }
 
   if (error) {
     return (
-      <section className="direction-panel">
-        <h3>Direction</h3>
-        <p className="direction-panel__error">Failed to load direction.</p>
-      </section>
+      <PanelShell>
+        <Group justify="space-between" align="center" mb="sm">
+          <Title order={4}>Direction</Title>
+        </Group>
+        <Alert color="red">Failed to load direction.</Alert>
+      </PanelShell>
     );
   }
 
-  if (isCapturing) {
-    return (
-      <section className="direction-panel" data-testid="direction-panel">
-        <header className="direction-panel__header">
-          <h3 className="direction-panel__title">Capture a direction</h3>
-        </header>
+  const direction = data?.direction ?? null;
+  const canCapture = !!data?._links?.['x-capture-direction'];
+
+  return (
+    <>
+      <PanelShell>
+        {direction ? (
+          <DirectionDetail direction={direction} enterpriseCapabilityId={enterpriseCapabilityId} />
+        ) : (
+          <NoDirectionView canCapture={canCapture} onCapture={() => setIsCapturing(true)} />
+        )}
+      </PanelShell>
+      <Modal
+        opened={isCapturing}
+        onClose={() => setIsCapturing(false)}
+        title="Capture a direction"
+        size="lg"
+        centered
+        data-testid="capture-direction-modal"
+      >
         <CaptureDirectionForm
           enterpriseCapabilityId={enterpriseCapabilityId}
           onCaptured={() => setIsCapturing(false)}
           onCancel={() => setIsCapturing(false)}
         />
-      </section>
-    );
-  }
+      </Modal>
+    </>
+  );
+}
 
-  const direction = data?.direction ?? null;
-  if (!direction) {
-    const canCapture = !!data?._links?.['x-capture-direction'];
-    return <NoDirectionView canCapture={canCapture} onCapture={() => setIsCapturing(true)} />;
-  }
-
-  return <DirectionDetail direction={direction} enterpriseCapabilityId={enterpriseCapabilityId} />;
+function PanelShell({ children, ...rest }: { children: React.ReactNode } & Record<string, unknown>) {
+  return (
+    <Box data-testid="direction-panel" component="section" {...rest}>
+      {children}
+    </Box>
+  );
 }
 
 function NoDirectionView({ canCapture, onCapture }: { canCapture: boolean; onCapture: () => void }) {
   return (
-    <section className="direction-panel" data-testid="direction-panel">
-      <header className="direction-panel__header">
-        <h3 className="direction-panel__title">Direction</h3>
-        <span data-testid="direction-empty-state" className="direction-panel__empty">
+    <Stack gap="sm">
+      <Group justify="space-between" align="center">
+        <Title order={4}>Direction</Title>
+        <Badge variant="light" color="gray" data-testid="direction-empty-state">
           No direction set
-        </span>
-      </header>
-      <p className="direction-panel__empty-body">
+        </Badge>
+      </Group>
+      <Text c="dimmed">
         The architecture group has not captured a direction on this enterprise capability.
-      </p>
+      </Text>
       {canCapture && (
-        <button type="button" className="btn btn-primary" onClick={onCapture}>
+        <Button onClick={onCapture} data-testid="capture-direction-button" style={{ alignSelf: 'flex-start' }}>
           Capture direction
-        </button>
+        </Button>
       )}
-    </section>
+    </Stack>
   );
 }
 
@@ -96,7 +119,11 @@ interface DirectionDetailProps {
   enterpriseCapabilityId: EnterpriseCapabilityId;
 }
 
-function indexBy<T>(items: T[] | undefined, key: (item: T) => string, value: (item: T) => string | undefined): (id: string) => string | undefined {
+function indexBy<T>(
+  items: T[] | undefined,
+  key: (item: T) => string,
+  value: (item: T) => string | undefined,
+): (id: string) => string | undefined {
   const lookup = new Map<string, string>();
   for (const item of items ?? []) {
     const v = value(item);
@@ -128,81 +155,63 @@ function useNameResolvers(enterpriseCapabilityId: EnterpriseCapabilityId) {
 function DirectionDetail({ direction, enterpriseCapabilityId }: DirectionDetailProps) {
   const { capabilityName, sourceDomainName, domainName } = useNameResolvers(enterpriseCapabilityId);
   return (
-    <section className="direction-panel" data-testid="direction-panel">
-      <DirectionHeader direction={direction} />
-      <DirectionNarrative narrative={direction.narrative} />
-      <DirectionFacts
-        direction={direction}
-        resolveCapabilityName={capabilityName}
-        resolveSourceDomainName={sourceDomainName}
-        resolveDomainName={domainName}
-      />
-      <DirectionActions direction={direction} enterpriseCapabilityId={enterpriseCapabilityId} />
-    </section>
-  );
-}
+    <Stack gap="sm">
+      <Group justify="space-between" align="center">
+        <Group gap="sm">
+          <Title order={4}>Direction</Title>
+          <Text c="dimmed" data-testid="direction-type">
+            {TYPE_LABELS[direction.type]}
+          </Text>
+        </Group>
+        <DirectionStatusBadge status={direction.status} />
+      </Group>
 
-function DirectionHeader({ direction }: { direction: Direction }) {
-  return (
-    <header className="direction-panel__header">
-      <div className="direction-panel__title">
-        <h3 style={{ margin: 0 }}>Direction</h3>
-        <span data-testid="direction-type">{TYPE_LABELS[direction.type]}</span>
-      </div>
-      <DirectionStatusBadge status={direction.status} />
-    </header>
+      <DirectionNarrative narrative={direction.narrative} />
+
+      <Box>
+        <Text size="sm" fw={600}>
+          Horizon
+        </Text>
+        <Text size="sm">{HORIZON_LABELS[direction.horizon]}</Text>
+      </Box>
+
+      <Box>
+        <Text size="sm" fw={600}>
+          Sources
+        </Text>
+        <SourceList
+          sources={direction.sourceCapabilities}
+          resolveName={capabilityName}
+          resolveDomain={sourceDomainName}
+        />
+      </Box>
+
+      {direction.placements.length > 0 && (
+        <Box>
+          <Text size="sm" fw={600}>
+            Placements
+          </Text>
+          <PlacementList placements={direction.placements} resolveDomainName={domainName} />
+        </Box>
+      )}
+
+      <DirectionActions direction={direction} enterpriseCapabilityId={enterpriseCapabilityId} />
+    </Stack>
   );
 }
 
 function DirectionNarrative({ narrative }: { narrative: Direction['narrative'] }) {
   if (narrative) {
     return (
-      <p data-testid="direction-narrative" className="direction-panel__narrative">
+      <Text data-testid="direction-narrative" size="sm">
         {narrative}
-      </p>
+      </Text>
     );
   }
   return (
-    <p className="direction-panel__narrative direction-panel__narrative--missing">
+    <Text c="dimmed" size="sm" fs="italic">
       No narrative yet. Add one before advancing this direction to proposed.
-    </p>
-  );
-}
-
-interface DirectionFactsProps {
-  direction: Direction;
-  resolveCapabilityName: (id: string) => string | undefined;
-  resolveSourceDomainName: (capabilityId: string) => string | undefined;
-  resolveDomainName: (id: string) => string | undefined;
-}
-
-function DirectionFacts({
-  direction,
-  resolveCapabilityName,
-  resolveSourceDomainName,
-  resolveDomainName,
-}: DirectionFactsProps) {
-  return (
-    <dl className="direction-facts">
-      <dt>Horizon</dt>
-      <dd>{HORIZON_LABELS[direction.horizon]}</dd>
-      <dt>Sources</dt>
-      <dd>
-        <SourceList
-          sources={direction.sourceCapabilities}
-          resolveName={resolveCapabilityName}
-          resolveDomain={resolveSourceDomainName}
-        />
-      </dd>
-      {direction.placements.length > 0 && (
-        <>
-          <dt>Placements</dt>
-          <dd>
-            <PlacementList placements={direction.placements} resolveDomainName={resolveDomainName} />
-          </dd>
-        </>
-      )}
-    </dl>
+    </Text>
   );
 }
 
@@ -214,27 +223,36 @@ interface SourceListProps {
 
 function SourceList({ sources, resolveName, resolveDomain }: SourceListProps) {
   return (
-    <ul data-testid="direction-sources" className="direction-list">
+    <List size="sm" listStyleType="disc" data-testid="direction-sources">
       {sources.map((source) => {
         const name = resolveName(source.id);
         const domain = resolveDomain(source.id);
         return (
-          <li key={source.id}>
+          <List.Item key={source.id}>
             {name ? (
-              <span className="direction-list__name">{name}</span>
+              <Anchor component="span" inherit>
+                {name}
+              </Anchor>
             ) : (
-              <code className="direction-list__name">{source.id}</code>
+              <Text component="code" size="xs">
+                {source.id}
+              </Text>
             )}
-            {domain && <span className="direction-list__domain">· {domain}</span>}
+            {domain && (
+              <Text component="span" size="xs" c="dimmed">
+                {' · '}
+                {domain}
+              </Text>
+            )}
             {source.stale && (
-              <span data-testid="stale-reference" className="direction-list__stale">
+              <Text component="span" size="xs" c="red" data-testid="stale-reference" ml="xs">
                 (stale — source capability deleted)
-              </span>
+              </Text>
             )}
-          </li>
+          </List.Item>
         );
       })}
-    </ul>
+    </List>
   );
 }
 
@@ -245,67 +263,75 @@ interface PlacementListProps {
 
 function PlacementList({ placements, resolveDomainName }: PlacementListProps) {
   return (
-    <ul className="direction-list">
+    <List size="sm" listStyleType="disc">
       {placements.map((placement, i) => {
         const domain = resolveDomainName(placement.targetBusinessDomainId);
         const name = placement.resultingName;
         return (
-          <li key={`${placement.targetBusinessDomainId}-${i}`}>
+          // biome-ignore lint/suspicious/noArrayIndexKey: placements may share a target domain ID; index is a stable composite key here
+          <List.Item key={`${placement.targetBusinessDomainId}-${i}`}>
             {name ? (
-              <span className="direction-list__name">{name}</span>
+              <Anchor component="span" inherit>
+                {name}
+              </Anchor>
             ) : (
-              <code className="direction-list__name">{placement.targetBusinessDomainId}</code>
+              <Text component="code" size="xs">
+                {placement.targetBusinessDomainId}
+              </Text>
             )}
-            {domain && <span className="direction-list__domain">· {domain}</span>}
-          </li>
+            {domain && (
+              <Text component="span" size="xs" c="dimmed">
+                {' · '}
+                {domain}
+              </Text>
+            )}
+          </List.Item>
         );
       })}
-    </ul>
+    </List>
   );
 }
 
 function DirectionActions({ direction, enterpriseCapabilityId }: DirectionDetailProps) {
-  const advanceMutation = useAdvanceDirection();
+  const proposeMutation = useProposeDirection();
+  const agreeMutation = useAgreeDirection();
   const rejectMutation = useRejectDirection();
   const links = direction._links ?? {};
-  const dispatch = (target: 'proposed' | 'agreed') =>
-    advanceMutation.mutate({ directionId: direction.id, enterpriseCapabilityId, target });
+  const anyPending = proposeMutation.isPending || agreeMutation.isPending || rejectMutation.isPending;
 
   return (
-    <div className="direction-actions">
-      {links['x-advance-proposed'] && (
-        <button
-          type="button"
-          className="btn btn-primary"
+    <Group gap="sm" data-testid="direction-actions">
+      {links['x-propose'] && (
+        <Button
           data-testid="advance-to-proposed"
-          disabled={advanceMutation.isPending}
-          onClick={() => dispatch('proposed')}
+          disabled={anyPending}
+          loading={proposeMutation.isPending}
+          onClick={() => proposeMutation.mutate({ enterpriseCapabilityId })}
         >
           Advance to proposed
-        </button>
+        </Button>
       )}
-      {links['x-advance-agreed'] && (
-        <button
-          type="button"
-          className="btn btn-primary"
+      {links['x-agree'] && (
+        <Button
           data-testid="advance-to-agreed"
-          disabled={advanceMutation.isPending}
-          onClick={() => dispatch('agreed')}
+          disabled={anyPending}
+          loading={agreeMutation.isPending}
+          onClick={() => agreeMutation.mutate({ enterpriseCapabilityId })}
         >
           Advance to agreed
-        </button>
+        </Button>
       )}
       {links['x-reject'] && (
-        <button
-          type="button"
-          className="btn btn-secondary"
+        <Button
+          variant="default"
           data-testid="reject-direction"
-          disabled={rejectMutation.isPending}
-          onClick={() => rejectMutation.mutate({ directionId: direction.id, enterpriseCapabilityId })}
+          disabled={anyPending}
+          loading={rejectMutation.isPending}
+          onClick={() => rejectMutation.mutate({ enterpriseCapabilityId })}
         >
           Reject
-        </button>
+        </Button>
       )}
-    </div>
+    </Group>
   );
 }

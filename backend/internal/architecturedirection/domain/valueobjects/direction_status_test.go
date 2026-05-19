@@ -66,7 +66,7 @@ func TestDirectionStatus_CanReject(t *testing.T) {
 	cases := map[string]bool{
 		"draft":    true,
 		"proposed": true,
-		"agreed":   false,
+		"agreed":   true,
 		"rejected": false,
 	}
 	for v, can := range cases {

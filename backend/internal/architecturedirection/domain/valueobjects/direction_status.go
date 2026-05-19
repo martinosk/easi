@@ -54,8 +54,13 @@ func (s DirectionStatus) CanAdvanceTo(target DirectionStatus) bool {
 	}
 }
 
+// CanReject allows rejection from any non-terminal state. The BDD scenario
+// "At most one active direction per enterprise capability" requires that an
+// architect can reject an agreed Direction to capture a new one — that path
+// is also the documented escape hatch for the type/horizon/resultingName
+// immutability rules (reject-and-replace).
 func (s DirectionStatus) CanReject() bool {
-	return s.value == DirectionStatusDraft || s.value == DirectionStatusProposed
+	return s.value != DirectionStatusRejected
 }
 
 func (s DirectionStatus) Equals(other domain.ValueObject) bool {

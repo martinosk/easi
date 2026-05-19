@@ -139,12 +139,13 @@ func TestGetDirectionForEC_WithDraftDirection_ShowsAdvanceAffordances(t *testing
 	}
 	require.NoError(t, json.NewDecoder(rec.Body).Decode(&body))
 	require.NotNil(t, body.Direction)
-	assert.Contains(t, body.Direction.Links, "x-advance-proposed")
+	assert.Contains(t, body.Direction.Links, "x-propose")
 	assert.Contains(t, body.Direction.Links, "x-reject")
-	assert.NotContains(t, body.Direction.Links, "x-advance-agreed")
+	assert.Contains(t, body.Direction.Links, "up")
+	assert.NotContains(t, body.Direction.Links, "x-agree")
 }
 
-func TestGetDirectionForEC_AgreedDirection_NoEditAffordances(t *testing.T) {
+func TestGetDirectionForEC_AgreedDirection_OnlyRejectAffordance(t *testing.T) {
 	ecID := uuid.New().String()
 	did := uuid.New().String()
 	queries := &mockDirectionQueries{
@@ -171,8 +172,9 @@ func TestGetDirectionForEC_AgreedDirection_NoEditAffordances(t *testing.T) {
 	require.NoError(t, json.NewDecoder(rec.Body).Decode(&body))
 	require.NotNil(t, body.Direction)
 	assert.NotContains(t, body.Direction.Links, "edit")
-	assert.NotContains(t, body.Direction.Links, "x-advance-agreed")
-	assert.NotContains(t, body.Direction.Links, "x-reject")
+	assert.NotContains(t, body.Direction.Links, "x-propose")
+	assert.NotContains(t, body.Direction.Links, "x-agree")
+	assert.Contains(t, body.Direction.Links, "x-reject", "spec allows reject-and-replace from agreed")
 }
 
 func TestCaptureDirection_DispatchesCommand(t *testing.T) {
@@ -181,7 +183,7 @@ func TestCaptureDirection_DispatchesCommand(t *testing.T) {
 	dom := uuid.New().String()
 	did := uuid.New().String()
 	bus := &mockCommandBus{createdID: did}
-	queries := &mockDirectionQueries{directionByID: &readmodels.DirectionDTO{
+	queries := &mockDirectionQueries{activeByEC: &readmodels.DirectionDTO{
 		ID: did, EnterpriseCapabilityID: ecID, Status: "draft",
 	}}
 	h := setupHandlers(bus, queries)
@@ -209,18 +211,19 @@ func TestCaptureDirection_DispatchesCommand(t *testing.T) {
 	assert.Len(t, cmd.SourceCapabilityIDs, 2)
 }
 
-func TestAdvanceDirection_DispatchesCommand(t *testing.T) {
+func TestProposeDirection_DispatchesCommand(t *testing.T) {
+	ecID := uuid.New().String()
 	did := uuid.New().String()
 	bus := &mockCommandBus{}
-	queries := &mockDirectionQueries{directionByID: &readmodels.DirectionDTO{
-		ID: did, EnterpriseCapabilityID: uuid.New().String(), Status: "proposed",
+	queries := &mockDirectionQueries{activeByEC: &readmodels.DirectionDTO{
+		ID: did, EnterpriseCapabilityID: ecID, Status: "draft",
 	}}
 	h := setupHandlers(bus, queries)
 
 	r := chi.NewRouter()
-	r.Post("/directions/{id}/advance/{target}", h.AdvanceDirection)
+	r.Post("/enterprise-capabilities/{id}/direction/propose", h.ProposeDirection)
 
-	req := httptest.NewRequest(http.MethodPost, "/directions/"+did+"/advance/proposed", nil)
+	req := httptest.NewRequest(http.MethodPost, "/enterprise-capabilities/"+ecID+"/direction/propose", nil)
 	req = req.WithContext(sharedctx.WithActor(req.Context(), architectActor()))
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
@@ -232,38 +235,63 @@ func TestAdvanceDirection_DispatchesCommand(t *testing.T) {
 	assert.Equal(t, "proposed", cmd.TargetStatus)
 }
 
-func TestRejectDirection_DispatchesCommand(t *testing.T) {
+func TestAgreeDirection_DispatchesCommand(t *testing.T) {
+	ecID := uuid.New().String()
 	did := uuid.New().String()
 	bus := &mockCommandBus{}
-	queries := &mockDirectionQueries{directionByID: &readmodels.DirectionDTO{
-		ID: did, EnterpriseCapabilityID: uuid.New().String(), Status: "rejected",
+	queries := &mockDirectionQueries{activeByEC: &readmodels.DirectionDTO{
+		ID: did, EnterpriseCapabilityID: ecID, Status: "proposed",
 	}}
 	h := setupHandlers(bus, queries)
 
 	r := chi.NewRouter()
-	r.Post("/directions/{id}/reject", h.RejectDirection)
+	r.Post("/enterprise-capabilities/{id}/direction/agree", h.AgreeDirection)
 
-	req := httptest.NewRequest(http.MethodPost, "/directions/"+did+"/reject", nil)
+	req := httptest.NewRequest(http.MethodPost, "/enterprise-capabilities/"+ecID+"/direction/agree", nil)
 	req = req.WithContext(sharedctx.WithActor(req.Context(), architectActor()))
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Len(t, bus.dispatched, 1)
-	_, ok := bus.dispatched[0].(*commands.RejectDirection)
-	assert.True(t, ok)
+	cmd := bus.dispatched[0].(*commands.AdvanceDirection)
+	assert.Equal(t, "agreed", cmd.TargetStatus)
 }
 
-func TestUpdateDirection_DispatchesNarrativeAndHorizon(t *testing.T) {
+func TestRejectDirection_DispatchesCommand(t *testing.T) {
+	ecID := uuid.New().String()
 	did := uuid.New().String()
 	bus := &mockCommandBus{}
-	queries := &mockDirectionQueries{directionByID: &readmodels.DirectionDTO{
-		ID: did, EnterpriseCapabilityID: uuid.New().String(), Status: "draft",
+	queries := &mockDirectionQueries{activeByEC: &readmodels.DirectionDTO{
+		ID: did, EnterpriseCapabilityID: ecID, Status: "agreed",
 	}}
 	h := setupHandlers(bus, queries)
 
 	r := chi.NewRouter()
-	r.Put("/directions/{id}", h.UpdateDirection)
+	r.Post("/enterprise-capabilities/{id}/direction/reject", h.RejectDirection)
+
+	req := httptest.NewRequest(http.MethodPost, "/enterprise-capabilities/"+ecID+"/direction/reject", nil)
+	req = req.WithContext(sharedctx.WithActor(req.Context(), architectActor()))
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Len(t, bus.dispatched, 1)
+	cmd := bus.dispatched[0].(*commands.RejectDirection)
+	assert.Equal(t, did, cmd.DirectionID)
+}
+
+func TestUpdateDirection_DispatchesNarrativeAndHorizon(t *testing.T) {
+	ecID := uuid.New().String()
+	did := uuid.New().String()
+	bus := &mockCommandBus{}
+	queries := &mockDirectionQueries{activeByEC: &readmodels.DirectionDTO{
+		ID: did, EnterpriseCapabilityID: ecID, Status: "draft",
+	}}
+	h := setupHandlers(bus, queries)
+
+	r := chi.NewRouter()
+	r.Put("/enterprise-capabilities/{id}/direction", h.UpdateDirection)
 
 	narrative := "Refined"
 	horizon := "later"
@@ -271,11 +299,36 @@ func TestUpdateDirection_DispatchesNarrativeAndHorizon(t *testing.T) {
 		Narrative: &narrative,
 		Horizon:   &horizon,
 	})
-	req := httptest.NewRequest(http.MethodPut, "/directions/"+did, bytes.NewReader(reqBody))
+	req := httptest.NewRequest(http.MethodPut, "/enterprise-capabilities/"+ecID+"/direction", bytes.NewReader(reqBody))
 	req = req.WithContext(sharedctx.WithActor(req.Context(), architectActor()))
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Len(t, bus.dispatched, 2)
+	narrativeCmd, ok := bus.dispatched[0].(*commands.UpdateDirectionNarrative)
+	require.True(t, ok)
+	assert.Equal(t, did, narrativeCmd.DirectionID)
+	assert.Equal(t, "Refined", narrativeCmd.Narrative)
+	horizonCmd, ok := bus.dispatched[1].(*commands.UpdateDirectionHorizon)
+	require.True(t, ok)
+	assert.Equal(t, "later", horizonCmd.Horizon)
+}
+
+func TestRejectDirection_NoActiveDirection_404(t *testing.T) {
+	ecID := uuid.New().String()
+	bus := &mockCommandBus{}
+	queries := &mockDirectionQueries{} // no active
+	h := setupHandlers(bus, queries)
+
+	r := chi.NewRouter()
+	r.Post("/enterprise-capabilities/{id}/direction/reject", h.RejectDirection)
+
+	req := httptest.NewRequest(http.MethodPost, "/enterprise-capabilities/"+ecID+"/direction/reject", nil)
+	req = req.WithContext(sharedctx.WithActor(req.Context(), architectActor()))
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusNotFound, rec.Code)
+	assert.Empty(t, bus.dispatched)
 }

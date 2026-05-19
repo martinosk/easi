@@ -1,3 +1,4 @@
+import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
@@ -47,9 +48,11 @@ function renderPanel(response: ECDirectionResponse, links: LinkFixture[] = []) {
   mockedDomains.mockReturnValue({ data: { data: [] } } as never);
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <QueryClientProvider client={queryClient}>
-      <DirectionPanel enterpriseCapabilityId={toEnterpriseCapabilityId('ec-1')} />
-    </QueryClientProvider>,
+    <MantineProvider>
+      <QueryClientProvider client={queryClient}>
+        <DirectionPanel enterpriseCapabilityId={toEnterpriseCapabilityId('ec-1')} />
+      </QueryClientProvider>
+    </MantineProvider>,
   );
 }
 
@@ -101,10 +104,11 @@ describe('DirectionPanel', () => {
         hasStaleReferences: false,
         createdAt: '2025-01-01T00:00:00Z',
         _links: {
-          'x-advance-proposed': { href: '/api/v1/directions/d-1/advance/proposed', method: 'POST' },
-          'x-reject': { href: '/api/v1/directions/d-1/reject', method: 'POST' },
+          'x-propose': { href: '/api/v1/enterprise-capabilities/ec-1/direction/propose', method: 'POST' },
+          'x-reject': { href: '/api/v1/enterprise-capabilities/ec-1/direction/reject', method: 'POST' },
         },
       },
+      _links: {},
     });
 
     await waitFor(() => {
@@ -134,9 +138,10 @@ describe('DirectionPanel', () => {
         hasStaleReferences: true,
         createdAt: '2025-01-01T00:00:00Z',
         _links: {
-          'x-advance-agreed': { href: '/api/v1/directions/d-1/advance/agreed', method: 'POST' },
+          'x-agree': { href: '/api/v1/enterprise-capabilities/ec-1/direction/agree', method: 'POST' },
         },
       },
+      _links: {},
     });
 
     await waitFor(() => {
@@ -163,6 +168,7 @@ describe('DirectionPanel', () => {
           createdAt: '2025-01-01T00:00:00Z',
           _links: {},
         },
+        _links: {},
       },
       [
         { capabilityId: 'cap-1', capabilityName: 'Customer Care', businessDomainName: 'Passenger' },
@@ -177,7 +183,7 @@ describe('DirectionPanel', () => {
     });
   });
 
-  it('hides advance/reject actions for an agreed direction', async () => {
+  it('offers reject (but not advance/edit) for an agreed direction', async () => {
     renderPanel({
       direction: {
         id: 'd-1',
@@ -190,8 +196,11 @@ describe('DirectionPanel', () => {
         placements: [],
         hasStaleReferences: false,
         createdAt: '2025-01-01T00:00:00Z',
-        _links: {},
+        _links: {
+          'x-reject': { href: '/api/v1/enterprise-capabilities/ec-1/direction/reject', method: 'POST' },
+        },
       },
+      _links: {},
     });
 
     await waitFor(() => {
@@ -199,6 +208,7 @@ describe('DirectionPanel', () => {
     });
     expect(screen.queryByTestId('advance-to-proposed')).not.toBeInTheDocument();
     expect(screen.queryByTestId('advance-to-agreed')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('reject-direction')).not.toBeInTheDocument();
+    // Per spec BDD: reject-and-replace remains the documented escape hatch from agreed.
+    expect(screen.getByTestId('reject-direction')).toBeInTheDocument();
   });
 });

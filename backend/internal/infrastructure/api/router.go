@@ -16,6 +16,8 @@ import (
 	archAssistantRateLimit "easi/backend/internal/archassistant/infrastructure/ratelimit"
 	archAssistantRepos "easi/backend/internal/archassistant/infrastructure/repositories"
 	directionAPI "easi/backend/internal/architecturedirection/infrastructure/api"
+	directionAdapters "easi/backend/internal/architecturedirection/infrastructure/adapters"
+	eaReadModels "easi/backend/internal/enterprisearchitecture/application/readmodels"
 	archReadModels "easi/backend/internal/architecturemodeling/application/readmodels"
 	archAdapters "easi/backend/internal/architecturemodeling/infrastructure/adapters"
 	architectureAPI "easi/backend/internal/architecturemodeling/infrastructure/api"
@@ -268,15 +270,22 @@ func setupDomainRoutes(r chi.Router, deps routerDependencies) {
 		SessionProvider: deps.authDeps.SessionManager,
 	}), "enterprise architecture routes")
 
+	directionRefChecker := directionAdapters.NewReferenceCheckerAdapter(
+		nilDTOMeansAbsent(eaReadModels.NewEnterpriseCapabilityReadModel(deps.db).GetByID),
+		nilDTOMeansAbsent(capReadModels.NewCapabilityReadModel(deps.db).GetByID),
+		nilDTOMeansAbsent(capReadModels.NewBusinessDomainReadModel(deps.db).GetByID),
+	)
+
 	mustSetup(directionAPI.SetupRoutes(directionAPI.RoutesDeps{
-		Router:          r,
-		CommandBus:      deps.commandBus,
-		EventStore:      deps.eventStore,
-		EventBus:        deps.eventBus,
-		DB:              deps.db,
-		HATEOAS:         deps.hateoas,
-		AuthMiddleware:  deps.authDeps.AuthMiddleware,
-		SessionProvider: deps.authDeps.SessionManager,
+		Router:           r,
+		CommandBus:       deps.commandBus,
+		EventStore:       deps.eventStore,
+		EventBus:         deps.eventBus,
+		DB:               deps.db,
+		HATEOAS:          deps.hateoas,
+		AuthMiddleware:   deps.authDeps.AuthMiddleware,
+		SessionProvider:  deps.authDeps.SessionManager,
+		ReferenceChecker: directionRefChecker,
 	}), "architecture direction routes")
 
 	viewlayoutsAPI.SubscribeEvents(deps.eventBus, deps.db)
@@ -366,6 +375,19 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 
 func versionHandler(w http.ResponseWriter, r *http.Request) {
 	sharedAPI.RespondJSON(w, http.StatusOK, map[string]string{"version": appVersion})
+}
+
+// nilDTOMeansAbsent adapts a read-model `GetByID` (which returns `nil, nil` on
+// not-found) into an existence predicate. Used to plumb upstream read models
+// into the architecturedirection ReferenceChecker without leaking their DTOs.
+func nilDTOMeansAbsent[T any](getByID func(context.Context, string) (*T, error)) directionAdapters.ExistenceCheck {
+	return func(ctx context.Context, id string) (bool, error) {
+		dto, err := getByID(ctx, id)
+		if err != nil {
+			return false, err
+		}
+		return dto != nil, nil
+	}
 }
 
 func mustSetup(err error, name string) {

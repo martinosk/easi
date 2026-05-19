@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"errors"
 	"net/http"
 
 	"easi/backend/internal/architecturedirection/application/commands"
@@ -60,13 +59,17 @@ type ECDirectionResponse struct {
 }
 
 // GetDirectionForEnterpriseCapability godoc
-// @Summary Get direction for enterprise capability
-// @Description Returns the current active direction on an enterprise capability, or null if none
+// @Summary Get the direction for an enterprise capability
+// @Description Returns the current active direction on an enterprise capability, or null if none.
 // @Tags directions
 // @Produce json
+// @Security CookieAuth
 // @Param id path string true "Enterprise capability ID"
 // @Success 200 {object} ECDirectionResponse
+// @Failure 401 {object} sharedAPI.ErrorResponse
+// @Failure 403 {object} sharedAPI.ErrorResponse
 // @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /enterprise-capabilities/{id}/direction [get]
 func (h *DirectionHandlers) GetDirectionForEnterpriseCapability(w http.ResponseWriter, r *http.Request) {
 	ecID := sharedAPI.GetPathParam(r, "id")
@@ -78,25 +81,30 @@ func (h *DirectionHandlers) GetDirectionForEnterpriseCapability(w http.ResponseW
 	actor, _ := sharedctx.GetActor(r.Context())
 	envelope := ECDirectionResponse{
 		Direction: direction,
-		Links:     h.hateoas.EnterpriseCapabilityDirectionLinks(ecID, direction != nil, actor),
+		Links:     h.hateoas.EnterpriseCapabilityDirectionLinks(ecID, direction, actor),
 	}
 	if direction != nil {
-		direction.Links = h.hateoas.DirectionForActor(direction.ID, direction.EnterpriseCapabilityID, direction.Status, actor)
+		direction.Links = h.hateoas.DirectionForActor(ecID, direction.Status, actor)
 	}
 	sharedAPI.RespondJSON(w, http.StatusOK, envelope)
 }
 
 // CaptureDirection godoc
 // @Summary Capture a draft direction on an enterprise capability
-// @Description Creates a new direction in draft status; rejected if an active direction already exists
+// @Description Creates a new direction in draft status; rejected if an active direction already exists.
 // @Tags directions
 // @Accept json
 // @Produce json
+// @Security CookieAuth
 // @Param id path string true "Enterprise capability ID"
 // @Param body body CaptureDirectionRequest true "Direction data"
 // @Success 201 {object} easi_backend_internal_architecturedirection_application_readmodels.DirectionDTO
 // @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 401 {object} sharedAPI.ErrorResponse
+// @Failure 403 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
 // @Failure 409 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /enterprise-capabilities/{id}/direction [post]
 func (h *DirectionHandlers) CaptureDirection(w http.ResponseWriter, r *http.Request) {
 	ecID := sharedAPI.GetPathParam(r, "id")
@@ -112,98 +120,149 @@ func (h *DirectionHandlers) CaptureDirection(w http.ResponseWriter, r *http.Requ
 		Horizon:                req.Horizon,
 		Narrative:              req.Narrative,
 	}
-	result, err := h.commandBus.Dispatch(r.Context(), cmd)
-	if err != nil {
+	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		sharedAPI.HandleError(w, err)
 		return
 	}
-	h.respondWithDirection(w, r, result.CreatedID, http.StatusCreated)
-}
-
-// AdvanceDirection godoc
-// @Summary Advance a direction to proposed or agreed
-// @Tags directions
-// @Param id path string true "Direction ID"
-// @Param target path string true "Target status: proposed or agreed"
-// @Success 200 {object} easi_backend_internal_architecturedirection_application_readmodels.DirectionDTO
-// @Failure 409 {object} sharedAPI.ErrorResponse
-// @Router /directions/{id}/advance/{target} [post]
-func (h *DirectionHandlers) AdvanceDirection(w http.ResponseWriter, r *http.Request) {
-	id := sharedAPI.GetPathParam(r, "id")
-	target := sharedAPI.GetPathParam(r, "target")
-	h.dispatchAndRespond(w, r, id, &commands.AdvanceDirection{DirectionID: id, TargetStatus: target})
-}
-
-// RejectDirection godoc
-// @Summary Reject a direction
-// @Tags directions
-// @Param id path string true "Direction ID"
-// @Success 200 {object} easi_backend_internal_architecturedirection_application_readmodels.DirectionDTO
-// @Failure 409 {object} sharedAPI.ErrorResponse
-// @Router /directions/{id}/reject [post]
-func (h *DirectionHandlers) RejectDirection(w http.ResponseWriter, r *http.Request) {
-	id := sharedAPI.GetPathParam(r, "id")
-	h.dispatchAndRespond(w, r, id, &commands.RejectDirection{DirectionID: id})
+	h.respondWithDirection(w, r, ecID, http.StatusCreated)
 }
 
 // UpdateDirection godoc
-// @Summary Update a draft or proposed direction
+// @Summary Update the active direction on an enterprise capability
 // @Tags directions
 // @Accept json
 // @Produce json
-// @Param id path string true "Direction ID"
-// @Param body body UpdateDirectionRequest true "Updates"
+// @Security CookieAuth
+// @Param id path string true "Enterprise capability ID"
+// @Param body body UpdateDirectionRequest true "Direction updates"
 // @Success 200 {object} easi_backend_internal_architecturedirection_application_readmodels.DirectionDTO
-// @Router /directions/{id} [put]
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 401 {object} sharedAPI.ErrorResponse
+// @Failure 403 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 409 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /enterprise-capabilities/{id}/direction [put]
 func (h *DirectionHandlers) UpdateDirection(w http.ResponseWriter, r *http.Request) {
-	id := sharedAPI.GetPathParam(r, "id")
+	ecID := sharedAPI.GetPathParam(r, "id")
 	req, ok := sharedAPI.DecodeRequestOrFail[UpdateDirectionRequest](w, r)
 	if !ok {
 		return
 	}
-	for _, cmd := range buildUpdateCommands(id, req) {
+	direction, ok := h.resolveActiveDirection(w, r, ecID)
+	if !ok {
+		return
+	}
+	for _, cmd := range buildUpdateCommands(direction.ID, req) {
 		if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 			sharedAPI.HandleError(w, err)
 			return
 		}
 	}
-	h.respondWithDirection(w, r, id, http.StatusOK)
+	h.respondWithDirection(w, r, ecID, http.StatusOK)
 }
 
-// GetDirection godoc
-// @Summary Get a direction by ID
+// ProposeDirection godoc
+// @Summary Advance the active direction to proposed
 // @Tags directions
-// @Param id path string true "Direction ID"
+// @Produce json
+// @Security CookieAuth
+// @Param id path string true "Enterprise capability ID"
 // @Success 200 {object} easi_backend_internal_architecturedirection_application_readmodels.DirectionDTO
+// @Failure 401 {object} sharedAPI.ErrorResponse
+// @Failure 403 {object} sharedAPI.ErrorResponse
 // @Failure 404 {object} sharedAPI.ErrorResponse
-// @Router /directions/{id} [get]
-func (h *DirectionHandlers) GetDirection(w http.ResponseWriter, r *http.Request) {
-	id := sharedAPI.GetPathParam(r, "id")
-	h.respondWithDirection(w, r, id, http.StatusOK)
+// @Failure 409 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /enterprise-capabilities/{id}/direction/propose [post]
+func (h *DirectionHandlers) ProposeDirection(w http.ResponseWriter, r *http.Request) {
+	h.advance(w, r, "proposed")
 }
 
-func (h *DirectionHandlers) dispatchAndRespond(w http.ResponseWriter, r *http.Request, id string, cmd cqrs.Command) {
+// AgreeDirection godoc
+// @Summary Advance the active direction to agreed
+// @Tags directions
+// @Produce json
+// @Security CookieAuth
+// @Param id path string true "Enterprise capability ID"
+// @Success 200 {object} easi_backend_internal_architecturedirection_application_readmodels.DirectionDTO
+// @Failure 401 {object} sharedAPI.ErrorResponse
+// @Failure 403 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 409 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /enterprise-capabilities/{id}/direction/agree [post]
+func (h *DirectionHandlers) AgreeDirection(w http.ResponseWriter, r *http.Request) {
+	h.advance(w, r, "agreed")
+}
+
+// RejectDirection godoc
+// @Summary Reject the active direction
+// @Tags directions
+// @Produce json
+// @Security CookieAuth
+// @Param id path string true "Enterprise capability ID"
+// @Success 200 {object} easi_backend_internal_architecturedirection_application_readmodels.DirectionDTO
+// @Failure 401 {object} sharedAPI.ErrorResponse
+// @Failure 403 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 409 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /enterprise-capabilities/{id}/direction/reject [post]
+func (h *DirectionHandlers) RejectDirection(w http.ResponseWriter, r *http.Request) {
+	ecID := sharedAPI.GetPathParam(r, "id")
+	direction, ok := h.resolveActiveDirection(w, r, ecID)
+	if !ok {
+		return
+	}
+	if _, err := h.commandBus.Dispatch(r.Context(), &commands.RejectDirection{DirectionID: direction.ID}); err != nil {
+		sharedAPI.HandleError(w, err)
+		return
+	}
+	h.respondWithDirection(w, r, ecID, http.StatusOK)
+}
+
+func (h *DirectionHandlers) advance(w http.ResponseWriter, r *http.Request, target string) {
+	ecID := sharedAPI.GetPathParam(r, "id")
+	direction, ok := h.resolveActiveDirection(w, r, ecID)
+	if !ok {
+		return
+	}
+	cmd := &commands.AdvanceDirection{DirectionID: direction.ID, TargetStatus: target}
 	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		sharedAPI.HandleError(w, err)
 		return
 	}
-	h.respondWithDirection(w, r, id, http.StatusOK)
+	h.respondWithDirection(w, r, ecID, http.StatusOK)
 }
 
-func (h *DirectionHandlers) respondWithDirection(w http.ResponseWriter, r *http.Request, id string, statusCode int) {
-	direction, err := h.queries.GetByID(r.Context(), id)
+func (h *DirectionHandlers) resolveActiveDirection(w http.ResponseWriter, r *http.Request, ecID string) (*readmodels.DirectionDTO, bool) {
+	direction, err := h.queries.GetActiveByEnterpriseCapabilityID(r.Context(), ecID)
+	if err != nil {
+		sharedAPI.HandleError(w, err)
+		return nil, false
+	}
+	if direction == nil {
+		sharedAPI.RespondError(w, http.StatusNotFound, ErrNoActiveDirection, "No active direction on this enterprise capability")
+		return nil, false
+	}
+	return direction, true
+}
+
+func (h *DirectionHandlers) respondWithDirection(w http.ResponseWriter, r *http.Request, ecID string, statusCode int) {
+	direction, err := h.queries.GetActiveByEnterpriseCapabilityID(r.Context(), ecID)
 	if err != nil {
 		sharedAPI.HandleError(w, err)
 		return
 	}
 	if direction == nil {
-		sharedAPI.RespondError(w, http.StatusNotFound, errors.New("not found"), "Direction not found")
+		sharedAPI.RespondError(w, http.StatusNotFound, ErrNoActiveDirection, "Direction not found")
 		return
 	}
 	actor, _ := sharedctx.GetActor(r.Context())
-	direction.Links = h.hateoas.DirectionForActor(direction.ID, direction.EnterpriseCapabilityID, direction.Status, actor)
+	direction.Links = h.hateoas.DirectionForActor(ecID, direction.Status, actor)
 	if statusCode == http.StatusCreated {
-		location := sharedAPI.BuildResourceLink(sharedAPI.ResourcePath("/directions"), sharedAPI.ResourceID(direction.ID))
+		location := sharedAPI.BuildSubResourceLink(enterpriseCapabilitiesPath, sharedAPI.ResourceID(ecID), directionSubPath)
 		sharedAPI.RespondCreated(w, location, direction)
 		return
 	}

@@ -1,3 +1,16 @@
+import {
+  ActionIcon,
+  Alert,
+  Button,
+  Checkbox,
+  Group,
+  Loader,
+  Select,
+  Stack,
+  Text,
+  Textarea,
+  TextInput,
+} from '@mantine/core';
 import { useMemo, useState } from 'react';
 import type { EnterpriseCapabilityId } from '../../../api/types';
 import { useBusinessDomainsQuery } from '../../business-domains/hooks/useBusinessDomains';
@@ -15,17 +28,17 @@ interface CaptureDirectionFormProps {
   onCancel: () => void;
 }
 
-const TYPE_OPTIONS: { value: DirectionType; label: string; help: string }[] = [
+const TYPE_OPTIONS = [
   { value: 'consolidate', label: 'Consolidate', help: 'Multiple physical capabilities merge into one. Pick 2 or more sources.' },
   { value: 'decompose', label: 'Decompose', help: 'One physical capability splits into multiple. Pick exactly 1 source.' },
   { value: 'stay', label: 'Stay', help: 'Explicitly confirmed no change. Pick exactly 1 source. No target placements.' },
-];
+] as const satisfies ReadonlyArray<{ value: DirectionType; label: string; help: string }>;
 
-const HORIZON_OPTIONS: { value: Horizon; label: string }[] = [
+const HORIZON_OPTIONS = [
   { value: 'now', label: 'Now' },
   { value: 'next', label: 'Next' },
   { value: 'later', label: 'Later' },
-];
+] as const satisfies ReadonlyArray<{ value: Horizon; label: string }>;
 
 interface FormState {
   type: DirectionType;
@@ -34,6 +47,14 @@ interface FormState {
   horizon: Horizon;
   narrative: string;
 }
+
+const INITIAL_STATE: FormState = {
+  type: 'consolidate',
+  selectedSourceIds: [],
+  placements: [],
+  horizon: 'next',
+  narrative: '',
+};
 
 function requiresExactlyOneSource(type: DirectionType): boolean {
   return type === 'decompose' || type === 'stay';
@@ -73,15 +94,6 @@ function describePlacementRequirement(type: DirectionType, placements: Placement
   return null;
 }
 
-function useEnterpriseCapabilityName(id: EnterpriseCapabilityId): string {
-  const { data } = useEnterpriseCapability(id);
-  return data?.name ?? '';
-}
-
-function isReadyToSubmit(sourceErr: string | null, placementErr: string | null, isPending: boolean): boolean {
-  return !sourceErr && !placementErr && !isPending;
-}
-
 function buildCaptureRequest(state: FormState): CaptureDirectionRequest {
   return {
     type: state.type,
@@ -92,33 +104,53 @@ function buildCaptureRequest(state: FormState): CaptureDirectionRequest {
   };
 }
 
+interface PlacementOps {
+  add: () => void;
+  update: (index: number, patch: Partial<PlacementInput>) => void;
+  remove: (index: number) => void;
+}
+
+function usePlacementOps(
+  setState: React.Dispatch<React.SetStateAction<FormState>>,
+  defaultResultingName: string,
+): PlacementOps {
+  return {
+    add: () =>
+      setState((s) => ({
+        ...s,
+        placements: [...s.placements, { targetBusinessDomainId: '', resultingName: defaultResultingName }],
+      })),
+    update: (index, patch) =>
+      setState((s) => ({
+        ...s,
+        placements: s.placements.map((p, i) => (i === index ? { ...p, ...patch } : p)),
+      })),
+    remove: (index) =>
+      setState((s) => ({ ...s, placements: s.placements.filter((_, i) => i !== index) })),
+  };
+}
+
 export function CaptureDirectionForm({ enterpriseCapabilityId, onCaptured, onCancel }: CaptureDirectionFormProps) {
-  const defaultResultingName = useEnterpriseCapabilityName(enterpriseCapabilityId);
+  const { data: parentEC } = useEnterpriseCapability(enterpriseCapabilityId);
+  const defaultResultingName = parentEC?.name ?? '';
   const { data: links, isLoading: linksLoading } = useEnterpriseCapabilityLinks(enterpriseCapabilityId);
   const { data: domainsResponse, isLoading: domainsLoading } = useBusinessDomainsQuery();
   const captureMutation = useCaptureDirection();
 
-  const [state, setState] = useState<FormState>({
-    type: 'consolidate',
-    selectedSourceIds: [],
-    placements: [],
-    horizon: 'next',
-    narrative: '',
-  });
-
+  const [state, setState] = useState<FormState>(INITIAL_STATE);
   const linkedCapabilities = useMemo(() => links ?? [], [links]);
   const businessDomains = useMemo(() => domainsResponse?.data ?? [], [domainsResponse]);
 
   const sourceErr = describeSourceRequirement(state.type, state.selectedSourceIds.length);
   const placementErr = describePlacementRequirement(state.type, state.placements);
-  const submittable = isReadyToSubmit(sourceErr, placementErr, captureMutation.isPending);
+  const submittable = !sourceErr && !placementErr && !captureMutation.isPending;
+  const placementOps = usePlacementOps(setState, defaultResultingName);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!submittable) return;
-    const request = buildCaptureRequest(state);
     try {
-      await captureMutation.mutateAsync({ enterpriseCapabilityId, request });
+      await captureMutation.mutateAsync({ enterpriseCapabilityId, request: buildCaptureRequest(state) });
       onCaptured();
     } catch {
       // toast handled by hook
@@ -126,229 +158,233 @@ export function CaptureDirectionForm({ enterpriseCapabilityId, onCaptured, onCan
   };
 
   return (
-    <form onSubmit={handleSubmit} data-testid="capture-direction-form" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <TypeField type={state.type} onChange={(type) => setState({ ...state, type })} />
+    <form onSubmit={handleSubmit} data-testid="capture-direction-form">
+      <Stack gap="md">
+        <TypeField type={state.type} onChange={(type) => setState({ ...state, type })} />
 
-      <SourcePicker
-        links={linkedCapabilities}
-        loading={linksLoading}
-        selectedIds={state.selectedSourceIds}
-        error={sourceErr}
-        onToggle={(capabilityId) =>
-          setState((s) => ({
-            ...s,
-            selectedSourceIds: s.selectedSourceIds.includes(capabilityId)
-              ? s.selectedSourceIds.filter((id) => id !== capabilityId)
-              : [...s.selectedSourceIds, capabilityId],
-          }))
-        }
-      />
-
-      {state.type !== 'stay' && (
-        <PlacementEditor
-          placements={state.placements}
-          domains={businessDomains}
-          loading={domainsLoading}
-          error={placementErr}
-          defaultResultingName={defaultResultingName}
-          canAddMore={canAddPlacement(state.type, state.placements.length)}
-          onChange={(placements) => setState({ ...state, placements })}
+        <SourcePicker
+          loading={linksLoading}
+          links={linkedCapabilities}
+          selectedIds={state.selectedSourceIds}
+          error={sourceErr}
+          onChange={(selectedSourceIds) => setState((s) => ({ ...s, selectedSourceIds }))}
         />
-      )}
 
-      <HorizonField value={state.horizon} onChange={(horizon) => setState({ ...state, horizon })} />
-      <NarrativeField value={state.narrative} onChange={(narrative) => setState({ ...state, narrative })} />
+        {state.type !== 'stay' && (
+          <PlacementEditor
+            loading={domainsLoading}
+            placements={state.placements}
+            domains={businessDomains}
+            error={placementErr}
+            canAdd={canAddPlacement(state.type, state.placements.length)}
+            ops={placementOps}
+          />
+        )}
 
-      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-        <button type="button" onClick={onCancel}>
-          Cancel
-        </button>
-        <button type="submit" disabled={!submittable}>
-          {captureMutation.isPending ? 'Capturing…' : 'Capture as draft'}
-        </button>
-      </div>
+        <HorizonField value={state.horizon} onChange={(horizon) => setState({ ...state, horizon })} />
+
+        <NarrativeField
+          value={state.narrative}
+          onChange={(narrative) => setState({ ...state, narrative })}
+        />
+
+        <Group justify="flex-end" gap="sm">
+          <Button variant="default" onClick={onCancel} disabled={captureMutation.isPending}>
+            Cancel
+          </Button>
+          <Button type="submit" loading={captureMutation.isPending} disabled={!submittable}>
+            Capture as draft
+          </Button>
+        </Group>
+      </Stack>
     </form>
   );
 }
 
-function TypeField({ type, onChange }: { type: DirectionType; onChange: (t: DirectionType) => void }) {
+interface TypeFieldProps {
+  type: DirectionType;
+  onChange: (type: DirectionType) => void;
+}
+
+function TypeField({ type, onChange }: TypeFieldProps) {
   const help = TYPE_OPTIONS.find((o) => o.value === type)?.help;
   return (
-    <div>
-      <FieldLabel htmlFor="direction-type">Direction type</FieldLabel>
-      <select
-        id="direction-type"
-        value={type}
-        onChange={(e) => onChange(e.target.value as DirectionType)}
-        style={{ width: '100%', padding: 6 }}
-      >
-        {TYPE_OPTIONS.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
-      <p style={{ fontSize: 12, color: '#6B7280', margin: '4px 0 0' }}>{help}</p>
-    </div>
+    <Select
+      label="Direction type"
+      data={TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+      value={type}
+      onChange={(value) => value && onChange(value as DirectionType)}
+      description={help}
+      allowDeselect={false}
+      withAsterisk
+    />
   );
 }
 
 interface SourcePickerProps {
-  links: EnterpriseCapabilityLink[];
   loading: boolean;
+  links: EnterpriseCapabilityLink[];
   selectedIds: string[];
   error: string | null;
-  onToggle: (capabilityId: string) => void;
+  onChange: (selectedIds: string[]) => void;
 }
 
-function SourcePicker({ links, loading, selectedIds, error, onToggle }: SourcePickerProps) {
+function SourcePicker({ loading, links, selectedIds, error, onChange }: SourcePickerProps) {
   return (
-    <fieldset style={{ border: '1px solid #E5E7EB', padding: '8px 12px', borderRadius: 4 }}>
-      <legend style={{ fontWeight: 600 }}>Source physical capabilities</legend>
-      {loading && <p style={{ color: '#6B7280', margin: '4px 0' }}>Loading linked capabilities…</p>}
+    <Stack gap="xs" data-testid="source-picker">
+      <Text size="sm" fw={600}>
+        Source physical capabilities
+      </Text>
+      {loading && <Loader size="sm" />}
       {!loading && links.length === 0 && (
-        <p style={{ color: '#B45309', margin: '4px 0', fontSize: 13 }}>
+        <Alert color="yellow" variant="light">
           This Enterprise Capability has no linked physical capabilities yet. Link some on the Manage Links page first.
-        </p>
+        </Alert>
       )}
       {!loading && links.length > 0 && (
-        <ul data-testid="source-picker" style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {links.map((link) => (
-            <li key={link.id}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={selectedIds.includes(link.domainCapabilityId)}
-                  onChange={() => onToggle(link.domainCapabilityId)}
-                />
-                <span>{link.domainCapabilityName || link.domainCapabilityId}</span>
-                {link.businessDomainName && (
-                  <span style={{ color: '#6B7280', fontSize: 12 }}>· {link.businessDomainName}</span>
-                )}
-              </label>
-            </li>
-          ))}
-        </ul>
+        <Checkbox.Group value={selectedIds} onChange={onChange}>
+          <Stack gap={4}>
+            {links.map((link) => (
+              <Checkbox key={link.id} value={link.domainCapabilityId} label={<SourceLabel link={link} />} />
+            ))}
+          </Stack>
+        </Checkbox.Group>
       )}
       {error && (
-        <p data-testid="source-error" style={{ color: '#B91C1C', fontSize: 12, margin: '6px 0 0' }}>
+        <Text c="red" size="xs" data-testid="source-error">
           {error}
-        </p>
+        </Text>
       )}
-    </fieldset>
+    </Stack>
+  );
+}
+
+function SourceLabel({ link }: { link: EnterpriseCapabilityLink }) {
+  return (
+    <>
+      {link.domainCapabilityName || link.domainCapabilityId}
+      {link.businessDomainName && (
+        <Text component="span" c="dimmed" size="xs">
+          {' · '}
+          {link.businessDomainName}
+        </Text>
+      )}
+    </>
   );
 }
 
 interface PlacementEditorProps {
+  loading: boolean;
   placements: PlacementInput[];
   domains: { id: string; name: string }[];
-  loading: boolean;
   error: string | null;
-  defaultResultingName: string;
-  canAddMore: boolean;
-  onChange: (placements: PlacementInput[]) => void;
+  canAdd: boolean;
+  ops: PlacementOps;
 }
 
-function PlacementEditor({ placements, domains, loading, error, defaultResultingName, canAddMore, onChange }: PlacementEditorProps) {
-  const updateAt = (index: number, patch: Partial<PlacementInput>) => {
-    onChange(placements.map((p, i) => (i === index ? { ...p, ...patch } : p)));
-  };
-  const removeAt = (index: number) => onChange(placements.filter((_, i) => i !== index));
-  const add = () => onChange([...placements, { targetBusinessDomainId: '', resultingName: defaultResultingName }]);
-
+function PlacementEditor({ loading, placements, domains, error, canAdd, ops }: PlacementEditorProps) {
   return (
-    <fieldset style={{ border: '1px solid #E5E7EB', padding: '8px 12px', borderRadius: 4 }}>
-      <legend style={{ fontWeight: 600 }}>Target placements</legend>
-      {loading && <p style={{ color: '#6B7280', margin: '4px 0' }}>Loading business domains…</p>}
-      {!loading && (
-        <div data-testid="placement-editor" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {placements.map((placement, index) => (
-            <div key={index} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              <select
-                value={placement.targetBusinessDomainId}
-                onChange={(e) => updateAt(index, { targetBusinessDomainId: e.target.value })}
-                style={{ flex: 1, padding: 6 }}
-                aria-label={`Target business domain for placement ${index + 1}`}
-              >
-                <option value="">Select a business domain…</option>
-                {domains.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="text"
-                value={placement.resultingName ?? ''}
-                onChange={(e) => updateAt(index, { resultingName: e.target.value })}
-                placeholder="Resulting name"
-                style={{ flex: 1, padding: 6 }}
-                aria-label={`Resulting name for placement ${index + 1}`}
-              />
-              <button type="button" onClick={() => removeAt(index)} aria-label={`Remove placement ${index + 1}`}>
-                ×
-              </button>
-            </div>
-          ))}
-          {canAddMore && (
-            <button type="button" onClick={add} style={{ alignSelf: 'flex-start' }} data-testid="add-placement">
-              + Add placement
-            </button>
-          )}
-        </div>
+    <Stack gap="xs" data-testid="placement-editor">
+      <Text size="sm" fw={600}>
+        Target placements
+      </Text>
+      {loading && <Loader size="sm" />}
+      {!loading &&
+        placements.map((placement, index) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: placements are an editable ordered list with no stable id
+          <PlacementRow key={index} index={index} placement={placement} domains={domains} ops={ops} />
+        ))}
+      {canAdd && (
+        <Button
+          variant="subtle"
+          size="xs"
+          onClick={ops.add}
+          data-testid="add-placement"
+          style={{ alignSelf: 'flex-start' }}
+        >
+          + Add placement
+        </Button>
       )}
       {error && (
-        <p data-testid="placement-error" style={{ color: '#B91C1C', fontSize: 12, margin: '6px 0 0' }}>
+        <Text c="red" size="xs" data-testid="placement-error">
           {error}
-        </p>
+        </Text>
       )}
-    </fieldset>
+    </Stack>
   );
 }
 
-function HorizonField({ value, onChange }: { value: Horizon; onChange: (h: Horizon) => void }) {
-  return (
-    <div>
-      <FieldLabel htmlFor="direction-horizon">Horizon</FieldLabel>
-      <select
-        id="direction-horizon"
-        value={value}
-        onChange={(e) => onChange(e.target.value as Horizon)}
-        style={{ width: '100%', padding: 6 }}
-      >
-        {HORIZON_OPTIONS.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
+interface PlacementRowProps {
+  index: number;
+  placement: PlacementInput;
+  domains: { id: string; name: string }[];
+  ops: PlacementOps;
 }
 
-function NarrativeField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function PlacementRow({ index, placement, domains, ops }: PlacementRowProps) {
+  const position = index + 1;
   return (
-    <div>
-      <FieldLabel htmlFor="direction-narrative">Narrative</FieldLabel>
-      <textarea
-        id="direction-narrative"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="One or two sentences naming what the group decided and why"
-        rows={3}
-        style={{ width: '100%', padding: 6 }}
+    <Group gap="xs" wrap="nowrap" align="flex-end">
+      <Select
+        style={{ flex: 1 }}
+        placeholder="Select a business domain…"
+        aria-label={`Target business domain for placement ${position}`}
+        data={domains.map((d) => ({ value: d.id, label: d.name }))}
+        value={placement.targetBusinessDomainId || null}
+        onChange={(value) => ops.update(index, { targetBusinessDomainId: value ?? '' })}
       />
-      <p style={{ fontSize: 12, color: '#6B7280', margin: '4px 0 0' }}>
-        Required before advancing the direction to <em>proposed</em>.
-      </p>
-    </div>
+      <TextInput
+        style={{ flex: 1 }}
+        aria-label={`Resulting name for placement ${position}`}
+        placeholder="Resulting name"
+        value={placement.resultingName ?? ''}
+        onChange={(e) => ops.update(index, { resultingName: e.currentTarget.value })}
+      />
+      <ActionIcon
+        variant="subtle"
+        color="red"
+        aria-label={`Remove placement ${position}`}
+        onClick={() => ops.remove(index)}
+      >
+        ×
+      </ActionIcon>
+    </Group>
   );
 }
 
-function FieldLabel({ htmlFor, children }: { htmlFor: string; children: React.ReactNode }) {
+interface HorizonFieldProps {
+  value: Horizon;
+  onChange: (h: Horizon) => void;
+}
+
+function HorizonField({ value, onChange }: HorizonFieldProps) {
   return (
-    <label htmlFor={htmlFor} style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>
-      {children}
-    </label>
+    <Select
+      label="Horizon"
+      data={HORIZON_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+      value={value}
+      onChange={(v) => v && onChange(v as Horizon)}
+      allowDeselect={false}
+      withAsterisk
+    />
+  );
+}
+
+interface NarrativeFieldProps {
+  value: string;
+  onChange: (v: string) => void;
+}
+
+function NarrativeField({ value, onChange }: NarrativeFieldProps) {
+  return (
+    <Textarea
+      label="Narrative"
+      description="Required before advancing the direction to proposed."
+      placeholder="One or two sentences naming what the group decided and why"
+      autosize
+      minRows={3}
+      value={value}
+      onChange={(e) => onChange(e.currentTarget.value)}
+    />
   );
 }

@@ -1,3 +1,4 @@
+import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -43,13 +44,15 @@ function setupHooks(ecName: string) {
 function renderForm() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <QueryClientProvider client={queryClient}>
-      <CaptureDirectionForm
-        enterpriseCapabilityId={toEnterpriseCapabilityId('ec-1')}
-        onCaptured={() => undefined}
-        onCancel={() => undefined}
-      />
-    </QueryClientProvider>,
+    <MantineProvider>
+      <QueryClientProvider client={queryClient}>
+        <CaptureDirectionForm
+          enterpriseCapabilityId={toEnterpriseCapabilityId('ec-1')}
+          onCaptured={() => undefined}
+          onCancel={() => undefined}
+        />
+      </QueryClientProvider>
+    </MantineProvider>,
   );
 }
 
