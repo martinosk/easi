@@ -9,6 +9,7 @@ import (
 
 	"easi/backend/internal/architecturedirection/application/readmodels"
 	"easi/backend/internal/architecturedirection/domain/events"
+	"easi/backend/internal/architecturedirection/domain/valueobjects"
 	pl "easi/backend/internal/architecturedirection/publishedlanguage"
 	domain "easi/backend/internal/shared/eventsourcing"
 )
@@ -51,9 +52,9 @@ func (p *DirectionProjector) Handle(ctx context.Context, event domain.DomainEven
 func (p *DirectionProjector) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
 	handlers := map[string]func(context.Context, []byte) error{
 		pl.DirectionDrafted:                   p.handleDrafted,
-		pl.DirectionProposed:                  p.handleStatusEvent("proposed"),
-		pl.DirectionAgreed:                    p.handleStatusEvent("agreed"),
-		pl.DirectionRejected:                  p.handleStatusEvent("rejected"),
+		pl.DirectionProposed:                  p.handleStatusEvent(valueobjects.DirectionStatusProposed),
+		pl.DirectionAgreed:                    p.handleStatusEvent(valueobjects.DirectionStatusAgreed),
+		pl.DirectionRejected:                  p.handleStatusEvent(valueobjects.DirectionStatusRejected),
 		pl.DirectionNarrativeUpdated:          p.handleNarrativeUpdated,
 		pl.DirectionHorizonChanged:            p.handleHorizonChanged,
 		pl.DirectionPlacementsChanged:         p.handlePlacementsChanged,
@@ -78,7 +79,7 @@ func (p *DirectionProjector) handleDrafted(ctx context.Context, eventData []byte
 			ID:                     e.ID,
 			EnterpriseCapabilityID: e.EnterpriseCapabilityID,
 			Type:                   e.Type,
-			Status:                 "draft",
+			Status:                 valueobjects.DirectionStatusDraft,
 			Horizon:                e.Horizon,
 			Narrative:              e.Narrative,
 			SourceCapabilityIDs:    e.SourceCapabilityIDs,

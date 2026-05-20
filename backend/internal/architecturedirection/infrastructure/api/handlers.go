@@ -6,7 +6,7 @@ import (
 
 	"easi/backend/internal/architecturedirection/application/commands"
 	"easi/backend/internal/architecturedirection/application/readmodels"
-	authPL "easi/backend/internal/auth/publishedlanguage"
+	"easi/backend/internal/architecturedirection/domain/valueobjects"
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
@@ -18,18 +18,16 @@ type DirectionQueries interface {
 }
 
 type DirectionHandlers struct {
-	commandBus      cqrs.CommandBus
-	queries         DirectionQueries
-	sessionProvider authPL.SessionProvider
-	hateoas         *DirectionLinks
+	commandBus cqrs.CommandBus
+	queries    DirectionQueries
+	hateoas    *DirectionLinks
 }
 
-func NewDirectionHandlers(commandBus cqrs.CommandBus, queries DirectionQueries, sessionProvider authPL.SessionProvider, hateoas *DirectionLinks) *DirectionHandlers {
+func NewDirectionHandlers(commandBus cqrs.CommandBus, queries DirectionQueries, hateoas *DirectionLinks) *DirectionHandlers {
 	return &DirectionHandlers{
-		commandBus:      commandBus,
-		queries:         queries,
-		sessionProvider: sessionProvider,
-		hateoas:         hateoas,
+		commandBus: commandBus,
+		queries:    queries,
+		hateoas:    hateoas,
 	}
 }
 
@@ -176,7 +174,7 @@ func (h *DirectionHandlers) UpdateDirection(w http.ResponseWriter, r *http.Reque
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /enterprise-capabilities/{id}/direction/propose [post]
 func (h *DirectionHandlers) ProposeDirection(w http.ResponseWriter, r *http.Request) {
-	h.advance(w, r, "proposed")
+	h.advance(w, r, valueobjects.DirectionStatusProposed)
 }
 
 // AgreeDirection godoc
@@ -193,7 +191,7 @@ func (h *DirectionHandlers) ProposeDirection(w http.ResponseWriter, r *http.Requ
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /enterprise-capabilities/{id}/direction/agree [post]
 func (h *DirectionHandlers) AgreeDirection(w http.ResponseWriter, r *http.Request) {
-	h.advance(w, r, "agreed")
+	h.advance(w, r, valueobjects.DirectionStatusAgreed)
 }
 
 // RejectDirection godoc

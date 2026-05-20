@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"easi/backend/internal/architecturedirection/application/readmodels"
+	"easi/backend/internal/architecturedirection/domain/valueobjects"
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
 )
@@ -25,9 +26,6 @@ func NewDirectionLinks(h *sharedAPI.HATEOASLinks) *DirectionLinks {
 	return &DirectionLinks{HATEOASLinks: h}
 }
 
-// DirectionForActor returns _links for a Direction DTO. The direction is always
-// addressed as a singleton sub-resource of its parent EC, so the URLs are
-// derived from the EC ID, not the direction ID.
 func (h *DirectionLinks) DirectionForActor(enterpriseCapabilityID string, status string, actor sharedctx.Actor) sharedAPI.Links {
 	base := directionResourcePath(enterpriseCapabilityID)
 	links := sharedAPI.Links{
@@ -38,9 +36,6 @@ func (h *DirectionLinks) DirectionForActor(enterpriseCapabilityID string, status
 	return links
 }
 
-// EnterpriseCapabilityDirectionLinks builds the _links for the EC-direction
-// envelope: the singleton sub-resource itself plus a capture affordance when
-// no direction exists and the actor may write.
 func (h *DirectionLinks) EnterpriseCapabilityDirectionLinks(enterpriseCapabilityID string, direction *readmodels.DirectionDTO, actor sharedctx.Actor) sharedAPI.Links {
 	base := directionResourcePath(enterpriseCapabilityID)
 	links := sharedAPI.Links{
@@ -69,28 +64,24 @@ func (h *DirectionLinks) addWriteAffordances(links sharedAPI.Links, base, status
 }
 
 func canEdit(status string) bool {
-	return status != "rejected" && status != "agreed"
+	return status != valueobjects.DirectionStatusRejected && status != valueobjects.DirectionStatusAgreed
 }
 
 func canReject(status string) bool {
-	return status != "rejected"
+	return status != valueobjects.DirectionStatusRejected
 }
 
-// nextAdvanceRel returns the link relation and URL segment for the next legal
-// advance transition. Returns ("", "") if no further advance is possible.
 func nextAdvanceRel(status string) (rel, target string) {
 	switch status {
-	case "draft":
+	case valueobjects.DirectionStatusDraft:
 		return "x-propose", "propose"
-	case "proposed":
+	case valueobjects.DirectionStatusProposed:
 		return "x-agree", "agree"
 	default:
 		return "", ""
 	}
 }
 
-// directionResourcePath returns the relative URL of the direction singleton
-// sub-resource (no /api/v1 prefix; the HATEOASLinks helper adds that).
 func directionResourcePath(enterpriseCapabilityID string) string {
 	return string(enterpriseCapabilitiesPath) + "/" + enterpriseCapabilityID + string(directionSubPath)
 }

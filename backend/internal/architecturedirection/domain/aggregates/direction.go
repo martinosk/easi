@@ -83,7 +83,8 @@ func LoadDirectionFromHistory(eventHistory []domain.DomainEvent) (*Direction, er
 }
 
 func (d *Direction) Propose() error {
-	if err := d.requireTransition(valueobjects.DirectionStatusProposed); err != nil {
+	proposed, _ := valueobjects.NewDirectionStatus(valueobjects.DirectionStatusProposed)
+	if err := d.requireTransition(proposed); err != nil {
 		return err
 	}
 	if d.narrative.IsEmpty() {
@@ -94,7 +95,8 @@ func (d *Direction) Propose() error {
 }
 
 func (d *Direction) Agree() error {
-	if err := d.requireTransition(valueobjects.DirectionStatusAgreed); err != nil {
+	agreed, _ := valueobjects.NewDirectionStatus(valueobjects.DirectionStatusAgreed)
+	if err := d.requireTransition(agreed); err != nil {
 		return err
 	}
 	d.raise(events.NewDirectionAgreed(d.ID()))
@@ -165,9 +167,8 @@ func (d *Direction) SourceCapabilityIDs() []valueobjects.PhysicalCapabilityRef {
 	return out
 }
 
-func (d *Direction) requireTransition(target string) error {
-	targetStatus, _ := valueobjects.NewDirectionStatus(target)
-	if !d.status.CanAdvanceTo(targetStatus) {
+func (d *Direction) requireTransition(target valueobjects.DirectionStatus) error {
+	if !d.status.CanAdvanceTo(target) {
 		return ErrInvalidStatusTransition
 	}
 	return nil
@@ -181,8 +182,6 @@ func (d *Direction) requireEditable() error {
 }
 
 func (d *Direction) raise(event domain.DomainEvent) {
-	// In-process events constructed from valid value objects; an apply error
-	// here is a programmer error, not a corrupted store.
 	if err := d.apply(event); err != nil {
 		panic(fmt.Sprintf("architecturedirection: in-process apply failed: %v", err))
 	}

@@ -159,7 +159,7 @@ func (rm *DirectionReadModel) MarkSourceCapabilityStale(ctx context.Context, cap
 	}
 	_, err = rm.db.ExecContext(ctx,
 		`UPDATE architecturedirection.direction_source_capabilities SET stale = TRUE
-		 WHERE tenant_id = $1 AND capability_id = $2`,
+		 WHERE tenant_id = $1 AND capability_id = $2 AND stale = FALSE`,
 		tenantID, capabilityID,
 	)
 	return err
@@ -186,15 +186,15 @@ func (rm *DirectionReadModel) HasActiveDirectionForEnterpriseCapability(ctx cont
 	if err != nil {
 		return false, err
 	}
-	var count int
+	var exists bool
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		return tx.QueryRowContext(ctx,
-			`SELECT COUNT(*) FROM architecturedirection.directions
-			 WHERE tenant_id = $1 AND enterprise_capability_id = $2 AND status != 'rejected'`,
+			`SELECT EXISTS(SELECT 1 FROM architecturedirection.directions
+			 WHERE tenant_id = $1 AND enterprise_capability_id = $2 AND status != 'rejected')`,
 			tenantID, enterpriseCapabilityID,
-		).Scan(&count)
+		).Scan(&exists)
 	})
-	return count > 0, err
+	return exists, err
 }
 
 type fetchSpec struct {
@@ -315,7 +315,9 @@ func scanDirection(row directionRowScanner) (DirectionDTO, error) {
 		dto.UpdatedAt = &updatedAt.Time
 	}
 	if placementsJSON.Valid && placementsJSON.String != "" {
-		_ = json.Unmarshal([]byte(placementsJSON.String), &dto.Placements)
+		if err := json.Unmarshal([]byte(placementsJSON.String), &dto.Placements); err != nil {
+			return dto, err
+		}
 	}
 	if dto.Placements == nil {
 		dto.Placements = []DirectionPlacementDTO{}

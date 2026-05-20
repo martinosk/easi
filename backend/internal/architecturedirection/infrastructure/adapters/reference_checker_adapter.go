@@ -4,10 +4,6 @@ import (
 	"context"
 )
 
-// ExistenceCheck reports whether an upstream entity with the given ID is
-// visible to the caller's tenant. Implementations are constructed in the
-// wiring layer from the upstream read models so this package stays free of
-// cross-context imports.
 type ExistenceCheck func(ctx context.Context, id string) (bool, error)
 
 type ReferenceCheckerAdapter struct {

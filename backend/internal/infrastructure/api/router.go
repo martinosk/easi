@@ -284,7 +284,6 @@ func setupDomainRoutes(r chi.Router, deps routerDependencies) {
 		DB:               deps.db,
 		HATEOAS:          deps.hateoas,
 		AuthMiddleware:   deps.authDeps.AuthMiddleware,
-		SessionProvider:  deps.authDeps.SessionManager,
 		ReferenceChecker: directionRefChecker,
 	}), "architecture direction routes")
 

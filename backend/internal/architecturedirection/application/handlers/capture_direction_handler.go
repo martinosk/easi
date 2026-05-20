@@ -12,17 +12,10 @@ import (
 	"easi/backend/internal/shared/cqrs"
 )
 
-// ErrActiveDirectionAlreadyExists is returned both from the handler's pre-write
-// read-model check and (via the projector) from the DB-side partial-unique
-// backstop. Single sentinel so HTTP mapping is uniform.
 var ErrActiveDirectionAlreadyExists = readmodels.ErrActiveDirectionAlreadyExists
 
 var ErrReferencedEntityNotFound = errors.New("a referenced entity does not exist or is not accessible in this tenant")
 
-// ReferenceChecker validates that the IDs supplied at capture time resolve to
-// entities the caller's tenant can see. Lookups go through the upstream read
-// models, which apply RLS — so a cross-tenant ID returns "not found" without
-// disclosing existence.
 type ReferenceChecker interface {
 	EnterpriseCapabilityExists(ctx context.Context, id string) (bool, error)
 	PhysicalCapabilityExists(ctx context.Context, id string) (bool, error)

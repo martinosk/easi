@@ -31,7 +31,6 @@ type RoutesDeps struct {
 	DB               *database.TenantAwareDB
 	HATEOAS          *sharedAPI.HATEOASLinks
 	AuthMiddleware   AuthMiddleware
-	SessionProvider  authPL.SessionProvider
 	ReferenceChecker handlers.ReferenceChecker
 }
 
@@ -43,7 +42,7 @@ func SetupRoutes(deps RoutesDeps) error {
 	registerCommandHandlers(deps.CommandBus, repo, readModel, deps.ReferenceChecker)
 
 	links := NewDirectionLinks(deps.HATEOAS)
-	httpHandlers := NewDirectionHandlers(deps.CommandBus, readModel, deps.SessionProvider, links)
+	httpHandlers := NewDirectionHandlers(deps.CommandBus, readModel, links)
 
 	registerRoutes(deps.Router, httpHandlers, deps.AuthMiddleware)
 	return nil

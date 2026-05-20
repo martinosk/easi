@@ -53,12 +53,6 @@ func (m *mockDirectionQueries) GetActiveByEnterpriseCapabilityID(_ context.Conte
 	return m.activeByEC, nil
 }
 
-type mockSessionProvider struct{}
-
-func (m mockSessionProvider) GetCurrentUserEmail(_ context.Context) (string, error) {
-	return "user@example.com", nil
-}
-
 func architectActor() sharedctx.Actor {
 	return sharedctx.NewActor("u1", "user@example.com", sharedctx.RoleArchitect)
 }
@@ -69,7 +63,7 @@ func stakeholderActor() sharedctx.Actor {
 
 func setupHandlers(bus cqrs.CommandBus, queries DirectionQueries) *DirectionHandlers {
 	links := NewDirectionLinks(sharedAPI.NewHATEOASLinks(""))
-	return NewDirectionHandlers(bus, queries, mockSessionProvider{}, links)
+	return NewDirectionHandlers(bus, queries, links)
 }
 
 func getDirection(t *testing.T, queries DirectionQueries, ecID string, actor sharedctx.Actor) (int, struct {

@@ -17,8 +17,8 @@ type CaptureDirection struct {
 func (c CaptureDirection) CommandName() string { return "CaptureDirection" }
 
 type AdvanceDirection struct {
-	DirectionID string
-	TargetStatus string // "proposed" | "agreed"
+	DirectionID  string
+	TargetStatus string
 }
 
 func (c AdvanceDirection) CommandName() string { return "AdvanceDirection" }
