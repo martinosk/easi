@@ -124,7 +124,7 @@ func (h *DirectionHandlers) CaptureDirection(w http.ResponseWriter, r *http.Requ
 		sharedAPI.HandleError(w, err)
 		return
 	}
-	h.respondWithDirection(w, r, ecID, http.StatusCreated)
+	h.respondWithActiveDirection(w, r, ecID, http.StatusCreated)
 }
 
 // UpdateDirection godoc
@@ -159,7 +159,7 @@ func (h *DirectionHandlers) UpdateDirection(w http.ResponseWriter, r *http.Reque
 			return
 		}
 	}
-	h.respondWithDirection(w, r, ecID, http.StatusOK)
+	h.respondWithActiveDirection(w, r, ecID, http.StatusOK)
 }
 
 // ProposeDirection godoc
@@ -198,6 +198,7 @@ func (h *DirectionHandlers) AgreeDirection(w http.ResponseWriter, r *http.Reques
 
 // RejectDirection godoc
 // @Summary Reject the active direction
+// @Description Rejects the active direction on the enterprise capability. Returns the rejected direction with status set to rejected; the enterprise capability then has no active direction until a new one is captured.
 // @Tags directions
 // @Produce json
 // @Security CookieAuth
@@ -219,7 +220,12 @@ func (h *DirectionHandlers) RejectDirection(w http.ResponseWriter, r *http.Reque
 		sharedAPI.HandleError(w, err)
 		return
 	}
-	h.respondWithDirection(w, r, ecID, http.StatusOK)
+	rejected, err := h.queries.GetByID(r.Context(), direction.ID)
+	if err != nil {
+		sharedAPI.HandleError(w, err)
+		return
+	}
+	h.respondWithDirection(w, r, directionResponse{ecID: ecID, direction: rejected, statusCode: http.StatusOK})
 }
 
 func (h *DirectionHandlers) advance(w http.ResponseWriter, r *http.Request, target string) {
@@ -233,7 +239,7 @@ func (h *DirectionHandlers) advance(w http.ResponseWriter, r *http.Request, targ
 		sharedAPI.HandleError(w, err)
 		return
 	}
-	h.respondWithDirection(w, r, ecID, http.StatusOK)
+	h.respondWithActiveDirection(w, r, ecID, http.StatusOK)
 }
 
 func (h *DirectionHandlers) resolveActiveDirection(w http.ResponseWriter, r *http.Request, ecID string) (*readmodels.DirectionDTO, bool) {
@@ -249,24 +255,34 @@ func (h *DirectionHandlers) resolveActiveDirection(w http.ResponseWriter, r *htt
 	return direction, true
 }
 
-func (h *DirectionHandlers) respondWithDirection(w http.ResponseWriter, r *http.Request, ecID string, statusCode int) {
+type directionResponse struct {
+	ecID       string
+	direction  *readmodels.DirectionDTO
+	statusCode int
+}
+
+func (h *DirectionHandlers) respondWithActiveDirection(w http.ResponseWriter, r *http.Request, ecID string, statusCode int) {
 	direction, err := h.queries.GetActiveByEnterpriseCapabilityID(r.Context(), ecID)
 	if err != nil {
 		sharedAPI.HandleError(w, err)
 		return
 	}
-	if direction == nil {
+	h.respondWithDirection(w, r, directionResponse{ecID: ecID, direction: direction, statusCode: statusCode})
+}
+
+func (h *DirectionHandlers) respondWithDirection(w http.ResponseWriter, r *http.Request, resp directionResponse) {
+	if resp.direction == nil {
 		sharedAPI.RespondError(w, http.StatusNotFound, ErrNoActiveDirection, "Direction not found")
 		return
 	}
 	actor, _ := sharedctx.GetActor(r.Context())
-	direction.Links = h.hateoas.DirectionForActor(ecID, direction.Status, actor)
-	if statusCode == http.StatusCreated {
-		location := sharedAPI.BuildSubResourceLink(enterpriseCapabilitiesPath, sharedAPI.ResourceID(ecID), directionSubPath)
-		sharedAPI.RespondCreated(w, location, direction)
+	resp.direction.Links = h.hateoas.DirectionForActor(resp.ecID, resp.direction.Status, actor)
+	if resp.statusCode == http.StatusCreated {
+		location := sharedAPI.BuildSubResourceLink(enterpriseCapabilitiesPath, sharedAPI.ResourceID(resp.ecID), directionSubPath)
+		sharedAPI.RespondCreated(w, location, resp.direction)
 		return
 	}
-	sharedAPI.RespondJSON(w, statusCode, direction)
+	sharedAPI.RespondJSON(w, resp.statusCode, resp.direction)
 }
 
 func buildUpdateCommands(directionID string, req UpdateDirectionRequest) []cqrs.Command {

@@ -5289,6 +5289,7 @@ const docTemplate = `{
                         "CookieAuth": []
                     }
                 ],
+                "description": "Rejects the active direction on the enterprise capability. Returns the rejected direction with status set to rejected; the enterprise capability then has no active direction until a new one is captured.",
                 "produces": [
                     "application/json"
                 ],

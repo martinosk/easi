@@ -21,9 +21,10 @@ import (
 )
 
 type mockCommandBus struct {
-	dispatched []cqrs.Command
-	createdID  string
-	err        error
+	dispatched    []cqrs.Command
+	createdID     string
+	err           error
+	afterDispatch func()
 }
 
 func (m *mockCommandBus) Dispatch(_ context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
@@ -31,6 +32,9 @@ func (m *mockCommandBus) Dispatch(_ context.Context, cmd cqrs.Command) (cqrs.Com
 		return cqrs.EmptyResult(), m.err
 	}
 	m.dispatched = append(m.dispatched, cmd)
+	if m.afterDispatch != nil {
+		m.afterDispatch()
+	}
 	return cqrs.CommandResult{CreatedID: m.createdID}, nil
 }
 
@@ -68,113 +72,90 @@ func setupHandlers(bus cqrs.CommandBus, queries DirectionQueries) *DirectionHand
 	return NewDirectionHandlers(bus, queries, mockSessionProvider{}, links)
 }
 
-func TestGetDirectionForEC_NoDirection_ReturnsNullWithCaptureLink(t *testing.T) {
-	ecID := uuid.New().String()
-	queries := &mockDirectionQueries{}
+func getDirection(t *testing.T, queries DirectionQueries, ecID string, actor sharedctx.Actor) (int, struct {
+	Direction *readmodels.DirectionDTO `json:"direction"`
+	Links     sharedAPI.Links          `json:"_links"`
+}) {
+	t.Helper()
 	h := setupHandlers(&mockCommandBus{}, queries)
-
 	r := chi.NewRouter()
 	r.Get("/enterprise-capabilities/{id}/direction", h.GetDirectionForEnterpriseCapability)
-
 	req := httptest.NewRequest(http.MethodGet, "/enterprise-capabilities/"+ecID+"/direction", nil)
-	req = req.WithContext(sharedctx.WithActor(req.Context(), architectActor()))
+	req = req.WithContext(sharedctx.WithActor(req.Context(), actor))
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
-
-	require.Equal(t, http.StatusOK, rec.Code)
 	var body struct {
 		Direction *readmodels.DirectionDTO `json:"direction"`
 		Links     sharedAPI.Links          `json:"_links"`
 	}
 	require.NoError(t, json.NewDecoder(rec.Body).Decode(&body))
-	assert.Nil(t, body.Direction)
-	assert.Contains(t, body.Links, "x-capture-direction")
+	return rec.Code, body
 }
 
-func TestGetDirectionForEC_NoDirection_ReadOnly_NoCaptureLink(t *testing.T) {
+func TestGetDirectionForEC_NoDirection_CaptureLinkVisibilityByActor(t *testing.T) {
 	ecID := uuid.New().String()
-	queries := &mockDirectionQueries{}
-	h := setupHandlers(&mockCommandBus{}, queries)
-
-	r := chi.NewRouter()
-	r.Get("/enterprise-capabilities/{id}/direction", h.GetDirectionForEnterpriseCapability)
-
-	req := httptest.NewRequest(http.MethodGet, "/enterprise-capabilities/"+ecID+"/direction", nil)
-	req = req.WithContext(sharedctx.WithActor(req.Context(), stakeholderActor()))
-	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, req)
-
-	require.Equal(t, http.StatusOK, rec.Code)
-	var body struct {
-		Direction *readmodels.DirectionDTO `json:"direction"`
-		Links     sharedAPI.Links          `json:"_links"`
+	cases := []struct {
+		name             string
+		actor            sharedctx.Actor
+		captureLinkShown bool
+	}{
+		{"architect sees capture link", architectActor(), true},
+		{"stakeholder does not see capture link", stakeholderActor(), false},
 	}
-	require.NoError(t, json.NewDecoder(rec.Body).Decode(&body))
-	assert.NotContains(t, body.Links, "x-capture-direction")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			code, body := getDirection(t, &mockDirectionQueries{}, ecID, tc.actor)
+			require.Equal(t, http.StatusOK, code)
+			assert.Nil(t, body.Direction)
+			if tc.captureLinkShown {
+				assert.Contains(t, body.Links, "x-capture-direction")
+			} else {
+				assert.NotContains(t, body.Links, "x-capture-direction")
+			}
+		})
+	}
 }
 
-func TestGetDirectionForEC_WithDraftDirection_ShowsAdvanceAffordances(t *testing.T) {
-	ecID := uuid.New().String()
-	did := uuid.New().String()
-	queries := &mockDirectionQueries{
-		activeByEC: &readmodels.DirectionDTO{
-			ID:                     did,
-			EnterpriseCapabilityID: ecID,
-			Status:                 "draft",
-		},
-	}
-	h := setupHandlers(&mockCommandBus{}, queries)
-
-	r := chi.NewRouter()
-	r.Get("/enterprise-capabilities/{id}/direction", h.GetDirectionForEnterpriseCapability)
-
-	req := httptest.NewRequest(http.MethodGet, "/enterprise-capabilities/"+ecID+"/direction", nil)
-	req = req.WithContext(sharedctx.WithActor(req.Context(), architectActor()))
-	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, req)
-
-	require.Equal(t, http.StatusOK, rec.Code)
-	var body struct {
-		Direction *readmodels.DirectionDTO `json:"direction"`
-	}
-	require.NoError(t, json.NewDecoder(rec.Body).Decode(&body))
-	require.NotNil(t, body.Direction)
-	assert.Contains(t, body.Direction.Links, "x-propose")
-	assert.Contains(t, body.Direction.Links, "x-reject")
-	assert.Contains(t, body.Direction.Links, "up")
-	assert.NotContains(t, body.Direction.Links, "x-agree")
-}
-
-func TestGetDirectionForEC_AgreedDirection_OnlyRejectAffordance(t *testing.T) {
+func TestGetDirectionForEC_DirectionAffordancesByStatus(t *testing.T) {
 	ecID := uuid.New().String()
 	did := uuid.New().String()
-	queries := &mockDirectionQueries{
-		activeByEC: &readmodels.DirectionDTO{
-			ID:                     did,
-			EnterpriseCapabilityID: ecID,
-			Status:                 "agreed",
+	cases := []struct {
+		name         string
+		status       string
+		expectLinks  []string
+		forbidLinks  []string
+		assertReason string
+	}{
+		{
+			name:        "draft shows propose, reject, up; not agree",
+			status:      "draft",
+			expectLinks: []string{"x-propose", "x-reject", "up"},
+			forbidLinks: []string{"x-agree"},
+		},
+		{
+			name:         "agreed shows only reject; not edit/propose/agree",
+			status:       "agreed",
+			expectLinks:  []string{"x-reject"},
+			forbidLinks:  []string{"edit", "x-propose", "x-agree"},
+			assertReason: "spec allows reject-and-replace from agreed",
 		},
 	}
-	h := setupHandlers(&mockCommandBus{}, queries)
-
-	r := chi.NewRouter()
-	r.Get("/enterprise-capabilities/{id}/direction", h.GetDirectionForEnterpriseCapability)
-
-	req := httptest.NewRequest(http.MethodGet, "/enterprise-capabilities/"+ecID+"/direction", nil)
-	req = req.WithContext(sharedctx.WithActor(req.Context(), architectActor()))
-	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, req)
-
-	require.Equal(t, http.StatusOK, rec.Code)
-	var body struct {
-		Direction *readmodels.DirectionDTO `json:"direction"`
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			queries := &mockDirectionQueries{activeByEC: &readmodels.DirectionDTO{
+				ID: did, EnterpriseCapabilityID: ecID, Status: tc.status,
+			}}
+			code, body := getDirection(t, queries, ecID, architectActor())
+			require.Equal(t, http.StatusOK, code)
+			require.NotNil(t, body.Direction)
+			for _, link := range tc.expectLinks {
+				assert.Contains(t, body.Direction.Links, link, tc.assertReason)
+			}
+			for _, link := range tc.forbidLinks {
+				assert.NotContains(t, body.Direction.Links, link)
+			}
+		})
 	}
-	require.NoError(t, json.NewDecoder(rec.Body).Decode(&body))
-	require.NotNil(t, body.Direction)
-	assert.NotContains(t, body.Direction.Links, "edit")
-	assert.NotContains(t, body.Direction.Links, "x-propose")
-	assert.NotContains(t, body.Direction.Links, "x-agree")
-	assert.Contains(t, body.Direction.Links, "x-reject", "spec allows reject-and-replace from agreed")
 }
 
 func TestCaptureDirection_DispatchesCommand(t *testing.T) {
@@ -211,60 +192,67 @@ func TestCaptureDirection_DispatchesCommand(t *testing.T) {
 	assert.Len(t, cmd.SourceCapabilityIDs, 2)
 }
 
-func TestProposeDirection_DispatchesCommand(t *testing.T) {
-	ecID := uuid.New().String()
-	did := uuid.New().String()
-	bus := &mockCommandBus{}
-	queries := &mockDirectionQueries{activeByEC: &readmodels.DirectionDTO{
-		ID: did, EnterpriseCapabilityID: ecID, Status: "draft",
-	}}
-	h := setupHandlers(bus, queries)
+func TestAdvanceDirection_DispatchesCommandWithTargetStatus(t *testing.T) {
+	cases := []struct {
+		name         string
+		subPath      string
+		fromStatus   string
+		targetStatus string
+		bind         func(h *DirectionHandlers) http.HandlerFunc
+	}{
+		{
+			name: "propose moves draft to proposed", subPath: "propose",
+			fromStatus: "draft", targetStatus: "proposed",
+			bind: func(h *DirectionHandlers) http.HandlerFunc { return h.ProposeDirection },
+		},
+		{
+			name: "agree moves proposed to agreed", subPath: "agree",
+			fromStatus: "proposed", targetStatus: "agreed",
+			bind: func(h *DirectionHandlers) http.HandlerFunc { return h.AgreeDirection },
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ecID := uuid.New().String()
+			did := uuid.New().String()
+			bus := &mockCommandBus{}
+			queries := &mockDirectionQueries{activeByEC: &readmodels.DirectionDTO{
+				ID: did, EnterpriseCapabilityID: ecID, Status: tc.fromStatus,
+			}}
+			h := setupHandlers(bus, queries)
 
-	r := chi.NewRouter()
-	r.Post("/enterprise-capabilities/{id}/direction/propose", h.ProposeDirection)
+			r := chi.NewRouter()
+			r.Post("/enterprise-capabilities/{id}/direction/"+tc.subPath, tc.bind(h))
 
-	req := httptest.NewRequest(http.MethodPost, "/enterprise-capabilities/"+ecID+"/direction/propose", nil)
-	req = req.WithContext(sharedctx.WithActor(req.Context(), architectActor()))
-	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, req)
+			req := httptest.NewRequest(http.MethodPost, "/enterprise-capabilities/"+ecID+"/direction/"+tc.subPath, nil)
+			req = req.WithContext(sharedctx.WithActor(req.Context(), architectActor()))
+			rec := httptest.NewRecorder()
+			r.ServeHTTP(rec, req)
 
-	require.Equal(t, http.StatusOK, rec.Code)
-	require.Len(t, bus.dispatched, 1)
-	cmd := bus.dispatched[0].(*commands.AdvanceDirection)
-	assert.Equal(t, did, cmd.DirectionID)
-	assert.Equal(t, "proposed", cmd.TargetStatus)
+			require.Equal(t, http.StatusOK, rec.Code)
+			require.Len(t, bus.dispatched, 1)
+			cmd := bus.dispatched[0].(*commands.AdvanceDirection)
+			assert.Equal(t, did, cmd.DirectionID)
+			assert.Equal(t, tc.targetStatus, cmd.TargetStatus)
+		})
+	}
 }
 
-func TestAgreeDirection_DispatchesCommand(t *testing.T) {
+func TestRejectDirection_DispatchesCommandAndReturnsRejectedDirection(t *testing.T) {
 	ecID := uuid.New().String()
 	did := uuid.New().String()
 	bus := &mockCommandBus{}
-	queries := &mockDirectionQueries{activeByEC: &readmodels.DirectionDTO{
-		ID: did, EnterpriseCapabilityID: ecID, Status: "proposed",
-	}}
-	h := setupHandlers(bus, queries)
-
-	r := chi.NewRouter()
-	r.Post("/enterprise-capabilities/{id}/direction/agree", h.AgreeDirection)
-
-	req := httptest.NewRequest(http.MethodPost, "/enterprise-capabilities/"+ecID+"/direction/agree", nil)
-	req = req.WithContext(sharedctx.WithActor(req.Context(), architectActor()))
-	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, req)
-
-	require.Equal(t, http.StatusOK, rec.Code)
-	require.Len(t, bus.dispatched, 1)
-	cmd := bus.dispatched[0].(*commands.AdvanceDirection)
-	assert.Equal(t, "agreed", cmd.TargetStatus)
-}
-
-func TestRejectDirection_DispatchesCommand(t *testing.T) {
-	ecID := uuid.New().String()
-	did := uuid.New().String()
-	bus := &mockCommandBus{}
-	queries := &mockDirectionQueries{activeByEC: &readmodels.DirectionDTO{
-		ID: did, EnterpriseCapabilityID: ecID, Status: "agreed",
-	}}
+	queries := &mockDirectionQueries{
+		activeByEC: &readmodels.DirectionDTO{
+			ID: did, EnterpriseCapabilityID: ecID, Status: "agreed",
+		},
+		directionByID: &readmodels.DirectionDTO{
+			ID: did, EnterpriseCapabilityID: ecID, Status: "rejected",
+		},
+	}
+	bus.afterDispatch = func() {
+		queries.activeByEC = nil
+	}
 	h := setupHandlers(bus, queries)
 
 	r := chi.NewRouter()
@@ -275,10 +263,15 @@ func TestRejectDirection_DispatchesCommand(t *testing.T) {
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 
-	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, http.StatusOK, rec.Code, "rejection must succeed even after projection removes the active direction")
 	require.Len(t, bus.dispatched, 1)
 	cmd := bus.dispatched[0].(*commands.RejectDirection)
 	assert.Equal(t, did, cmd.DirectionID)
+
+	var body readmodels.DirectionDTO
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&body))
+	assert.Equal(t, did, body.ID)
+	assert.Equal(t, "rejected", body.Status)
 }
 
 func TestUpdateDirection_DispatchesNarrativeAndHorizon(t *testing.T) {
