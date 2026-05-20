@@ -25,7 +25,6 @@ export interface Direction {
   narrative?: string;
   sourceCapabilities: DirectionSourceCapability[];
   placements: DirectionPlacement[];
-  hasStaleReferences: boolean;
   createdAt: string;
   updatedAt?: string;
   _links: HATEOASLinks & {

@@ -48,7 +48,6 @@ type DirectionDTO struct {
 	Narrative              string                         `json:"narrative,omitempty"`
 	SourceCapabilities     []DirectionSourceCapabilityDTO `json:"sourceCapabilities"`
 	Placements             []DirectionPlacementDTO        `json:"placements"`
-	HasStaleReferences     bool                           `json:"hasStaleReferences"`
 	CreatedAt              time.Time                      `json:"createdAt"`
 	UpdatedAt              *time.Time                     `json:"updatedAt,omitempty"`
 	Links                  types.Links                    `json:"_links,omitempty"`
@@ -295,7 +294,6 @@ func (rm *DirectionReadModel) fetchDirection(ctx context.Context, spec fetchSpec
 			return srcErr
 		}
 		direction.SourceCapabilities = sources
-		direction.HasStaleReferences = hasStale(sources)
 		dto = &direction
 		return nil
 	})
@@ -365,11 +363,3 @@ func loadSourcesForDirection(ctx context.Context, tx *sql.Tx, key sourceFetchKey
 	return out, nil
 }
 
-func hasStale(sources []DirectionSourceCapabilityDTO) bool {
-	for _, s := range sources {
-		if s.Stale {
-			return true
-		}
-	}
-	return false
-}

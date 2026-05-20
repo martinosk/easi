@@ -101,7 +101,6 @@ describe('DirectionPanel', () => {
           { id: 'cap-2', stale: false },
         ],
         placements: [{ targetBusinessDomainId: 'dom-1' }],
-        hasStaleReferences: false,
         createdAt: '2025-01-01T00:00:00Z',
         _links: {
           'x-propose': { href: '/api/v1/enterprise-capabilities/ec-1/direction/propose', method: 'POST' },
@@ -135,7 +134,6 @@ describe('DirectionPanel', () => {
           { id: 'cap-2', stale: true },
         ],
         placements: [],
-        hasStaleReferences: true,
         createdAt: '2025-01-01T00:00:00Z',
         _links: {
           'x-agree': { href: '/api/v1/enterprise-capabilities/ec-1/direction/agree', method: 'POST' },
@@ -164,8 +162,7 @@ describe('DirectionPanel', () => {
             { id: 'cap-2', stale: false },
           ],
           placements: [{ targetBusinessDomainId: 'dom-1' }],
-          hasStaleReferences: false,
-          createdAt: '2025-01-01T00:00:00Z',
+            createdAt: '2025-01-01T00:00:00Z',
           _links: {},
         },
         _links: {},
@@ -194,7 +191,6 @@ describe('DirectionPanel', () => {
         narrative: 'narrative',
         sourceCapabilities: [{ id: 'cap-1', stale: false }],
         placements: [],
-        hasStaleReferences: false,
         createdAt: '2025-01-01T00:00:00Z',
         _links: {
           'x-reject': { href: '/api/v1/enterprise-capabilities/ec-1/direction/reject', method: 'POST' },

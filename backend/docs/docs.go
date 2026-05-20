@@ -10824,9 +10824,6 @@ const docTemplate = `{
                 "enterpriseCapabilityId": {
                     "type": "string"
                 },
-                "hasStaleReferences": {
-                    "type": "boolean"
-                },
                 "horizon": {
                     "type": "string"
                 },
