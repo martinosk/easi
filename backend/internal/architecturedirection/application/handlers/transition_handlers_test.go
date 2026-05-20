@@ -9,6 +9,7 @@ import (
 	"easi/backend/internal/architecturedirection/domain/aggregates"
 	"easi/backend/internal/architecturedirection/domain/valueobjects"
 	"easi/backend/internal/shared/cqrs"
+	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -45,7 +46,7 @@ func draftFixture(t *testing.T) *aggregates.Direction {
 	r2, _ := valueobjects.NewPhysicalCapabilityRef(uuid.New().String())
 	p, _ := valueobjects.NewPlacement(uuid.New().String(), "")
 	h, _ := valueobjects.NewHorizon("next")
-	n, _ := valueobjects.NewNarrative("Some narrative.")
+	n, _ := sharedvo.NewDescription("Some narrative.")
 	d, err := aggregates.DraftDirection(aggregates.DraftParams{
 		EnterpriseCapabilityID: ec,
 		Type:                   dt,

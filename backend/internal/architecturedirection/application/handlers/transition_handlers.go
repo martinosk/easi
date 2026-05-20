@@ -8,6 +8,7 @@ import (
 	"easi/backend/internal/architecturedirection/domain/aggregates"
 	"easi/backend/internal/architecturedirection/domain/valueobjects"
 	"easi/backend/internal/shared/cqrs"
+	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 )
 
 var ErrUnknownAdvanceTarget = errors.New("advance target must be 'proposed' or 'agreed'")
@@ -101,7 +102,7 @@ func applyAdvance(c *commands.AdvanceDirection, d *aggregates.Direction) error {
 }
 
 func applyNarrative(c *commands.UpdateDirectionNarrative, d *aggregates.Direction) error {
-	narrative, err := valueobjects.NewNarrative(c.Narrative)
+	narrative, err := sharedvo.NewDescription(c.Narrative)
 	if err != nil {
 		return err
 	}

@@ -7,6 +7,7 @@ import (
 	"easi/backend/internal/architecturedirection/domain/valueobjects"
 	"easi/backend/internal/architecturedirection/infrastructure/repositories"
 	sharedAPI "easi/backend/internal/shared/api"
+	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 )
 
 func init() {
@@ -26,7 +27,7 @@ func init() {
 	registry.RegisterValidation(valueobjects.ErrInvalidDirectionType, "Direction type must be one of consolidate, decompose, stay")
 	registry.RegisterValidation(valueobjects.ErrInvalidDirectionStatus, "Direction status must be one of draft, proposed, agreed, rejected")
 	registry.RegisterValidation(valueobjects.ErrInvalidHorizon, "Horizon must be one of now, next, later")
-	registry.RegisterValidation(valueobjects.ErrNarrativeTooLong, "Narrative cannot exceed 1000 characters")
+	registry.RegisterValidation(sharedvo.ErrDescriptionTooLong, "Narrative cannot exceed 1000 characters")
 	registry.RegisterValidation(valueobjects.ErrResultingNameTooLong, "Resulting name cannot exceed 200 characters")
 	registry.RegisterValidation(handlers.ErrUnknownAdvanceTarget, "Advance target must be 'proposed' or 'agreed'")
 }

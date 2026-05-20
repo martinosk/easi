@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"easi/backend/internal/architecturedirection/domain/valueobjects"
+	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -49,9 +50,9 @@ func newECRef(t *testing.T) valueobjects.EnterpriseCapabilityRef {
 	return ec
 }
 
-func newNarrative(t *testing.T, v string) valueobjects.Narrative {
+func newNarrative(t *testing.T, v string) sharedvo.Description {
 	t.Helper()
-	n, err := valueobjects.NewNarrative(v)
+	n, err := sharedvo.NewDescription(v)
 	require.NoError(t, err)
 	return n
 }
@@ -81,10 +82,8 @@ func draftWith(t *testing.T, opts draftOpts) (*Direction, error) {
 	if opts.includePlacement {
 		placements = []valueobjects.Placement{newPlacement(t)}
 	}
-	var narrative valueobjects.Narrative
-	if opts.narrative == "" {
-		narrative = valueobjects.EmptyNarrative()
-	} else {
+	var narrative sharedvo.Description
+	if opts.narrative != "" {
 		narrative = newNarrative(t, opts.narrative)
 	}
 	return DraftDirection(DraftParams{
@@ -149,7 +148,7 @@ func TestDraftDirection_Consolidate_MultiplePlacements_Fails(t *testing.T) {
 		SourceCapabilityIDs:    newPhysicalRefs(t, 2),
 		Placements:             []valueobjects.Placement{newPlacement(t), newPlacement(t)},
 		Horizon:                newHorizon(t, "now"),
-		Narrative:              valueobjects.EmptyNarrative(),
+		Narrative:              sharedvo.Description{},
 	})
 	assert.ErrorIs(t, err, ErrInvalidPlacementCardinality)
 }
@@ -161,7 +160,7 @@ func TestDraftDirection_Decompose_MultiplePlacements_Succeeds(t *testing.T) {
 		SourceCapabilityIDs:    newPhysicalRefs(t, 1),
 		Placements:             []valueobjects.Placement{newPlacement(t), newPlacement(t)},
 		Horizon:                newHorizon(t, "now"),
-		Narrative:              valueobjects.EmptyNarrative(),
+		Narrative:              sharedvo.Description{},
 	})
 	require.NoError(t, err)
 	assert.Len(t, d.Placements(), 2)

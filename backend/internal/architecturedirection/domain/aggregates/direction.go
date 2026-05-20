@@ -7,6 +7,7 @@ import (
 	"easi/backend/internal/architecturedirection/domain/events"
 	"easi/backend/internal/architecturedirection/domain/valueobjects"
 	domain "easi/backend/internal/shared/eventsourcing"
+	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 )
 
 var (
@@ -27,7 +28,7 @@ type Direction struct {
 	placements             []valueobjects.Placement
 	horizon                valueobjects.Horizon
 	status                 valueobjects.DirectionStatus
-	narrative              valueobjects.Narrative
+	narrative              sharedvo.Description
 }
 
 type DraftParams struct {
@@ -36,7 +37,7 @@ type DraftParams struct {
 	SourceCapabilityIDs    []valueobjects.PhysicalCapabilityRef
 	Placements             []valueobjects.Placement
 	Horizon                valueobjects.Horizon
-	Narrative              valueobjects.Narrative
+	Narrative              sharedvo.Description
 }
 
 func DraftDirection(params DraftParams) (*Direction, error) {
@@ -111,7 +112,8 @@ func (d *Direction) Reject() error {
 	return nil
 }
 
-func (d *Direction) UpdateNarrative(narrative valueobjects.Narrative) error {
+func (d *Direction) UpdateNarrative(narrative sharedvo.Description) error {
+
 	if err := d.requireEditable(); err != nil {
 		return err
 	}
@@ -155,7 +157,7 @@ func (d *Direction) EnterpriseCapabilityID() valueobjects.EnterpriseCapabilityRe
 func (d *Direction) Type() valueobjects.DirectionType     { return d.directionType }
 func (d *Direction) Status() valueobjects.DirectionStatus { return d.status }
 func (d *Direction) Horizon() valueobjects.Horizon        { return d.horizon }
-func (d *Direction) Narrative() valueobjects.Narrative    { return d.narrative }
+func (d *Direction) Narrative() sharedvo.Description    { return d.narrative }
 func (d *Direction) Placements() []valueobjects.Placement {
 	out := make([]valueobjects.Placement, len(d.placements))
 	copy(out, d.placements)
@@ -233,7 +235,7 @@ func (d *Direction) applyFieldUpdate(event domain.DomainEvent) error {
 }
 
 func (d *Direction) applyNarrativeUpdated(evt events.DirectionNarrativeUpdated) error {
-	n, err := valueobjects.NewNarrative(evt.Narrative)
+	n, err := sharedvo.NewDescription(evt.Narrative)
 	if err != nil {
 		return fmt.Errorf("%w: narrative: %v", ErrCorruptedEvent, err)
 	}
@@ -289,7 +291,7 @@ func (d *Direction) applyDrafted(evt events.DirectionDrafted) error {
 	if err != nil {
 		return fmt.Errorf("%w: horizon %q: %v", ErrCorruptedEvent, evt.Horizon, err)
 	}
-	narrative, err := valueobjects.NewNarrative(evt.Narrative)
+	narrative, err := sharedvo.NewDescription(evt.Narrative)
 	if err != nil {
 		return fmt.Errorf("%w: narrative: %v", ErrCorruptedEvent, err)
 	}

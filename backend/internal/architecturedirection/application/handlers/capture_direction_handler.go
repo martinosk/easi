@@ -8,6 +8,7 @@ import (
 	"easi/backend/internal/architecturedirection/domain/services"
 	"easi/backend/internal/architecturedirection/domain/valueobjects"
 	"easi/backend/internal/shared/cqrs"
+	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 )
 
 type DirectionRepository interface {
@@ -58,7 +59,7 @@ func captureParamsFromCommand(command *commands.CaptureDirection) (aggregates.Dr
 	if err != nil {
 		return aggregates.DraftParams{}, err
 	}
-	narrative, err := valueobjects.NewNarrative(command.Narrative)
+	narrative, err := sharedvo.NewDescription(command.Narrative)
 	if err != nil {
 		return aggregates.DraftParams{}, err
 	}
