@@ -17,6 +17,7 @@ Every modified and untracked file in the pending change set must:
 ## Procedure
 
 Run in order. Do not skip steps.
+Do not check for previous code health before asserting and fixing. It does not matter WHEN the bad code was introduced.
 
 ### 1. Enumerate every pending-changes file
 From `git status`: modified (`M`) and untracked (`??`). Test files (`*_test.go`, `*.test.ts`, `*.test.tsx`) count.
@@ -34,7 +35,7 @@ Each file under 10.0 is one of:
   - Large Method (React) → extract custom hooks or sub-components
 - **Inherent** — only these qualify:
   - Auto-generated: `backend/docs/docs.go`, `frontend/openapi.json`.
-  - Pre-existing structural debt outside branch scope. Must be named in the report (file, score, smell, why deferred). If the branch introduced or worsened the smell, it is not inherent.
+  - Inherent to the type of code: E.g. hatoas link builders.
 
 ### 4. Refactor each fixable file
 Apply the refactor. Re-run tests touching that file (`go test ./...` or `npm test -- --run <pattern>`) before re-scoring.
