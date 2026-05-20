@@ -9,19 +9,25 @@ import (
 
 	"github.com/lib/pq"
 
+	"easi/backend/internal/architecturedirection/domain/services"
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/types"
 )
 
-// ErrActiveDirectionAlreadyExists surfaces when a unique-violation on the
-// uq_directions_active_per_ec partial index fires during projection. The
-// command-handler check (HasActiveDirectionForEnterpriseCapability) is racy;
-// this is the DB-side backstop translated into a meaningful error.
-var ErrActiveDirectionAlreadyExists = errors.New("an active direction already exists on this enterprise capability")
-
 const pgUniqueViolation = "23505"
 const activeDirectionUniqueConstraint = "uq_directions_active_per_ec"
+
+type DirectionID string
+type CapabilityID string
+
+type DirectionField string
+
+const (
+	DirectionFieldStatus    DirectionField = "status"
+	DirectionFieldNarrative DirectionField = "narrative"
+	DirectionFieldHorizon   DirectionField = "horizon"
+)
 
 type DirectionPlacementDTO struct {
 	TargetBusinessDomainID string `json:"targetBusinessDomainId"`
@@ -57,15 +63,31 @@ func NewDirectionReadModel(db *database.TenantAwareDB) *DirectionReadModel {
 }
 
 type InsertDirectionParams struct {
-	ID                     string
+	ID                     DirectionID
 	EnterpriseCapabilityID string
 	Type                   string
 	Status                 string
 	Horizon                string
 	Narrative              string
-	SourceCapabilityIDs    []string
+	SourceCapabilityIDs    []CapabilityID
 	Placements             []DirectionPlacementDTO
 	CreatedAt              time.Time
+}
+
+type FieldUpdate struct {
+	DirectionID DirectionID
+	Field       DirectionField
+	Value       string
+}
+
+type PlacementsUpdate struct {
+	DirectionID DirectionID
+	Placements  []DirectionPlacementDTO
+}
+
+type SourceCapabilitiesUpdate struct {
+	DirectionID         DirectionID
+	SourceCapabilityIDs []CapabilityID
 }
 
 func (rm *DirectionReadModel) Insert(ctx context.Context, p InsertDirectionParams) error {
@@ -86,7 +108,7 @@ func (rm *DirectionReadModel) Insert(ctx context.Context, p InsertDirectionParam
 			   narrative = EXCLUDED.narrative,
 			   placements = EXCLUDED.placements,
 			   created_at = EXCLUDED.created_at`,
-			p.ID, tenantID, p.EnterpriseCapabilityID, p.Type, p.Status, p.Horizon, p.Narrative, string(placementsJSON), p.CreatedAt,
+			string(p.ID), tenantID, p.EnterpriseCapabilityID, p.Type, p.Status, p.Horizon, p.Narrative, string(placementsJSON), p.CreatedAt,
 		); err != nil {
 			return mapInsertError(err)
 		}
@@ -96,7 +118,7 @@ func (rm *DirectionReadModel) Insert(ctx context.Context, p InsertDirectionParam
 
 func mapInsertError(err error) error {
 	if isActiveDirectionUniqueViolation(err) {
-		return ErrActiveDirectionAlreadyExists
+		return services.ErrActiveDirectionAlreadyExists
 	}
 	return err
 }
@@ -109,20 +131,21 @@ func isActiveDirectionUniqueViolation(err error) bool {
 	return string(pqErr.Code) == pgUniqueViolation && pqErr.Constraint == activeDirectionUniqueConstraint
 }
 
-func (rm *DirectionReadModel) UpdateStatus(ctx context.Context, id, status string) error {
-	return rm.updateColumn(ctx, id, "status", status)
+func (rm *DirectionReadModel) UpdateField(ctx context.Context, u FieldUpdate) error {
+	tenantID, err := tenantOf(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = rm.db.ExecContext(ctx,
+		`UPDATE architecturedirection.directions SET `+string(u.Field)+` = $1, updated_at = CURRENT_TIMESTAMP
+		 WHERE tenant_id = $2 AND id = $3`,
+		u.Value, tenantID, string(u.DirectionID),
+	)
+	return err
 }
 
-func (rm *DirectionReadModel) UpdateNarrative(ctx context.Context, id, narrative string) error {
-	return rm.updateColumn(ctx, id, "narrative", narrative)
-}
-
-func (rm *DirectionReadModel) UpdateHorizon(ctx context.Context, id, horizon string) error {
-	return rm.updateColumn(ctx, id, "horizon", horizon)
-}
-
-func (rm *DirectionReadModel) UpdatePlacements(ctx context.Context, id string, placements []DirectionPlacementDTO) error {
-	placementsJSON, err := json.Marshal(placements)
+func (rm *DirectionReadModel) UpdatePlacements(ctx context.Context, u PlacementsUpdate) error {
+	placementsJSON, err := json.Marshal(u.Placements)
 	if err != nil {
 		return err
 	}
@@ -133,26 +156,26 @@ func (rm *DirectionReadModel) UpdatePlacements(ctx context.Context, id string, p
 	_, err = rm.db.ExecContext(ctx,
 		`UPDATE architecturedirection.directions SET placements = $1::jsonb, updated_at = CURRENT_TIMESTAMP
 		 WHERE tenant_id = $2 AND id = $3`,
-		string(placementsJSON), tenantID, id,
+		string(placementsJSON), tenantID, string(u.DirectionID),
 	)
 	return err
 }
 
-func (rm *DirectionReadModel) ReplaceSourceCapabilities(ctx context.Context, id string, sourceCapabilityIDs []string) error {
+func (rm *DirectionReadModel) ReplaceSourceCapabilities(ctx context.Context, u SourceCapabilitiesUpdate) error {
 	return rm.withTx(ctx, func(tx *sql.Tx, tenantID string) error {
-		replacement := sourceRowReplacement{tx: tx, tenantID: tenantID, directionID: id, sourceCapabilityIDs: sourceCapabilityIDs}
+		replacement := sourceRowReplacement{tx: tx, tenantID: tenantID, directionID: u.DirectionID, sourceCapabilityIDs: u.SourceCapabilityIDs}
 		if err := replacement.execute(ctx); err != nil {
 			return err
 		}
 		_, err := tx.ExecContext(ctx,
 			`UPDATE architecturedirection.directions SET updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $1 AND id = $2`,
-			tenantID, id,
+			tenantID, string(u.DirectionID),
 		)
 		return err
 	})
 }
 
-func (rm *DirectionReadModel) MarkSourceCapabilityStale(ctx context.Context, capabilityID string) error {
+func (rm *DirectionReadModel) MarkSourceCapabilityStale(ctx context.Context, capabilityID CapabilityID) error {
 	tenantID, err := tenantOf(ctx)
 	if err != nil {
 		return err
@@ -160,15 +183,15 @@ func (rm *DirectionReadModel) MarkSourceCapabilityStale(ctx context.Context, cap
 	_, err = rm.db.ExecContext(ctx,
 		`UPDATE architecturedirection.direction_source_capabilities SET stale = TRUE
 		 WHERE tenant_id = $1 AND capability_id = $2 AND stale = FALSE`,
-		tenantID, capabilityID,
+		tenantID, string(capabilityID),
 	)
 	return err
 }
 
-func (rm *DirectionReadModel) GetByID(ctx context.Context, id string) (*DirectionDTO, error) {
+func (rm *DirectionReadModel) GetByID(ctx context.Context, id DirectionID) (*DirectionDTO, error) {
 	return rm.fetchDirection(ctx, fetchSpec{
 		query: `SELECT ` + directionCols + ` FROM architecturedirection.directions WHERE tenant_id = $1 AND id = $2`,
-		args:  func(tenantID string) []interface{} { return []interface{}{tenantID, id} },
+		args:  func(tenantID string) []interface{} { return []interface{}{tenantID, string(id)} },
 	})
 }
 
@@ -210,19 +233,6 @@ func tenantOf(ctx context.Context) (string, error) {
 	return t.Value(), nil
 }
 
-func (rm *DirectionReadModel) updateColumn(ctx context.Context, id, column, value string) error {
-	tenantID, err := tenantOf(ctx)
-	if err != nil {
-		return err
-	}
-	_, err = rm.db.ExecContext(ctx,
-		`UPDATE architecturedirection.directions SET `+column+` = $1, updated_at = CURRENT_TIMESTAMP
-		 WHERE tenant_id = $2 AND id = $3`,
-		value, tenantID, id,
-	)
-	return err
-}
-
 func (rm *DirectionReadModel) withTx(ctx context.Context, fn func(tx *sql.Tx, tenantID string) error) error {
 	tenantID, err := tenantOf(ctx)
 	if err != nil {
@@ -242,14 +252,14 @@ func (rm *DirectionReadModel) withTx(ctx context.Context, fn func(tx *sql.Tx, te
 type sourceRowReplacement struct {
 	tx                  *sql.Tx
 	tenantID            string
-	directionID         string
-	sourceCapabilityIDs []string
+	directionID         DirectionID
+	sourceCapabilityIDs []CapabilityID
 }
 
 func (r sourceRowReplacement) execute(ctx context.Context) error {
 	if _, err := r.tx.ExecContext(ctx,
 		`DELETE FROM architecturedirection.direction_source_capabilities WHERE tenant_id = $1 AND direction_id = $2`,
-		r.tenantID, r.directionID,
+		r.tenantID, string(r.directionID),
 	); err != nil {
 		return err
 	}
@@ -257,7 +267,7 @@ func (r sourceRowReplacement) execute(ctx context.Context) error {
 		if _, err := r.tx.ExecContext(ctx,
 			`INSERT INTO architecturedirection.direction_source_capabilities
 			 (tenant_id, direction_id, capability_id) VALUES ($1, $2, $3)`,
-			r.tenantID, r.directionID, sid,
+			r.tenantID, string(r.directionID), string(sid),
 		); err != nil {
 			return err
 		}
@@ -280,7 +290,7 @@ func (rm *DirectionReadModel) fetchDirection(ctx context.Context, spec fetchSpec
 		if scanErr != nil {
 			return scanErr
 		}
-		sources, srcErr := loadSourcesForDirection(ctx, tx, tenantID, direction.ID)
+		sources, srcErr := loadSourcesForDirection(ctx, tx, sourceFetchKey{tenantID: tenantID, directionID: DirectionID(direction.ID)})
 		if srcErr != nil {
 			return srcErr
 		}
@@ -325,11 +335,16 @@ func scanDirection(row directionRowScanner) (DirectionDTO, error) {
 	return dto, nil
 }
 
-func loadSourcesForDirection(ctx context.Context, tx *sql.Tx, tenantID, directionID string) ([]DirectionSourceCapabilityDTO, error) {
+type sourceFetchKey struct {
+	tenantID    string
+	directionID DirectionID
+}
+
+func loadSourcesForDirection(ctx context.Context, tx *sql.Tx, key sourceFetchKey) ([]DirectionSourceCapabilityDTO, error) {
 	rows, err := tx.QueryContext(ctx,
 		`SELECT capability_id, stale FROM architecturedirection.direction_source_capabilities
 		 WHERE tenant_id = $1 AND direction_id = $2 ORDER BY capability_id`,
-		tenantID, directionID,
+		key.tenantID, string(key.directionID),
 	)
 	if err != nil {
 		return nil, err

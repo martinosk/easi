@@ -13,7 +13,7 @@ import (
 )
 
 type DirectionQueries interface {
-	GetByID(ctx context.Context, id string) (*readmodels.DirectionDTO, error)
+	GetByID(ctx context.Context, id readmodels.DirectionID) (*readmodels.DirectionDTO, error)
 	GetActiveByEnterpriseCapabilityID(ctx context.Context, enterpriseCapabilityID string) (*readmodels.DirectionDTO, error)
 }
 
@@ -218,7 +218,7 @@ func (h *DirectionHandlers) RejectDirection(w http.ResponseWriter, r *http.Reque
 		sharedAPI.HandleError(w, err)
 		return
 	}
-	rejected, err := h.queries.GetByID(r.Context(), direction.ID)
+	rejected, err := h.queries.GetByID(r.Context(), readmodels.DirectionID(direction.ID))
 	if err != nil {
 		sharedAPI.HandleError(w, err)
 		return

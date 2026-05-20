@@ -45,7 +45,7 @@ type mockDirectionQueries struct {
 	activeByEC    *readmodels.DirectionDTO
 }
 
-func (m *mockDirectionQueries) GetByID(_ context.Context, _ string) (*readmodels.DirectionDTO, error) {
+func (m *mockDirectionQueries) GetByID(_ context.Context, _ readmodels.DirectionID) (*readmodels.DirectionDTO, error) {
 	return m.directionByID, nil
 }
 

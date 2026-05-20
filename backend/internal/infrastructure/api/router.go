@@ -15,8 +15,8 @@ import (
 	archAssistantAPI "easi/backend/internal/archassistant/infrastructure/api"
 	archAssistantRateLimit "easi/backend/internal/archassistant/infrastructure/ratelimit"
 	archAssistantRepos "easi/backend/internal/archassistant/infrastructure/repositories"
+	directionServices "easi/backend/internal/architecturedirection/domain/services"
 	directionAPI "easi/backend/internal/architecturedirection/infrastructure/api"
-	directionAdapters "easi/backend/internal/architecturedirection/infrastructure/adapters"
 	eaReadModels "easi/backend/internal/enterprisearchitecture/application/readmodels"
 	archReadModels "easi/backend/internal/architecturemodeling/application/readmodels"
 	archAdapters "easi/backend/internal/architecturemodeling/infrastructure/adapters"
@@ -270,11 +270,11 @@ func setupDomainRoutes(r chi.Router, deps routerDependencies) {
 		SessionProvider: deps.authDeps.SessionManager,
 	}), "enterprise architecture routes")
 
-	directionRefChecker := directionAdapters.NewReferenceCheckerAdapter(
-		nilDTOMeansAbsent(eaReadModels.NewEnterpriseCapabilityReadModel(deps.db).GetByID),
-		nilDTOMeansAbsent(capReadModels.NewCapabilityReadModel(deps.db).GetByID),
-		nilDTOMeansAbsent(capReadModels.NewBusinessDomainReadModel(deps.db).GetByID),
-	)
+	directionRefChecker := &directionServices.ReferenceChecker{
+		EnterpriseCapabilityExists: existsByID(eaReadModels.NewEnterpriseCapabilityReadModel(deps.db).GetByID),
+		PhysicalCapabilityExists:   existsByID(capReadModels.NewCapabilityReadModel(deps.db).GetByID),
+		BusinessDomainExists:       existsByID(capReadModels.NewBusinessDomainReadModel(deps.db).GetByID),
+	}
 
 	mustSetup(directionAPI.SetupRoutes(directionAPI.RoutesDeps{
 		Router:           r,
@@ -376,10 +376,7 @@ func versionHandler(w http.ResponseWriter, r *http.Request) {
 	sharedAPI.RespondJSON(w, http.StatusOK, map[string]string{"version": appVersion})
 }
 
-// nilDTOMeansAbsent adapts a read-model `GetByID` (which returns `nil, nil` on
-// not-found) into an existence predicate. Used to plumb upstream read models
-// into the architecturedirection ReferenceChecker without leaking their DTOs.
-func nilDTOMeansAbsent[T any](getByID func(context.Context, string) (*T, error)) directionAdapters.ExistenceCheck {
+func existsByID[T any](getByID func(context.Context, string) (*T, error)) directionServices.ExistenceCheck {
 	return func(ctx context.Context, id string) (bool, error) {
 		dto, err := getByID(ctx, id)
 		if err != nil {

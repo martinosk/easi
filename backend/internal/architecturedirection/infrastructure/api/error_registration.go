@@ -2,8 +2,8 @@ package api
 
 import (
 	"easi/backend/internal/architecturedirection/application/handlers"
-	"easi/backend/internal/architecturedirection/application/readmodels"
 	"easi/backend/internal/architecturedirection/domain/aggregates"
+	"easi/backend/internal/architecturedirection/domain/services"
 	"easi/backend/internal/architecturedirection/domain/valueobjects"
 	"easi/backend/internal/architecturedirection/infrastructure/repositories"
 	sharedAPI "easi/backend/internal/shared/api"
@@ -13,9 +13,9 @@ func init() {
 	registry := sharedAPI.GetErrorRegistry()
 
 	registry.RegisterNotFound(repositories.ErrDirectionNotFound, "Direction not found")
-	registry.RegisterNotFound(handlers.ErrReferencedEntityNotFound, "A referenced entity does not exist or is not accessible")
+	registry.RegisterNotFound(services.ErrReferencedEntityNotFound, "A referenced entity does not exist or is not accessible")
 
-	registry.RegisterConflict(readmodels.ErrActiveDirectionAlreadyExists, "An active direction already exists on this enterprise capability")
+	registry.RegisterConflict(services.ErrActiveDirectionAlreadyExists, "An active direction already exists on this enterprise capability")
 	registry.RegisterConflict(aggregates.ErrDirectionAgreedImmutable, "Agreed directions are immutable; reject and replace to change")
 	registry.RegisterConflict(aggregates.ErrInvalidStatusTransition, "Status transition not allowed from current status")
 

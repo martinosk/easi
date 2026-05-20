@@ -7,6 +7,7 @@ import (
 
 	"easi/backend/internal/architecturedirection/application/commands"
 	"easi/backend/internal/architecturedirection/domain/aggregates"
+	"easi/backend/internal/architecturedirection/domain/services"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -38,29 +39,20 @@ func (m *mockActiveDirectionLookup) HasActiveDirectionForEnterpriseCapability(_ 
 	return m.hasActive, nil
 }
 
-type stubReferenceChecker struct {
-	enterpriseCapabilityExists bool
-	physicalCapabilityExists   bool
-	businessDomainExists       bool
-	err                        error
+func constantExists(value bool) services.ExistenceCheck {
+	return func(context.Context, string) (bool, error) { return value, nil }
 }
 
-func (s *stubReferenceChecker) EnterpriseCapabilityExists(_ context.Context, _ string) (bool, error) {
-	return s.enterpriseCapabilityExists, s.err
-}
-func (s *stubReferenceChecker) PhysicalCapabilityExists(_ context.Context, _ string) (bool, error) {
-	return s.physicalCapabilityExists, s.err
-}
-func (s *stubReferenceChecker) BusinessDomainExists(_ context.Context, _ string) (bool, error) {
-	return s.businessDomainExists, s.err
-}
-
-func allReferencesExist() *stubReferenceChecker {
-	return &stubReferenceChecker{
-		enterpriseCapabilityExists: true,
-		physicalCapabilityExists:   true,
-		businessDomainExists:       true,
+func allReferencesExist() *services.ReferenceChecker {
+	return &services.ReferenceChecker{
+		EnterpriseCapabilityExists: constantExists(true),
+		PhysicalCapabilityExists:   constantExists(true),
+		BusinessDomainExists:       constantExists(true),
 	}
+}
+
+func newPolicy(refs *services.ReferenceChecker, lookup services.ActiveDirectionLookup) *services.DirectionReferenceService {
+	return services.NewDirectionReferenceService(refs, lookup)
 }
 
 func validCaptureCmd() *commands.CaptureDirection {
@@ -78,7 +70,7 @@ func TestCaptureDirectionHandler_CreatesDraft(t *testing.T) {
 	repo := &mockDirectionRepository{}
 	lookup := &mockActiveDirectionLookup{hasActive: false}
 
-	handler := NewCaptureDirectionHandler(repo, lookup, allReferencesExist())
+	handler := NewCaptureDirectionHandler(repo, newPolicy(allReferencesExist(), lookup))
 	result, err := handler.Handle(context.Background(), validCaptureCmd())
 	require.NoError(t, err)
 
@@ -92,16 +84,16 @@ func TestCaptureDirectionHandler_RejectsSecondActiveDirection(t *testing.T) {
 	repo := &mockDirectionRepository{}
 	lookup := &mockActiveDirectionLookup{hasActive: true}
 
-	handler := NewCaptureDirectionHandler(repo, lookup, allReferencesExist())
+	handler := NewCaptureDirectionHandler(repo, newPolicy(allReferencesExist(), lookup))
 	_, err := handler.Handle(context.Background(), validCaptureCmd())
-	assert.ErrorIs(t, err, ErrActiveDirectionAlreadyExists)
+	assert.ErrorIs(t, err, services.ErrActiveDirectionAlreadyExists)
 	assert.Empty(t, repo.saved)
 }
 
 func TestCaptureDirectionHandler_InvalidType_Fails(t *testing.T) {
 	repo := &mockDirectionRepository{}
 	lookup := &mockActiveDirectionLookup{}
-	handler := NewCaptureDirectionHandler(repo, lookup, allReferencesExist())
+	handler := NewCaptureDirectionHandler(repo, newPolicy(allReferencesExist(), lookup))
 
 	cmd := validCaptureCmd()
 	cmd.Type = "explode"
@@ -112,7 +104,7 @@ func TestCaptureDirectionHandler_InvalidType_Fails(t *testing.T) {
 func TestCaptureDirectionHandler_InvalidSourceCount_Fails(t *testing.T) {
 	repo := &mockDirectionRepository{}
 	lookup := &mockActiveDirectionLookup{}
-	handler := NewCaptureDirectionHandler(repo, lookup, allReferencesExist())
+	handler := NewCaptureDirectionHandler(repo, newPolicy(allReferencesExist(), lookup))
 
 	cmd := validCaptureCmd()
 	cmd.SourceCapabilityIDs = []string{uuid.New().String()} // only 1 for consolidate
@@ -123,7 +115,7 @@ func TestCaptureDirectionHandler_InvalidSourceCount_Fails(t *testing.T) {
 func TestCaptureDirectionHandler_LookupError_Fails(t *testing.T) {
 	repo := &mockDirectionRepository{}
 	lookup := &mockActiveDirectionLookup{err: errors.New("db error")}
-	handler := NewCaptureDirectionHandler(repo, lookup, allReferencesExist())
+	handler := NewCaptureDirectionHandler(repo, newPolicy(allReferencesExist(), lookup))
 
 	_, err := handler.Handle(context.Background(), validCaptureCmd())
 	assert.Error(t, err)
@@ -132,11 +124,11 @@ func TestCaptureDirectionHandler_LookupError_Fails(t *testing.T) {
 func TestCaptureDirectionHandler_UnknownReference_Fails(t *testing.T) {
 	cases := []struct {
 		name string
-		mark func(*stubReferenceChecker)
+		mark func(*services.ReferenceChecker)
 	}{
-		{"unknown enterprise capability", func(r *stubReferenceChecker) { r.enterpriseCapabilityExists = false }},
-		{"unknown source capability", func(r *stubReferenceChecker) { r.physicalCapabilityExists = false }},
-		{"unknown target business domain", func(r *stubReferenceChecker) { r.businessDomainExists = false }},
+		{"unknown enterprise capability", func(r *services.ReferenceChecker) { r.EnterpriseCapabilityExists = constantExists(false) }},
+		{"unknown source capability", func(r *services.ReferenceChecker) { r.PhysicalCapabilityExists = constantExists(false) }},
+		{"unknown target business domain", func(r *services.ReferenceChecker) { r.BusinessDomainExists = constantExists(false) }},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -145,9 +137,9 @@ func TestCaptureDirectionHandler_UnknownReference_Fails(t *testing.T) {
 			refs := allReferencesExist()
 			tc.mark(refs)
 
-			handler := NewCaptureDirectionHandler(repo, lookup, refs)
+			handler := NewCaptureDirectionHandler(repo, newPolicy(refs, lookup))
 			_, err := handler.Handle(context.Background(), validCaptureCmd())
-			assert.ErrorIs(t, err, ErrReferencedEntityNotFound)
+			assert.ErrorIs(t, err, services.ErrReferencedEntityNotFound)
 			assert.Empty(t, repo.saved)
 		})
 	}

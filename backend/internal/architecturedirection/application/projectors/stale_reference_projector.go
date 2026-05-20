@@ -7,6 +7,7 @@ import (
 	"log"
 	"time"
 
+	"easi/backend/internal/architecturedirection/application/readmodels"
 	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	domain "easi/backend/internal/shared/eventsourcing"
 )
@@ -21,7 +22,7 @@ type capabilityDeletedPayload struct {
 }
 
 type StaleReferenceStore interface {
-	MarkSourceCapabilityStale(ctx context.Context, capabilityID string) error
+	MarkSourceCapabilityStale(ctx context.Context, capabilityID readmodels.CapabilityID) error
 }
 
 type StaleReferenceProjector struct {
@@ -53,5 +54,5 @@ func (p *StaleReferenceProjector) ProjectEvent(ctx context.Context, eventType st
 	if payload.ID == "" {
 		return nil
 	}
-	return p.readModel.MarkSourceCapabilityStale(ctx, payload.ID)
+	return p.readModel.MarkSourceCapabilityStale(ctx, readmodels.CapabilityID(payload.ID))
 }

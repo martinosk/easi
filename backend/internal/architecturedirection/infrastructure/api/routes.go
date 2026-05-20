@@ -6,6 +6,7 @@ import (
 	"easi/backend/internal/architecturedirection/application/handlers"
 	"easi/backend/internal/architecturedirection/application/projectors"
 	"easi/backend/internal/architecturedirection/application/readmodels"
+	"easi/backend/internal/architecturedirection/domain/services"
 	"easi/backend/internal/architecturedirection/infrastructure/repositories"
 	pl "easi/backend/internal/architecturedirection/publishedlanguage"
 	authPL "easi/backend/internal/auth/publishedlanguage"
@@ -31,7 +32,7 @@ type RoutesDeps struct {
 	DB               *database.TenantAwareDB
 	HATEOAS          *sharedAPI.HATEOASLinks
 	AuthMiddleware   AuthMiddleware
-	ReferenceChecker handlers.ReferenceChecker
+	ReferenceChecker *services.ReferenceChecker
 }
 
 func SetupRoutes(deps RoutesDeps) error {
@@ -73,9 +74,10 @@ func registerCommandHandlers(
 	commandBus *cqrs.InMemoryCommandBus,
 	repo *repositories.DirectionRepository,
 	rm *readmodels.DirectionReadModel,
-	refs handlers.ReferenceChecker,
+	refs *services.ReferenceChecker,
 ) {
-	commandBus.Register("CaptureDirection", handlers.NewCaptureDirectionHandler(repo, rm, refs))
+	policy := services.NewDirectionReferenceService(refs, rm)
+	commandBus.Register("CaptureDirection", handlers.NewCaptureDirectionHandler(repo, policy))
 	commandBus.Register("AdvanceDirection", handlers.NewAdvanceDirectionHandler(repo))
 	commandBus.Register("RejectDirection", handlers.NewRejectDirectionHandler(repo))
 	commandBus.Register("UpdateDirectionNarrative", handlers.NewUpdateDirectionNarrativeHandler(repo))

@@ -9,6 +9,7 @@ import (
 
 	"easi/backend/internal/architecturedirection/application/readmodels"
 	"easi/backend/internal/architecturedirection/domain/events"
+	"easi/backend/internal/architecturedirection/domain/services"
 	"easi/backend/internal/architecturedirection/domain/valueobjects"
 	pl "easi/backend/internal/architecturedirection/publishedlanguage"
 	domain "easi/backend/internal/shared/eventsourcing"
@@ -24,11 +25,9 @@ func handleProjection[T any](ctx context.Context, eventData []byte, fn func(cont
 
 type DirectionStore interface {
 	Insert(ctx context.Context, p readmodels.InsertDirectionParams) error
-	UpdateStatus(ctx context.Context, id, status string) error
-	UpdateNarrative(ctx context.Context, id, narrative string) error
-	UpdateHorizon(ctx context.Context, id, horizon string) error
-	UpdatePlacements(ctx context.Context, id string, placements []readmodels.DirectionPlacementDTO) error
-	ReplaceSourceCapabilities(ctx context.Context, id string, sourceCapabilityIDs []string) error
+	UpdateField(ctx context.Context, u readmodels.FieldUpdate) error
+	UpdatePlacements(ctx context.Context, u readmodels.PlacementsUpdate) error
+	ReplaceSourceCapabilities(ctx context.Context, u readmodels.SourceCapabilitiesUpdate) error
 }
 
 type DirectionProjector struct {
@@ -68,30 +67,27 @@ func (p *DirectionProjector) ProjectEvent(ctx context.Context, eventType string,
 
 func (p *DirectionProjector) handleDrafted(ctx context.Context, eventData []byte) error {
 	return handleProjection(ctx, eventData, func(ctx context.Context, e events.DirectionDrafted) error {
-		placements := make([]readmodels.DirectionPlacementDTO, len(e.Placements))
-		for i, pl := range e.Placements {
-			placements[i] = readmodels.DirectionPlacementDTO{
-				TargetBusinessDomainID: pl.TargetBusinessDomainID,
-				ResultingName:          pl.ResultingName,
-			}
-		}
-		err := p.readModel.Insert(ctx, readmodels.InsertDirectionParams{
-			ID:                     e.ID,
-			EnterpriseCapabilityID: e.EnterpriseCapabilityID,
-			Type:                   e.Type,
-			Status:                 valueobjects.DirectionStatusDraft,
-			Horizon:                e.Horizon,
-			Narrative:              e.Narrative,
-			SourceCapabilityIDs:    e.SourceCapabilityIDs,
-			Placements:             placements,
-			CreatedAt:              e.CreatedAt,
-		})
-		if errors.Is(err, readmodels.ErrActiveDirectionAlreadyExists) {
+		err := p.readModel.Insert(ctx, draftedToInsertParams(e))
+		if errors.Is(err, services.ErrActiveDirectionAlreadyExists) {
 			log.Printf("architecturedirection: orphan DirectionDrafted event %s for EC %s lost the race against an existing active direction; reject it before retrying capture",
 				e.ID, e.EnterpriseCapabilityID)
 		}
 		return err
 	})
+}
+
+func draftedToInsertParams(e events.DirectionDrafted) readmodels.InsertDirectionParams {
+	return readmodels.InsertDirectionParams{
+		ID:                     readmodels.DirectionID(e.ID),
+		EnterpriseCapabilityID: e.EnterpriseCapabilityID,
+		Type:                   e.Type,
+		Status:                 valueobjects.DirectionStatusDraft,
+		Horizon:                e.Horizon,
+		Narrative:              e.Narrative,
+		SourceCapabilityIDs:    toCapabilityIDs(e.SourceCapabilityIDs),
+		Placements:             toPlacementDTOs(e.Placements),
+		CreatedAt:              e.CreatedAt,
+	}
 }
 
 func (p *DirectionProjector) handleStatusEvent(status string) func(context.Context, []byte) error {
@@ -102,37 +98,67 @@ func (p *DirectionProjector) handleStatusEvent(status string) func(context.Conte
 		if err := json.Unmarshal(eventData, &generic); err != nil {
 			return err
 		}
-		return p.readModel.UpdateStatus(ctx, generic.ID, status)
+		return p.readModel.UpdateField(ctx, readmodels.FieldUpdate{
+			DirectionID: readmodels.DirectionID(generic.ID),
+			Field:       readmodels.DirectionFieldStatus,
+			Value:       status,
+		})
 	}
 }
 
 func (p *DirectionProjector) handleNarrativeUpdated(ctx context.Context, eventData []byte) error {
 	return handleProjection(ctx, eventData, func(ctx context.Context, e events.DirectionNarrativeUpdated) error {
-		return p.readModel.UpdateNarrative(ctx, e.ID, e.Narrative)
+		return p.readModel.UpdateField(ctx, readmodels.FieldUpdate{
+			DirectionID: readmodels.DirectionID(e.ID),
+			Field:       readmodels.DirectionFieldNarrative,
+			Value:       e.Narrative,
+		})
 	})
 }
 
 func (p *DirectionProjector) handleHorizonChanged(ctx context.Context, eventData []byte) error {
 	return handleProjection(ctx, eventData, func(ctx context.Context, e events.DirectionHorizonChanged) error {
-		return p.readModel.UpdateHorizon(ctx, e.ID, e.Horizon)
+		return p.readModel.UpdateField(ctx, readmodels.FieldUpdate{
+			DirectionID: readmodels.DirectionID(e.ID),
+			Field:       readmodels.DirectionFieldHorizon,
+			Value:       e.Horizon,
+		})
 	})
 }
 
 func (p *DirectionProjector) handlePlacementsChanged(ctx context.Context, eventData []byte) error {
 	return handleProjection(ctx, eventData, func(ctx context.Context, e events.DirectionPlacementsChanged) error {
-		placements := make([]readmodels.DirectionPlacementDTO, len(e.Placements))
-		for i, pl := range e.Placements {
-			placements[i] = readmodels.DirectionPlacementDTO{
-				TargetBusinessDomainID: pl.TargetBusinessDomainID,
-				ResultingName:          pl.ResultingName,
-			}
-		}
-		return p.readModel.UpdatePlacements(ctx, e.ID, placements)
+		return p.readModel.UpdatePlacements(ctx, readmodels.PlacementsUpdate{
+			DirectionID: readmodels.DirectionID(e.ID),
+			Placements:  toPlacementDTOs(e.Placements),
+		})
 	})
 }
 
 func (p *DirectionProjector) handleSourcesChanged(ctx context.Context, eventData []byte) error {
 	return handleProjection(ctx, eventData, func(ctx context.Context, e events.DirectionSourceCapabilitiesChanged) error {
-		return p.readModel.ReplaceSourceCapabilities(ctx, e.ID, e.SourceCapabilityIDs)
+		return p.readModel.ReplaceSourceCapabilities(ctx, readmodels.SourceCapabilitiesUpdate{
+			DirectionID:         readmodels.DirectionID(e.ID),
+			SourceCapabilityIDs: toCapabilityIDs(e.SourceCapabilityIDs),
+		})
 	})
+}
+
+func toCapabilityIDs(ids []string) []readmodels.CapabilityID {
+	out := make([]readmodels.CapabilityID, len(ids))
+	for i, id := range ids {
+		out[i] = readmodels.CapabilityID(id)
+	}
+	return out
+}
+
+func toPlacementDTOs(in []events.PlacementData) []readmodels.DirectionPlacementDTO {
+	out := make([]readmodels.DirectionPlacementDTO, len(in))
+	for i, p := range in {
+		out[i] = readmodels.DirectionPlacementDTO{
+			TargetBusinessDomainID: p.TargetBusinessDomainID,
+			ResultingName:          p.ResultingName,
+		}
+	}
+	return out
 }

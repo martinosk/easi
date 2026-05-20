@@ -4,16 +4,18 @@ import (
 	"context"
 	"testing"
 
+	"easi/backend/internal/architecturedirection/application/readmodels"
+
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 type mockStaleStore struct {
-	marked []string
+	marked []readmodels.CapabilityID
 }
 
-func (m *mockStaleStore) MarkSourceCapabilityStale(_ context.Context, id string) error {
+func (m *mockStaleStore) MarkSourceCapabilityStale(_ context.Context, id readmodels.CapabilityID) error {
 	m.marked = append(m.marked, id)
 	return nil
 }
@@ -25,7 +27,7 @@ func TestStaleReferenceProjector_CapabilityDeleted_MarksStale(t *testing.T) {
 	id := uuid.New().String()
 	require.NoError(t, projector.ProjectEvent(context.Background(), "CapabilityDeleted",
 		[]byte(`{"id":"`+id+`"}`)))
-	assert.Equal(t, []string{id}, store.marked)
+	assert.Equal(t, []readmodels.CapabilityID{readmodels.CapabilityID(id)}, store.marked)
 }
 
 func TestStaleReferenceProjector_OtherEvents_Ignored(t *testing.T) {

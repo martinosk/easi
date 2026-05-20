@@ -14,21 +14,21 @@ import (
 )
 
 type mockDirectionStore struct {
-	inserts             []readmodels.InsertDirectionParams
-	statusUpdates       map[string]string
-	narrativeUpdates    map[string]string
-	horizonUpdates      map[string]string
-	placementUpdates    map[string][]readmodels.DirectionPlacementDTO
-	sourceReplaceCalls  map[string][]string
+	inserts            []readmodels.InsertDirectionParams
+	fieldUpdates       map[readmodels.DirectionField]map[readmodels.DirectionID]string
+	placementUpdates   map[readmodels.DirectionID][]readmodels.DirectionPlacementDTO
+	sourceReplaceCalls map[readmodels.DirectionID][]readmodels.CapabilityID
 }
 
 func newMockDirectionStore() *mockDirectionStore {
 	return &mockDirectionStore{
-		statusUpdates:      map[string]string{},
-		narrativeUpdates:   map[string]string{},
-		horizonUpdates:     map[string]string{},
-		placementUpdates:   map[string][]readmodels.DirectionPlacementDTO{},
-		sourceReplaceCalls: map[string][]string{},
+		fieldUpdates: map[readmodels.DirectionField]map[readmodels.DirectionID]string{
+			readmodels.DirectionFieldStatus:    {},
+			readmodels.DirectionFieldNarrative: {},
+			readmodels.DirectionFieldHorizon:   {},
+		},
+		placementUpdates:   map[readmodels.DirectionID][]readmodels.DirectionPlacementDTO{},
+		sourceReplaceCalls: map[readmodels.DirectionID][]readmodels.CapabilityID{},
 	}
 }
 
@@ -36,24 +36,16 @@ func (m *mockDirectionStore) Insert(_ context.Context, p readmodels.InsertDirect
 	m.inserts = append(m.inserts, p)
 	return nil
 }
-func (m *mockDirectionStore) UpdateStatus(_ context.Context, id, status string) error {
-	m.statusUpdates[id] = status
+func (m *mockDirectionStore) UpdateField(_ context.Context, u readmodels.FieldUpdate) error {
+	m.fieldUpdates[u.Field][u.DirectionID] = u.Value
 	return nil
 }
-func (m *mockDirectionStore) UpdateNarrative(_ context.Context, id, narrative string) error {
-	m.narrativeUpdates[id] = narrative
+func (m *mockDirectionStore) UpdatePlacements(_ context.Context, u readmodels.PlacementsUpdate) error {
+	m.placementUpdates[u.DirectionID] = u.Placements
 	return nil
 }
-func (m *mockDirectionStore) UpdateHorizon(_ context.Context, id, horizon string) error {
-	m.horizonUpdates[id] = horizon
-	return nil
-}
-func (m *mockDirectionStore) UpdatePlacements(_ context.Context, id string, placements []readmodels.DirectionPlacementDTO) error {
-	m.placementUpdates[id] = placements
-	return nil
-}
-func (m *mockDirectionStore) ReplaceSourceCapabilities(_ context.Context, id string, sources []string) error {
-	m.sourceReplaceCalls[id] = sources
+func (m *mockDirectionStore) ReplaceSourceCapabilities(_ context.Context, u readmodels.SourceCapabilitiesUpdate) error {
+	m.sourceReplaceCalls[u.DirectionID] = u.SourceCapabilityIDs
 	return nil
 }
 
@@ -86,12 +78,12 @@ func TestDirectionProjector_Drafted_InsertsRow(t *testing.T) {
 
 	require.Len(t, store.inserts, 1)
 	got := store.inserts[0]
-	assert.Equal(t, id, got.ID)
+	assert.Equal(t, readmodels.DirectionID(id), got.ID)
 	assert.Equal(t, ec, got.EnterpriseCapabilityID)
 	assert.Equal(t, "consolidate", got.Type)
 	assert.Equal(t, "draft", got.Status)
 	assert.Equal(t, "next", got.Horizon)
-	assert.Equal(t, []string{src1, src2}, got.SourceCapabilityIDs)
+	assert.Equal(t, []readmodels.CapabilityID{readmodels.CapabilityID(src1), readmodels.CapabilityID(src2)}, got.SourceCapabilityIDs)
 	require.Len(t, got.Placements, 1)
 	assert.Equal(t, dom, got.Placements[0].TargetBusinessDomainID)
 }
@@ -100,22 +92,16 @@ func TestDirectionProjector_StatusEvents_UpdateStatus(t *testing.T) {
 	store := newMockDirectionStore()
 	projector := NewDirectionProjector(store)
 	id := uuid.New().String()
-
-	cases := []struct {
-		event events.DirectionProposed
-		expectedStatus string
-		eventType      string
-	}{}
-	_ = cases // illustrative; we'll do manually
+	directionID := readmodels.DirectionID(id)
 
 	require.NoError(t, projectViaJSON(t, projector, "DirectionProposed", events.NewDirectionProposed(id).EventData()))
-	assert.Equal(t, "proposed", store.statusUpdates[id])
+	assert.Equal(t, "proposed", store.fieldUpdates[readmodels.DirectionFieldStatus][directionID])
 
 	require.NoError(t, projectViaJSON(t, projector, "DirectionAgreed", events.NewDirectionAgreed(id).EventData()))
-	assert.Equal(t, "agreed", store.statusUpdates[id])
+	assert.Equal(t, "agreed", store.fieldUpdates[readmodels.DirectionFieldStatus][directionID])
 
 	require.NoError(t, projectViaJSON(t, projector, "DirectionRejected", events.NewDirectionRejected(id).EventData()))
-	assert.Equal(t, "rejected", store.statusUpdates[id])
+	assert.Equal(t, "rejected", store.fieldUpdates[readmodels.DirectionFieldStatus][directionID])
 }
 
 func TestDirectionProjector_NarrativeUpdated(t *testing.T) {
@@ -126,7 +112,7 @@ func TestDirectionProjector_NarrativeUpdated(t *testing.T) {
 	evt := events.NewDirectionNarrativeUpdated(id, "Refined.")
 	require.NoError(t, projectViaJSON(t, projector, evt.EventType(), evt.EventData()))
 
-	assert.Equal(t, "Refined.", store.narrativeUpdates[id])
+	assert.Equal(t, "Refined.", store.fieldUpdates[readmodels.DirectionFieldNarrative][readmodels.DirectionID(id)])
 }
 
 func TestDirectionProjector_HorizonChanged(t *testing.T) {
@@ -137,7 +123,7 @@ func TestDirectionProjector_HorizonChanged(t *testing.T) {
 	evt := events.NewDirectionHorizonChanged(id, "later")
 	require.NoError(t, projectViaJSON(t, projector, evt.EventType(), evt.EventData()))
 
-	assert.Equal(t, "later", store.horizonUpdates[id])
+	assert.Equal(t, "later", store.fieldUpdates[readmodels.DirectionFieldHorizon][readmodels.DirectionID(id)])
 }
 
 func TestDirectionProjector_PlacementsChanged(t *testing.T) {
@@ -149,8 +135,8 @@ func TestDirectionProjector_PlacementsChanged(t *testing.T) {
 	evt := events.NewDirectionPlacementsChanged(id, []events.PlacementData{{TargetBusinessDomainID: dom}})
 	require.NoError(t, projectViaJSON(t, projector, evt.EventType(), evt.EventData()))
 
-	require.Len(t, store.placementUpdates[id], 1)
-	assert.Equal(t, dom, store.placementUpdates[id][0].TargetBusinessDomainID)
+	require.Len(t, store.placementUpdates[readmodels.DirectionID(id)], 1)
+	assert.Equal(t, dom, store.placementUpdates[readmodels.DirectionID(id)][0].TargetBusinessDomainID)
 }
 
 func TestDirectionProjector_SourceCapabilitiesChanged(t *testing.T) {
@@ -162,7 +148,8 @@ func TestDirectionProjector_SourceCapabilitiesChanged(t *testing.T) {
 	evt := events.NewDirectionSourceCapabilitiesChanged(id, []string{src1, src2, src3})
 	require.NoError(t, projectViaJSON(t, projector, evt.EventType(), evt.EventData()))
 
-	assert.Equal(t, []string{src1, src2, src3}, store.sourceReplaceCalls[id])
+	expected := []readmodels.CapabilityID{readmodels.CapabilityID(src1), readmodels.CapabilityID(src2), readmodels.CapabilityID(src3)}
+	assert.Equal(t, expected, store.sourceReplaceCalls[readmodels.DirectionID(id)])
 }
 
 func TestDirectionProjector_UnknownEvent_Ignored(t *testing.T) {
