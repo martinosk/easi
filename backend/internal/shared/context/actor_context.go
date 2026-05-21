@@ -127,6 +127,7 @@ var rolePermissions = map[Role][]string{
 		"metamodel:read", "metamodel:write",
 		"audit:read",
 		"enterprise-arch:read", "enterprise-arch:write", "enterprise-arch:delete",
+		"architecture-direction:read", "architecture-direction:write", "architecture-direction:delete",
 		"edit-grants:manage",
 		"valuestreams:read", "valuestreams:write", "valuestreams:delete",
 		"assistant:use",
@@ -140,6 +141,7 @@ var rolePermissions = map[Role][]string{
 		"metamodel:read",
 		"audit:read",
 		"enterprise-arch:read", "enterprise-arch:write", "enterprise-arch:delete",
+		"architecture-direction:read", "architecture-direction:write", "architecture-direction:delete",
 		"edit-grants:manage",
 		"valuestreams:read", "valuestreams:write", "valuestreams:delete",
 		"assistant:use",
@@ -152,6 +154,7 @@ var rolePermissions = map[Role][]string{
 		"metamodel:read",
 		"audit:read",
 		"enterprise-arch:read",
+		"architecture-direction:read",
 		"valuestreams:read",
 	},
 }

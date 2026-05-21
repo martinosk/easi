@@ -54,6 +54,7 @@ var rolePermissionsList = map[string][]Permission{
 		PermMetaModelRead, PermMetaModelWrite,
 		PermAuditRead,
 		PermEnterpriseArchRead, PermEnterpriseArchWrite, PermEnterpriseArchDelete,
+		PermArchitectureDirectionRead, PermArchitectureDirectionWrite, PermArchitectureDirectionDelete,
 		PermEditGrantsManage,
 		PermValueStreamsRead, PermValueStreamsWrite, PermValueStreamsDelete,
 		PermAssistantUse,
@@ -67,6 +68,7 @@ var rolePermissionsList = map[string][]Permission{
 		PermMetaModelRead,
 		PermAuditRead,
 		PermEnterpriseArchRead, PermEnterpriseArchWrite, PermEnterpriseArchDelete,
+		PermArchitectureDirectionRead, PermArchitectureDirectionWrite, PermArchitectureDirectionDelete,
 		PermEditGrantsManage,
 		PermValueStreamsRead, PermValueStreamsWrite, PermValueStreamsDelete,
 		PermAssistantUse,
@@ -79,6 +81,7 @@ var rolePermissionsList = map[string][]Permission{
 		PermMetaModelRead,
 		PermAuditRead,
 		PermEnterpriseArchRead,
+		PermArchitectureDirectionRead,
 		PermValueStreamsRead,
 	},
 }

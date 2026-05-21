@@ -1,0 +1,12 @@
+.panel {
+  flex: 0 0 350px;
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  border-bottom: 1px solid var(--mantine-color-gray-3);
+  flex-shrink: 0;
+}

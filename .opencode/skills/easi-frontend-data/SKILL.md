@@ -1,14 +1,16 @@
 ---
-name: easi-frontend-patterns
-description: MUST load when writing or reviewing any frontend TypeScript/React code in EASI. Load when building UI components that show/hide actions, writing data-fetching hooks, setting up cache invalidation, or adding new mutation hooks.
+name: easi-frontend-data
+description: MUST load when writing or reviewing frontend code that talks to the backend in EASI — HATEOAS link gating, TanStack Query keys, mutation hooks, cache invalidation, multi-surface call-site audits. Load when building action buttons that depend on backend permissions, writing data-fetching hooks, setting up cache invalidation, or adding new mutation hooks.
 compatibility: opencode
 ---
 
-# EASI Frontend Patterns
+# EASI Frontend Data Layer
 
 ## Overview
 
 The EASI frontend is HATEOAS-driven: the backend controls what actions are available through `_links` in API responses. Client code never hardcodes business rules about permissions or role-based action availability. Data fetching uses TanStack Query with a centralized cache invalidation strategy.
+
+For UI components, Mantine usage, styling, and visual layout, load `easi-frontend-styling` instead. This skill is exclusively about how frontend code reaches the backend.
 
 ## HATEOAS-Driven UI
 
@@ -62,17 +64,17 @@ if (hasLink(resource, 'x-children')) { /* show expand control */ }
 ```tsx
 // CORRECT — driven by backend permission model
 {resource._links?.edit && (
-  <button onClick={handleEdit}>Edit</button>
+  <Button onClick={handleEdit}>Edit</Button>
 )}
 
 // CORRECT — using utility helper
 {canDelete(resource) && (
-  <button onClick={handleDelete}>Delete</button>
+  <Button onClick={handleDelete}>Delete</Button>
 )}
 
 // WRONG — hardcoded business logic in the client
-{userRole === 'admin' && <button>Edit</button>}
-{!resource.isPrivate && <button>Edit</button>}
+{userRole === 'admin' && <Button>Edit</Button>}
+{!resource.isPrivate && <Button>Edit</Button>}
 ```
 
 ## Cache Invalidation & Mutations (TanStack Query)
@@ -168,59 +170,6 @@ onMutate: (id) => {
 }
 ```
 
-## Reference Implementation
-
-See `src/features/components/hooks/useComponents.ts` for the canonical example of all these patterns together.
-
-## Quick Reference
-
-| Aspect | Pattern |
-|--------|---------|
-| Action availability | Check `_links` presence — never hardcode |
-| Role-based UI | Never check `userRole` to show/hide actions |
-| Query keys | Hierarchical: `all → lists() → detail(id)` |
-| Cache invalidation | Centralized in `mutationEffects` |
-| Mutation structure | `mutationFn` → `invalidateFor` → `toast` |
-| Static data | `staleTime: Infinity` |
-| Optimistic updates | Avoid for domain state |
-| Conditional queries | `enabled: !!dependency` |
-| Mantine components     | Use for all UI surfaces  |
-| Dialog gates           | Grep for all call sites and update every surface before marking complete |
-
-## UI Component Framework (Mantine v8)
-
-All interactive UI surfaces in EASI use **Mantine v8** (`@mantine/core`). Never write plain HTML for dialogs, buttons, inputs, or form controls.
-
-### Component Mapping
-
-| UI Surface | Mantine Component |
-|---|---|
-| Dialogs / modals | `Modal` |
-| Number inputs | `NumberInput` |
-| Checkboxes | `Checkbox` |
-| Buttons (primary / default) | `Button` (with `variant` prop) |
-| Vertical spacing | `Stack` |
-| Horizontal grouping | `Group` |
-| Body text | `Text` |
-
-### Test wrapper
-
-Mantine component tests must be wrapped in `MantineTestWrapper`:
-
-```typescript
-import { MantineTestWrapper } from '../../../test/helpers/mantineTestWrapper';
-
-render(
-  <MantineTestWrapper>
-    <MyComponent />
-  </MantineTestWrapper>
-);
-```
-
-Rendering without the wrapper causes test failures (missing MantineProvider context).
-
----
-
 ## Multi-Surface Feature Entry Points
 
 Features in EASI can be triggered from multiple surfaces — canvas context menu, navigation tree context menu, toolbar buttons, or keyboard shortcuts. When you add a **dialog gate** (an interstitial dialog that intercepts an action to collect user input or confirmation), you must update **every** call site of the underlying action hook, not just the surface you are actively coding.
@@ -237,6 +186,28 @@ grep -r "yourHookFunction(" frontend/src/ --include="*.tsx" --include="*.ts"
 - [ ] Update every call site to route through the dialog gate state
 - [ ] Add a test per surface (unit or E2E) that verifies the dialog appears
 
+## State store discipline
+
+- **Subscribe to atomic store fields, derive with `useMemo`.** Avoid selectors that return a fresh object on every render — they invalidate referential equality and cause cascade re-renders.
+
+## Reference Implementation
+
+See `src/features/components/hooks/useComponents.ts` for the canonical example of all these patterns together.
+
+## Quick Reference
+
+| Aspect | Pattern |
+|--------|---------|
+| Action availability | Check `_links` presence — never hardcode |
+| Role-based UI | Never check `userRole` to show/hide actions |
+| Query keys | Hierarchical: `all → lists() → detail(id)` |
+| Cache invalidation | Centralized in `mutationEffects` |
+| Mutation structure | `mutationFn` → `invalidateFor` → `toast` |
+| Static data | `staleTime: Infinity` |
+| Optimistic updates | Avoid for domain state |
+| Conditional queries | `enabled: !!dependency` |
+| Dialog gates | Grep for all call sites and update every surface before marking complete |
+
 ## Guidelines
 
 1. **Gate all action visibility on `_links` presence** — never on role, user ID, or flag
@@ -247,9 +218,5 @@ grep -r "yourHookFunction(" frontend/src/ --include="*.tsx" --include="*.ts"
 6. **Mutations always call `invalidateFor`** in `onSuccess`
 7. **Never use optimistic updates** for domain state mutations
 8. **Use `staleTime: Infinity`** for static metadata queries
-9. **Use Mantine for all UI components** — no plain HTML for dialogs, inputs, buttons, or checkboxes
-10. **Never invent CSS class names** for UI elements — they will not exist in the EASI stylesheet
-11. **Wrap Mantine component tests** in `MantineTestWrapper` from `src/test/helpers/mantineTestWrapper.tsx`
-12. **Audit all call sites** before adding a dialog gate — grep first, update every entry point, not just the one you are coding
-13. **Gate ReactFlow node-wrapper HOCs on the feature flag** — do not wrap unconditionally; ReactFlow expects a stable root element.
-14. **Subscribe to atomic store fields, derive with `useMemo`**
+9. **Audit all call sites** before adding a dialog gate — grep first, update every entry point, not just the one you are coding
+10. **Subscribe to atomic store fields, derive with `useMemo`**

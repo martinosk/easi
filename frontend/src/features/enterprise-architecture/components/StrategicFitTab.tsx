@@ -1,10 +1,18 @@
+import { Accordion, Badge, Box, Center, Group, Loader, Paper, Select, SimpleGrid, Stack, Text, Title } from '@mantine/core';
 import { useMemo, useState } from 'react';
 import type { ApiError, RealizationFit, StrategicFitSummary } from '../../../api/types';
 import { useStrategyPillarsConfig } from '../../../hooks/useStrategyPillarsSettings';
 import { useStrategicFitAnalysis } from '../hooks/useStrategicFitAnalysis';
-import './StrategicFitTab.css';
 
 const SCORE_RANGE = [1, 2, 3, 4, 5] as const;
+
+type FitCategory = 'liability' | 'concern' | 'aligned';
+
+const CATEGORY_COLOR: Record<FitCategory, string> = {
+  liability: 'red.6',
+  concern: 'yellow.7',
+  aligned: 'green.6',
+};
 
 function getAnalysisErrorMessage(error: unknown): string {
   if (error instanceof Error && 'statusCode' in error) {
@@ -23,47 +31,44 @@ function getAnalysisErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Failed to load analysis';
 }
 
-function getCategoryColor(category: 'liability' | 'concern' | 'aligned'): string {
-  switch (category) {
-    case 'liability':
-      return 'var(--red-600)';
-    case 'concern':
-      return 'var(--yellow-600)';
-    case 'aligned':
-      return 'var(--green-600)';
-    default:
-      return 'var(--color-gray-600)';
-  }
-}
-
 interface SummaryCardProps {
   summary: StrategicFitSummary;
 }
 
 function SummaryCard({ summary }: SummaryCardProps) {
   return (
-    <div className="fit-summary-card">
-      <div className="summary-stats">
-        <div className="summary-stat liability">
-          <span className="stat-value">{summary.liabilityCount}</span>
-          <span className="stat-label">Liabilities</span>
-        </div>
-        <div className="summary-stat concern">
-          <span className="stat-value">{summary.concernCount}</span>
-          <span className="stat-label">Concerns</span>
-        </div>
-        <div className="summary-stat aligned">
-          <span className="stat-value">{summary.alignedCount}</span>
-          <span className="stat-label">Aligned</span>
-        </div>
-      </div>
-      <div className="summary-meta">
-        <span className="meta-item">
-          {summary.scoredRealizations} of {summary.totalRealizations} realizations scored
-        </span>
-        {summary.averageGap > 0 && <span className="meta-item">Average gap: {summary.averageGap.toFixed(1)}</span>}
-      </div>
-    </div>
+    <Paper withBorder radius="md" p="md">
+      <Stack gap="sm">
+        <SimpleGrid cols={3} spacing="md">
+          <SummaryStat value={summary.liabilityCount} label="Liabilities" color="red.6" />
+          <SummaryStat value={summary.concernCount} label="Concerns" color="yellow.7" />
+          <SummaryStat value={summary.alignedCount} label="Aligned" color="green.6" />
+        </SimpleGrid>
+        <Group gap="md">
+          <Text size="xs" c="dimmed">
+            {summary.scoredRealizations} of {summary.totalRealizations} realizations scored
+          </Text>
+          {summary.averageGap > 0 && (
+            <Text size="xs" c="dimmed">
+              Average gap: {summary.averageGap.toFixed(1)}
+            </Text>
+          )}
+        </Group>
+      </Stack>
+    </Paper>
+  );
+}
+
+function SummaryStat({ value, label, color }: { value: number; label: string; color: string }) {
+  return (
+    <Stack gap={2} align="center">
+      <Text size="xl" fw={700} c={color}>
+        {value}
+      </Text>
+      <Text size="xs" c="dimmed">
+        {label}
+      </Text>
+    </Stack>
   );
 }
 
@@ -72,62 +77,107 @@ interface RealizationFitCardProps {
 }
 
 function RealizationFitCard({ realization }: RealizationFitCardProps) {
+  const accent = CATEGORY_COLOR[realization.category as FitCategory];
   return (
-    <div className={`realization-fit-card category-${realization.category}`}>
-      <div className="fit-card-header">
-        <div className="fit-card-names">
-          <span className="component-name">{realization.componentName}</span>
-          <span className="arrow-separator">→</span>
-          <span className="capability-name">{realization.capabilityName}</span>
-        </div>
-        {realization.businessDomainName && <span className="domain-badge">{realization.businessDomainName}</span>}
-      </div>
-      <div className="fit-card-scores">
-        <div className="score-item">
-          <span className="score-label">
-            Importance
-            {realization.isImportanceInherited && realization.importanceSourceCapabilityName && (
-              <span
-                className="inherited-indicator"
-                title={`Inherited from ${realization.importanceSourceCapabilityName}`}
-              >
-                {' '}
-                (from {realization.importanceSourceCapabilityName})
-              </span>
-            )}
-          </span>
-          <span className="score-value importance">
-            {SCORE_RANGE.map((i) => (
-              <span key={i} className={`score-star ${i <= realization.importance ? 'filled' : ''}`}>
-                ★
-              </span>
-            ))}
-            <span className="score-number">({realization.importance})</span>
-          </span>
-        </div>
-        <div className="score-item">
-          <span className="score-label">Fit</span>
-          <span className="score-value fit">
-            {SCORE_RANGE.map((i) => (
-              <span key={i} className={`score-dot ${i <= realization.fitScore ? 'filled' : ''}`} />
-            ))}
-            <span className="score-number">({realization.fitScore})</span>
-          </span>
-        </div>
-        <div className="score-item">
-          <span className="score-label">Gap</span>
-          <span
-            className={`score-value gap gap-${realization.gap >= 2 ? 'high' : realization.gap === 1 ? 'medium' : 'low'}`}
-          >
-            {realization.gap}
-          </span>
-        </div>
-      </div>
-      {realization.importanceRationale && (
-        <div className="fit-rationale">Strategic importance: "{realization.importanceRationale}"</div>
-      )}
-      {realization.fitRationale && <div className="fit-rationale">"{realization.fitRationale}"</div>}
-    </div>
+    <Paper withBorder radius="md" p="md" style={{ borderLeft: `4px solid var(--mantine-color-${accent.replace('.', '-')})` }}>
+      <Stack gap="sm">
+        <Group justify="space-between" wrap="nowrap">
+          <Group gap="xs" wrap="nowrap">
+            <Text size="sm" fw={600}>
+              {realization.componentName}
+            </Text>
+            <Text size="sm" c="dimmed">
+              →
+            </Text>
+            <Text size="sm" fw={600}>
+              {realization.capabilityName}
+            </Text>
+          </Group>
+          {realization.businessDomainName && (
+            <Badge variant="light" color="gray" radius="sm">
+              {realization.businessDomainName}
+            </Badge>
+          )}
+        </Group>
+
+        <SimpleGrid cols={3} spacing="md">
+          <Stack gap={2}>
+            <Group gap={4}>
+              <Text size="xs" c="dimmed">
+                Importance
+              </Text>
+              {realization.isImportanceInherited && realization.importanceSourceCapabilityName && (
+                <Text size="xs" c="dimmed" title={`Inherited from ${realization.importanceSourceCapabilityName}`}>
+                  (from {realization.importanceSourceCapabilityName})
+                </Text>
+              )}
+            </Group>
+            <ScoreStars score={realization.importance} />
+          </Stack>
+          <Stack gap={2}>
+            <Text size="xs" c="dimmed">
+              Fit
+            </Text>
+            <ScoreDots score={realization.fitScore} />
+          </Stack>
+          <Stack gap={2}>
+            <Text size="xs" c="dimmed">
+              Gap
+            </Text>
+            <Text size="lg" fw={700} c={realization.gap >= 2 ? 'red.6' : realization.gap === 1 ? 'yellow.7' : 'gray.7'}>
+              {realization.gap}
+            </Text>
+          </Stack>
+        </SimpleGrid>
+
+        {realization.importanceRationale && (
+          <Text size="xs" c="dimmed" fs="italic">
+            Strategic importance: &ldquo;{realization.importanceRationale}&rdquo;
+          </Text>
+        )}
+        {realization.fitRationale && (
+          <Text size="xs" c="dimmed" fs="italic">
+            &ldquo;{realization.fitRationale}&rdquo;
+          </Text>
+        )}
+      </Stack>
+    </Paper>
+  );
+}
+
+function ScoreStars({ score }: { score: number }) {
+  return (
+    <Group gap={2}>
+      {SCORE_RANGE.map((i) => (
+        <Text key={i} size="sm" c={i <= score ? 'yellow.6' : 'gray.4'}>
+          ★
+        </Text>
+      ))}
+      <Text size="xs" c="dimmed" ml={4}>
+        ({score})
+      </Text>
+    </Group>
+  );
+}
+
+function ScoreDots({ score }: { score: number }) {
+  return (
+    <Group gap={4} align="center">
+      {SCORE_RANGE.map((i) => (
+        <Box
+          key={i}
+          w={8}
+          h={8}
+          style={{
+            borderRadius: '50%',
+            backgroundColor: i <= score ? 'var(--mantine-color-blue-6)' : 'var(--mantine-color-gray-3)',
+          }}
+        />
+      ))}
+      <Text size="xs" c="dimmed" ml={4}>
+        ({score})
+      </Text>
+    </Group>
   );
 }
 
@@ -135,38 +185,95 @@ interface RealizationSectionProps {
   title: string;
   realizations: RealizationFit[];
   defaultExpanded?: boolean;
-  category: 'liability' | 'concern' | 'aligned';
+  category: FitCategory;
 }
 
 function RealizationSection({ title, realizations, defaultExpanded = false, category }: RealizationSectionProps) {
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
-
   if (realizations.length === 0) return null;
+  return (
+    <Accordion variant="separated" radius="md" defaultValue={defaultExpanded ? category : null}>
+      <Accordion.Item value={category}>
+        <Accordion.Control aria-label={`${title}, ${realizations.length} items`}>
+          <Text fw={600} c={CATEGORY_COLOR[category]}>
+            {title} ({realizations.length})
+          </Text>
+        </Accordion.Control>
+        <Accordion.Panel>
+          <Stack gap="sm">
+            {realizations.map((r) => (
+              <RealizationFitCard key={r.realizationId} realization={r} />
+            ))}
+          </Stack>
+        </Accordion.Panel>
+      </Accordion.Item>
+    </Accordion>
+  );
+}
+
+function LoadingState({ label }: { label: string }) {
+  return (
+    <Center py="xl">
+      <Group gap="sm">
+        <Loader size="sm" />
+        <Text c="dimmed">{label}</Text>
+      </Group>
+    </Center>
+  );
+}
+
+function NoPillarsState() {
+  return (
+    <Paper withBorder radius="lg" p="xl">
+      <Center>
+        <Stack gap="sm" align="center" maw={400}>
+          <Title order={4}>No Pillars with Fit Scoring</Title>
+          <Text size="sm" c="dimmed" ta="center">
+            Enable fit scoring for strategy pillars in Settings to analyze strategic alignment.
+          </Text>
+        </Stack>
+      </Center>
+    </Paper>
+  );
+}
+
+interface FitAnalysisResultsProps {
+  selectedPillarId: string | null;
+  analysisLoading: boolean;
+  error: Error | null;
+  analysis: ReturnType<typeof useStrategicFitAnalysis>['data'];
+}
+
+function FitAnalysisResults({ selectedPillarId, analysisLoading, error, analysis }: FitAnalysisResultsProps) {
+  if (!selectedPillarId) {
+    return <Text c="dimmed">Select a strategy pillar to view the fit analysis</Text>;
+  }
+  if (analysisLoading) return <LoadingState label="Loading analysis..." />;
+  if (error) {
+    return (
+      <Text c="red" size="sm">
+        {getAnalysisErrorMessage(error)}
+      </Text>
+    );
+  }
+  if (!analysis) return null;
 
   return (
-    <div className={`realization-section section-${category}`}>
-      <button
-        type="button"
-        className="section-header"
-        onClick={() => setIsExpanded(!isExpanded)}
-        aria-expanded={isExpanded}
-        aria-label={`${title}, ${realizations.length} items`}
-      >
-        <span className="section-title" style={{ color: getCategoryColor(category) }}>
-          {title} ({realizations.length})
-        </span>
-        <span className={`expand-icon ${isExpanded ? 'expanded' : ''}`} aria-hidden="true">
-          ▸
-        </span>
-      </button>
-      {isExpanded && (
-        <div className="section-content">
-          {realizations.map((r) => (
-            <RealizationFitCard key={r.realizationId} realization={r} />
-          ))}
-        </div>
-      )}
-    </div>
+    <Stack gap="md">
+      <SummaryCard summary={analysis.summary} />
+      <RealizationSection
+        title="Strategic Liabilities"
+        realizations={analysis.liabilities}
+        defaultExpanded
+        category="liability"
+      />
+      <RealizationSection
+        title="Concerns"
+        realizations={analysis.concerns}
+        defaultExpanded={analysis.liabilities.length === 0}
+        category="concern"
+      />
+      <RealizationSection title="Well Aligned" realizations={analysis.aligned} category="aligned" />
+    </Stack>
   );
 }
 
@@ -180,110 +287,34 @@ export function StrategicFitTab() {
     return pillarsConfig.data.filter((p) => p.active && p.fitScoringEnabled);
   }, [pillarsConfig]);
 
-  const handlePillarChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedPillarId(e.target.value || null);
-  };
-
-  if (pillarsLoading) {
-    return (
-      <div className="loading-state">
-        <div className="loading-spinner" />
-        <span>Loading pillars...</span>
-      </div>
-    );
-  }
-
-  if (enabledPillars.length === 0) {
-    return (
-      <div className="strategic-fit-tab">
-        <div className="empty-state">
-          <svg
-            className="empty-state-icon"
-            width="48"
-            height="48"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-            />
-          </svg>
-          <h3 className="empty-state-title">No Pillars with Fit Scoring</h3>
-          <p className="empty-state-description">
-            Enable fit scoring for strategy pillars in Settings to analyze strategic alignment.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  if (pillarsLoading) return <LoadingState label="Loading pillars..." />;
+  if (enabledPillars.length === 0) return <NoPillarsState />;
 
   return (
-    <div className="strategic-fit-tab">
-      <div className="fit-header">
-        <div className="fit-description">
-          <h3>Strategic Fit Analysis</h3>
-          <p>Identify realizations where application fit does not match strategic importance</p>
-        </div>
-        <div className="pillar-selector">
-          <label htmlFor="pillar-select">Filter by pillar:</label>
-          <select
-            id="pillar-select"
-            value={selectedPillarId || ''}
-            onChange={handlePillarChange}
-            className="pillar-select"
-            aria-label="Select strategy pillar for fit analysis"
-          >
-            <option value="">Select a pillar</option>
-            {enabledPillars.map((pillar) => (
-              <option key={pillar.id} value={pillar.id}>
-                {pillar.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {!selectedPillarId ? (
-        <div className="select-pillar-prompt">
-          <p>Select a strategy pillar to view the fit analysis</p>
-        </div>
-      ) : analysisLoading ? (
-        <div className="loading-state">
-          <div className="loading-spinner" />
-          <span>Loading analysis...</span>
-        </div>
-      ) : error ? (
-        <div className="error-message">{getAnalysisErrorMessage(error)}</div>
-      ) : analysis ? (
-        <div className="fit-analysis-content">
-          <SummaryCard summary={analysis.summary} />
-
-          <RealizationSection
-            title="Strategic Liabilities"
-            realizations={analysis.liabilities}
-            defaultExpanded={true}
-            category="liability"
-          />
-
-          <RealizationSection
-            title="Concerns"
-            realizations={analysis.concerns}
-            defaultExpanded={analysis.liabilities.length === 0}
-            category="concern"
-          />
-
-          <RealizationSection
-            title="Well Aligned"
-            realizations={analysis.aligned}
-            defaultExpanded={false}
-            category="aligned"
-          />
-        </div>
-      ) : null}
-    </div>
+    <Stack gap="md">
+      <Group justify="space-between" align="flex-end" wrap="wrap">
+        <Stack gap={4}>
+          <Title order={3}>Strategic Fit Analysis</Title>
+          <Text size="sm" c="dimmed">
+            Identify realizations where application fit does not match strategic importance
+          </Text>
+        </Stack>
+        <Select
+          label="Filter by pillar"
+          aria-label="Select strategy pillar for fit analysis"
+          placeholder="Select a pillar"
+          value={selectedPillarId}
+          onChange={setSelectedPillarId}
+          data={enabledPillars.map((pillar) => ({ value: pillar.id, label: pillar.name }))}
+          w={260}
+        />
+      </Group>
+      <FitAnalysisResults
+        selectedPillarId={selectedPillarId}
+        analysisLoading={analysisLoading}
+        error={error}
+        analysis={analysis}
+      />
+    </Stack>
   );
 }

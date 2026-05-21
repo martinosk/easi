@@ -19,6 +19,8 @@ EASI uses forward-only, immutable migrations. Once a migration file is committed
 | **Sequential numbering** (001, 002, 003…) | Prevents ordering ambiguity; gaps are forbidden |
 | **Each migration must be atomic and transactional** | Partial failures leave schema in a known rollback state |
 | **No foreign key constraints** | Referential integrity is maintained by the domain model and event handlers, not the DB |
+| **No CHECK constraints or other domain-invariant DDL** | Business invariants belong in the write model (the aggregate), not in the read-model schema. Allowed: NULL/NOT NULL, length limits where they protect storage. Forbidden: `CHECK (status IN (…))`, `CHECK (value > 0)`, anything that re-asserts a domain rule. |
+| **Read models are dumb projections** | The read model exists to serve queries fast. It does not enforce business rules. Keep schemas, indices, and projector code as straightforward as possible. |
 | **To fix a committed migration, write a new one** | Append a corrective migration; never edit history |
 
 ## Database Users
@@ -80,5 +82,6 @@ Full operational guide (execution, deployment, user configuration):
 2. **Keep migrations atomic** — one DDL operation per migration when possible
 3. **Always run as `easi_admin`** — not `easi_app`
 4. **No FK constraints in schema** — domain model owns referential integrity
-5. **New bounded contexts need their own tables** — never share event tables across contexts
-6. **Tenant isolation via RLS** — do not bypass RLS in application code
+5. **No CHECK constraints that re-state domain rules** — the read model is a dumb projection
+6. **New bounded contexts need their own tables** — never share event tables across contexts
+7. **Tenant isolation via RLS** — do not bypass RLS in application code

@@ -17,6 +17,7 @@ Every modified and untracked file in the pending change set must:
 ## Procedure
 
 Run in order. Do not skip steps.
+Do not check for previous code health before asserting and fixing. It does not matter WHEN the bad code was introduced.
 
 ### 1. Enumerate every pending-changes file
 From `git status`: modified (`M`) and untracked (`??`). Test files (`*_test.go`, `*.test.ts`, `*.test.tsx`) count.
@@ -34,7 +35,7 @@ Each file under 10.0 is one of:
   - Large Method (React) → extract custom hooks or sub-components
 - **Inherent** — only these qualify:
   - Auto-generated: `backend/docs/docs.go`, `frontend/openapi.json`.
-  - Pre-existing structural debt outside branch scope. Must be named in the report (file, score, smell, why deferred). If the branch introduced or worsened the smell, it is not inherent.
+  - Inherent to the type of code: E.g. hatoas link builders.
 
 ### 4. Refactor each fixable file
 Apply the refactor. Re-run tests touching that file (`go test ./...` or `npm test -- --run <pattern>`) before re-scoring.
@@ -54,7 +55,7 @@ Re-read the full diff and the surrounding code. For every changed file, walk thi
 - **Error handling.** No swallowed errors. Wrap with context (`%w` in Go). Errors handled at the right layer. Typed errors over `panic`/`throw`. Query/error states surfaced in the UI.
 - **Tests.** Names describe behavior, not implementation. Test through the public API. No over-mocking. Assertions do not lock in incidental detail. Edge cases covered (empty, nil, boundary, concurrency, auth-failure).
 - **Comments.** No comments unless the user asked. Any `// what this does` comment is a refactor signal.
-- **Architectural fit.** Respects bounded contexts and patterns from `easi-architecture-canvas`, `easi-go-backend-patterns`, `easi-frontend-patterns`, `easi-api-standards`.
+- **Architectural fit.** Respects bounded contexts and patterns from `easi-architecture-canvas`, `easi-go-backend-patterns`, `easi-frontend-data`, `easi-frontend-styling`, `easi-api-standards`.
 - **Diff hygiene.** No reformat noise, debug prints, commented-out code, or TODOs without follow-up.
 
 After fixing, re-run tests and re-score. Issues you choose not to fix go in the report with reasoning.

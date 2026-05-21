@@ -15,6 +15,9 @@ import (
 	archAssistantAPI "easi/backend/internal/archassistant/infrastructure/api"
 	archAssistantRateLimit "easi/backend/internal/archassistant/infrastructure/ratelimit"
 	archAssistantRepos "easi/backend/internal/archassistant/infrastructure/repositories"
+	directionServices "easi/backend/internal/architecturedirection/domain/services"
+	directionAPI "easi/backend/internal/architecturedirection/infrastructure/api"
+	eaReadModels "easi/backend/internal/enterprisearchitecture/application/readmodels"
 	archReadModels "easi/backend/internal/architecturemodeling/application/readmodels"
 	archAdapters "easi/backend/internal/architecturemodeling/infrastructure/adapters"
 	architectureAPI "easi/backend/internal/architecturemodeling/infrastructure/api"
@@ -267,6 +270,23 @@ func setupDomainRoutes(r chi.Router, deps routerDependencies) {
 		SessionProvider: deps.authDeps.SessionManager,
 	}), "enterprise architecture routes")
 
+	directionRefChecker := &directionServices.ReferenceChecker{
+		EnterpriseCapabilityExists: existsByID(eaReadModels.NewEnterpriseCapabilityReadModel(deps.db).GetByID),
+		PhysicalCapabilityExists:   existsByID(capReadModels.NewCapabilityReadModel(deps.db).GetByID),
+		BusinessDomainExists:       existsByID(capReadModels.NewBusinessDomainReadModel(deps.db).GetByID),
+	}
+
+	mustSetup(directionAPI.SetupRoutes(directionAPI.RoutesDeps{
+		Router:           r,
+		CommandBus:       deps.commandBus,
+		EventStore:       deps.eventStore,
+		EventBus:         deps.eventBus,
+		DB:               deps.db,
+		HATEOAS:          deps.hateoas,
+		AuthMiddleware:   deps.authDeps.AuthMiddleware,
+		ReferenceChecker: directionRefChecker,
+	}), "architecture direction routes")
+
 	viewlayoutsAPI.SubscribeEvents(deps.eventBus, deps.db)
 	viewlayoutsAPI.RegisterRoutes(r, deps.db, deps.hateoas, deps.authDeps.AuthMiddleware)
 
@@ -354,6 +374,16 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 
 func versionHandler(w http.ResponseWriter, r *http.Request) {
 	sharedAPI.RespondJSON(w, http.StatusOK, map[string]string{"version": appVersion})
+}
+
+func existsByID[T any](getByID func(context.Context, string) (*T, error)) directionServices.ExistenceCheck {
+	return func(ctx context.Context, id string) (bool, error) {
+		dto, err := getByID(ctx, id)
+		if err != nil {
+			return false, err
+		}
+		return dto != nil, nil
+	}
 }
 
 func mustSetup(err error, name string) {

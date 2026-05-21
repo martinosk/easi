@@ -1,70 +1,63 @@
 import type { MantineColorsTuple } from '@mantine/core';
 import { createTheme } from '@mantine/core';
 
-const blue: MantineColorsTuple = [
-  '#eff6ff',
-  '#dbeafe',
-  '#bfdbfe',
-  '#93c5fd',
-  '#60a5fa',
-  '#3b82f6',
-  '#2563eb',
-  '#1e40af',
-  '#1e3a8a',
-  '#172554',
-];
+const cssVar = (name: string) => `var(--${name})`;
 
-const purple: MantineColorsTuple = [
-  '#faf5ff',
-  '#f3e8ff',
-  '#e9d5ff',
-  '#d8b4fe',
-  '#c084fc',
-  '#a855f7',
-  '#9333ea',
-  '#7e22ce',
-  '#6b21a8',
-  '#581c87',
-];
+function paletteTuple(prefix: string): MantineColorsTuple {
+  return [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => cssVar(`${prefix}-${i}`)) as unknown as MantineColorsTuple;
+}
 
 const gray: MantineColorsTuple = [
-  '#f9fafb',
-  '#f3f4f6',
-  '#e5e7eb',
-  '#d1d5db',
-  '#9ca3af',
-  '#6b7280',
-  '#4b5563',
-  '#374151',
-  '#1f2937',
-  '#111827',
+  cssVar('color-gray-50'),
+  cssVar('color-gray-100'),
+  cssVar('color-gray-200'),
+  cssVar('color-gray-300'),
+  cssVar('color-gray-400'),
+  cssVar('color-gray-500'),
+  cssVar('color-gray-600'),
+  cssVar('color-gray-700'),
+  cssVar('color-gray-800'),
+  cssVar('color-gray-900'),
 ];
-
-const systemFontStack =
-  '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif';
-
-const spacing = { xs: '0.25rem', sm: '0.5rem', md: '1rem', lg: '1.5rem', xl: '2rem', xxl: '3rem' };
-
-const fontSizes = { xs: '0.75rem', sm: '0.875rem', md: '1rem', lg: '1.125rem', xl: '1.25rem', xxl: '1.5rem' };
-
-const radius = { xs: '0.125rem', sm: '0.25rem', md: '0.375rem', lg: '0.5rem', xl: '0.75rem' };
-
-const shadows = {
-  xs: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-  sm: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-  md: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-  lg: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-  xl: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-};
 
 export const theme = createTheme({
   primaryColor: 'blue',
   defaultRadius: 'md',
-  colors: { blue, purple, gray },
-  spacing,
-  fontSizes,
-  radius,
-  shadows,
-  fontFamily: systemFontStack,
-  headings: { fontFamily: systemFontStack },
+  colors: {
+    blue: paletteTuple('color-blue'),
+    purple: paletteTuple('color-purple'),
+    gray,
+  },
+  spacing: {
+    xs: cssVar('spacing-xs'),
+    sm: cssVar('spacing-sm'),
+    md: cssVar('spacing-md'),
+    lg: cssVar('spacing-lg'),
+    xl: cssVar('spacing-xl'),
+    xxl: cssVar('spacing-2xl'),
+  },
+  fontSizes: {
+    xs: cssVar('font-size-xs'),
+    sm: cssVar('font-size-sm'),
+    md: cssVar('font-size-base'),
+    lg: cssVar('font-size-lg'),
+    xl: cssVar('font-size-xl'),
+    xxl: cssVar('font-size-2xl'),
+  },
+  radius: {
+    xs: cssVar('radius-xs'),
+    sm: cssVar('radius-sm'),
+    md: cssVar('radius-md'),
+    lg: cssVar('radius-lg'),
+    xl: cssVar('radius-xl'),
+  },
+  shadows: {
+    xs: cssVar('shadow-xs'),
+    sm: cssVar('shadow-sm'),
+    md: cssVar('shadow-md'),
+    lg: cssVar('shadow-lg'),
+    xl: cssVar('shadow-xl'),
+  },
+  fontFamily: cssVar('font-family'),
+  headings: { fontFamily: cssVar('font-family') },
 });

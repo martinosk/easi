@@ -12,6 +12,7 @@ import (
 
 	"easi/backend/internal/archassistant/infrastructure/toolimpls"
 	pl "easi/backend/internal/archassistant/publishedlanguage"
+	directionAPI "easi/backend/internal/architecturedirection/infrastructure/api"
 	architectureAPI "easi/backend/internal/architecturemodeling/infrastructure/api"
 	viewsAPI "easi/backend/internal/architectureviews/infrastructure/api"
 	authPL "easi/backend/internal/auth/publishedlanguage"
@@ -77,6 +78,13 @@ func buildToolCatalogTestRouter(t *testing.T) chi.Router {
 		AuthMiddleware: auth,
 	}); err != nil {
 		t.Fatalf("enterprise architecture routes: %v", err)
+	}
+
+	if err := directionAPI.SetupRoutes(directionAPI.RoutesDeps{
+		Router: r, CommandBus: commandBus, EventStore: es, EventBus: eventBus,
+		HATEOAS: hateoas, AuthMiddleware: auth,
+	}); err != nil {
+		t.Fatalf("architecture direction routes: %v", err)
 	}
 
 	if err := metamodelAPI.SetupMetaModelRoutes(metamodelAPI.MetaModelRoutesDeps{
@@ -245,6 +253,11 @@ var excludedRoutes = map[string]string{
 	"PUT /meta-model/strategy-pillars/*":                       "metamodel write — blocked by permission ceiling",
 	"DELETE /meta-model/strategy-pillars/*":                    "metamodel write — blocked by permission ceiling",
 	"PUT /meta-model/strategy-pillars/*/fit-configuration":     "metamodel write — blocked by permission ceiling",
+	"POST /enterprise-capabilities/*/direction":         "direction capture — architect-only deliberation, reserved for human via UI",
+	"PUT /enterprise-capabilities/*/direction":          "direction edits — architect-only deliberation, reserved for human via UI",
+	"POST /enterprise-capabilities/*/direction/propose": "direction advance to proposed — architect-only deliberation, reserved for human via UI",
+	"POST /enterprise-capabilities/*/direction/agree":   "direction advance to agreed — architect-only deliberation, reserved for human via UI",
+	"POST /enterprise-capabilities/*/direction/reject":  "direction rejection — architect-only deliberation, reserved for human via UI",
 	"DELETE /value-streams/*":                                  "value stream delete — high-impact, reserved for UI",
 	"DELETE /value-streams/*/stages/*":                         "stage delete — reserved for UI",
 	"DELETE /value-streams/*/stages/*/capabilities/*":          "stage-capability unmapping — reserved for UI",

@@ -1,10 +1,11 @@
+import { Badge, Box, Button, Center, Group, Loader, Paper, Select, SimpleGrid, Stack, Text, Title } from '@mantine/core';
 import { useCallback, useState } from 'react';
 import { HelpTooltip } from '../../../components/shared/HelpTooltip';
 import { useMaturityColorScale } from '../../../hooks/useMaturityColorScale';
 import { useMaturityScale } from '../../../hooks/useMaturityScale';
 import { useMaturityAnalysis } from '../hooks/useMaturityAnalysis';
 import type { EnterpriseCapabilityId, MaturityAnalysisCandidate } from '../types';
-import './MaturityAnalysisTab.css';
+import classes from './MaturityAnalysisTab.module.css';
 
 function MaturitySectionLegend() {
   const { data: maturityScale } = useMaturityScale();
@@ -15,36 +16,33 @@ function MaturitySectionLegend() {
   const sortedSections = [...maturityScale.sections].sort((a, b) => a.order - b.order);
 
   return (
-    <div className="maturity-section-legend">
-      <span className="legend-title">
-        Maturity Sections
-        <HelpTooltip
-          content="Color coding for the maturity distribution bar. Sections are configured in Settings."
-          iconOnly
-        />
-      </span>
-      <div className="legend-items">
+    <Paper withBorder radius="md" p="sm">
+      <Group gap="md" wrap="wrap">
+        <Group gap="xs">
+          <Text size="sm" fw={600}>
+            Maturity Sections
+          </Text>
+          <HelpTooltip
+            content="Color coding for the maturity distribution bar. Sections are configured in Settings."
+            iconOnly
+          />
+        </Group>
         {sortedSections.map((section) => (
-          <div key={section.order} className="legend-section-item">
-            <span className="legend-section-dot" style={{ backgroundColor: getBaseSectionColor(section.order) }} />
-            <span className="legend-section-name">{section.name}</span>
-            <span className="legend-section-range">
+          <Group key={section.order} gap={6} wrap="nowrap">
+            <Box className={classes.dot} style={{ backgroundColor: getBaseSectionColor(section.order) }} />
+            <Text size="xs">{section.name}</Text>
+            <Text size="xs" c="dimmed">
               ({section.minValue}-{section.maxValue})
-            </span>
-          </div>
+            </Text>
+          </Group>
         ))}
-      </div>
-    </div>
+      </Group>
+    </Paper>
   );
 }
 
 interface MaturityDistributionBarProps {
-  distribution: {
-    genesis: number;
-    customBuild: number;
-    product: number;
-    commodity: number;
-  };
+  distribution: { genesis: number; customBuild: number; product: number; commodity: number };
 }
 
 function MaturityDistributionBar({ distribution }: MaturityDistributionBarProps) {
@@ -55,7 +53,6 @@ function MaturityDistributionBar({ distribution }: MaturityDistributionBarProps)
   if (total === 0) return null;
 
   const sortedSections = maturityScale?.sections ? [...maturityScale.sections].sort((a, b) => a.order - b.order) : [];
-
   const distributionByOrder = [
     distribution.genesis,
     distribution.customBuild,
@@ -72,29 +69,35 @@ function MaturityDistributionBar({ distribution }: MaturityDistributionBarProps)
     .filter((s) => s.count > 0);
 
   return (
-    <div className="maturity-distribution">
-      <div className="distribution-bar">
+    <Stack gap={4}>
+      <Box className={classes.distributionBar}>
         {segments.map((segment) => (
-          <div
+          <Box
             key={segment.name}
-            className="distribution-segment"
-            style={{
-              width: `${(segment.count / total) * 100}%`,
-              backgroundColor: segment.color,
-            }}
+            className={classes.distributionSegment}
+            style={{ width: `${(segment.count / total) * 100}%`, backgroundColor: segment.color }}
             title={`${segment.name}: ${segment.count}`}
           />
         ))}
-      </div>
-      <div className="distribution-legend">
+      </Box>
+      <Group gap="sm">
         {segments.map((segment) => (
-          <span key={segment.name} className="legend-item">
-            <span className="legend-dot" style={{ backgroundColor: segment.color }} />
-            {segment.count}
-          </span>
+          <Group key={segment.name} gap={4} wrap="nowrap">
+            <Box className={classes.dot} style={{ backgroundColor: segment.color }} />
+            <Text size="xs">{segment.count}</Text>
+          </Group>
         ))}
-      </div>
-    </div>
+      </Group>
+    </Stack>
+  );
+}
+
+function GapValue({ value }: { value: number }) {
+  const c = value > 40 ? 'red.6' : value >= 15 ? 'yellow.7' : 'gray.7';
+  return (
+    <Text size="sm" fw={600} c={c}>
+      {value}
+    </Text>
   );
 }
 
@@ -110,75 +113,122 @@ function CandidateCard({ candidate, onViewDetail }: CandidateCardProps) {
   const targetColor = candidate.targetMaturity !== null ? getColorForValue(candidate.targetMaturity) : undefined;
 
   return (
-    <div className="candidate-card">
-      <div className="candidate-header">
-        <div className="candidate-info">
-          <h3 className="candidate-name">{candidate.enterpriseCapabilityName}</h3>
-          {candidate.category && <span className="category-badge">{candidate.category}</span>}
-        </div>
-        <button
-          type="button"
-          className="btn btn-sm btn-secondary"
-          onClick={() => onViewDetail(candidate.enterpriseCapabilityId as EnterpriseCapabilityId)}
-        >
-          View Details
-        </button>
-      </div>
-
-      <div className="candidate-stats">
-        <div className="stat-group">
-          <span className="stat-label">
-            Target Maturity
-            <HelpTooltip content="Click View Details to set the target maturity level" iconOnly />
-          </span>
-          {candidate.targetMaturity !== null && targetSection ? (
-            <span className="stat-value">
-              {candidate.targetMaturity}
-              <span className="maturity-section" style={{ color: targetColor }}>
-                ({targetSection})
-              </span>
-            </span>
-          ) : (
-            <span className="stat-value stat-not-set">Not set</span>
-          )}
-        </div>
-        <div className="stat-group">
-          <span className="stat-label">
-            Implementations
-            <HelpTooltip content="Number of domain capabilities linked to this enterprise capability" iconOnly />
-          </span>
-          <span className="stat-value">{candidate.implementationCount}</span>
-        </div>
-        <div className="stat-group">
-          <span className="stat-label">
-            Domains
-            <HelpTooltip content="Number of distinct business domains containing implementations" iconOnly />
-          </span>
-          <span className="stat-value">{candidate.domainCount}</span>
-        </div>
-        <div className="stat-group">
-          <span className="stat-label">
-            Max Gap
-            <HelpTooltip content="Largest maturity difference from target among all implementations" iconOnly />
-          </span>
-          <span
-            className={`stat-value gap-value ${candidate.maxGap > 40 ? 'gap-high' : candidate.maxGap >= 15 ? 'gap-medium' : ''}`}
+    <Paper withBorder radius="md" p="md" shadow="xs">
+      <Stack gap="sm">
+        <Group justify="space-between" align="flex-start" wrap="nowrap">
+          <Stack gap={4}>
+            <Title order={5}>{candidate.enterpriseCapabilityName}</Title>
+            {candidate.category && (
+              <Badge variant="light" color="gray" radius="sm">
+                {candidate.category}
+              </Badge>
+            )}
+          </Stack>
+          <Button
+            size="compact-sm"
+            variant="default"
+            onClick={() => onViewDetail(candidate.enterpriseCapabilityId as EnterpriseCapabilityId)}
           >
-            {candidate.maxGap}
-          </span>
-        </div>
-      </div>
+            View Details
+          </Button>
+        </Group>
 
-      <div className="candidate-maturity-range">
-        <span className="range-label">Maturity Range:</span>
-        <span className="range-value">
-          {candidate.minMaturity} - {candidate.maxMaturity}
-        </span>
-        <span className="range-avg">(avg: {candidate.averageMaturity})</span>
-      </div>
+        <SimpleGrid cols={2} spacing="sm">
+          <Stack gap={2}>
+            <Group gap={4}>
+              <Text size="xs" c="dimmed">
+                Target Maturity
+              </Text>
+              <HelpTooltip content="Click View Details to set the target maturity level" iconOnly />
+            </Group>
+            {candidate.targetMaturity !== null && targetSection ? (
+              <Group gap={4}>
+                <Text size="sm" fw={600}>
+                  {candidate.targetMaturity}
+                </Text>
+                <Text size="sm" fw={500} style={{ color: targetColor }}>
+                  ({targetSection})
+                </Text>
+              </Group>
+            ) : (
+              <Text size="sm" c="dimmed" fs="italic">
+                Not set
+              </Text>
+            )}
+          </Stack>
 
-      <MaturityDistributionBar distribution={candidate.maturityDistribution} />
-    </div>
+          <Stack gap={2}>
+            <Group gap={4}>
+              <Text size="xs" c="dimmed">
+                Implementations
+              </Text>
+              <HelpTooltip content="Number of domain capabilities linked to this enterprise capability" iconOnly />
+            </Group>
+            <Text size="sm" fw={600}>
+              {candidate.implementationCount}
+            </Text>
+          </Stack>
+
+          <Stack gap={2}>
+            <Group gap={4}>
+              <Text size="xs" c="dimmed">
+                Domains
+              </Text>
+              <HelpTooltip content="Number of distinct business domains containing implementations" iconOnly />
+            </Group>
+            <Text size="sm" fw={600}>
+              {candidate.domainCount}
+            </Text>
+          </Stack>
+
+          <Stack gap={2}>
+            <Group gap={4}>
+              <Text size="xs" c="dimmed">
+                Max Gap
+              </Text>
+              <HelpTooltip content="Largest maturity difference from target among all implementations" iconOnly />
+            </Group>
+            <GapValue value={candidate.maxGap} />
+          </Stack>
+        </SimpleGrid>
+
+        <Group gap="xs">
+          <Text size="xs" c="dimmed">
+            Maturity Range:
+          </Text>
+          <Text size="xs">
+            {candidate.minMaturity} - {candidate.maxMaturity}
+          </Text>
+          <Text size="xs" c="dimmed">
+            (avg: {candidate.averageMaturity})
+          </Text>
+        </Group>
+
+        <MaturityDistributionBar distribution={candidate.maturityDistribution} />
+      </Stack>
+    </Paper>
+  );
+}
+
+interface SummaryStatProps {
+  value: number | string;
+  label: string;
+  tooltip: string;
+}
+
+function SummaryStat({ value, label, tooltip }: SummaryStatProps) {
+  return (
+    <Stack gap={2}>
+      <Text size="xl" fw={700}>
+        {value}
+      </Text>
+      <Group gap={4}>
+        <Text size="xs" c="dimmed">
+          {label}
+        </Text>
+        <HelpTooltip content={tooltip} iconOnly />
+      </Group>
+    </Stack>
   );
 }
 
@@ -190,101 +240,92 @@ export function MaturityAnalysisTab({ onViewDetail }: MaturityAnalysisTabProps) 
   const [sortBy, setSortBy] = useState<string>('gap');
   const { candidates, summary, isLoading, error } = useMaturityAnalysis(sortBy);
 
-  const handleSortChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSortBy(e.target.value);
+  const handleSortChange = useCallback((value: string | null) => {
+    if (value) setSortBy(value);
   }, []);
 
   if (isLoading) {
     return (
-      <div className="loading-state">
-        <div className="loading-spinner" />
-        <span>Loading maturity analysis...</span>
-      </div>
+      <Center py="xl">
+        <Group gap="sm">
+          <Loader size="sm" />
+          <Text c="dimmed">Loading maturity analysis...</Text>
+        </Group>
+      </Center>
     );
   }
 
   if (error) {
-    return <div className="error-message">Failed to load maturity analysis: {error.message}</div>;
+    return (
+      <Text c="red" size="sm">
+        Failed to load maturity analysis: {error.message}
+      </Text>
+    );
   }
 
   return (
-    <div className="maturity-analysis-tab">
-      <div className="analysis-header">
-        <div className="analysis-summary">
+    <Stack gap="md">
+      <Group justify="space-between" align="flex-end" wrap="wrap">
+        <Group gap="xl">
           {summary && (
             <>
-              <div className="summary-stat">
-                <span className="summary-value">{summary.candidateCount}</span>
-                <span className="summary-label">
-                  Capabilities
-                  <HelpTooltip
-                    content="Enterprise capabilities with linked domain capabilities that can be analyzed for maturity variance"
-                    iconOnly
-                  />
-                </span>
-              </div>
-              <div className="summary-stat">
-                <span className="summary-value">{summary.totalImplementations}</span>
-                <span className="summary-label">
-                  Implementations
-                  <HelpTooltip content="Total domain capabilities linked to these enterprise capabilities" iconOnly />
-                </span>
-              </div>
-              <div className="summary-stat">
-                <span className="summary-value">{summary.averageGap}</span>
-                <span className="summary-label">
-                  Avg Gap
-                  <HelpTooltip
-                    content="Average difference between implementation maturity and target (or highest implementation if no target set)"
-                    iconOnly
-                  />
-                </span>
-              </div>
+              <SummaryStat
+                value={summary.candidateCount}
+                label="Capabilities"
+                tooltip="Enterprise capabilities with linked domain capabilities that can be analyzed for maturity variance"
+              />
+              <SummaryStat
+                value={summary.totalImplementations}
+                label="Implementations"
+                tooltip="Total domain capabilities linked to these enterprise capabilities"
+              />
+              <SummaryStat
+                value={summary.averageGap}
+                label="Avg Gap"
+                tooltip="Average difference between implementation maturity and target (or highest implementation if no target set)"
+              />
             </>
           )}
-        </div>
-        <div className="analysis-controls">
-          <label htmlFor="sort-select" className="sort-label">
-            Sort by:
-          </label>
-          <select id="sort-select" value={sortBy} onChange={handleSortChange} className="sort-select">
-            <option value="gap">Max Gap</option>
-            <option value="implementations">Implementations</option>
-          </select>
-        </div>
-      </div>
+        </Group>
+        <Select
+          label="Sort by"
+          value={sortBy}
+          onChange={handleSortChange}
+          data={[
+            { value: 'gap', label: 'Max Gap' },
+            { value: 'implementations', label: 'Implementations' },
+          ]}
+          allowDeselect={false}
+          w={200}
+        />
+      </Group>
 
       <MaturitySectionLegend />
 
       {candidates.length === 0 ? (
-        <div className="empty-state">
-          <svg
-            className="empty-state-icon"
-            width="48"
-            height="48"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-            />
-          </svg>
-          <h3 className="empty-state-title">No Enterprise Capabilities</h3>
-          <p className="empty-state-description">
-            Create enterprise capabilities to set target maturity and analyze gaps.
-          </p>
-        </div>
+        <EmptyMaturityState />
       ) : (
-        <div className="candidates-grid">
+        <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
           {candidates.map((candidate) => (
             <CandidateCard key={candidate.enterpriseCapabilityId} candidate={candidate} onViewDetail={onViewDetail} />
           ))}
-        </div>
+        </SimpleGrid>
       )}
-    </div>
+    </Stack>
+  );
+}
+
+function EmptyMaturityState() {
+  return (
+    <Paper withBorder radius="lg" p="xl" shadow="xs">
+      <Center>
+        <Stack gap="sm" align="center" maw={400}>
+          <Title order={4}>No Enterprise Capabilities</Title>
+          <Text size="sm" c="dimmed" ta="center">
+            Create enterprise capabilities to set target maturity and analyze gaps.
+          </Text>
+        </Stack>
+      </Center>
+    </Paper>
   );
 }

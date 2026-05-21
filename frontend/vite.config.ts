@@ -21,7 +21,6 @@ export default defineConfig({
           mantine: ['@mantine/core', '@mantine/hooks'],
           reactflow: ['@xyflow/react', 'dagre'],
           dockview: ['dockview'],
-          dnd: ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
           query: ['@tanstack/react-query'],
           forms: ['react-hook-form', '@hookform/resolvers', 'zod'],
           state: ['zustand'],

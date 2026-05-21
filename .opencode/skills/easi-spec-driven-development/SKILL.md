@@ -162,7 +162,7 @@ This gate is a **hard stop**. Do not check `Specification ready` until all items
 8. After each discrete unit of work, run the inline review checkpoint:
    - Changed Go code → `easi-go-backend-patterns`, `easi-backend-testing`
    - Changed API handlers → `easi-api-standards`
-   - Changed frontend TypeScript/React → `easi-frontend-patterns`
+   - Changed frontend TypeScript/React → `easi-frontend-data` and `easi-frontend-styling`
    - Changed database migrations → `easi-database-migrations`
    - All changes → `structure-review` as baseline
 9. Check off each checklist item as it is genuinely completed — do not batch at the end
