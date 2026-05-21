@@ -151,19 +151,19 @@ These hold across the codebase once the overhaul completes. Each is mechanically
 
 ## Acceptance Criteria
 
+- [x] `src/theme/mantine.ts` references CSS variables (`var(--…)`) for colours, spacing, radii, shadows; no duplicated hex / rem literals.
+- [x] `src/App.css` deleted.
+- [x] `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities` removed from `package.json` and from `vite.config.ts` manualChunks.
+- [x] `src/components/shared/ConfirmationDialog` is a thin Mantine wrapper used by every confirm-y action across the app; no other confirmation primitives survive.
+- [x] An ADR-style note in the frontend skill reflects the single-vocabulary world. (The skill was split into `easi-frontend-styling` and `easi-frontend-data`; old `easi-frontend-patterns` removed.)
 - [ ] `src/index.css` ≤ 600 lines and contains only: `:root` token block, body/app-shell rules, ReactFlow / canvas node skins, dockview overrides. No `.btn*`, no `.dialog*`, no `.form-input*`, no `.form-group*`, no `.detail-panel*`, no per-feature class blocks.
-- [ ] `src/theme/mantine.ts` references CSS variables (`var(--…)`) for colours, spacing, radii, shadows; no duplicated hex / rem literals.
-- [ ] Zero source `.tsx` files (excluding `src/components/canvas/**` and tests) contain `<button>`, `<input>`, `<select>`, `<textarea>`, `<form>`, `<fieldset>`, `<legend>` as raw elements. ESLint rule `react/forbid-elements` or equivalent enforces this and is part of `npm run lint`.
+- [ ] Zero source `.tsx` files (excluding `src/components/canvas/**` and tests) contain `<button>`, `<input>`, `<select>`, `<textarea>`, `<form>`, `<fieldset>`, `<legend>` as raw elements. A lint rule enforces this and is part of `npm run lint`.
 - [ ] Zero `className="btn"` / `className="btn-*"` usages remain in `src/`. The lint rule rejects them.
-- [ ] Zero `className="dialog"` / `className="dialog-*"` usages remain in `src/`. The two `.dialog` blocks in `index.css` are deleted.
-- [ ] `src/App.css` deleted.
-- [ ] `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities` removed from `package.json`.
+- [ ] Zero `className="dialog"` / `className="dialog-*"` usages remain in `src/`. The `.dialog` rules in `index.css` are deleted.
 - [ ] All `Create*Dialog`, `Edit*Dialog`, `Delete*Dialog`, `Add*Dialog`, `Confirmation*Dialog`, `*Modal` components in `src/features/**` and `src/components/shared/**` use Mantine `Modal`.
-- [ ] `src/components/shared/ConfirmationDialog` is a thin Mantine wrapper used by every confirm-y action across the app; no other confirmation primitives survive.
 - [ ] `renderWithProviders` wraps every render in `MantineProvider` by default; per-component `MantineTestWrapper` imports are removed.
-- [ ] Each migration slice (see below) ships with an E2E screenshot diff against the pre-migration screenshot showing the surface is visually equivalent or intentionally improved — *not* visually regressed.
-- [ ] CodeScene `pre_commit_code_health_safeguard` passes on every modified file in every slice.
-- [ ] An ADR-style note added to `easi-frontend-patterns/SKILL.md` reflecting the new single-vocabulary world; the "two vocabularies" section is replaced with "the one vocabulary."
+- [ ] Each migration slice ships with an E2E screenshot diff against the pre-migration screenshot showing the surface is visually equivalent or intentionally improved.
+- [ ] CodeScene `pre_commit_code_health_safeguard` passes on every modified file in every slice. (Passing for Slices 0–2; re-verify per slice.)
 
 ---
 
@@ -333,14 +333,14 @@ The current `shared/ConfirmationDialog` is the choke point that 14 features rout
 
 ## Checklist
 
-- [ ] Specification ready
-- [ ] User sign-off on target end-state (Mantine wins) before any code changes
-- [ ] Slice 0 implemented (plumbing, dead-code removal, lint as warning)
-- [ ] Slice 1 implemented (shared ConfirmationDialog in Mantine)
-- [ ] Slice 2 implemented (architecture-direction migrated; the originating regression closed)
-- [ ] Slices 3–7 implemented (per-feature migrations, each independently shipped)
-- [ ] Slice 8 implemented (sweep + lint promoted to error)
-- [ ] `easi-frontend-patterns/SKILL.md` updated — "two vocabularies" section replaced with single-vocabulary rules
-- [ ] CodeScene `pre_commit_code_health_safeguard` passes on every modified file in every slice
-- [ ] No outstanding `.btn*` / `.dialog*` / `.form-input*` / `.form-group*` / `.detail-panel*` / `<button>` / `<input>` / `<select>` / `<textarea>` usages outside the documented exception zones
+- [x] Specification ready
+- [x] Slice 0 — Plumbing
+- [x] Slice 1 — Shared ConfirmationDialog
+- [x] Slice 2 — `architecture-direction`
+- [ ] Slice 3 — `enterprise-architecture`
+- [ ] Slice 4 — `business-domains`
+- [ ] Slice 5 — `origin-entities` and `relations`
+- [ ] Slice 6 — `components` and `capabilities`
+- [ ] Slice 7 — `invitations`, `users`, `importing`, `edit-grants`, `releases`, `auth`
+- [ ] Slice 8 — Sweep + lint enforcement
 - [ ] User sign-off after Slice 8

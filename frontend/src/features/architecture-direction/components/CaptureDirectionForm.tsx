@@ -1,6 +1,8 @@
+import { zodResolver } from '@hookform/resolvers/zod';
 import {
   ActionIcon,
   Alert,
+  Box,
   Button,
   Checkbox,
   Group,
@@ -11,8 +13,10 @@ import {
   Textarea,
   TextInput,
 } from '@mantine/core';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
+import { Controller, useFieldArray, useForm } from 'react-hook-form';
 import type { EnterpriseCapabilityId } from '../../../api/types';
+import { type CaptureDirectionFormData, captureDirectionSchema } from '../../../lib/schemas/direction';
 import { useBusinessDomainsQuery } from '../../business-domains/hooks/useBusinessDomains';
 import {
   useEnterpriseCapability,
@@ -20,7 +24,7 @@ import {
 } from '../../enterprise-architecture/hooks/useEnterpriseCapabilities';
 import type { EnterpriseCapabilityLink } from '../../enterprise-architecture/types';
 import { useCaptureDirection } from '../hooks/useDirection';
-import type { CaptureDirectionRequest, DirectionType, Horizon, PlacementInput } from '../types';
+import type { DirectionType, Horizon } from '../types';
 
 interface CaptureDirectionFormProps {
   enterpriseCapabilityId: EnterpriseCapabilityId;
@@ -29,9 +33,21 @@ interface CaptureDirectionFormProps {
 }
 
 const TYPE_OPTIONS = [
-  { value: 'consolidate', label: 'Consolidate', help: 'Multiple physical capabilities merge into one. Pick 2 or more sources.' },
-  { value: 'decompose', label: 'Decompose', help: 'One physical capability splits into multiple. Pick exactly 1 source.' },
-  { value: 'stay', label: 'Stay', help: 'Explicitly confirmed no change. Pick exactly 1 source. No target placements.' },
+  {
+    value: 'consolidate',
+    label: 'Consolidate',
+    help: 'Multiple physical capabilities merge into one. Pick 2 or more sources.',
+  },
+  {
+    value: 'decompose',
+    label: 'Decompose',
+    help: 'One physical capability splits into multiple. Pick exactly 1 source.',
+  },
+  {
+    value: 'stay',
+    label: 'Stay',
+    help: 'Explicitly confirmed no change. Pick exactly 1 source. No target placements.',
+  },
 ] as const satisfies ReadonlyArray<{ value: DirectionType; label: string; help: string }>;
 
 const HORIZON_OPTIONS = [
@@ -40,25 +56,13 @@ const HORIZON_OPTIONS = [
   { value: 'later', label: 'Later' },
 ] as const satisfies ReadonlyArray<{ value: Horizon; label: string }>;
 
-interface FormState {
-  type: DirectionType;
-  selectedSourceIds: string[];
-  placements: PlacementInput[];
-  horizon: Horizon;
-  narrative: string;
-}
-
-const INITIAL_STATE: FormState = {
+const DEFAULT_VALUES: CaptureDirectionFormData = {
   type: 'consolidate',
-  selectedSourceIds: [],
+  sourceCapabilityIds: [],
   placements: [],
   horizon: 'next',
   narrative: '',
 };
-
-function requiresExactlyOneSource(type: DirectionType): boolean {
-  return type === 'decompose' || type === 'stay';
-}
 
 function canAddPlacement(type: DirectionType, currentCount: number): boolean {
   if (type === 'consolidate') return currentCount === 0;
@@ -66,68 +70,42 @@ function canAddPlacement(type: DirectionType, currentCount: number): boolean {
   return false;
 }
 
-function describeSourceRequirement(type: DirectionType, count: number): string | null {
-  if (type === 'consolidate' && count < 2) {
-    return 'Consolidate requires at least 2 source physical capabilities.';
-  }
-  if (requiresExactlyOneSource(type) && count !== 1) {
-    return `${type === 'decompose' ? 'Decompose' : 'Stay'} requires exactly 1 source physical capability.`;
-  }
-  return null;
-}
+function useCaptureDirectionFormState(enterpriseCapabilityId: EnterpriseCapabilityId, onCaptured: () => void) {
+  const captureMutation = useCaptureDirection();
+  const form = useForm<CaptureDirectionFormData>({
+    resolver: zodResolver(captureDirectionSchema),
+    defaultValues: DEFAULT_VALUES,
+    mode: 'onChange',
+  });
+  const placementsArray = useFieldArray({ control: form.control, name: 'placements' });
+  const type = form.watch('type');
+  const fieldCount = placementsArray.fields.length;
 
-function describePlacementRequirement(type: DirectionType, placements: PlacementInput[]): string | null {
-  if (type === 'stay' && placements.length > 0) {
-    return 'Stay directions carry no placements.';
-  }
-  if (type === 'consolidate' && placements.length !== 1) {
-    return 'Consolidate requires exactly one target placement (N physicals merge into 1).';
-  }
-  if (type === 'decompose' && placements.length === 0) {
-    return 'Decompose requires at least one target placement.';
-  }
-  for (const p of placements) {
-    if (!p.targetBusinessDomainId) {
-      return 'Every placement needs a target business domain.';
+  useEffect(() => {
+    if (type === 'stay' && fieldCount > 0) {
+      form.setValue('placements', []);
     }
-  }
-  return null;
-}
+  }, [type, fieldCount, form]);
 
-function buildCaptureRequest(state: FormState): CaptureDirectionRequest {
-  return {
-    type: state.type,
-    sourceCapabilityIds: state.selectedSourceIds,
-    placements: state.type === 'stay' ? [] : state.placements,
-    horizon: state.horizon,
-    narrative: state.narrative.trim() || undefined,
+  const onSubmit = async (data: CaptureDirectionFormData) => {
+    try {
+      await captureMutation.mutateAsync({
+        enterpriseCapabilityId,
+        request: {
+          type: data.type,
+          sourceCapabilityIds: data.sourceCapabilityIds,
+          placements: data.type === 'stay' ? [] : data.placements,
+          horizon: data.horizon,
+          narrative: data.narrative.trim() || undefined,
+        },
+      });
+      onCaptured();
+    } catch {
+      // toast handled by hook
+    }
   };
-}
 
-interface PlacementOps {
-  add: () => void;
-  update: (index: number, patch: Partial<PlacementInput>) => void;
-  remove: (index: number) => void;
-}
-
-function usePlacementOps(
-  setState: React.Dispatch<React.SetStateAction<FormState>>,
-  defaultResultingName: string,
-): PlacementOps {
-  return {
-    add: () =>
-      setState((s) => ({
-        ...s,
-        placements: [...s.placements, { targetBusinessDomainId: '', resultingName: defaultResultingName }],
-      })),
-    update: (index, patch) =>
-      setState((s) => ({
-        ...s,
-        placements: s.placements.map((p, i) => (i === index ? { ...p, ...patch } : p)),
-      })),
-    remove: (index) =>
-      setState((s) => ({ ...s, placements: s.placements.filter((_, i) => i !== index) })),
-  };
+  return { form, placementsArray, onSubmit, isPending: captureMutation.isPending };
 }
 
 export function CaptureDirectionForm({ enterpriseCapabilityId, onCaptured, onCancel }: CaptureDirectionFormProps) {
@@ -135,73 +113,65 @@ export function CaptureDirectionForm({ enterpriseCapabilityId, onCaptured, onCan
   const defaultResultingName = parentEC?.name ?? '';
   const { data: links, isLoading: linksLoading } = useEnterpriseCapabilityLinks(enterpriseCapabilityId);
   const { data: domainsResponse, isLoading: domainsLoading } = useBusinessDomainsQuery();
-  const captureMutation = useCaptureDirection();
-
-  const [state, setState] = useState<FormState>(INITIAL_STATE);
   const linkedCapabilities = useMemo(() => links ?? [], [links]);
   const businessDomains = useMemo(() => domainsResponse?.data ?? [], [domainsResponse]);
 
-  const sourceErr = describeSourceRequirement(state.type, state.selectedSourceIds.length);
-  const placementErr = describePlacementRequirement(state.type, state.placements);
-  const submittable = !sourceErr && !placementErr && !captureMutation.isPending;
-  const placementOps = usePlacementOps(setState, defaultResultingName);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!submittable) return;
-    try {
-      await captureMutation.mutateAsync({ enterpriseCapabilityId, request: buildCaptureRequest(state) });
-      onCaptured();
-    } catch {
-      // toast handled by hook
-    }
-  };
+  const { form, placementsArray, onSubmit, isPending } = useCaptureDirectionFormState(
+    enterpriseCapabilityId,
+    onCaptured,
+  );
+  const { control, handleSubmit, watch, formState } = form;
+  const type = watch('type');
+  const placements = watch('placements');
 
   return (
-    <form onSubmit={handleSubmit} data-testid="capture-direction-form">
+    <form onSubmit={handleSubmit(onSubmit)} data-testid="capture-direction-form">
       <Stack gap="md">
-        <TypeField
-          type={state.type}
-          onChange={(type) =>
-            setState((s) => ({
-              ...s,
-              type,
-              placements: type === 'stay' ? [] : s.placements,
-            }))
-          }
+        <TypeField control={control} />
+
+        <Controller
+          name="sourceCapabilityIds"
+          control={control}
+          render={({ field }) => (
+            <SourcePicker
+              loading={linksLoading}
+              links={linkedCapabilities}
+              selectedIds={field.value}
+              error={formState.errors.sourceCapabilityIds?.message ?? null}
+              onChange={field.onChange}
+            />
+          )}
         />
 
-        <SourcePicker
-          loading={linksLoading}
-          links={linkedCapabilities}
-          selectedIds={state.selectedSourceIds}
-          error={sourceErr}
-          onChange={(selectedSourceIds) => setState((s) => ({ ...s, selectedSourceIds }))}
-        />
-
-        {state.type !== 'stay' && (
+        {type !== 'stay' && (
           <PlacementEditor
             loading={domainsLoading}
-            placements={state.placements}
-            domains={businessDomains}
-            error={placementErr}
-            canAdd={canAddPlacement(state.type, state.placements.length)}
-            ops={placementOps}
+            placements={placements}
+            error={formState.errors.placements?.message ?? null}
+            canAdd={canAddPlacement(type, placementsArray.fields.length)}
+            onAdd={() =>
+              placementsArray.append({ targetBusinessDomainId: '', resultingName: defaultResultingName })
+            }
+            renderRow={(index) => (
+              <PlacementRow
+                key={placementsArray.fields[index].id}
+                index={index}
+                control={control}
+                domains={businessDomains}
+                onRemove={() => placementsArray.remove(index)}
+              />
+            )}
           />
         )}
 
-        <HorizonField value={state.horizon} onChange={(horizon) => setState({ ...state, horizon })} />
-
-        <NarrativeField
-          value={state.narrative}
-          onChange={(narrative) => setState({ ...state, narrative })}
-        />
+        <HorizonField control={control} />
+        <NarrativeField control={control} />
 
         <Group justify="flex-end" gap="sm">
-          <Button variant="default" onClick={onCancel} disabled={captureMutation.isPending}>
+          <Button variant="default" onClick={onCancel} disabled={isPending}>
             Cancel
           </Button>
-          <Button type="submit" loading={captureMutation.isPending} disabled={!submittable}>
+          <Button type="submit" loading={isPending} disabled={!formState.isValid || isPending}>
             Capture as draft
           </Button>
         </Group>
@@ -210,22 +180,61 @@ export function CaptureDirectionForm({ enterpriseCapabilityId, onCaptured, onCan
   );
 }
 
-interface TypeFieldProps {
-  type: DirectionType;
-  onChange: (type: DirectionType) => void;
+type FormControl = ReturnType<typeof useForm<CaptureDirectionFormData>>['control'];
+
+type EnumFieldName = 'type' | 'horizon';
+
+interface EnumFieldProps<TValue extends string> {
+  name: EnumFieldName;
+  label: string;
+  control: FormControl;
+  options: ReadonlyArray<{ value: TValue; label: string; help?: string }>;
 }
 
-function TypeField({ type, onChange }: TypeFieldProps) {
-  const help = TYPE_OPTIONS.find((o) => o.value === type)?.help;
+function EnumField<TValue extends string>({ name, label, control, options }: EnumFieldProps<TValue>) {
   return (
-    <Select
-      label="Direction type"
-      data={TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
-      value={type}
-      onChange={(value) => value && onChange(value as DirectionType)}
-      description={help}
-      allowDeselect={false}
-      withAsterisk
+    <Controller
+      name={name}
+      control={control}
+      render={({ field }) => (
+        <Select
+          label={label}
+          data={options.map((o) => ({ value: o.value, label: o.label }))}
+          value={field.value}
+          onChange={(value) => value && field.onChange(value)}
+          description={options.find((o) => o.value === field.value)?.help}
+          allowDeselect={false}
+          withAsterisk
+        />
+      )}
+    />
+  );
+}
+
+function TypeField({ control }: { control: FormControl }) {
+  return <EnumField name="type" label="Direction type" control={control} options={TYPE_OPTIONS} />;
+}
+
+function HorizonField({ control }: { control: FormControl }) {
+  return <EnumField name="horizon" label="Horizon" control={control} options={HORIZON_OPTIONS} />;
+}
+
+function NarrativeField({ control }: { control: FormControl }) {
+  return (
+    <Controller
+      name="narrative"
+      control={control}
+      render={({ field }) => (
+        <Textarea
+          label="Narrative"
+          description="Required before advancing the direction to proposed."
+          placeholder="One or two sentences naming what the group decided and why"
+          autosize
+          minRows={3}
+          value={field.value}
+          onChange={(e) => field.onChange(e.currentTarget.value)}
+        />
+      )}
     />
   );
 }
@@ -284,35 +293,27 @@ function SourceLabel({ link }: { link: EnterpriseCapabilityLink }) {
 
 interface PlacementEditorProps {
   loading: boolean;
-  placements: PlacementInput[];
-  domains: { id: string; name: string }[];
+  placements: CaptureDirectionFormData['placements'];
   error: string | null;
   canAdd: boolean;
-  ops: PlacementOps;
+  onAdd: () => void;
+  renderRow: (index: number) => React.ReactNode;
 }
 
-function PlacementEditor({ loading, placements, domains, error, canAdd, ops }: PlacementEditorProps) {
+function PlacementEditor({ loading, placements, error, canAdd, onAdd, renderRow }: PlacementEditorProps) {
   return (
     <Stack gap="xs" data-testid="placement-editor">
       <Text size="sm" fw={600}>
         Target placements
       </Text>
       {loading && <Loader size="sm" />}
-      {!loading &&
-        placements.map((placement, index) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: placements are an editable ordered list with no stable id
-          <PlacementRow key={index} index={index} placement={placement} domains={domains} ops={ops} />
-        ))}
+      {!loading && placements.map((_p, index) => renderRow(index))}
       {canAdd && (
-        <Button
-          variant="subtle"
-          size="xs"
-          onClick={ops.add}
-          data-testid="add-placement"
-          style={{ alignSelf: 'flex-start' }}
-        >
-          + Add placement
-        </Button>
+        <Group justify="flex-start">
+          <Button variant="subtle" size="xs" onClick={onAdd} data-testid="add-placement">
+            + Add placement
+          </Button>
+        </Group>
       )}
       {error && (
         <Text c="red" size="xs" data-testid="placement-error">
@@ -325,75 +326,47 @@ function PlacementEditor({ loading, placements, domains, error, canAdd, ops }: P
 
 interface PlacementRowProps {
   index: number;
-  placement: PlacementInput;
+  control: FormControl;
   domains: { id: string; name: string }[];
-  ops: PlacementOps;
+  onRemove: () => void;
 }
 
-function PlacementRow({ index, placement, domains, ops }: PlacementRowProps) {
+function PlacementRow({ index, control, domains, onRemove }: PlacementRowProps) {
   const position = index + 1;
   return (
     <Group gap="xs" wrap="nowrap" align="flex-end">
-      <Select
-        style={{ flex: 1 }}
-        placeholder="Select a business domain…"
-        aria-label={`Target business domain for placement ${position}`}
-        data={domains.map((d) => ({ value: d.id, label: d.name }))}
-        value={placement.targetBusinessDomainId || null}
-        onChange={(value) => ops.update(index, { targetBusinessDomainId: value ?? '' })}
-      />
-      <TextInput
-        style={{ flex: 1 }}
-        aria-label={`Resulting name for placement ${position}`}
-        placeholder="Resulting name"
-        value={placement.resultingName ?? ''}
-        onChange={(e) => ops.update(index, { resultingName: e.currentTarget.value })}
-      />
-      <ActionIcon
-        variant="subtle"
-        color="red"
-        aria-label={`Remove placement ${position}`}
-        onClick={() => ops.remove(index)}
-      >
+      <Box flex={1}>
+        <Controller
+          name={`placements.${index}.targetBusinessDomainId`}
+          control={control}
+          render={({ field }) => (
+            <Select
+              placeholder="Select a business domain…"
+              aria-label={`Target business domain for placement ${position}`}
+              data={domains.map((d) => ({ value: d.id, label: d.name }))}
+              value={field.value || null}
+              onChange={(value) => field.onChange(value ?? '')}
+            />
+          )}
+        />
+      </Box>
+      <Box flex={1}>
+        <Controller
+          name={`placements.${index}.resultingName`}
+          control={control}
+          render={({ field }) => (
+            <TextInput
+              aria-label={`Resulting name for placement ${position}`}
+              placeholder="Resulting name"
+              value={field.value ?? ''}
+              onChange={(e) => field.onChange(e.currentTarget.value)}
+            />
+          )}
+        />
+      </Box>
+      <ActionIcon variant="subtle" color="red" aria-label={`Remove placement ${position}`} onClick={onRemove}>
         ×
       </ActionIcon>
     </Group>
-  );
-}
-
-interface HorizonFieldProps {
-  value: Horizon;
-  onChange: (h: Horizon) => void;
-}
-
-function HorizonField({ value, onChange }: HorizonFieldProps) {
-  return (
-    <Select
-      label="Horizon"
-      data={HORIZON_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
-      value={value}
-      onChange={(v) => v && onChange(v as Horizon)}
-      allowDeselect={false}
-      withAsterisk
-    />
-  );
-}
-
-interface NarrativeFieldProps {
-  value: string;
-  onChange: (v: string) => void;
-}
-
-function NarrativeField({ value, onChange }: NarrativeFieldProps) {
-  return (
-    <Textarea
-      label="Narrative"
-      description="Required before advancing the direction to proposed."
-      placeholder="One or two sentences naming what the group decided and why"
-      autosize
-      minRows={3}
-      value={value}
-      onChange={(e) => onChange(e.currentTarget.value)}
-    />
   );
 }

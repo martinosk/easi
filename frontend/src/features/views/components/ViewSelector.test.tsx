@@ -1,8 +1,11 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { toViewId } from '../../../api/types';
 import { useAppStore } from '../../../store/appStore';
+import { renderWithProviders } from '../../../test/helpers';
 import { ViewSelector } from './ViewSelector';
+
+const render = (ui: React.ReactElement) => renderWithProviders(ui, { withRouter: false });
 
 const mockUseViews = vi.fn();
 const mockUseActiveUsers = vi.fn();
@@ -96,7 +99,7 @@ describe('ViewSelector', () => {
     render(<ViewSelector />);
     fireEvent.click(screen.getByRole('button', { name: 'Close View Two' }));
 
-    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(useAppStore.getState().openViewIds).toEqual([v1]);
   });
 
@@ -105,7 +108,7 @@ describe('ViewSelector', () => {
     render(<ViewSelector />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Close View Two' }));
-    expect(screen.getByRole('alertdialog')).toBeDefined();
+    expect(screen.getByRole('dialog')).toBeDefined();
     fireEvent.click(screen.getByRole('button', { name: 'Discard & close' }));
 
     expect(useAppStore.getState().openViewIds).toEqual([v1]);

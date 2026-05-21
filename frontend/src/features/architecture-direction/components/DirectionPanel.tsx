@@ -106,9 +106,11 @@ function NoDirectionView({ canCapture, onCapture }: { canCapture: boolean; onCap
         The architecture group has not captured a direction on this enterprise capability.
       </Text>
       {canCapture && (
-        <Button onClick={onCapture} data-testid="capture-direction-button" style={{ alignSelf: 'flex-start' }}>
-          Capture direction
-        </Button>
+        <Group justify="flex-start">
+          <Button onClick={onCapture} data-testid="capture-direction-button">
+            Capture direction
+          </Button>
+        </Group>
       )}
     </Stack>
   );

@@ -55,7 +55,7 @@ Re-read the full diff and the surrounding code. For every changed file, walk thi
 - **Error handling.** No swallowed errors. Wrap with context (`%w` in Go). Errors handled at the right layer. Typed errors over `panic`/`throw`. Query/error states surfaced in the UI.
 - **Tests.** Names describe behavior, not implementation. Test through the public API. No over-mocking. Assertions do not lock in incidental detail. Edge cases covered (empty, nil, boundary, concurrency, auth-failure).
 - **Comments.** No comments unless the user asked. Any `// what this does` comment is a refactor signal.
-- **Architectural fit.** Respects bounded contexts and patterns from `easi-architecture-canvas`, `easi-go-backend-patterns`, `easi-frontend-patterns`, `easi-api-standards`.
+- **Architectural fit.** Respects bounded contexts and patterns from `easi-architecture-canvas`, `easi-go-backend-patterns`, `easi-frontend-data`, `easi-frontend-styling`, `easi-api-standards`.
 - **Diff hygiene.** No reformat noise, debug prints, commented-out code, or TODOs without follow-up.
 
 After fixing, re-run tests and re-score. Issues you choose not to fix go in the report with reasoning.

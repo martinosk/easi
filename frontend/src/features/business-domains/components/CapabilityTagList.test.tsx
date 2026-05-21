@@ -1,7 +1,10 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Capability, CapabilityId } from '../../../api/types';
+import { renderWithProviders } from '../../../test/helpers';
 import { CapabilityTagList } from './CapabilityTagList';
+
+const render = (ui: React.ReactElement) => renderWithProviders(ui, { withRouter: false });
 
 describe('CapabilityTagList', () => {
   const mockCapabilities: Capability[] = [
