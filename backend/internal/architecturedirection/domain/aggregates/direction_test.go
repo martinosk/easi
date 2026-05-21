@@ -58,12 +58,12 @@ func newNarrative(t *testing.T, v string) sharedvo.Description {
 }
 
 type draftOpts struct {
-	directionType   string
-	sourceCount     int
-	sources         []valueobjects.PhysicalCapabilityRef
+	directionType    string
+	sourceCount      int
+	sources          []valueobjects.PhysicalCapabilityRef
 	includePlacement bool
-	horizon         string
-	narrative       string
+	horizon          string
+	narrative        string
 }
 
 func draftWith(t *testing.T, opts draftOpts) (*Direction, error) {
@@ -95,7 +95,6 @@ func draftWith(t *testing.T, opts draftOpts) (*Direction, error) {
 		Narrative:              narrative,
 	})
 }
-
 
 func TestDraftDirection_Consolidate_TwoSources_Succeeds(t *testing.T) {
 	d, err := draftWith(t, draftOpts{sourceCount: 2, includePlacement: true})
@@ -172,7 +171,6 @@ func TestDraftDirection_DuplicateSourceIDs_Fails(t *testing.T) {
 	_, err := draftWith(t, draftOpts{sources: dup, includePlacement: true})
 	assert.ErrorIs(t, err, ErrDuplicateSourceCapabilities)
 }
-
 
 func draftConsolidate(t *testing.T) *Direction {
 	t.Helper()
@@ -268,7 +266,6 @@ func TestReject_FromRejected_Fails(t *testing.T) {
 	assert.ErrorIs(t, err, ErrInvalidStatusTransition)
 }
 
-
 func TestUpdateNarrative_PreAgreed_Succeeds(t *testing.T) {
 	d := draftConsolidate(t)
 	err := d.UpdateNarrative(newNarrative(t, "Updated narrative."))
@@ -318,7 +315,6 @@ func TestChangePlacements_OnAgreed_Fails(t *testing.T) {
 	err := d.ChangePlacements([]valueobjects.Placement{newPlacement(t)})
 	assert.ErrorIs(t, err, ErrDirectionAgreedImmutable)
 }
-
 
 func TestLoadFromHistory_ReconstructsStatus(t *testing.T) {
 	fresh, err := draftWith(t, draftOpts{sourceCount: 2, includePlacement: true, narrative: "Some narrative."})

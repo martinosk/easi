@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/lib/pq"
@@ -28,6 +29,14 @@ const (
 	DirectionFieldNarrative DirectionField = "narrative"
 	DirectionFieldHorizon   DirectionField = "horizon"
 )
+
+var updatableDirectionFields = map[DirectionField]struct{}{
+	DirectionFieldStatus:    {},
+	DirectionFieldNarrative: {},
+	DirectionFieldHorizon:   {},
+}
+
+var ErrUnknownDirectionField = errors.New("unknown direction field")
 
 type DirectionPlacementDTO struct {
 	TargetBusinessDomainID string `json:"targetBusinessDomainId"`
@@ -131,6 +140,9 @@ func isActiveDirectionUniqueViolation(err error) bool {
 }
 
 func (rm *DirectionReadModel) UpdateField(ctx context.Context, u FieldUpdate) error {
+	if _, ok := updatableDirectionFields[u.Field]; !ok {
+		return fmt.Errorf("%w: %q", ErrUnknownDirectionField, u.Field)
+	}
 	tenantID, err := tenantOf(ctx)
 	if err != nil {
 		return err
@@ -362,4 +374,3 @@ func loadSourcesForDirection(ctx context.Context, tx *sql.Tx, key sourceFetchKey
 	}
 	return out, nil
 }
-

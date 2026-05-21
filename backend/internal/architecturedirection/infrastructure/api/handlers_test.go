@@ -268,7 +268,7 @@ func TestRejectDirection_DispatchesCommandAndReturnsRejectedDirection(t *testing
 	assert.Equal(t, "rejected", body.Status)
 }
 
-func TestUpdateDirection_DispatchesNarrativeAndHorizon(t *testing.T) {
+func TestUpdateDirection_DispatchesSingleAtomicCommand(t *testing.T) {
 	ecID := uuid.New().String()
 	did := uuid.New().String()
 	bus := &mockCommandBus{}
@@ -292,14 +292,16 @@ func TestUpdateDirection_DispatchesNarrativeAndHorizon(t *testing.T) {
 	r.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code)
-	require.Len(t, bus.dispatched, 2)
-	narrativeCmd, ok := bus.dispatched[0].(*commands.UpdateDirectionNarrative)
+	require.Len(t, bus.dispatched, 1, "multi-field update dispatches one atomic command")
+	cmd, ok := bus.dispatched[0].(*commands.UpdateDirection)
 	require.True(t, ok)
-	assert.Equal(t, did, narrativeCmd.DirectionID)
-	assert.Equal(t, "Refined", narrativeCmd.Narrative)
-	horizonCmd, ok := bus.dispatched[1].(*commands.UpdateDirectionHorizon)
-	require.True(t, ok)
-	assert.Equal(t, "later", horizonCmd.Horizon)
+	assert.Equal(t, did, cmd.DirectionID)
+	require.NotNil(t, cmd.Narrative)
+	assert.Equal(t, "Refined", *cmd.Narrative)
+	require.NotNil(t, cmd.Horizon)
+	assert.Equal(t, "later", *cmd.Horizon)
+	assert.Nil(t, cmd.SourceCapabilityIDs)
+	assert.Nil(t, cmd.Placements)
 }
 
 func TestRejectDirection_NoActiveDirection_404(t *testing.T) {

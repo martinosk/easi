@@ -40,9 +40,9 @@ func TestNewDirectionType_Empty(t *testing.T) {
 
 func TestDirectionType_RequiredSourceCount(t *testing.T) {
 	cases := []struct {
-		typ           string
-		minSources    int
-		exactlyOne    bool
+		typ            string
+		minSources     int
+		exactlyOne     bool
 		exactlySources int
 	}{
 		{"consolidate", 2, false, 0},

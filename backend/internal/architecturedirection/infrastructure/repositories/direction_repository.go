@@ -5,6 +5,7 @@ import (
 
 	"easi/backend/internal/architecturedirection/domain/aggregates"
 	"easi/backend/internal/architecturedirection/domain/events"
+	pl "easi/backend/internal/architecturedirection/publishedlanguage"
 	"easi/backend/internal/infrastructure/eventstore"
 	"easi/backend/internal/shared/infrastructure/repository"
 )
@@ -28,13 +29,13 @@ func NewDirectionRepository(eventStore eventstore.EventStore) *DirectionReposito
 
 var directionEventDeserializers = repository.NewEventDeserializers(
 	map[string]repository.EventDeserializerFunc{
-		"DirectionDrafted":                   repository.JSONDeserializer[events.DirectionDrafted],
-		"DirectionProposed":                  repository.JSONDeserializer[events.DirectionProposed],
-		"DirectionAgreed":                    repository.JSONDeserializer[events.DirectionAgreed],
-		"DirectionRejected":                  repository.JSONDeserializer[events.DirectionRejected],
-		"DirectionNarrativeUpdated":          repository.JSONDeserializer[events.DirectionNarrativeUpdated],
-		"DirectionHorizonChanged":            repository.JSONDeserializer[events.DirectionHorizonChanged],
-		"DirectionPlacementsChanged":         repository.JSONDeserializer[events.DirectionPlacementsChanged],
-		"DirectionSourceCapabilitiesChanged": repository.JSONDeserializer[events.DirectionSourceCapabilitiesChanged],
+		pl.DirectionDrafted:                   repository.JSONDeserializer[events.DirectionDrafted],
+		pl.DirectionProposed:                  repository.JSONDeserializer[events.DirectionProposed],
+		pl.DirectionAgreed:                    repository.JSONDeserializer[events.DirectionAgreed],
+		pl.DirectionRejected:                  repository.JSONDeserializer[events.DirectionRejected],
+		pl.DirectionNarrativeUpdated:          repository.JSONDeserializer[events.DirectionNarrativeUpdated],
+		pl.DirectionHorizonChanged:            repository.JSONDeserializer[events.DirectionHorizonChanged],
+		pl.DirectionPlacementsChanged:         repository.JSONDeserializer[events.DirectionPlacementsChanged],
+		pl.DirectionSourceCapabilitiesChanged: repository.JSONDeserializer[events.DirectionSourceCapabilitiesChanged],
 	},
 )

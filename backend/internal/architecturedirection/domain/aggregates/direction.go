@@ -157,7 +157,7 @@ func (d *Direction) EnterpriseCapabilityID() valueobjects.EnterpriseCapabilityRe
 func (d *Direction) Type() valueobjects.DirectionType     { return d.directionType }
 func (d *Direction) Status() valueobjects.DirectionStatus { return d.status }
 func (d *Direction) Horizon() valueobjects.Horizon        { return d.horizon }
-func (d *Direction) Narrative() sharedvo.Description    { return d.narrative }
+func (d *Direction) Narrative() sharedvo.Description      { return d.narrative }
 func (d *Direction) Placements() []valueobjects.Placement {
 	out := make([]valueobjects.Placement, len(d.placements))
 	copy(out, d.placements)

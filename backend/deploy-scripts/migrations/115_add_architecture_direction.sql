@@ -25,10 +25,7 @@ CREATE TABLE IF NOT EXISTS architecturedirection.directions (
     placements JSONB NOT NULL DEFAULT '[]'::jsonb,
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP,
-    PRIMARY KEY (tenant_id, id),
-    CHECK (type IN ('consolidate', 'decompose', 'stay')),
-    CHECK (status IN ('draft', 'proposed', 'agreed', 'rejected')),
-    CHECK (horizon IN ('now', 'next', 'later'))
+    PRIMARY KEY (tenant_id, id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_directions_ec ON architecturedirection.directions(tenant_id, enterprise_capability_id);

@@ -160,7 +160,16 @@ export function CaptureDirectionForm({ enterpriseCapabilityId, onCaptured, onCan
   return (
     <form onSubmit={handleSubmit} data-testid="capture-direction-form">
       <Stack gap="md">
-        <TypeField type={state.type} onChange={(type) => setState({ ...state, type })} />
+        <TypeField
+          type={state.type}
+          onChange={(type) =>
+            setState((s) => ({
+              ...s,
+              type,
+              placements: type === 'stay' ? [] : s.placements,
+            }))
+          }
+        />
 
         <SourcePicker
           loading={linksLoading}

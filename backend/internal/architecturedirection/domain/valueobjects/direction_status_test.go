@@ -48,7 +48,7 @@ func TestDirectionStatus_CanAdvanceTo(t *testing.T) {
 	}{
 		{"draft", "proposed", true},
 		{"proposed", "agreed", true},
-		{"draft", "agreed", false},   // skip-step forbidden
+		{"draft", "agreed", false},    // skip-step forbidden
 		{"agreed", "proposed", false}, // forward-only
 		{"agreed", "agreed", false},
 		{"rejected", "proposed", false},

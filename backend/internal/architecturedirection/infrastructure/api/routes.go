@@ -80,10 +80,7 @@ func registerCommandHandlers(
 	commandBus.Register("CaptureDirection", handlers.NewCaptureDirectionHandler(repo, policy))
 	commandBus.Register("AdvanceDirection", handlers.NewAdvanceDirectionHandler(repo))
 	commandBus.Register("RejectDirection", handlers.NewRejectDirectionHandler(repo))
-	commandBus.Register("UpdateDirectionNarrative", handlers.NewUpdateDirectionNarrativeHandler(repo))
-	commandBus.Register("UpdateDirectionHorizon", handlers.NewUpdateDirectionHorizonHandler(repo))
-	commandBus.Register("UpdateDirectionSourceCapabilities", handlers.NewUpdateDirectionSourceCapabilitiesHandler(repo))
-	commandBus.Register("UpdateDirectionPlacements", handlers.NewUpdateDirectionPlacementsHandler(repo))
+	commandBus.Register("UpdateDirection", handlers.NewUpdateDirectionHandler(repo))
 }
 
 func registerRoutes(r chi.Router, h *DirectionHandlers, authMiddleware AuthMiddleware) {

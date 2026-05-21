@@ -245,7 +245,7 @@ Each slice is independently shippable, independently reviewable, and does not re
 
 ### Token layering
 
-```
+```text
 src/index.css :root  →  CSS variables (single source)
         │
         ├──▶  src/theme/mantine.ts  reads via var(--…)  →  MantineProvider theme

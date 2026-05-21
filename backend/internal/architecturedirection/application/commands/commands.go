@@ -29,30 +29,12 @@ type RejectDirection struct {
 
 func (c RejectDirection) CommandName() string { return "RejectDirection" }
 
-type UpdateDirectionNarrative struct {
-	DirectionID string
-	Narrative   string
-}
-
-func (c UpdateDirectionNarrative) CommandName() string { return "UpdateDirectionNarrative" }
-
-type UpdateDirectionHorizon struct {
-	DirectionID string
-	Horizon     string
-}
-
-func (c UpdateDirectionHorizon) CommandName() string { return "UpdateDirectionHorizon" }
-
-type UpdateDirectionSourceCapabilities struct {
+type UpdateDirection struct {
 	DirectionID         string
-	SourceCapabilityIDs []string
+	Narrative           *string
+	Horizon             *string
+	SourceCapabilityIDs *[]string
+	Placements          *[]PlacementInput
 }
 
-func (c UpdateDirectionSourceCapabilities) CommandName() string { return "UpdateDirectionSourceCapabilities" }
-
-type UpdateDirectionPlacements struct {
-	DirectionID string
-	Placements  []PlacementInput
-}
-
-func (c UpdateDirectionPlacements) CommandName() string { return "UpdateDirectionPlacements" }
+func (c UpdateDirection) CommandName() string { return "UpdateDirection" }

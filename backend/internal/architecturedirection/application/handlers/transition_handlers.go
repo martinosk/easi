@@ -58,35 +58,11 @@ func NewRejectDirectionHandler(repo DirectionLoaderRepository) cqrs.CommandHandl
 	}
 }
 
-func NewUpdateDirectionNarrativeHandler(repo DirectionLoaderRepository) cqrs.CommandHandler {
-	return &mutationHandler[*commands.UpdateDirectionNarrative]{
+func NewUpdateDirectionHandler(repo DirectionLoaderRepository) cqrs.CommandHandler {
+	return &mutationHandler[*commands.UpdateDirection]{
 		repo:          repo,
-		directionIDOf: func(c *commands.UpdateDirectionNarrative) string { return c.DirectionID },
-		apply:         applyNarrative,
-	}
-}
-
-func NewUpdateDirectionHorizonHandler(repo DirectionLoaderRepository) cqrs.CommandHandler {
-	return &mutationHandler[*commands.UpdateDirectionHorizon]{
-		repo:          repo,
-		directionIDOf: func(c *commands.UpdateDirectionHorizon) string { return c.DirectionID },
-		apply:         applyHorizon,
-	}
-}
-
-func NewUpdateDirectionSourceCapabilitiesHandler(repo DirectionLoaderRepository) cqrs.CommandHandler {
-	return &mutationHandler[*commands.UpdateDirectionSourceCapabilities]{
-		repo:          repo,
-		directionIDOf: func(c *commands.UpdateDirectionSourceCapabilities) string { return c.DirectionID },
-		apply:         applySources,
-	}
-}
-
-func NewUpdateDirectionPlacementsHandler(repo DirectionLoaderRepository) cqrs.CommandHandler {
-	return &mutationHandler[*commands.UpdateDirectionPlacements]{
-		repo:          repo,
-		directionIDOf: func(c *commands.UpdateDirectionPlacements) string { return c.DirectionID },
-		apply:         applyPlacements,
+		directionIDOf: func(c *commands.UpdateDirection) string { return c.DirectionID },
+		apply:         applyUpdateDirection,
 	}
 }
 
@@ -101,34 +77,30 @@ func applyAdvance(c *commands.AdvanceDirection, d *aggregates.Direction) error {
 	}
 }
 
-func applyNarrative(c *commands.UpdateDirectionNarrative, d *aggregates.Direction) error {
-	narrative, err := sharedvo.NewDescription(c.Narrative)
-	if err != nil {
+func applyUpdateDirection(c *commands.UpdateDirection, d *aggregates.Direction) error {
+	if err := applyOptional(c.Narrative, sharedvo.NewDescription, d.UpdateNarrative); err != nil {
 		return err
 	}
-	return d.UpdateNarrative(narrative)
+	if err := applyOptional(c.Horizon, valueobjects.NewHorizon, d.ChangeHorizon); err != nil {
+		return err
+	}
+	if err := applyOptional(c.SourceCapabilityIDs, buildSourceRefs, d.ChangeSourceCapabilities); err != nil {
+		return err
+	}
+	return applyOptional(c.Placements, buildPlacements, d.ChangePlacements)
 }
 
-func applyHorizon(c *commands.UpdateDirectionHorizon, d *aggregates.Direction) error {
-	horizon, err := valueobjects.NewHorizon(c.Horizon)
+func applyOptional[Raw any, Parsed any](
+	value *Raw,
+	parse func(Raw) (Parsed, error),
+	apply func(Parsed) error,
+) error {
+	if value == nil {
+		return nil
+	}
+	parsed, err := parse(*value)
 	if err != nil {
 		return err
 	}
-	return d.ChangeHorizon(horizon)
-}
-
-func applySources(c *commands.UpdateDirectionSourceCapabilities, d *aggregates.Direction) error {
-	refs, err := buildSourceRefs(c.SourceCapabilityIDs)
-	if err != nil {
-		return err
-	}
-	return d.ChangeSourceCapabilities(refs)
-}
-
-func applyPlacements(c *commands.UpdateDirectionPlacements, d *aggregates.Direction) error {
-	placements, err := buildPlacements(c.Placements)
-	if err != nil {
-		return err
-	}
-	return d.ChangePlacements(placements)
+	return apply(parsed)
 }

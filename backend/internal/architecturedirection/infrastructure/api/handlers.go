@@ -151,11 +151,16 @@ func (h *DirectionHandlers) UpdateDirection(w http.ResponseWriter, r *http.Reque
 	if !ok {
 		return
 	}
-	for _, cmd := range buildUpdateCommands(direction.ID, req) {
-		if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-			sharedAPI.HandleError(w, err)
-			return
-		}
+	cmd := &commands.UpdateDirection{
+		DirectionID:         direction.ID,
+		Narrative:           req.Narrative,
+		Horizon:             req.Horizon,
+		SourceCapabilityIDs: req.SourceCapabilityIDs,
+		Placements:          placementInputsFromRequest(req.Placements),
+	}
+	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+		sharedAPI.HandleError(w, err)
+		return
 	}
 	h.respondWithActiveDirection(w, r, ecID, http.StatusOK)
 }
@@ -283,21 +288,12 @@ func (h *DirectionHandlers) respondWithDirection(w http.ResponseWriter, r *http.
 	sharedAPI.RespondJSON(w, resp.statusCode, resp.direction)
 }
 
-func buildUpdateCommands(directionID string, req UpdateDirectionRequest) []cqrs.Command {
-	cmds := make([]cqrs.Command, 0, 4)
-	if req.Narrative != nil {
-		cmds = append(cmds, &commands.UpdateDirectionNarrative{DirectionID: directionID, Narrative: *req.Narrative})
+func placementInputsFromRequest(input *[]PlacementRequest) *[]commands.PlacementInput {
+	if input == nil {
+		return nil
 	}
-	if req.Horizon != nil {
-		cmds = append(cmds, &commands.UpdateDirectionHorizon{DirectionID: directionID, Horizon: *req.Horizon})
-	}
-	if req.SourceCapabilityIDs != nil {
-		cmds = append(cmds, &commands.UpdateDirectionSourceCapabilities{DirectionID: directionID, SourceCapabilityIDs: *req.SourceCapabilityIDs})
-	}
-	if req.Placements != nil {
-		cmds = append(cmds, &commands.UpdateDirectionPlacements{DirectionID: directionID, Placements: placementsFromRequest(*req.Placements)})
-	}
-	return cmds
+	out := placementsFromRequest(*input)
+	return &out
 }
 
 func placementsFromRequest(input []PlacementRequest) []commands.PlacementInput {
