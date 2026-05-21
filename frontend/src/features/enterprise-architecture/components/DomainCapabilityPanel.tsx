@@ -1,32 +1,18 @@
+import { Box, Center, Group, Stack, Text, Title } from '@mantine/core';
 import { useMemo } from 'react';
 import type { Capability, CapabilityId } from '../../../api/types';
 import type { CapabilityLinkStatus, CapabilityLinkStatusResponse } from '../types';
+import classes from './DomainCapabilityPanel.module.css';
 
 interface TreeNode {
   capability: Capability;
   children: TreeNode[];
 }
 
-const LEVEL_COLORS: Record<string, string> = {
-  L2: '#8b5cf6',
-  L3: '#ec4899',
-  L4: '#f97316',
-};
-
-const STATUS_STYLES = {
-  available: { bg: '#ffffff', text: '#374151', opacity: 1 },
-  linked: { bg: '#fef3c7', text: '#374151', opacity: 1 },
-  blocked: { bg: '#f3f4f6', text: '#9ca3af', opacity: 0.8 },
-} as const;
+const BLOCKED_STATUSES: ReadonlySet<CapabilityLinkStatus> = new Set(['blocked_by_parent', 'blocked_by_child']);
 
 function isBlockedStatus(status: CapabilityLinkStatus): boolean {
-  return status === 'blocked_by_parent' || status === 'blocked_by_child';
-}
-
-function getStylesForStatus(status: CapabilityLinkStatus) {
-  if (isBlockedStatus(status)) return STATUS_STYLES.blocked;
-  if (status === 'linked') return STATUS_STYLES.linked;
-  return STATUS_STYLES.available;
+  return BLOCKED_STATUSES.has(status);
 }
 
 const STATUS_DISPLAY_TEMPLATES = {
@@ -35,53 +21,56 @@ const STATUS_DISPLAY_TEMPLATES = {
   blocked_by_child: { withName: (name: string) => `Child linked to ${name}`, fallback: 'Blocked by child' },
 } as const;
 
+type LabelledStatus = keyof typeof STATUS_DISPLAY_TEMPLATES;
+
+const STATUS_NAME_LOOKUP: Record<LabelledStatus, (s: CapabilityLinkStatusResponse) => string | undefined> = {
+  linked: (s) => s.linkedTo?.name,
+  blocked_by_parent: (s) => s.blockingCapability?.name,
+  blocked_by_child: (s) => s.blockingCapability?.name,
+};
+
 function getStatusDisplayText(status: CapabilityLinkStatus, linkStatus?: CapabilityLinkStatusResponse): string | null {
   if (status === 'available') return null;
-  if (status === 'linked') {
-    const template = STATUS_DISPLAY_TEMPLATES.linked;
-    return linkStatus?.linkedTo ? template.withName(linkStatus.linkedTo.name) : template.fallback;
-  }
   const template = STATUS_DISPLAY_TEMPLATES[status];
-  return linkStatus?.blockingCapability ? template.withName(linkStatus.blockingCapability.name) : template.fallback;
+  const name = linkStatus ? STATUS_NAME_LOOKUP[status](linkStatus) : undefined;
+  return name ? template.withName(name) : template.fallback;
 }
+
+const BLOCKED_PREFIX: Record<'blocked_by_parent' | 'blocked_by_child', string> = {
+  blocked_by_parent: 'parent',
+  blocked_by_child: 'child',
+};
 
 function getBlockedText(status: CapabilityLinkStatus, linkStatus?: CapabilityLinkStatusResponse): string | null {
-  if (!isBlockedStatus(status)) return null;
+  if (status !== 'blocked_by_parent' && status !== 'blocked_by_child') return null;
   const name = linkStatus?.blockingCapability?.name;
-  if (!name) return '(blocked)';
-  const prefix = status === 'blocked_by_parent' ? 'parent' : 'child';
-  return `(blocked: ${prefix} "${name}" is linked)`;
+  return name ? `(blocked: ${BLOCKED_PREFIX[status]} "${name}" is linked)` : '(blocked)';
 }
 
-function getStatusDisplayStyle(status: CapabilityLinkStatus) {
-  const isLinked = status === 'linked';
-  return {
-    fontSize: '0.75rem',
-    color: isLinked ? '#92400e' : '#6b7280',
-    fontStyle: isLinked ? 'normal' : 'italic',
-  } as const;
+function attachToTree(
+  cap: Capability,
+  node: TreeNode,
+  nodesById: Map<CapabilityId, TreeNode>,
+  roots: TreeNode[],
+): void {
+  const parent = cap.parentId ? nodesById.get(cap.parentId) : undefined;
+  if (parent) parent.children.push(node);
+  else if (cap.level === 'L1') roots.push(node);
 }
 
-function ChildrenTreeList({
-  children,
-  linkStatuses,
-}: {
-  children: TreeNode[];
-  linkStatuses: Map<string, CapabilityLinkStatusResponse>;
-}) {
-  if (children.length === 0) return null;
-  return (
-    <div style={{ marginLeft: '1rem', marginTop: '0.25rem' }}>
-      {children.map((child) => (
-        <CapabilityTreeItem
-          key={child.capability.id}
-          node={child}
-          linkStatus={linkStatuses.get(child.capability.id)}
-          linkStatuses={linkStatuses}
-        />
-      ))}
-    </div>
-  );
+function buildTree(capabilities: Capability[]): TreeNode[] {
+  const nodesById = new Map<CapabilityId, TreeNode>();
+  for (const cap of capabilities) {
+    nodesById.set(cap.id, { capability: cap, children: [] });
+  }
+
+  const roots: TreeNode[] = [];
+  for (const cap of capabilities) {
+    attachToTree(cap, nodesById.get(cap.id)!, nodesById, roots);
+  }
+
+  roots.sort((a, b) => a.capability.name.localeCompare(b.capability.name));
+  return roots;
 }
 
 export interface DomainCapabilityPanelProps {
@@ -92,48 +81,27 @@ export interface DomainCapabilityPanelProps {
   onDragEnd?: () => void;
 }
 
-function buildTree(capabilities: Capability[]): TreeNode[] {
-  const map = new Map<CapabilityId, TreeNode>();
-
-  capabilities.forEach((cap) => {
-    map.set(cap.id, { capability: cap, children: [] });
-  });
-
-  const roots: TreeNode[] = [];
-
-  capabilities.forEach((cap) => {
-    const node = map.get(cap.id)!;
-    if (cap.parentId && map.has(cap.parentId)) {
-      map.get(cap.parentId)!.children.push(node);
-    } else if (cap.level === 'L1') {
-      roots.push(node);
-    }
-  });
-
-  roots.sort((a, b) => a.capability.name.localeCompare(b.capability.name));
-  return roots;
-}
-
-function DragHandle() {
-  return <span style={{ color: '#9ca3af', fontSize: '0.875rem' }}>⋮⋮</span>;
-}
-
 function StatusLabel({ status, text }: { status: CapabilityLinkStatus; text: string }) {
-  return <span style={getStatusDisplayStyle(status)}>{text}</span>;
+  const isLinked = status === 'linked';
+  return (
+    <Text size="xs" c={isLinked ? 'yellow.8' : 'dimmed'} fs={isLinked ? 'normal' : 'italic'}>
+      {text}
+    </Text>
+  );
 }
 
-function getDragCursor(isDraggable: boolean) {
-  return isDraggable ? 'grab' : 'not-allowed';
-}
-
-function getDragTitle(status: CapabilityLinkStatus, statusDisplay: string | null) {
-  return isBlockedStatus(status) ? statusDisplay || undefined : undefined;
+function buildDragStartHandler(capability: Capability, onDragStart?: (capability: Capability) => void) {
+  return (e: React.DragEvent<HTMLDivElement>) => {
+    e.dataTransfer.setData('application/json', JSON.stringify(capability));
+    e.dataTransfer.effectAllowed = 'move';
+    onDragStart?.(capability);
+  };
 }
 
 interface DraggableCapabilityItemProps {
   capability: Capability;
   linkStatus: CapabilityLinkStatusResponse | undefined;
-  children: TreeNode[];
+  childNodes: TreeNode[];
   linkStatuses: Map<string, CapabilityLinkStatusResponse>;
   onDragStart?: (capability: Capability) => void;
   onDragEnd?: () => void;
@@ -142,53 +110,62 @@ interface DraggableCapabilityItemProps {
 function DraggableCapabilityItem({
   capability,
   linkStatus,
-  children,
+  childNodes,
   linkStatuses,
   onDragStart,
   onDragEnd,
 }: DraggableCapabilityItemProps) {
   const status = linkStatus?.status || 'available';
   const isDraggable = status === 'available';
-  const styles = getStylesForStatus(status);
   const statusDisplay = getStatusDisplayText(status, linkStatus);
-
-  const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
-    if (!isDraggable) {
-      e.preventDefault();
-      return;
-    }
-    e.dataTransfer.setData('application/json', JSON.stringify(capability));
-    e.dataTransfer.effectAllowed = 'move';
-    onDragStart?.(capability);
-  };
+  const handleDragStart = isDraggable ? buildDragStartHandler(capability, onDragStart) : undefined;
 
   return (
-    <div style={{ marginBottom: '0.25rem' }}>
-      <div
+    <Box mb="xs">
+      <Box
         draggable={isDraggable}
         onDragStart={handleDragStart}
         onDragEnd={onDragEnd}
-        style={{
-          padding: '0.5rem',
-          backgroundColor: styles.bg,
-          borderRadius: '0.25rem',
-          cursor: getDragCursor(isDraggable),
-          userSelect: 'none',
-          WebkitUserSelect: 'none',
-          border: '1px solid #e5e7eb',
-          position: 'relative',
-        }}
-        title={getDragTitle(status, statusDisplay)}
+        data-status={status}
+        className={classes.draggable}
+        title={isBlockedStatus(status) ? statusDisplay || undefined : undefined}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          {isDraggable && <DragHandle />}
-          <span style={{ fontWeight: 500, color: styles.text, flex: 1 }}>{capability.name}</span>
+        <Group gap="xs" wrap="nowrap">
+          {isDraggable && (
+            <Text size="sm" c="gray.5">
+              ⋮⋮
+            </Text>
+          )}
+          <Text size="sm" fw={500} flex={1} className={classes.label}>
+            {capability.name}
+          </Text>
           {statusDisplay && <StatusLabel status={status} text={statusDisplay} />}
-        </div>
-      </div>
+        </Group>
+      </Box>
+      <ChildrenTreeList nodes={childNodes} linkStatuses={linkStatuses} />
+    </Box>
+  );
+}
 
-      <ChildrenTreeList children={children} linkStatuses={linkStatuses} />
-    </div>
+function ChildrenTreeList({
+  nodes,
+  linkStatuses,
+}: {
+  nodes: TreeNode[];
+  linkStatuses: Map<string, CapabilityLinkStatusResponse>;
+}) {
+  if (nodes.length === 0) return null;
+  return (
+    <Box pl="md" mt={4}>
+      {nodes.map((child) => (
+        <CapabilityTreeItem
+          key={child.capability.id}
+          node={child}
+          linkStatus={linkStatuses.get(child.capability.id)}
+          linkStatuses={linkStatuses}
+        />
+      ))}
+    </Box>
   );
 }
 
@@ -202,44 +179,29 @@ function CapabilityTreeItem({ node, linkStatus, linkStatuses }: CapabilityTreeIt
   const status = linkStatus?.status || 'available';
   const isBlocked = isBlockedStatus(status);
   const blockedText = getBlockedText(status, linkStatus);
-  const borderColor = LEVEL_COLORS[node.capability.level] || '#6b7280';
 
   return (
-    <div
-      style={{
-        padding: '0.25rem 0.5rem',
-        marginBottom: '0.25rem',
-        borderLeft: `3px solid ${borderColor}`,
-        backgroundColor: isBlocked ? '#fef2f2' : '#ffffff',
-        opacity: isBlocked ? 0.8 : 1,
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-        <span
-          style={{
-            fontSize: '0.875rem',
-            color: isBlocked ? '#9ca3af' : '#374151',
-          }}
-        >
+    <Box data-level={node.capability.level} data-blocked={isBlocked || undefined} className={classes.treeItem}>
+      <Group gap="xs" wrap="nowrap">
+        <Text size="sm" c={isBlocked ? 'gray.5' : 'gray.8'}>
           {node.capability.name}
-        </span>
+        </Text>
         {blockedText && (
-          <span style={{ fontSize: '0.7rem', color: '#ef4444', fontStyle: 'italic' }}>{blockedText}</span>
+          <Text size="xs" c="red.6" fs="italic">
+            {blockedText}
+          </Text>
         )}
-      </div>
-      {node.children.length > 0 && (
-        <div style={{ marginLeft: '0.75rem', marginTop: '0.25rem' }}>
-          {node.children.map((child) => (
-            <CapabilityTreeItem
-              key={child.capability.id}
-              node={child}
-              linkStatus={linkStatuses.get(child.capability.id)}
-              linkStatuses={linkStatuses}
-            />
-          ))}
-        </div>
-      )}
-    </div>
+      </Group>
+      <ChildrenTreeList nodes={node.children} linkStatuses={linkStatuses} />
+    </Box>
+  );
+}
+
+function EmptyMessage({ children }: { children: React.ReactNode }) {
+  return (
+    <Center p="md">
+      <Text c="dimmed">{children}</Text>
+    </Center>
   );
 }
 
@@ -252,41 +214,28 @@ export function DomainCapabilityPanel({
 }: DomainCapabilityPanelProps) {
   const tree = useMemo(() => buildTree(capabilities), [capabilities]);
 
-  if (isLoading) {
-    return (
-      <div style={{ padding: '1rem' }}>
-        <div style={{ color: '#6b7280' }}>Loading domain capabilities...</div>
-      </div>
-    );
-  }
-
-  if (tree.length === 0) {
-    return (
-      <div style={{ padding: '1rem' }}>
-        <div style={{ color: '#6b7280' }}>No domain capabilities available</div>
-      </div>
-    );
-  }
+  if (isLoading) return <EmptyMessage>Loading domain capabilities...</EmptyMessage>;
+  if (tree.length === 0) return <EmptyMessage>No domain capabilities available</EmptyMessage>;
 
   return (
-    <div style={{ padding: '1rem' }}>
-      <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1rem' }}>Domain Capabilities</h2>
-      <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1.5rem' }}>
+    <Stack p="md" gap="sm">
+      <Title order={3}>Domain Capabilities</Title>
+      <Text size="sm" c="dimmed">
         Drag L1 capabilities to enterprise capabilities
-      </p>
-      <div>
+      </Text>
+      <Box>
         {tree.map((node) => (
           <DraggableCapabilityItem
             key={node.capability.id}
             capability={node.capability}
             linkStatus={linkStatuses.get(node.capability.id)}
-            children={node.children}
+            childNodes={node.children}
             linkStatuses={linkStatuses}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
           />
         ))}
-      </div>
-    </div>
+      </Box>
+    </Stack>
   );
 }

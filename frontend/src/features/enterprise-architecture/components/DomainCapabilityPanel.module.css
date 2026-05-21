@@ -1,0 +1,50 @@
+.draggable {
+  padding: var(--mantine-spacing-xs);
+  background: var(--mantine-color-white);
+  border: 1px solid var(--mantine-color-gray-3);
+  border-radius: var(--mantine-radius-sm);
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.draggable[data-status='linked'] {
+  background: var(--mantine-color-yellow-1);
+}
+
+.draggable[data-status='blocked_by_parent'],
+.draggable[data-status='blocked_by_child'] {
+  background: var(--mantine-color-gray-1);
+  opacity: 0.8;
+  cursor: not-allowed;
+}
+
+.draggable[data-status='linked'] .label,
+.draggable[data-status='blocked_by_parent'] .label,
+.draggable[data-status='blocked_by_child'] .label {
+  color: var(--mantine-color-gray-7);
+}
+
+.treeItem {
+  padding: 0.25rem 0.5rem;
+  margin-bottom: 0.25rem;
+  background: var(--mantine-color-white);
+  border-left: 3px solid var(--mantine-color-gray-5);
+}
+
+.treeItem[data-level='L2'] {
+  border-left-color: var(--mantine-color-violet-5);
+}
+
+.treeItem[data-level='L3'] {
+  border-left-color: var(--mantine-color-pink-5);
+}
+
+.treeItem[data-level='L4'] {
+  border-left-color: var(--mantine-color-orange-5);
+}
+
+.treeItem[data-blocked] {
+  background: var(--mantine-color-red-0);
+  opacity: 0.8;
+}

@@ -337,7 +337,7 @@ The current `shared/ConfirmationDialog` is the choke point that 14 features rout
 - [x] Slice 0 — Plumbing
 - [x] Slice 1 — Shared ConfirmationDialog
 - [x] Slice 2 — `architecture-direction`
-- [ ] Slice 3 — `enterprise-architecture`
+- [x] Slice 3 — `enterprise-architecture`
 - [ ] Slice 4 — `business-domains`
 - [ ] Slice 5 — `origin-entities` and `relations`
 - [ ] Slice 6 — `components` and `capabilities`

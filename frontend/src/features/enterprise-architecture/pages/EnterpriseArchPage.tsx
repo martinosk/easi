@@ -1,3 +1,4 @@
+import { Box, Container, Stack, Tabs, Text } from '@mantine/core';
 import { useCallback, useMemo, useState } from 'react';
 import type { Capability } from '../../../api/types';
 import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
@@ -18,7 +19,7 @@ import type {
   EnterpriseCapabilityId,
 } from '../types';
 import { getErrorMessage } from '../utils/errorMessages';
-import './EnterpriseArchPage.css';
+import classes from './EnterpriseArchPage.module.css';
 
 type TabType = 'capabilities' | 'maturity-analysis' | 'strategic-fit' | 'time-suggestions';
 
@@ -38,28 +39,6 @@ function useEnterpriseArchPermissions() {
       canDelete: hasPermission('enterprise-arch:delete'),
     }),
     [hasPermission],
-  );
-}
-
-interface TabNavigationProps {
-  activeTab: TabType;
-  onTabChange: (tab: TabType) => void;
-}
-
-function TabNavigation({ activeTab, onTabChange }: TabNavigationProps) {
-  return (
-    <div className="tab-navigation">
-      {TAB_CONFIG.map(({ id, label }) => (
-        <button
-          key={id}
-          type="button"
-          className={`tab-button ${activeTab === id ? 'active' : ''}`}
-          onClick={() => onTabChange(id)}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
   );
 }
 
@@ -185,54 +164,65 @@ export function EnterpriseArchPage() {
     [linkCapability],
   );
 
-  const handleTabChange = useCallback((tab: TabType) => {
-    setActiveTab(tab);
+  const handleTabChange = useCallback((value: string | null) => {
+    if (!value) return;
+    setActiveTab(value as TabType);
     setMaturityGapDetailId(null);
   }, []);
 
   if (!canRead) {
     return (
-      <div className="enterprise-arch-page">
-        <div className="enterprise-arch-container">
-          <div className="error-message">You do not have permission to view enterprise architecture.</div>
-        </div>
-      </div>
+      <Box className={classes.page}>
+        <Container size="xl" py="xl">
+          <Text c="red">You do not have permission to view enterprise architecture.</Text>
+        </Container>
+      </Box>
     );
   }
 
   return (
-    <div className="enterprise-arch-page">
-      <div className="enterprise-arch-container">
-        <EnterpriseArchHeader
-          canWrite={canWrite}
-          onCreateNew={() => setIsModalOpen(true)}
-          isDockPanelOpen={isDockPanelOpen}
-          onToggleDockPanel={() => setIsDockPanelOpen((prev) => !prev)}
-          activeTab={activeTab}
-          showTabActions={activeTab === 'capabilities'}
-        />
-        <TabNavigation activeTab={activeTab} onTabChange={handleTabChange} />
-        <TabContent
-          activeTab={activeTab}
-          maturityGapDetailId={maturityGapDetailId}
-          onViewMaturityGapDetail={setMaturityGapDetailId}
-          onBackFromMaturityGapDetail={() => setMaturityGapDetailId(null)}
-          isLoading={isLoading}
-          error={error?.message || null}
-          capabilities={capabilities}
-          selectedCapability={selectedCapability}
-          canWrite={canWrite}
-          onSelect={handleSelectCapability}
-          onDelete={handleDeleteClick}
-          onCreateNew={() => setIsModalOpen(true)}
-          isDockPanelOpen={isDockPanelOpen}
-          domainCapabilities={domainCapabilities}
-          linkStatuses={linkStatuses}
-          isLoadingDomainCapabilities={isLoadingDomainCapabilities}
-          onCloseDockPanel={() => setIsDockPanelOpen(false)}
-          onLinkCapability={handleLinkCapability}
-        />
-      </div>
+    <Box className={classes.page}>
+      <Container size="xl" py="xl">
+        <Stack gap="lg">
+          <EnterpriseArchHeader
+            canWrite={canWrite}
+            onCreateNew={() => setIsModalOpen(true)}
+            isDockPanelOpen={isDockPanelOpen}
+            onToggleDockPanel={() => setIsDockPanelOpen((prev) => !prev)}
+            activeTab={activeTab}
+            showTabActions={activeTab === 'capabilities'}
+          />
+          <Tabs value={activeTab} onChange={handleTabChange}>
+            <Tabs.List>
+              {TAB_CONFIG.map(({ id, label }) => (
+                <Tabs.Tab key={id} value={id}>
+                  {label}
+                </Tabs.Tab>
+              ))}
+            </Tabs.List>
+          </Tabs>
+          <TabContent
+            activeTab={activeTab}
+            maturityGapDetailId={maturityGapDetailId}
+            onViewMaturityGapDetail={setMaturityGapDetailId}
+            onBackFromMaturityGapDetail={() => setMaturityGapDetailId(null)}
+            isLoading={isLoading}
+            error={error?.message || null}
+            capabilities={capabilities}
+            selectedCapability={selectedCapability}
+            canWrite={canWrite}
+            onSelect={handleSelectCapability}
+            onDelete={handleDeleteClick}
+            onCreateNew={() => setIsModalOpen(true)}
+            isDockPanelOpen={isDockPanelOpen}
+            domainCapabilities={domainCapabilities}
+            linkStatuses={linkStatuses}
+            isLoadingDomainCapabilities={isLoadingDomainCapabilities}
+            onCloseDockPanel={() => setIsDockPanelOpen(false)}
+            onLinkCapability={handleLinkCapability}
+          />
+        </Stack>
+      </Container>
       {canWrite && (
         <CreateEnterpriseCapabilityModal
           isOpen={isModalOpen}
@@ -251,6 +241,6 @@ export function EnterpriseArchPage() {
           error={deleteError}
         />
       )}
-    </div>
+    </Box>
   );
 }

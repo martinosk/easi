@@ -1,3 +1,4 @@
+import { Box, Center, Group, Loader, Stack, Text } from '@mantine/core';
 import React from 'react';
 import type { Capability } from '../../../api/types';
 import type { CapabilityLinkStatusResponse, EnterpriseCapability, EnterpriseCapabilityId } from '../types';
@@ -5,6 +6,7 @@ import { DomainCapabilityDockPanel } from './DomainCapabilityDockPanel';
 import { EnterpriseCapabilitiesEmptyState } from './EnterpriseCapabilitiesEmptyState';
 import { EnterpriseCapabilitiesTable } from './EnterpriseCapabilitiesTable';
 import { EnterpriseCapabilityDetailPanel } from './EnterpriseCapabilityDetailPanel';
+import classes from './EnterpriseArchContent.module.css';
 
 interface EnterpriseArchContentProps {
   isLoading: boolean;
@@ -42,18 +44,20 @@ export const EnterpriseArchContent = React.memo<EnterpriseArchContentProps>(
   }) => {
     if (isLoading) {
       return (
-        <div className="loading-state">
-          <div className="loading-spinner" />
-          <p>Loading enterprise capabilities...</p>
-        </div>
+        <Center py="xl">
+          <Stack align="center" gap="sm">
+            <Loader />
+            <Text c="dimmed">Loading enterprise capabilities...</Text>
+          </Stack>
+        </Center>
       );
     }
 
     if (error) {
       return (
-        <div className="error-message" data-testid="capabilities-error">
+        <Text c="red" data-testid="capabilities-error">
           {error}
-        </div>
+        </Text>
       );
     }
 
@@ -61,18 +65,15 @@ export const EnterpriseArchContent = React.memo<EnterpriseArchContentProps>(
       return <EnterpriseCapabilitiesEmptyState onCreateNew={onCreateNew} canWrite={canWrite} />;
     }
 
-    const hasAnyPanel = selectedCapability || isDockPanelOpen;
-    const hasBothPanels = selectedCapability && isDockPanelOpen;
-
-    const getTableContainerClass = () => {
-      if (hasBothPanels) return 'table-container with-both-panels';
-      if (hasAnyPanel) return 'table-container with-panel';
-      return 'table-container';
-    };
+    const hasAnyPanel = !!(selectedCapability || isDockPanelOpen);
+    const hasBothPanels = !!(selectedCapability && isDockPanelOpen);
 
     return (
-      <div className="enterprise-arch-content-layout">
-        <div className={getTableContainerClass()}>
+      <Group align="flex-start" gap="lg" wrap="nowrap" className={classes.layout}>
+        <Box
+          flex={hasBothPanels ? 1 : hasAnyPanel ? 2 : 1}
+          miw={0}
+        >
           <EnterpriseCapabilitiesTable
             capabilities={capabilities}
             selectedId={selectedCapability?.id}
@@ -81,12 +82,14 @@ export const EnterpriseArchContent = React.memo<EnterpriseArchContentProps>(
             isDockPanelOpen={isDockPanelOpen}
             onLinkCapability={onLinkCapability}
           />
-        </div>
+        </Box>
         {selectedCapability && (
-          <EnterpriseCapabilityDetailPanel
-            capability={selectedCapability}
-            onClose={() => onSelect(selectedCapability)}
-          />
+          <Box flex={1} miw={0}>
+            <EnterpriseCapabilityDetailPanel
+              capability={selectedCapability}
+              onClose={() => onSelect(selectedCapability)}
+            />
+          </Box>
         )}
         {isDockPanelOpen && (
           <DomainCapabilityDockPanel
@@ -96,7 +99,7 @@ export const EnterpriseArchContent = React.memo<EnterpriseArchContentProps>(
             onClose={onCloseDockPanel}
           />
         )}
-      </div>
+      </Group>
     );
   },
 );

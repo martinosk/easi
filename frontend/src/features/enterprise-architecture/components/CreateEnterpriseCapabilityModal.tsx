@@ -1,4 +1,11 @@
-import React, { type FormEvent, useEffect, useRef, useState } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Alert, Button, Group, Modal, Stack, Textarea, TextInput } from '@mantine/core';
+import React, { useLayoutEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import {
+  type CreateEnterpriseCapabilityFormData,
+  createEnterpriseCapabilitySchema,
+} from '../../../lib/schemas';
 import type { CreateEnterpriseCapabilityRequest } from '../types';
 
 interface CreateEnterpriseCapabilityModalProps {
@@ -7,38 +14,50 @@ interface CreateEnterpriseCapabilityModalProps {
   onSubmit: (request: CreateEnterpriseCapabilityRequest) => Promise<void>;
 }
 
+const DEFAULT_VALUES: CreateEnterpriseCapabilityFormData = {
+  name: '',
+  description: '',
+  category: '',
+};
+
 export const CreateEnterpriseCapabilityModal = React.memo<CreateEnterpriseCapabilityModalProps>(
   ({ isOpen, onClose, onSubmit }) => {
-    const [name, setName] = useState('');
-    const [description, setDescription] = useState('');
-    const [category, setCategory] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const dialogRef = useRef<HTMLDialogElement>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    useEffect(() => {
-      const dialog = dialogRef.current;
-      if (!dialog) return;
+    const {
+      register,
+      handleSubmit,
+      reset,
+      formState: { errors, isValid },
+    } = useForm<CreateEnterpriseCapabilityFormData>({
+      resolver: zodResolver(createEnterpriseCapabilitySchema),
+      defaultValues: DEFAULT_VALUES,
+      mode: 'onChange',
+    });
 
-      if (isOpen) {
-        dialog.showModal();
-      } else {
-        dialog.close();
-      }
-    }, [isOpen]);
+    useLayoutEffect(() => {
+      if (!isOpen) return;
+      reset(DEFAULT_VALUES);
+      setError(null);
+    }, [isOpen, reset]);
 
-    const handleSubmit = async (e: FormEvent) => {
-      e.preventDefault();
+    const handleClose = () => {
+      reset(DEFAULT_VALUES);
+      setError(null);
+      onClose();
+    };
+
+    const submit = async (data: CreateEnterpriseCapabilityFormData) => {
       setError(null);
       setIsSubmitting(true);
-
       try {
         await onSubmit({
-          name,
-          description: description || undefined,
-          category: category || undefined,
+          name: data.name,
+          description: data.description || undefined,
+          category: data.category || undefined,
         });
-        resetForm();
+        reset(DEFAULT_VALUES);
         onClose();
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to create enterprise capability');
@@ -47,104 +66,65 @@ export const CreateEnterpriseCapabilityModal = React.memo<CreateEnterpriseCapabi
       }
     };
 
-    const resetForm = () => {
-      setName('');
-      setDescription('');
-      setCategory('');
-      setError(null);
-    };
-
-    const handleCancel = () => {
-      resetForm();
-      onClose();
-    };
-
     return (
-      <dialog ref={dialogRef} className="dialog" onClose={handleCancel} data-testid="create-capability-modal">
-        <div className="dialog-content">
-          <h2 className="dialog-title">Create Enterprise Capability</h2>
-
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label className="form-label" htmlFor="capability-name">
-                Name <span className="required">*</span>
-              </label>
-              <input
-                id="capability-name"
-                type="text"
-                className="form-input"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                maxLength={200}
-                disabled={isSubmitting}
-                placeholder="e.g., Customer Management"
-                data-testid="capability-name-input"
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label" htmlFor="capability-category">
-                Category
-              </label>
-              <input
-                id="capability-category"
-                type="text"
-                className="form-input"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                maxLength={100}
-                disabled={isSubmitting}
-                placeholder="e.g., Core Business"
-                data-testid="capability-category-input"
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label" htmlFor="capability-description">
-                Description
-              </label>
-              <textarea
-                id="capability-description"
-                className="form-textarea"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                maxLength={1000}
-                disabled={isSubmitting}
-                placeholder="Describe what this enterprise capability represents..."
-                rows={3}
-                data-testid="capability-description-input"
-              />
-            </div>
-
+      <Modal
+        opened={isOpen}
+        onClose={handleClose}
+        title="Create Enterprise Capability"
+        centered
+        data-testid="create-capability-modal"
+      >
+        <form onSubmit={handleSubmit(submit)}>
+          <Stack gap="md">
+            <TextInput
+              label="Name"
+              placeholder="e.g., Customer Management"
+              required
+              withAsterisk
+              autoFocus
+              disabled={isSubmitting}
+              error={errors.name?.message}
+              data-testid="capability-name-input"
+              {...register('name')}
+            />
+            <TextInput
+              label="Category"
+              placeholder="e.g., Core Business"
+              disabled={isSubmitting}
+              error={errors.category?.message}
+              data-testid="capability-category-input"
+              {...register('category')}
+            />
+            <Textarea
+              label="Description"
+              placeholder="Describe what this enterprise capability represents..."
+              rows={3}
+              disabled={isSubmitting}
+              error={errors.description?.message}
+              data-testid="capability-description-input"
+              {...register('description')}
+            />
             {error && (
-              <div className="error-message" data-testid="create-error-message">
+              <Alert color="red" data-testid="create-error-message">
                 {error}
-              </div>
+              </Alert>
             )}
-
-            <div className="dialog-actions">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={handleCancel}
+            <Group justify="flex-end" gap="sm">
+              <Button
+                variant="default"
+                onClick={handleClose}
                 disabled={isSubmitting}
                 data-testid="create-cancel-btn"
               >
                 Cancel
-              </button>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={isSubmitting || !name.trim()}
-                data-testid="create-submit-btn"
-              >
-                {isSubmitting ? 'Creating...' : 'Create'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </dialog>
+              </Button>
+              <Button type="submit" loading={isSubmitting} disabled={!isValid} data-testid="create-submit-btn">
+                Create
+              </Button>
+            </Group>
+          </Stack>
+        </form>
+      </Modal>
     );
   },
 );
