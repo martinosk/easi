@@ -201,8 +201,9 @@ Each slice is independently shippable, independently reviewable, and does not re
 
 ### Slice 4 — `business-domains` detail panels
 
-- `DetailsSidebar`, `DomainsSidebar`, `DomainForm`, `DomainDetailPage`, `CapabilityAssociationManager`, `CapabilitySelectorModal`, `StrategicImportanceSection`, `ReassignConfirmDialog`, `DomainCard`, `CapabilityExplorer`, `DomainFilter`, `CapabilityTagList`, plus `DomainDialogs`.
-- Already-Mantine `VisualizationArea` is the in-feature reference.
+- Migrated to Mantine: `DetailsSidebar`, `DomainsSidebar`, `DomainForm` (now `react-hook-form` + zod via `lib/schemas/businessDomain.ts`), `DomainDialogs` (Mantine `Modal`, no more native `<dialog>` ref), `DomainCard`, `DomainList`, `CapabilityExplorer`, `CapabilityExplorerSidebar`, `StrategicImportanceSection`, `PageLoadingStates`, `DepthSelector` (Mantine `SegmentedControl`), `ShowApplicationsToggle` (Mantine `Switch`), `ApplicationChip` + `ApplicationChipList`, `VisualizationArea`, `NestedCapabilityGrid`, `grid/CapabilityItem`, `DockviewBusinessDomainsLayout`. Feature CSS replaced by four small `*.module.css` files for the visualization tile, drop-zone, chip, and explorer surfaces; `visualization.css` deleted.
+- Deleted as dead code (no consumers reachable from `BusinessDomainsRouter`): `DomainDetailPage`, `CapabilityAssociationManager`, `CapabilitySelectorModal`, `CapabilityTagList`, `ReassignConfirmDialog`, `DomainFilter` (the navigation feature owns the live `DomainFilter`), `CapabilityDetailPanel`, `ViewModeToggle`. `useDomainDialogManager` was simplified — no more `dialogRef` or imperative `showModal`/`close` effect.
+- `DockviewToolbar.tsx` is kept on the global `.toolbar*` app-shell classes (per Decision 6 / Slice 8 sweep); not migrated here.
 
 ### Slice 5 — `origin-entities` and `relations` detail panels
 
@@ -338,7 +339,7 @@ The current `shared/ConfirmationDialog` is the choke point that 14 features rout
 - [x] Slice 1 — Shared ConfirmationDialog
 - [x] Slice 2 — `architecture-direction`
 - [x] Slice 3 — `enterprise-architecture`
-- [ ] Slice 4 — `business-domains`
+- [x] Slice 4 — `business-domains`
 - [ ] Slice 5 — `origin-entities` and `relations`
 - [ ] Slice 6 — `components` and `capabilities`
 - [ ] Slice 7 — `invitations`, `users`, `importing`, `edit-grants`, `releases`, `auth`

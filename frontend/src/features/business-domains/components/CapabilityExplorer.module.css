@@ -1,0 +1,30 @@
+.draggable {
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.draggable:active {
+  cursor: grabbing;
+}
+
+.levelBar {
+  border-left-width: 3px;
+  border-left-style: solid;
+}
+
+.levelL2 {
+  border-left-color: var(--mantine-color-violet-6);
+}
+
+.levelL3 {
+  border-left-color: var(--mantine-color-pink-6);
+}
+
+.levelL4 {
+  border-left-color: var(--mantine-color-orange-6);
+}
+
+.levelDefault {
+  border-left-color: var(--mantine-color-gray-5);
+}

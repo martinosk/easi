@@ -1,0 +1,53 @@
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 150px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition:
+    transform 0.1s ease,
+    box-shadow 0.1s ease;
+  background: transparent;
+}
+
+.chip:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.realizationFull {
+  border: 2px solid var(--mantine-color-green-6);
+}
+
+.realizationPartial {
+  border: 2px dashed var(--mantine-color-yellow-6);
+}
+
+.realizationPlanned {
+  border: 2px dotted var(--mantine-color-gray-5);
+}
+
+.originDirect {
+  background-color: var(--mantine-color-gray-2);
+}
+
+.originInherited {
+  background-color: var(--mantine-color-gray-1);
+}
+
+.inheritedIcon {
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+.chipName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

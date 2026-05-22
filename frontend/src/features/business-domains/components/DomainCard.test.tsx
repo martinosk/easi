@@ -1,6 +1,7 @@
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { BusinessDomain, BusinessDomainId } from '../../../api/types';
+import { renderWithProviders } from '../../../test/helpers/renderWithProviders';
 import { DomainCard } from './DomainCard';
 
 describe('DomainCard', () => {
@@ -23,7 +24,9 @@ describe('DomainCard', () => {
       const onVisualize = vi.fn();
       const onContextMenu = vi.fn();
 
-      render(<DomainCard domain={mockDomain} onVisualize={onVisualize} onContextMenu={onContextMenu} />);
+      renderWithProviders(<DomainCard domain={mockDomain} onVisualize={onVisualize} onContextMenu={onContextMenu} />, {
+        withRouter: false,
+      });
 
       expect(screen.getByText('3 capabilities')).toBeInTheDocument();
     });
@@ -33,7 +36,9 @@ describe('DomainCard', () => {
       const onVisualize = vi.fn();
       const onContextMenu = vi.fn();
 
-      render(<DomainCard domain={domain} onVisualize={onVisualize} onContextMenu={onContextMenu} />);
+      renderWithProviders(<DomainCard domain={domain} onVisualize={onVisualize} onContextMenu={onContextMenu} />, {
+        withRouter: false,
+      });
 
       expect(screen.getByText('1 capability')).toBeInTheDocument();
     });
@@ -43,7 +48,9 @@ describe('DomainCard', () => {
       const onVisualize = vi.fn();
       const onContextMenu = vi.fn();
 
-      render(<DomainCard domain={domain} onVisualize={onVisualize} onContextMenu={onContextMenu} />);
+      renderWithProviders(<DomainCard domain={domain} onVisualize={onVisualize} onContextMenu={onContextMenu} />, {
+        withRouter: false,
+      });
 
       expect(screen.getByText('0 capabilities')).toBeInTheDocument();
     });

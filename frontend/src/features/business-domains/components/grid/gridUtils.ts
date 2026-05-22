@@ -1,19 +1,5 @@
 import type { Capability, CapabilityId, Position } from '../../../../api/types';
 
-export const LEVEL_COLORS: Record<Capability['level'], string> = {
-  L1: '#3b82f6',
-  L2: '#8b5cf6',
-  L3: '#ec4899',
-  L4: '#f97316',
-};
-
-export const LEVEL_SIZES: Record<Capability['level'], { minHeight: string; padding: string }> = {
-  L1: { minHeight: '200px', padding: '1rem' },
-  L2: { minHeight: '120px', padding: '0.75rem' },
-  L3: { minHeight: '80px', padding: '0.5rem' },
-  L4: { minHeight: '50px', padding: '0.375rem' },
-};
-
 export interface CapabilityNode {
   capability: Capability;
   children: CapabilityNode[];

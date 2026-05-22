@@ -1,25 +1,12 @@
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Capability, CapabilityId } from '../../../api/types';
-import { MantineTestWrapper } from '../../../test/helpers/mantineTestWrapper';
+import { renderWithProviders } from '../../../test/helpers/renderWithProviders';
 import { NestedCapabilityGrid } from './NestedCapabilityGrid';
 
-const renderWithMantine = (ui: React.ReactElement) => render(<MantineTestWrapper>{ui}</MantineTestWrapper>);
-
-const hexToRgb = (hex: string): string => {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  if (!result) return hex;
-  const r = parseInt(result[1], 16);
-  const g = parseInt(result[2], 16);
-  const b = parseInt(result[3], 16);
-  return `rgb(${r}, ${g}, ${b})`;
-};
-
-const hasBackgroundColor = (element: HTMLElement, hex: string): boolean => {
-  const style = element.style.backgroundColor || window.getComputedStyle(element).backgroundColor;
-  const rgbValue = hexToRgb(hex);
-  return style === rgbValue || style.toLowerCase() === hex.toLowerCase();
-};
+function render(ui: React.ReactElement) {
+  return renderWithProviders(ui, { withRouter: false });
+}
 
 describe('NestedCapabilityGrid', () => {
   const createCapability = (
@@ -49,9 +36,7 @@ describe('NestedCapabilityGrid', () => {
   describe('depth level 1', () => {
     it('should only show L1 capabilities', () => {
       const onCapabilityClick = vi.fn();
-      renderWithMantine(
-        <NestedCapabilityGrid capabilities={mockCapabilities} depth={1} onCapabilityClick={onCapabilityClick} />,
-      );
+      render(<NestedCapabilityGrid capabilities={mockCapabilities} depth={1} onCapabilityClick={onCapabilityClick} />);
 
       expect(screen.getByText('Finance')).toBeInTheDocument();
       expect(screen.getByText('HR')).toBeInTheDocument();
@@ -63,9 +48,7 @@ describe('NestedCapabilityGrid', () => {
   describe('depth level 2', () => {
     it('should show L1 and L2 capabilities', () => {
       const onCapabilityClick = vi.fn();
-      renderWithMantine(
-        <NestedCapabilityGrid capabilities={mockCapabilities} depth={2} onCapabilityClick={onCapabilityClick} />,
-      );
+      render(<NestedCapabilityGrid capabilities={mockCapabilities} depth={2} onCapabilityClick={onCapabilityClick} />);
 
       expect(screen.getByText('Finance')).toBeInTheDocument();
       expect(screen.getByText('Accounting')).toBeInTheDocument();
@@ -78,9 +61,7 @@ describe('NestedCapabilityGrid', () => {
   describe('depth level 3', () => {
     it('should show L1, L2 and L3 capabilities', () => {
       const onCapabilityClick = vi.fn();
-      renderWithMantine(
-        <NestedCapabilityGrid capabilities={mockCapabilities} depth={3} onCapabilityClick={onCapabilityClick} />,
-      );
+      render(<NestedCapabilityGrid capabilities={mockCapabilities} depth={3} onCapabilityClick={onCapabilityClick} />);
 
       expect(screen.getByText('Finance')).toBeInTheDocument();
       expect(screen.getByText('Accounting')).toBeInTheDocument();
@@ -92,9 +73,7 @@ describe('NestedCapabilityGrid', () => {
   describe('depth level 4', () => {
     it('should show all capabilities', () => {
       const onCapabilityClick = vi.fn();
-      renderWithMantine(
-        <NestedCapabilityGrid capabilities={mockCapabilities} depth={4} onCapabilityClick={onCapabilityClick} />,
-      );
+      render(<NestedCapabilityGrid capabilities={mockCapabilities} depth={4} onCapabilityClick={onCapabilityClick} />);
 
       expect(screen.getByText('Finance')).toBeInTheDocument();
       expect(screen.getByText('Accounting')).toBeInTheDocument();
@@ -103,31 +82,22 @@ describe('NestedCapabilityGrid', () => {
     });
   });
 
-  describe('color scheme', () => {
-    it('should apply correct colors for each level', () => {
+  describe('level encoding', () => {
+    it('tags each tile with its capability level', () => {
       const onCapabilityClick = vi.fn();
-      renderWithMantine(
-        <NestedCapabilityGrid capabilities={mockCapabilities} depth={4} onCapabilityClick={onCapabilityClick} />,
-      );
+      render(<NestedCapabilityGrid capabilities={mockCapabilities} depth={4} onCapabilityClick={onCapabilityClick} />);
 
-      const l1Element = screen.getByTestId('capability-l1-1');
-      const l2Element = screen.getByTestId('capability-l2-1');
-      const l3Element = screen.getByTestId('capability-l3-1');
-      const l4Element = screen.getByTestId('capability-l4-1');
-
-      expect(hasBackgroundColor(l1Element, '#3b82f6')).toBe(true);
-      expect(hasBackgroundColor(l2Element, '#8b5cf6')).toBe(true);
-      expect(hasBackgroundColor(l3Element, '#ec4899')).toBe(true);
-      expect(hasBackgroundColor(l4Element, '#f97316')).toBe(true);
+      expect(screen.getByTestId('capability-l1-1')).toHaveAttribute('data-level', 'L1');
+      expect(screen.getByTestId('capability-l2-1')).toHaveAttribute('data-level', 'L2');
+      expect(screen.getByTestId('capability-l3-1')).toHaveAttribute('data-level', 'L3');
+      expect(screen.getByTestId('capability-l4-1')).toHaveAttribute('data-level', 'L4');
     });
   });
 
   describe('click handler', () => {
     it('should call onCapabilityClick when capability is clicked', () => {
       const onCapabilityClick = vi.fn();
-      renderWithMantine(
-        <NestedCapabilityGrid capabilities={mockCapabilities} depth={2} onCapabilityClick={onCapabilityClick} />,
-      );
+      render(<NestedCapabilityGrid capabilities={mockCapabilities} depth={2} onCapabilityClick={onCapabilityClick} />);
 
       screen.getByText('Accounting').click();
 
@@ -141,7 +111,7 @@ describe('NestedCapabilityGrid', () => {
   describe('nesting structure', () => {
     it('should nest L2 inside L1 container', () => {
       const onCapabilityClick = vi.fn();
-      const { container } = renderWithMantine(
+      const { container } = render(
         <NestedCapabilityGrid capabilities={mockCapabilities} depth={2} onCapabilityClick={onCapabilityClick} />,
       );
 
@@ -153,9 +123,9 @@ describe('NestedCapabilityGrid', () => {
   });
 
   describe('drop zone', () => {
-    it('should show drop indicator when isDragOver is true', () => {
+    it('should mark grid when isDragOver is true', () => {
       const onCapabilityClick = vi.fn();
-      const { container } = renderWithMantine(
+      render(
         <NestedCapabilityGrid
           capabilities={mockCapabilities}
           depth={2}
@@ -164,9 +134,7 @@ describe('NestedCapabilityGrid', () => {
         />,
       );
 
-      const grid = container.querySelector('.nested-capability-grid') as HTMLElement;
-      expect(grid.style.border).toContain('dashed');
-      expect(grid.style.border).toMatch(/rgb\(59,\s*130,\s*246\)|#3b82f6/);
+      expect(screen.getByTestId('nested-capability-grid')).toHaveAttribute('data-drag-over', 'true');
     });
   });
 });

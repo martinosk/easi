@@ -1,11 +1,12 @@
+import { Box } from '@mantine/core';
 import type { IDockviewPanelProps } from 'dockview';
 import { DockviewReact, themeLight } from 'dockview';
 import type { useBusinessDomainsPage } from '../hooks/useBusinessDomainsPage';
 import { CapabilityExplorerSidebar } from './CapabilityExplorerSidebar';
 import { DetailsSidebar } from './DetailsSidebar';
-import { DomainsSidebar } from './DomainsSidebar';
 import { DockviewToolbar } from './dockview/DockviewToolbar';
 import { useDockviewLayout } from './dockview/useDockviewLayout';
+import { DomainsSidebar } from './DomainsSidebar';
 import { VisualizationArea } from './VisualizationArea';
 
 type BusinessDomainsHookReturn = ReturnType<typeof useBusinessDomainsPage>;
@@ -59,16 +60,21 @@ type DetailsPanelProps = IDockviewPanelProps<{
   visualizedDomain: BusinessDomainsHookReturn['visualizedDomain'];
 }>;
 
-const panelContainerStyle = {
-  height: '100%',
-  width: '100%',
-  overflow: 'hidden',
-  display: 'flex',
-  flexDirection: 'column',
-} as const;
+function PanelShell({ children, scroll }: { children: React.ReactNode; scroll?: boolean }) {
+  return (
+    <Box
+      h="100%"
+      w="100%"
+      display="flex"
+      style={{ flexDirection: 'column', overflow: scroll ? 'auto' : 'hidden' }}
+    >
+      {children}
+    </Box>
+  );
+}
 
 const DomainsSidebarPanel = (props: DomainsSidebarPanelProps) => (
-  <div style={panelContainerStyle}>
+  <PanelShell>
     <DomainsSidebar
       domains={props.params.domains}
       canCreateDomain={props.params.canCreateDomain}
@@ -77,11 +83,11 @@ const DomainsSidebarPanel = (props: DomainsSidebarPanelProps) => (
       onVisualize={props.params.onVisualize}
       onContextMenu={props.params.onContextMenu}
     />
-  </div>
+  </PanelShell>
 );
 
 const VisualizationPanel = (props: VisualizationPanelProps) => (
-  <div style={panelContainerStyle}>
+  <PanelShell>
     <VisualizationArea
       visualizedDomain={props.params.visualizedDomain}
       capabilities={props.params.capabilities}
@@ -101,11 +107,11 @@ const VisualizationPanel = (props: VisualizationPanelProps) => (
       onDragLeave={props.params.onDragLeave}
       onDrop={props.params.onDrop}
     />
-  </div>
+  </PanelShell>
 );
 
 const ExplorerPanel = (props: ExplorerPanelProps) => (
-  <div style={panelContainerStyle}>
+  <PanelShell>
     <CapabilityExplorerSidebar
       visualizedDomain={props.params.visualizedDomain}
       capabilities={props.params.capabilities}
@@ -114,17 +120,17 @@ const ExplorerPanel = (props: ExplorerPanelProps) => (
       onDragStart={props.params.onDragStart}
       onDragEnd={props.params.onDragEnd}
     />
-  </div>
+  </PanelShell>
 );
 
 const DetailsPanel = (props: DetailsPanelProps) => (
-  <div style={{ ...panelContainerStyle, overflow: 'auto' }}>
+  <PanelShell scroll>
     <DetailsSidebar
       selectedCapability={props.params.selectedCapability}
       selectedComponentId={props.params.selectedComponentId}
       visualizedDomain={props.params.visualizedDomain}
     />
-  </div>
+  </PanelShell>
 );
 
 const components = {
@@ -142,16 +148,21 @@ export function DockviewBusinessDomainsLayout({ hookData }: DockviewBusinessDoma
   const { onReady, panelVisibility, togglePanel, showExplorer } = useDockviewLayout(hookData);
 
   return (
-    <div
-      style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}
+    <Box
+      display="flex"
+      flex={1}
       data-testid="business-domains-page"
+      style={{ flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}
     >
       <DockviewToolbar panelVisibility={panelVisibility} onTogglePanel={togglePanel} showExplorer={showExplorer} />
-      <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
-        <div className="dockview-theme-light" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+      <Box flex={1} style={{ minHeight: 0, position: 'relative' }}>
+        <div
+          className="dockview-theme-light"
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+        >
           <DockviewReact onReady={onReady} components={components} theme={themeLight} />
         </div>
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }

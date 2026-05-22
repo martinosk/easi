@@ -1,3 +1,4 @@
+import { Stack, Text } from '@mantine/core';
 import type { BusinessDomain, BusinessDomainId } from '../../../api/types';
 import { DomainCard } from './DomainCard';
 
@@ -11,15 +12,15 @@ interface DomainListProps {
 export function DomainList({ domains, onVisualize, onContextMenu, selectedDomainId }: DomainListProps) {
   if (domains.length === 0) {
     return (
-      <div className="empty-state" data-testid="domains-empty-state">
-        <p>No business domains yet.</p>
-        <p>Create your first domain to get started.</p>
-      </div>
+      <Stack gap="xs" align="center" data-testid="domains-empty-state">
+        <Text c="dimmed">No business domains yet.</Text>
+        <Text c="dimmed">Create your first domain to get started.</Text>
+      </Stack>
     );
   }
 
   return (
-    <div className="domain-list" data-testid="domain-list">
+    <Stack gap="xs" data-testid="domain-list">
       {domains.map((domain) => (
         <DomainCard
           key={domain.id}
@@ -29,6 +30,6 @@ export function DomainList({ domains, onVisualize, onContextMenu, selectedDomain
           isSelected={domain.id === selectedDomainId}
         />
       ))}
-    </div>
+    </Stack>
   );
 }

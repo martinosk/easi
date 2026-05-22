@@ -1,7 +1,12 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { CapabilityId, CapabilityRealization, ComponentId, RealizationId } from '../../../api/types';
+import { renderWithProviders } from '../../../test/helpers/renderWithProviders';
 import { ApplicationChip } from './ApplicationChip';
+
+function render(ui: React.ReactElement) {
+  return renderWithProviders(ui, { withRouter: false });
+}
 
 describe('ApplicationChip', () => {
   const createRealization = (overrides: Partial<CapabilityRealization> = {}): CapabilityRealization => ({
@@ -91,50 +96,6 @@ describe('ApplicationChip', () => {
       render(<ApplicationChip realization={realization} onClick={vi.fn()} />);
 
       expect(screen.getByRole('button')).toHaveAttribute('title', 'SAP Finance (inherited from Parent Capability)');
-    });
-  });
-
-  describe('styling based on realization level', () => {
-    it('renders button with expected styles for Full realization', () => {
-      const realization = createRealization({ realizationLevel: 'Full' });
-      render(<ApplicationChip realization={realization} onClick={vi.fn()} />);
-
-      const button = screen.getByRole('button');
-      expect(button).toBeInTheDocument();
-    });
-
-    it('renders button with expected styles for Partial realization', () => {
-      const realization = createRealization({ realizationLevel: 'Partial' });
-      render(<ApplicationChip realization={realization} onClick={vi.fn()} />);
-
-      const button = screen.getByRole('button');
-      expect(button).toBeInTheDocument();
-    });
-
-    it('renders button with expected styles for Planned realization', () => {
-      const realization = createRealization({ realizationLevel: 'Planned' });
-      render(<ApplicationChip realization={realization} onClick={vi.fn()} />);
-
-      const button = screen.getByRole('button');
-      expect(button).toBeInTheDocument();
-    });
-  });
-
-  describe('styling based on origin', () => {
-    it('applies darker background for Direct realizations', () => {
-      const realization = createRealization({ origin: 'Direct' });
-      render(<ApplicationChip realization={realization} onClick={vi.fn()} />);
-
-      const button = screen.getByRole('button');
-      expect(button).toHaveStyle({ backgroundColor: '#e2e8f0' });
-    });
-
-    it('applies lighter background for Inherited realizations', () => {
-      const realization = createRealization({ origin: 'Inherited' });
-      render(<ApplicationChip realization={realization} onClick={vi.fn()} />);
-
-      const button = screen.getByRole('button');
-      expect(button).toHaveStyle({ backgroundColor: '#f1f5f9' });
     });
   });
 });

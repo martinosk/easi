@@ -1,3 +1,4 @@
+export * from './businessDomain';
 export * from './capability';
 export * from './component';
 export * from './direction';

@@ -1,0 +1,17 @@
+.grid {
+  min-height: 200px;
+  border: 2px dashed transparent;
+  border-radius: var(--radius-lg);
+  transition:
+    border-color 0.2s,
+    background-color 0.2s;
+}
+
+.gridDragOver {
+  border-color: var(--color-primary);
+  background-color: rgba(59, 130, 246, 0.05);
+}
+
+.inner {
+  display: grid;
+}

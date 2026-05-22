@@ -1,3 +1,4 @@
+import { Box, Stack, Text } from '@mantine/core';
 import type { BusinessDomain, Capability, CapabilityId } from '../../../api/types';
 import { CapabilityExplorer } from './CapabilityExplorer';
 
@@ -19,13 +20,13 @@ export function CapabilityExplorerSidebar({
   onDragEnd,
 }: CapabilityExplorerSidebarProps) {
   return (
-    <div className="sidebar-content">
-      <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1rem' }}>
+    <Stack gap="md" p="md" h="100%" style={{ overflow: 'hidden' }}>
+      <Text size="sm" c="dimmed">
         {visualizedDomain
           ? 'Drag L1 capabilities to the grid to assign them'
           : 'Select a domain to visualize, then drag capabilities to assign them'}
-      </p>
-      <div className="sidebar-scrollable">
+      </Text>
+      <Box flex={1} style={{ overflow: 'auto' }}>
         <CapabilityExplorer
           capabilities={capabilities}
           assignedCapabilityIds={assignedCapabilityIds}
@@ -33,7 +34,7 @@ export function CapabilityExplorerSidebar({
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
         />
-      </div>
-    </div>
+      </Box>
+    </Stack>
   );
 }

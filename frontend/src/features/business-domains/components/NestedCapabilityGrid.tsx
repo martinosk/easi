@@ -9,7 +9,7 @@ import {
 import type { DepthLevel } from './DepthSelector';
 import { CapabilityItem } from './grid/CapabilityItem';
 import { buildTree, compareNodesByPosition, type PositionMap } from './grid/gridUtils';
-import './visualization.css';
+import classes from './NestedCapabilityGrid.module.css';
 
 export type { PositionMap };
 
@@ -59,23 +59,21 @@ export function NestedCapabilityGrid({
   const rootGridColumns =
     getResponsiveValue(RESPONSIVE_GRID_COLUMNS.L1, currentBreakpoint) || 'repeat(auto-fill, minmax(250px, 1fr))';
 
+  const gridClassName = [classes.grid, isDragOver ? classes.gridDragOver : ''].filter(Boolean).join(' ');
+
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: HTML drag-and-drop is the drop target API; pointer-only is acceptable here
     <div
-      className="nested-capability-grid"
+      className={gridClassName}
+      data-testid="nested-capability-grid"
+      data-drag-over={isDragOver ? 'true' : undefined}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
-      style={{
-        minHeight: '200px',
-        border: isDragOver ? '2px dashed #3b82f6' : '2px dashed transparent',
-        borderRadius: '0.5rem',
-        transition: 'border-color 0.2s, background-color 0.2s',
-        backgroundColor: isDragOver ? 'rgba(59, 130, 246, 0.05)' : 'transparent',
-      }}
     >
       <div
+        className={classes.inner}
         style={{
-          display: 'grid',
           gridTemplateColumns: rootGridColumns,
           gap: gridGap,
           padding: containerPadding,

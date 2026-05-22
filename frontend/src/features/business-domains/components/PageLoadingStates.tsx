@@ -1,3 +1,5 @@
+import { Alert, Center, Group, Loader, Text } from '@mantine/core';
+
 interface PageLoadingStatesProps {
   isLoading: boolean;
   hasData: boolean;
@@ -8,19 +10,22 @@ interface PageLoadingStatesProps {
 export function PageLoadingStates({ isLoading, hasData, error, children }: PageLoadingStatesProps) {
   if (isLoading && !hasData) {
     return (
-      <div className="page-container">
-        <div className="loading-message">Loading business domains...</div>
-      </div>
+      <Center p="xl">
+        <Group gap="sm">
+          <Loader size="sm" />
+          <Text c="dimmed">Loading business domains...</Text>
+        </Group>
+      </Center>
     );
   }
 
   if (error && !hasData) {
     return (
-      <div className="page-container">
-        <div className="error-message" data-testid="domains-error">
+      <Center p="xl">
+        <Alert color="red" data-testid="domains-error">
           {error.message}
-        </div>
-      </div>
+        </Alert>
+      </Center>
     );
   }
 

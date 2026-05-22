@@ -6,7 +6,6 @@ import { DockviewBusinessDomainsLayout } from '../components/DockviewBusinessDom
 import { DomainDialogs } from '../components/DomainDialogs';
 import { PageLoadingStates } from '../components/PageLoadingStates';
 import { useBusinessDomainsPage } from '../hooks/useBusinessDomainsPage';
-import '../components/visualization.css';
 
 export function BusinessDomainsPage() {
   const hookData = useBusinessDomainsPage();
@@ -73,7 +72,6 @@ export function BusinessDomainsPage() {
         dialogMode={dialogManager.dialogMode}
         selectedDomain={dialogManager.selectedDomain}
         domainToDelete={dialogManager.domainToDelete}
-        dialogRef={dialogManager.dialogRef}
         onFormSubmit={dialogManager.handleFormSubmit}
         onFormCancel={dialogManager.handleFormCancel}
         onConfirmDelete={dialogManager.handleConfirmDelete}
