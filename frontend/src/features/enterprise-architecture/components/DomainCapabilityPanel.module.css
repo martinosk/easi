@@ -29,19 +29,19 @@
   padding: 0.25rem 0.5rem;
   margin-bottom: 0.25rem;
   background: var(--mantine-color-white);
-  border-left: 3px solid var(--mantine-color-gray-5);
+  border-left: 3px solid var(--color-capability-l1);
 }
 
 .treeItem[data-level='L2'] {
-  border-left-color: var(--mantine-color-violet-5);
+  border-left-color: var(--color-capability-l2);
 }
 
 .treeItem[data-level='L3'] {
-  border-left-color: var(--mantine-color-pink-5);
+  border-left-color: var(--color-capability-l3);
 }
 
 .treeItem[data-level='L4'] {
-  border-left-color: var(--mantine-color-orange-5);
+  border-left-color: var(--color-capability-l4);
 }
 
 .treeItem[data-blocked] {

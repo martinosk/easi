@@ -14,17 +14,17 @@
 }
 
 .levelL2 {
-  border-left-color: var(--mantine-color-violet-6);
+  border-left-color: var(--color-capability-l2);
 }
 
 .levelL3 {
-  border-left-color: var(--mantine-color-pink-6);
+  border-left-color: var(--color-capability-l3);
 }
 
 .levelL4 {
-  border-left-color: var(--mantine-color-orange-6);
+  border-left-color: var(--color-capability-l4);
 }
 
 .levelDefault {
-  border-left-color: var(--mantine-color-gray-5);
+  border-left-color: var(--color-capability-l1);
 }

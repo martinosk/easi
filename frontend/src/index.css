@@ -19,6 +19,11 @@
   --color-triggers: #f97316;
   --color-serves: #3b82f6;
 
+  --color-capability-l1: #1e3a8a;
+  --color-capability-l2: #1d4ed8;
+  --color-capability-l3: #2563eb;
+  --color-capability-l4: #3b82f6;
+
   /* Grays */
   --color-gray-50: #f9fafb;
   --color-gray-100: #f3f4f6;

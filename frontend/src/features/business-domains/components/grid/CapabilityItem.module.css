@@ -21,30 +21,31 @@
 }
 
 .selected {
-  border: 3px solid var(--color-primary-dark);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+  outline: 3px solid var(--color-gray-900);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 4px rgba(15, 23, 42, 0.15);
 }
 
 .levelL1 {
-  background-color: var(--color-primary);
+  background-color: var(--color-capability-l1);
   padding: var(--spacing-md);
   min-height: 200px;
 }
 
 .levelL2 {
-  background-color: var(--color-secondary);
+  background-color: var(--color-capability-l2);
   padding: 0.75rem;
   min-height: 120px;
 }
 
 .levelL3 {
-  background-color: #ec4899;
+  background-color: var(--color-capability-l3);
   padding: var(--spacing-sm);
   min-height: 80px;
 }
 
 .levelL4 {
-  background-color: var(--color-triggers);
+  background-color: var(--color-capability-l4);
   padding: 0.375rem;
   min-height: 50px;
 }

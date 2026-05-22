@@ -80,10 +80,10 @@ interface TreeNodeProps {
 }
 
 const LEVEL_COLORS: Record<string, string> = {
-  L1: 'var(--color-gray-600)',
-  L2: '#8b5cf6',
-  L3: '#ec4899',
-  L4: '#f97316',
+  L1: 'var(--color-capability-l1)',
+  L2: 'var(--color-capability-l2)',
+  L3: 'var(--color-capability-l3)',
+  L4: 'var(--color-capability-l4)',
 };
 
 interface TreeNodeItemProps {

@@ -7,6 +7,7 @@
   border-radius: 6px;
   font-size: 12px;
   font-weight: 500;
+  color: var(--color-gray-800);
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
@@ -14,32 +15,32 @@
   transition:
     transform 0.1s ease,
     box-shadow 0.1s ease;
-  background: transparent;
+  background: var(--color-gray-50);
 }
 
 .chip:hover {
   transform: scale(1.05);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
 .realizationFull {
-  border: 2px solid var(--mantine-color-green-6);
+  border: 2px solid var(--mantine-color-green-7);
 }
 
 .realizationPartial {
-  border: 2px dashed var(--mantine-color-yellow-6);
+  border: 2px dashed var(--mantine-color-yellow-7);
 }
 
 .realizationPlanned {
-  border: 2px dotted var(--mantine-color-gray-5);
+  border: 2px dotted var(--color-gray-500);
 }
 
 .originDirect {
-  background-color: var(--mantine-color-gray-2);
+  background-color: #ffffff;
 }
 
 .originInherited {
-  background-color: var(--mantine-color-gray-1);
+  background-color: var(--color-gray-100);
 }
 
 .inheritedIcon {
