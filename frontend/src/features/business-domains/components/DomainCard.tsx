@@ -1,3 +1,4 @@
+import { Group, Paper, Stack, Text, UnstyledButton } from '@mantine/core';
 import type { BusinessDomain } from '../../../api/types';
 
 interface DomainCardProps {
@@ -15,41 +16,36 @@ export function DomainCard({ domain, onVisualize, onContextMenu, isSelected }: D
   };
 
   return (
-    <button
-      type="button"
-      className={`domain-card-button${isSelected ? ' domain-card-button--selected' : ''}`}
+    <UnstyledButton
       onClick={() => onVisualize(domain)}
       onContextMenu={handleContextMenu}
       data-testid={`domain-card-${domain.id}`}
-      style={{
-        display: 'block',
-        width: '100%',
-        textAlign: 'left',
-        padding: '0.75rem',
-        marginBottom: '0.5rem',
-        border: isSelected ? '2px solid #3b82f6' : '1px solid #e5e7eb',
-        borderRadius: '0.5rem',
-        backgroundColor: isSelected ? '#eff6ff' : '#fff',
-        cursor: 'pointer',
-        transition: 'all 0.15s ease',
-      }}
+      w="100%"
     >
-      <div
-        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.25rem' }}
+      <Paper
+        withBorder
+        p="sm"
+        radius="md"
+        bg={isSelected ? 'blue.0' : 'white'}
+        style={isSelected ? { borderColor: 'var(--mantine-color-blue-6)', borderWidth: 2 } : undefined}
       >
-        <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: '#111827' }}>{domain.name}</h3>
-        <span style={{ fontSize: '0.75rem', color: '#6b7280', whiteSpace: 'nowrap', marginLeft: '0.5rem' }}>
-          {domain.capabilityCount} {domain.capabilityCount === 1 ? 'capability' : 'capabilities'}
-        </span>
-      </div>
-
-      <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem', color: '#6b7280' }}>
-        {domain.description || 'No description'}
-      </p>
-
-      <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
-        Created: {new Date(domain.createdAt).toLocaleDateString()}
-      </span>
-    </button>
+        <Stack gap={4}>
+          <Group justify="space-between" align="flex-start" wrap="nowrap">
+            <Text fw={600} size="md">
+              {domain.name}
+            </Text>
+            <Text size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
+              {domain.capabilityCount} {domain.capabilityCount === 1 ? 'capability' : 'capabilities'}
+            </Text>
+          </Group>
+          <Text size="sm" c="dimmed">
+            {domain.description || 'No description'}
+          </Text>
+          <Text size="xs" c="dimmed">
+            Created: {new Date(domain.createdAt).toLocaleDateString()}
+          </Text>
+        </Stack>
+      </Paper>
+    </UnstyledButton>
   );
 }

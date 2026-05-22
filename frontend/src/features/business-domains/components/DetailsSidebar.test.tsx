@@ -1,9 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { HttpResponse, http } from 'msw';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Capability, CapabilityId, ComponentId } from '../../../api/types';
 import { type AppStore, useAppStore } from '../../../store/appStore';
-import { createMantineTestWrapper, seedDb, server } from '../../../test/helpers';
+import { seedDb, server } from '../../../test/helpers';
+import { renderWithProviders } from '../../../test/helpers/renderWithProviders';
 import { DetailsSidebar } from './DetailsSidebar';
 
 const API_BASE = 'http://localhost:8080';
@@ -80,8 +81,7 @@ describe('DetailsSidebar', () => {
       visualizedDomain: null;
     } = defaultProps,
   ) => {
-    const { Wrapper } = createMantineTestWrapper();
-    return render(<DetailsSidebar {...props} />, { wrapper: Wrapper });
+    return renderWithProviders(<DetailsSidebar {...props} />, { withRouter: false });
   };
 
   describe('empty state', () => {

@@ -1,3 +1,4 @@
+import { ActionIcon, TextInput } from '@mantine/core';
 import React from 'react';
 
 interface TreeSearchInputProps {
@@ -8,17 +9,18 @@ interface TreeSearchInputProps {
 
 export const TreeSearchInput: React.FC<TreeSearchInputProps> = ({ value, onChange, placeholder }) => (
   <div className="tree-search">
-    <input
-      type="text"
-      className="tree-search-input"
+    <TextInput
       placeholder={placeholder}
       value={value}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={(e) => onChange(e.currentTarget.value)}
+      size="xs"
+      rightSection={
+        value ? (
+          <ActionIcon variant="subtle" color="gray" size="xs" onClick={() => onChange('')} aria-label="Clear search">
+            ×
+          </ActionIcon>
+        ) : null
+      }
     />
-    {value && (
-      <button className="tree-search-clear" onClick={() => onChange('')} aria-label="Clear search">
-        x
-      </button>
-    )}
   </div>
 );

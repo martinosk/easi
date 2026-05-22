@@ -1,4 +1,7 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import type { ReactElement } from 'react';
+import { fireEvent, screen } from '@testing-library/react';
+import { renderWithProviders } from '../../../test/helpers';
+const render = (ui: ReactElement) => renderWithProviders(ui, { withRouter: false });
 import { describe, expect, it, vi } from 'vitest';
 import { ContextMenu } from './ContextMenu';
 import type { ContextMenuItem } from './types';
@@ -13,8 +16,8 @@ function makeItems(count: number): ContextMenuItem[] {
 
 describe('ContextMenu', () => {
   it('returns null when items are empty', () => {
-    const { container } = render(<ContextMenu x={50} y={50} items={[]} onClose={vi.fn()} />);
-    expect(container.firstChild).toBeNull();
+    render(<ContextMenu x={50} y={50} items={[]} onClose={vi.fn()} />);
+    expect(screen.queryByRole('menu')).toBeNull();
   });
 
   it('renders the radial variant for ≤6 items in auto mode', () => {

@@ -1,3 +1,4 @@
+import { Box, Button, Group, Loader, SegmentedControl, Stack, Text, Textarea, Title } from '@mantine/core';
 import React, { useMemo, useState } from 'react';
 import type { BusinessDomain, CapabilityId, StrategyImportance } from '../../../api/types';
 import { useStrategyPillarsConfig } from '../../../hooks/useStrategyPillarsSettings';
@@ -8,7 +9,6 @@ import {
   useStrategyImportanceByDomainAndCapability,
   useUpdateStrategyImportance,
 } from '../hooks/useStrategyImportance';
-import '../../../features/components/components/ComponentFitScores.css';
 
 interface StrategicImportanceSectionProps {
   domain: BusinessDomain;
@@ -32,6 +32,31 @@ interface StrategyPillar {
   active: boolean;
 }
 
+interface ScoreDotsProps {
+  value: number;
+}
+
+function ScoreDots({ value }: ScoreDotsProps) {
+  return (
+    <Group gap={4}>
+      {SCORE_RANGE.map((s) => (
+        <Box
+          key={s}
+          w={10}
+          h={10}
+          style={{
+            borderRadius: '50%',
+            background:
+              s <= value
+                ? 'var(--mantine-color-blue-6)'
+                : 'var(--mantine-color-gray-3)',
+          }}
+        />
+      ))}
+    </Group>
+  );
+}
+
 interface ImportanceEditFormProps {
   editScore: number | null;
   editRationale: string;
@@ -51,41 +76,41 @@ function ImportanceEditForm({
   onSave,
   isSaving,
 }: ImportanceEditFormProps) {
+  const segmentedData = SCORE_RANGE.map((s) => ({
+    value: String(s),
+    label: String(s),
+  }));
+
   return (
-    <div className="fit-score-edit">
-      <div className="fit-score-selector">
-        {SCORE_RANGE.map((s) => (
-          <button
-            key={s}
-            type="button"
-            className={`fit-score-btn ${editScore === s ? 'selected' : ''}`}
-            onClick={() => onScoreChange(s)}
-            disabled={isSaving}
-            data-testid={`importance-btn-${s}`}
-          >
-            {s}
-          </button>
-        ))}
-      </div>
-      <span className="fit-score-label">{editScore ? IMPORTANCE_LABELS[editScore] : 'Select importance'}</span>
-      <textarea
-        className="fit-score-rationale-input"
+    <Stack gap="xs">
+      <SegmentedControl
+        data={segmentedData}
+        value={editScore ? String(editScore) : ''}
+        onChange={(value) => onScoreChange(Number(value))}
+        disabled={isSaving}
+      />
+      <Text size="sm" c="dimmed">
+        {editScore ? IMPORTANCE_LABELS[editScore] : 'Select importance'}
+      </Text>
+      <Textarea
         placeholder="Rationale (optional)"
         value={editRationale}
-        onChange={(e) => onRationaleChange(e.target.value)}
+        onChange={(e) => onRationaleChange(e.currentTarget.value)}
         maxLength={2000}
         disabled={isSaving}
+        autosize
+        minRows={2}
         data-testid="importance-rationale-input"
       />
-      <div className="fit-score-edit-actions">
-        <button type="button" className="btn btn-secondary btn-small" onClick={onCancel} disabled={isSaving}>
+      <Group justify="flex-end" gap="xs">
+        <Button variant="default" size="xs" onClick={onCancel} disabled={isSaving}>
           Cancel
-        </button>
-        <button type="button" className="btn btn-primary btn-small" onClick={onSave} disabled={!editScore || isSaving}>
-          {isSaving ? 'Saving...' : 'Save'}
-        </button>
-      </div>
-    </div>
+        </Button>
+        <Button size="xs" onClick={onSave} disabled={!editScore || isSaving} loading={isSaving}>
+          Save
+        </Button>
+      </Group>
+    </Stack>
   );
 }
 
@@ -108,55 +133,57 @@ function ImportanceDisplay({
 }: ImportanceDisplayProps) {
   if (importance) {
     return (
-      <div className="fit-score-display">
-        <div className="fit-score-value">
-          <span className="fit-score-dots">
-            {SCORE_RANGE.map((s) => (
-              <span key={s} className={`fit-score-dot ${s <= importance.importance ? 'filled' : ''}`} />
-            ))}
-          </span>
-          <span className="fit-score-number">{importance.importance}/5</span>
-          <span className="fit-score-label">{importance.importanceLabel}</span>
-        </div>
-        {importance.rationale && <span className="fit-score-rationale">"{importance.rationale}"</span>}
-        <div className="fit-score-actions">
+      <Stack gap={4}>
+        <Group gap="sm" align="center">
+          <ScoreDots value={importance.importance} />
+          <Text size="sm" fw={600}>
+            {importance.importance}/5
+          </Text>
+          <Text size="sm" c="dimmed">
+            {importance.importanceLabel}
+          </Text>
+        </Group>
+        {importance.rationale && (
+          <Text size="sm" fs="italic" c="dimmed">
+            "{importance.rationale}"
+          </Text>
+        )}
+        <Group gap="xs">
           {importance._links?.edit && (
-            <button
-              type="button"
-              className="btn btn-link btn-small"
+            <Button
+              variant="subtle"
+              size="compact-xs"
               onClick={onEdit}
               data-testid={`edit-importance-${pillarId}`}
             >
               Edit
-            </button>
+            </Button>
           )}
           {importance._links?.delete && (
-            <button type="button" className="btn btn-link btn-small btn-danger" onClick={onDelete}>
+            <Button variant="subtle" color="red" size="compact-xs" onClick={onDelete}>
               Remove
-            </button>
+            </Button>
           )}
-        </div>
-      </div>
+        </Group>
+      </Stack>
     );
   }
 
   if (canAddImportance) {
     return (
-      <div className="fit-score-display">
-        <button
-          type="button"
-          className="btn btn-link btn-small"
-          onClick={onEdit}
-          aria-label={`Add importance for ${pillarName}`}
-          data-testid="add-importance-btn"
-        >
-          + Add Importance
-        </button>
-      </div>
+      <Button
+        variant="subtle"
+        size="compact-xs"
+        onClick={onEdit}
+        aria-label={`Add importance for ${pillarName}`}
+        data-testid="add-importance-btn"
+      >
+        + Add Importance
+      </Button>
     );
   }
 
-  return <div className="fit-score-display" />;
+  return null;
 }
 
 interface ImportanceRowProps {
@@ -191,11 +218,17 @@ const ImportanceRow: React.FC<ImportanceRowProps> = ({
   isSaving,
 }) => {
   return (
-    <div className="fit-score-row" data-testid={`importance-row-${pillar.id}`}>
-      <div className="fit-score-pillar">
-        <span className="fit-score-pillar-name">{pillar.name}</span>
-        {pillar.description && <span className="fit-score-criteria">{pillar.description}</span>}
-      </div>
+    <Stack gap="xs" data-testid={`importance-row-${pillar.id}`}>
+      <Stack gap={2}>
+        <Text size="sm" fw={600}>
+          {pillar.name}
+        </Text>
+        {pillar.description && (
+          <Text size="xs" c="dimmed">
+            {pillar.description}
+          </Text>
+        )}
+      </Stack>
       {isEditing ? (
         <ImportanceEditForm
           editScore={editScore}
@@ -216,9 +249,29 @@ const ImportanceRow: React.FC<ImportanceRowProps> = ({
           onDelete={onDelete}
         />
       )}
-    </div>
+    </Stack>
   );
 };
+
+function useImportanceEditing() {
+  const [editingPillarId, setEditingPillarId] = useState<string | null>(null);
+  const [editScore, setEditScore] = useState<number | null>(null);
+  const [editRationale, setEditRationale] = useState('');
+
+  const startEditing = (pillarId: string, existing: StrategyImportance | undefined) => {
+    setEditingPillarId(pillarId);
+    setEditScore(existing?.importance ?? null);
+    setEditRationale(existing?.rationale ?? '');
+  };
+
+  const stopEditing = () => {
+    setEditingPillarId(null);
+    setEditScore(null);
+    setEditRationale('');
+  };
+
+  return { editingPillarId, editScore, editRationale, setEditScore, setEditRationale, startEditing, stopEditing };
+}
 
 export function StrategicImportanceSection({ domain, capabilityId }: StrategicImportanceSectionProps) {
   const { data: importanceResponse, isLoading } = useStrategyImportanceByDomainAndCapability(domain.id, capabilityId);
@@ -227,9 +280,7 @@ export function StrategicImportanceSection({ domain, capabilityId }: StrategicIm
   const updateImportanceMutation = useUpdateStrategyImportance();
   const removeImportanceMutation = useRemoveStrategyImportance();
 
-  const [editingPillarId, setEditingPillarId] = useState<string | null>(null);
-  const [editScore, setEditScore] = useState<number | null>(null);
-  const [editRationale, setEditRationale] = useState('');
+  const editing = useImportanceEditing();
 
   const activePillars = useMemo(() => {
     if (!pillarsConfig?.data) return [];
@@ -250,22 +301,8 @@ export function StrategicImportanceSection({ domain, capabilityId }: StrategicIm
     return importanceByPillar.get(pillarId);
   };
 
-  const handleEdit = (pillar: StrategyPillar) => {
-    const existing = getImportanceForPillar(pillar.id);
-    setEditingPillarId(pillar.id);
-    setEditScore(existing?.importance ?? null);
-    setEditRationale(existing?.rationale ?? '');
-  };
-
-  const handleCancel = () => {
-    setEditingPillarId(null);
-    setEditScore(null);
-    setEditRationale('');
-  };
-
   const handleSave = async (pillarId: string) => {
-    if (!editScore) return;
-
+    if (!editing.editScore) return;
     const existing = getImportanceForPillar(pillarId);
 
     if (existing) {
@@ -274,8 +311,8 @@ export function StrategicImportanceSection({ domain, capabilityId }: StrategicIm
         capabilityId,
         importanceId: existing.id,
         request: {
-          importance: editScore,
-          rationale: editRationale.trim() || undefined,
+          importance: editing.editScore,
+          rationale: editing.editRationale.trim() || undefined,
         },
       });
     } else {
@@ -284,12 +321,12 @@ export function StrategicImportanceSection({ domain, capabilityId }: StrategicIm
         capabilityId,
         request: {
           pillarId,
-          importance: editScore,
-          rationale: editRationale.trim() || undefined,
+          importance: editing.editScore,
+          rationale: editing.editRationale.trim() || undefined,
         },
       });
     }
-    handleCancel();
+    editing.stopEditing();
   };
 
   const handleDelete = async (pillarId: string) => {
@@ -316,33 +353,40 @@ export function StrategicImportanceSection({ domain, capabilityId }: StrategicIm
   const isSaving = setImportanceMutation.isPending || updateImportanceMutation.isPending;
 
   return (
-    <div className="component-fit-scores">
-      <h4 className="fit-scores-title">Strategic Importance</h4>
-      <p className="fit-scores-description">Rate how important this capability is for {domain.name}</p>
+    <Stack gap="sm" mt="md">
+      <Title order={5}>Strategic Importance</Title>
+      <Text size="sm" c="dimmed">
+        Rate how important this capability is for {domain.name}
+      </Text>
       {isLoading ? (
-        <div style={{ color: 'var(--color-gray-500)', fontSize: '0.875rem' }}>Loading...</div>
+        <Group gap="xs">
+          <Loader size="xs" />
+          <Text size="sm" c="dimmed">
+            Loading...
+          </Text>
+        </Group>
       ) : (
-        <div className="fit-scores-list">
+        <Stack gap="md">
           {activePillars.map((pillar) => (
             <ImportanceRow
               key={pillar.id}
               pillar={pillar}
               importance={getImportanceForPillar(pillar.id)}
               canAddImportance={canAddImportance}
-              isEditing={editingPillarId === pillar.id}
-              editScore={editScore}
-              editRationale={editRationale}
-              onEdit={() => handleEdit(pillar)}
-              onCancel={handleCancel}
-              onScoreChange={setEditScore}
-              onRationaleChange={setEditRationale}
+              isEditing={editing.editingPillarId === pillar.id}
+              editScore={editing.editScore}
+              editRationale={editing.editRationale}
+              onEdit={() => editing.startEditing(pillar.id, getImportanceForPillar(pillar.id))}
+              onCancel={editing.stopEditing}
+              onScoreChange={editing.setEditScore}
+              onRationaleChange={editing.setEditRationale}
               onSave={() => handleSave(pillar.id)}
               onDelete={() => handleDelete(pillar.id)}
               isSaving={isSaving}
             />
           ))}
-        </div>
+        </Stack>
       )}
-    </div>
+    </Stack>
   );
 }

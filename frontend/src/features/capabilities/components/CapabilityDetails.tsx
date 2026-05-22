@@ -1,3 +1,4 @@
+import { Badge, Box, Button, Code, Divider, Group, Stack, Text, Title } from '@mantine/core';
 import React, { useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import type {
@@ -30,16 +31,18 @@ interface CapabilityDetailsProps {
   onRemoveFromView: () => void;
 }
 
-const getMaturityBadgeClass = (maturityLevel?: string): string => {
+type MaturityColor = 'red' | 'orange' | 'green' | 'blue' | 'gray';
+
+const getMaturityBadgeColor = (maturityLevel?: string): MaturityColor => {
   const level = maturityLevel?.toLowerCase();
-  const maturityClasses: Record<string, string> = {
-    genesis: 'badge-genesis',
-    'custom build': 'badge-custom-build',
-    'custom built': 'badge-custom-build',
-    product: 'badge-product',
-    commodity: 'badge-commodity',
+  const colors: Record<string, MaturityColor> = {
+    genesis: 'red',
+    'custom build': 'orange',
+    'custom built': 'orange',
+    product: 'green',
+    commodity: 'blue',
   };
-  return maturityClasses[level || ''] || 'badge-default';
+  return colors[level || ''] || 'gray';
 };
 
 const getLevelBadge = (level: string): string => {
@@ -57,13 +60,13 @@ const getComponentName = (components: Component[], componentId: string): string 
 };
 
 const TagList: React.FC<{ tags: string[] }> = ({ tags }) => (
-  <div className="tag-list">
-    {tags.map((tag, idx) => (
-      <span key={idx} className="tag-badge">
+  <Group gap="xs">
+    {tags.map((tag) => (
+      <Badge key={tag} variant="light">
         {tag}
-      </span>
+      </Badge>
     ))}
-  </div>
+  </Group>
 );
 
 interface RealizingComponentsProps {
@@ -84,40 +87,30 @@ const RealizingComponentsList: React.FC<RealizingComponentsProps> = ({
     return Array.from(ids);
   }, [importanceRatings]);
 
-  if (uniqueDomainIds.length === 0) {
-    return (
-      <ul className="realization-list">
-        {realizations.map((r) => (
-          <li key={r.id} className="realization-item-with-fit">
-            <div className="realization-header">
-              <span className="realization-name">{getComponentName(components, r.componentId)}</span>
-              <span className="realization-level">{getLevelBadge(r.realizationLevel)}</span>
-            </div>
-          </li>
-        ))}
-      </ul>
-    );
-  }
-
   return (
-    <ul className="realization-list">
-      {realizations.map((r) => (
-        <li key={r.id} className="realization-item-with-fit">
-          <div className="realization-header">
-            <span className="realization-name">{getComponentName(components, r.componentId)}</span>
-            <span className="realization-level">{getLevelBadge(r.realizationLevel)}</span>
-          </div>
-          {uniqueDomainIds.map((domainId) => (
-            <RealizationFitContext
-              key={`${r.componentId}-${domainId}`}
-              componentId={r.componentId}
-              capabilityId={capabilityId}
-              businessDomainId={domainId}
-            />
-          ))}
-        </li>
+    <Stack gap={0}>
+      {realizations.map((r, index) => (
+        <React.Fragment key={r.id}>
+          {index > 0 && <Divider />}
+          <Stack gap="xs" py="xs">
+            <Group justify="space-between" wrap="nowrap">
+              <Text size="sm">{getComponentName(components, r.componentId)}</Text>
+              <Badge color="green" variant="filled" size="sm">
+                {getLevelBadge(r.realizationLevel)}
+              </Badge>
+            </Group>
+            {uniqueDomainIds.map((domainId) => (
+              <RealizationFitContext
+                key={`${r.componentId}-${domainId}`}
+                componentId={r.componentId}
+                capabilityId={capabilityId}
+                businessDomainId={domainId}
+              />
+            ))}
+          </Stack>
+        </React.Fragment>
       ))}
-    </ul>
+    </Stack>
   );
 };
 
@@ -160,14 +153,14 @@ const ColorPickerField: React.FC<ColorPickerFieldProps> = ({ capabilityInView, c
 
   return (
     <DetailField label="Custom Color">
-      <div data-testid="color-picker">
+      <Box data-testid="color-picker">
         <ColorPicker
           color={currentColor}
           onChange={onColorChange}
           disabled={!isColorPickerEnabled}
           disabledTooltip="Switch to custom color scheme to assign colors"
         />
-      </div>
+      </Box>
     </DetailField>
   );
 };
@@ -205,10 +198,15 @@ interface MaturityDisplay {
 
 const DEFAULT_LEGACY_MATURITY = 12;
 
-function computeMaturityDisplay(capability: Capability, sections: ReturnType<typeof getDefaultSections>): MaturityDisplay {
+function computeMaturityDisplay(
+  capability: Capability,
+  sections: ReturnType<typeof getDefaultSections>,
+): MaturityDisplay {
   const value =
     capability.maturityValue ??
-    (capability.maturityLevel ? deriveLegacyMaturityValue(capability.maturityLevel, sections) : DEFAULT_LEGACY_MATURITY);
+    (capability.maturityLevel
+      ? deriveLegacyMaturityValue(capability.maturityLevel, sections)
+      : DEFAULT_LEGACY_MATURITY);
   const sectionName = sections.find((s) => value >= s.minValue && value <= s.maxValue)?.name ?? 'Unknown';
   return { sectionName, text: `${sectionName} (${value})` };
 }
@@ -228,18 +226,18 @@ const CapabilityActionsBar: React.FC<CapabilityActionsBarProps> = ({
 }) => {
   if (!canEdit && !canRemoveFromView) return null;
   return (
-    <div className="detail-actions">
+    <Group gap="sm">
       {canEdit && (
-        <button className="btn btn-secondary btn-small" onClick={onEdit}>
+        <Button variant="default" size="xs" onClick={onEdit}>
           Edit
-        </button>
+        </Button>
       )}
       {canRemoveFromView && (
-        <button className="btn btn-secondary btn-small" onClick={onRemoveFromView}>
+        <Button variant="default" size="xs" onClick={onRemoveFromView}>
           Remove from View
-        </button>
+        </Button>
       )}
-    </div>
+    </Group>
   );
 };
 
@@ -276,7 +274,7 @@ const CapabilityContent: React.FC<CapabilityContentProps> = ({
   const showColorPicker = capabilityInView !== undefined && currentView !== null;
 
   return (
-    <div className="detail-content">
+    <Stack gap="sm">
       <CapabilityActionsBar
         canEdit={capability._links?.edit !== undefined}
         canRemoveFromView={capabilityInView?._links?.['x-remove'] !== undefined}
@@ -286,17 +284,23 @@ const CapabilityContent: React.FC<CapabilityContentProps> = ({
 
       <DetailField label="Name">{capability.name}</DetailField>
       <DetailField label="Level">
-        <span className="level-badge">{capability.level}</span>
+        <Badge color="dark" variant="filled" size="sm">
+          {capability.level}
+        </Badge>
       </DetailField>
       <CapabilityOptionalFields capability={capability} />
       <DetailField label="Maturity Level">
-        <span className={`maturity-badge ${getMaturityBadgeClass(maturity.sectionName)}`}>{maturity.text}</span>
+        <Badge color={getMaturityBadgeColor(maturity.sectionName)} variant="filled" size="md">
+          {maturity.text}
+        </Badge>
       </DetailField>
       <DetailField label="Created">
-        <span className="detail-date">{formattedDate}</span>
+        <Text size="sm" c="dimmed">
+          {formattedDate}
+        </Text>
       </DetailField>
       <DetailField label="ID">
-        <span className="detail-id">{capability.id}</span>
+        <Code>{capability.id}</Code>
       </DetailField>
 
       <CapabilityExpertsList
@@ -318,7 +322,7 @@ const CapabilityContent: React.FC<CapabilityContentProps> = ({
       />
 
       <AuditHistorySection aggregateId={capability.id} />
-    </div>
+    </Stack>
   );
 };
 
@@ -353,10 +357,9 @@ export const CapabilityDetails: React.FC<CapabilityDetailsProps> = ({ onRemoveFr
   };
 
   return (
-    <div className="detail-panel">
-      <div className="detail-header">
-        <h3 className="detail-title">Capability Details</h3>
-      </div>
+    <Stack gap="sm" p="md">
+      <Title order={4}>Capability Details</Title>
+      <Divider />
 
       <CapabilityContent
         capability={capability}
@@ -377,6 +380,6 @@ export const CapabilityDetails: React.FC<CapabilityDetailsProps> = ({ onRemoveFr
         onClose={() => setShowAddExpertDialog(false)}
         capabilityId={capability.id}
       />
-    </div>
+    </Stack>
   );
 };

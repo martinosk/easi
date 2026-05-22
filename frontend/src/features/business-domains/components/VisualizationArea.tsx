@@ -1,4 +1,4 @@
-import { Box, Group, Stack, Text, Title } from '@mantine/core';
+import { Box, Center, Group, Loader, Stack, Text, Title } from '@mantine/core';
 import type { BusinessDomain, Capability, CapabilityId, CapabilityRealization, ComponentId } from '../../../api/types';
 import { useResponsive } from '../../../hooks/useResponsive';
 import { type DepthLevel, DepthSelector } from './DepthSelector';
@@ -25,6 +25,14 @@ interface VisualizationAreaProps {
   onDrop?: (e: React.DragEvent) => void;
 }
 
+function VisualizationShell({ children, isMobile }: { children: React.ReactNode; isMobile: boolean }) {
+  return (
+    <Box component="main" flex={1} p={isMobile ? 'xs' : 'md'} style={{ overflow: 'auto' }}>
+      {children}
+    </Box>
+  );
+}
+
 export function VisualizationArea({
   visualizedDomain,
   capabilities,
@@ -48,29 +56,30 @@ export function VisualizationArea({
 
   if (!visualizedDomain) {
     return (
-      <Box component="main" className="business-domains-main" style={{ flex: 1, padding: '1rem', overflow: 'auto' }}>
+      <VisualizationShell isMobile={isMobile}>
         <Stack align="center" mt="xl">
           <Title order={2}>Grid Visualization</Title>
           <Text c="dimmed">Click a domain to see its capabilities</Text>
         </Stack>
-      </Box>
+      </VisualizationShell>
     );
   }
 
   if (capabilitiesLoading) {
     return (
-      <Box component="main" className="business-domains-main" style={{ flex: 1, padding: '1rem', overflow: 'auto' }}>
-        <div className="loading-message">Loading capabilities...</div>
-      </Box>
+      <VisualizationShell isMobile={isMobile}>
+        <Center py="xl">
+          <Group gap="sm">
+            <Loader size="sm" />
+            <Text c="dimmed">Loading capabilities...</Text>
+          </Group>
+        </Center>
+      </VisualizationShell>
     );
   }
 
   return (
-    <Box
-      component="main"
-      className="business-domains-main"
-      style={{ flex: 1, padding: isMobile ? '0.5rem' : '1rem', overflow: 'auto' }}
-    >
+    <VisualizationShell isMobile={isMobile}>
       <Stack gap="md">
         <Group justify="space-between" align="center" wrap="wrap" gap="sm">
           <Title order={2} size={isMobile ? 'h3' : 'h2'}>
@@ -100,6 +109,6 @@ export function VisualizationArea({
           onDrop={onDrop}
         />
       </Stack>
-    </Box>
+    </VisualizationShell>
   );
 }

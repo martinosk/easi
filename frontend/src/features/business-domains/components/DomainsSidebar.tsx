@@ -1,3 +1,4 @@
+import { Box, Button, Stack } from '@mantine/core';
 import type { BusinessDomain, BusinessDomainId } from '../../../api/types';
 import { DomainList } from './DomainList';
 
@@ -19,22 +20,20 @@ export function DomainsSidebar({
   onContextMenu,
 }: DomainsSidebarProps) {
   return (
-    <div className="sidebar-content">
+    <Stack gap="md" p="md" h="100%" style={{ overflow: 'hidden' }}>
       {canCreateDomain && (
-        <div style={{ marginBottom: '1rem' }}>
-          <button type="button" className="btn btn-primary" onClick={onCreateClick} data-testid="create-domain-button">
-            Create Domain
-          </button>
-        </div>
+        <Button onClick={onCreateClick} data-testid="create-domain-button">
+          Create Domain
+        </Button>
       )}
-      <div className="sidebar-scrollable">
+      <Box flex={1} style={{ overflow: 'auto' }}>
         <DomainList
           domains={domains}
           onVisualize={onVisualize}
           onContextMenu={onContextMenu}
           selectedDomainId={selectedDomainId}
         />
-      </div>
-    </div>
+      </Box>
+    </Stack>
   );
 }

@@ -1,3 +1,4 @@
+import { UnstyledButton } from '@mantine/core';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import './ContextMenu.css';
@@ -50,8 +51,10 @@ export const LinearContextMenu = ({ x, y, items, onClose }: LinearContextMenuPro
       style={{ left: pos.x, top: pos.y }}
     >
       {items.map((item, index) => (
-        <button
+        <UnstyledButton
+          // biome-ignore lint/suspicious/noArrayIndexKey: context menu item order is stable per render
           key={index}
+          component="button"
           type="button"
           className={itemClassName(item)}
           onClick={() => handleClick(item)}
@@ -65,7 +68,7 @@ export const LinearContextMenu = ({ x, y, items, onClose }: LinearContextMenuPro
             <span className="ctx-menu__label">{item.label}</span>
             {item.description && <span className="ctx-menu__desc">{item.description}</span>}
           </span>
-        </button>
+        </UnstyledButton>
       ))}
     </div>
   );

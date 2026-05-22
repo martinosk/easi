@@ -1,3 +1,4 @@
+import { Center, Group, Loader, Stack, Text } from '@mantine/core';
 import React, { useState } from 'react';
 import type {
   AcquiredEntity,
@@ -82,17 +83,24 @@ export const OriginEntityDetailsPanel: React.FC<OriginEntityDetailsPanelProps> =
 
   if (isLoading) {
     return (
-      <div className="detail-panel">
-        <div className="detail-loading">Loading...</div>
-      </div>
+      <Stack gap="sm" p="md">
+        <Center py="xl">
+          <Group gap="xs">
+            <Loader size="sm" />
+            <Text c="dimmed">Loading...</Text>
+          </Group>
+        </Center>
+      </Stack>
     );
   }
 
   if (error || !entity) {
     return (
-      <div className="detail-panel">
-        <div className="detail-error">Failed to load entity</div>
-      </div>
+      <Stack gap="sm" p="md">
+        <Center py="xl">
+          <Text c="red">Failed to load entity</Text>
+        </Center>
+      </Stack>
     );
   }
 

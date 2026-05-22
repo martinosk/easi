@@ -1,4 +1,7 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import type { ReactElement } from 'react';
+import { fireEvent, screen } from '@testing-library/react';
+import { renderWithProviders } from '../../../test/helpers';
+const render = (ui: ReactElement) => renderWithProviders(ui, { withRouter: false });
 import { describe, expect, it, vi } from 'vitest';
 import type { RelatedLink } from '../../../utils/xRelated';
 import { HandleCreatePicker } from './HandleCreatePicker';
@@ -14,10 +17,8 @@ const entry = (overrides: Partial<RelatedLink> = {}): RelatedLink => ({
 
 describe('HandleCreatePicker', () => {
   it('returns null when there are no entries', () => {
-    const { container } = render(
-      <HandleCreatePicker x={10} y={20} entries={[]} onSelect={() => {}} onClose={() => {}} />,
-    );
-    expect(container.firstChild).toBeNull();
+    render(<HandleCreatePicker x={10} y={20} entries={[]} onSelect={() => {}} onClose={() => {}} />);
+    expect(screen.queryByRole('menu')).toBeNull();
   });
 
   it('renders one menu item per entry, labelled by the backend-supplied title', () => {

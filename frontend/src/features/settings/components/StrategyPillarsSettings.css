@@ -83,7 +83,7 @@
   margin-bottom: 1.5rem;
 }
 
-.empty-state {
+.pillars-empty-state {
   padding: 2rem;
   text-align: center;
   color: var(--color-gray-500);
@@ -141,30 +141,6 @@
 .pillar-name-input,
 .pillar-description-input {
   width: 100%;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  border: 2px solid var(--color-gray-300);
-  border-radius: 0.375rem;
-  background-color: white;
-  transition: border-color 0.2s;
-}
-
-.pillar-name-input:focus,
-.pillar-description-input:focus {
-  outline: none;
-  border-color: var(--blue-500);
-}
-
-.pillar-name-input.input-error {
-  border-color: var(--red-500);
-}
-
-.pillar-name-input {
-  font-weight: 600;
-}
-
-.pillar-description-input {
-  color: var(--color-gray-700);
 }
 
 .pillar-fit-config {
@@ -173,36 +149,8 @@
   border-top: 1px solid var(--color-gray-200);
 }
 
-.fit-scoring-toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  color: var(--color-gray-700);
-  cursor: pointer;
-}
-
-.fit-scoring-toggle input[type="checkbox"] {
-  width: 1rem;
-  height: 1rem;
-  cursor: pointer;
-}
-
 .pillar-fit-criteria-input {
   width: 100%;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  border: 2px solid var(--color-gray-300);
-  border-radius: 0.375rem;
-  background-color: white;
-  transition: border-color 0.2s;
-  margin-top: 0.5rem;
-  color: var(--color-gray-700);
-}
-
-.pillar-fit-criteria-input:focus {
-  outline: none;
-  border-color: var(--blue-500);
 }
 
 .pillar-fit-info {
@@ -233,36 +181,7 @@
 }
 
 .fit-type-selector {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
   margin-top: 0.5rem;
-}
-
-.fit-type-selector label {
-  font-size: 0.875rem;
-  color: var(--color-gray-700);
-}
-
-.fit-type-selector select {
-  padding: 0.375rem 0.75rem;
-  font-size: 0.875rem;
-  border: 2px solid var(--color-gray-300);
-  border-radius: 0.375rem;
-  background-color: white;
-  color: var(--color-gray-700);
-  cursor: pointer;
-  transition: border-color 0.2s;
-}
-
-.fit-type-selector select:focus {
-  outline: none;
-  border-color: var(--blue-500);
-}
-
-.fit-type-selector select:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
 }
 
 .fit-type-badge {
@@ -283,52 +202,6 @@
   padding-top: 0.25rem;
 }
 
-.delete-pillar-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  border: none;
-  background-color: transparent;
-  color: var(--color-gray-400);
-  border-radius: 0.375rem;
-  cursor: pointer;
-  transition:
-    color 0.2s,
-    background-color 0.2s;
-}
-
-.delete-pillar-btn:hover:not(:disabled) {
-  color: var(--red-600);
-  background-color: var(--red-50);
-}
-
-.delete-pillar-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.restore-pillar-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  border: none;
-  background-color: transparent;
-  color: var(--color-gray-400);
-  border-radius: 0.375rem;
-  cursor: pointer;
-  transition:
-    color 0.2s,
-    background-color 0.2s;
-}
-
-.restore-pillar-btn:hover {
-  color: var(--green-600);
-  background-color: var(--green-50);
-}
 
 .validation-error {
   font-size: 0.75rem;
@@ -343,35 +216,6 @@
   margin-bottom: 1.5rem;
 }
 
-.add-pillar-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  border: 2px dashed var(--color-gray-300);
-  border-radius: 0.5rem;
-  background-color: transparent;
-  color: var(--color-gray-600);
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition:
-    border-color 0.2s,
-    color 0.2s,
-    background-color 0.2s;
-}
-
-.add-pillar-btn:hover:not(:disabled) {
-  border-color: var(--blue-400);
-  color: var(--blue-600);
-  background-color: var(--blue-50);
-}
-
-.add-pillar-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
 
 .max-pillars-notice {
   font-size: 0.75rem;

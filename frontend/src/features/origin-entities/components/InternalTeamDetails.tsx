@@ -1,8 +1,10 @@
+import { Stack, Text, Title } from '@mantine/core';
 import React from 'react';
 import type { InternalTeam, OriginRelationship } from '../../../api/types';
 import { DetailField } from '../../../components/shared/DetailField';
 import { hasLink } from '../../../utils/hateoas';
 import { AuditHistorySection } from '../../audit';
+import { OriginEntityActions, OriginEntityRelationshipsList } from './OriginEntityPanelChrome';
 
 interface InternalTeamDetailsProps {
   team: InternalTeam;
@@ -21,59 +23,37 @@ export const InternalTeamDetails: React.FC<InternalTeamDetailsProps> = ({
 }) => {
   const canEdit = hasLink(team, 'edit');
   const formattedCreatedAt = new Date(team.createdAt).toLocaleString();
-  const showActionButtons = canEdit || canRemoveFromView;
 
   return (
-    <div className="detail-panel">
-      <div className="detail-header">
-        <h3 className="detail-title">Internal Team Details</h3>
-      </div>
+    <Stack gap="sm" p="md">
+      <Title order={4}>Internal Team Details</Title>
 
-      <div className="detail-content">
-        {showActionButtons && (
-          <div className="detail-actions">
-            {canEdit && (
-              <button className="btn btn-secondary btn-small" onClick={onEdit}>
-                Edit
-              </button>
-            )}
-            {canRemoveFromView && (
-              <button className="btn btn-secondary btn-small" onClick={onRemoveFromView}>
-                Remove from View
-              </button>
-            )}
-          </div>
-        )}
+      <OriginEntityActions
+        canEdit={canEdit}
+        canRemoveFromView={canRemoveFromView}
+        onEdit={onEdit}
+        onRemoveFromView={onRemoveFromView}
+      />
 
-        <DetailField label="Name">{team.name}</DetailField>
+      <DetailField label="Name">{team.name}</DetailField>
 
-        {team.department && <DetailField label="Department">{team.department}</DetailField>}
+      {team.department && <DetailField label="Department">{team.department}</DetailField>}
 
-        {team.contactPerson && <DetailField label="Contact Person">{team.contactPerson}</DetailField>}
+      {team.contactPerson && <DetailField label="Contact Person">{team.contactPerson}</DetailField>}
 
-        {team.notes && <DetailField label="Notes">{team.notes}</DetailField>}
+      {team.notes && <DetailField label="Notes">{team.notes}</DetailField>}
 
-        <DetailField label="Created">
-          <span className="detail-date">{formattedCreatedAt}</span>
-        </DetailField>
+      <DetailField label="Created">
+        <Text size="sm" c="dimmed">
+          {formattedCreatedAt}
+        </Text>
+      </DetailField>
 
-        <DetailField label="Type">Internal Team</DetailField>
+      <DetailField label="Type">Internal Team</DetailField>
 
-        {relationships.length > 0 && (
-          <DetailField label={`Applications (${relationships.length})`}>
-            <ul className="realization-list">
-              {relationships.map((rel) => (
-                <li key={rel.id} className="realization-item">
-                  <span className="realization-name">{rel.componentName}</span>
-                  <span className="realization-level">Built by</span>
-                </li>
-              ))}
-            </ul>
-          </DetailField>
-        )}
+      <OriginEntityRelationshipsList relationships={relationships} relationshipLabel="Built by" />
 
-        <AuditHistorySection aggregateId={team.id} />
-      </div>
-    </div>
+      <AuditHistorySection aggregateId={team.id} />
+    </Stack>
   );
 };

@@ -1,41 +1,40 @@
-import React from 'react';
+import { Group, Progress, Stack, Text } from '@mantine/core';
 import type { ImportProgress } from '../types';
 
 interface ImportProgressStepProps {
   progress: ImportProgress;
 }
 
-export const ImportProgressStep: React.FC<ImportProgressStepProps> = ({ progress }) => {
+function formatPhase(phase: string): string {
+  return phase.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+export function ImportProgressStep({ progress }: ImportProgressStepProps) {
   const { phase, totalItems, completedItems } = progress;
   const percentage = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
 
-  const formatPhase = (phase: string): string => {
-    return phase.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-  };
-
   return (
-    <div className="import-step">
-      <h3>Importing...</h3>
-      <p className="import-step-description">Please wait while the import is in progress. Do not close this dialog.</p>
+    <Stack gap="md">
+      <Text c="dimmed" size="sm">
+        Please wait while the import is in progress. Do not close this dialog.
+      </Text>
 
-      <div className="import-progress">
-        <div className="progress-info">
-          <div className="progress-phase" data-testid="progress-phase">
+      <Stack gap="sm">
+        <Group justify="space-between">
+          <Text fw={600} data-testid="progress-phase">
             {formatPhase(phase)}
-          </div>
-          <div className="progress-stats" data-testid="progress-stats">
+          </Text>
+          <Text c="dimmed" size="sm" data-testid="progress-stats">
             {completedItems} / {totalItems} items
-          </div>
-        </div>
+          </Text>
+        </Group>
 
-        <div className="progress-bar">
-          <div className="progress-bar-fill" style={{ width: `${percentage}%` }} data-testid="progress-bar" />
-        </div>
+        <Progress value={percentage} data-testid="progress-bar" aria-label="import progress" />
 
-        <div className="progress-percentage" data-testid="progress-percentage">
+        <Text ta="right" size="sm" data-testid="progress-percentage">
           {percentage}%
-        </div>
-      </div>
-    </div>
+        </Text>
+      </Stack>
+    </Stack>
   );
-};
+}

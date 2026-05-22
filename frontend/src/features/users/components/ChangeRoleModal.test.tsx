@@ -1,5 +1,7 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { renderWithProviders } from '../../../test/helpers/renderWithProviders';
+import type { UserRole } from '../../auth/types';
 import type { User } from '../types';
 import { ChangeRoleModal } from './ChangeRoleModal';
 
@@ -20,13 +22,31 @@ describe('ChangeRoleModal', () => {
   const mockOnClose = vi.fn();
   const mockOnSubmit = vi.fn();
 
+  function renderModal(user: User = mockUser) {
+    return renderWithProviders(
+      <ChangeRoleModal isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} user={user} />,
+    );
+  }
+
+  function changeRole(toRole: UserRole) {
+    const select = screen.getByTestId('change-role-select');
+    fireEvent.change(select, { target: { value: toRole } });
+    return select as HTMLSelectElement;
+  }
+
+  function submitForm() {
+    const submitBtn = screen.getByTestId('change-role-submit-btn');
+    fireEvent.click(submitBtn);
+    return submitBtn;
+  }
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockOnSubmit.mockResolvedValue(undefined);
   });
 
   it('renders modal when open', () => {
-    render(<ChangeRoleModal isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} user={mockUser} />);
+    renderModal();
 
     expect(screen.getByTestId('change-role-modal')).toBeInTheDocument();
     expect(screen.getByText('Change User Role')).toBeInTheDocument();
@@ -34,46 +54,37 @@ describe('ChangeRoleModal', () => {
   });
 
   it('initializes with user current role selected', () => {
-    render(<ChangeRoleModal isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} user={mockUser} />);
+    renderModal();
 
     const select = screen.getByTestId('change-role-select') as HTMLSelectElement;
     expect(select.value).toBe('architect');
   });
 
   it('allows changing the role', () => {
-    render(<ChangeRoleModal isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} user={mockUser} />);
+    renderModal();
 
-    const select = screen.getByTestId('change-role-select');
-    fireEvent.change(select, { target: { value: 'admin' } });
+    const select = changeRole('admin');
 
-    expect((select as HTMLSelectElement).value).toBe('admin');
+    expect(select.value).toBe('admin');
   });
 
   it('disables submit button when role has not changed', () => {
-    render(<ChangeRoleModal isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} user={mockUser} />);
+    renderModal();
 
-    const submitBtn = screen.getByTestId('change-role-submit-btn');
-    expect(submitBtn).toBeDisabled();
+    expect(screen.getByTestId('change-role-submit-btn')).toBeDisabled();
   });
 
   it('enables submit button when role has changed', () => {
-    render(<ChangeRoleModal isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} user={mockUser} />);
+    renderModal();
+    changeRole('admin');
 
-    const select = screen.getByTestId('change-role-select');
-    fireEvent.change(select, { target: { value: 'admin' } });
-
-    const submitBtn = screen.getByTestId('change-role-submit-btn');
-    expect(submitBtn).not.toBeDisabled();
+    expect(screen.getByTestId('change-role-submit-btn')).not.toBeDisabled();
   });
 
   it('calls onSubmit with new role when form is submitted', async () => {
-    render(<ChangeRoleModal isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} user={mockUser} />);
-
-    const select = screen.getByTestId('change-role-select');
-    fireEvent.change(select, { target: { value: 'stakeholder' } });
-
-    const submitBtn = screen.getByTestId('change-role-submit-btn');
-    fireEvent.click(submitBtn);
+    renderModal();
+    changeRole('stakeholder');
+    submitForm();
 
     await waitFor(() => {
       expect(mockOnSubmit).toHaveBeenCalledWith('stakeholder');
@@ -81,13 +92,9 @@ describe('ChangeRoleModal', () => {
   });
 
   it('closes modal after successful submission', async () => {
-    render(<ChangeRoleModal isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} user={mockUser} />);
-
-    const select = screen.getByTestId('change-role-select');
-    fireEvent.change(select, { target: { value: 'admin' } });
-
-    const submitBtn = screen.getByTestId('change-role-submit-btn');
-    fireEvent.click(submitBtn);
+    renderModal();
+    changeRole('admin');
+    submitForm();
 
     await waitFor(() => {
       expect(mockOnClose).toHaveBeenCalled();
@@ -95,72 +102,41 @@ describe('ChangeRoleModal', () => {
   });
 
   it('calls onClose when cancel button is clicked', () => {
-    render(<ChangeRoleModal isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} user={mockUser} />);
+    renderModal();
 
-    const cancelBtn = screen.getByTestId('change-role-cancel-btn');
-    fireEvent.click(cancelBtn);
+    fireEvent.click(screen.getByTestId('change-role-cancel-btn'));
 
     expect(mockOnClose).toHaveBeenCalled();
   });
 
   it('resets role to original when cancelled', () => {
-    render(<ChangeRoleModal isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} user={mockUser} />);
+    renderModal();
+    changeRole('admin');
 
-    const select = screen.getByTestId('change-role-select');
-    fireEvent.change(select, { target: { value: 'admin' } });
-
-    const cancelBtn = screen.getByTestId('change-role-cancel-btn');
-    fireEvent.click(cancelBtn);
+    fireEvent.click(screen.getByTestId('change-role-cancel-btn'));
 
     expect(mockOnClose).toHaveBeenCalled();
   });
 
-  it('displays error message when submission fails', async () => {
+  it('displays error and keeps modal open when submission fails', async () => {
     mockOnSubmit.mockRejectedValue(new Error('Failed to change role'));
-
-    render(<ChangeRoleModal isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} user={mockUser} />);
-
-    const select = screen.getByTestId('change-role-select');
-    fireEvent.change(select, { target: { value: 'admin' } });
-
-    const submitBtn = screen.getByTestId('change-role-submit-btn');
-    fireEvent.click(submitBtn);
+    renderModal();
+    changeRole('admin');
+    submitForm();
 
     await waitFor(() => {
       expect(screen.getByTestId('change-role-error')).toBeInTheDocument();
     });
 
     expect(screen.getByTestId('change-role-error')).toHaveTextContent('Failed to change role');
-  });
-
-  it('does not close modal when submission fails', async () => {
-    mockOnSubmit.mockRejectedValue(new Error('Failed to change role'));
-
-    render(<ChangeRoleModal isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} user={mockUser} />);
-
-    const select = screen.getByTestId('change-role-select');
-    fireEvent.change(select, { target: { value: 'admin' } });
-
-    const submitBtn = screen.getByTestId('change-role-submit-btn');
-    fireEvent.click(submitBtn);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('change-role-error')).toBeInTheDocument();
-    });
-
     expect(mockOnClose).not.toHaveBeenCalled();
   });
 
   it('disables form controls while submitting', async () => {
     mockOnSubmit.mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 100)));
-
-    render(<ChangeRoleModal isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} user={mockUser} />);
-
-    const select = screen.getByTestId('change-role-select');
-    fireEvent.change(select, { target: { value: 'admin' } });
-
-    const submitBtn = screen.getByTestId('change-role-submit-btn');
-    fireEvent.click(submitBtn);
+    renderModal();
+    const select = changeRole('admin');
+    const submitBtn = submitForm();
 
     expect(select).toBeDisabled();
     expect(submitBtn).toBeDisabled();
@@ -173,14 +149,9 @@ describe('ChangeRoleModal', () => {
 
   it('shows submitting state on button', async () => {
     mockOnSubmit.mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 100)));
-
-    render(<ChangeRoleModal isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} user={mockUser} />);
-
-    const select = screen.getByTestId('change-role-select');
-    fireEvent.change(select, { target: { value: 'admin' } });
-
-    const submitBtn = screen.getByTestId('change-role-submit-btn');
-    fireEvent.click(submitBtn);
+    renderModal();
+    changeRole('admin');
+    const submitBtn = submitForm();
 
     expect(submitBtn).toHaveTextContent('Changing...');
 
@@ -190,26 +161,25 @@ describe('ChangeRoleModal', () => {
   });
 
   it('updates role when user prop changes', () => {
-    const { rerender } = render(
-      <ChangeRoleModal isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} user={mockUser} />,
+    const { rerender } = renderModal();
+
+    rerender(
+      <ChangeRoleModal
+        isOpen={true}
+        onClose={mockOnClose}
+        onSubmit={mockOnSubmit}
+        user={{ ...mockUser, role: 'admin' }}
+      />,
     );
-
-    const updatedUser: User = {
-      ...mockUser,
-      role: 'admin',
-    };
-
-    rerender(<ChangeRoleModal isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} user={updatedUser} />);
 
     const select = screen.getByTestId('change-role-select') as HTMLSelectElement;
     expect(select.value).toBe('admin');
   });
 
   it('renders all role options', () => {
-    render(<ChangeRoleModal isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} user={mockUser} />);
+    renderModal();
 
-    const select = screen.getByTestId('change-role-select');
-    const options = select.querySelectorAll('option');
+    const options = screen.getByTestId('change-role-select').querySelectorAll('option');
 
     expect(options).toHaveLength(3);
     expect(options[0]).toHaveValue('stakeholder');

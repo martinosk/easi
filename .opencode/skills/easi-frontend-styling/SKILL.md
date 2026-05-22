@@ -103,6 +103,24 @@ Static positioning values (`flex: 1`, `alignSelf: 'flex-start'`, fixed `width: 3
 
 Hex colours, raw pixel values, and `rem` values do not belong in `.tsx`. The single source of design tokens is `src/index.css` `:root` (consumed by `src/theme/mantine.ts` via CSS variables). Use Mantine tokens via component props (`c="dimmed"`, `fz="sm"`, `radius="md"`, `shadow="sm"`) or `var(--…)` in a `.module.css` file.
 
+**Numeric Mantine prop values are pixels and count as hard-coded.** Mantine props accept theme strings *or* numbers; numbers are pixel values and violate this rule. Use the theme token, not the number.
+
+| Don't | Do |
+|---|---|
+| `gap={4}`, `gap={8}` | `gap="xs"`, `gap="sm"` |
+| `mt={16}`, `p={24}` | `mt="md"`, `p="lg"` |
+| `w={10} h={10}` on `ColorSwatch` | `size="xs"` |
+| `size={10}` on `Loader`/`ColorSwatch` | `size="xs"` |
+| `miw={80}`, `mah={300}` | use a `.module.css` with `var(--…)` |
+| `style={{ borderRadius: 4 }}` | `radius="xs"` on `Paper`/`Card`, or `<Divider />` |
+| `style={{ borderTop: '1px solid …' }}` | `<Divider />` (supports `variant="dashed"`) |
+| `bg="var(--mantine-color-red-0)"` | `bg="red.0"` |
+| `color="var(--mantine-color-blue-6)"` on `ColorSwatch` | computed CSS var is OK here (ColorSwatch needs a CSS color string) |
+
+Permitted numeric values: `gap={0}` (zero is semantic), `fw={500}` (CSS-standard font weights), and non-style numerics like `maxLength={2000}`, `cols={2}`, `rows={3}`.
+
+When Mantine offers no equivalent (one-off min-width, dashed border above a specific element, etc.), reach for a `.module.css` file consuming `var(--…)`. Do not introduce a one-off `style={{}}` or pixel number.
+
 ### No bare interactive HTML
 
 Do not write `<button>`, `<input>`, `<select>`, `<textarea>`, `<form>`, `<dialog>`, `<fieldset>`, `<legend>` in source `.tsx` files (outside `src/components/canvas/**` and tests). Use the Mantine component that maps to that role. `<form>` is acceptable as the outer wrapper around a react-hook-form `handleSubmit`, but every input inside it must be a Mantine component.
@@ -126,7 +144,7 @@ These class systems are being retired. Do not introduce new usages. Do not inven
 1. **Use Mantine for all UI components.** No plain HTML for dialogs, inputs, buttons, or checkboxes.
 2. **Never invent CSS class names** for UI elements — they will not exist in the EASI stylesheet.
 3. **No `style={{}}` for static layout.** Use `<Box flex={1}>`, `<Group justify="flex-start">`, Mantine spacing props (`mt`, `gap`, `p`).
-4. **No hard-coded hex/rem/px in `.tsx`.** Mantine tokens (`c="dimmed"`, `radius="md"`) or `var(--…)` in `.module.css`.
+4. **No hard-coded hex/rem/px in `.tsx`.** Mantine tokens (`c="dimmed"`, `radius="md"`) or `var(--…)` in `.module.css`. **Numeric Mantine props are pixels** — `gap={4}` is wrong, `gap="xs"` is right. Exceptions: `gap={0}`, font weights, non-style numerics.
 5. **Forms use `react-hook-form` + `zod`.** Schema in `src/lib/schemas/{domain}.ts`. Cross-field rules via `.superRefine()`.
 6. **Render tests through `renderWithProviders`** from `src/test/helpers/`.
 7. **Gate ReactFlow node-wrapper HOCs on the feature flag** — do not wrap unconditionally; ReactFlow expects a stable root element.

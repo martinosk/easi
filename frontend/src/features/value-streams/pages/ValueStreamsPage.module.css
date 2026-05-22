@@ -1,0 +1,16 @@
+.page {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  background: var(--color-gray-50);
+  overflow: auto;
+}
+
+.card {
+  cursor: pointer;
+  transition: box-shadow 0.15s ease;
+}
+
+.card:hover {
+  box-shadow: var(--shadow-md);
+}

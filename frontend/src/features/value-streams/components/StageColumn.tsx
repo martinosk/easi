@@ -1,3 +1,4 @@
+import { ActionIcon } from '@mantine/core';
 import type { StageCapabilityMapping, ValueStreamStage } from '../../../api/types';
 import { hasLink } from '../../../utils/hateoas';
 import { CapabilityChip } from './CapabilityChip';
@@ -40,7 +41,7 @@ export function StageColumn({
         {canWrite && (
           <div className="stage-actions">
             {hasLink(stage, 'edit') && (
-              <button type="button" className="stage-action-btn" onClick={() => onEdit(stage)} title="Edit stage">
+              <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => onEdit(stage)} title="Edit stage" aria-label="Edit stage">
                 <svg viewBox="0 0 24 24" fill="none" width="14" height="14">
                   <path
                     d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"
@@ -57,15 +58,10 @@ export function StageColumn({
                     strokeLinejoin="round"
                   />
                 </svg>
-              </button>
+              </ActionIcon>
             )}
             {hasLink(stage, 'delete') && (
-              <button
-                type="button"
-                className="stage-action-btn stage-action-danger"
-                onClick={() => onDelete(stage)}
-                title="Delete stage"
-              >
+              <ActionIcon variant="subtle" color="red" size="sm" onClick={() => onDelete(stage)} title="Delete stage" aria-label="Delete stage">
                 <svg viewBox="0 0 24 24" fill="none" width="14" height="14">
                   <path
                     d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"
@@ -75,7 +71,7 @@ export function StageColumn({
                     strokeLinejoin="round"
                   />
                 </svg>
-              </button>
+              </ActionIcon>
             )}
           </div>
         )}

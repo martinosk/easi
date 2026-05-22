@@ -1,7 +1,12 @@
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { Capability, CapabilityId } from '../../../api/types';
+import { renderWithProviders } from '../../../test/helpers/renderWithProviders';
 import { CapabilityExplorer } from './CapabilityExplorer';
+
+function render(ui: React.ReactElement) {
+  return renderWithProviders(ui, { withRouter: false });
+}
 
 const createCapability = (
   id: string,

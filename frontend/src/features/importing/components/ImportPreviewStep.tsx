@@ -1,4 +1,4 @@
-import React from 'react';
+import { Alert, Button, Group, List, Paper, Stack, Text, Title } from '@mantine/core';
 import type { ImportPreview } from '../types';
 
 interface ImportPreviewStepProps {
@@ -9,115 +9,162 @@ interface ImportPreviewStepProps {
   isLoading: boolean;
 }
 
-export const ImportPreviewStep: React.FC<ImportPreviewStepProps> = ({
+interface SupportedSummaryProps {
+  supported: ImportPreview['supported'];
+}
+
+function SupportedSummary({ supported }: SupportedSummaryProps) {
+  return (
+    <Paper p="md" withBorder radius="md">
+      <Stack gap="sm">
+        <Title order={5}>Will Import</Title>
+        <List data-testid="supported-list">
+          <List.Item>
+            <Text component="span" fw={700}>
+              {supported.capabilities}
+            </Text>{' '}
+            Capabilities
+          </List.Item>
+          <List.Item>
+            <Text component="span" fw={700}>
+              {supported.components}
+            </Text>{' '}
+            Components
+          </List.Item>
+          <List.Item>
+            <Text component="span" fw={700}>
+              {supported.valueStreams}
+            </Text>{' '}
+            Value streams
+          </List.Item>
+          <List.Item>
+            <Text component="span" fw={700}>
+              {supported.parentChildRelationships}
+            </Text>{' '}
+            Parent-child relationships
+          </List.Item>
+          <List.Item>
+            <Text component="span" fw={700}>
+              {supported.realizations}
+            </Text>{' '}
+            Capability realizations
+          </List.Item>
+          <List.Item>
+            <Text component="span" fw={700}>
+              {supported.componentRelationships}
+            </Text>{' '}
+            Component relationships
+          </List.Item>
+          <List.Item>
+            <Text component="span" fw={700}>
+              {supported.capabilityToValueStreamMappings}
+            </Text>{' '}
+            Capability-to-value-stream mappings
+          </List.Item>
+        </List>
+      </Stack>
+    </Paper>
+  );
+}
+
+interface SettingsSummaryProps {
+  eaOwnerName: string;
+}
+
+function SettingsSummary({ eaOwnerName }: SettingsSummaryProps) {
+  return (
+    <Paper p="md" withBorder radius="md" data-testid="import-settings">
+      <Stack gap="sm">
+        <Title order={5}>Import Settings</Title>
+        <List>
+          <List.Item>
+            EA Owner for capabilities:{' '}
+            <Text component="span" fw={700}>
+              {eaOwnerName}
+            </Text>
+          </List.Item>
+        </List>
+      </Stack>
+    </Paper>
+  );
+}
+
+interface UnsupportedGroupProps {
+  heading: string;
+  items: Record<string, number>;
+  testId: string;
+}
+
+function UnsupportedGroup({ heading, items, testId }: UnsupportedGroupProps) {
+  if (Object.keys(items).length === 0) return null;
+  return (
+    <Stack gap="xs">
+      <Text fw={600} size="sm">
+        {heading}
+      </Text>
+      <List data-testid={testId}>
+        {Object.entries(items).map(([type, count]) => (
+          <List.Item key={type}>
+            <Text component="span" fw={700}>
+              {count}
+            </Text>{' '}
+            {type}
+          </List.Item>
+        ))}
+      </List>
+    </Stack>
+  );
+}
+
+interface UnsupportedSummaryProps {
+  unsupported: ImportPreview['unsupported'];
+}
+
+function UnsupportedSummary({ unsupported }: UnsupportedSummaryProps) {
+  return (
+    <Alert color="yellow" title="Will NOT Import">
+      <Stack gap="sm">
+        <Text size="sm">The following unsupported elements will be skipped:</Text>
+        <UnsupportedGroup heading="Elements:" items={unsupported.elements} testId="unsupported-elements" />
+        <UnsupportedGroup
+          heading="Relationships:"
+          items={unsupported.relationships}
+          testId="unsupported-relationships"
+        />
+      </Stack>
+    </Alert>
+  );
+}
+
+export function ImportPreviewStep({
   preview,
   eaOwnerName,
   onConfirm,
   onCancel,
   isLoading,
-}) => {
+}: ImportPreviewStepProps) {
   const { supported, unsupported } = preview;
   const hasUnsupported =
     Object.keys(unsupported.elements).length > 0 || Object.keys(unsupported.relationships).length > 0;
 
   return (
-    <div className="import-step">
-      <h3>Import Preview</h3>
-      <p className="import-step-description">Review what will be imported from the file.</p>
+    <Stack gap="md">
+      <Text c="dimmed" size="sm">
+        Review what will be imported from the file.
+      </Text>
 
-      <div className="import-preview">
-        <div className="import-section">
-          <h4>Will Import</h4>
-          <ul className="import-list" data-testid="supported-list">
-            <li>
-              <strong>{supported.capabilities}</strong> Capabilities
-            </li>
-            <li>
-              <strong>{supported.components}</strong> Components
-            </li>
-            <li>
-              <strong>{supported.valueStreams}</strong> Value streams
-            </li>
-            <li>
-              <strong>{supported.parentChildRelationships}</strong> Parent-child relationships
-            </li>
-            <li>
-              <strong>{supported.realizations}</strong> Capability realizations
-            </li>
-            <li>
-              <strong>{supported.componentRelationships}</strong> Component relationships
-            </li>
-            <li>
-              <strong>{supported.capabilityToValueStreamMappings}</strong> Capability-to-value-stream mappings
-            </li>
-          </ul>
-        </div>
+      <SupportedSummary supported={supported} />
+      {eaOwnerName && <SettingsSummary eaOwnerName={eaOwnerName} />}
+      {hasUnsupported && <UnsupportedSummary unsupported={unsupported} />}
 
-        {eaOwnerName && (
-          <div className="import-section import-settings" data-testid="import-settings">
-            <h4>Import Settings</h4>
-            <ul className="import-list">
-              <li>
-                EA Owner for capabilities: <strong>{eaOwnerName}</strong>
-              </li>
-            </ul>
-          </div>
-        )}
-
-        {hasUnsupported && (
-          <div className="import-section import-warning">
-            <h4>Will NOT Import</h4>
-            <p className="import-warning-text">The following unsupported elements will be skipped:</p>
-
-            {Object.keys(unsupported.elements).length > 0 && (
-              <div>
-                <h5>Elements:</h5>
-                <ul className="import-list" data-testid="unsupported-elements">
-                  {Object.entries(unsupported.elements).map(([type, count]) => (
-                    <li key={type}>
-                      <strong>{count}</strong> {type}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {Object.keys(unsupported.relationships).length > 0 && (
-              <div>
-                <h5>Relationships:</h5>
-                <ul className="import-list" data-testid="unsupported-relationships">
-                  {Object.entries(unsupported.relationships).map(([type, count]) => (
-                    <li key={type}>
-                      <strong>{count}</strong> {type}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="dialog-actions">
-        <button
-          type="button"
-          className="btn btn-secondary"
-          onClick={onCancel}
-          disabled={isLoading}
-          data-testid="cancel-button"
-        >
+      <Group justify="flex-end" gap="sm">
+        <Button variant="default" onClick={onCancel} disabled={isLoading} data-testid="cancel-button">
           Cancel
-        </button>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={onConfirm}
-          disabled={isLoading}
-          data-testid="confirm-button"
-        >
-          {isLoading ? 'Starting...' : 'Confirm Import'}
-        </button>
-      </div>
-    </div>
+        </Button>
+        <Button onClick={onConfirm} loading={isLoading} data-testid="confirm-button">
+          Confirm Import
+        </Button>
+      </Group>
+    </Stack>
   );
-};
+}

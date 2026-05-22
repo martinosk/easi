@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import toast from 'react-hot-toast';
 import type { BusinessDomain } from '../../../api/types';
 
@@ -25,18 +25,6 @@ export function useDomainDialogManager({
   const [dialogMode, setDialogMode] = useState<DialogMode>(null);
   const [selectedDomain, setSelectedDomain] = useState<BusinessDomain | null>(null);
   const [domainToDelete, setDomainToDelete] = useState<BusinessDomain | null>(null);
-  const dialogRef = useRef<HTMLDialogElement>(null);
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
-    if (dialogMode) {
-      dialog.showModal();
-    } else {
-      dialog.close();
-    }
-  }, [dialogMode]);
 
   const handleCreateClick = () => {
     setSelectedDomain(null);
@@ -91,7 +79,6 @@ export function useDomainDialogManager({
     dialogMode,
     selectedDomain,
     domainToDelete,
-    dialogRef,
     handleCreateClick,
     handleEditClick,
     handleDeleteClick,

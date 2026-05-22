@@ -1,3 +1,4 @@
+import { Button, type ButtonProps } from '@mantine/core';
 import { useCallback, useState } from 'react';
 import { hasLink, type ResourceWithLinks } from '../../../utils/hateoas';
 import { useCreateEditGrant } from '../hooks/useEditGrants';
@@ -8,10 +9,10 @@ interface InviteToEditButtonProps {
   resource: ResourceWithLinks;
   artifactType: ArtifactType;
   artifactId: string;
-  className?: string;
+  size?: ButtonProps['size'];
 }
 
-export function InviteToEditButton({ resource, artifactType, artifactId, className }: InviteToEditButtonProps) {
+export function InviteToEditButton({ resource, artifactType, artifactId, size = 'xs' }: InviteToEditButtonProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const createGrant = useCreateEditGrant();
 
@@ -28,13 +29,14 @@ export function InviteToEditButton({ resource, artifactType, artifactId, classNa
 
   return (
     <>
-      <button
-        className={className ?? 'btn btn-secondary btn-sm'}
+      <Button
+        variant="default"
+        size={size}
         onClick={() => setIsDialogOpen(true)}
         data-testid="invite-to-edit-btn"
       >
         Invite to Edit...
-      </button>
+      </Button>
       <InviteToEditDialog
         isOpen={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}

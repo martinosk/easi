@@ -1,3 +1,4 @@
+import { UnstyledButton } from '@mantine/core';
 import React, { lazy, Suspense, useState } from 'react';
 import { useBusinessDomains } from '../../features/business-domains';
 import { ImportButton } from '../../features/importing';
@@ -22,7 +23,9 @@ export const Toolbar: React.FC<PanelToggleProps> = ({ panelVisibility, onToggleP
         <div className="toolbar-left">
           {panelVisibility && onTogglePanel && (
             <div className="toolbar-panel-toggles">
-              <button
+              <UnstyledButton
+                component="button"
+                type="button"
                 className={`toolbar-panel-toggle ${panelVisibility.navigation ? 'active' : ''}`}
                 onClick={() => onTogglePanel('navigation')}
                 aria-label="Toggle Explorer panel"
@@ -42,8 +45,10 @@ export const Toolbar: React.FC<PanelToggleProps> = ({ panelVisibility, onToggleP
                   <line x1="9" y1="3" x2="9" y2="21" />
                 </svg>
                 Explorer
-              </button>
-              <button
+              </UnstyledButton>
+              <UnstyledButton
+                component="button"
+                type="button"
                 className={`toolbar-panel-toggle ${panelVisibility.details ? 'active' : ''}`}
                 onClick={() => onTogglePanel('details')}
                 aria-label="Toggle Details panel"
@@ -63,7 +68,7 @@ export const Toolbar: React.FC<PanelToggleProps> = ({ panelVisibility, onToggleP
                   <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
                   <line x1="15" y1="3" x2="15" y2="21" />
                 </svg>
-              </button>
+              </UnstyledButton>
             </div>
           )}
         </div>

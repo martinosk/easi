@@ -1,0 +1,30 @@
+.draggable {
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.draggable:active {
+  cursor: grabbing;
+}
+
+.levelBar {
+  border-left-width: 3px;
+  border-left-style: solid;
+}
+
+.levelL2 {
+  border-left-color: var(--color-capability-l2);
+}
+
+.levelL3 {
+  border-left-color: var(--color-capability-l3);
+}
+
+.levelL4 {
+  border-left-color: var(--color-capability-l4);
+}
+
+.levelDefault {
+  border-left-color: var(--color-capability-l1);
+}

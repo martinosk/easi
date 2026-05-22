@@ -1,8 +1,12 @@
-import { render, screen } from '@testing-library/react';
+import type { ReactElement } from 'react';
+import { screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Release } from '../../../api/types';
 import { toReleaseVersion } from '../../../api/types';
+import { renderWithProviders } from '../../../test/helpers';
 import { ReleaseNotesOverlay } from './ReleaseNotesOverlay';
+
+const render = (ui: ReactElement) => renderWithProviders(ui, { withRouter: false });
 
 describe('ReleaseNotesOverlay', () => {
   const mockOnDismiss = vi.fn();
@@ -16,8 +20,6 @@ describe('ReleaseNotesOverlay', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    HTMLDialogElement.prototype.showModal = vi.fn();
-    HTMLDialogElement.prototype.close = vi.fn();
   });
 
   describe('Markdown Parsing', () => {
@@ -70,55 +72,19 @@ describe('ReleaseNotesOverlay', () => {
   });
 
   describe('Section Icons', () => {
-    it('should show star icon for features section', () => {
-      const releaseWithFeatures: Release = {
-        ...mockRelease,
-        notes: '## Major Features\n- New feature',
-      };
+    it.each([
+      { heading: 'Major Features', item: 'New feature', icon: '★' },
+      { heading: 'Bug Fixes', item: 'Fixed issue', icon: '✓' },
+      { heading: 'Breaking Changes', item: 'API change', icon: '⚠' },
+      { heading: 'API Changes', item: 'New endpoint', icon: '⚡' },
+    ])('should show $icon icon for $heading section', ({ heading, item, icon }) => {
+      const release: Release = { ...mockRelease, notes: `## ${heading}\n- ${item}` };
 
-      render(<ReleaseNotesOverlay isOpen={true} release={releaseWithFeatures} onDismiss={mockOnDismiss} />);
+      render(<ReleaseNotesOverlay isOpen={true} release={release} onDismiss={mockOnDismiss} />);
 
-      const iconElement = document.querySelector('.release-notes-section-icon');
-      expect(iconElement?.textContent).toContain('★');
-    });
-
-    it('should show checkmark icon for bug fixes section', () => {
-      const releaseWithBugFixes: Release = {
-        ...mockRelease,
-        notes: '## Bug Fixes\n- Fixed issue',
-      };
-
-      render(<ReleaseNotesOverlay isOpen={true} release={releaseWithBugFixes} onDismiss={mockOnDismiss} />);
-
-      const sections = document.querySelectorAll('.release-notes-section-icon');
-      const bugFixSection = Array.from(sections).find((s) => s.textContent?.includes('✓'));
-      expect(bugFixSection).toBeDefined();
-    });
-
-    it('should show warning icon for breaking changes section', () => {
-      const releaseWithBreaking: Release = {
-        ...mockRelease,
-        notes: '## Breaking Changes\n- API change',
-      };
-
-      render(<ReleaseNotesOverlay isOpen={true} release={releaseWithBreaking} onDismiss={mockOnDismiss} />);
-
-      const sections = document.querySelectorAll('.release-notes-section-icon');
-      const breakingSection = Array.from(sections).find((s) => s.textContent?.includes('⚠'));
-      expect(breakingSection).toBeDefined();
-    });
-
-    it('should show lightning icon for API changes section', () => {
-      const releaseWithAPI: Release = {
-        ...mockRelease,
-        notes: '## API Changes\n- New endpoint',
-      };
-
-      render(<ReleaseNotesOverlay isOpen={true} release={releaseWithAPI} onDismiss={mockOnDismiss} />);
-
-      const sections = document.querySelectorAll('.release-notes-section-icon');
-      const apiSection = Array.from(sections).find((s) => s.textContent?.includes('⚡'));
-      expect(apiSection).toBeDefined();
+      const sections = document.querySelectorAll('[data-testid="release-notes-section-icon"]');
+      const section = Array.from(sections).find((s) => s.textContent?.includes(icon));
+      expect(section).toBeDefined();
     });
   });
 });

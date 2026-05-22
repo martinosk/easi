@@ -1,4 +1,7 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import type { ReactElement } from 'react';
+import { fireEvent, screen } from '@testing-library/react';
+import { renderWithProviders } from '../../../../test/helpers';
+const render = (ui: ReactElement) => renderWithProviders(ui, { withRouter: false });
 import { describe, expect, it, vi } from 'vitest';
 import type { MultiSelectMenuState } from '../../hooks/useMultiSelectContextMenu';
 import type { NodeContextMenu } from '../../hooks/useNodeContextMenu';
@@ -31,10 +34,8 @@ function makeMenu(overrides: Partial<MultiSelectMenuState> = {}): MultiSelectMen
 
 describe('MultiSelectContextMenu', () => {
   it('renders nothing when menu is null', () => {
-    const { container } = render(
-      <MultiSelectContextMenu menu={null} onClose={vi.fn()} onRequestBulkOperation={vi.fn()} />,
-    );
-    expect(container.innerHTML).toBe('');
+    render(<MultiSelectContextMenu menu={null} onClose={vi.fn()} onRequestBulkOperation={vi.fn()} />);
+    expect(screen.queryByRole('menu')).toBeNull();
   });
 
   it('renders menu items with correct labels', () => {

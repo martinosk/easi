@@ -1,3 +1,4 @@
+import { Box, Button, Center, Group, Loader, Stack, Text, Title } from '@mantine/core';
 import { useCallback, useState } from 'react';
 import type { BusinessDomain, Capability, ComponentId } from '../../../api/types';
 import { EditCapabilityDialog } from '../../capabilities/components/EditCapabilityDialog';
@@ -14,16 +15,22 @@ interface DetailsSidebarProps {
   visualizedDomain: BusinessDomain | null;
 }
 
+function PanelShell({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <Stack gap="sm" p="md">
+      <Title order={4}>{title}</Title>
+      {children}
+    </Stack>
+  );
+}
+
 function EmptyState() {
   return (
-    <div className="detail-panel">
-      <div className="detail-header">
-        <h3 className="detail-title">Details</h3>
-      </div>
-      <div className="detail-content" style={{ textAlign: 'center', padding: '2rem' }}>
-        <p style={{ color: 'var(--color-gray-500)', margin: 0 }}>Select a capability or application to view details</p>
-      </div>
-    </div>
+    <PanelShell title="Details">
+      <Center py="xl">
+        <Text c="dimmed">Select a capability or application to view details</Text>
+      </Center>
+    </PanelShell>
   );
 }
 
@@ -32,42 +39,40 @@ interface CapabilityContentProps {
   domain: BusinessDomain | null;
 }
 
+function CapabilityField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <Stack gap={2}>
+      <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+        {label}
+      </Text>
+      <Text size="sm">{children}</Text>
+    </Stack>
+  );
+}
+
 function CapabilityContent({ capability, domain }: CapabilityContentProps) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const canEdit = capability._links?.edit !== undefined;
 
   return (
-    <div className="detail-panel">
-      <div className="detail-header">
-        <h3 className="detail-title">Capability Details</h3>
-      </div>
-      <div className="detail-content">
-        {canEdit && (
-          <div className="detail-actions">
-            <button className="btn btn-secondary btn-small" onClick={() => setEditDialogOpen(true)}>
-              Edit
-            </button>
-          </div>
-        )}
-        <div className="detail-field">
-          <span className="detail-label">Name</span>
-          <span className="detail-value">{capability.name}</span>
-        </div>
-        <div className="detail-field">
-          <span className="detail-label">Level</span>
-          <span className="detail-value">{capability.level}</span>
-        </div>
-        {capability.description && (
-          <div className="detail-field">
-            <span className="detail-label">Description</span>
-            <span className="detail-value">{capability.description}</span>
-          </div>
-        )}
-
-        {domain && <StrategicImportanceSection domain={domain} capabilityId={capability.id} />}
-      </div>
-      <EditCapabilityDialog isOpen={editDialogOpen} onClose={() => setEditDialogOpen(false)} capability={capability} />
-    </div>
+    <PanelShell title="Capability Details">
+      {canEdit && (
+        <Group justify="flex-end">
+          <Button variant="default" size="xs" onClick={() => setEditDialogOpen(true)}>
+            Edit
+          </Button>
+        </Group>
+      )}
+      <CapabilityField label="Name">{capability.name}</CapabilityField>
+      <CapabilityField label="Level">{capability.level}</CapabilityField>
+      {capability.description && <CapabilityField label="Description">{capability.description}</CapabilityField>}
+      {domain && <StrategicImportanceSection domain={domain} capabilityId={capability.id} />}
+      <EditCapabilityDialog
+        isOpen={editDialogOpen}
+        onClose={() => setEditDialogOpen(false)}
+        capability={capability}
+      />
+    </PanelShell>
   );
 }
 
@@ -101,27 +106,24 @@ function ApplicationContent({ componentId }: ApplicationContentProps) {
 
   if (isLoading) {
     return (
-      <div className="detail-panel">
-        <div className="detail-header">
-          <h3 className="detail-title">Application Details</h3>
-        </div>
-        <div className="detail-content" style={{ textAlign: 'center', padding: '2rem' }}>
-          <p style={{ color: 'var(--color-gray-500)', margin: 0 }}>Loading...</p>
-        </div>
-      </div>
+      <PanelShell title="Application Details">
+        <Center py="xl">
+          <Group gap="xs">
+            <Loader size="sm" />
+            <Text c="dimmed">Loading...</Text>
+          </Group>
+        </Center>
+      </PanelShell>
     );
   }
 
   if (error || !component) {
     return (
-      <div className="detail-panel">
-        <div className="detail-header">
-          <h3 className="detail-title">Application Details</h3>
-        </div>
-        <div className="detail-content" style={{ textAlign: 'center', padding: '2rem' }}>
-          <p style={{ color: 'var(--color-red-500)', margin: 0 }}>Failed to load application details</p>
-        </div>
-      </div>
+      <PanelShell title="Application Details">
+        <Center py="xl">
+          <Text c="red">Failed to load application details</Text>
+        </Center>
+      </PanelShell>
     );
   }
 
@@ -142,17 +144,10 @@ export function DetailsSidebar({ selectedCapability, selectedComponentId, visual
   const hasSelection = selectedCapability || selectedComponentId;
 
   return (
-    <aside
-      style={{
-        width: '100%',
-        height: '100%',
-        backgroundColor: 'white',
-        overflow: 'auto',
-      }}
-    >
+    <Box component="aside" bg="white" h="100%" w="100%" style={{ overflow: 'auto' }}>
       {!hasSelection && <EmptyState />}
       {selectedCapability && <CapabilityContent capability={selectedCapability} domain={visualizedDomain} />}
       {selectedComponentId && !selectedCapability && <ApplicationContent componentId={selectedComponentId} />}
-    </aside>
+    </Box>
   );
 }

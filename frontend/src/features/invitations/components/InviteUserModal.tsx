@@ -1,5 +1,8 @@
-import { type FormEvent, useEffect, useRef, useState } from 'react';
-import type { UserRole } from '../../auth/types';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Alert, Button, Group, Modal, NativeSelect, Stack, TextInput } from '@mantine/core';
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { type InviteUserFormData, inviteUserSchema } from '../../../lib/schemas';
 import type { CreateInvitationRequest } from '../types';
 
 interface InviteUserModalProps {
@@ -8,112 +11,96 @@ interface InviteUserModalProps {
   onSubmit: (request: CreateInvitationRequest) => Promise<void>;
 }
 
+const DEFAULT_VALUES: InviteUserFormData = {
+  email: '',
+  role: 'stakeholder',
+};
+
+const ROLE_OPTIONS = [
+  { value: 'stakeholder', label: 'Stakeholder' },
+  { value: 'architect', label: 'Architect' },
+  { value: 'admin', label: 'Admin' },
+];
+
 export function InviteUserModal({ isOpen, onClose, onSubmit }: InviteUserModalProps) {
-  const [email, setEmail] = useState('');
-  const [role, setRole] = useState<UserRole>('stakeholder');
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const dialogRef = useRef<HTMLDialogElement>(null);
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting, isValid },
+  } = useForm<InviteUserFormData>({
+    resolver: zodResolver(inviteUserSchema),
+    defaultValues: DEFAULT_VALUES,
+    mode: 'onChange',
+  });
 
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
-    if (isOpen) {
-      dialog.showModal();
-    } else {
-      dialog.close();
-    }
-  }, [isOpen]);
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+    if (!isOpen) return;
+    reset(DEFAULT_VALUES);
     setError(null);
-    setIsSubmitting(true);
+  }, [isOpen, reset]);
 
+  const submit = handleSubmit(async (data) => {
+    setError(null);
     try {
-      await onSubmit({ email, role });
-      setEmail('');
-      setRole('stakeholder');
+      await onSubmit({ email: data.email, role: data.role });
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create invitation');
-    } finally {
-      setIsSubmitting(false);
     }
-  };
-
-  const handleCancel = () => {
-    setEmail('');
-    setRole('stakeholder');
-    setError(null);
-    onClose();
-  };
+  });
 
   return (
-    <dialog ref={dialogRef} className="dialog" onClose={handleCancel} data-testid="invite-user-modal">
-      <div className="dialog-content">
-        <h2 className="dialog-title">Invite User</h2>
+    <Modal opened={isOpen} onClose={onClose} title="Invite User" centered data-testid="invite-user-modal">
+      <form onSubmit={submit}>
+        <Stack gap="md">
+          <TextInput
+            label="Email"
+            placeholder="user@company.com"
+            type="email"
+            withAsterisk
+            disabled={isSubmitting}
+            error={errors.email?.message}
+            data-testid="invite-email-input"
+            {...register('email')}
+          />
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label" htmlFor="invite-email">
-              Email <span className="required">*</span>
-            </label>
-            <input
-              id="invite-email"
-              type="email"
-              className="form-input"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              disabled={isSubmitting}
-              placeholder="user@company.com"
-              data-testid="invite-email-input"
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label" htmlFor="invite-role">
-              Role <span className="required">*</span>
-            </label>
-            <select
-              id="invite-role"
-              className="form-select"
-              value={role}
-              onChange={(e) => setRole(e.target.value as UserRole)}
-              required
-              disabled={isSubmitting}
-              data-testid="invite-role-select"
-            >
-              <option value="stakeholder">Stakeholder</option>
-              <option value="architect">Architect</option>
-              <option value="admin">Admin</option>
-            </select>
-          </div>
+          <NativeSelect
+            label="Role"
+            data={ROLE_OPTIONS}
+            withAsterisk
+            disabled={isSubmitting}
+            data-testid="invite-role-select"
+            {...register('role')}
+          />
 
           {error && (
-            <div className="error-message" data-testid="invite-error-message">
+            <Alert color="red" data-testid="invite-error-message">
               {error}
-            </div>
+            </Alert>
           )}
 
-          <div className="dialog-actions">
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={handleCancel}
+          <Group justify="flex-end" gap="sm">
+            <Button
+              variant="default"
+              onClick={onClose}
               disabled={isSubmitting}
               data-testid="invite-cancel-btn"
             >
               Cancel
-            </button>
-            <button type="submit" className="btn btn-primary" disabled={isSubmitting} data-testid="invite-submit-btn">
-              {isSubmitting ? 'Creating...' : 'Create Invitation'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </dialog>
+            </Button>
+            <Button
+              type="submit"
+              loading={isSubmitting}
+              disabled={!isValid}
+              data-testid="invite-submit-btn"
+            >
+              Create Invitation
+            </Button>
+          </Group>
+        </Stack>
+      </form>
+    </Modal>
   );
 }

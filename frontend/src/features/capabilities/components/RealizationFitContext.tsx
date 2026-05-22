@@ -1,10 +1,18 @@
+import { Box, Divider, Group, Paper, Stack, Text } from '@mantine/core';
 import type { BusinessDomainId, CapabilityId, ComponentId, FitCategory, FitComparison } from '../../../api/types';
 import { useFitComparisons } from '../../components/hooks/useFitScores';
-import './RealizationFitContext.css';
 
-interface FitComparisonDisplayProps {
-  comparison: FitComparison;
-}
+const CATEGORY_BG: Record<FitCategory, string> = {
+  liability: 'red.0',
+  concern: 'yellow.0',
+  aligned: 'green.0',
+};
+
+const CATEGORY_COLOR: Record<FitCategory, string> = {
+  liability: 'red',
+  concern: 'yellow',
+  aligned: 'green',
+};
 
 function getCategoryLabel(category: FitCategory, gap: number): string {
   switch (category) {
@@ -19,21 +27,35 @@ function getCategoryLabel(category: FitCategory, gap: number): string {
   }
 }
 
+interface FitComparisonDisplayProps {
+  comparison: FitComparison;
+}
+
 function FitComparisonDisplay({ comparison }: FitComparisonDisplayProps) {
   return (
-    <div className={`fit-comparison fit-${comparison.category}`}>
-      <span className="pillar-label">{comparison.pillarName}:</span>
-      <span className="fit-values">
-        Fit <span className="fit-value">{comparison.fitScore}</span> vs Imp{' '}
-        <span className="importance-value">{comparison.importance}</span>
-      </span>
-      <span className="gap-indicator">
-        → Gap {comparison.gap}{' '}
-        <span className={`gap-label gap-${comparison.category}`}>
-          ({getCategoryLabel(comparison.category, comparison.gap)})
-        </span>
-      </span>
-    </div>
+    <Paper px="xs" py="xs" radius="sm" bg={CATEGORY_BG[comparison.category]}>
+      <Group gap="xs" wrap="wrap">
+        <Text size="xs" fw={500} c="gray.7">
+          {comparison.pillarName}:
+        </Text>
+        <Text size="xs" c="dimmed">
+          Fit{' '}
+          <Text component="span" fw={600}>
+            {comparison.fitScore}
+          </Text>{' '}
+          vs Imp{' '}
+          <Text component="span" fw={600}>
+            {comparison.importance}
+          </Text>
+        </Text>
+        <Text size="xs" c="dimmed">
+          → Gap {comparison.gap}{' '}
+          <Text component="span" fw={600} c={CATEGORY_COLOR[comparison.category]}>
+            ({getCategoryLabel(comparison.category, comparison.gap)})
+          </Text>
+        </Text>
+      </Group>
+    </Paper>
   );
 }
 
@@ -51,13 +73,16 @@ export function RealizationFitContext({ componentId, capabilityId, businessDomai
   if (validComparisons.length === 0) return null;
 
   return (
-    <div className="realization-fit-context">
-      <div className="fit-context-label">Fit vs Importance:</div>
-      <div className="fit-comparisons">
+    <Box mt="xs">
+      <Divider variant="dashed" mb="xs" />
+      <Text size="xs" c="dimmed" tt="uppercase" mb="xs">
+        Fit vs Importance:
+      </Text>
+      <Stack gap="xs">
         {validComparisons.map((c) => (
           <FitComparisonDisplay key={c.pillarId} comparison={c} />
         ))}
-      </div>
-    </div>
+      </Stack>
+    </Box>
   );
 }

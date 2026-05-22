@@ -1,3 +1,4 @@
+import { Alert, Button, Center, Group, Stack, Text, Title } from '@mantine/core';
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 
 interface ErrorBoundaryProps {
@@ -55,24 +56,16 @@ interface DefaultErrorFallbackProps {
 
 function DefaultErrorFallback({ error, onReset }: DefaultErrorFallbackProps) {
   return (
-    <div className="error-boundary-fallback">
-      <div className="error-boundary-content">
-        <svg className="error-boundary-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path
-            d="M12 9V13M12 17H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-        <h3 className="error-boundary-title">Something went wrong</h3>
-        <p className="error-boundary-message">{error.message}</p>
-        <button type="button" className="error-boundary-button" onClick={onReset}>
-          Try again
-        </button>
-      </div>
-    </div>
+    <Center p="xl">
+      <Alert color="red" title="Something went wrong" maw={480}>
+        <Stack gap="md">
+          <Text size="sm">{error.message}</Text>
+          <Button onClick={onReset} variant="filled" color="red" size="sm">
+            Try again
+          </Button>
+        </Stack>
+      </Alert>
+    </Center>
   );
 }
 
@@ -84,32 +77,23 @@ interface FeatureErrorFallbackProps {
 
 export function FeatureErrorFallback({ featureName, error, onReset }: FeatureErrorFallbackProps) {
   return (
-    <div className="error-boundary-fallback">
-      <div className="error-boundary-content">
-        <svg className="error-boundary-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path
-            d="M12 9V13M12 17H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-        <h3 className="error-boundary-title">{featureName} encountered an error</h3>
-        <p className="error-boundary-message">{error.message}</p>
-        <div className="error-boundary-actions">
-          <button type="button" className="error-boundary-button" onClick={onReset}>
+    <Center p="xl">
+      <Stack align="center" gap="md" maw={520}>
+        <Title order={3} c="red">
+          {featureName} encountered an error
+        </Title>
+        <Text size="sm" c="dimmed" ta="center">
+          {error.message}
+        </Text>
+        <Group gap="sm">
+          <Button onClick={onReset} color="red">
             Try again
-          </button>
-          <button
-            type="button"
-            className="error-boundary-button error-boundary-button-secondary"
-            onClick={() => window.location.reload()}
-          >
+          </Button>
+          <Button variant="default" onClick={() => window.location.reload()}>
             Reload page
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </Group>
+      </Stack>
+    </Center>
   );
 }

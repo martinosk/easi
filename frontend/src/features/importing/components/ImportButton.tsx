@@ -1,18 +1,18 @@
-import React from 'react';
+import { Button } from '@mantine/core';
 
 interface ImportButtonProps {
   onClick: () => void;
 }
 
-export const ImportButton: React.FC<ImportButtonProps> = ({ onClick }) => {
+export function ImportButton({ onClick }: ImportButtonProps) {
   return (
-    <button
-      className="btn btn-secondary"
+    <Button
+      variant="default"
       onClick={onClick}
       data-testid="import-button"
       title="Import from ArchiMate Open Exchange"
     >
       Import
-    </button>
+    </Button>
   );
-};
+}

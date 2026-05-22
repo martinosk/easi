@@ -1,4 +1,8 @@
-import { type FormEvent, useEffect, useRef, useState } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Alert, Button, Group, Modal, Stack, Text, TextInput } from '@mantine/core';
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { type InviteToEditFormData, inviteToEditSchema } from '../../../lib/schemas';
 import type { ArtifactType, CreateEditGrantRequest } from '../types';
 
 const artifactTypeLabels: Record<ArtifactType, string> = {
@@ -19,117 +23,107 @@ interface InviteToEditDialogProps {
   artifactId: string;
 }
 
-export function InviteToEditDialog({ isOpen, onClose, onSubmit, artifactType, artifactId }: InviteToEditDialogProps) {
-  const [granteeEmail, setGranteeEmail] = useState('');
-  const [reason, setReason] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+const DEFAULT_VALUES: InviteToEditFormData = {
+  granteeEmail: '',
+  reason: '',
+};
+
+export function InviteToEditDialog({
+  isOpen,
+  onClose,
+  onSubmit,
+  artifactType,
+  artifactId,
+}: InviteToEditDialogProps) {
   const [error, setError] = useState<string | null>(null);
-  const dialogRef = useRef<HTMLDialogElement>(null);
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<InviteToEditFormData>({
+    resolver: zodResolver(inviteToEditSchema),
+    defaultValues: DEFAULT_VALUES,
+    mode: 'onSubmit',
+  });
 
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
-    if (isOpen) {
-      dialog.showModal();
-    } else {
-      dialog.close();
-    }
-  }, [isOpen]);
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+    if (!isOpen) return;
+    reset(DEFAULT_VALUES);
     setError(null);
-    setIsSubmitting(true);
+  }, [isOpen, reset]);
 
+  const submit = handleSubmit(async (data) => {
+    setError(null);
     try {
       await onSubmit({
-        granteeEmail,
+        granteeEmail: data.granteeEmail,
         artifactType,
         artifactId,
-        reason: reason || undefined,
+        reason: data.reason || undefined,
       });
-      setGranteeEmail('');
-      setReason('');
+      reset(DEFAULT_VALUES);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to grant edit access');
-    } finally {
-      setIsSubmitting(false);
     }
-  };
+  });
 
   const handleCancel = () => {
-    setGranteeEmail('');
-    setReason('');
+    reset(DEFAULT_VALUES);
     setError(null);
     onClose();
   };
 
   return (
-    <dialog ref={dialogRef} className="dialog" onClose={handleCancel} data-testid="invite-to-edit-dialog">
-      <div className="dialog-content">
-        <h2 className="dialog-title">Invite to Edit...</h2>
-        <p className="dialog-description">
-          Grant temporary edit access for this {artifactTypeLabels[artifactType]} to a stakeholder.
-        </p>
+    <Modal opened={isOpen} onClose={handleCancel} title="Invite to Edit..." centered data-testid="invite-to-edit-dialog">
+      <form onSubmit={submit}>
+        <Stack gap="md">
+          <Text c="dimmed" size="sm">
+            Grant temporary edit access for this {artifactTypeLabels[artifactType]} to a stakeholder.
+          </Text>
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label" htmlFor="grantee-email">
-              User Email <span className="required">*</span>
-            </label>
-            <input
-              id="grantee-email"
-              type="email"
-              className="form-input"
-              value={granteeEmail}
-              onChange={(e) => setGranteeEmail(e.target.value)}
-              required
-              disabled={isSubmitting}
-              placeholder="stakeholder@company.com"
-              data-testid="grantee-email-input"
-            />
-          </div>
+          <TextInput
+            label="User Email"
+            type="email"
+            placeholder="stakeholder@company.com"
+            withAsterisk
+            disabled={isSubmitting}
+            error={errors.granteeEmail?.message}
+            data-testid="grantee-email-input"
+            {...register('granteeEmail')}
+          />
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="grant-reason">
-              Reason
-            </label>
-            <input
-              id="grant-reason"
-              type="text"
-              className="form-input"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              disabled={isSubmitting}
-              placeholder="Optional reason for granting access"
-              data-testid="grant-reason-input"
-            />
-          </div>
+          <TextInput
+            label="Reason"
+            placeholder="Optional reason for granting access"
+            disabled={isSubmitting}
+            error={errors.reason?.message}
+            data-testid="grant-reason-input"
+            {...register('reason')}
+          />
 
           {error && (
-            <div className="error-message" data-testid="grant-error-message">
+            <Alert color="red" data-testid="grant-error-message">
               {error}
-            </div>
+            </Alert>
           )}
 
-          <div className="dialog-actions">
-            <button
-              type="button"
-              className="btn btn-secondary"
+          <Group justify="flex-end" gap="sm">
+            <Button
+              variant="default"
               onClick={handleCancel}
               disabled={isSubmitting}
               data-testid="grant-cancel-btn"
             >
               Cancel
-            </button>
-            <button type="submit" className="btn btn-primary" disabled={isSubmitting} data-testid="grant-submit-btn">
-              {isSubmitting ? 'Granting...' : 'Grant Edit Access'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </dialog>
+            </Button>
+            <Button type="submit" loading={isSubmitting} data-testid="grant-submit-btn">
+              Grant Edit Access
+            </Button>
+          </Group>
+        </Stack>
+      </form>
+    </Modal>
   );
 }

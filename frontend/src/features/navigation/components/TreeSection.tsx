@@ -1,3 +1,4 @@
+import { ActionIcon, UnstyledButton } from '@mantine/core';
 import React from 'react';
 
 interface TreeSectionProps {
@@ -24,15 +25,23 @@ export const TreeSection: React.FC<TreeSectionProps> = ({
   return (
     <div className="tree-category">
       <div className="category-header-wrapper">
-        <button className="category-header" onClick={onToggle}>
+        <UnstyledButton component="button" type="button" className="category-header" onClick={onToggle}>
           <span className="category-icon">{isExpanded ? '▼' : '▶'}</span>
           <span className="category-label">{label}</span>
           <span className="category-count">{count}</span>
-        </button>
+        </UnstyledButton>
         {onAdd && (
-          <button className="add-view-btn" onClick={onAdd} title={addTitle} data-testid={addTestId}>
+          <ActionIcon
+            variant="filled"
+            size="sm"
+            className="add-view-btn"
+            onClick={onAdd}
+            title={addTitle}
+            data-testid={addTestId}
+            aria-label={addTitle ?? 'Add'}
+          >
             +
-          </button>
+          </ActionIcon>
         )}
       </div>
       {isExpanded && children}

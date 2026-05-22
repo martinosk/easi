@@ -1,3 +1,4 @@
+import { Box, Stack, Text } from '@mantine/core';
 import React from 'react';
 
 interface DetailFieldProps {
@@ -6,8 +7,10 @@ interface DetailFieldProps {
 }
 
 export const DetailField: React.FC<DetailFieldProps> = ({ label, children }) => (
-  <div className="detail-field">
-    <label className="detail-label">{label}</label>
-    <div className="detail-value">{children}</div>
-  </div>
+  <Stack gap="xs">
+    <Text component="label" size="xs" fw={600} c="dimmed" tt="uppercase" lts="0.05em">
+      {label}
+    </Text>
+    <Box>{children}</Box>
+  </Stack>
 );

@@ -1,4 +1,4 @@
-import { Button } from '@mantine/core';
+import { Button, NumberInput, TextInput } from '@mantine/core';
 import { useLayoutEffect, useState } from 'react';
 import type { MaturityScaleSection } from '../../../api/types';
 import { ApiError } from '../../../api/types';
@@ -207,22 +207,18 @@ export function MaturityScaleSettings() {
               <div key={index} className="scale-section" style={{ width: `${width}%` }}>
                 {isEditing ? (
                   <div className="scale-section-edit">
-                    <input
-                      type="text"
-                      className={`section-name-input ${validationErrors[index]?.name ? 'input-error' : ''}`}
+                    <TextInput
+                      className="section-name-input"
                       value={section.name}
-                      onChange={(e) => handleNameChange(index, e.target.value)}
+                      onChange={(e) => handleNameChange(index, e.currentTarget.value)}
                       aria-label={`Section ${index + 1} name`}
                       maxLength={50}
+                      error={validationErrors[index]?.name}
+                      size="xs"
                     />
                     <div className="section-range">
                       {section.minValue}-{section.maxValue}
                     </div>
-                    {validationErrors[index]?.name && (
-                      <div className="validation-error" role="alert">
-                        {validationErrors[index].name}
-                      </div>
-                    )}
                   </div>
                 ) : (
                   <div className="scale-section-view">
@@ -245,15 +241,15 @@ export function MaturityScaleSettings() {
                 <div key={index} className="boundary-control-slot">
                   {!isLastSection && (
                     <div className="boundary-control">
-                      <label className="boundary-label">End of {section.name}:</label>
-                      <input
-                        type="number"
+                      <NumberInput
+                        label={`End of ${section.name}:`}
                         className="boundary-input"
                         min={section.minValue + 1}
                         max={sections[index + 1].maxValue - 1}
                         value={section.maxValue}
-                        onChange={(e) => handleBoundaryChange(index, parseInt(e.target.value) || section.maxValue)}
+                        onChange={(v) => handleBoundaryChange(index, typeof v === 'number' ? v : section.maxValue)}
                         aria-label={`End boundary for ${section.name}`}
+                        size="xs"
                       />
                       {validationErrors[index + 1]?.boundary && (
                         <div className="validation-error" role="alert">

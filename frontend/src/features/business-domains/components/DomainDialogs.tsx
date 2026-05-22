@@ -1,4 +1,4 @@
-import type { RefObject } from 'react';
+import { Modal } from '@mantine/core';
 import type { BusinessDomain } from '../../../api/types';
 import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
 import { DomainForm } from './DomainForm';
@@ -9,7 +9,6 @@ interface DomainDialogsProps {
   dialogMode: DialogMode;
   selectedDomain: BusinessDomain | null;
   domainToDelete: BusinessDomain | null;
-  dialogRef: RefObject<HTMLDialogElement | null>;
   onFormSubmit: (name: string, description: string, domainArchitectId?: string) => Promise<void>;
   onFormCancel: () => void;
   onConfirmDelete: () => Promise<void>;
@@ -20,7 +19,6 @@ export function DomainDialogs({
   dialogMode,
   selectedDomain,
   domainToDelete,
-  dialogRef,
   onFormSubmit,
   onFormCancel,
   onConfirmDelete,
@@ -28,17 +26,20 @@ export function DomainDialogs({
 }: DomainDialogsProps) {
   return (
     <>
-      <dialog ref={dialogRef} className="dialog" onClose={onFormCancel} data-testid="domain-dialog">
-        <div className="dialog-content">
-          <h2 className="dialog-title">{dialogMode === 'create' ? 'Create Domain' : 'Edit Domain'}</h2>
-          <DomainForm
-            mode={dialogMode || 'create'}
-            domain={selectedDomain || undefined}
-            onSubmit={onFormSubmit}
-            onCancel={onFormCancel}
-          />
-        </div>
-      </dialog>
+      <Modal
+        opened={dialogMode !== null}
+        onClose={onFormCancel}
+        title={dialogMode === 'create' ? 'Create Domain' : 'Edit Domain'}
+        centered
+        data-testid="domain-dialog"
+      >
+        <DomainForm
+          mode={dialogMode || 'create'}
+          domain={selectedDomain || undefined}
+          onSubmit={onFormSubmit}
+          onCancel={onFormCancel}
+        />
+      </Modal>
 
       {domainToDelete && (
         <ConfirmationDialog

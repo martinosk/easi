@@ -1,9 +1,18 @@
+import { Box } from '@mantine/core';
 import type { Capability, CapabilityId, CapabilityRealization, ComponentId } from '../../../../api/types';
 import type { Breakpoint } from '../../../../hooks/useResponsive';
 import { getResponsiveValue, RESPONSIVE_GRID_COLUMNS, RESPONSIVE_SPACING } from '../../../../hooks/useResponsive';
 import { ApplicationChipList } from '../ApplicationChipList';
 import type { DepthLevel } from '../DepthSelector';
-import { type CapabilityNode, LEVEL_COLORS, LEVEL_SIZES, levelToNumber } from './gridUtils';
+import classes from './CapabilityItem.module.css';
+import { type CapabilityNode, levelToNumber } from './gridUtils';
+
+const LEVEL_CLASS: Record<Capability['level'], string> = {
+  L1: classes.levelL1,
+  L2: classes.levelL2,
+  L3: classes.levelL3,
+  L4: classes.levelL4,
+};
 
 function getResponsiveGridColumns(level: Capability['level'], breakpoint: Breakpoint): string {
   const columns = RESPONSIVE_GRID_COLUMNS[level] || RESPONSIVE_GRID_COLUMNS.L3;
@@ -23,14 +32,6 @@ function getCapabilityRealizations(
   return getRealizationsForCapability(capabilityId);
 }
 
-function getSelectionStyles(isSelected: boolean): { border?: string; boxShadow?: string } {
-  if (!isSelected) return {};
-  return {
-    border: '3px solid #2563eb',
-    boxShadow: '0 0 0 3px rgba(37, 99, 235, 0.2)',
-  };
-}
-
 export interface CapabilityItemProps {
   node: CapabilityNode;
   depth: DepthLevel;
@@ -44,7 +45,7 @@ export interface CapabilityItemProps {
 }
 
 interface ChildrenGridProps {
-  children: CapabilityNode[];
+  nodes: CapabilityNode[];
   level: Capability['level'];
   depth: DepthLevel;
   onClick: (capability: Capability, event: React.MouseEvent) => void;
@@ -57,7 +58,7 @@ interface ChildrenGridProps {
 }
 
 function ChildrenGrid({
-  children,
+  nodes,
   level,
   depth,
   onClick,
@@ -72,16 +73,13 @@ function ChildrenGrid({
 
   return (
     <div
+      className={classes.childrenGrid}
       style={{
-        display: 'grid',
         gridTemplateColumns: getResponsiveGridColumns(level, breakpoint),
         gap: gridGap,
-        flex: 1,
-        minWidth: 0,
-        overflow: 'hidden',
       }}
     >
-      {children.map((child) => (
+      {nodes.map((child) => (
         <CapabilityItem
           key={child.capability.id}
           node={child}
@@ -96,6 +94,60 @@ function ChildrenGrid({
         />
       ))}
     </div>
+  );
+}
+
+function buildHandlers(
+  capability: Capability,
+  onClick: CapabilityItemProps['onClick'],
+  onContextMenu: CapabilityItemProps['onContextMenu'],
+) {
+  return {
+    onClick: (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onClick(capability, e);
+    },
+    onContextMenu: (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (capability.level === 'L1') {
+        onContextMenu?.(capability, e);
+      }
+    },
+  };
+}
+
+function tileClassName(level: Capability['level'], isSelected: boolean): string {
+  return [classes.tile, LEVEL_CLASS[level], isSelected ? classes.selected : ''].filter(Boolean).join(' ');
+}
+
+interface CapabilityItemBodyProps {
+  name: string;
+  hasContent: boolean;
+  realizations: CapabilityRealization[];
+  onApplicationClick?: (componentId: ComponentId) => void;
+  childrenSection: React.ReactNode;
+}
+
+function CapabilityItemBody({
+  name,
+  hasContent,
+  realizations,
+  onApplicationClick,
+  childrenSection,
+}: CapabilityItemBodyProps) {
+  return (
+    <>
+      <Box className={classes.title} mb={hasContent ? 'xs' : 0}>
+        {name}
+      </Box>
+      {realizations.length > 0 && onApplicationClick && (
+        <Box mb={childrenSection ? 'xs' : 0}>
+          <ApplicationChipList realizations={realizations} onApplicationClick={onApplicationClick} />
+        </Box>
+      )}
+      {childrenSection}
+    </>
   );
 }
 
@@ -114,63 +166,40 @@ export function CapabilityItem({
   const realizations = getCapabilityRealizations(showApplications, getRealizationsForCapability, capability.id);
   const visibleChildren = getVisibleChildren(children, depth);
   const hasContent = visibleChildren.length > 0 || realizations.length > 0;
-  const sizes = LEVEL_SIZES[capability.level];
   const isSelected = selectedCapabilities?.has(capability.id) ?? false;
-  const selectionStyles = getSelectionStyles(isSelected);
+  const handlers = buildHandlers(capability, onClick, onContextMenu);
 
-  const handleClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onClick(capability, e);
-  };
-
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (capability.level === 'L1') {
-      onContextMenu?.(capability, e);
-    }
-  };
-
-  const canShowRealizations = realizations.length > 0 && onApplicationClick;
+  const childrenSection =
+    visibleChildren.length > 0 ? (
+      <ChildrenGrid
+        nodes={visibleChildren}
+        level={capability.level}
+        depth={depth}
+        onClick={onClick}
+        onContextMenu={onContextMenu}
+        showApplications={showApplications}
+        getRealizationsForCapability={getRealizationsForCapability}
+        onApplicationClick={onApplicationClick}
+        selectedCapabilities={selectedCapabilities}
+        breakpoint={breakpoint}
+      />
+    ) : null;
 
   return (
-    <div
-      className={isSelected ? 'capability-item selected' : 'capability-item'}
+    <Box
+      className={tileClassName(capability.level, isSelected)}
       data-testid={`capability-${capability.id}`}
-      onClick={handleClick}
-      onContextMenu={handleContextMenu}
-      style={{
-        backgroundColor: LEVEL_COLORS[capability.level],
-        color: 'white',
-        padding: sizes.padding,
-        borderRadius: '0.5rem',
-        minHeight: sizes.minHeight,
-        cursor: 'pointer',
-        display: 'flex',
-        flexDirection: 'column',
-        ...selectionStyles,
-      }}
+      data-level={capability.level}
+      data-selected={isSelected || undefined}
+      {...handlers}
     >
-      <div style={{ fontWeight: 500, marginBottom: hasContent ? '0.5rem' : 0 }}>{capability.name}</div>
-      {canShowRealizations && (
-        <div style={{ marginBottom: visibleChildren.length > 0 ? '0.5rem' : 0 }}>
-          <ApplicationChipList realizations={realizations} onApplicationClick={onApplicationClick!} />
-        </div>
-      )}
-      {visibleChildren.length > 0 && (
-        <ChildrenGrid
-          children={visibleChildren}
-          level={capability.level}
-          depth={depth}
-          onClick={onClick}
-          onContextMenu={onContextMenu}
-          showApplications={showApplications}
-          getRealizationsForCapability={getRealizationsForCapability}
-          onApplicationClick={onApplicationClick}
-          selectedCapabilities={selectedCapabilities}
-          breakpoint={breakpoint}
-        />
-      )}
-    </div>
+      <CapabilityItemBody
+        name={capability.name}
+        hasContent={hasContent}
+        realizations={realizations}
+        onApplicationClick={onApplicationClick}
+        childrenSection={childrenSection}
+      />
+    </Box>
   );
 }

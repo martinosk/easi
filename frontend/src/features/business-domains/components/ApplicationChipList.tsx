@@ -1,3 +1,4 @@
+import { Group, Text } from '@mantine/core';
 import type { CapabilityRealization, ComponentId } from '../../../api/types';
 import { ApplicationChip } from './ApplicationChip';
 
@@ -17,29 +18,15 @@ export function ApplicationChipList({ realizations, onApplicationClick }: Applic
   }
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: '0.375rem',
-        alignItems: 'center',
-      }}
-    >
+    <Group gap={6} align="center" wrap="wrap">
       {visibleRealizations.map((realization) => (
         <ApplicationChip key={realization.id} realization={realization} onClick={onApplicationClick} />
       ))}
       {overflowCount > 0 && (
-        <span
-          style={{
-            fontSize: '0.75rem',
-            color: '#6b7280',
-            fontWeight: 500,
-            padding: '0.25rem',
-          }}
-        >
+        <Text size="xs" c="dimmed" fw={500}>
           +{overflowCount} more
-        </span>
+        </Text>
       )}
-    </div>
+    </Group>
   );
 }

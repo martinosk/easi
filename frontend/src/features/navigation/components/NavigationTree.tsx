@@ -1,3 +1,4 @@
+import { ActionIcon } from '@mantine/core';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ComponentId } from '../../../api/types';
 import { useAppStore } from '../../../store/appStore';
@@ -177,13 +178,14 @@ export const NavigationTree: React.FC<NavigationTreeProps> = (props) => {
       </div>
 
       {!tree.treeState.isOpen && (
-        <button
+        <ActionIcon
+          variant="default"
           className="tree-toggle-btn-collapsed"
           onClick={() => tree.treeState.setIsOpen(true)}
           aria-label="Open navigation"
         >
           ›
-        </button>
+        </ActionIcon>
       )}
 
       <NavigationTreeDialogs

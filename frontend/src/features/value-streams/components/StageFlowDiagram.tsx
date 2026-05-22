@@ -1,3 +1,4 @@
+import { ActionIcon } from '@mantine/core';
 import { useCallback, useState } from 'react';
 import type { StageCapabilityMapping, ValueStreamStage } from '../../../api/types';
 import { useRemoveStageCapability } from '../hooks/useValueStreamStages';
@@ -79,12 +80,14 @@ function StageConnector({ canWrite, position, onInsert, index }: StageConnectorP
     <div className="stage-connector-group">
       <div className="stage-connector" />
       {canWrite && (
-        <button
-          type="button"
+        <ActionIcon
+          variant="filled"
+          size="sm"
           className="stage-insert-btn"
           data-testid={`insert-stage-btn-${index}`}
           onClick={() => onInsert(position)}
           title="Insert stage here"
+          aria-label="Insert stage"
         >
           <svg viewBox="0 0 24 24" fill="none" width="14" height="14">
             <path
@@ -95,7 +98,7 @@ function StageConnector({ canWrite, position, onInsert, index }: StageConnectorP
               strokeLinejoin="round"
             />
           </svg>
-        </button>
+        </ActionIcon>
       )}
     </div>
   );

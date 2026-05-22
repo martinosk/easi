@@ -193,13 +193,15 @@ describe('DomainForm', () => {
       expect(submitButton.disabled).toBe(true);
     });
 
-    it('enables submit button when name is provided', () => {
+    it('enables submit button when name is provided', async () => {
       renderCreateForm();
 
       fireEvent.change(screen.getByTestId('domain-name-input'), { target: { value: 'Customer Experience' } });
 
-      const submitButton = screen.getByTestId('domain-form-submit') as HTMLButtonElement;
-      expect(submitButton.disabled).toBe(false);
+      await waitFor(() => {
+        const submitButton = screen.getByTestId('domain-form-submit') as HTMLButtonElement;
+        expect(submitButton.disabled).toBe(false);
+      });
     });
 
     it('displays backend error message', async () => {
@@ -223,7 +225,9 @@ describe('DomainForm', () => {
 
       fireEvent.change(screen.getByTestId('domain-name-input'), { target: { value: 'Valid Name' } });
 
-      expect(screen.queryByTestId('domain-name-error')).not.toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.queryByTestId('domain-name-error')).not.toBeInTheDocument();
+      });
     });
   });
 

@@ -1,4 +1,7 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import type { ReactElement } from 'react';
+import { fireEvent, screen } from '@testing-library/react';
+import { renderWithProviders } from '../../../test/helpers';
+const render = (ui: ReactElement) => renderWithProviders(ui, { withRouter: false });
 import { describe, expect, it, vi } from 'vitest';
 import type { DynamicFilters, UnexpandedByEdgeType } from '../utils/dynamicMode';
 import { ExpandPopover } from './ExpandPopover';

@@ -1,6 +1,14 @@
 import React from 'react';
+import { NativeSelect } from '@mantine/core';
 import { useCurrentView } from '../hooks/useCurrentView';
 import { useUpdateViewColorScheme } from '../hooks/useViews';
+
+const COLOR_SCHEME_OPTIONS = [
+  { value: 'maturity', label: 'Maturity' },
+  { value: 'classic', label: 'Classic' },
+  { value: 'custom', label: 'Custom' },
+];
+
 export const ColorSchemeSelector: React.FC = () => {
   const { currentView, currentViewId } = useCurrentView();
   const updateColorSchemeMutation = useUpdateViewColorScheme();
@@ -17,22 +25,15 @@ export const ColorSchemeSelector: React.FC = () => {
   };
 
   return (
-    <div className="color-scheme-selector">
-      <label htmlFor="color-scheme-select" className="selector-label">
-        Color Scheme
-      </label>
-      <select
-        id="color-scheme-select"
-        className="form-select form-select-small"
-        value={colorScheme}
-        onChange={handleChange}
-        aria-label="Select color scheme for canvas elements"
-        disabled={updateColorSchemeMutation.isPending}
-      >
-        <option value="maturity">Maturity</option>
-        <option value="classic">Classic</option>
-        <option value="custom">Custom</option>
-      </select>
-    </div>
+    <NativeSelect
+      id="color-scheme-select"
+      label="Color Scheme"
+      data={COLOR_SCHEME_OPTIONS}
+      value={colorScheme}
+      onChange={handleChange}
+      aria-label="Select color scheme for canvas elements"
+      disabled={updateColorSchemeMutation.isPending}
+      size="xs"
+    />
   );
 };

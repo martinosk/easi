@@ -1,3 +1,4 @@
+import { UnstyledButton } from '@mantine/core';
 import React from 'react';
 
 interface TreeItemProps<T> {
@@ -28,7 +29,9 @@ function TreeItem<T>({
   const className = `tree-item${isSelected ? ' selected' : ''}${!isInView ? ' not-in-view' : ''}`;
 
   return (
-    <button
+    <UnstyledButton
+      component="button"
+      type="button"
       className={className}
       onClick={onSelect}
       onContextMenu={onContextMenu}
@@ -45,7 +48,7 @@ function TreeItem<T>({
     >
       <span className="tree-item-icon">{icon}</span>
       <span className="tree-item-label">{label}</span>
-    </button>
+    </UnstyledButton>
   );
 }
 

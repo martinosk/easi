@@ -1,0 +1,73 @@
+/* Dockview Light Theme Overrides */
+
+.dockview-theme-light .dv-groupview-panel > div {
+  height: 100%;
+  width: 100%;
+}
+
+.dockview-theme-light {
+  --dv-group-view-background-color: white;
+  --dv-tabs-and-actions-container-background-color: var(--color-gray-100);
+  --dv-activegroup-visiblepanel-tab-background-color: white;
+  --dv-activegroup-hiddenpanel-tab-background-color: var(--color-gray-50);
+  --dv-inactivegroup-visiblepanel-tab-background-color: white;
+  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--color-gray-50);
+  --dv-tab-divider-color: var(--color-gray-200);
+  --dv-activegroup-visiblepanel-tab-color: var(--color-gray-900);
+  --dv-activegroup-hiddenpanel-tab-color: var(--color-gray-600);
+  --dv-inactivegroup-visiblepanel-tab-color: var(--color-gray-700);
+  --dv-inactivegroup-hiddenpanel-tab-color: var(--color-gray-500);
+  --dv-separator-border: var(--color-gray-200);
+  --dv-paneview-header-border-color: var(--color-gray-300);
+}
+
+.dockview-theme-light .dv-default-tab {
+  border-bottom: 2px solid transparent;
+}
+
+.dockview-theme-light .dv-default-tab.dv-active-tab {
+  border-bottom-color: var(--color-primary);
+}
+
+.dockview-theme-light .dv-groupview-panel {
+  background-color: white;
+}
+
+.dockview-theme-light .dv-tabs-container {
+  min-height: 32px;
+  align-items: center;
+}
+
+.dockview-theme-light .dv-default-tab {
+  padding: 4px 12px;
+  font-size: 13px;
+  cursor: grab;
+}
+
+.dockview-theme-light .dv-default-tab:active {
+  cursor: grabbing;
+}
+
+.dockview-theme-light .dv-tabs-container:has(.dv-default-tab:only-child) {
+  display: none;
+}
+
+.dockview-theme-light .navigation-tree-header {
+  display: none;
+}
+
+.dockview-theme-light .tree-toggle-btn-collapsed {
+  display: none;
+}
+
+.dockview-theme-light .navigation-tree {
+  width: 100% !important;
+}
+
+.dockview-theme-light .navigation-tree.closed {
+  width: 100% !important;
+}
+
+.dockview-theme-light .navigation-tree.closed .navigation-tree-content {
+  display: block;
+}

@@ -1,9 +1,9 @@
+import { Box, Button, ColorSwatch, Divider, Group, Paper, Stack, Text, Textarea, Title } from '@mantine/core';
 import React, { useMemo, useState } from 'react';
 import type { ApplicationFitScore, ComponentId, StrategyPillar } from '../../../api/types';
 import { useStrategyPillarsConfig } from '../../../hooks/useStrategyPillarsSettings';
 import { canCreate, canDelete, canEdit } from '../../../utils/hateoas';
 import { useComponentFitScores, useDeleteFitScore, useSetFitScore } from '../hooks/useFitScores';
-import './ComponentFitScores.css';
 
 interface ComponentFitScoresProps {
   componentId: ComponentId;
@@ -18,8 +18,6 @@ const SCORE_LABELS: Record<number, string> = {
   4: 'Good',
   5: 'Excellent',
 };
-// Note: Labels must match backend FitScore.GetLabel() for consistency.
-// Used only during editing; API response scoreLabel is authoritative for display.
 
 interface FitScoreRowProps {
   pillar: StrategyPillar;
@@ -58,40 +56,60 @@ const FitScoreEditForm: React.FC<FitScoreEditFormProps> = ({
   onCancel,
   isSaving,
 }) => (
-  <div className="fit-score-edit">
-    <div className="fit-score-selector">
+  <Stack gap="xs">
+    <Group gap="xs">
       {SCORE_RANGE.map((s) => (
-        <button
+        <Button
           key={s}
-          type="button"
-          className={`fit-score-btn ${editScore === s ? 'selected' : ''}`}
+          variant={editScore === s ? 'filled' : 'default'}
+          size="xs"
           onClick={() => onScoreChange(s)}
           disabled={isSaving}
           data-testid={`fit-score-btn-${s}`}
         >
           {s}
-        </button>
+        </Button>
       ))}
-    </div>
-    <span className="fit-score-label">{editScore ? SCORE_LABELS[editScore] : 'Select score'}</span>
-    <textarea
-      className="fit-score-rationale-input"
+    </Group>
+    <Text size="xs" c="dimmed">
+      {editScore ? SCORE_LABELS[editScore] : 'Select score'}
+    </Text>
+    <Textarea
       placeholder="Rationale (optional)"
       value={editRationale}
       onChange={(e) => onRationaleChange(e.target.value)}
       maxLength={2000}
       disabled={isSaving}
+      autosize
+      minRows={2}
       data-testid="fit-score-rationale-input"
     />
-    <div className="fit-score-edit-actions">
-      <button type="button" className="btn btn-secondary btn-small" onClick={onCancel} disabled={isSaving}>
+    <Group justify="flex-end" gap="xs">
+      <Button variant="default" size="xs" onClick={onCancel} disabled={isSaving}>
         Cancel
-      </button>
-      <button type="button" className="btn btn-primary btn-small" onClick={onSave} disabled={!editScore || isSaving}>
-        {isSaving ? 'Saving...' : 'Save'}
-      </button>
-    </div>
-  </div>
+      </Button>
+      <Button size="xs" onClick={onSave} disabled={!editScore || isSaving} loading={isSaving}>
+        Save
+      </Button>
+    </Group>
+  </Stack>
+);
+
+interface FitScoreDotsProps {
+  score: number;
+}
+
+const FitScoreDots: React.FC<FitScoreDotsProps> = ({ score }) => (
+  <Group gap="xs">
+    {SCORE_RANGE.map((s) => (
+      <ColorSwatch
+        key={s}
+        size="xs"
+        color={s <= score ? 'var(--mantine-color-blue-6)' : 'var(--mantine-color-gray-3)'}
+        withShadow={false}
+      />
+    ))}
+  </Group>
 );
 
 interface FitScoreDisplayProps {
@@ -112,47 +130,52 @@ const FitScoreDisplay: React.FC<FitScoreDisplayProps> = ({
   canDeleteScore,
   canAddScore,
   pillarName,
-}) => (
-  <div className="fit-score-display">
-    {score ? (
-      <>
-        <div className="fit-score-value">
-          <span className="fit-score-dots">
-            {SCORE_RANGE.map((s) => (
-              <span key={s} className={`fit-score-dot ${s <= score.score ? 'filled' : ''}`} />
-            ))}
-          </span>
-          <span className="fit-score-number">{score.score}/5</span>
-          <span className="fit-score-label">{score.scoreLabel}</span>
-        </div>
-        {score.rationale && <span className="fit-score-rationale">"{score.rationale}"</span>}
+}) => {
+  if (score) {
+    return (
+      <Stack gap="xs">
+        <Group gap="sm" wrap="wrap">
+          <FitScoreDots score={score.score} />
+          <Text size="sm" fw={600}>
+            {score.score}/5
+          </Text>
+          <Text size="xs" c="dimmed">
+            {score.scoreLabel}
+          </Text>
+        </Group>
+        {score.rationale && (
+          <Text size="xs" c="dimmed" fs="italic">
+            "{score.rationale}"
+          </Text>
+        )}
         {(canEditScore || canDeleteScore) && (
-          <div className="fit-score-actions">
+          <Group gap="sm">
             {canEditScore && (
-              <button type="button" className="btn btn-link btn-small" onClick={onEdit}>
+              <Button variant="subtle" size="compact-xs" onClick={onEdit}>
                 Edit
-              </button>
+              </Button>
             )}
             {canDeleteScore && (
-              <button type="button" className="btn btn-link btn-small btn-danger" onClick={onDelete}>
+              <Button variant="subtle" color="red" size="compact-xs" onClick={onDelete}>
                 Remove
-              </button>
+              </Button>
             )}
-          </div>
+          </Group>
         )}
-      </>
-    ) : canAddScore ? (
-      <button
-        type="button"
-        className="btn btn-link btn-small"
-        onClick={onEdit}
-        aria-label={`Add fit score for ${pillarName}`}
-      >
+      </Stack>
+    );
+  }
+
+  if (canAddScore) {
+    return (
+      <Button variant="subtle" size="compact-xs" onClick={onEdit} aria-label={`Add fit score for ${pillarName}`}>
         + Add Score
-      </button>
-    ) : null}
-  </div>
-);
+      </Button>
+    );
+  }
+
+  return null;
+};
 
 const FitScoreRow: React.FC<FitScoreRowProps> = ({
   pillar,
@@ -171,33 +194,41 @@ const FitScoreRow: React.FC<FitScoreRowProps> = ({
   canDeleteScore,
   canAddScore,
 }) => (
-  <div className="fit-score-row" data-testid={`fit-score-row-${pillar.id}`}>
-    <div className="fit-score-pillar">
-      <span className="fit-score-pillar-name">{pillar.name}</span>
-      {pillar.fitCriteria && <span className="fit-score-criteria">{pillar.fitCriteria}</span>}
-    </div>
-    {isEditing ? (
-      <FitScoreEditForm
-        editScore={editScore}
-        editRationale={editRationale}
-        onScoreChange={onScoreChange}
-        onRationaleChange={onRationaleChange}
-        onSave={onSave}
-        onCancel={onCancel}
-        isSaving={isSaving}
-      />
-    ) : (
-      <FitScoreDisplay
-        score={score}
-        onEdit={onEdit}
-        onDelete={onDelete}
-        canEditScore={canEditScore}
-        canDeleteScore={canDeleteScore}
-        canAddScore={canAddScore}
-        pillarName={pillar.name}
-      />
-    )}
-  </div>
+  <Paper withBorder p="sm" radius="sm" bg="gray.0" data-testid={`fit-score-row-${pillar.id}`}>
+    <Stack gap="xs">
+      <Box>
+        <Text size="sm" fw={500}>
+          {pillar.name}
+        </Text>
+        {pillar.fitCriteria && (
+          <Text size="xs" c="dimmed" fs="italic">
+            {pillar.fitCriteria}
+          </Text>
+        )}
+      </Box>
+      {isEditing ? (
+        <FitScoreEditForm
+          editScore={editScore}
+          editRationale={editRationale}
+          onScoreChange={onScoreChange}
+          onRationaleChange={onRationaleChange}
+          onSave={onSave}
+          onCancel={onCancel}
+          isSaving={isSaving}
+        />
+      ) : (
+        <FitScoreDisplay
+          score={score}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          canEditScore={canEditScore}
+          canDeleteScore={canDeleteScore}
+          canAddScore={canAddScore}
+          pillarName={pillar.name}
+        />
+      )}
+    </Stack>
+  </Paper>
 );
 
 export const ComponentFitScores: React.FC<ComponentFitScoresProps> = ({ componentId }) => {
@@ -271,10 +302,15 @@ export const ComponentFitScores: React.FC<ComponentFitScoresProps> = ({ componen
   }
 
   return (
-    <div className="component-fit-scores">
-      <h4 className="fit-scores-title">Strategic Fit Scores</h4>
-      <p className="fit-scores-description">Rate how well this application supports each strategic pillar</p>
-      <div className="fit-scores-list">
+    <Stack gap="xs" mt="xs">
+      <Divider />
+      <Title order={6} c="dimmed" tt="uppercase">
+        Strategic Fit Scores
+      </Title>
+      <Text size="xs" c="dimmed">
+        Rate how well this application supports each strategic pillar
+      </Text>
+      <Stack gap="xs">
         {enabledPillars.map((pillar) => {
           const score = getScoreForPillar(pillar.id);
           return (
@@ -298,8 +334,8 @@ export const ComponentFitScores: React.FC<ComponentFitScoresProps> = ({ componen
             />
           );
         })}
-      </div>
-    </div>
+      </Stack>
+    </Stack>
   );
 };
 

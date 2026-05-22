@@ -1,3 +1,4 @@
+import { Button, Stack, Text } from '@mantine/core';
 import { useEffect, useRef } from 'react';
 import type { ChatMessage as ChatMessageType } from '../api/types';
 import type { ToolCallState } from '../hooks/useChat';
@@ -12,21 +13,21 @@ const PROMPT_SUGGESTIONS = [
 
 function EmptyState({ onSuggestionClick }: { onSuggestionClick: (s: string) => void }) {
   return (
-    <div className="chat-empty-state">
-      <p className="chat-empty-title">How can I help with your architecture?</p>
-      <div className="chat-suggestions">
+    <Stack align="center" gap="lg" p="lg" className="chat-empty-state">
+      <Text fw={600}>How can I help with your architecture?</Text>
+      <Stack gap="sm" w="100%">
         {PROMPT_SUGGESTIONS.map((suggestion) => (
-          <button
+          <Button
             key={suggestion}
-            type="button"
-            className="chat-suggestion-btn"
+            variant="default"
+            justify="flex-start"
             onClick={() => onSuggestionClick(suggestion)}
           >
             {suggestion}
-          </button>
+          </Button>
         ))}
-      </div>
-    </div>
+      </Stack>
+    </Stack>
   );
 }
 

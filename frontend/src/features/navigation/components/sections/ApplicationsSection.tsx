@@ -1,3 +1,4 @@
+import { TextInput, UnstyledButton } from '@mantine/core';
 import React, { useMemo, useState } from 'react';
 import type { Component, View } from '../../../../api/types';
 import type { EditingState, TreeMultiSelectProps } from '../../types';
@@ -51,18 +52,18 @@ const EditingItem: React.FC<EditingItemProps> = ({
 }) => (
   <div key={component.id} className="tree-item-edit">
     <span className="tree-item-icon">📦</span>
-    <input
+    <TextInput
       ref={editInputRef}
-      type="text"
       className="tree-item-input"
       value={editingState.name}
-      onChange={(e) => setEditingState({ ...editingState, name: e.target.value })}
+      onChange={(e) => setEditingState({ ...editingState, name: e.currentTarget.value })}
       onBlur={onRenameSubmit}
       onKeyDown={(e) => {
         if (e.key === 'Enter') onRenameSubmit();
         else if (e.key === 'Escape') setEditingState(null);
       }}
-      autoFocus
+      size="xs"
+      data-autofocus
     />
   </div>
 );
@@ -88,7 +89,9 @@ const ComponentItem: React.FC<ComponentItemProps> = ({
   onContextMenu,
   onDragStart,
 }) => (
-  <button
+  <UnstyledButton
+    component="button"
+    type="button"
     className={`tree-item ${isSelected ? 'selected' : ''} ${!isInView ? 'not-in-view' : ''}`}
     onClick={onClick}
     onContextMenu={onContextMenu}
@@ -99,7 +102,7 @@ const ComponentItem: React.FC<ComponentItemProps> = ({
     <span className="tree-item-icon">📦</span>
     <span className="tree-item-label">{component.name}</span>
     {showColorIndicator && <ColorIndicator customColor={customColor} />}
-  </button>
+  </UnstyledButton>
 );
 
 function buildComponentColorMap(currentView: View | null): Map<string, { customColor?: string }> {

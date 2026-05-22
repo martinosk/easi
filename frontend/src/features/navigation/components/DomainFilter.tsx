@@ -1,4 +1,5 @@
-import React, { useMemo } from 'react';
+import { Chip, Group, UnstyledButton } from '@mantine/core';
+import React from 'react';
 import { UNASSIGNED_DOMAIN } from '../utils/filterByDomain';
 
 interface DomainFilterProps {
@@ -8,47 +9,36 @@ interface DomainFilterProps {
 }
 
 export const DomainFilter: React.FC<DomainFilterProps> = ({ domains, selectedDomainIds, onSelectionChange }) => {
-  const selectedSet = useMemo(() => new Set(selectedDomainIds), [selectedDomainIds]);
-
-  const handleToggle = (domainId: string) => {
-    if (selectedSet.has(domainId)) {
-      onSelectionChange(selectedDomainIds.filter((id) => id !== domainId));
-    } else {
-      onSelectionChange([...selectedDomainIds, domainId]);
-    }
-  };
-
-  const handleClear = () => {
-    onSelectionChange([]);
-  };
+  const handleClear = () => onSelectionChange([]);
 
   return (
     <div className="tree-filter">
       <div className="tree-filter-header">
         <span className="tree-filter-label">Assigned to domain</span>
         {selectedDomainIds.length > 0 && (
-          <button className="tree-filter-clear" onClick={handleClear} aria-label="Clear filter">
+          <UnstyledButton
+            component="button"
+            type="button"
+            className="tree-filter-clear"
+            onClick={handleClear}
+            aria-label="Clear filter"
+          >
             Clear
-          </button>
+          </UnstyledButton>
         )}
       </div>
-      <div className="tree-filter-options">
-        <button
-          className={`tree-filter-option ${selectedSet.has(UNASSIGNED_DOMAIN) ? 'selected' : ''}`}
-          onClick={() => handleToggle(UNASSIGNED_DOMAIN)}
-        >
-          Unassigned
-        </button>
-        {domains.map((domain) => (
-          <button
-            key={domain.id}
-            className={`tree-filter-option ${selectedSet.has(domain.id) ? 'selected' : ''}`}
-            onClick={() => handleToggle(domain.id)}
-          >
-            {domain.name}
-          </button>
-        ))}
-      </div>
+      <Chip.Group multiple value={selectedDomainIds} onChange={onSelectionChange}>
+        <Group gap={4}>
+          <Chip value={UNASSIGNED_DOMAIN} size="xs">
+            Unassigned
+          </Chip>
+          {domains.map((domain) => (
+            <Chip key={domain.id} value={domain.id} size="xs">
+              {domain.name}
+            </Chip>
+          ))}
+        </Group>
+      </Chip.Group>
     </div>
   );
 };

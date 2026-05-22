@@ -1,3 +1,5 @@
+import { NumberInput, Textarea } from '@mantine/core';
+
 interface AdvancedSettingsProps {
   maxTokens: number;
   onMaxTokensChange: (value: number) => void;
@@ -12,46 +14,44 @@ export function AdvancedSettings(props: AdvancedSettingsProps) {
     <div className="ai-config-advanced-section">
       <div className="ai-config-row">
         <div className="ai-config-field">
-          <label htmlFor="ai-max-tokens">Max Tokens</label>
-          <input
+          <NumberInput
             id="ai-max-tokens"
-            type="number"
+            label="Max Tokens"
             min={256}
             max={32768}
             value={props.maxTokens}
-            onChange={(e) => props.onMaxTokensChange(parseInt(e.target.value) || 4096)}
+            onChange={(v) => props.onMaxTokensChange(typeof v === 'number' ? v : 4096)}
+            description="256 - 32,768"
           />
-          <p className="ai-config-field-hint">256 - 32,768</p>
         </div>
 
         <div className="ai-config-field">
-          <label htmlFor="ai-temperature">Temperature</label>
-          <input
+          <NumberInput
             id="ai-temperature"
-            type="number"
+            label="Temperature"
             min={0}
             max={2}
             step={0.1}
+            decimalScale={1}
             value={props.temperature}
-            onChange={(e) => props.onTemperatureChange(parseFloat(e.target.value) || 0.3)}
+            onChange={(v) => props.onTemperatureChange(typeof v === 'number' ? v : 0.3)}
+            description="0.0 - 2.0 (lower = more deterministic)"
           />
-          <p className="ai-config-field-hint">0.0 - 2.0 (lower = more deterministic)</p>
         </div>
       </div>
 
       <div className="ai-config-field">
-        <label htmlFor="ai-system-prompt">System Prompt Override</label>
-        <textarea
+        <Textarea
           id="ai-system-prompt"
+          label="System Prompt Override"
           value={props.systemPromptOverride}
-          onChange={(e) => props.onSystemPromptOverrideChange(e.target.value)}
+          onChange={(e) => props.onSystemPromptOverrideChange(e.currentTarget.value)}
           placeholder="Provide additional organizational context..."
           maxLength={2000}
+          description="Provide additional organizational context. This is appended to the built-in system prompt as informational context."
+          autosize
+          minRows={3}
         />
-        <p className="ai-config-field-hint">
-          Provide additional organizational context. This is appended to the built-in system prompt as informational
-          context.
-        </p>
       </div>
     </div>
   );

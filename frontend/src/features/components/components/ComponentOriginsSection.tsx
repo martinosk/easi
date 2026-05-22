@@ -1,3 +1,4 @@
+import { Box, Divider, Group, Stack, Text } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import React from 'react';
 import { httpClient } from '../../../api/core/httpClient';
@@ -111,11 +112,11 @@ const getRelationshipTypeIcon = (type: OriginRelationshipType): string => {
 
 const getRelationshipTypeColor = (type: OriginRelationshipType): string => {
   const colors: Record<OriginRelationshipType, string> = {
-    AcquiredVia: '#8b5cf6',
-    PurchasedFrom: '#ec4899',
-    BuiltBy: '#14b8a6',
+    AcquiredVia: 'violet',
+    PurchasedFrom: 'pink',
+    BuiltBy: 'teal',
   };
-  return colors[type] || '#6b7280';
+  return colors[type] || 'gray';
 };
 
 export const ComponentOriginsSection: React.FC<ComponentOriginsSectionProps> = ({ componentId }) => {
@@ -128,7 +129,9 @@ export const ComponentOriginsSection: React.FC<ComponentOriginsSectionProps> = (
   if (isLoading) {
     return (
       <DetailField label="Origins">
-        <span className="detail-loading">Loading...</span>
+        <Text size="sm" c="dimmed">
+          Loading...
+        </Text>
       </DetailField>
     );
   }
@@ -139,34 +142,24 @@ export const ComponentOriginsSection: React.FC<ComponentOriginsSectionProps> = (
 
   return (
     <DetailField label="Origins">
-      <ul className="realization-list" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-        {origins.map((origin) => (
-          <li
-            key={origin.id}
-            className="realization-item"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 0',
-              borderBottom: '1px solid #e5e7eb',
-            }}
-          >
-            <span style={{ fontSize: '16px' }}>{getRelationshipTypeIcon(origin.relationshipType)}</span>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 500 }}>{origin.originEntityName}</div>
-              <div
-                style={{
-                  fontSize: '12px',
-                  color: getRelationshipTypeColor(origin.relationshipType),
-                }}
-              >
-                {getRelationshipTypeLabel(origin.relationshipType)}
-              </div>
-            </div>
-          </li>
+      <Stack gap={0}>
+        {origins.map((origin, index) => (
+          <React.Fragment key={origin.id}>
+            {index > 0 && <Divider />}
+            <Group gap="sm" py="xs" wrap="nowrap">
+              <Text size="md">{getRelationshipTypeIcon(origin.relationshipType)}</Text>
+              <Box flex={1}>
+                <Text size="sm" fw={500}>
+                  {origin.originEntityName}
+                </Text>
+                <Text size="xs" c={getRelationshipTypeColor(origin.relationshipType)}>
+                  {getRelationshipTypeLabel(origin.relationshipType)}
+                </Text>
+              </Box>
+            </Group>
+          </React.Fragment>
         ))}
-      </ul>
+      </Stack>
     </DetailField>
   );
 };

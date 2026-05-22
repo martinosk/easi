@@ -21,7 +21,21 @@
     "rules": {
       "recommended": true,
       "correctness": {
-        "useExhaustiveDependencies": "error"
+        "useExhaustiveDependencies": "error",
+        "noRestrictedElements": {
+          "level": "error",
+          "options": {
+            "elements": {
+              "button": "Use Mantine `Button` or `ActionIcon` instead. See spec 168.",
+              "input": "Use Mantine `TextInput` / `NumberInput` / `Checkbox` etc. instead. See spec 168.",
+              "select": "Use Mantine `Select` or `NativeSelect` instead. See spec 168.",
+              "textarea": "Use Mantine `Textarea` instead. See spec 168.",
+              "dialog": "Use Mantine `Modal` instead. See spec 168.",
+              "fieldset": "Use Mantine `Fieldset` instead. See spec 168.",
+              "legend": "Use Mantine layout (`Group`/`Stack`) + `Text` instead. See spec 168."
+            }
+          }
+        }
       },
       "suspicious": {
         "noExplicitAny": "warn"
@@ -43,5 +57,17 @@
       "semicolons": "always",
       "arrowParentheses": "always"
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["**/components/canvas/**", "**/features/canvas/**", "**/*.test.*", "**/test/**"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noRestrictedElements": "off"
+          }
+        }
+      }
+    }
+  ]
 }

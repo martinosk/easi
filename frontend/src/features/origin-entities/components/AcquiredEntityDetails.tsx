@@ -1,8 +1,10 @@
+import { Badge, Stack, Text, Title } from '@mantine/core';
 import React from 'react';
 import type { AcquiredEntity, OriginRelationship } from '../../../api/types';
 import { DetailField } from '../../../components/shared/DetailField';
 import { hasLink } from '../../../utils/hateoas';
 import { AuditHistorySection } from '../../audit';
+import { OriginEntityActions, OriginEntityRelationshipsList } from './OriginEntityPanelChrome';
 
 interface AcquiredEntityDetailsProps {
   entity: AcquiredEntity;
@@ -21,25 +23,17 @@ const formatDate = (dateString: string | undefined): string => {
   }
 };
 
-const getIntegrationStatusLabel = (status: string): string => {
-  const labels: Record<string, string> = {
-    NotStarted: 'Not Started',
-    InProgress: 'In Progress',
-    Completed: 'Completed',
-    OnHold: 'On Hold',
-  };
-  return labels[status] || status;
+type IntegrationStatusMeta = { label: string; color: string };
+
+const INTEGRATION_STATUS_META: Record<string, IntegrationStatusMeta> = {
+  NotStarted: { label: 'Not Started', color: 'gray' },
+  InProgress: { label: 'In Progress', color: 'yellow' },
+  Completed: { label: 'Completed', color: 'green' },
+  OnHold: { label: 'On Hold', color: 'red' },
 };
 
-const getIntegrationStatusColor = (status: string): string => {
-  const colors: Record<string, string> = {
-    NotStarted: '#6b7280',
-    InProgress: '#f59e0b',
-    Completed: '#10b981',
-    OnHold: '#ef4444',
-  };
-  return colors[status] || '#6b7280';
-};
+const getIntegrationStatusMeta = (status: string): IntegrationStatusMeta =>
+  INTEGRATION_STATUS_META[status] ?? { label: status, color: 'gray' };
 
 export const AcquiredEntityDetails: React.FC<AcquiredEntityDetailsProps> = ({
   entity,
@@ -50,77 +44,42 @@ export const AcquiredEntityDetails: React.FC<AcquiredEntityDetailsProps> = ({
 }) => {
   const canEdit = hasLink(entity, 'edit');
   const formattedCreatedAt = new Date(entity.createdAt).toLocaleString();
-  const showActionButtons = canEdit || canRemoveFromView;
+  const statusMeta = getIntegrationStatusMeta(entity.integrationStatus);
 
   return (
-    <div className="detail-panel">
-      <div className="detail-header">
-        <h3 className="detail-title">Acquired Entity Details</h3>
-      </div>
+    <Stack gap="sm" p="md">
+      <Title order={4}>Acquired Entity Details</Title>
 
-      <div className="detail-content">
-        {showActionButtons && (
-          <div className="detail-actions">
-            {canEdit && (
-              <button className="btn btn-secondary btn-small" onClick={onEdit}>
-                Edit
-              </button>
-            )}
-            {canRemoveFromView && (
-              <button className="btn btn-secondary btn-small" onClick={onRemoveFromView}>
-                Remove from View
-              </button>
-            )}
-          </div>
-        )}
+      <OriginEntityActions
+        canEdit={canEdit}
+        canRemoveFromView={canRemoveFromView}
+        onEdit={onEdit}
+        onRemoveFromView={onRemoveFromView}
+      />
 
-        <DetailField label="Name">{entity.name}</DetailField>
+      <DetailField label="Name">{entity.name}</DetailField>
 
-        <DetailField label="Acquisition Date">{formatDate(entity.acquisitionDate)}</DetailField>
+      <DetailField label="Acquisition Date">{formatDate(entity.acquisitionDate)}</DetailField>
 
-        <DetailField label="Integration Status">
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
-          >
-            <span
-              style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                backgroundColor: getIntegrationStatusColor(entity.integrationStatus),
-              }}
-            />
-            {getIntegrationStatusLabel(entity.integrationStatus)}
-          </span>
-        </DetailField>
+      <DetailField label="Integration Status">
+        <Badge color={statusMeta.color} variant="dot" size="sm">
+          {statusMeta.label}
+        </Badge>
+      </DetailField>
 
-        {entity.notes && <DetailField label="Notes">{entity.notes}</DetailField>}
+      {entity.notes && <DetailField label="Notes">{entity.notes}</DetailField>}
 
-        <DetailField label="Created">
-          <span className="detail-date">{formattedCreatedAt}</span>
-        </DetailField>
+      <DetailField label="Created">
+        <Text size="sm" c="dimmed">
+          {formattedCreatedAt}
+        </Text>
+      </DetailField>
 
-        <DetailField label="Type">Acquired Entity</DetailField>
+      <DetailField label="Type">Acquired Entity</DetailField>
 
-        {relationships.length > 0 && (
-          <DetailField label={`Applications (${relationships.length})`}>
-            <ul className="realization-list">
-              {relationships.map((rel) => (
-                <li key={rel.id} className="realization-item">
-                  <span className="realization-name">{rel.componentName}</span>
-                  <span className="realization-level">Acquired via</span>
-                </li>
-              ))}
-            </ul>
-          </DetailField>
-        )}
+      <OriginEntityRelationshipsList relationships={relationships} relationshipLabel="Acquired via" />
 
-        <AuditHistorySection aggregateId={entity.id} />
-      </div>
-    </div>
+      <AuditHistorySection aggregateId={entity.id} />
+    </Stack>
   );
 };
