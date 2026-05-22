@@ -1,3 +1,4 @@
+import { Stack, Text, Title } from '@mantine/core';
 import React from 'react';
 import { DetailField } from '../../../components/shared/DetailField';
 import type { RealizationData } from '../hooks/useRealizationDetails';
@@ -16,26 +17,26 @@ export const RealizationDetailsContent: React.FC<RealizationDetailsContentProps>
   const canEdit = !isInherited && realization._links?.edit !== undefined;
 
   return (
-    <div className="detail-panel">
-      <div className="detail-header">
-        <h3 className="detail-title">Realization Details</h3>
-      </div>
+    <Stack gap="sm" p="md">
+      <Title order={4}>Realization Details</Title>
 
-      <div className="detail-content">
-        <RealizationActions canEdit={canEdit} onEditClick={onEditClick} />
-        <DetailField label="Capability">{capability?.name || 'Unknown'}</DetailField>
-        <DetailField label="Application">{component?.name || 'Unknown'}</DetailField>
-        <RealizationLevelBadge level={realization.realizationLevel} />
-        <OriginBadge origin={realization.origin} isInherited={isInherited} />
-        {realization.notes && <DetailField label="Notes">{realization.notes}</DetailField>}
-        <DetailField label="Linked">
-          <span className="detail-date">{formattedDate}</span>
-        </DetailField>
-        <DetailField label="ID">
-          <span className="detail-id">{realization.id}</span>
-        </DetailField>
-        <InheritedRealizationInfo isInherited={isInherited} />
-      </div>
-    </div>
+      <RealizationActions canEdit={canEdit} onEditClick={onEditClick} />
+      <DetailField label="Capability">{capability?.name || 'Unknown'}</DetailField>
+      <DetailField label="Application">{component?.name || 'Unknown'}</DetailField>
+      <RealizationLevelBadge level={realization.realizationLevel} />
+      <OriginBadge origin={realization.origin} isInherited={isInherited} />
+      {realization.notes && <DetailField label="Notes">{realization.notes}</DetailField>}
+      <DetailField label="Linked">
+        <Text size="sm" c="dimmed">
+          {formattedDate}
+        </Text>
+      </DetailField>
+      <DetailField label="ID">
+        <Text size="xs" ff="monospace" c="gray.5" style={{ wordBreak: 'break-all' }}>
+          {realization.id}
+        </Text>
+      </DetailField>
+      <InheritedRealizationInfo isInherited={isInherited} />
+    </Stack>
   );
 };

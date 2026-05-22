@@ -1,3 +1,4 @@
+import { Badge } from '@mantine/core';
 import React from 'react';
 import { DetailField } from '../../../components/shared/DetailField';
 
@@ -8,6 +9,8 @@ interface OriginBadgeProps {
 
 export const OriginBadge: React.FC<OriginBadgeProps> = ({ origin, isInherited }) => (
   <DetailField label="Origin">
-    <span className={`origin-badge ${isInherited ? 'origin-inherited' : 'origin-direct'}`}>{origin}</span>
+    <Badge color={isInherited ? 'gray' : 'blue'} variant="light" size="sm">
+      {origin}
+    </Badge>
   </DetailField>
 );

@@ -1,3 +1,4 @@
+import { Button, Group, Stack, Text, Title } from '@mantine/core';
 import React from 'react';
 import type {
   AcquiredEntityId,
@@ -109,35 +110,38 @@ export const OriginRelationshipDetails: React.FC = () => {
   };
 
   return (
-    <div className="detail-panel">
-      <div className="detail-header">
-        <h3 className="detail-title">Origin Relationship</h3>
-      </div>
+    <Stack gap="sm" p="md">
+      <Title order={4}>Origin Relationship</Title>
 
-      <div className="detail-content">
-        {canDelete && (
-          <div className="detail-actions">
-            <button className="btn btn-danger btn-small" onClick={onDelete} disabled={isPending}>
-              {isPending ? 'Deleting...' : 'Delete'}
-            </button>
-          </div>
-        )}
+      {canDelete && (
+        <Group gap="sm">
+          <Button color="red" size="xs" onClick={onDelete} disabled={isPending}>
+            {isPending ? 'Deleting...' : 'Delete'}
+          </Button>
+        </Group>
+      )}
 
-        <DetailField label="Relationship Type">
-          <span className="origin-relationship-type">
-            {icon} {typeLabel}
-          </span>
-        </DetailField>
-        <DetailField label="Origin Entity">{relationship.originEntityName}</DetailField>
-        <DetailField label="Application">{relationship.componentName}</DetailField>
-        {relationship.notes && <DetailField label="Notes">{relationship.notes}</DetailField>}
-        <DetailField label="Created">
-          <span className="detail-date">{formattedDate}</span>
-        </DetailField>
-        <DetailField label="ID">
-          <span className="detail-id">{relationship.id}</span>
-        </DetailField>
-      </div>
-    </div>
+      <DetailField label="Relationship Type">
+        <Group gap="xs">
+          <Text component="span" aria-hidden>
+            {icon}
+          </Text>
+          <Text component="span">{typeLabel}</Text>
+        </Group>
+      </DetailField>
+      <DetailField label="Origin Entity">{relationship.originEntityName}</DetailField>
+      <DetailField label="Application">{relationship.componentName}</DetailField>
+      {relationship.notes && <DetailField label="Notes">{relationship.notes}</DetailField>}
+      <DetailField label="Created">
+        <Text size="sm" c="dimmed">
+          {formattedDate}
+        </Text>
+      </DetailField>
+      <DetailField label="ID">
+        <Text size="xs" ff="monospace" c="gray.5" style={{ wordBreak: 'break-all' }}>
+          {relationship.id}
+        </Text>
+      </DetailField>
+    </Stack>
   );
 };

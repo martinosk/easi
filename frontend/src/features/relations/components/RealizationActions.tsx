@@ -1,3 +1,4 @@
+import { Button, Group } from '@mantine/core';
 import React from 'react';
 
 interface RealizationActionsProps {
@@ -9,10 +10,10 @@ export const RealizationActions: React.FC<RealizationActionsProps> = ({ canEdit,
   if (!canEdit) return null;
 
   return (
-    <div className="detail-actions">
-      <button className="btn btn-secondary btn-small" onClick={onEditClick}>
+    <Group gap="sm">
+      <Button variant="default" size="xs" onClick={onEditClick}>
         Edit
-      </button>
-    </div>
+      </Button>
+    </Group>
   );
 };

@@ -1,5 +1,7 @@
+import { Anchor, Badge, Button, Group, Stack, Text, Title } from '@mantine/core';
 import React from 'react';
 import type { Component, Relation } from '../../../api/types';
+import { DetailField } from '../../../components/shared/DetailField';
 import { useAppStore } from '../../../store/appStore';
 import { AuditHistorySection } from '../../audit';
 import { useComponents } from '../../components/hooks/useComponents';
@@ -16,6 +18,11 @@ interface RelationData {
   referenceLink: string | undefined;
   formattedDate: string;
 }
+
+const RELATION_TYPE_COLOR: Record<Relation['relationType'], string> = {
+  Triggers: 'orange',
+  Serves: 'blue',
+};
 
 const useRelationData = (selectedEdgeId: string | null): RelationData | null => {
   const { data: relations = [] } = useRelations();
@@ -39,6 +46,42 @@ const useRelationData = (selectedEdgeId: string | null): RelationData | null => 
   return { relation, sourceComponent, targetComponent, referenceLink, formattedDate };
 };
 
+interface ReferenceLinkProps {
+  href: string | undefined;
+}
+
+const ReferenceLink: React.FC<ReferenceLinkProps> = ({ href }) => {
+  if (!href) return null;
+
+  return (
+    <Anchor href={href} target="_blank" rel="noopener noreferrer" size="sm">
+      <Group gap="xs">
+        <Text component="span" aria-hidden>
+          📚
+        </Text>
+        <Text component="span">Reference Documentation</Text>
+      </Group>
+    </Anchor>
+  );
+};
+
+interface EditActionProps {
+  canEdit: boolean;
+  onEdit: () => void;
+}
+
+const EditAction: React.FC<EditActionProps> = ({ canEdit, onEdit }) => {
+  if (!canEdit) return null;
+
+  return (
+    <Group gap="sm">
+      <Button variant="default" size="xs" onClick={onEdit}>
+        Edit
+      </Button>
+    </Group>
+  );
+};
+
 export const RelationDetails: React.FC<RelationDetailsProps> = ({ onEdit }) => {
   const selectedEdgeId = useAppStore((state) => state.selectedEdgeId);
 
@@ -52,74 +95,40 @@ export const RelationDetails: React.FC<RelationDetailsProps> = ({ onEdit }) => {
   const canEdit = relation._links?.edit !== undefined;
 
   return (
-    <div className="detail-panel">
-      <div className="detail-header">
-        <h3 className="detail-title">Relation Details</h3>
-      </div>
+    <Stack gap="sm" p="md">
+      <Title order={4}>Relation Details</Title>
 
-      <div className="detail-content">
-        {canEdit && (
-          <div className="detail-actions">
-            <button className="btn btn-secondary btn-small" onClick={onEdit}>
-              Edit
-            </button>
-          </div>
-        )}
+      <EditAction canEdit={canEdit} onEdit={onEdit} />
 
-        {relation.name && (
-          <div className="detail-field">
-            <label className="detail-label">Name</label>
-            <div className="detail-value">{relation.name}</div>
-          </div>
-        )}
+      {relation.name && <DetailField label="Name">{relation.name}</DetailField>}
 
-        <div className="detail-field">
-          <label className="detail-label">Type</label>
-          <div className="detail-value">
-            <span className={`relation-type-badge relation-type-${relation.relationType.toLowerCase()}`}>
-              {relation.relationType}
-            </span>
-          </div>
-        </div>
+      <DetailField label="Type">
+        <Badge color={RELATION_TYPE_COLOR[relation.relationType] ?? 'gray'} variant="light" size="sm">
+          {relation.relationType}
+        </Badge>
+      </DetailField>
 
-        <div className="detail-field">
-          <label className="detail-label">Source</label>
-          <div className="detail-value">{sourceComponent?.name || relation.sourceComponentId}</div>
-        </div>
+      <DetailField label="Source">{sourceComponent?.name || relation.sourceComponentId}</DetailField>
 
-        <div className="detail-field">
-          <label className="detail-label">Target</label>
-          <div className="detail-value">{targetComponent?.name || relation.targetComponentId}</div>
-        </div>
+      <DetailField label="Target">{targetComponent?.name || relation.targetComponentId}</DetailField>
 
-        {relation.description && (
-          <div className="detail-field">
-            <label className="detail-label">Description</label>
-            <div className="detail-value">{relation.description}</div>
-          </div>
-        )}
+      {relation.description && <DetailField label="Description">{relation.description}</DetailField>}
 
-        <div className="detail-field">
-          <label className="detail-label">Created</label>
-          <div className="detail-value detail-date">{formattedDate}</div>
-        </div>
+      <DetailField label="Created">
+        <Text size="sm" c="dimmed">
+          {formattedDate}
+        </Text>
+      </DetailField>
 
-        <div className="detail-field">
-          <label className="detail-label">ID</label>
-          <div className="detail-value detail-id">{relation.id}</div>
-        </div>
+      <DetailField label="ID">
+        <Text size="xs" ff="monospace" c="gray.5" style={{ wordBreak: 'break-all' }}>
+          {relation.id}
+        </Text>
+      </DetailField>
 
-        {referenceLink && (
-          <div className="detail-reference">
-            <a href={referenceLink} target="_blank" rel="noopener noreferrer" className="reference-link">
-              <span className="reference-icon">📚</span>
-              Reference Documentation
-            </a>
-          </div>
-        )}
+      <ReferenceLink href={referenceLink} />
 
-        <AuditHistorySection aggregateId={relation.id} />
-      </div>
-    </div>
+      <AuditHistorySection aggregateId={relation.id} />
+    </Stack>
   );
 };

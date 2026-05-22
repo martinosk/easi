@@ -207,8 +207,8 @@ Each slice is independently shippable, independently reviewable, and does not re
 
 ### Slice 5 — `origin-entities` and `relations` detail panels
 
-- The four `*Details.tsx` files in `origin-entities`, plus `OriginRelationshipDetails`, `RelationDetails`, `RealizationActions`.
-- Dialogs in these features are already Mantine; only the panels need migrating.
+- Migrated to Mantine: `AcquiredEntityDetails`, `InternalTeamDetails`, `VendorDetails`, `OriginRelationshipDetails`, `OriginEntityDetailsPanel` (loading/error states), `RelationDetails`, `RealizationDetailsContent`, `RealizationActions`, `RealizationLevelBadge`, `OriginBadge`, `InheritedRealizationInfo`. Shared chrome (`OriginEntityActions` + `OriginEntityRelationshipsList`) extracted to `origin-entities/components/OriginEntityPanelChrome.tsx` so the three origin-entity panels stop duplicating the action bar and applications list. Dialogs in both features were already Mantine and untouched.
+- `DetailField` shared primitive kept on its existing `.detail-*` classes for now — used by `components/`, `capabilities/`, and the migrated panels. Slice 6 / Slice 8 retires those rules. `.btn*`, `.detail-panel/header/title/content/actions/loading/error/info/date/id`, `.realization-list/item/name/level`, `.level-badge`, `.origin-badge/direct/inherited`, `.relation-type-*`, `.reference-link/icon`, `.origin-relationship-type` are now unused in these two features.
 
 ### Slice 6 — `components` and `capabilities` remaining detail surfaces
 
@@ -340,7 +340,7 @@ The current `shared/ConfirmationDialog` is the choke point that 14 features rout
 - [x] Slice 2 — `architecture-direction`
 - [x] Slice 3 — `enterprise-architecture`
 - [x] Slice 4 — `business-domains`
-- [ ] Slice 5 — `origin-entities` and `relations`
+- [x] Slice 5 — `origin-entities` and `relations`
 - [ ] Slice 6 — `components` and `capabilities`
 - [ ] Slice 7 — `invitations`, `users`, `importing`, `edit-grants`, `releases`, `auth`
 - [ ] Slice 8 — Sweep + lint enforcement

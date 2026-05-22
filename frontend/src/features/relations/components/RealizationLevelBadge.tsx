@@ -1,3 +1,4 @@
+import { Badge } from '@mantine/core';
 import React from 'react';
 import { DetailField } from '../../../components/shared/DetailField';
 
@@ -15,6 +16,8 @@ interface RealizationLevelBadgeProps {
 
 export const RealizationLevelBadge: React.FC<RealizationLevelBadgeProps> = ({ level }) => (
   <DetailField label="Realization Level">
-    <span className={`level-badge level-${level.toLowerCase()}`}>{getLevelDisplay(level)}</span>
+    <Badge color="gray" variant="filled" size="sm">
+      {getLevelDisplay(level)}
+    </Badge>
   </DetailField>
 );
