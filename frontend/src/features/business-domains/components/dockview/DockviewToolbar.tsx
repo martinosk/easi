@@ -1,3 +1,4 @@
+import { UnstyledButton } from '@mantine/core';
 import React from 'react';
 
 interface PanelVisibility {
@@ -49,7 +50,9 @@ export const DockviewToolbar: React.FC<DockviewToolbarProps> = ({ panelVisibilit
     <div className="toolbar">
       <div className="toolbar-left">
         <div className="toolbar-panel-toggles">
-          <button
+          <UnstyledButton
+            component="button"
+            type="button"
             className={`toolbar-panel-toggle ${panelVisibility.domains ? 'active' : ''}`}
             onClick={() => onTogglePanel('domains')}
             aria-label="Toggle Business Domains panel"
@@ -57,9 +60,11 @@ export const DockviewToolbar: React.FC<DockviewToolbarProps> = ({ panelVisibilit
           >
             <LeftPanelIcon />
             Domains
-          </button>
+          </UnstyledButton>
           {showExplorer && (
-            <button
+            <UnstyledButton
+              component="button"
+              type="button"
               className={`toolbar-panel-toggle ${panelVisibility.explorer ? 'active' : ''}`}
               onClick={() => onTogglePanel('explorer')}
               aria-label="Toggle Capability Explorer panel"
@@ -67,9 +72,11 @@ export const DockviewToolbar: React.FC<DockviewToolbarProps> = ({ panelVisibilit
             >
               <LeftPanelIcon />
               Explorer
-            </button>
+            </UnstyledButton>
           )}
-          <button
+          <UnstyledButton
+            component="button"
+            type="button"
             className={`toolbar-panel-toggle ${panelVisibility.details ? 'active' : ''}`}
             onClick={() => onTogglePanel('details')}
             aria-label="Toggle Details panel"
@@ -77,7 +84,7 @@ export const DockviewToolbar: React.FC<DockviewToolbarProps> = ({ panelVisibilit
           >
             Details
             <RightPanelIcon />
-          </button>
+          </UnstyledButton>
         </div>
       </div>
       <div className="toolbar-right" />

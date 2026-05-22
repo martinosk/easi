@@ -1,3 +1,4 @@
+import { Chip, Group, UnstyledButton } from '@mantine/core';
 import React, { useMemo } from 'react';
 import type { ArtifactCreator } from '../utils/filterByCreator';
 
@@ -27,41 +28,33 @@ export const CreatedByFilter: React.FC<CreatedByFilterProps> = ({
     });
   }, [artifactCreators, users]);
 
-  const selectedSet = useMemo(() => new Set(selectedCreatorIds), [selectedCreatorIds]);
-
-  const handleToggle = (creatorId: string) => {
-    if (selectedSet.has(creatorId)) {
-      onSelectionChange(selectedCreatorIds.filter((id) => id !== creatorId));
-    } else {
-      onSelectionChange([...selectedCreatorIds, creatorId]);
-    }
-  };
-
-  const handleClear = () => {
-    onSelectionChange([]);
-  };
+  const handleClear = () => onSelectionChange([]);
 
   return (
     <div className="tree-filter">
       <div className="tree-filter-header">
         <span className="tree-filter-label">Created by</span>
         {selectedCreatorIds.length > 0 && (
-          <button className="tree-filter-clear" onClick={handleClear} aria-label="Clear filter">
+          <UnstyledButton
+            component="button"
+            type="button"
+            className="tree-filter-clear"
+            onClick={handleClear}
+            aria-label="Clear filter"
+          >
             Clear
-          </button>
+          </UnstyledButton>
         )}
       </div>
-      <div className="tree-filter-options">
-        {creatorOptions.map((option) => (
-          <button
-            key={option.id}
-            className={`tree-filter-option ${selectedSet.has(option.id) ? 'selected' : ''}`}
-            onClick={() => handleToggle(option.id)}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
+      <Chip.Group multiple value={selectedCreatorIds} onChange={onSelectionChange}>
+        <Group gap={4}>
+          {creatorOptions.map((option) => (
+            <Chip key={option.id} value={option.id} size="xs">
+              {option.label}
+            </Chip>
+          ))}
+        </Group>
+      </Chip.Group>
     </div>
   );
 };

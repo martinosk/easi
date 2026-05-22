@@ -1,3 +1,4 @@
+import { Button } from '@mantine/core';
 import { useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { ValueStreamDetail } from '../../../api/types';
@@ -48,18 +49,25 @@ function DetailContent({ detail, canWrite }: DetailContentProps) {
   return (
     <div className="vsd-page" data-testid="value-stream-detail-page">
       <div className="vsd-header">
-        <button type="button" className="vsd-back-btn" onClick={() => navigate('/value-streams')}>
-          <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
-            <path
-              d="M19 12H5M12 19l-7-7 7-7"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+        <Button
+          variant="subtle"
+          size="sm"
+          className="vsd-back-btn"
+          onClick={() => navigate('/value-streams')}
+          leftSection={
+            <svg viewBox="0 0 24 24" fill="none" width="14" height="14" aria-hidden="true">
+              <path
+                d="M19 12H5M12 19l-7-7 7-7"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          }
+        >
           Back to Value Streams
-        </button>
+        </Button>
         <div className="vsd-header-content">
           <div>
             <h1 className="vsd-title">{detail.name}</h1>

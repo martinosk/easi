@@ -1,3 +1,4 @@
+import { TextInput, UnstyledButton } from '@mantine/core';
 import React, { useCallback, useMemo } from 'react';
 import type { View } from '../../../../api/types';
 import { useActiveUsers } from '../../../users/hooks/useUsers';
@@ -85,12 +86,11 @@ export const ViewsSection: React.FC<ViewsSectionProps> = ({
                 {isEditing ? (
                   <div className="tree-item-edit">
                     <span className="tree-item-icon">👁️</span>
-                    <input
+                    <TextInput
                       ref={editInputRef}
-                      type="text"
                       className="tree-item-input"
                       value={editingState.name}
-                      onChange={(e) => setEditingState({ ...editingState, name: e.target.value })}
+                      onChange={(e) => setEditingState({ ...editingState, name: e.currentTarget.value })}
                       onBlur={onRenameSubmit}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
@@ -99,11 +99,14 @@ export const ViewsSection: React.FC<ViewsSectionProps> = ({
                           setEditingState(null);
                         }
                       }}
-                      autoFocus
+                      size="xs"
+                      data-autofocus
                     />
                   </div>
                 ) : (
-                  <button
+                  <UnstyledButton
+                    component="button"
+                    type="button"
                     className={`tree-item ${isActive ? 'selected' : ''}`}
                     onClick={() => handleViewClick(view.id)}
                     onDoubleClick={() => {
@@ -120,7 +123,7 @@ export const ViewsSection: React.FC<ViewsSectionProps> = ({
                       {view.isPrivate && <span className="owner-badge"> ({getOwnerDisplayName(view)})</span>}
                       {view.isDefault && <span className="default-badge"> ⭐</span>}
                     </span>
-                  </button>
+                  </UnstyledButton>
                 )}
               </div>
             );

@@ -1,4 +1,4 @@
-import { Button } from '@mantine/core';
+import { Button, PasswordInput } from '@mantine/core';
 
 interface APIKeyFieldProps {
   apiKeyStatus: string | undefined;
@@ -31,12 +31,12 @@ export function APIKeyField({ apiKeyStatus, apiKey, onApiKeyChange, showInput, o
         API Key <span className="ai-config-required">*</span>
       </label>
       <div className="ai-config-api-key-row">
-        <input
+        <PasswordInput
           id="ai-api-key"
-          type="password"
           value={apiKey}
-          onChange={(e) => onApiKeyChange(e.target.value)}
+          onChange={(e) => onApiKeyChange(e.currentTarget.value)}
           placeholder="sk-..."
+          style={{ flex: 1 }}
         />
         {apiKeyStatus === 'configured' && (
           <Button

@@ -189,15 +189,17 @@ function EditFooter({ activeCount, disabled, isSaving, onAdd, onCancel, onSave }
   return (
     <>
       <div className="add-pillar-section">
-        <button
-          type="button"
+        <Button
+          variant="default"
           className="add-pillar-btn"
           onClick={onAdd}
           disabled={activeCount >= MAX_PILLARS}
           data-testid="add-pillar-btn"
+          fullWidth
+          styles={{ root: { borderStyle: 'dashed' } }}
         >
           + Add Pillar
-        </button>
+        </Button>
         <p className="max-pillars-notice">
           Maximum 20 pillars allowed. Currently {activeCount} of {MAX_PILLARS}.
         </p>

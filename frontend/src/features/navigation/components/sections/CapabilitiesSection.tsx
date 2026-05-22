@@ -1,3 +1,4 @@
+import { ActionIcon } from '@mantine/core';
 import React, { useMemo, useState } from 'react';
 import type { Capability, View, ViewCapability } from '../../../../api/types';
 import { deriveMaturityValue } from '../../../../constants/maturityColors';
@@ -38,9 +39,16 @@ const ExpandButton: React.FC<ExpandButtonProps> = ({ hasChildren, isExpanded, on
     return <span className="capability-expand-placeholder" />;
   }
   return (
-    <button className="capability-expand-btn" onClick={onClick}>
+    <ActionIcon
+      variant="subtle"
+      color="gray"
+      size="xs"
+      className="capability-expand-btn"
+      onClick={onClick}
+      aria-label={isExpanded ? 'Collapse' : 'Expand'}
+    >
       {isExpanded ? '\u25BC' : '\u25B6'}
-    </button>
+    </ActionIcon>
   );
 };
 

@@ -1,4 +1,4 @@
-import { Button } from '@mantine/core';
+import { Button, NativeSelect, TextInput, UnstyledButton } from '@mantine/core';
 import type { AIConfigurationResponse, LLMProvider, TestConnectionResponse } from '../../../api/assistant/types';
 import { useAIConfigForm } from '../hooks/useAIConfigForm';
 import { useAIConfiguration } from '../hooks/useAIConfiguration';
@@ -29,29 +29,28 @@ function AIConfigForm({ config }: { config: AIConfigurationResponse | undefined 
   return (
     <div className="ai-config-form">
       <div className="ai-config-field">
-        <label htmlFor="ai-provider">
-          Provider <span className="ai-config-required">*</span>
-        </label>
-        <select
+        <NativeSelect
           id="ai-provider"
+          label="Provider"
+          withAsterisk
+          data={[
+            { value: 'openai', label: 'OpenAI' },
+            { value: 'anthropic', label: 'Anthropic' },
+          ]}
           value={form.fields.provider}
-          onChange={(e) => form.updateField('provider', e.target.value as LLMProvider)}
-        >
-          <option value="openai">OpenAI</option>
-          <option value="anthropic">Anthropic</option>
-        </select>
+          onChange={(e) => form.updateField('provider', e.currentTarget.value as LLMProvider)}
+        />
       </div>
 
       <div className="ai-config-field">
-        <label htmlFor="ai-endpoint">Base URL override (optional)</label>
-        <input
+        <TextInput
           id="ai-endpoint"
-          type="text"
+          label="Base URL override (optional)"
           value={form.fields.endpoint}
-          onChange={(e) => form.updateField('endpoint', e.target.value)}
+          onChange={(e) => form.updateField('endpoint', e.currentTarget.value)}
           placeholder={PROVIDER_DEFAULTS[form.fields.provider]}
+          description="Leave empty to use the default provider endpoint"
         />
-        <p className="ai-config-field-hint">Leave empty to use the default provider endpoint</p>
       </div>
 
       <APIKeyField
@@ -63,25 +62,24 @@ function AIConfigForm({ config }: { config: AIConfigurationResponse | undefined 
       />
 
       <div className="ai-config-field">
-        <label htmlFor="ai-model">
-          Model <span className="ai-config-required">*</span>
-        </label>
-        <input
+        <TextInput
           id="ai-model"
-          type="text"
+          label="Model"
+          withAsterisk
           value={form.fields.model}
-          onChange={(e) => form.updateField('model', e.target.value)}
+          onChange={(e) => form.updateField('model', e.currentTarget.value)}
           placeholder={form.fields.provider === 'anthropic' ? 'claude-sonnet-4-5-20250929' : 'gpt-4o'}
         />
       </div>
 
-      <button
+      <UnstyledButton
+        component="button"
+        type="button"
         className="ai-config-advanced-toggle"
         onClick={() => form.advanced.setShowAdvanced(!form.advanced.showAdvanced)}
-        type="button"
       >
         {form.advanced.showAdvanced ? '\u25BC' : '\u25B6'} Advanced Settings
-      </button>
+      </UnstyledButton>
 
       {form.advanced.showAdvanced && (
         <AdvancedSettings

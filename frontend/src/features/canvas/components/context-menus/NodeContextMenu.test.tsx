@@ -1,5 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import type { ReactElement } from 'react';
+import { act, fireEvent, screen } from '@testing-library/react';
+import { renderWithProviders } from '../../../../test/helpers';
+const render = (ui: ReactElement) => renderWithProviders(ui, { withRouter: false });
 import { describe, expect, it, vi } from 'vitest';
 import type { HATEOASLinks, ViewId } from '../../../../api/types';
 import { useAppStore } from '../../../../store/appStore';

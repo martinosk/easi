@@ -1,3 +1,4 @@
+import { ActionIcon, Group } from '@mantine/core';
 import type { Conversation } from '../api/types';
 
 interface ConversationListProps {
@@ -35,18 +36,13 @@ export function ConversationList({
 }: ConversationListProps) {
   return (
     <div className="conversation-list">
-      <div className="conversation-list-header">
-        <button
-          type="button"
-          className="conversation-new-btn"
-          onClick={onNewConversation}
-          aria-label="New conversation"
-        >
+      <Group justify="flex-end" px="sm" py="xs" className="conversation-list-header">
+        <ActionIcon variant="default" onClick={onNewConversation} aria-label="New conversation" size="sm">
           <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
             <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
           </svg>
-        </button>
-      </div>
+        </ActionIcon>
+      </Group>
       {conversations.length === 0 ? (
         <div className="conversation-list-empty">No conversations yet</div>
       ) : (
@@ -66,8 +62,10 @@ export function ConversationList({
                 <span className="conversation-item-title">{conv.title}</span>
                 <span className="conversation-item-time">{formatRelativeTime(conv.createdAt)}</span>
               </div>
-              <button
-                type="button"
+              <ActionIcon
+                variant="subtle"
+                color="gray"
+                size="sm"
                 className="conversation-delete-btn"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -78,7 +76,7 @@ export function ConversationList({
                 <svg viewBox="0 0 24 24" fill="none" width="14" height="14">
                   <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                 </svg>
-              </button>
+              </ActionIcon>
             </div>
           ))}
         </div>

@@ -1,3 +1,4 @@
+import { TextInput, UnstyledButton } from '@mantine/core';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { HexColorPicker } from 'react-colorful';
 
@@ -86,7 +87,9 @@ export function ColorPicker({ color, onChange, disabled, disabledTooltip }: Colo
 
   return (
     <div ref={pickerRef} style={{ position: 'relative', display: 'inline-block' }}>
-      <button
+      <UnstyledButton
+        component="button"
+        type="button"
         data-testid="color-picker-button"
         onClick={handleButtonClick}
         disabled={disabled}
@@ -114,7 +117,7 @@ export function ColorPicker({ color, onChange, disabled, disabledTooltip }: Colo
           }}
         />
         <span>{displayColor}</span>
-      </button>
+      </UnstyledButton>
 
       {!disabled && (
         <div
@@ -134,19 +137,12 @@ export function ColorPicker({ color, onChange, disabled, disabledTooltip }: Colo
           }}
         >
           <HexColorPicker color={displayColor} onChange={handleColorChange} />
-          <input
+          <TextInput
             data-testid="color-picker-input"
-            type="text"
             value={displayColor}
             onChange={handleInputChange}
-            style={{
-              marginTop: '8px',
-              width: '100%',
-              padding: '4px 8px',
-              border: '1px solid #ccc',
-              borderRadius: '4px',
-              fontFamily: 'monospace',
-            }}
+            mt="xs"
+            styles={{ input: { fontFamily: 'monospace' } }}
           />
         </div>
       )}

@@ -1,3 +1,4 @@
+import { ActionIcon, TextInput } from '@mantine/core';
 import { useCallback, useMemo, useState } from 'react';
 import type { Capability } from '../../../api/types';
 import type { CapabilityTreeNode } from '../../business-domains/hooks/useCapabilityTree';
@@ -40,13 +41,13 @@ export function CapabilitySidebar({ mappedCapabilityIds, onDragCapability }: Cap
       <div className="cap-sidebar-header">
         <h3>Capabilities</h3>
       </div>
-      <input
-        type="text"
+      <TextInput
         className="cap-sidebar-filter"
         placeholder="Filter capabilities..."
         value={filter}
-        onChange={(e) => setFilter(e.target.value)}
+        onChange={(e) => setFilter(e.currentTarget.value)}
         data-testid="capability-filter"
+        size="xs"
       />
       <div className="cap-sidebar-tree">
         {filteredTree.length === 0 ? (
@@ -106,7 +107,7 @@ function TreeNodeItem({ node, isMapped, hasChildren, expanded, onToggle, onDragS
       data-testid={`cap-tree-${node.capability.id}`}
     >
       {hasChildren ? (
-        <button type="button" className="cap-tree-toggle" onClick={onToggle}>
+        <ActionIcon variant="subtle" color="gray" size="xs" className="cap-tree-toggle" onClick={onToggle} aria-label={expanded ? 'Collapse' : 'Expand'}>
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -122,7 +123,7 @@ function TreeNodeItem({ node, isMapped, hasChildren, expanded, onToggle, onDragS
               strokeLinejoin="round"
             />
           </svg>
-        </button>
+        </ActionIcon>
       ) : (
         <span className="cap-tree-toggle" />
       )}

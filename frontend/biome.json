@@ -23,7 +23,7 @@
       "correctness": {
         "useExhaustiveDependencies": "error",
         "noRestrictedElements": {
-          "level": "warn",
+          "level": "error",
           "options": {
             "elements": {
               "button": "Use Mantine `Button` or `ActionIcon` instead. See spec 168.",

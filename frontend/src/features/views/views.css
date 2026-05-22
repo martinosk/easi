@@ -71,24 +71,7 @@
 }
 
 .view-tab-close {
-  border: none;
-  background: transparent;
-  color: var(--color-gray-400);
-  cursor: pointer;
   padding: 0 var(--spacing-sm);
   font-size: 1.1rem;
-  line-height: 1;
-  border-radius: 4px;
-  transition: all 0.15s ease;
   align-self: stretch;
-}
-
-.view-tab-close:hover:not(:disabled) {
-  background: var(--color-gray-200);
-  color: var(--color-gray-900);
-}
-
-.view-tab-close:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
 }

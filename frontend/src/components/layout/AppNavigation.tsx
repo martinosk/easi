@@ -1,3 +1,4 @@
+import { UnstyledButton } from '@mantine/core';
 import { useNavigate } from 'react-router-dom';
 import logo from '../../assets/logo.svg';
 import { ROUTES } from '../../routes/routePaths';
@@ -64,8 +65,9 @@ function NavItems({ currentView, onNavigate }: { currentView: AppView; onNavigat
   return (
     <nav className="app-header-nav">
       {NAV_ENTRIES.filter((e) => !e.permission || hasPermission(e.permission)).map((entry) => (
-        <button
+        <UnstyledButton
           key={entry.view}
+          component="button"
           type="button"
           className={`app-header-nav-item ${currentView === entry.view ? 'app-header-nav-item-active' : ''}`}
           onClick={() => onNavigate(entry.view)}
@@ -73,7 +75,7 @@ function NavItems({ currentView, onNavigate }: { currentView: AppView; onNavigat
         >
           {entry.icon}
           {entry.label}
-        </button>
+        </UnstyledButton>
       ))}
     </nav>
   );
@@ -95,10 +97,16 @@ export function AppNavigation({ currentView, onOpenReleaseNotes, chatButton }: A
       <div className="app-header-actions">
         {chatButton}
         {onOpenReleaseNotes && (
-          <button type="button" className="app-header-action-btn" onClick={onOpenReleaseNotes} title="View release notes">
+          <UnstyledButton
+            component="button"
+            type="button"
+            className="app-header-action-btn"
+            onClick={onOpenReleaseNotes}
+            title="View release notes"
+          >
             {ReleaseNotesIcon}
             What's New
-          </button>
+          </UnstyledButton>
         )}
         <UserMenu />
       </div>

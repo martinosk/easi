@@ -1,3 +1,4 @@
+import { ActionIcon } from '@mantine/core';
 import React from 'react';
 import type { AcquiredEntity, Capability, Component, InternalTeam, Vendor, View } from '../../../api/types';
 import { useCurrentViewElementIds } from '../../views/hooks/useCurrentViewElementIds';
@@ -156,9 +157,9 @@ const OriginEntitySections: React.FC<OriginEntitySectionsProps> = ({
 const TreeHeader: React.FC<{ onClose: () => void }> = ({ onClose }) => (
   <div className="navigation-tree-header">
     <h3>Explorer</h3>
-    <button className="tree-toggle-btn" onClick={onClose} aria-label="Close navigation">
+    <ActionIcon variant="subtle" color="gray" onClick={onClose} aria-label="Close navigation">
       ‹
-    </button>
+    </ActionIcon>
   </div>
 );
 

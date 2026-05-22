@@ -1,3 +1,4 @@
+import { ActionIcon, Checkbox, Group, NativeSelect, TextInput } from '@mantine/core';
 import type { FitType, StrategyPillar } from '../../../api/types';
 import { HelpTooltip } from '../../../components/shared/HelpTooltip';
 import type { EditablePillar, ValidationErrors } from './pillarChanges';
@@ -119,26 +120,21 @@ function PillarEditRow({ pillar, index, validationError, canDelete, handlers }: 
   const disabled = pillar.markedForDeletion;
   return (
     <>
-      <input
-        type="text"
-        className={`pillar-name-input ${validationError ? 'input-error' : ''}`}
+      <TextInput
+        className="pillar-name-input"
         value={pillar.name}
-        onChange={(e) => handlers.onNameChange(index, e.target.value)}
+        onChange={(e) => handlers.onNameChange(index, e.currentTarget.value)}
         placeholder="Pillar name"
         data-testid={`pillar-name-input-${index}`}
         maxLength={100}
         disabled={disabled}
+        error={validationError}
+        fw={600}
       />
-      {validationError && (
-        <div className="validation-error" role="alert">
-          {validationError}
-        </div>
-      )}
-      <input
-        type="text"
+      <TextInput
         className="pillar-description-input"
         value={pillar.description}
-        onChange={(e) => handlers.onDescriptionChange(index, e.target.value)}
+        onChange={(e) => handlers.onDescriptionChange(index, e.currentTarget.value)}
         placeholder="Description (optional)"
         data-testid={`pillar-description-input-${index}`}
         maxLength={500}
@@ -163,51 +159,54 @@ interface FitConfigEditorProps {
   handlers: Pick<PillarHandlers, 'onFitScoringEnabledChange' | 'onFitCriteriaChange' | 'onFitTypeChange'>;
 }
 
+const FIT_TYPE_OPTIONS = [
+  { value: '', label: 'Select fit type' },
+  { value: 'TECHNICAL', label: 'Technical' },
+  { value: 'FUNCTIONAL', label: 'Functional' },
+];
+
 function FitConfigEditor({ pillar, index, disabled, handlers }: FitConfigEditorProps) {
   return (
     <div className="pillar-fit-config">
-      <label className="fit-scoring-toggle">
-        <input
-          type="checkbox"
+      <Group gap="xs" className="fit-scoring-toggle">
+        <Checkbox
           checked={pillar.fitScoringEnabled}
-          onChange={(e) => handlers.onFitScoringEnabledChange(index, e.target.checked)}
+          onChange={(e) => handlers.onFitScoringEnabledChange(index, e.currentTarget.checked)}
           disabled={disabled}
+          label="Enable fit scoring for realizations"
           data-testid={`pillar-fit-scoring-checkbox-${index}`}
         />
-        <span>Enable fit scoring for realizations</span>
         <HelpTooltip
           content="When enabled, realizations can be scored on how well they support this strategic pillar"
           iconOnly
         />
-      </label>
+      </Group>
       {pillar.fitScoringEnabled && (
         <>
-          <div className="fit-type-selector">
-            <label>Fit Type</label>
-            <select
+          <Group gap="xs" className="fit-type-selector">
+            <NativeSelect
+              label="Fit Type"
+              data={FIT_TYPE_OPTIONS}
               value={pillar.fitType}
-              onChange={(e) => handlers.onFitTypeChange(index, e.target.value as FitType)}
+              onChange={(e) => handlers.onFitTypeChange(index, e.currentTarget.value as FitType)}
               disabled={disabled}
               data-testid={`pillar-fit-type-select-${index}`}
-            >
-              <option value="">Select fit type</option>
-              <option value="TECHNICAL">Technical</option>
-              <option value="FUNCTIONAL">Functional</option>
-            </select>
+              size="xs"
+            />
             <HelpTooltip
               content="Technical fit measures how well the application supports technical aspects of this pillar. Functional fit measures business functionality alignment."
               iconOnly
             />
-          </div>
-          <input
-            type="text"
+          </Group>
+          <TextInput
             className="pillar-fit-criteria-input"
             value={pillar.fitCriteria}
-            onChange={(e) => handlers.onFitCriteriaChange(index, e.target.value)}
+            onChange={(e) => handlers.onFitCriteriaChange(index, e.currentTarget.value)}
             placeholder="Fit criteria (e.g., Reliability, uptime SLA, disaster recovery)"
             data-testid={`pillar-fit-criteria-input-${index}`}
             maxLength={500}
             disabled={disabled}
+            mt="xs"
           />
         </>
       )}
@@ -227,26 +226,26 @@ function PillarRowActions({ pillar, index, canDelete, onDelete, onRestore }: Pil
   return (
     <div className="pillar-actions">
       {pillar.markedForDeletion ? (
-        <button
-          type="button"
-          className="restore-pillar-btn"
+        <ActionIcon
+          variant="subtle"
+          color="green"
           onClick={() => onRestore(index)}
           aria-label={`Restore ${pillar.name}`}
           data-testid={`restore-pillar-btn-${index}`}
         >
-          &#8634;
-        </button>
+          ↺
+        </ActionIcon>
       ) : (
-        <button
-          type="button"
-          className="delete-pillar-btn"
+        <ActionIcon
+          variant="subtle"
+          color="red"
           onClick={() => onDelete(index)}
           disabled={!canDelete}
           aria-label={`Delete ${pillar.name}`}
           data-testid={`delete-pillar-btn-${index}`}
         >
-          &#128465;
-        </button>
+          🗑
+        </ActionIcon>
       )}
     </div>
   );

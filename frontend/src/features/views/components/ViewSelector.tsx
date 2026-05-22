@@ -1,3 +1,4 @@
+import { ActionIcon, UnstyledButton } from '@mantine/core';
 import React, { useCallback, useMemo, useState } from 'react';
 import type { View, ViewId } from '../../../api/types';
 import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
@@ -70,7 +71,8 @@ function ViewTab({ view, isActive, isOnlyTab, ownerLookup, onSelect, onRequestCl
 
   return (
     <div className={`view-tab ${isActive ? 'active' : ''}`}>
-      <button
+      <UnstyledButton
+        component="button"
         type="button"
         className="view-tab-body"
         onClick={() => onSelect(view.id)}
@@ -83,17 +85,23 @@ function ViewTab({ view, isActive, isOnlyTab, ownerLookup, onSelect, onRequestCl
           {view.isPrivate && ` (${ownerName})`}
         </span>
         {view.isDefault && <span className="default-indicator">⭐</span>}
-        {isDirty && <span className="view-tab-dirty" role="img" aria-label="Unsaved changes">●</span>}
-      </button>
-      <button
-        type="button"
+        {isDirty && (
+          <span className="view-tab-dirty" role="img" aria-label="Unsaved changes">
+            ●
+          </span>
+        )}
+      </UnstyledButton>
+      <ActionIcon
+        variant="subtle"
+        color="gray"
+        size="sm"
         className="view-tab-close"
         onClick={handleClose}
         disabled={isOnlyTab}
         aria-label={`Close ${view.name}`}
       >
         ×
-      </button>
+      </ActionIcon>
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { ActionIcon, Button, Indicator } from '@mantine/core';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { ArtifactCreator } from '../utils/filterByCreator';
 import { CreatedByFilter } from './CreatedByFilter';
@@ -33,6 +34,21 @@ function useClickOutside(ref: React.RefObject<HTMLDivElement | null>, isOpen: bo
   }, [isOpen, ref, onClose]);
 }
 
+const FILTER_ICON = (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+  </svg>
+);
+
 export const FilterPopover: React.FC<FilterPopoverProps> = ({
   artifactCreators,
   users,
@@ -54,37 +70,34 @@ export const FilterPopover: React.FC<FilterPopoverProps> = ({
 
   return (
     <div className="filter-popover" ref={popoverRef}>
-      <button
-        type="button"
-        className={`filter-popover-trigger ${hasActiveFilters ? 'active' : ''}`}
-        onClick={() => setIsOpen(!isOpen)}
-        aria-expanded={isOpen}
-        aria-haspopup="true"
-        aria-label="Toggle filters"
+      <Indicator
+        label={activeCount > 0 ? activeCount : undefined}
+        disabled={activeCount === 0}
+        size={16}
+        offset={2}
+        color="blue"
       >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+        <ActionIcon
+          variant={hasActiveFilters ? 'light' : 'subtle'}
+          color={hasActiveFilters ? 'blue' : 'gray'}
+          size="sm"
+          onClick={() => setIsOpen(!isOpen)}
+          aria-expanded={isOpen}
+          aria-haspopup="true"
+          aria-label="Toggle filters"
         >
-          <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-        </svg>
-        {activeCount > 0 && <span className="filter-popover-badge">{activeCount}</span>}
-      </button>
+          {FILTER_ICON}
+        </ActionIcon>
+      </Indicator>
 
       {isOpen && (
         <div className="filter-popover-panel">
           <div className="filter-popover-header">
             <span className="filter-popover-title">Filters</span>
             {hasActiveFilters && onClearAllFilters && (
-              <button className="tree-filter-clear" onClick={onClearAllFilters}>
+              <Button variant="subtle" size="compact-xs" onClick={onClearAllFilters}>
                 Clear all
-              </button>
+              </Button>
             )}
           </div>
           {onCreatorSelectionChange && (

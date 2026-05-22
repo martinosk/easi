@@ -1,3 +1,4 @@
+import { UnstyledButton } from '@mantine/core';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import './ContextMenu.css';
@@ -83,8 +84,9 @@ const Petal = ({
   onMouseEnter,
   onMouseLeave,
 }: PetalProps) => (
-  <button
+  <UnstyledButton
     ref={buttonRef}
+    component="button"
     type="button"
     role="menuitem"
     aria-label={item.ariaLabel ?? item.label}
@@ -103,7 +105,7 @@ const Petal = ({
   >
     <span className="ctx-menu__petal-icon">{item.icon ?? <DotIcon />}</span>
     <span className="ctx-menu__sr">{item.label}</span>
-  </button>
+  </UnstyledButton>
 );
 
 export const RadialContextMenu = ({ x, y, items, title, onClose }: RadialContextMenuProps) => {
