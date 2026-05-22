@@ -1,4 +1,4 @@
-import { Button } from '@mantine/core';
+import { Button, Loader } from '@mantine/core';
 import React from 'react';
 import { canEdit } from '../../../utils/hateoas';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
@@ -24,7 +24,7 @@ export const AutoLayoutButton: React.FC = () => {
   return (
     <Button
       variant="default"
-      leftSection={isLayouting ? <span className="spinner-small" aria-hidden="true" /> : <AutoLayoutIcon />}
+      leftSection={isLayouting ? <Loader size="xs" /> : <AutoLayoutIcon />}
       onClick={() => void applyAutoLayout()}
       disabled={isDisabled}
       aria-label="Auto layout canvas"

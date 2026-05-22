@@ -1,9 +1,13 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import type { ReactElement } from 'react';
+import { screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiClient } from '../../../api/client';
 import type { Release } from '../../../api/types';
 import { toReleaseVersion } from '../../../api/types';
+import { renderWithProviders } from '../../../test/helpers';
 import { ReleaseNotesBrowser } from './ReleaseNotesBrowser';
+
+const render = (ui: ReactElement) => renderWithProviders(ui, { withRouter: false });
 
 vi.mock('../../../api/client', () => ({
   apiClient: {
@@ -38,8 +42,6 @@ describe('ReleaseNotesBrowser', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    HTMLDialogElement.prototype.showModal = vi.fn();
-    HTMLDialogElement.prototype.close = vi.fn();
   });
 
   describe('Release Sorting and Selection', () => {
@@ -70,9 +72,7 @@ describe('ReleaseNotesBrowser', () => {
       render(<ReleaseNotesBrowser isOpen={true} onClose={mockOnClose} />);
 
       await waitFor(() => {
-        const releaseItems = screen
-          .getAllByRole('button', { hidden: true })
-          .filter((btn) => btn.classList.contains('release-browser-item'));
+        const releaseItems = screen.getAllByTestId('release-browser-item');
         expect(releaseItems[0]).toHaveTextContent('v0.20.10');
         expect(releaseItems[1]).toHaveTextContent('v0.20.3');
         expect(releaseItems[2]).toHaveTextContent('v0.20.2');

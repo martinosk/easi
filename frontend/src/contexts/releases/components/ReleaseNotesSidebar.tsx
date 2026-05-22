@@ -1,4 +1,5 @@
 import React from 'react';
+import { Badge, Group, Stack, Text, UnstyledButton } from '@mantine/core';
 import type { Release } from '../../../api/types';
 import { formatShortDate } from './releaseNotesUtils';
 
@@ -16,27 +17,43 @@ export const ReleaseNotesSidebar: React.FC<ReleaseNotesSidebarProps> = ({
   onSelectRelease,
 }) => {
   return (
-    <aside className="release-browser-sidebar">
-      <h3 className="release-browser-sidebar-title">Releases</h3>
-      <ul className="release-browser-list">
-        {releases.map((release) => (
-          <li key={release.version}>
-            <button
-              type="button"
-              className={`release-browser-item ${
-                selectedRelease?.version === release.version ? 'selected' : ''
-              } ${release.version === currentVersion ? 'current' : ''}`}
+    <Stack gap="xs" component="aside">
+      <Text fw={600} size="sm" px="sm">
+        Releases
+      </Text>
+      <Stack gap={2}>
+        {releases.map((release) => {
+          const isSelected = selectedRelease?.version === release.version;
+          const isCurrent = release.version === currentVersion;
+          return (
+            <UnstyledButton
+              key={release.version}
               onClick={() => onSelectRelease(release)}
+              data-testid="release-browser-item"
+              data-selected={isSelected || undefined}
+              data-current={isCurrent || undefined}
+              p="sm"
+              bg={isSelected ? 'blue.0' : undefined}
             >
-              <span className="release-browser-item-version">
-                v{release.version}
-                {release.version === currentVersion && <span className="release-browser-item-badge">current</span>}
-              </span>
-              <span className="release-browser-item-date">{formatShortDate(release.releaseDate)}</span>
-            </button>
-          </li>
-        ))}
-      </ul>
-    </aside>
+              <Stack gap={2}>
+                <Group gap="xs" wrap="nowrap">
+                  <Text size="sm" fw={isSelected ? 600 : 500}>
+                    v{release.version}
+                  </Text>
+                  {isCurrent && (
+                    <Badge size="xs" variant="light" color="blue">
+                      current
+                    </Badge>
+                  )}
+                </Group>
+                <Text size="xs" c="dimmed">
+                  {formatShortDate(release.releaseDate)}
+                </Text>
+              </Stack>
+            </UnstyledButton>
+          );
+        })}
+      </Stack>
+    </Stack>
   );
 };

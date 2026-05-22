@@ -1,0 +1,10 @@
+.canvas-toolbar {
+  position: absolute;
+  top: var(--spacing-md);
+  right: var(--spacing-md);
+  z-index: 6;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--spacing-sm);
+}

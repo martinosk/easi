@@ -1,4 +1,5 @@
 import React from 'react';
+import { Button, Center, Stack, Text, Title } from '@mantine/core';
 
 interface ErrorScreenProps {
   error: string;
@@ -14,12 +15,14 @@ export const ErrorScreen: React.FC<ErrorScreenProps> = ({
   title = 'Error Loading Data',
 }) => {
   return (
-    <div className="error-container">
-      <h2>{title}</h2>
-      <p>{error}</p>
-      <button className="btn btn-primary" onClick={onRetry}>
-        {retryLabel}
-      </button>
-    </div>
+    <Center mih="100vh" p="lg">
+      <Stack align="center" gap="lg">
+        <Title order={2} c="red">
+          {title}
+        </Title>
+        <Text c="dimmed">{error}</Text>
+        <Button onClick={onRetry}>{retryLabel}</Button>
+      </Stack>
+    </Center>
   );
 };

@@ -1,6 +1,7 @@
 import type { DockviewReadyEvent, IDockviewPanelHeaderProps, IDockviewPanelProps } from 'dockview';
 import { DockviewDefaultTab, DockviewReact, themeLight } from 'dockview';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import './dockview-overrides.css';
 import type { Capability } from '../../api/types';
 import { ComponentCanvas, type ComponentCanvasRef } from '../../features/canvas';
 import { CanvasLayoutProvider } from '../../features/canvas/context/CanvasLayoutContext';

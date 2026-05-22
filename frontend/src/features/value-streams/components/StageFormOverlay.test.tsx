@@ -1,6 +1,10 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import type { ReactElement } from 'react';
+import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { renderWithProviders } from '../../../test/helpers';
 import { StageFormOverlay } from './StageFormOverlay';
+
+const render = (ui: ReactElement) => renderWithProviders(ui, { withRouter: false });
 
 const defaultProps = {
   isEditing: false,

@@ -42,7 +42,7 @@ export function PillarsList({ pillars, isEditing, validationErrors, activeCount,
   if (pillars.length === 0 && !isEditing) {
     return (
       <div className="pillars-list">
-        <div className="empty-state" data-testid="empty-pillars-state">
+        <div className="pillars-empty-state" data-testid="empty-pillars-state">
           No strategy pillars configured yet. Click Edit to add pillars.
         </div>
       </div>

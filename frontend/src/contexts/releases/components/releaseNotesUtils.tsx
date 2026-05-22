@@ -7,17 +7,17 @@ export interface ParsedSection {
 
 export interface SectionStyle {
   icon: string;
-  className: string;
+  color: 'blue' | 'green' | 'grape' | 'orange' | 'gray';
 }
 
 const SECTION_STYLES: Record<string, SectionStyle> = {
-  major: { icon: '★', className: 'release-notes-section-major' },
-  feature: { icon: '★', className: 'release-notes-section-major' },
-  bug: { icon: '✓', className: 'release-notes-section-bugs' },
-  fix: { icon: '✓', className: 'release-notes-section-bugs' },
-  api: { icon: '⚡', className: 'release-notes-section-api' },
-  breaking: { icon: '⚠', className: 'release-notes-section-breaking' },
-  default: { icon: '•', className: '' },
+  major: { icon: '★', color: 'blue' },
+  feature: { icon: '★', color: 'blue' },
+  bug: { icon: '✓', color: 'green' },
+  fix: { icon: '✓', color: 'green' },
+  api: { icon: '⚡', color: 'grape' },
+  breaking: { icon: '⚠', color: 'orange' },
+  default: { icon: '•', color: 'gray' },
 };
 
 export function getSectionStyle(title: string): SectionStyle {
@@ -68,11 +68,7 @@ export function formatInlineMarkdown(text: string): React.ReactNode {
   while (remaining.length > 0) {
     const codeMatch = remaining.match(/^`([^`]+)`/);
     if (codeMatch) {
-      parts.push(
-        <code key={key++} className="release-notes-code">
-          {codeMatch[1]}
-        </code>,
-      );
+      parts.push(<code key={key++}>{codeMatch[1]}</code>);
       remaining = remaining.slice(codeMatch[0].length);
       continue;
     }

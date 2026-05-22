@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useMemo } from 'react';
+import { Button, Group, List, Modal, Paper, Stack, Text, Title } from '@mantine/core';
 import type { Release } from '../../../api/types';
 import { formatInlineMarkdown, formatReleaseDate, getSectionStyle, parseMarkdownSections } from './releaseNotesUtils';
 
@@ -9,88 +10,70 @@ interface ReleaseNotesOverlayProps {
 }
 
 export const ReleaseNotesOverlay: React.FC<ReleaseNotesOverlayProps> = ({ isOpen, release, onDismiss }) => {
-  const dialogRef = useRef<HTMLDialogElement>(null);
-
   const sections = useMemo(() => parseMarkdownSections(release.notes), [release.notes]);
-
   const formattedDate = useMemo(() => formatReleaseDate(release.releaseDate), [release.releaseDate]);
 
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
-    if (isOpen) {
-      dialog.showModal();
-    } else {
-      dialog.close();
-    }
-  }, [isOpen]);
-
-  const handleDialogClose = () => {
-    onDismiss('untilNext');
-  };
-
   return (
-    <dialog
-      ref={dialogRef}
-      className="dialog release-notes-dialog"
-      onClose={handleDialogClose}
+    <Modal
+      opened={isOpen}
+      onClose={() => onDismiss('untilNext')}
+      title={
+        <Stack gap={0}>
+          <Title order={3}>What's New in {release.version}</Title>
+          <Text size="sm" c="dimmed">
+            {formattedDate}
+          </Text>
+        </Stack>
+      }
+      size="lg"
+      centered
       data-testid="release-notes-overlay"
     >
-      <div className="dialog-content">
-        <div className="release-notes-header">
-          <h2 className="dialog-title">What's New in {release.version}</h2>
-          <span className="release-notes-date">{formattedDate}</span>
-        </div>
+      <Stack gap="md">
+        {sections.length > 0 ? (
+          sections.map((section) => {
+            const sectionStyle = getSectionStyle(section.title);
+            return (
+              <Paper
+                key={section.title}
+                p="md"
+                bg={`${sectionStyle.color}.0`}
+                style={{ borderLeft: `4px solid var(--mantine-color-${sectionStyle.color}-6)` }}
+              >
+                <Title order={4} mb="sm">
+                  <Text component="span" data-testid="release-notes-section-icon" mr="xs">
+                    {sectionStyle.icon}
+                  </Text>
+                  {section.title}
+                </Title>
+                <List size="sm" spacing="xs">
+                  {section.items.map((item) => (
+                    <List.Item key={item}>{formatInlineMarkdown(item)}</List.Item>
+                  ))}
+                </List>
+              </Paper>
+            );
+          })
+        ) : (
+          <Stack gap={0}>
+            {release.notes.split('\n').map((line, index) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: release notes are immutable, line order is stable
+              <Text key={index} size="sm">
+                {formatInlineMarkdown(line) || ' '}
+              </Text>
+            ))}
+          </Stack>
+        )}
 
-        <div className="release-notes-body">
-          {sections.length > 0 ? (
-            sections.map((section, index) => {
-              const sectionStyle = getSectionStyle(section.title);
-              return (
-                <div key={index} className={`release-notes-section ${sectionStyle.className}`}>
-                  <h3 className="release-notes-section-title">
-                    <span className="release-notes-section-icon">{sectionStyle.icon}</span>
-                    {section.title}
-                  </h3>
-                  <ul className="release-notes-list">
-                    {section.items.map((item, itemIndex) => (
-                      <li key={itemIndex} className="release-notes-item">
-                        {formatInlineMarkdown(item)}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              );
-            })
-          ) : (
-            <div className="release-notes-raw">
-              {release.notes.split('\n').map((line, index) => (
-                <p key={index}>{formatInlineMarkdown(line) || '\u00A0'}</p>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="dialog-actions release-notes-actions">
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => onDismiss('forever')}
-            data-testid="release-notes-hide-forever"
-          >
+        <Group justify="flex-end" gap="sm">
+          <Button variant="default" onClick={() => onDismiss('forever')} data-testid="release-notes-hide-forever">
             Don't show again
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => onDismiss('untilNext')}
-            data-testid="release-notes-dismiss"
-          >
+          </Button>
+          <Button onClick={() => onDismiss('untilNext')} data-testid="release-notes-dismiss">
             Got it
-          </button>
-        </div>
-      </div>
-    </dialog>
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
   );
 };

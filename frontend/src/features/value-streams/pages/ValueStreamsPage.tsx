@@ -1,10 +1,27 @@
 import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  Alert,
+  Badge,
+  Box,
+  Button,
+  Card,
+  Center,
+  Container,
+  Group,
+  Loader,
+  Modal,
+  Stack,
+  Text,
+  Textarea,
+  TextInput,
+  Title,
+} from '@mantine/core';
 import type { HATEOASLinks, ValueStream } from '../../../api/types';
 import { useUserStore } from '../../../store/userStore';
 import { hasLink } from '../../../utils/hateoas';
 import { useValueStreams } from '../hooks/useValueStreams';
-import './ValueStreamsPage.css';
+import classes from './ValueStreamsPage.module.css';
 
 interface ValueStreamFormData {
   name: string;
@@ -13,7 +30,8 @@ interface ValueStreamFormData {
 
 const EMPTY_FORM: ValueStreamFormData = { name: '', description: '' };
 
-interface ValueStreamFormOverlayProps {
+interface ValueStreamFormModalProps {
+  isOpen: boolean;
   isEditing: boolean;
   formData: ValueStreamFormData;
   onFormDataChange: (data: ValueStreamFormData) => void;
@@ -21,77 +39,83 @@ interface ValueStreamFormOverlayProps {
   onCancel: () => void;
 }
 
-function ValueStreamFormOverlay({
+function ValueStreamFormModal({
+  isOpen,
   isEditing,
   formData,
   onFormDataChange,
   onSubmit,
   onCancel,
-}: ValueStreamFormOverlayProps) {
+}: ValueStreamFormModalProps) {
   return (
-    <div className="vs-form-overlay" data-testid="value-stream-form">
-      <div className="vs-form">
-        <h3>{isEditing ? 'Edit Value Stream' : 'Create Value Stream'}</h3>
-        <div className="vs-form-field">
-          <label htmlFor="vs-name">Name</label>
-          <input
-            id="vs-name"
-            type="text"
-            value={formData.name}
-            onChange={(e) => onFormDataChange({ ...formData, name: e.target.value })}
-            placeholder="e.g. Customer Onboarding"
-            maxLength={100}
-            autoFocus
-          />
-        </div>
-        <div className="vs-form-field">
-          <label htmlFor="vs-description">Description</label>
-          <textarea
-            id="vs-description"
-            value={formData.description}
-            onChange={(e) => onFormDataChange({ ...formData, description: e.target.value })}
-            placeholder="Optional description..."
-            maxLength={500}
-            rows={3}
-          />
-        </div>
-        <div className="vs-form-actions">
-          <button type="button" className="btn btn-secondary" onClick={onCancel}>
+    <Modal
+      opened={isOpen}
+      onClose={onCancel}
+      title={isEditing ? 'Edit Value Stream' : 'Create Value Stream'}
+      centered
+      data-testid="value-stream-form"
+    >
+      <Stack gap="md">
+        <TextInput
+          id="vs-name"
+          label="Name"
+          value={formData.name}
+          onChange={(e) => onFormDataChange({ ...formData, name: e.currentTarget.value })}
+          placeholder="e.g. Customer Onboarding"
+          maxLength={100}
+          data-autofocus
+        />
+        <Textarea
+          id="vs-description"
+          label="Description"
+          value={formData.description}
+          onChange={(e) => onFormDataChange({ ...formData, description: e.currentTarget.value })}
+          placeholder="Optional description..."
+          maxLength={500}
+          rows={3}
+        />
+        <Group justify="flex-end" gap="sm">
+          <Button variant="default" onClick={onCancel}>
             Cancel
-          </button>
-          <button type="button" className="btn btn-primary" onClick={onSubmit} disabled={!formData.name.trim()}>
+          </Button>
+          <Button onClick={onSubmit} disabled={!formData.name.trim()}>
             {isEditing ? 'Save' : 'Create'}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
   );
 }
 
-interface DeleteConfirmOverlayProps {
-  streamName: string;
+interface DeleteConfirmModalProps {
+  streamName: string | null;
   onConfirm: () => void;
   onCancel: () => void;
 }
 
-function DeleteConfirmOverlay({ streamName, onConfirm, onCancel }: DeleteConfirmOverlayProps) {
+function DeleteConfirmModal({ streamName, onConfirm, onCancel }: DeleteConfirmModalProps) {
   return (
-    <div className="vs-form-overlay" data-testid="delete-confirmation">
-      <div className="vs-form">
-        <h3>Delete Value Stream</h3>
-        <p className="vs-delete-warning">
+    <Modal
+      opened={streamName !== null}
+      onClose={onCancel}
+      title="Delete Value Stream"
+      centered
+      data-testid="delete-confirmation"
+    >
+      <Stack gap="md">
+        <Text size="sm">
           Are you sure you want to delete &ldquo;{streamName}&rdquo;? This will also remove all its stages and mappings.
-        </p>
-        <div className="vs-form-actions">
-          <button type="button" className="btn btn-secondary" onClick={onCancel}>
+        </Text>
+        <Group justify="flex-end" gap="sm">
+          <Button variant="default" onClick={onCancel}>
             Cancel
-          </button>
-          <button type="button" className="btn btn-danger" onClick={onConfirm}>
+          </Button>
+          <Button color="red" onClick={onConfirm}>
             Delete
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
   );
 }
 
@@ -105,53 +129,88 @@ interface ValueStreamCardProps {
 }
 
 function ValueStreamCard({ stream, canWrite, canDelete, onNavigate, onEdit, onDelete }: ValueStreamCardProps) {
+  const showEdit = canWrite && hasLink(stream, 'edit');
+  const showDelete = canDelete && hasLink(stream, 'delete');
+
   return (
-    <div
-      className="vs-card vs-card-clickable"
+    <Card
+      withBorder
+      radius="md"
+      padding="lg"
       data-testid={`value-stream-${stream.id}`}
       onClick={() => onNavigate(stream.id)}
+      onKeyDown={(e) => e.key === 'Enter' && onNavigate(stream.id)}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => e.key === 'Enter' && onNavigate(stream.id)}
+      className={classes.card}
     >
-      <div>
-        <div className="vs-card-name">{stream.name}</div>
-        {stream.description && <div className="vs-card-description">{stream.description}</div>}
-        <div className="vs-card-meta">
-          <span>{stream.stageCount} stages</span>
-          <span>Created {new Date(stream.createdAt).toLocaleDateString()}</span>
-        </div>
-      </div>
-      <div className="vs-card-actions">
-        {canWrite && hasLink(stream, 'edit') && (
-          <button
-            type="button"
-            className="btn-small"
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(stream);
-            }}
-            data-testid={`edit-${stream.id}`}
-          >
-            Edit
-          </button>
-        )}
-        {canDelete && hasLink(stream, 'delete') && (
-          <button
-            type="button"
-            className="btn-small btn-danger"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(stream);
-            }}
-            data-testid={`delete-${stream.id}`}
-          >
-            Delete
-          </button>
-        )}
-      </div>
-    </div>
+      <Group justify="space-between" align="flex-start" wrap="nowrap">
+        <Box style={{ minWidth: 0, flex: 1 }}>
+          <Text size="lg" fw={600}>
+            {stream.name}
+          </Text>
+          {stream.description && (
+            <Text size="sm" c="dimmed" mt="xs">
+              {stream.description}
+            </Text>
+          )}
+          <Group gap="lg" mt="sm">
+            <Text size="xs" c="dimmed">
+              {stream.stageCount} stages
+            </Text>
+            <Text size="xs" c="dimmed">
+              Created {new Date(stream.createdAt).toLocaleDateString()}
+            </Text>
+          </Group>
+        </Box>
+        <Group gap="xs" wrap="nowrap">
+          {showEdit && (
+            <Button
+              size="xs"
+              variant="default"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(stream);
+              }}
+              data-testid={`edit-${stream.id}`}
+            >
+              Edit
+            </Button>
+          )}
+          {showDelete && (
+            <Button
+              size="xs"
+              variant="default"
+              color="red"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(stream);
+              }}
+              data-testid={`delete-${stream.id}`}
+            >
+              Delete
+            </Button>
+          )}
+        </Group>
+      </Group>
+    </Card>
   );
+}
+
+interface SubmitFormArgs {
+  editingStream: ValueStream | null;
+  createFn: (name: string, description?: string) => Promise<unknown>;
+  updateFn: (stream: ValueStream, name: string, description?: string) => Promise<unknown>;
+  name: string;
+  desc: string | undefined;
+}
+
+async function submitForm({ editingStream, createFn, updateFn, name, desc }: SubmitFormArgs) {
+  if (editingStream) {
+    await updateFn(editingStream, name, desc);
+  } else {
+    await createFn(name, desc);
+  }
 }
 
 function useValueStreamFormState(
@@ -167,13 +226,9 @@ function useValueStreamFormState(
   const handleSubmit = useCallback(async () => {
     if (!formData.name.trim()) return;
     const desc = formData.description || undefined;
-    if (editingStream) {
-      await updateFn(editingStream, formData.name, desc);
-      setEditingStream(null);
-    } else {
-      await createFn(formData.name, desc);
-      setShowCreateForm(false);
-    }
+    await submitForm({ editingStream, createFn, updateFn, name: formData.name, desc });
+    setEditingStream(null);
+    setShowCreateForm(false);
     setFormData(EMPTY_FORM);
   }, [createFn, updateFn, editingStream, formData]);
 
@@ -218,6 +273,78 @@ function checkCanCreate(canWrite: boolean, collectionLinks: HATEOASLinks | undef
   return canWrite && !!collectionLinks && hasLink({ _links: collectionLinks }, 'create');
 }
 
+const PLUS_ICON = (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const STREAM_ICON = (
+  <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path
+      d="M22 12H18L15 21L9 3L6 12H2"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+interface EmptyStateProps {
+  canCreate: boolean;
+  onCreate: () => void;
+}
+
+function EmptyState({ canCreate, onCreate }: EmptyStateProps) {
+  return (
+    <Card withBorder padding="xl" radius="md" data-testid="empty-state">
+      <Stack align="center" gap="md">
+        <Box c="gray.4">{STREAM_ICON}</Box>
+        <Title order={3}>No value streams yet</Title>
+        <Text size="sm" c="dimmed" ta="center" maw={400}>
+          Value streams model how your organization delivers value end-to-end. Create your first value stream to get
+          started.
+        </Text>
+        {canCreate && <Button onClick={onCreate}>Create your first value stream</Button>}
+      </Stack>
+    </Card>
+  );
+}
+
+function PageShell({ children }: { children: React.ReactNode }) {
+  return (
+    <Box className={classes.page}>
+      <Container size="xl" py="xl">
+        {children}
+      </Container>
+    </Box>
+  );
+}
+
+function LoadingPage() {
+  return (
+    <PageShell>
+      <Center py="xl">
+        <Group gap="sm">
+          <Loader size="sm" />
+          <Text c="dimmed">Loading value streams...</Text>
+        </Group>
+      </Center>
+    </PageShell>
+  );
+}
+
+function ErrorPage({ message }: { message: string }) {
+  return (
+    <PageShell>
+      <Alert color="red" variant="light">
+        Failed to load value streams: {message}
+      </Alert>
+    </PageShell>
+  );
+}
+
 export function ValueStreamsPage() {
   const { valueStreams, isLoading, error, createValueStream, updateValueStream, deleteValueStream, collectionLinks } =
     useValueStreams();
@@ -229,100 +356,50 @@ export function ValueStreamsPage() {
 
   const form = useValueStreamFormState(createValueStream, updateValueStream, deleteValueStream);
 
-  if (isLoading) {
-    return (
-      <div className="vs-page">
-        <div className="vs-container">
-          <div className="vs-loading">Loading value streams...</div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="vs-page">
-        <div className="vs-container">
-          <div className="vs-error">Failed to load value streams: {error.message}</div>
-        </div>
-      </div>
-    );
-  }
+  if (isLoading) return <LoadingPage />;
+  if (error) return <ErrorPage message={error.message} />;
 
   return (
-    <div className="vs-page" data-testid="value-streams-page">
-      <div className="vs-container">
-        <div className="vs-header">
-          <div>
-            <h1 className="vs-title">
-              Value Streams
-              <span className="vs-count">{valueStreams.length}</span>
-            </h1>
-            <p className="vs-subtitle">Model how your organization delivers value end-to-end.</p>
-          </div>
+    <Box className={classes.page} data-testid="value-streams-page">
+      <Container size="xl" py="xl">
+        <Group justify="space-between" align="flex-start" mb="xl">
+          <Box>
+            <Group gap="sm" align="center">
+              <Title order={1}>Value Streams</Title>
+              <Badge size="lg" variant="light" color="gray">
+                {valueStreams.length}
+              </Badge>
+            </Group>
+            <Text c="dimmed" mt="xs">
+              Model how your organization delivers value end-to-end.
+            </Text>
+          </Box>
           {canCreate && (
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={form.openCreateForm}
-              data-testid="create-value-stream-btn"
-            >
-              <svg className="btn-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M12 5V19M5 12H19"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+            <Button onClick={form.openCreateForm} leftSection={PLUS_ICON} data-testid="create-value-stream-btn">
               Create Value Stream
-            </button>
+            </Button>
           )}
-        </div>
+        </Group>
 
-        {form.isFormOpen && (
-          <ValueStreamFormOverlay
-            isEditing={form.isEditing}
-            formData={form.formData}
-            onFormDataChange={form.setFormData}
-            onSubmit={form.handleSubmit}
-            onCancel={form.closeForm}
-          />
-        )}
+        <ValueStreamFormModal
+          isOpen={form.isFormOpen}
+          isEditing={form.isEditing}
+          formData={form.formData}
+          onFormDataChange={form.setFormData}
+          onSubmit={form.handleSubmit}
+          onCancel={form.closeForm}
+        />
 
-        {form.deletingStream && (
-          <DeleteConfirmOverlay
-            streamName={form.deletingStream.name}
-            onConfirm={form.handleDelete}
-            onCancel={() => form.setDeletingStream(null)}
-          />
-        )}
+        <DeleteConfirmModal
+          streamName={form.deletingStream?.name ?? null}
+          onConfirm={form.handleDelete}
+          onCancel={() => form.setDeletingStream(null)}
+        />
 
         {valueStreams.length === 0 ? (
-          <div className="vs-empty" data-testid="empty-state">
-            <svg className="vs-empty-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path
-                d="M22 12H18L15 21L9 3L6 12H2"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            <h3>No value streams yet</h3>
-            <p>
-              Value streams model how your organization delivers value end-to-end. Create your first value stream to get
-              started.
-            </p>
-            {canCreate && (
-              <button type="button" className="btn btn-primary" onClick={form.openCreateForm}>
-                Create your first value stream
-              </button>
-            )}
-          </div>
+          <EmptyState canCreate={canCreate} onCreate={form.openCreateForm} />
         ) : (
-          <div className="vs-list" data-testid="value-streams-list">
+          <Stack gap="md" data-testid="value-streams-list">
             {valueStreams.map((stream) => (
               <ValueStreamCard
                 key={stream.id}
@@ -334,9 +411,9 @@ export function ValueStreamsPage() {
                 onDelete={form.setDeletingStream}
               />
             ))}
-          </div>
+          </Stack>
         )}
-      </div>
-    </div>
+      </Container>
+    </Box>
   );
 }

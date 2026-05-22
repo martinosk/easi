@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 
-import { MantineProvider } from '@mantine/core';
+import { Button, Center, Group, MantineProvider, Stack, Text, Title } from '@mantine/core';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { StrictMode, useEffect } from 'react';
@@ -23,33 +23,26 @@ const basename = import.meta.env.BASE_URL.replace(/\/$/, '') || '';
 
 function RootErrorFallback({ error, onReset }: { error: Error; onReset: () => void }) {
   return (
-    <div className="error-boundary-fallback" style={{ minHeight: '100vh' }}>
-      <div className="error-boundary-content">
-        <svg className="error-boundary-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path
-            d="M12 9V13M12 17H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-        <h3 className="error-boundary-title">Application Error</h3>
-        <p className="error-boundary-message">{error.message}</p>
-        <div className="error-boundary-actions">
-          <button type="button" className="error-boundary-button" onClick={onReset}>
-            Try again
-          </button>
-          <button
-            type="button"
-            className="error-boundary-button error-boundary-button-secondary"
-            onClick={() => (window.location.href = basename + '/')}
-          >
-            Go to home
-          </button>
-        </div>
-      </div>
-    </div>
+    <MantineProvider theme={theme} defaultColorScheme="light">
+      <Center mih="100vh" p="lg">
+        <Stack align="center" gap="md" maw={520}>
+          <Title order={3} c="red">
+            Application Error
+          </Title>
+          <Text size="sm" c="dimmed" ta="center">
+            {error.message}
+          </Text>
+          <Group gap="sm">
+            <Button onClick={onReset} color="red">
+              Try again
+            </Button>
+            <Button variant="default" onClick={() => (window.location.href = `${basename}/`)}>
+              Go to home
+            </Button>
+          </Group>
+        </Stack>
+      </Center>
+    </MantineProvider>
   );
 }
 

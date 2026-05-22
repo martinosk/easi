@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { Box, Center, List, Paper, Stack, Text, Title } from '@mantine/core';
 import type { Release } from '../../../api/types';
 import { formatInlineMarkdown, formatReleaseDate, getSectionStyle, parseMarkdownSections } from './releaseNotesUtils';
 
@@ -14,47 +15,57 @@ export const ReleaseNotesContent: React.FC<ReleaseNotesContentProps> = ({ select
 
   if (!selectedRelease) {
     return (
-      <div className="release-browser-empty">
-        <p>No release selected</p>
-      </div>
+      <Center py="xl">
+        <Text c="dimmed">No release selected</Text>
+      </Center>
     );
   }
 
   return (
-    <>
-      <div className="release-browser-main-header">
-        <h3 className="release-browser-main-title">Version {selectedRelease.version}</h3>
-        <span className="release-browser-main-date">{formatReleaseDate(selectedRelease.releaseDate)}</span>
-      </div>
+    <Stack gap="md">
+      <Box>
+        <Title order={3}>Version {selectedRelease.version}</Title>
+        <Text size="sm" c="dimmed">
+          {formatReleaseDate(selectedRelease.releaseDate)}
+        </Text>
+      </Box>
 
-      <div className="release-browser-notes">
-        {sections.length > 0 ? (
-          sections.map((section, index) => {
+      {sections.length > 0 ? (
+        <Stack gap="md">
+          {sections.map((section) => {
             const sectionStyle = getSectionStyle(section.title);
             return (
-              <div key={index} className={`release-notes-section ${sectionStyle.className}`}>
-                <h4 className="release-notes-section-title">
-                  <span className="release-notes-section-icon">{sectionStyle.icon}</span>
+              <Paper
+                key={section.title}
+                p="md"
+                bg={`${sectionStyle.color}.0`}
+                style={{ borderLeft: `4px solid var(--mantine-color-${sectionStyle.color}-6)` }}
+              >
+                <Title order={4} mb="sm">
+                  <Text component="span" data-testid="release-notes-section-icon" mr="xs">
+                    {sectionStyle.icon}
+                  </Text>
                   {section.title}
-                </h4>
-                <ul className="release-notes-list">
-                  {section.items.map((item, itemIndex) => (
-                    <li key={itemIndex} className="release-notes-item">
-                      {formatInlineMarkdown(item)}
-                    </li>
+                </Title>
+                <List size="sm" spacing="xs">
+                  {section.items.map((item) => (
+                    <List.Item key={item}>{formatInlineMarkdown(item)}</List.Item>
                   ))}
-                </ul>
-              </div>
+                </List>
+              </Paper>
             );
-          })
-        ) : (
-          <div className="release-notes-raw">
-            {selectedRelease.notes.split('\n').map((line, index) => (
-              <p key={index}>{formatInlineMarkdown(line) || '\u00A0'}</p>
-            ))}
-          </div>
-        )}
-      </div>
-    </>
+          })}
+        </Stack>
+      ) : (
+        <Stack gap={0}>
+          {selectedRelease.notes.split('\n').map((line, index) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: release notes are immutable, line order is stable
+            <Text key={index} size="sm">
+              {formatInlineMarkdown(line) || ' '}
+            </Text>
+          ))}
+        </Stack>
+      )}
+    </Stack>
   );
 };
