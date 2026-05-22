@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { renderWithProviders } from '../../../test/helpers/renderWithProviders';
 import { LoginPage } from './LoginPage';
 
 const mockInitiateLogin = vi.fn();
@@ -15,12 +15,16 @@ vi.mock('../../../api', () => ({
   resetLoginRedirectFlag: vi.fn(),
 }));
 
-function renderLoginPage(initialRoute = '/login') {
-  return render(
-    <MemoryRouter initialEntries={[initialRoute]}>
-      <LoginPage />
-    </MemoryRouter>,
-  );
+function mockAuthorize(url: string) {
+  mockInitiateLogin.mockResolvedValue({ _links: { authorize: url } });
+}
+
+function submitLogin({ email = 'user@example.com', route = '/login' }: { email?: string; route?: string } = {}) {
+  renderWithProviders(<LoginPage />, { routerProps: { initialEntries: [route] } });
+  if (email) {
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: email } });
+  }
+  fireEvent.click(screen.getByRole('button', { name: /continue/i }));
 }
 
 describe('LoginPage', () => {
@@ -31,63 +35,36 @@ describe('LoginPage', () => {
   });
 
   describe('returnUrl parameter handling', () => {
-    it('should pass returnUrl to initiateLogin when present', async () => {
-      mockInitiateLogin.mockResolvedValue({
-        _links: { authorize: 'https://idp.example.com/authorize' },
-      });
+    it.each([
+      {
+        description: 'passes returnUrl to initiateLogin when present',
+        route: '/login?returnUrl=https%3A%2F%2Fapp.example.com%2Fdashboard',
+        expectedReturnUrl: 'https://app.example.com/dashboard',
+      },
+      {
+        description: 'does NOT double-decode returnUrl (security)',
+        route: '/login?returnUrl=https%253A%252F%252Fevil.com',
+        expectedReturnUrl: 'https%3A%2F%2Fevil.com',
+      },
+      {
+        description: 'calls initiateLogin without returnUrl when not present',
+        route: '/login',
+        expectedReturnUrl: undefined,
+      },
+    ])('$description', async ({ route, expectedReturnUrl }) => {
+      mockAuthorize('https://idp.example.com/authorize');
 
-      renderLoginPage('/login?returnUrl=https%3A%2F%2Fapp.example.com%2Fdashboard');
-
-      fireEvent.change(screen.getByLabelText(/email/i), {
-        target: { value: 'user@example.com' },
-      });
-      fireEvent.click(screen.getByRole('button', { name: /continue/i }));
-
-      await waitFor(() => {
-        expect(mockInitiateLogin).toHaveBeenCalledWith('user@example.com', 'https://app.example.com/dashboard');
-      });
-    });
-
-    it('should NOT double-decode returnUrl (security)', async () => {
-      mockInitiateLogin.mockResolvedValue({
-        _links: { authorize: 'https://idp.example.com/authorize' },
-      });
-
-      renderLoginPage('/login?returnUrl=https%253A%252F%252Fevil.com');
-
-      fireEvent.change(screen.getByLabelText(/email/i), {
-        target: { value: 'user@example.com' },
-      });
-      fireEvent.click(screen.getByRole('button', { name: /continue/i }));
+      submitLogin({ route });
 
       await waitFor(() => {
-        expect(mockInitiateLogin).toHaveBeenCalledWith('user@example.com', 'https%3A%2F%2Fevil.com');
-      });
-    });
-
-    it('should call initiateLogin without returnUrl when not present', async () => {
-      mockInitiateLogin.mockResolvedValue({
-        _links: { authorize: 'https://idp.example.com/authorize' },
-      });
-
-      renderLoginPage('/login');
-
-      fireEvent.change(screen.getByLabelText(/email/i), {
-        target: { value: 'user@example.com' },
-      });
-      fireEvent.click(screen.getByRole('button', { name: /continue/i }));
-
-      await waitFor(() => {
-        expect(mockInitiateLogin).toHaveBeenCalledWith('user@example.com', undefined);
+        expect(mockInitiateLogin).toHaveBeenCalledWith('user@example.com', expectedReturnUrl);
       });
     });
   });
 
   describe('form validation', () => {
-    it('should show error when email is empty', async () => {
-      renderLoginPage();
-
-      fireEvent.click(screen.getByRole('button', { name: /continue/i }));
+    it('shows error when email is empty', async () => {
+      submitLogin({ email: '' });
 
       expect(await screen.findByText('Email is required')).toBeInTheDocument();
       expect(mockInitiateLogin).not.toHaveBeenCalled();
@@ -95,76 +72,45 @@ describe('LoginPage', () => {
   });
 
   describe('authorize URL validation', () => {
-    it('should reject non-http(s) authorize URLs', async () => {
-      mockInitiateLogin.mockResolvedValue({
-        _links: { authorize: 'javascript:alert(1)' },
-      });
-
-      renderLoginPage();
-
-      fireEvent.change(screen.getByLabelText(/email/i), {
-        target: { value: 'user@example.com' },
-      });
-      fireEvent.click(screen.getByRole('button', { name: /continue/i }));
-
+    async function expectAuthorizeUrlRejected(url: string) {
+      mockAuthorize(url);
+      submitLogin();
       expect(await screen.findByText('Invalid authorization URL received')).toBeInTheDocument();
+    }
+
+    it('rejects non-http(s) authorize URLs', async () => {
+      await expectAuthorizeUrlRejected('javascript:alert(1)');
     });
 
-    it('should reject same-origin authorize URLs (open redirect prevention)', async () => {
-      mockInitiateLogin.mockResolvedValue({
-        _links: { authorize: `${window.location.origin}/malicious-path` },
-      });
-
-      renderLoginPage();
-
-      fireEvent.change(screen.getByLabelText(/email/i), {
-        target: { value: 'user@example.com' },
-      });
-      fireEvent.click(screen.getByRole('button', { name: /continue/i }));
-
-      expect(await screen.findByText('Invalid authorization URL received')).toBeInTheDocument();
+    it('rejects same-origin authorize URLs (open redirect prevention)', async () => {
+      await expectAuthorizeUrlRejected(`${window.location.origin}/malicious-path`);
     });
 
-    it('should reject HTTP URLs including localhost in production', async () => {
+    describe('HTTP localhost handling', () => {
       const originalDev = import.meta.env.DEV;
-      import.meta.env.DEV = false;
-
-      mockInitiateLogin.mockResolvedValue({
-        _links: { authorize: 'http://localhost:8080/authorize' },
+      afterEach(() => {
+        import.meta.env.DEV = originalDev;
       });
 
-      renderLoginPage();
+      it('rejects HTTP URLs including localhost in production', async () => {
+        import.meta.env.DEV = false;
+        mockAuthorize('http://localhost:8080/authorize');
 
-      fireEvent.change(screen.getByLabelText(/email/i), {
-        target: { value: 'user@example.com' },
-      });
-      fireEvent.click(screen.getByRole('button', { name: /continue/i }));
+        submitLogin();
 
-      expect(await screen.findByText('Invalid authorization URL received')).toBeInTheDocument();
-
-      import.meta.env.DEV = originalDev;
-    });
-
-    it('should allow HTTP localhost in development mode', async () => {
-      const originalDev = import.meta.env.DEV;
-      import.meta.env.DEV = true;
-
-      mockInitiateLogin.mockResolvedValue({
-        _links: { authorize: 'http://localhost:8080/authorize' },
+        expect(await screen.findByText('Invalid authorization URL received')).toBeInTheDocument();
       });
 
-      renderLoginPage();
+      it('allows HTTP localhost in development mode', async () => {
+        import.meta.env.DEV = true;
+        mockAuthorize('http://localhost:8080/authorize');
 
-      fireEvent.change(screen.getByLabelText(/email/i), {
-        target: { value: 'user@example.com' },
+        submitLogin();
+
+        await waitFor(() => {
+          expect(window.location.href).toBe('http://localhost:8080/authorize');
+        });
       });
-      fireEvent.click(screen.getByRole('button', { name: /continue/i }));
-
-      await waitFor(() => {
-        expect(window.location.href).toBe('http://localhost:8080/authorize');
-      });
-
-      import.meta.env.DEV = originalDev;
     });
   });
 });

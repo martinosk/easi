@@ -1,5 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { renderWithProviders } from '../../../test/helpers/renderWithProviders';
 import { invitationApi } from '../api/invitationApi';
 import type { Invitation } from '../types';
 import { InvitationsPage } from './InvitationsPage';
@@ -75,7 +76,7 @@ describe('InvitationsPage', () => {
   });
 
   it('renders all invitations when filter is set to all', async () => {
-    render(<InvitationsPage />);
+    renderWithProviders(<InvitationsPage />, { withRouter: false });
 
     await waitFor(() => {
       expect(screen.getByTestId('invitations-table')).toBeInTheDocument();
@@ -90,7 +91,7 @@ describe('InvitationsPage', () => {
     { status: 'expired', expectedCount: 1, expectedIds: ['inv-4'] },
     { status: 'revoked', expectedCount: 1, expectedIds: ['inv-5'] },
   ])('filters to show only $status invitations', async ({ status, expectedCount, expectedIds }) => {
-    render(<InvitationsPage />);
+    renderWithProviders(<InvitationsPage />, { withRouter: false });
 
     await waitFor(() => {
       expect(screen.getByTestId('invitations-table')).toBeInTheDocument();
@@ -109,7 +110,7 @@ describe('InvitationsPage', () => {
   it('shows empty state when filter matches no invitations', async () => {
     vi.mocked(invitationApi.getAll).mockResolvedValue(mockInvitations.filter((i) => i.status === 'pending'));
 
-    render(<InvitationsPage />);
+    renderWithProviders(<InvitationsPage />, { withRouter: false });
 
     await waitFor(() => {
       expect(screen.getByTestId('invitations-table')).toBeInTheDocument();
@@ -123,7 +124,7 @@ describe('InvitationsPage', () => {
   });
 
   it('returns to showing all invitations when filter is reset to all', async () => {
-    render(<InvitationsPage />);
+    renderWithProviders(<InvitationsPage />, { withRouter: false });
 
     await waitFor(() => {
       expect(screen.getByTestId('invitations-table')).toBeInTheDocument();

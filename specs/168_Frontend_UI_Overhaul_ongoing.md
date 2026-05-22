@@ -215,11 +215,16 @@ Each slice is independently shippable, independently reviewable, and does not re
 - Migrated to Mantine: `ComponentDetails`, `ComponentFitScores`, `ComponentOriginsSection`, `CapabilityDetails`, `RealizationFitContext`, and the shared `DetailField` primitive (the latter retired the `.detail-field/-label/-value` rules, which is what Slice 5 had deferred). Realization rows render as Mantine `Group` + `Badge`; fit-score rows as `Paper` with Mantine `Button` + `Textarea` + `ColorSwatch`; origins render as `Stack` + `Divider` + `Text`; capability badges (level, maturity, tags) all use Mantine `Badge` with theme colors. Feature CSS retired: `ComponentFitScores.css`, `RealizationFitContext.css`. `index.css` lost ~240 lines: the entire `.detail-*` block, `.realization-*` block, `.tag-list/-badge`, `.expert-list/-item/-contact`, `.level-badge`, `.maturity-badge`, `.badge-genesis/-custom-build/-product/-commodity/-default`, `.type-link`, `.origin-direct/-inherited`.
 - `index.css` is now 2,642 lines (down from 2,865). Slice 8 sweeps what remains.
 
-### Slice 7 — `invitations`, `users`, `importing`, `edit-grants`, `releases`, `auth`
+### Slice 7 — `invitations`, `users`, `importing`, `edit-grants`, `auth`
 
-- Largely list views, tables, and the login page. Migrate to Mantine `Table`, `Card`, `Paper`, `TextInput`, `PasswordInput`, `Button`.
-- `ImportDialog` and its four step components consolidate onto the Mantine `Stepper`.
-- `LoginPage` rewritten in Mantine; `.login-*` rules deleted.
+- Migrated to Mantine: `LoginPage` (Mantine `Center` + `Paper` + `Stack`); `InvitationsPage` + `InvitationsHeader` + `InvitationsContent` + `InvitationsFilters` + `InvitationsTable` + `InvitationsEmptyState` + `InviteUserModal` (RHF + zod via `lib/schemas/invitation.ts`); `UsersPage` + `UsersFilters` + `UsersTable` + `UserRow` + `UserRowActions` + `ChangeRoleModal`; `ImportButton` + `ImportDialog` (Mantine `Modal` + `Stepper`) + `ImportUploadStep` (Mantine `FileInput` + `NativeSelect`) + `ImportPreviewStep` + `ImportProgressStep` (Mantine `Progress`) + `ImportResultsStep`; `EditGrantBadge`, `EditGrantsEmptyState`, `EditGrantsList`, `InviteToEditButton`, `InviteToEditDialog` (RHF + zod via `lib/schemas/editGrant.ts`), `MyEditGrants`, `MyEditAccessPage`.
+- Destructive flows in `invitations` and `users` switched from `window.confirm` to the shared `ConfirmationDialog`.
+- Filter dropdowns standardised on Mantine `NativeSelect` so existing `fireEvent.change` test idioms continue to work unchanged.
+- Feature CSS retired: `InvitationsPage.css`, `UsersPage.css`, `MyEditAccessPage.css`. Each replaced by a 7-line `*.module.css` with the page-shell rule only (`width / flex / min-height / background / overflow`).
+- `LoginPage.module.css` introduced for the brand gradient (consumes `--color-blue-*` variables). `index.css` lost the `.login-*` block and the `.loading-spinner-small` keyframe-driven spinner (~68 lines).
+- Test helper migration: tests for migrated surfaces switched from `render` (or `MantineTestWrapper`) to `renderWithProviders`. `ChangeRoleModal.test.tsx` and `LoginPage.test.tsx` were table-ified / helper-extracted to satisfy CodeScene 10.0 after duplication was exposed by the renderer swap.
+- Releases feature does not exist in the codebase (despite spec mention) — no work needed there.
+- All 26 migrated files (production + tests) score 10.0 on `mcp__codescene__code_health_score`; pre-commit safeguard `quality_gates: passed`. Frontend test suite: 1407/1407 passing. `npm run build` green.
 
 ### Slice 8 — Sweep and enforce
 
@@ -343,6 +348,6 @@ The current `shared/ConfirmationDialog` is the choke point that 14 features rout
 - [x] Slice 4 — `business-domains`
 - [x] Slice 5 — `origin-entities` and `relations`
 - [x] Slice 6 — `components` and `capabilities`
-- [ ] Slice 7 — `invitations`, `users`, `importing`, `edit-grants`, `releases`, `auth`
+- [x] Slice 7 — `invitations`, `users`, `importing`, `edit-grants`, `auth`
 - [ ] Slice 8 — Sweep + lint enforcement
 - [ ] User sign-off after Slice 8

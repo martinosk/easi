@@ -1,81 +1,122 @@
-import React from 'react';
-import type { ImportResult } from '../types';
+import { Alert, Button, Group, List, Paper, Stack, Text, Title } from '@mantine/core';
+import type { ImportError, ImportResult } from '../types';
 
 interface ImportResultsStepProps {
   result: ImportResult;
   onClose: () => void;
 }
 
-export const ImportResultsStep: React.FC<ImportResultsStepProps> = ({ result, onClose }) => {
-  const {
-    capabilitiesCreated,
-    componentsCreated,
-    valueStreamsCreated,
-    realizationsCreated,
-    capabilityMappings,
-    domainAssignments,
-    errors,
-  } = result;
+interface SummaryProps {
+  result: ImportResult;
+}
 
-  const hasErrors = errors.length > 0;
-  const isSuccess = !hasErrors;
+function ResultsSummary({ result }: SummaryProps) {
+  const { capabilitiesCreated, componentsCreated, valueStreamsCreated, realizationsCreated, capabilityMappings, domainAssignments } =
+    result;
+  return (
+    <Paper p="md" withBorder radius="md">
+      <Stack gap="sm">
+        <Title order={5}>Summary</Title>
+        <List data-testid="results-summary">
+          <List.Item>
+            <Text component="span" fw={700}>
+              {capabilitiesCreated}
+            </Text>{' '}
+            Capabilities created
+          </List.Item>
+          <List.Item>
+            <Text component="span" fw={700}>
+              {componentsCreated}
+            </Text>{' '}
+            Components created
+          </List.Item>
+          <List.Item>
+            <Text component="span" fw={700}>
+              {valueStreamsCreated}
+            </Text>{' '}
+            Value streams created
+          </List.Item>
+          <List.Item>
+            <Text component="span" fw={700}>
+              {realizationsCreated}
+            </Text>{' '}
+            Realizations created
+          </List.Item>
+          {capabilityMappings > 0 && (
+            <List.Item>
+              <Text component="span" fw={700}>
+                {capabilityMappings}
+              </Text>{' '}
+              Capability-to-value-stream mappings
+            </List.Item>
+          )}
+          {domainAssignments > 0 && (
+            <List.Item>
+              <Text component="span" fw={700}>
+                {domainAssignments}
+              </Text>{' '}
+              Domain assignments made
+            </List.Item>
+          )}
+        </List>
+      </Stack>
+    </Paper>
+  );
+}
+
+interface ErrorRowProps {
+  error: ImportError;
+}
+
+function ErrorRow({ error }: ErrorRowProps) {
+  return (
+    <Paper p="sm" withBorder radius="sm" bg="red.0">
+      <Stack gap={4}>
+        <Text fw={600} size="sm">
+          {error.sourceName} ({error.sourceElement})
+        </Text>
+        <Text size="sm" c="red">
+          {error.error}
+        </Text>
+        <Text size="xs" c="dimmed">
+          Action: {error.action}
+        </Text>
+      </Stack>
+    </Paper>
+  );
+}
+
+interface ErrorsSectionProps {
+  errors: ImportError[];
+}
+
+function ErrorsSection({ errors }: ErrorsSectionProps) {
+  return (
+    <Alert color="red" title={`Errors (${errors.length})`}>
+      <Stack gap="xs" data-testid="error-list">
+        {errors.map((error) => (
+          <ErrorRow key={`${error.sourceElement}-${error.sourceName}-${error.error}`} error={error} />
+        ))}
+      </Stack>
+    </Alert>
+  );
+}
+
+export function ImportResultsStep({ result, onClose }: ImportResultsStepProps) {
+  const hasErrors = result.errors.length > 0;
 
   return (
-    <div className="import-step">
-      <h3>{isSuccess ? 'Import Complete' : 'Import Completed with Errors'}</h3>
+    <Stack gap="md">
+      <Title order={4}>{hasErrors ? 'Import Completed with Errors' : 'Import Complete'}</Title>
 
-      <div className="import-results">
-        <div className="import-section">
-          <h4>Summary</h4>
-          <ul className="import-list" data-testid="results-summary">
-            <li>
-              <strong>{capabilitiesCreated}</strong> Capabilities created
-            </li>
-            <li>
-              <strong>{componentsCreated}</strong> Components created
-            </li>
-            <li>
-              <strong>{valueStreamsCreated}</strong> Value streams created
-            </li>
-            <li>
-              <strong>{realizationsCreated}</strong> Realizations created
-            </li>
-            {capabilityMappings > 0 && (
-              <li>
-                <strong>{capabilityMappings}</strong> Capability-to-value-stream mappings
-              </li>
-            )}
-            {domainAssignments > 0 && (
-              <li>
-                <strong>{domainAssignments}</strong> Domain assignments made
-              </li>
-            )}
-          </ul>
-        </div>
+      <ResultsSummary result={result} />
+      {hasErrors && <ErrorsSection errors={result.errors} />}
 
-        {hasErrors && (
-          <div className="import-section import-errors">
-            <h4>Errors ({errors.length})</h4>
-            <div className="error-list" data-testid="error-list">
-              {errors.map((error, index) => (
-                <div key={index} className="error-item">
-                  <div className="error-element">
-                    <strong>{error.sourceName}</strong> ({error.sourceElement})
-                  </div>
-                  <div className="error-message">{error.error}</div>
-                  <div className="error-action">Action: {error.action}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="dialog-actions">
-        <button type="button" className="btn btn-primary" onClick={onClose} data-testid="close-button">
+      <Group justify="flex-end" gap="sm">
+        <Button onClick={onClose} data-testid="close-button">
           Close
-        </button>
-      </div>
-    </div>
+        </Button>
+      </Group>
+    </Stack>
   );
-};
+}

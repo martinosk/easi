@@ -1,3 +1,4 @@
+import { Badge } from '@mantine/core';
 import { useEditGrantsForArtifact } from '../hooks/useEditGrants';
 import type { ArtifactType } from '../types';
 
@@ -14,8 +15,8 @@ export function EditGrantBadge({ artifactType, artifactId }: EditGrantBadgeProps
   if (activeCount === 0) return null;
 
   return (
-    <span className="badge badge-info" data-testid="edit-grant-badge">
+    <Badge color="blue" variant="light" data-testid="edit-grant-badge">
       {activeCount} active {activeCount === 1 ? 'grant' : 'grants'}
-    </span>
+    </Badge>
   );
 }

@@ -1,7 +1,8 @@
+import { Badge, Button, Group, Loader, Table } from '@mantine/core';
 import { useState } from 'react';
 import { hasLink } from '../../../utils/hateoas';
 import { useEditGrantsForArtifact, useRevokeEditGrant } from '../hooks/useEditGrants';
-import type { ArtifactType, EditGrantStatus } from '../types';
+import type { ArtifactType, EditGrant, EditGrantStatus } from '../types';
 import { EditGrantsEmptyState } from './EditGrantsEmptyState';
 
 interface EditGrantsListProps {
@@ -16,6 +17,69 @@ const STATUS_OPTIONS: { label: string; value: EditGrantStatus | 'all' }[] = [
   { label: 'Expired', value: 'expired' },
 ];
 
+const STATUS_BADGE_COLORS: Record<EditGrantStatus, string> = {
+  active: 'green',
+  revoked: 'red',
+  expired: 'yellow',
+};
+
+interface FilterBarProps {
+  statusFilter: EditGrantStatus | 'all';
+  onChange: (value: EditGrantStatus | 'all') => void;
+}
+
+function FilterBar({ statusFilter, onChange }: FilterBarProps) {
+  return (
+    <Group gap="xs" mb="md">
+      {STATUS_OPTIONS.map((option) => (
+        <Button
+          key={option.value}
+          size="xs"
+          variant={statusFilter === option.value ? 'filled' : 'default'}
+          onClick={() => onChange(option.value)}
+          data-testid={`filter-${option.value}`}
+        >
+          {option.label}
+        </Button>
+      ))}
+    </Group>
+  );
+}
+
+interface GrantRowProps {
+  grant: EditGrant;
+  onRevoke: (id: string) => void;
+  isRevoking: boolean;
+}
+
+function GrantRow({ grant, onRevoke, isRevoking }: GrantRowProps) {
+  return (
+    <Table.Tr data-testid={`edit-grant-row-${grant.id}`}>
+      <Table.Td>{grant.granteeEmail}</Table.Td>
+      <Table.Td>{grant.grantorEmail}</Table.Td>
+      <Table.Td>
+        <Badge variant="light" color={STATUS_BADGE_COLORS[grant.status]} tt="capitalize">
+          {grant.status}
+        </Badge>
+      </Table.Td>
+      <Table.Td>{new Date(grant.expiresAt).toLocaleDateString()}</Table.Td>
+      <Table.Td>
+        {hasLink(grant, 'delete') && (
+          <Button
+            size="xs"
+            color="red"
+            onClick={() => onRevoke(grant.id)}
+            disabled={isRevoking}
+            data-testid={`revoke-grant-${grant.id}`}
+          >
+            Revoke
+          </Button>
+        )}
+      </Table.Td>
+    </Table.Tr>
+  );
+}
+
 export function EditGrantsList({ artifactType, artifactId }: EditGrantsListProps) {
   const [statusFilter, setStatusFilter] = useState<EditGrantStatus | 'all'>('all');
   const { data: grants, isLoading } = useEditGrantsForArtifact(artifactType, artifactId);
@@ -24,66 +88,37 @@ export function EditGrantsList({ artifactType, artifactId }: EditGrantsListProps
   const filteredGrants = grants?.filter((g) => statusFilter === 'all' || g.status === statusFilter) ?? [];
 
   if (isLoading) {
-    return <div className="loading-spinner" data-testid="edit-grants-loading" />;
+    return <Loader data-testid="edit-grants-loading" />;
   }
 
   return (
     <div data-testid="edit-grants-list">
-      <div className="filter-bar">
-        {STATUS_OPTIONS.map((option) => (
-          <button
-            key={option.value}
-            className={`btn btn-sm ${statusFilter === option.value ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setStatusFilter(option.value)}
-            data-testid={`filter-${option.value}`}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
+      <FilterBar statusFilter={statusFilter} onChange={setStatusFilter} />
 
       {filteredGrants.length === 0 ? (
         <EditGrantsEmptyState statusFilter={statusFilter} />
       ) : (
-        <table className="table" data-testid="edit-grants-table">
-          <thead>
-            <tr>
-              <th>Grantee</th>
-              <th>Granted By</th>
-              <th>Status</th>
-              <th>Expires</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table data-testid="edit-grants-table" striped highlightOnHover>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Grantee</Table.Th>
+              <Table.Th>Granted By</Table.Th>
+              <Table.Th>Status</Table.Th>
+              <Table.Th>Expires</Table.Th>
+              <Table.Th>Actions</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
             {filteredGrants.map((grant) => (
-              <tr key={grant.id} data-testid={`edit-grant-row-${grant.id}`}>
-                <td>{grant.granteeEmail}</td>
-                <td>{grant.grantorEmail}</td>
-                <td>
-                  <span
-                    className={`badge badge-${grant.status === 'active' ? 'success' : grant.status === 'revoked' ? 'danger' : 'warning'}`}
-                  >
-                    {grant.status}
-                  </span>
-                </td>
-                <td>{new Date(grant.expiresAt).toLocaleDateString()}</td>
-                <td>
-                  {hasLink(grant, 'delete') && (
-                    <button
-                      className="btn btn-danger btn-sm"
-                      onClick={() => revokeGrant.mutate(grant.id)}
-                      disabled={revokeGrant.isPending}
-                      data-testid={`revoke-grant-${grant.id}`}
-                    >
-                      Revoke
-                    </button>
-                  )}
-                </td>
-              </tr>
+              <GrantRow
+                key={grant.id}
+                grant={grant}
+                onRevoke={(id) => revokeGrant.mutate(id)}
+                isRevoking={revokeGrant.isPending}
+              />
             ))}
-          </tbody>
-        </table>
+          </Table.Tbody>
+        </Table>
       )}
     </div>
   );

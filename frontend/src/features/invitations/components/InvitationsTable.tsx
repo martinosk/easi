@@ -1,3 +1,4 @@
+import { Badge, Button, Paper, Table, Text } from '@mantine/core';
 import type { Invitation, InvitationStatus } from '../types';
 
 interface InvitationsTableProps {
@@ -5,11 +6,11 @@ interface InvitationsTableProps {
   onRevoke: (invitation: Invitation) => void;
 }
 
-const STATUS_BADGE_CLASSES: Record<InvitationStatus, string> = {
-  pending: 'status-badge-pending',
-  accepted: 'status-badge-accepted',
-  expired: 'status-badge-expired',
-  revoked: 'status-badge-revoked',
+const STATUS_BADGE_COLORS: Record<InvitationStatus, string> = {
+  pending: 'orange',
+  accepted: 'green',
+  expired: 'gray',
+  revoked: 'red',
 };
 
 function formatDate(dateString: string): string {
@@ -25,48 +26,64 @@ function formatDate(dateString: string): string {
 
 export function InvitationsTable({ invitations, onRevoke }: InvitationsTableProps) {
   return (
-    <div className="invitations-table-container">
-      <table className="invitations-table" data-testid="invitations-table">
-        <thead>
-          <tr>
-            <th>Email</th>
-            <th>Role</th>
-            <th>Status</th>
-            <th>Invited By</th>
-            <th>Created</th>
-            <th>Expires</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
+    <Paper shadow="sm" radius="lg" withBorder>
+      <Table data-testid="invitations-table" striped highlightOnHover verticalSpacing="sm">
+        <Table.Thead>
+          <Table.Tr>
+            <Table.Th>Email</Table.Th>
+            <Table.Th>Role</Table.Th>
+            <Table.Th>Status</Table.Th>
+            <Table.Th>Invited By</Table.Th>
+            <Table.Th>Created</Table.Th>
+            <Table.Th>Expires</Table.Th>
+            <Table.Th>Actions</Table.Th>
+          </Table.Tr>
+        </Table.Thead>
+        <Table.Tbody>
           {invitations.map((invitation) => (
-            <tr key={invitation.id} data-testid={`invitation-row-${invitation.id}`}>
-              <td className="invitation-email">{invitation.email}</td>
-              <td>
-                <span className="role-badge">{invitation.role}</span>
-              </td>
-              <td>
-                <span className={`status-badge ${STATUS_BADGE_CLASSES[invitation.status]}`}>{invitation.status}</span>
-              </td>
-              <td className="invited-by">{invitation.invitedBy ?? '-'}</td>
-              <td className="date-cell">{formatDate(invitation.createdAt)}</td>
-              <td className="date-cell">{formatDate(invitation.expiresAt)}</td>
-              <td className="actions-cell">
+            <Table.Tr key={invitation.id} data-testid={`invitation-row-${invitation.id}`}>
+              <Table.Td>
+                <Text fw={500}>{invitation.email}</Text>
+              </Table.Td>
+              <Table.Td>
+                <Badge variant="light" color="gray" tt="capitalize">
+                  {invitation.role}
+                </Badge>
+              </Table.Td>
+              <Table.Td>
+                <Badge variant="light" color={STATUS_BADGE_COLORS[invitation.status]} tt="capitalize">
+                  {invitation.status}
+                </Badge>
+              </Table.Td>
+              <Table.Td>
+                <Text c="dimmed">{invitation.invitedBy ?? '-'}</Text>
+              </Table.Td>
+              <Table.Td>
+                <Text c="dimmed" size="xs">
+                  {formatDate(invitation.createdAt)}
+                </Text>
+              </Table.Td>
+              <Table.Td>
+                <Text c="dimmed" size="xs">
+                  {formatDate(invitation.expiresAt)}
+                </Text>
+              </Table.Td>
+              <Table.Td>
                 {invitation.status === 'pending' && invitation._links.update && (
-                  <button
-                    type="button"
-                    className="btn btn-small btn-secondary"
+                  <Button
+                    size="xs"
+                    variant="default"
                     onClick={() => onRevoke(invitation)}
                     data-testid={`revoke-btn-${invitation.id}`}
                   >
                     Revoke
-                  </button>
+                  </Button>
                 )}
-              </td>
-            </tr>
+              </Table.Td>
+            </Table.Tr>
           ))}
-        </tbody>
-      </table>
-    </div>
+        </Table.Tbody>
+      </Table>
+    </Paper>
   );
 }
