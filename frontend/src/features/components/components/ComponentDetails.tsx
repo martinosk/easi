@@ -1,3 +1,4 @@
+import { Anchor, Badge, Button, Divider, Group, Stack, Text, Title } from '@mantine/core';
 import React, { useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import type {
@@ -64,17 +65,26 @@ interface RealizationListProps {
   origin: 'Direct' | 'Inherited';
 }
 
-const RealizationListItems: React.FC<RealizationListProps> = ({ realizations, capabilities, origin }) => (
-  <>
-    {realizations.map((r) => (
-      <li key={r.id} className={`realization-item${origin === 'Inherited' ? ' inherited' : ''}`}>
-        <span className="realization-name">{getCapabilityName(capabilities, r.capabilityId)}</span>
-        <span className="realization-level">{getLevelBadge(r.realizationLevel)}</span>
-        <span className={`realization-origin origin-${origin.toLowerCase()}`}>{origin.toLowerCase()}</span>
-      </li>
-    ))}
-  </>
-);
+const RealizationListItems: React.FC<RealizationListProps> = ({ realizations, capabilities, origin }) => {
+  const isInherited = origin === 'Inherited';
+  return (
+    <>
+      {realizations.map((r) => (
+        <Group key={r.id} gap="sm" wrap="nowrap" opacity={isInherited ? 0.7 : 1} justify="space-between">
+          <Text size="sm">{getCapabilityName(capabilities, r.capabilityId)}</Text>
+          <Group gap="xs" wrap="nowrap">
+            <Badge color="green" variant="filled" size="sm">
+              {getLevelBadge(r.realizationLevel)}
+            </Badge>
+            <Badge color={isInherited ? 'gray' : 'blue'} variant="light" size="sm">
+              {origin.toLowerCase()}
+            </Badge>
+          </Group>
+        </Group>
+      ))}
+    </>
+  );
+};
 
 interface OptionalFieldProps<T> {
   value: T | undefined | null;
@@ -110,7 +120,7 @@ const ColorPickerField: React.FC<ColorPickerFieldProps> = ({
 
   return (
     <DetailField label="Custom Color">
-      <div data-testid="color-picker">
+      <Stack gap="xs" data-testid="color-picker">
         <ColorPicker
           color={currentColor}
           onChange={onColorChange}
@@ -118,11 +128,13 @@ const ColorPickerField: React.FC<ColorPickerFieldProps> = ({
           disabledTooltip="Switch to custom color scheme to assign colors"
         />
         {currentColor && canClearColor && (
-          <button className="btn btn-secondary btn-small" onClick={onClearColor} style={{ marginTop: '8px' }}>
-            Clear Color
-          </button>
+          <Group justify="flex-start">
+            <Button variant="default" size="xs" onClick={onClearColor}>
+              Clear Color
+            </Button>
+          </Group>
         )}
-      </div>
+      </Stack>
     </DetailField>
   );
 };
@@ -140,10 +152,10 @@ const RealizationsField: React.FC<RealizationsFieldProps> = ({ realizations, cap
 
   return (
     <DetailField label="Realizes Capabilities">
-      <ul className="realization-list">
+      <Stack gap="sm">
         <RealizationListItems realizations={directRealizations} capabilities={capabilities} origin="Direct" />
         <RealizationListItems realizations={inheritedRealizations} capabilities={capabilities} origin="Inherited" />
-      </ul>
+      </Stack>
     </DetailField>
   );
 };
@@ -158,9 +170,9 @@ const TypeField: React.FC<TypeFieldProps> = ({ referenceUrl }) => {
   return (
     <DetailField label="Type">
       {hasReference ? (
-        <a href={referenceUrl} target="_blank" rel="noopener noreferrer" className="type-link">
+        <Anchor href={referenceUrl} target="_blank" rel="noopener noreferrer">
           Application Component
-        </a>
+        </Anchor>
       ) : (
         'Application Component'
       )}
@@ -186,18 +198,18 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
   if (!canEdit && !canRemoveFromView) return null;
 
   return (
-    <div className="detail-actions">
+    <Group gap="sm">
       {canEdit && (
-        <button className="btn btn-secondary btn-small" onClick={() => onEdit(componentId)}>
+        <Button variant="default" size="xs" onClick={() => onEdit(componentId)}>
           Edit
-        </button>
+        </Button>
       )}
       {canRemoveFromView && onRemoveFromView && (
-        <button className="btn btn-secondary btn-small" onClick={onRemoveFromView}>
+        <Button variant="default" size="xs" onClick={onRemoveFromView}>
           Remove from View
-        </button>
+        </Button>
       )}
-    </div>
+    </Group>
   );
 };
 
@@ -267,7 +279,7 @@ const ComponentContentInternal: React.FC<ComponentContentProps> = ({
   const canAddExpert = hasLink(component, 'x-add-expert');
 
   return (
-    <div className="detail-content">
+    <Stack gap="sm">
       <ActionButtons
         componentId={component.id}
         canEdit={canEdit}
@@ -290,7 +302,9 @@ const ComponentContentInternal: React.FC<ComponentContentProps> = ({
       )}
 
       <DetailField label="Created">
-        <span className="detail-date">{formattedDate}</span>
+        <Text size="sm" c="dimmed">
+          {formattedDate}
+        </Text>
       </DetailField>
       <TypeField referenceUrl={component._links.describedby?.href} />
 
@@ -308,7 +322,7 @@ const ComponentContentInternal: React.FC<ComponentContentProps> = ({
       <ComponentFitScores componentId={component.id} />
 
       <AuditHistorySection aggregateId={component.id} />
-    </div>
+    </Stack>
   );
 };
 
@@ -328,10 +342,9 @@ export const ComponentDetailsContent: React.FC<ComponentDetailsContentProps> = (
   onCloseAddExpert,
 }) => {
   return (
-    <div className="detail-panel">
-      <div className="detail-header">
-        <h3 className="detail-title">Application Details</h3>
-      </div>
+    <Stack gap="sm" p="md">
+      <Title order={4}>Application Details</Title>
+      <Divider />
 
       <ComponentContentInternal
         component={component}
@@ -350,7 +363,7 @@ export const ComponentDetailsContent: React.FC<ComponentDetailsContentProps> = (
       {isAddExpertOpen !== undefined && onCloseAddExpert && (
         <AddComponentExpertDialog isOpen={isAddExpertOpen} onClose={onCloseAddExpert} componentId={component.id} />
       )}
-    </div>
+    </Stack>
   );
 };
 

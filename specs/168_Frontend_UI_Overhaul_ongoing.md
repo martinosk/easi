@@ -212,7 +212,8 @@ Each slice is independently shippable, independently reviewable, and does not re
 
 ### Slice 6 — `components` and `capabilities` remaining detail surfaces
 
-- `ComponentDetails`, `ComponentFitScores`, `ComponentOriginsSection`, `CapabilityDetails`. Delete the corresponding feature `.css` files where possible.
+- Migrated to Mantine: `ComponentDetails`, `ComponentFitScores`, `ComponentOriginsSection`, `CapabilityDetails`, `RealizationFitContext`, and the shared `DetailField` primitive (the latter retired the `.detail-field/-label/-value` rules, which is what Slice 5 had deferred). Realization rows render as Mantine `Group` + `Badge`; fit-score rows as `Paper` with Mantine `Button` + `Textarea` + `ColorSwatch`; origins render as `Stack` + `Divider` + `Text`; capability badges (level, maturity, tags) all use Mantine `Badge` with theme colors. Feature CSS retired: `ComponentFitScores.css`, `RealizationFitContext.css`. `index.css` lost ~240 lines: the entire `.detail-*` block, `.realization-*` block, `.tag-list/-badge`, `.expert-list/-item/-contact`, `.level-badge`, `.maturity-badge`, `.badge-genesis/-custom-build/-product/-commodity/-default`, `.type-link`, `.origin-direct/-inherited`.
+- `index.css` is now 2,642 lines (down from 2,865). Slice 8 sweeps what remains.
 
 ### Slice 7 — `invitations`, `users`, `importing`, `edit-grants`, `releases`, `auth`
 
@@ -341,7 +342,7 @@ The current `shared/ConfirmationDialog` is the choke point that 14 features rout
 - [x] Slice 3 — `enterprise-architecture`
 - [x] Slice 4 — `business-domains`
 - [x] Slice 5 — `origin-entities` and `relations`
-- [ ] Slice 6 — `components` and `capabilities`
+- [x] Slice 6 — `components` and `capabilities`
 - [ ] Slice 7 — `invitations`, `users`, `importing`, `edit-grants`, `releases`, `auth`
 - [ ] Slice 8 — Sweep + lint enforcement
 - [ ] User sign-off after Slice 8
