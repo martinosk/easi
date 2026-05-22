@@ -23,7 +23,6 @@ export function ChatButton({ assistantAvailable, onClick, isActive }: ChatButton
 
   return (
     <UnstyledButton
-      component="button"
       type="button"
       className={`app-header-action-btn${isActive ? ' app-header-action-btn-active' : ''}`}
       onClick={onClick}

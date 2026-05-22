@@ -66,11 +66,14 @@ export function ImportDialog({ isOpen, onClose, businessDomains = [] }: ImportDi
   };
 
   const handleCancel = async () => {
-    if (session && session.status === 'pending') {
-      await cancelSession();
+    try {
+      if (session && session.status === 'pending') {
+        await cancelSession();
+      }
+    } finally {
+      reset();
+      onClose();
     }
-    reset();
-    onClose();
   };
 
   const handleClose = () => {

@@ -169,9 +169,9 @@ describe('ComponentOriginsSection', () => {
 
       renderComponent('' as ComponentId);
 
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      expect(httpClient.get).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(httpClient.get).not.toHaveBeenCalled();
+      });
     });
   });
 });

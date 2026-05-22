@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useMyEditGrants } from '../../features/edit-grants/hooks/useEditGrants';
 import { ROUTES } from '../../routes/routePaths';
 import { useUserStore } from '../../store/userStore';
+import classes from './UserMenu.module.css';
 
 const CHEVRON_DOWN = (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -59,7 +60,7 @@ interface UserMenuHeaderProps {
 
 function UserMenuHeader({ name, email }: UserMenuHeaderProps) {
   return (
-    <Stack gap={2} px="md" py="sm">
+    <Stack gap="xs" px="md" py="sm">
       <Text fw={600} size="sm">
         {name}
       </Text>
@@ -117,7 +118,7 @@ export function UserMenu() {
   };
 
   return (
-    <Menu shadow="md" width={260} position="bottom-end" withinPortal>
+    <Menu shadow="md" classNames={{ dropdown: classes.dropdown }} position="bottom-end" withinPortal>
       <Menu.Target>
         <UnstyledButton data-testid="user-menu-trigger" aria-label="User menu" p="xs">
           <Group gap="xs" wrap="nowrap">
