@@ -22,6 +22,7 @@ type StandardApplicationDTO struct {
 	EnterpriseCapabilityID string      `json:"enterpriseCapabilityId"`
 	ApplicationID          string      `json:"applicationId"`
 	ApplicationStale       bool        `json:"applicationStale"`
+	ApplicationName        *string     `json:"applicationName"`
 	Narrative              string      `json:"narrative"`
 	SetAt                  time.Time   `json:"setAt"`
 	UpdatedAt              *time.Time  `json:"updatedAt,omitempty"`
@@ -29,10 +30,12 @@ type StandardApplicationDTO struct {
 }
 
 type StandardApplicationHistoryEntryDTO struct {
-	ApplicationID         string    `json:"applicationId"`
-	PreviousApplicationID string    `json:"previousApplicationId,omitempty"`
-	Narrative             string    `json:"narrative"`
-	SetAt                 time.Time `json:"setAt"`
+	ApplicationID           string  `json:"applicationId"`
+	PreviousApplicationID   string  `json:"previousApplicationId,omitempty"`
+	ApplicationName         *string `json:"applicationName"`
+	PreviousApplicationName *string `json:"previousApplicationName,omitempty"`
+	Narrative               string  `json:"narrative"`
+	SetAt                   time.Time `json:"setAt"`
 }
 
 type StandardApplicationHistoryDTO struct {
@@ -73,10 +76,14 @@ func (rm *StandardApplicationReadModel) UpsertCurrent(ctx context.Context, p Ups
 	}
 	_, err = rm.db.ExecContext(ctx,
 		`INSERT INTO architecturedirection.standard_applications
-		 (id, tenant_id, enterprise_capability_id, application_id, narrative, set_at, application_stale)
-		 VALUES ($1, $2, $3, $4, $5, $6, FALSE)
+		 (id, tenant_id, enterprise_capability_id, application_id, narrative, set_at, application_stale, application_name)
+		 SELECT $1, $2, $3, $4, $5, $6, FALSE, rnc.name
+		 FROM (SELECT 1) AS stub
+		 LEFT JOIN architecturedirection.reference_name_cache rnc
+		   ON rnc.tenant_id = $2 AND rnc.entity_type = 'application' AND rnc.entity_id = $4
 		 ON CONFLICT (tenant_id, id) DO UPDATE SET
 		   application_id = EXCLUDED.application_id,
+		   application_name = EXCLUDED.application_name,
 		   narrative = EXCLUDED.narrative,
 		   set_at = EXCLUDED.set_at,
 		   application_stale = FALSE,
@@ -127,8 +134,14 @@ func (rm *StandardApplicationReadModel) AppendHistory(ctx context.Context, p App
 	}
 	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO architecturedirection.standard_application_history
-		 (tenant_id, standard_application_id, sequence, application_id, previous_application_id, narrative, set_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		 (tenant_id, standard_application_id, sequence, application_id, previous_application_id, narrative, set_at,
+		  application_name, previous_application_name)
+		 SELECT $1, $2, $3, $4, $5, $6, $7, cur.name, prev.name
+		 FROM (SELECT 1) AS stub
+		 LEFT JOIN architecturedirection.reference_name_cache cur
+		   ON cur.tenant_id = $1 AND cur.entity_type = 'application' AND cur.entity_id = $4
+		 LEFT JOIN architecturedirection.reference_name_cache prev
+		   ON prev.tenant_id = $1 AND prev.entity_type = 'application' AND prev.entity_id = $5`,
 		tenantID, p.StandardApplicationID, nextSequence, p.ApplicationID, previous, p.Narrative, p.SetAt,
 	); err != nil {
 		return err
@@ -136,17 +149,38 @@ func (rm *StandardApplicationReadModel) AppendHistory(ctx context.Context, p App
 	return tx.Commit()
 }
 
-func (rm *StandardApplicationReadModel) MarkApplicationStale(ctx context.Context, applicationID string) error {
+func (rm *StandardApplicationReadModel) tenantExec(ctx context.Context, query string, argsFn func(tenantID string) []any) error {
 	tenantID, err := standardTenantOf(ctx)
 	if err != nil {
 		return err
 	}
-	_, err = rm.db.ExecContext(ctx,
+	_, err = rm.db.ExecContext(ctx, query, argsFn(tenantID)...)
+	return err
+}
+
+func (rm *StandardApplicationReadModel) CacheApplicationName(ctx context.Context, applicationID, name string) error {
+	return rm.tenantExec(ctx,
+		`INSERT INTO architecturedirection.reference_name_cache (tenant_id, entity_type, entity_id, name)
+		 VALUES ($1, 'application', $2, $3)
+		 ON CONFLICT (tenant_id, entity_type, entity_id) DO UPDATE SET name = EXCLUDED.name`,
+		func(t string) []any { return []any{t, applicationID, name} },
+	)
+}
+
+func (rm *StandardApplicationReadModel) UpdateApplicationName(ctx context.Context, applicationID, name string) error {
+	return rm.tenantExec(ctx,
+		`UPDATE architecturedirection.standard_applications SET application_name = $1
+		 WHERE tenant_id = $2 AND application_id = $3`,
+		func(t string) []any { return []any{name, t, applicationID} },
+	)
+}
+
+func (rm *StandardApplicationReadModel) MarkApplicationStale(ctx context.Context, applicationID string) error {
+	return rm.tenantExec(ctx,
 		`UPDATE architecturedirection.standard_applications SET application_stale = TRUE
 		 WHERE tenant_id = $1 AND application_id = $2 AND application_stale = FALSE`,
-		tenantID, applicationID,
+		func(t string) []any { return []any{t, applicationID} },
 	)
-	return err
 }
 
 func (rm *StandardApplicationReadModel) FindAggregateIDForEnterpriseCapability(ctx context.Context, ecID string) (string, bool, error) {
@@ -179,7 +213,7 @@ func (rm *StandardApplicationReadModel) GetCurrentByEnterpriseCapability(ctx con
 	var dto *StandardApplicationDTO
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		row := tx.QueryRowContext(ctx,
-			`SELECT id, enterprise_capability_id, application_id, application_stale, narrative, set_at, updated_at
+			`SELECT id, enterprise_capability_id, application_id, application_stale, application_name, narrative, set_at, updated_at
 			 FROM architecturedirection.standard_applications
 			 WHERE tenant_id = $1 AND enterprise_capability_id = $2`,
 			tenantID, ecID,
@@ -232,7 +266,7 @@ func (rm *StandardApplicationReadModel) GetHistoryByAggregateID(ctx context.Cont
 
 func loadHistoryEntries(ctx context.Context, tx *sql.Tx, tenantID, aggregateID string) ([]StandardApplicationHistoryEntryDTO, error) {
 	rows, err := tx.QueryContext(ctx,
-		`SELECT application_id, previous_application_id, narrative, set_at
+		`SELECT application_id, previous_application_id, application_name, previous_application_name, narrative, set_at
 		 FROM architecturedirection.standard_application_history
 		 WHERE tenant_id = $1 AND standard_application_id = $2
 		 ORDER BY sequence DESC`,
@@ -262,7 +296,7 @@ func scanStandardApplication(row standardApplicationRowScanner) (StandardApplica
 	var dto StandardApplicationDTO
 	var updatedAt sql.NullTime
 	err := row.Scan(&dto.ID, &dto.EnterpriseCapabilityID, &dto.ApplicationID, &dto.ApplicationStale,
-		&dto.Narrative, &dto.SetAt, &updatedAt)
+		&dto.ApplicationName, &dto.Narrative, &dto.SetAt, &updatedAt)
 	if err != nil {
 		return dto, err
 	}
@@ -275,7 +309,8 @@ func scanStandardApplication(row standardApplicationRowScanner) (StandardApplica
 func scanHistoryEntry(row standardApplicationRowScanner) (StandardApplicationHistoryEntryDTO, error) {
 	var entry StandardApplicationHistoryEntryDTO
 	var previous sql.NullString
-	if err := row.Scan(&entry.ApplicationID, &previous, &entry.Narrative, &entry.SetAt); err != nil {
+	if err := row.Scan(&entry.ApplicationID, &previous, &entry.ApplicationName, &entry.PreviousApplicationName,
+		&entry.Narrative, &entry.SetAt); err != nil {
 		return entry, err
 	}
 	if previous.Valid {

@@ -2,8 +2,6 @@ import { Alert, Anchor, Badge, Box, Button, Group, List, Loader, Modal, Stack, T
 import { useMemo, useState } from 'react';
 import type { EnterpriseCapabilityId } from '../../../api/types';
 import { useBusinessDomainsQuery } from '../../business-domains/hooks/useBusinessDomains';
-import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
-import { useEnterpriseCapabilityLinks } from '../../enterprise-architecture/hooks/useEnterpriseCapabilities';
 import {
   useAgreeDirection,
   useDirectionForEnterpriseCapability,
@@ -122,43 +120,19 @@ interface DirectionDetailProps {
   enterpriseCapabilityId: EnterpriseCapabilityId;
 }
 
-function indexBy<T>(
-  items: T[] | undefined,
-  key: (item: T) => string,
-  value: (item: T) => string | undefined,
-): (id: string) => string | undefined {
-  const lookup = new Map<string, string>();
-  for (const item of items ?? []) {
-    const v = value(item);
-    if (v) lookup.set(key(item), v);
-  }
-  return (id: string) => lookup.get(id);
-}
-
-function useNameResolvers(enterpriseCapabilityId: EnterpriseCapabilityId) {
-  const { data: links } = useEnterpriseCapabilityLinks(enterpriseCapabilityId);
+function usePlacementDomainNames() {
   const { data: domainsResponse } = useBusinessDomainsQuery();
-  const { data: capabilities } = useCapabilities();
-
-  const capabilityName = useMemo(() => {
-    const linkLookup = indexBy(links, (l) => l.domainCapabilityId, (l) => l.domainCapabilityName);
-    const globalLookup = indexBy(capabilities, (c) => c.id, (c) => c.name);
-    return (id: string) => linkLookup(id) ?? globalLookup(id);
-  }, [links, capabilities]);
-  const sourceDomainName = useMemo(
-    () => indexBy(links, (l) => l.domainCapabilityId, (l) => l.businessDomainName),
-    [links],
-  );
-  const domainName = useMemo(
-    () => indexBy(domainsResponse?.data, (d) => d.id, (d) => d.name),
-    [domainsResponse],
-  );
-
-  return { capabilityName, sourceDomainName, domainName };
+  return useMemo(() => {
+    const lookup = new Map<string, string>();
+    for (const d of domainsResponse?.data ?? []) {
+      lookup.set(d.id, d.name);
+    }
+    return (id: string) => lookup.get(id);
+  }, [domainsResponse]);
 }
 
 function DirectionDetail({ direction, enterpriseCapabilityId }: DirectionDetailProps) {
-  const { capabilityName, sourceDomainName, domainName } = useNameResolvers(enterpriseCapabilityId);
+  const resolvePlacementDomain = usePlacementDomainNames();
   return (
     <Stack gap="sm">
       <Group justify="space-between" align="center">
@@ -184,11 +158,7 @@ function DirectionDetail({ direction, enterpriseCapabilityId }: DirectionDetailP
         <Text size="sm" fw={600}>
           Sources
         </Text>
-        <SourceList
-          sources={direction.sourceCapabilities}
-          resolveName={capabilityName}
-          resolveDomain={sourceDomainName}
-        />
+        <SourceList sources={direction.sourceCapabilities} />
       </Box>
 
       {direction.placements.length > 0 && (
@@ -196,7 +166,7 @@ function DirectionDetail({ direction, enterpriseCapabilityId }: DirectionDetailP
           <Text size="sm" fw={600}>
             Placements
           </Text>
-          <PlacementList placements={direction.placements} resolveDomainName={domainName} />
+          <PlacementList placements={direction.placements} resolveDomainName={resolvePlacementDomain} />
         </Box>
       )}
 
@@ -220,43 +190,27 @@ function DirectionNarrative({ narrative }: { narrative: Direction['narrative'] }
   );
 }
 
-interface SourceListProps {
-  sources: Direction['sourceCapabilities'];
-  resolveName: (id: string) => string | undefined;
-  resolveDomain: (capabilityId: string) => string | undefined;
-}
-
-function SourceList({ sources, resolveName, resolveDomain }: SourceListProps) {
+function SourceList({ sources }: { sources: Direction['sourceCapabilities'] }) {
   return (
     <List size="sm" listStyleType="disc" data-testid="direction-sources">
-      {sources.map((source) => {
-        const name = resolveName(source.id);
-        const domain = resolveDomain(source.id);
-        return (
-          <List.Item key={source.id}>
-            {name ? (
-              <Anchor component="span" inherit>
-                {name}
-              </Anchor>
-            ) : (
-              <Text component="code" size="xs">
-                {source.id}
-              </Text>
-            )}
-            {domain && (
-              <Text component="span" size="xs" c="dimmed">
-                {' · '}
-                {domain}
-              </Text>
-            )}
-            {source.stale && (
-              <Text component="span" size="xs" c="red" data-testid="stale-reference" ml="xs">
-                (stale — source capability deleted)
-              </Text>
-            )}
-          </List.Item>
-        );
-      })}
+      {sources.map((source) => (
+        <List.Item key={source.id}>
+          <Anchor component="span" inherit>
+            {source.name ?? '—'}
+          </Anchor>
+          {source.businessDomainName && (
+            <Text component="span" size="xs" c="dimmed">
+              {' · '}
+              {source.businessDomainName}
+            </Text>
+          )}
+          {source.stale && (
+            <Text component="span" size="xs" c="red" data-testid="stale-reference" ml="xs">
+              (stale — source capability deleted)
+            </Text>
+          )}
+        </List.Item>
+      ))}
     </List>
   );
 }

@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { toComponentId, toEnterpriseCapabilityId, toStandardApplicationId } from '../../../api/types';
-import type { ECStandardApplicationResponse } from '../types';
+import type { ECStandardApplicationResponse, StandardApplication } from '../types';
 
 vi.mock('../api/standardApplicationApi', () => ({
   standardApplicationApi: {
@@ -13,24 +13,13 @@ vi.mock('../api/standardApplicationApi', () => ({
   },
 }));
 
-vi.mock('../../components/hooks/useComponents', () => ({
-  useComponents: vi.fn(),
-}));
-
 import { standardApplicationApi } from '../api/standardApplicationApi';
-import { useComponents } from '../../components/hooks/useComponents';
 import { StandardApplicationPanel } from './StandardApplicationPanel';
 
 const mockedGet = vi.mocked(standardApplicationApi.getForEnterpriseCapability);
-const mockedComponents = vi.mocked(useComponents);
 
 function renderPanel(response: ECStandardApplicationResponse) {
   mockedGet.mockResolvedValueOnce(response);
-  mockedComponents.mockReturnValue({
-    data: [{ id: toComponentId('app-1'), name: 'Acme ERP', createdAt: '2025-01-01', _links: {} }],
-    isLoading: false,
-    error: null,
-  } as never);
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <MantineProvider>
@@ -39,6 +28,23 @@ function renderPanel(response: ECStandardApplicationResponse) {
       </QueryClientProvider>
     </MantineProvider>,
   );
+}
+
+function standardWith(overrides: Partial<StandardApplication> = {}): ECStandardApplicationResponse {
+  return {
+    standard: {
+      id: toStandardApplicationId('sa-1'),
+      enterpriseCapabilityId: toEnterpriseCapabilityId('ec-1'),
+      applicationId: toComponentId('app-1'),
+      applicationStale: false,
+      applicationName: 'Acme ERP',
+      narrative: 'standard',
+      setAt: '2025-04-12T10:00:00Z',
+      _links: {},
+      ...overrides,
+    },
+    _links: {},
+  };
 }
 
 describe('StandardApplicationPanel', () => {
@@ -72,13 +78,14 @@ describe('StandardApplicationPanel', () => {
     expect(screen.queryByTestId('set-standard-application-button')).not.toBeInTheDocument();
   });
 
-  it('renders application name and narrative for a current standard', async () => {
+  it('renders application name from the DTO and narrative for a current standard', async () => {
     renderPanel({
       standard: {
         id: toStandardApplicationId('sa-1'),
         enterpriseCapabilityId: toEnterpriseCapabilityId('ec-1'),
         applicationId: toComponentId('app-1'),
         applicationStale: false,
+        applicationName: 'Acme ERP',
         narrative: 'Covers the operational and reporting layers.',
         setAt: '2025-04-12T10:00:00Z',
         _links: {
@@ -106,24 +113,23 @@ describe('StandardApplicationPanel', () => {
     expect(screen.getByTestId('view-standard-application-history-button')).toBeInTheDocument();
   });
 
-  it('hides the Change standard button when the edit HATEOAS link is absent', async () => {
-    renderPanel({
-      standard: {
-        id: toStandardApplicationId('sa-1'),
-        enterpriseCapabilityId: toEnterpriseCapabilityId('ec-1'),
-        applicationId: toComponentId('app-1'),
-        applicationStale: false,
-        narrative: 'standard',
-        setAt: '2025-04-12T10:00:00Z',
-        _links: {},
-      },
-      _links: {
-        'x-history': {
-          href: '/api/v1/enterprise-capabilities/ec-1/standard-application/history',
-          method: 'GET',
-        },
-      },
+  it('renders a placeholder when application name is null', async () => {
+    renderPanel(standardWith({ applicationName: null }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('standard-application-name')).toHaveTextContent('—');
     });
+  });
+
+  it('hides the Change standard button when the edit HATEOAS link is absent', async () => {
+    const response = standardWith();
+    response._links = {
+      'x-history': {
+        href: '/api/v1/enterprise-capabilities/ec-1/standard-application/history',
+        method: 'GET',
+      },
+    };
+    renderPanel(response);
 
     await waitFor(() => {
       expect(screen.getByTestId('standard-application-name')).toBeInTheDocument();
@@ -133,18 +139,7 @@ describe('StandardApplicationPanel', () => {
   });
 
   it('shows the stale indicator when the application has been deleted', async () => {
-    renderPanel({
-      standard: {
-        id: toStandardApplicationId('sa-1'),
-        enterpriseCapabilityId: toEnterpriseCapabilityId('ec-1'),
-        applicationId: toComponentId('app-1'),
-        applicationStale: true,
-        narrative: 'standard',
-        setAt: '2025-04-12T10:00:00Z',
-        _links: {},
-      },
-      _links: {},
-    });
+    renderPanel(standardWith({ applicationStale: true }));
 
     await waitFor(() => {
       expect(screen.getByTestId('standard-application-stale-indicator')).toBeInTheDocument();

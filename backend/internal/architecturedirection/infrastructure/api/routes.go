@@ -70,6 +70,8 @@ func subscribeStandardApplicationEvents(eventBus events.EventBus, rm *readmodels
 	staleProjector := projectors.NewStaleApplicationProjector(rm)
 	eventBus.Subscribe(pl.StandardApplicationSet, projector)
 	eventBus.Subscribe(amPL.ApplicationComponentDeleted, staleProjector)
+	eventBus.Subscribe(amPL.ApplicationComponentCreated, staleProjector)
+	eventBus.Subscribe(amPL.ApplicationComponentUpdated, staleProjector)
 }
 
 func registerStandardApplicationRoutes(r chi.Router, h *StandardApplicationHandlers, authMiddleware AuthMiddleware) {
@@ -105,6 +107,12 @@ func subscribeEvents(eventBus events.EventBus, rm *readmodels.DirectionReadModel
 	}
 
 	eventBus.Subscribe(cmPL.CapabilityDeleted, staleProjector)
+	eventBus.Subscribe(cmPL.CapabilityCreated, staleProjector)
+	eventBus.Subscribe(cmPL.CapabilityUpdated, staleProjector)
+	eventBus.Subscribe(cmPL.BusinessDomainCreated, staleProjector)
+	eventBus.Subscribe(cmPL.BusinessDomainUpdated, staleProjector)
+	eventBus.Subscribe(cmPL.CapabilityAssignedToDomain, staleProjector)
+	eventBus.Subscribe(cmPL.CapabilityUnassignedFromDomain, staleProjector)
 }
 
 func registerCommandHandlers(

@@ -14,6 +14,9 @@ export interface DirectionPlacement {
 export interface DirectionSourceCapability {
   id: CapabilityId | string;
   stale: boolean;
+  name: string | null;
+  businessDomainId?: BusinessDomainId | string;
+  businessDomainName?: string | null;
 }
 
 export interface Direction {

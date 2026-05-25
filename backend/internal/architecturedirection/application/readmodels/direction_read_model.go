@@ -44,8 +44,11 @@ type DirectionPlacementDTO struct {
 }
 
 type DirectionSourceCapabilityDTO struct {
-	ID    string `json:"id"`
-	Stale bool   `json:"stale"`
+	ID                 string  `json:"id"`
+	Stale              bool    `json:"stale"`
+	Name               *string `json:"name"`
+	BusinessDomainID   *string `json:"businessDomainId,omitempty"`
+	BusinessDomainName *string `json:"businessDomainName,omitempty"`
 }
 
 type DirectionDTO struct {
@@ -186,23 +189,88 @@ func (rm *DirectionReadModel) ReplaceSourceCapabilities(ctx context.Context, u S
 	})
 }
 
-func (rm *DirectionReadModel) MarkSourceCapabilityStale(ctx context.Context, capabilityID CapabilityID) error {
+func (rm *DirectionReadModel) tenantExec(ctx context.Context, query string, argsFn func(tenantID string) []any) error {
 	tenantID, err := tenantOf(ctx)
 	if err != nil {
 		return err
 	}
-	_, err = rm.db.ExecContext(ctx,
+	_, err = rm.db.ExecContext(ctx, query, argsFn(tenantID)...)
+	return err
+}
+
+func (rm *DirectionReadModel) MarkSourceCapabilityStale(ctx context.Context, capabilityID CapabilityID) error {
+	return rm.tenantExec(ctx,
 		`UPDATE architecturedirection.direction_source_capabilities SET stale = TRUE
 		 WHERE tenant_id = $1 AND capability_id = $2 AND stale = FALSE`,
-		tenantID, string(capabilityID),
+		func(t string) []any { return []any{t, string(capabilityID)} },
 	)
-	return err
+}
+
+func (rm *DirectionReadModel) CacheReferenceName(ctx context.Context, entityType, entityID, name string) error {
+	return rm.tenantExec(ctx,
+		`INSERT INTO architecturedirection.reference_name_cache (tenant_id, entity_type, entity_id, name)
+		 VALUES ($1, $2, $3, $4)
+		 ON CONFLICT (tenant_id, entity_type, entity_id) DO UPDATE SET name = EXCLUDED.name`,
+		func(t string) []any { return []any{t, entityType, entityID, name} },
+	)
+}
+
+func (rm *DirectionReadModel) CacheCapabilityDomain(ctx context.Context, capabilityID, businessDomainID string) error {
+	return rm.tenantExec(ctx,
+		`INSERT INTO architecturedirection.capability_domain_cache (tenant_id, capability_id, business_domain_id)
+		 VALUES ($1, $2, $3)
+		 ON CONFLICT (tenant_id, capability_id) DO UPDATE SET business_domain_id = EXCLUDED.business_domain_id`,
+		func(t string) []any { return []any{t, capabilityID, businessDomainID} },
+	)
+}
+
+func (rm *DirectionReadModel) ClearCapabilityDomain(ctx context.Context, capabilityID string) error {
+	return rm.tenantExec(ctx,
+		`DELETE FROM architecturedirection.capability_domain_cache WHERE tenant_id = $1 AND capability_id = $2`,
+		func(t string) []any { return []any{t, capabilityID} },
+	)
+}
+
+func (rm *DirectionReadModel) UpdateCapabilityName(ctx context.Context, capabilityID CapabilityID, name string) error {
+	return rm.tenantExec(ctx,
+		`UPDATE architecturedirection.direction_source_capabilities SET capability_name = $1
+		 WHERE tenant_id = $2 AND capability_id = $3`,
+		func(t string) []any { return []any{name, t, string(capabilityID)} },
+	)
+}
+
+func (rm *DirectionReadModel) UpdateSourceCapabilityDomain(ctx context.Context, capabilityID CapabilityID, businessDomainID string) error {
+	return rm.tenantExec(ctx,
+		`UPDATE architecturedirection.direction_source_capabilities
+		 SET business_domain_id = $1,
+		     business_domain_name = (SELECT name FROM architecturedirection.reference_name_cache
+		                             WHERE tenant_id = $2 AND entity_type = 'business_domain' AND entity_id = $1)
+		 WHERE tenant_id = $2 AND capability_id = $3`,
+		func(t string) []any { return []any{businessDomainID, t, string(capabilityID)} },
+	)
+}
+
+func (rm *DirectionReadModel) ClearSourceCapabilityDomain(ctx context.Context, capabilityID CapabilityID) error {
+	return rm.tenantExec(ctx,
+		`UPDATE architecturedirection.direction_source_capabilities
+		 SET business_domain_id = NULL, business_domain_name = NULL
+		 WHERE tenant_id = $1 AND capability_id = $2`,
+		func(t string) []any { return []any{t, string(capabilityID)} },
+	)
+}
+
+func (rm *DirectionReadModel) UpdateBusinessDomainName(ctx context.Context, businessDomainID, name string) error {
+	return rm.tenantExec(ctx,
+		`UPDATE architecturedirection.direction_source_capabilities SET business_domain_name = $1
+		 WHERE tenant_id = $2 AND business_domain_id = $3`,
+		func(t string) []any { return []any{name, t, businessDomainID} },
+	)
 }
 
 func (rm *DirectionReadModel) GetByID(ctx context.Context, id DirectionID) (*DirectionDTO, error) {
 	return rm.fetchDirection(ctx, fetchSpec{
 		query: `SELECT ` + directionCols + ` FROM architecturedirection.directions WHERE tenant_id = $1 AND id = $2`,
-		args:  func(tenantID string) []interface{} { return []interface{}{tenantID, string(id)} },
+		args:  func(tenantID string) []any { return []any{tenantID, string(id)} },
 	})
 }
 
@@ -211,7 +279,7 @@ func (rm *DirectionReadModel) GetActiveByEnterpriseCapabilityID(ctx context.Cont
 		query: `SELECT ` + directionCols + ` FROM architecturedirection.directions
 		        WHERE tenant_id = $1 AND enterprise_capability_id = $2 AND status != 'rejected'
 		        ORDER BY created_at DESC LIMIT 1`,
-		args: func(tenantID string) []interface{} { return []interface{}{tenantID, enterpriseCapabilityID} },
+		args: func(tenantID string) []any { return []any{tenantID, enterpriseCapabilityID} },
 	})
 }
 
@@ -233,7 +301,7 @@ func (rm *DirectionReadModel) HasActiveDirectionForEnterpriseCapability(ctx cont
 
 type fetchSpec struct {
 	query string
-	args  func(tenantID string) []interface{}
+	args  func(tenantID string) []any
 }
 
 func tenantOf(ctx context.Context) (string, error) {
@@ -277,7 +345,15 @@ func (r sourceRowReplacement) execute(ctx context.Context) error {
 	for _, sid := range r.sourceCapabilityIDs {
 		if _, err := r.tx.ExecContext(ctx,
 			`INSERT INTO architecturedirection.direction_source_capabilities
-			 (tenant_id, direction_id, capability_id) VALUES ($1, $2, $3)`,
+			 (tenant_id, direction_id, capability_id, capability_name, business_domain_id, business_domain_name)
+			 SELECT $1, $2, $3, rnc.name, cdc.business_domain_id, rnd.name
+			 FROM (SELECT 1) AS stub
+			 LEFT JOIN architecturedirection.reference_name_cache rnc
+			   ON rnc.tenant_id = $1 AND rnc.entity_type = 'capability' AND rnc.entity_id = $3
+			 LEFT JOIN architecturedirection.capability_domain_cache cdc
+			   ON cdc.tenant_id = $1 AND cdc.capability_id = $3
+			 LEFT JOIN architecturedirection.reference_name_cache rnd
+			   ON rnd.tenant_id = $1 AND rnd.entity_type = 'business_domain' AND rnd.entity_id = cdc.business_domain_id`,
 			r.tenantID, string(r.directionID), string(sid),
 		); err != nil {
 			return err
@@ -352,7 +428,8 @@ type sourceFetchKey struct {
 
 func loadSourcesForDirection(ctx context.Context, tx *sql.Tx, key sourceFetchKey) ([]DirectionSourceCapabilityDTO, error) {
 	rows, err := tx.QueryContext(ctx,
-		`SELECT capability_id, stale FROM architecturedirection.direction_source_capabilities
+		`SELECT capability_id, stale, capability_name, business_domain_id, business_domain_name
+		 FROM architecturedirection.direction_source_capabilities
 		 WHERE tenant_id = $1 AND direction_id = $2 ORDER BY capability_id`,
 		key.tenantID, string(key.directionID),
 	)
@@ -364,7 +441,7 @@ func loadSourcesForDirection(ctx context.Context, tx *sql.Tx, key sourceFetchKey
 	out := []DirectionSourceCapabilityDTO{}
 	for rows.Next() {
 		var s DirectionSourceCapabilityDTO
-		if err := rows.Scan(&s.ID, &s.Stale); err != nil {
+		if err := rows.Scan(&s.ID, &s.Stale, &s.Name, &s.BusinessDomainID, &s.BusinessDomainName); err != nil {
 			return nil, err
 		}
 		out = append(out, s)

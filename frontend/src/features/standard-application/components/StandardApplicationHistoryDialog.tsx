@@ -1,7 +1,5 @@
 import { Alert, Loader, Modal, Stack, Table, Text } from '@mantine/core';
-import { useMemo } from 'react';
 import type { EnterpriseCapabilityId } from '../../../api/types';
-import { useComponents } from '../../components/hooks/useComponents';
 import { useStandardApplicationHistory } from '../hooks/useStandardApplication';
 
 interface StandardApplicationHistoryDialogProps {
@@ -24,13 +22,6 @@ export function StandardApplicationHistoryDialog({
 
 function HistoryDialogBody({ enterpriseCapabilityId }: { enterpriseCapabilityId: EnterpriseCapabilityId }) {
   const { data: history, isLoading, error } = useStandardApplicationHistory(enterpriseCapabilityId, true);
-  const { data: components } = useComponents();
-
-  const nameByApplicationId = useMemo(() => {
-    const map = new Map<string, string>();
-    (components ?? []).forEach((c) => map.set(String(c.id), c.name));
-    return map;
-  }, [components]);
 
   if (isLoading) return <Loader size="sm" />;
   if (error) return <Alert color="red">Failed to load history.</Alert>;
@@ -59,12 +50,8 @@ function HistoryDialogBody({ enterpriseCapabilityId }: { enterpriseCapabilityId:
           {history.entries.map((entry, idx) => (
             <Table.Tr key={`${entry.setAt}-${idx}`}>
               <Table.Td>{new Date(entry.setAt).toLocaleString()}</Table.Td>
-              <Table.Td>{nameByApplicationId.get(String(entry.applicationId)) ?? entry.applicationId}</Table.Td>
-              <Table.Td>
-                {entry.previousApplicationId
-                  ? (nameByApplicationId.get(String(entry.previousApplicationId)) ?? entry.previousApplicationId)
-                  : '—'}
-              </Table.Td>
+              <Table.Td>{entry.applicationName ?? '—'}</Table.Td>
+              <Table.Td>{entry.previousApplicationName ?? '—'}</Table.Td>
               <Table.Td>{entry.narrative}</Table.Td>
             </Table.Tr>
           ))}

@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { toEnterpriseCapabilityId } from '../../../api/types';
-import type { ECDirectionResponse } from '../types';
+import type { Direction, ECDirectionResponse } from '../types';
 
 vi.mock('../api/directionApi', () => ({
   directionApi: {
@@ -11,53 +11,20 @@ vi.mock('../api/directionApi', () => ({
   },
 }));
 
-vi.mock('../../enterprise-architecture/hooks/useEnterpriseCapabilities', () => ({
-  useEnterpriseCapabilityLinks: vi.fn(),
-}));
-
 vi.mock('../../business-domains/hooks/useBusinessDomains', () => ({
   useBusinessDomainsQuery: vi.fn(),
 }));
 
-vi.mock('../../capabilities/hooks/useCapabilities', () => ({
-  useCapabilities: vi.fn(),
-}));
-
 import { directionApi } from '../api/directionApi';
-import { useEnterpriseCapabilityLinks } from '../../enterprise-architecture/hooks/useEnterpriseCapabilities';
 import { useBusinessDomainsQuery } from '../../business-domains/hooks/useBusinessDomains';
-import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
 import { DirectionPanel } from './DirectionPanel';
 
 const mocked = vi.mocked(directionApi.getForEnterpriseCapability);
-const mockedLinks = vi.mocked(useEnterpriseCapabilityLinks);
 const mockedDomains = vi.mocked(useBusinessDomainsQuery);
-const mockedCapabilities = vi.mocked(useCapabilities);
 
-interface LinkFixture {
-  capabilityId: string;
-  capabilityName?: string;
-  businessDomainName?: string;
-}
-
-interface CapabilityFixture {
-  id: string;
-  name: string;
-}
-
-function renderPanel(response: ECDirectionResponse, links: LinkFixture[] = [], capabilities: CapabilityFixture[] = []) {
+function renderPanel(response: ECDirectionResponse) {
   mocked.mockResolvedValueOnce(response);
-  mockedLinks.mockReturnValue({
-    data: links.map((l, i) => ({
-      id: `link-${i}`,
-      enterpriseCapabilityId: 'ec-1',
-      domainCapabilityId: l.capabilityId,
-      domainCapabilityName: l.capabilityName,
-      businessDomainName: l.businessDomainName,
-    })),
-  } as never);
   mockedDomains.mockReturnValue({ data: { data: [] } } as never);
-  mockedCapabilities.mockReturnValue({ data: capabilities } as never);
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <MantineProvider>
@@ -66,6 +33,28 @@ function renderPanel(response: ECDirectionResponse, links: LinkFixture[] = [], c
       </QueryClientProvider>
     </MantineProvider>,
   );
+}
+
+function directionWithSources(
+  sources: Direction['sourceCapabilities'],
+  overrides: Partial<Direction> = {},
+): ECDirectionResponse {
+  return {
+    direction: {
+      id: 'd-1',
+      enterpriseCapabilityId: toEnterpriseCapabilityId('ec-1'),
+      type: 'consolidate',
+      status: 'draft',
+      horizon: 'next',
+      narrative: 'n',
+      sourceCapabilities: sources,
+      placements: [],
+      createdAt: '2025-01-01T00:00:00Z',
+      _links: {},
+      ...overrides,
+    },
+    _links: {},
+  };
 }
 
 describe('DirectionPanel', () => {
@@ -109,8 +98,8 @@ describe('DirectionPanel', () => {
         horizon: 'next',
         narrative: 'We are consolidating payroll into one.',
         sourceCapabilities: [
-          { id: 'cap-1', stale: false },
-          { id: 'cap-2', stale: false },
+          { id: 'cap-1', stale: false, name: 'Payroll DK', businessDomainName: 'Finance' },
+          { id: 'cap-2', stale: false, name: 'Payroll NO', businessDomainName: 'Finance' },
         ],
         placements: [{ targetBusinessDomainId: 'dom-1' }],
         createdAt: '2025-01-01T00:00:00Z',
@@ -132,31 +121,21 @@ describe('DirectionPanel', () => {
     expect(screen.queryByTestId('advance-to-agreed')).not.toBeInTheDocument();
   });
 
-  it('resolves source capability names via the global capabilities query when they are not linked to this EC', async () => {
-    renderPanel(
-      {
-        direction: {
-          id: 'd-1',
-          enterpriseCapabilityId: toEnterpriseCapabilityId('ec-1'),
-          type: 'consolidate',
-          status: 'draft',
-          horizon: 'next',
-          narrative: 'n',
-          sourceCapabilities: [{ id: 'cap-unlinked', stale: false }],
-          placements: [],
-          createdAt: '2025-01-01T00:00:00Z',
-          _links: {},
-        },
-        _links: {},
-      },
-      [], // no ECLinks — the source is not linked to this EC
-      [{ id: 'cap-unlinked', name: 'Payroll (Norway)' }],
-    );
+  it('renders source capability names directly from the DTO', async () => {
+    renderPanel(directionWithSources([{ id: 'cap-1', stale: false, name: 'Payroll (Norway)' }]));
 
     await waitFor(() => {
       expect(screen.getByTestId('direction-sources')).toHaveTextContent('Payroll (Norway)');
     });
-    expect(screen.queryByText('cap-unlinked')).not.toBeInTheDocument();
+  });
+
+  it('renders a placeholder when source capability name is null', async () => {
+    renderPanel(directionWithSources([{ id: 'cap-1', stale: false, name: null }]));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('direction-sources')).toHaveTextContent('—');
+    });
+    expect(screen.queryByText('cap-1')).not.toBeInTheDocument();
   });
 
   it('marks stale references when source capability has been deleted', async () => {
@@ -169,8 +148,8 @@ describe('DirectionPanel', () => {
         horizon: 'next',
         narrative: 'narrative',
         sourceCapabilities: [
-          { id: 'cap-1', stale: false },
-          { id: 'cap-2', stale: true },
+          { id: 'cap-1', stale: false, name: 'Active Cap' },
+          { id: 'cap-2', stale: true, name: 'Deleted Cap' },
         ],
         placements: [],
         createdAt: '2025-01-01T00:00:00Z',
@@ -186,31 +165,25 @@ describe('DirectionPanel', () => {
     });
   });
 
-  it('shows the business domain of each source capability', async () => {
-    renderPanel(
-      {
-        direction: {
-          id: 'd-1',
-          enterpriseCapabilityId: toEnterpriseCapabilityId('ec-1'),
-          type: 'consolidate',
-          status: 'draft',
-          horizon: 'next',
-          narrative: 'n',
-          sourceCapabilities: [
-            { id: 'cap-1', stale: false },
-            { id: 'cap-2', stale: false },
-          ],
-          placements: [{ targetBusinessDomainId: 'dom-1' }],
-            createdAt: '2025-01-01T00:00:00Z',
-          _links: {},
-        },
+  it('shows the business domain of each source capability from the DTO', async () => {
+    renderPanel({
+      direction: {
+        id: 'd-1',
+        enterpriseCapabilityId: toEnterpriseCapabilityId('ec-1'),
+        type: 'consolidate',
+        status: 'draft',
+        horizon: 'next',
+        narrative: 'n',
+        sourceCapabilities: [
+          { id: 'cap-1', stale: false, name: 'Customer Care', businessDomainName: 'Passenger' },
+          { id: 'cap-2', stale: false, name: 'Customer Service', businessDomainName: 'Terminal' },
+        ],
+        placements: [{ targetBusinessDomainId: 'dom-1' }],
+        createdAt: '2025-01-01T00:00:00Z',
         _links: {},
       },
-      [
-        { capabilityId: 'cap-1', capabilityName: 'Customer Care', businessDomainName: 'Passenger' },
-        { capabilityId: 'cap-2', capabilityName: 'Customer Service', businessDomainName: 'Terminal' },
-      ],
-    );
+      _links: {},
+    });
 
     await waitFor(() => {
       const sources = screen.getByTestId('direction-sources');
@@ -228,7 +201,7 @@ describe('DirectionPanel', () => {
         status: 'agreed',
         horizon: 'now',
         narrative: 'narrative',
-        sourceCapabilities: [{ id: 'cap-1', stale: false }],
+        sourceCapabilities: [{ id: 'cap-1', stale: false, name: 'Some Cap' }],
         placements: [],
         createdAt: '2025-01-01T00:00:00Z',
         _links: {
@@ -243,7 +216,6 @@ describe('DirectionPanel', () => {
     });
     expect(screen.queryByTestId('advance-to-proposed')).not.toBeInTheDocument();
     expect(screen.queryByTestId('advance-to-agreed')).not.toBeInTheDocument();
-    // Per spec BDD: reject-and-replace remains the documented escape hatch from agreed.
     expect(screen.getByTestId('reject-direction')).toBeInTheDocument();
   });
 });

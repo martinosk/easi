@@ -13,6 +13,7 @@ export interface StandardApplication {
   enterpriseCapabilityId: EnterpriseCapabilityId;
   applicationId: ComponentId | string;
   applicationStale: boolean;
+  applicationName: string | null;
   narrative: string;
   setAt: string;
   updatedAt?: string;
@@ -38,6 +39,8 @@ export interface ECStandardApplicationResponse {
 export interface StandardApplicationHistoryEntry {
   applicationId: ComponentId | string;
   previousApplicationId?: ComponentId | string;
+  applicationName: string | null;
+  previousApplicationName?: string | null;
   narrative: string;
   setAt: string;
 }

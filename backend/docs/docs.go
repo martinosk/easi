@@ -11072,7 +11072,16 @@ const docTemplate = `{
         "easi_backend_internal_architecturedirection_application_readmodels.DirectionSourceCapabilityDTO": {
             "type": "object",
             "properties": {
+                "businessDomainId": {
+                    "type": "string"
+                },
+                "businessDomainName": {
+                    "type": "string"
+                },
                 "id": {
+                    "type": "string"
+                },
+                "name": {
                     "type": "string"
                 },
                 "stale": {
@@ -11087,6 +11096,9 @@ const docTemplate = `{
                     "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
                 },
                 "applicationId": {
+                    "type": "string"
+                },
+                "applicationName": {
                     "type": "string"
                 },
                 "applicationStale": {
@@ -11135,10 +11147,16 @@ const docTemplate = `{
                 "applicationId": {
                     "type": "string"
                 },
+                "applicationName": {
+                    "type": "string"
+                },
                 "narrative": {
                     "type": "string"
                 },
                 "previousApplicationId": {
+                    "type": "string"
+                },
+                "previousApplicationName": {
                     "type": "string"
                 },
                 "setAt": {

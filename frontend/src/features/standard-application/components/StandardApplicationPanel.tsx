@@ -1,9 +1,8 @@
 import { Alert, Badge, Box, Button, Group, Loader, Modal, Stack, Text, Title } from '@mantine/core';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import type { EnterpriseCapabilityId } from '../../../api/types';
-import { useComponents } from '../../components/hooks/useComponents';
 import { useStandardApplicationForEnterpriseCapability } from '../hooks/useStandardApplication';
-import type { StandardApplication } from '../types';
+import type { ECStandardApplicationResponse, StandardApplication } from '../types';
 import { SetStandardApplicationForm } from './SetStandardApplicationForm';
 import { StandardApplicationHistoryDialog } from './StandardApplicationHistoryDialog';
 
@@ -16,70 +15,115 @@ export function StandardApplicationPanel({ enterpriseCapabilityId }: StandardApp
   const [isEditing, setIsEditing] = useState(false);
   const [isViewingHistory, setIsViewingHistory] = useState(false);
 
-  if (isLoading) {
-    return (
-      <PanelShell aria-busy="true">
-        <Group justify="space-between" align="center" mb="sm">
-          <Title order={4}>Standard application</Title>
-        </Group>
-        <Loader size="sm" />
-      </PanelShell>
-    );
-  }
-
-  if (error) {
-    return (
-      <PanelShell>
-        <Group justify="space-between" align="center" mb="sm">
-          <Title order={4}>Standard application</Title>
-        </Group>
-        <Alert color="red">Failed to load standard application.</Alert>
-      </PanelShell>
-    );
-  }
-
-  const standard = data?.standard ?? null;
-  const canSet = !!data?._links?.['x-set-standard'];
-  const canEdit = !!data?._links?.edit;
-  const hasHistory = !!data?._links?.['x-history'];
-
   return (
     <>
-      <PanelShell>
-        {standard ? (
-          <StandardDetail
-            standard={standard}
-            canEdit={canEdit}
-            hasHistory={hasHistory}
-            onEdit={() => setIsEditing(true)}
-            onViewHistory={() => setIsViewingHistory(true)}
-          />
-        ) : (
-          <NoStandardView canSet={canSet} onSet={() => setIsEditing(true)} />
-        )}
+      <PanelShell aria-busy={isLoading || undefined}>
+        <PanelContent data={data} isLoading={isLoading} error={error} onEdit={() => setIsEditing(true)} onViewHistory={() => setIsViewingHistory(true)} />
       </PanelShell>
-      <Modal
+      <SetStandardModal
+        enterpriseCapabilityId={enterpriseCapabilityId}
+        standard={data?.standard ?? null}
         opened={isEditing}
         onClose={() => setIsEditing(false)}
-        title={standard ? 'Change standard application' : 'Set standard application'}
-        size="lg"
-        centered
-        data-testid="standard-application-modal"
-      >
-        <SetStandardApplicationForm
-          enterpriseCapabilityId={enterpriseCapabilityId}
-          initialApplicationId={standard ? String(standard.applicationId) : undefined}
-          initialNarrative={standard?.narrative}
-          onSubmitted={() => setIsEditing(false)}
-          onCancel={() => setIsEditing(false)}
-        />
-      </Modal>
+      />
       <StandardApplicationHistoryDialog
         enterpriseCapabilityId={enterpriseCapabilityId}
         opened={isViewingHistory}
         onClose={() => setIsViewingHistory(false)}
       />
     </>
+  );
+}
+
+function PanelHeader() {
+  return (
+    <Group justify="space-between" align="center" mb="sm">
+      <Title order={4}>Standard application</Title>
+    </Group>
+  );
+}
+
+function PanelLoading() {
+  return (
+    <>
+      <PanelHeader />
+      <Loader size="sm" />
+    </>
+  );
+}
+
+function PanelError() {
+  return (
+    <>
+      <PanelHeader />
+      <Alert color="red">Failed to load standard application.</Alert>
+    </>
+  );
+}
+
+function PanelReady({ data, onEdit, onViewHistory }: { data: ECStandardApplicationResponse; onEdit: () => void; onViewHistory: () => void }) {
+  const standard = data.standard;
+  if (standard) {
+    return (
+      <StandardDetail
+        standard={standard}
+        canEdit={!!data._links?.edit}
+        hasHistory={!!data._links?.['x-history']}
+        onEdit={onEdit}
+        onViewHistory={onViewHistory}
+      />
+    );
+  }
+  return <NoStandardView canSet={!!data._links?.['x-set-standard']} onSet={onEdit} />;
+}
+
+function PanelContent({
+  data,
+  isLoading,
+  error,
+  onEdit,
+  onViewHistory,
+}: {
+  data: ECStandardApplicationResponse | undefined;
+  isLoading: boolean;
+  error: Error | null;
+  onEdit: () => void;
+  onViewHistory: () => void;
+}) {
+  if (isLoading) return <PanelLoading />;
+  if (error) return <PanelError />;
+  if (!data) return null;
+  return <PanelReady data={data} onEdit={onEdit} onViewHistory={onViewHistory} />;
+}
+
+function SetStandardModal({
+  enterpriseCapabilityId,
+  standard,
+  opened,
+  onClose,
+}: {
+  enterpriseCapabilityId: EnterpriseCapabilityId;
+  standard: StandardApplication | null;
+  opened: boolean;
+  onClose: () => void;
+}) {
+  return (
+    <Modal
+      opened={opened}
+      onClose={onClose}
+      title={standard ? 'Change standard application' : 'Set standard application'}
+      size="lg"
+      centered
+      data-testid="standard-application-modal"
+    >
+      <SetStandardApplicationForm
+        enterpriseCapabilityId={enterpriseCapabilityId}
+        initialApplicationId={standard ? String(standard.applicationId) : undefined}
+        initialNarrative={standard?.narrative}
+        onSubmitted={onClose}
+        onCancel={onClose}
+      />
+    </Modal>
   );
 }
 
@@ -121,12 +165,6 @@ interface StandardDetailProps {
 }
 
 function StandardDetail({ standard, canEdit, hasHistory, onEdit, onViewHistory }: StandardDetailProps) {
-  const { data: components } = useComponents();
-  const applicationName = useMemo(() => {
-    const match = (components ?? []).find((c) => String(c.id) === String(standard.applicationId));
-    return match?.name ?? String(standard.applicationId);
-  }, [components, standard.applicationId]);
-
   return (
     <Stack gap="sm">
       <Group justify="space-between" align="center">
@@ -139,7 +177,7 @@ function StandardDetail({ standard, canEdit, hasHistory, onEdit, onViewHistory }
       </Group>
       <Group gap="sm" align="baseline">
         <Text fw={500} data-testid="standard-application-name">
-          {applicationName}
+          {standard.applicationName ?? '—'}
         </Text>
         <Text size="xs" c="dimmed">
           Set {new Date(standard.setAt).toLocaleDateString()}

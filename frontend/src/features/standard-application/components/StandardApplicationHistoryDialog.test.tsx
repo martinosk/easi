@@ -13,26 +13,12 @@ vi.mock('../api/standardApplicationApi', () => ({
   },
 }));
 
-vi.mock('../../components/hooks/useComponents', () => ({
-  useComponents: vi.fn(),
-}));
-
 import { standardApplicationApi } from '../api/standardApplicationApi';
-import { useComponents } from '../../components/hooks/useComponents';
 import { StandardApplicationHistoryDialog } from './StandardApplicationHistoryDialog';
 
 const mockedGetHistory = vi.mocked(standardApplicationApi.getHistory);
-const mockedComponents = vi.mocked(useComponents);
 
 function renderDialog(history: StandardApplicationHistory | undefined, opened: boolean) {
-  mockedComponents.mockReturnValue({
-    data: [
-      { id: toComponentId('app-a'), name: 'Acme ERP', createdAt: '2025-01-01', _links: {} },
-      { id: toComponentId('app-b'), name: 'Beta Suite', createdAt: '2025-01-01', _links: {} },
-    ],
-    isLoading: false,
-    error: null,
-  } as never);
   if (history !== undefined) {
     mockedGetHistory.mockResolvedValueOnce(history);
   }
@@ -74,14 +60,27 @@ describe('StandardApplicationHistoryDialog', () => {
     expect(screen.queryByTestId('standard-application-history-table')).not.toBeInTheDocument();
   });
 
-  it('resolves application names and renders previous in the table', async () => {
+  it('renders application names directly from the DTO', async () => {
     renderDialog(
       {
         standardApplicationId: toStandardApplicationId('ec-1'),
         enterpriseCapabilityId: toEnterpriseCapabilityId('ec-1'),
         entries: [
-          { applicationId: toComponentId('app-b'), previousApplicationId: toComponentId('app-a'), narrative: 'switched', setAt: '2026-05-12T10:00:00Z' },
-          { applicationId: toComponentId('app-a'), narrative: 'first', setAt: '2026-04-01T10:00:00Z' },
+          {
+            applicationId: toComponentId('app-b'),
+            previousApplicationId: toComponentId('app-a'),
+            applicationName: 'Beta Suite',
+            previousApplicationName: 'Acme ERP',
+            narrative: 'switched',
+            setAt: '2026-05-12T10:00:00Z',
+          },
+          {
+            applicationId: toComponentId('app-a'),
+            applicationName: 'Acme ERP',
+            previousApplicationName: null,
+            narrative: 'first',
+            setAt: '2026-04-01T10:00:00Z',
+          },
         ],
         _links: {},
       },
@@ -95,5 +94,30 @@ describe('StandardApplicationHistoryDialog', () => {
     expect(screen.getAllByText('Acme ERP').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('switched')).toBeInTheDocument();
     expect(screen.getByText('first')).toBeInTheDocument();
+  });
+
+  it('renders placeholders for null application names', async () => {
+    renderDialog(
+      {
+        standardApplicationId: toStandardApplicationId('ec-1'),
+        enterpriseCapabilityId: toEnterpriseCapabilityId('ec-1'),
+        entries: [
+          {
+            applicationId: toComponentId('app-a'),
+            applicationName: null,
+            previousApplicationName: null,
+            narrative: 'set during lag window',
+            setAt: '2026-04-01T10:00:00Z',
+          },
+        ],
+        _links: {},
+      },
+      true,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('standard-application-history-table')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('app-a')).not.toBeInTheDocument();
   });
 });
