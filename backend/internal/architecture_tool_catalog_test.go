@@ -258,6 +258,8 @@ var excludedRoutes = map[string]string{
 	"POST /enterprise-capabilities/*/direction/propose": "direction advance to proposed — architect-only deliberation, reserved for human via UI",
 	"POST /enterprise-capabilities/*/direction/agree":   "direction advance to agreed — architect-only deliberation, reserved for human via UI",
 	"POST /enterprise-capabilities/*/direction/reject":  "direction rejection — architect-only deliberation, reserved for human via UI",
+	"PUT /enterprise-capabilities/*/standard-application":           "standard application set/change — architect-only deliberation, reserved for human via UI",
+	"GET /enterprise-capabilities/*/standard-application/history":   "standard history — UI helper; main get_standard_application_for_enterprise_capability tool returns the current state",
 	"DELETE /value-streams/*":                                  "value stream delete — high-impact, reserved for UI",
 	"DELETE /value-streams/*/stages/*":                         "stage delete — reserved for UI",
 	"DELETE /value-streams/*/stages/*/capabilities/*":          "stage-capability unmapping — reserved for UI",

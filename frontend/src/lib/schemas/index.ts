@@ -7,3 +7,4 @@ export * from './enterpriseCapability';
 export * from './invitation';
 export * from './originEntity';
 export * from './relation';
+export * from './standardApplication';

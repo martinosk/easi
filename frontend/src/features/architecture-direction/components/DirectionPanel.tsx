@@ -2,6 +2,7 @@ import { Alert, Anchor, Badge, Box, Button, Group, List, Loader, Modal, Stack, T
 import { useMemo, useState } from 'react';
 import type { EnterpriseCapabilityId } from '../../../api/types';
 import { useBusinessDomainsQuery } from '../../business-domains/hooks/useBusinessDomains';
+import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
 import { useEnterpriseCapabilityLinks } from '../../enterprise-architecture/hooks/useEnterpriseCapabilities';
 import {
   useAgreeDirection,
@@ -137,11 +138,13 @@ function indexBy<T>(
 function useNameResolvers(enterpriseCapabilityId: EnterpriseCapabilityId) {
   const { data: links } = useEnterpriseCapabilityLinks(enterpriseCapabilityId);
   const { data: domainsResponse } = useBusinessDomainsQuery();
+  const { data: capabilities } = useCapabilities();
 
-  const capabilityName = useMemo(
-    () => indexBy(links, (l) => l.domainCapabilityId, (l) => l.domainCapabilityName),
-    [links],
-  );
+  const capabilityName = useMemo(() => {
+    const linkLookup = indexBy(links, (l) => l.domainCapabilityId, (l) => l.domainCapabilityName);
+    const globalLookup = indexBy(capabilities, (c) => c.id, (c) => c.name);
+    return (id: string) => linkLookup(id) ?? globalLookup(id);
+  }, [links, capabilities]);
   const sourceDomainName = useMemo(
     () => indexBy(links, (l) => l.domainCapabilityId, (l) => l.businessDomainName),
     [links],

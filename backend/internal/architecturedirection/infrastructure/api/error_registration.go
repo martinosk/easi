@@ -2,6 +2,7 @@ package api
 
 import (
 	"easi/backend/internal/architecturedirection/application/handlers"
+	"easi/backend/internal/architecturedirection/application/readmodels"
 	"easi/backend/internal/architecturedirection/domain/aggregates"
 	"easi/backend/internal/architecturedirection/domain/services"
 	"easi/backend/internal/architecturedirection/domain/valueobjects"
@@ -14,12 +15,15 @@ func init() {
 	registry := sharedAPI.GetErrorRegistry()
 
 	registry.RegisterNotFound(repositories.ErrDirectionNotFound, "Direction not found")
+	registry.RegisterNotFound(repositories.ErrStandardApplicationNotFound, "Standard application not found")
 	registry.RegisterNotFound(services.ErrReferencedEntityNotFound, "A referenced entity does not exist or is not accessible")
 
 	registry.RegisterConflict(services.ErrActiveDirectionAlreadyExists, "An active direction already exists on this enterprise capability")
 	registry.RegisterConflict(aggregates.ErrDirectionAgreedImmutable, "Agreed directions are immutable; reject and replace to change")
 	registry.RegisterConflict(aggregates.ErrInvalidStatusTransition, "Status transition not allowed from current status")
+	registry.RegisterConflict(readmodels.ErrStandardApplicationAlreadyExists, "A standard application already exists for this enterprise capability")
 
+	registry.RegisterValidation(aggregates.ErrNarrativeRequiredForStandardApplication, "A narrative is required when setting or changing the standard application")
 	registry.RegisterValidation(aggregates.ErrInvalidSourceCardinality, "Source capability count does not match the direction type")
 	registry.RegisterValidation(aggregates.ErrInvalidPlacementCardinality, "Placement count does not match the direction type")
 	registry.RegisterValidation(aggregates.ErrDuplicateSourceCapabilities, "Source capabilities must be unique")

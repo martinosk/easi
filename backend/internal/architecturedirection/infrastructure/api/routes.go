@@ -9,6 +9,7 @@ import (
 	"easi/backend/internal/architecturedirection/domain/services"
 	"easi/backend/internal/architecturedirection/infrastructure/repositories"
 	pl "easi/backend/internal/architecturedirection/publishedlanguage"
+	amPL "easi/backend/internal/architecturemodeling/publishedlanguage"
 	authPL "easi/backend/internal/auth/publishedlanguage"
 	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/infrastructure/database"
@@ -46,7 +47,43 @@ func SetupRoutes(deps RoutesDeps) error {
 	httpHandlers := NewDirectionHandlers(deps.CommandBus, readModel, links)
 
 	registerRoutes(deps.Router, httpHandlers, deps.AuthMiddleware)
+
+	setupStandardApplicationRoutes(deps)
 	return nil
+}
+
+func setupStandardApplicationRoutes(deps RoutesDeps) {
+	readModel := readmodels.NewStandardApplicationReadModel(deps.DB)
+	repo := repositories.NewStandardApplicationRepository(deps.EventStore)
+
+	subscribeStandardApplicationEvents(deps.EventBus, readModel)
+	deps.CommandBus.Register("SetStandardApplication", handlers.NewSetStandardApplicationHandler(repo, readModel, deps.ReferenceChecker))
+
+	links := NewStandardApplicationLinks(deps.HATEOAS)
+	httpHandlers := NewStandardApplicationHandlers(deps.CommandBus, readModel, links)
+
+	registerStandardApplicationRoutes(deps.Router, httpHandlers, deps.AuthMiddleware)
+}
+
+func subscribeStandardApplicationEvents(eventBus events.EventBus, rm *readmodels.StandardApplicationReadModel) {
+	projector := projectors.NewStandardApplicationProjector(rm)
+	staleProjector := projectors.NewStaleApplicationProjector(rm)
+	eventBus.Subscribe(pl.StandardApplicationSet, projector)
+	eventBus.Subscribe(amPL.ApplicationComponentDeleted, staleProjector)
+}
+
+func registerStandardApplicationRoutes(r chi.Router, h *StandardApplicationHandlers, authMiddleware AuthMiddleware) {
+	r.Route("/enterprise-capabilities/{id}/standard-application", func(r chi.Router) {
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authPL.PermArchitectureDirectionRead))
+			r.Get("/", h.GetStandardApplicationForEnterpriseCapability)
+			r.Get("/history", h.GetStandardApplicationHistory)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authPL.PermArchitectureDirectionWrite))
+			r.Put("/", h.SetStandardApplication)
+		})
+	})
 }
 
 func subscribeEvents(eventBus events.EventBus, rm *readmodels.DirectionReadModel) {

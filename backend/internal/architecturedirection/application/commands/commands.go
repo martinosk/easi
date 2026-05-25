@@ -38,3 +38,11 @@ type UpdateDirection struct {
 }
 
 func (c UpdateDirection) CommandName() string { return "UpdateDirection" }
+
+type SetStandardApplication struct {
+	EnterpriseCapabilityID string
+	ApplicationID          string
+	Narrative              string
+}
+
+func (c SetStandardApplication) CommandName() string { return "SetStandardApplication" }

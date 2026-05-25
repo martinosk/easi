@@ -12,6 +12,7 @@ export type ReleaseVersion = Branded<string, 'ReleaseVersion'>;
 export type BusinessDomainId = Branded<string, 'BusinessDomainId'>;
 export type EnterpriseCapabilityId = Branded<string, 'EnterpriseCapabilityId'>;
 export type EnterpriseCapabilityLinkId = Branded<string, 'EnterpriseCapabilityLinkId'>;
+export type StandardApplicationId = Branded<string, 'StandardApplicationId'>;
 export type EnterpriseStrategicImportanceId = Branded<string, 'EnterpriseStrategicImportanceId'>;
 export type LayoutContainerId = Branded<string, 'LayoutContainerId'>;
 export type StrategyImportanceId = Branded<string, 'StrategyImportanceId'>;
@@ -50,6 +51,7 @@ export const toBusinessDomainId = createBrandedFactory<BusinessDomainId>('Busine
 export const toEnterpriseCapabilityId = createBrandedFactory<EnterpriseCapabilityId>('EnterpriseCapabilityId');
 export const toEnterpriseCapabilityLinkId =
   createBrandedFactory<EnterpriseCapabilityLinkId>('EnterpriseCapabilityLinkId');
+export const toStandardApplicationId = createBrandedFactory<StandardApplicationId>('StandardApplicationId');
 export const toEnterpriseStrategicImportanceId = createBrandedFactory<EnterpriseStrategicImportanceId>(
   'EnterpriseStrategicImportanceId',
 );

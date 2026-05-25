@@ -19,14 +19,20 @@ vi.mock('../../business-domains/hooks/useBusinessDomains', () => ({
   useBusinessDomainsQuery: vi.fn(),
 }));
 
+vi.mock('../../capabilities/hooks/useCapabilities', () => ({
+  useCapabilities: vi.fn(),
+}));
+
 import { directionApi } from '../api/directionApi';
 import { useEnterpriseCapabilityLinks } from '../../enterprise-architecture/hooks/useEnterpriseCapabilities';
 import { useBusinessDomainsQuery } from '../../business-domains/hooks/useBusinessDomains';
+import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
 import { DirectionPanel } from './DirectionPanel';
 
 const mocked = vi.mocked(directionApi.getForEnterpriseCapability);
 const mockedLinks = vi.mocked(useEnterpriseCapabilityLinks);
 const mockedDomains = vi.mocked(useBusinessDomainsQuery);
+const mockedCapabilities = vi.mocked(useCapabilities);
 
 interface LinkFixture {
   capabilityId: string;
@@ -34,7 +40,12 @@ interface LinkFixture {
   businessDomainName?: string;
 }
 
-function renderPanel(response: ECDirectionResponse, links: LinkFixture[] = []) {
+interface CapabilityFixture {
+  id: string;
+  name: string;
+}
+
+function renderPanel(response: ECDirectionResponse, links: LinkFixture[] = [], capabilities: CapabilityFixture[] = []) {
   mocked.mockResolvedValueOnce(response);
   mockedLinks.mockReturnValue({
     data: links.map((l, i) => ({
@@ -46,6 +57,7 @@ function renderPanel(response: ECDirectionResponse, links: LinkFixture[] = []) {
     })),
   } as never);
   mockedDomains.mockReturnValue({ data: { data: [] } } as never);
+  mockedCapabilities.mockReturnValue({ data: capabilities } as never);
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <MantineProvider>
@@ -118,6 +130,33 @@ describe('DirectionPanel', () => {
     expect(screen.getByTestId('advance-to-proposed')).toBeInTheDocument();
     expect(screen.getByTestId('reject-direction')).toBeInTheDocument();
     expect(screen.queryByTestId('advance-to-agreed')).not.toBeInTheDocument();
+  });
+
+  it('resolves source capability names via the global capabilities query when they are not linked to this EC', async () => {
+    renderPanel(
+      {
+        direction: {
+          id: 'd-1',
+          enterpriseCapabilityId: toEnterpriseCapabilityId('ec-1'),
+          type: 'consolidate',
+          status: 'draft',
+          horizon: 'next',
+          narrative: 'n',
+          sourceCapabilities: [{ id: 'cap-unlinked', stale: false }],
+          placements: [],
+          createdAt: '2025-01-01T00:00:00Z',
+          _links: {},
+        },
+        _links: {},
+      },
+      [], // no ECLinks — the source is not linked to this EC
+      [{ id: 'cap-unlinked', name: 'Payroll (Norway)' }],
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('direction-sources')).toHaveTextContent('Payroll (Norway)');
+    });
+    expect(screen.queryByText('cap-unlinked')).not.toBeInTheDocument();
   });
 
   it('marks stale references when source capability has been deleted', async () => {

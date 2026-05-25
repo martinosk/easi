@@ -1,6 +1,7 @@
 import { Badge, Box, CloseButton, Divider, Group, Loader, Paper, Stack, Text, Title } from '@mantine/core';
 import { useMemo } from 'react';
 import { DirectionPanel } from '../../architecture-direction/components/DirectionPanel';
+import { StandardApplicationPanel } from '../../standard-application/components/StandardApplicationPanel';
 import { useEnterpriseCapabilityLinks, useUnlinkDomainCapability } from '../hooks/useEnterpriseCapabilities';
 import type { EnterpriseCapability, EnterpriseCapabilityLink } from '../types';
 import { LinkedCapabilitiesSection } from './LinkedCapabilitiesSection';
@@ -90,6 +91,8 @@ export function EnterpriseCapabilityDetailPanel({ capability, onClose }: Enterpr
         </Box>
 
         <DirectionPanel enterpriseCapabilityId={capability.id} />
+
+        <StandardApplicationPanel enterpriseCapabilityId={capability.id} />
 
         <Stack gap="sm">
           <Title order={4}>Linked Capabilities</Title>

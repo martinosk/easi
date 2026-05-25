@@ -9,4 +9,6 @@ const (
 	DirectionHorizonChanged            = "DirectionHorizonChanged"
 	DirectionPlacementsChanged         = "DirectionPlacementsChanged"
 	DirectionSourceCapabilitiesChanged = "DirectionSourceCapabilitiesChanged"
+
+	StandardApplicationSet = "StandardApplicationSet"
 )

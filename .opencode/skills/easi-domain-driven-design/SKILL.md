@@ -39,7 +39,13 @@ Define explicit relationships between bounded contexts:
 - Cluster of entities and value objects with a single **aggregate root**
 - All external access goes through the root
 - Enforce consistency boundaries: one transaction = one aggregate
-- Keep aggregates small; reference other aggregates by ID, not by object
+- Each aggregate has its own globally unique ID; never reuse or derive another aggregate's ID, not even for a 1:1 child
+- Reference other aggregates by ID only — never embed another aggregate as a field, never hold a pointer to one
+- Wrap cross-aggregate IDs in typed reference value objects (e.g. `EnterpriseCapabilityRef`); never use bare `string`
+- Invariants on the aggregate's own data live in the aggregate's command methods; never only in handlers, projectors, or DB constraints
+- Cross-aggregate invariants ("one X per Y") live at the command handler via a read-model lookup; DB unique constraints are a backstop, not the enforcement
+- Command methods raise events via `raise()`; never mutate state directly
+- `apply()` returns an error on unknown event types; never silently skip
 
 ### Entities
 - Defined by identity, not attributes
@@ -49,11 +55,15 @@ Define explicit relationships between bounded contexts:
 ### Value Objects
 - Defined by attributes, not identity
 - Immutable; equality by value comparison
-- Use for: money, addresses, date ranges, measurements
+- Validation happens in the constructor; invalid instances cannot exist
+- Wrap IDs and other domain primitives in typed value objects; bare `string` for an ID is primitive obsession
+- Use for: money, addresses, date ranges, measurements, IDs, references
 
 ### Domain Events
 - Record that something meaningful happened in the domain
-- Named in past tense: `OrderPlaced`, `PaymentReceived`, `EnrollmentCompleted`
+- Named in past tense and for the business fact, not the command verb: `StandardApplicationDesignated`, not `SetStandardApplication`
+- One event records one business fact; never overload an event with an optional field whose presence reclassifies the meaning (split into two events instead)
+- Events are immutable; evolve schema via upcasters, never by editing past events
 - Enable cross-context communication and eventual consistency
 - Carry enough data for consumers to act without calling back
 
@@ -67,6 +77,8 @@ Define explicit relationships between bounded contexts:
 - Interface defined in the domain/application layer (a port)
 - Implementation lives in the infrastructure/adapter layer
 - One repository per aggregate root
+- Surface is `Save(aggregate)` and `GetByID(id)`; queries live on read models, not repositories
+- Returns the aggregate root only; never internal entities or value objects
 
 ## When to Apply
 
@@ -104,6 +116,8 @@ Report modeling decisions: bounded contexts identified, aggregate boundaries, co
 - Do not share aggregate instances across bounded contexts; reference by ID only
 - Do not leak domain model internals through API boundaries
 - Do not apply full tactical DDD to simple CRUD domains
+- Do not derive one aggregate's ID from another aggregate's ID (`child_id = parent_id`, `uuid5(namespace, parent_id)`, etc.); aggregate identity is intrinsic to that aggregate
+- Do not save two aggregates in one transaction; cross-aggregate coordination uses events
 
 ## Guidelines
 - Start with strategic DDD (contexts, language) before reaching for tactical patterns

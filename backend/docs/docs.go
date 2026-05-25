@@ -5548,6 +5548,208 @@ const docTemplate = `{
                 }
             }
         },
+        "/enterprise-capabilities/{id}/standard-application": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Returns the current standard application on an enterprise capability, or null if none.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "standard-applications"
+                ],
+                "summary": "Get the standard application for an enterprise capability",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Enterprise capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.ECStandardApplicationResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Sets the standard application on the EC; if one already exists, replaces it. Narrative is required. The previous standard is preserved in history. Returns 201 on first creation (with Location header) and 200 on replacement.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "standard-applications"
+                ],
+                "summary": "Set or change the standard application for an enterprise capability",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Enterprise capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Standard application data",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.SetStandardApplicationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.StandardApplicationDTO"
+                        }
+                    },
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.StandardApplicationDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/enterprise-capabilities/{id}/standard-application/history": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Returns the reverse-chronological history of standard applications set on the EC.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "standard-applications"
+                ],
+                "summary": "Get the history of standard applications for an enterprise capability",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Enterprise capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.StandardApplicationHistoryDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/enterprise-capabilities/{id}/strategic-importance": {
             "get": {
                 "description": "Retrieves all strategic importance ratings for an enterprise capability",
@@ -10878,6 +11080,72 @@ const docTemplate = `{
                 }
             }
         },
+        "easi_backend_internal_architecturedirection_application_readmodels.StandardApplicationDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "applicationId": {
+                    "type": "string"
+                },
+                "applicationStale": {
+                    "type": "boolean"
+                },
+                "enterpriseCapabilityId": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "narrative": {
+                    "type": "string"
+                },
+                "setAt": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "easi_backend_internal_architecturedirection_application_readmodels.StandardApplicationHistoryDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "enterpriseCapabilityId": {
+                    "type": "string"
+                },
+                "entries": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.StandardApplicationHistoryEntryDTO"
+                    }
+                },
+                "standardApplicationId": {
+                    "type": "string"
+                }
+            }
+        },
+        "easi_backend_internal_architecturedirection_application_readmodels.StandardApplicationHistoryEntryDTO": {
+            "type": "object",
+            "properties": {
+                "applicationId": {
+                    "type": "string"
+                },
+                "narrative": {
+                    "type": "string"
+                },
+                "previousApplicationId": {
+                    "type": "string"
+                },
+                "setAt": {
+                    "type": "string"
+                }
+            }
+        },
         "easi_backend_internal_architecturemodeling_application_readmodels.AcquiredEntityDTO": {
             "type": "object",
             "properties": {
@@ -12529,6 +12797,17 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_architecturedirection_infrastructure_api.ECStandardApplicationResponse": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_api.Links"
+                },
+                "standard": {
+                    "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.StandardApplicationDTO"
+                }
+            }
+        },
         "internal_architecturedirection_infrastructure_api.PlacementRequest": {
             "type": "object",
             "properties": {
@@ -12536,6 +12815,17 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "targetBusinessDomainId": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_architecturedirection_infrastructure_api.SetStandardApplicationRequest": {
+            "type": "object",
+            "properties": {
+                "applicationId": {
+                    "type": "string"
+                },
+                "narrative": {
                     "type": "string"
                 }
             }
