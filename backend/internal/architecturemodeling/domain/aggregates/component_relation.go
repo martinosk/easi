@@ -2,6 +2,7 @@ package aggregates
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"easi/backend/internal/architecturemodeling/domain/events"
@@ -42,7 +43,9 @@ func NewComponentRelation(properties valueobjects.RelationProperties) (*Componen
 		Description: properties.Description().Value(),
 	})
 
-	aggregate.apply(event)
+	if err := aggregate.apply(event); err != nil {
+		return nil, err
+	}
 	aggregate.RaiseEvent(event)
 
 	return aggregate, nil
@@ -53,9 +56,16 @@ func LoadComponentRelationFromHistory(events []domain.DomainEvent) (*ComponentRe
 		AggregateRoot: domain.NewAggregateRoot(),
 	}
 
+	var applyErr error
 	aggregate.LoadFromHistory(events, func(event domain.DomainEvent) {
-		aggregate.apply(event)
+		if applyErr != nil {
+			return
+		}
+		applyErr = aggregate.apply(event)
 	})
+	if applyErr != nil {
+		return nil, applyErr
+	}
 
 	return aggregate, nil
 }
@@ -67,7 +77,9 @@ func (c *ComponentRelation) Update(name, description valueobjects.Description) e
 		description.Value(),
 	)
 
-	c.apply(event)
+	if err := c.apply(event); err != nil {
+		return err
+	}
 	c.RaiseEvent(event)
 
 	return nil
@@ -80,30 +92,69 @@ func (c *ComponentRelation) Delete() error {
 		c.targetComponentID.Value(),
 	)
 
-	c.apply(event)
+	if err := c.apply(event); err != nil {
+		return err
+	}
 	c.RaiseEvent(event)
 
 	return nil
 }
 
-// apply applies an event to the aggregate
-// Note: This method should NOT increment the version - that's handled by LoadFromHistory or RaiseEvent
-func (c *ComponentRelation) apply(event domain.DomainEvent) {
+func (c *ComponentRelation) apply(event domain.DomainEvent) error {
 	switch e := event.(type) {
 	case events.ComponentRelationCreated:
-		c.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
-		c.sourceComponentID, _ = valueobjects.NewComponentIDFromString(e.SourceComponentID)
-		c.targetComponentID, _ = valueobjects.NewComponentIDFromString(e.TargetComponentID)
-		c.relationType, _ = valueobjects.NewRelationType(e.RelationType)
-		c.name = valueobjects.MustNewDescription(e.Name)
-		c.description = valueobjects.MustNewDescription(e.Description)
-		c.createdAt = e.CreatedAt
+		return c.applyCreated(e)
 	case events.ComponentRelationUpdated:
-		c.name = valueobjects.MustNewDescription(e.Name)
-		c.description = valueobjects.MustNewDescription(e.Description)
+		return c.applyUpdated(e)
 	case events.ComponentRelationDeleted:
 		c.isDeleted = true
 	}
+	return nil
+}
+
+func (c *ComponentRelation) applyCreated(e events.ComponentRelationCreated) error {
+	sourceID, err := valueobjects.NewComponentIDFromString(e.SourceComponentID)
+	if err != nil {
+		return fmt.Errorf("%w: source component ID %q: %v", domain.ErrCorruptedEvent, e.SourceComponentID, err)
+	}
+	targetID, err := valueobjects.NewComponentIDFromString(e.TargetComponentID)
+	if err != nil {
+		return fmt.Errorf("%w: target component ID %q: %v", domain.ErrCorruptedEvent, e.TargetComponentID, err)
+	}
+	relType, err := valueobjects.NewRelationType(e.RelationType)
+	if err != nil {
+		return fmt.Errorf("%w: relation type %q: %v", domain.ErrCorruptedEvent, e.RelationType, err)
+	}
+	name, err := valueobjects.NewDescription(e.Name)
+	if err != nil {
+		return fmt.Errorf("%w: name: %v", domain.ErrCorruptedEvent, err)
+	}
+	description, err := valueobjects.NewDescription(e.Description)
+	if err != nil {
+		return fmt.Errorf("%w: description: %v", domain.ErrCorruptedEvent, err)
+	}
+	c.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
+	c.sourceComponentID = sourceID
+	c.targetComponentID = targetID
+	c.relationType = relType
+	c.name = name
+	c.description = description
+	c.createdAt = e.CreatedAt
+	return nil
+}
+
+func (c *ComponentRelation) applyUpdated(e events.ComponentRelationUpdated) error {
+	name, err := valueobjects.NewDescription(e.Name)
+	if err != nil {
+		return fmt.Errorf("%w: name: %v", domain.ErrCorruptedEvent, err)
+	}
+	description, err := valueobjects.NewDescription(e.Description)
+	if err != nil {
+		return fmt.Errorf("%w: description: %v", domain.ErrCorruptedEvent, err)
+	}
+	c.name = name
+	c.description = description
+	return nil
 }
 
 func (c *ComponentRelation) SourceComponentID() valueobjects.ComponentID {

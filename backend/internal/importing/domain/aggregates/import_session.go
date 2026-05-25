@@ -2,6 +2,7 @@ package aggregates
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"easi/backend/internal/importing/domain/events"
@@ -112,7 +113,9 @@ func NewImportSession(config ImportSessionConfig) (*ImportSession, error) {
 		parsedDataMap,
 	)
 
-	session.apply(event)
+	if err := session.apply(event); err != nil {
+		return nil, err
+	}
 	session.RaiseEvent(event)
 
 	return session, nil
@@ -172,7 +175,9 @@ func (s *ImportSession) StartImport() error {
 	}
 
 	event := events.NewImportStarted(s.id.Value(), s.preview.TotalSupportedItems())
-	s.apply(event)
+	if err := s.apply(event); err != nil {
+		return err
+	}
 	s.RaiseEvent(event)
 
 	return nil
@@ -189,7 +194,9 @@ func (s *ImportSession) UpdateProgress(progress valueobjects.ImportProgress) err
 		progress.TotalItems(),
 		progress.CompletedItems(),
 	)
-	s.apply(event)
+	if err := s.apply(event); err != nil {
+		return err
+	}
 	s.RaiseEvent(event)
 
 	return nil
@@ -220,7 +227,9 @@ func (s *ImportSession) Complete(result ImportResult) error {
 		result.DomainAssignments,
 		errorMaps,
 	)
-	s.apply(event)
+	if err := s.apply(event); err != nil {
+		return err
+	}
 	s.RaiseEvent(event)
 
 	return nil
@@ -232,7 +241,9 @@ func (s *ImportSession) Fail(reason string) error {
 	}
 
 	event := events.NewImportFailed(s.id.Value(), reason)
-	s.apply(event)
+	if err := s.apply(event); err != nil {
+		return err
+	}
 	s.RaiseEvent(event)
 
 	return nil
@@ -244,39 +255,22 @@ func (s *ImportSession) Cancel() error {
 	}
 
 	event := events.NewImportSessionCancelled(s.id.Value())
-	s.apply(event)
+	if err := s.apply(event); err != nil {
+		return err
+	}
 	s.RaiseEvent(event)
 
 	return nil
 }
 
-func (s *ImportSession) apply(event domain.DomainEvent) {
+func (s *ImportSession) apply(event domain.DomainEvent) error {
 	switch e := event.(type) {
 	case events.ImportSessionCreated:
-		s.id, _ = valueobjects.NewImportSessionIDFromString(e.ID)
-		s.sourceFormat, _ = valueobjects.NewSourceFormat(e.SourceFormat)
-		s.businessDomainID = e.BusinessDomainID
-		s.capabilityEAOwner = e.CapabilityEAOwner
-		s.status = valueobjects.ImportStatusPending()
-		s.preview = deserializePreview(e.Preview)
-		s.parsedData = deserializeParsedData(e.ParsedData)
-		s.createdAt = e.CreatedAt
-
+		return s.applyCreated(e)
 	case events.ImportStarted:
-		s.status = valueobjects.ImportStatusImporting()
-		s.progress, _ = valueobjects.NewImportProgress(
-			valueobjects.PhaseCreatingComponents,
-			e.TotalItems,
-			0,
-		)
-
+		return s.applyStarted(e)
 	case events.ImportProgressUpdated:
-		s.progress, _ = valueobjects.NewImportProgress(
-			e.Phase,
-			e.TotalItems,
-			e.CompletedItems,
-		)
-
+		return s.applyProgressUpdated(e)
 	case events.ImportCompleted:
 		s.status = valueobjects.ImportStatusCompleted()
 		s.result = ImportResult{
@@ -290,24 +284,77 @@ func (s *ImportSession) apply(event domain.DomainEvent) {
 		}
 		completedAt := e.CompletedAt
 		s.completedAt = &completedAt
-
 	case events.ImportFailed:
 		s.status = valueobjects.ImportStatusFailed()
 		failedAt := e.FailedAt
 		s.completedAt = &failedAt
-
 	case events.ImportSessionCancelled:
 		s.isCancelled = true
 	}
+	return nil
+}
+
+func (s *ImportSession) applyCreated(e events.ImportSessionCreated) error {
+	id, err := valueobjects.NewImportSessionIDFromString(e.ID)
+	if err != nil {
+		return fmt.Errorf("%w: import session ID %q: %v", domain.ErrCorruptedEvent, e.ID, err)
+	}
+	sourceFormat, err := valueobjects.NewSourceFormat(e.SourceFormat)
+	if err != nil {
+		return fmt.Errorf("%w: source format %q: %v", domain.ErrCorruptedEvent, e.SourceFormat, err)
+	}
+	s.id = id
+	s.sourceFormat = sourceFormat
+	s.businessDomainID = e.BusinessDomainID
+	s.capabilityEAOwner = e.CapabilityEAOwner
+	s.status = valueobjects.ImportStatusPending()
+	s.preview = deserializePreview(e.Preview)
+	s.parsedData = deserializeParsedData(e.ParsedData)
+	s.createdAt = e.CreatedAt
+	return nil
+}
+
+func (s *ImportSession) applyStarted(e events.ImportStarted) error {
+	progress, err := valueobjects.NewImportProgress(
+		valueobjects.PhaseCreatingComponents,
+		e.TotalItems,
+		0,
+	)
+	if err != nil {
+		return fmt.Errorf("%w: import progress: %v", domain.ErrCorruptedEvent, err)
+	}
+	s.status = valueobjects.ImportStatusImporting()
+	s.progress = progress
+	return nil
+}
+
+func (s *ImportSession) applyProgressUpdated(e events.ImportProgressUpdated) error {
+	progress, err := valueobjects.NewImportProgress(
+		e.Phase,
+		e.TotalItems,
+		e.CompletedItems,
+	)
+	if err != nil {
+		return fmt.Errorf("%w: import progress: %v", domain.ErrCorruptedEvent, err)
+	}
+	s.progress = progress
+	return nil
 }
 
 func LoadImportSessionFromHistory(domainEvents []domain.DomainEvent) (*ImportSession, error) {
 	session := &ImportSession{
 		AggregateRoot: domain.NewAggregateRoot(),
 	}
+	var applyErr error
 	session.LoadFromHistory(domainEvents, func(event domain.DomainEvent) {
-		session.apply(event)
+		if applyErr != nil {
+			return
+		}
+		applyErr = session.apply(event)
 	})
+	if applyErr != nil {
+		return nil, applyErr
+	}
 	return session, nil
 }
 

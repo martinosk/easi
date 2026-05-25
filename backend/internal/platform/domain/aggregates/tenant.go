@@ -2,6 +2,7 @@ package aggregates
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -60,7 +61,9 @@ func NewTenant(
 		firstAdminEmail,
 	)
 
-	tenant.apply(event)
+	if err := tenant.apply(event); err != nil {
+		return nil, err
+	}
 	tenant.RaiseEvent(event)
 
 	return tenant, nil
@@ -71,25 +74,50 @@ func LoadTenantFromHistory(evts []domain.DomainEvent) (*Tenant, error) {
 		AggregateRoot: domain.NewAggregateRoot(),
 	}
 
+	var applyErr error
 	tenant.LoadFromHistory(evts, func(event domain.DomainEvent) {
-		tenant.apply(event)
+		if applyErr != nil {
+			return
+		}
+		applyErr = tenant.apply(event)
 	})
+	if applyErr != nil {
+		return nil, applyErr
+	}
 
 	return tenant, nil
 }
 
-func (t *Tenant) apply(event domain.DomainEvent) {
+func (t *Tenant) apply(event domain.DomainEvent) error {
 	if e, ok := event.(events.TenantCreated); ok {
-		t.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
-		t.name, _ = valueobjects.NewTenantName(e.Name)
-		t.status, _ = valueobjects.NewTenantStatus(e.Status)
-		t.domains = make([]valueobjects.EmailDomain, len(e.Domains))
-		for i, d := range e.Domains {
-			t.domains[i], _ = valueobjects.NewEmailDomain(d)
-		}
-		t.firstAdminEmail = e.FirstAdminEmail
-		t.createdAt = e.CreatedAt
+		return t.applyCreated(e)
 	}
+	return nil
+}
+
+func (t *Tenant) applyCreated(e events.TenantCreated) error {
+	name, err := valueobjects.NewTenantName(e.Name)
+	if err != nil {
+		return fmt.Errorf("%w: tenant name %q: %v", domain.ErrCorruptedEvent, e.Name, err)
+	}
+	status, err := valueobjects.NewTenantStatus(e.Status)
+	if err != nil {
+		return fmt.Errorf("%w: tenant status %q: %v", domain.ErrCorruptedEvent, e.Status, err)
+	}
+	domains := make([]valueobjects.EmailDomain, len(e.Domains))
+	for i, d := range e.Domains {
+		domains[i], err = valueobjects.NewEmailDomain(d)
+		if err != nil {
+			return fmt.Errorf("%w: email domain %q: %v", domain.ErrCorruptedEvent, d, err)
+		}
+	}
+	t.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
+	t.name = name
+	t.status = status
+	t.domains = domains
+	t.firstAdminEmail = e.FirstAdminEmail
+	t.createdAt = e.CreatedAt
+	return nil
 }
 
 func (t *Tenant) Name() valueobjects.TenantName {

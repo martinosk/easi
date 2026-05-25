@@ -2,6 +2,7 @@ package aggregates
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"easi/backend/internal/auth/domain/events"
@@ -46,7 +47,9 @@ func NewUser(
 		invitationID,
 	)
 
-	user.apply(event)
+	if err := user.apply(event); err != nil {
+		return nil, err
+	}
 	user.RaiseEvent(event)
 
 	return user, nil
@@ -57,9 +60,16 @@ func LoadUserFromHistory(evts []domain.DomainEvent) (*User, error) {
 		AggregateRoot: domain.NewAggregateRoot(),
 	}
 
+	var applyErr error
 	user.LoadFromHistory(evts, func(event domain.DomainEvent) {
-		user.apply(event)
+		if applyErr != nil {
+			return
+		}
+		applyErr = user.apply(event)
 	})
+	if applyErr != nil {
+		return nil, applyErr
+	}
 
 	return user, nil
 }
@@ -75,7 +85,9 @@ func (u *User) ChangeRole(newRole valueobjects.Role, changedBy valueobjects.User
 
 	oldRole := u.role.String()
 	event := events.NewUserRoleChanged(u.ID(), oldRole, newRole.String(), changedBy.Value())
-	u.apply(event)
+	if err := u.apply(event); err != nil {
+		return err
+	}
 	u.RaiseEvent(event)
 
 	return nil
@@ -95,7 +107,9 @@ func (u *User) Disable(disabledBy valueobjects.UserID, isCurrentUser bool, isLas
 	}
 
 	event := events.NewUserDisabled(u.ID(), disabledBy.Value())
-	u.apply(event)
+	if err := u.apply(event); err != nil {
+		return err
+	}
 	u.RaiseEvent(event)
 
 	return nil
@@ -107,7 +121,9 @@ func (u *User) Enable(enabledBy valueobjects.UserID) error {
 	}
 
 	event := events.NewUserEnabled(u.ID(), enabledBy.Value())
-	u.apply(event)
+	if err := u.apply(event); err != nil {
+		return err
+	}
 	u.RaiseEvent(event)
 
 	return nil
@@ -117,22 +133,45 @@ func (u *User) isDemotionOfLastAdmin(newRole valueobjects.Role, isLastAdmin bool
 	return u.role.IsAdmin() && !newRole.IsAdmin() && isLastAdmin
 }
 
-func (u *User) apply(event domain.DomainEvent) {
+func (u *User) apply(event domain.DomainEvent) error {
 	switch e := event.(type) {
 	case events.UserCreated:
-		u.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
-		u.email, _ = valueobjects.NewEmail(e.Email)
-		u.profile = valueobjects.NewExternalProfile(e.Name, e.ExternalID)
-		u.role, _ = valueobjects.RoleFromString(e.Role)
-		u.status = valueobjects.UserStatusActive
-		u.createdAt = e.CreatedAt
+		return u.applyCreated(e)
 	case events.UserRoleChanged:
-		u.role, _ = valueobjects.RoleFromString(e.NewRole)
+		return u.applyRoleChanged(e)
 	case events.UserDisabled:
 		u.status = valueobjects.UserStatusDisabled
 	case events.UserEnabled:
 		u.status = valueobjects.UserStatusActive
 	}
+	return nil
+}
+
+func (u *User) applyCreated(e events.UserCreated) error {
+	email, err := valueobjects.NewEmail(e.Email)
+	if err != nil {
+		return fmt.Errorf("%w: email %q: %v", domain.ErrCorruptedEvent, e.Email, err)
+	}
+	role, err := valueobjects.RoleFromString(e.Role)
+	if err != nil {
+		return fmt.Errorf("%w: role %q: %v", domain.ErrCorruptedEvent, e.Role, err)
+	}
+	u.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
+	u.email = email
+	u.profile = valueobjects.NewExternalProfile(e.Name, e.ExternalID)
+	u.role = role
+	u.status = valueobjects.UserStatusActive
+	u.createdAt = e.CreatedAt
+	return nil
+}
+
+func (u *User) applyRoleChanged(e events.UserRoleChanged) error {
+	role, err := valueobjects.RoleFromString(e.NewRole)
+	if err != nil {
+		return fmt.Errorf("%w: role %q: %v", domain.ErrCorruptedEvent, e.NewRole, err)
+	}
+	u.role = role
+	return nil
 }
 
 func (u *User) Email() valueobjects.Email {

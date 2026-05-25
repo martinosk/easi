@@ -2,6 +2,7 @@ package aggregates
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -59,7 +60,9 @@ func NewInvitation(
 		expiresAt,
 	)
 
-	invitation.apply(event)
+	if err := invitation.apply(event); err != nil {
+		return nil, err
+	}
 	invitation.RaiseEvent(event)
 
 	return invitation, nil
@@ -70,9 +73,16 @@ func LoadInvitationFromHistory(evts []domain.DomainEvent) (*Invitation, error) {
 		AggregateRoot: domain.NewAggregateRoot(),
 	}
 
+	var applyErr error
 	invitation.LoadFromHistory(evts, func(event domain.DomainEvent) {
-		invitation.apply(event)
+		if applyErr != nil {
+			return
+		}
+		applyErr = invitation.apply(event)
 	})
+	if applyErr != nil {
+		return nil, applyErr
+	}
 
 	return invitation, nil
 }
@@ -96,7 +106,9 @@ func (i *Invitation) Accept() error {
 	}
 
 	event := events.NewInvitationAccepted(i.ID(), i.email.Value())
-	i.apply(event)
+	if err := i.apply(event); err != nil {
+		return err
+	}
 	i.RaiseEvent(event)
 
 	return nil
@@ -108,7 +120,9 @@ func (i *Invitation) Revoke() error {
 	}
 
 	event := events.NewInvitationRevoked(i.ID())
-	i.apply(event)
+	if err := i.apply(event); err != nil {
+		return err
+	}
 	i.RaiseEvent(event)
 
 	return nil
@@ -120,7 +134,9 @@ func (i *Invitation) MarkExpired() error {
 	}
 
 	event := events.NewInvitationExpired(i.ID())
-	i.apply(event)
+	if err := i.apply(event); err != nil {
+		return err
+	}
 	i.RaiseEvent(event)
 
 	return nil
@@ -143,21 +159,10 @@ func (i *Invitation) IsExpired() bool {
 	return time.Now().UTC().After(i.expiresAt)
 }
 
-func (i *Invitation) apply(event domain.DomainEvent) {
+func (i *Invitation) apply(event domain.DomainEvent) error {
 	switch e := event.(type) {
 	case events.InvitationCreated:
-		i.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
-		i.email, _ = valueobjects.NewEmail(e.Email)
-		i.role, _ = valueobjects.RoleFromString(e.Role)
-		i.status = valueobjects.InvitationStatusPending
-		if e.InviterID != "" && e.InviterEmail != "" {
-			inviterEmail, _ := valueobjects.NewEmail(e.InviterEmail)
-			inviterID := parseUUID(e.InviterID)
-			info, _ := valueobjects.NewInviterInfo(inviterID, inviterEmail)
-			i.inviterInfo = &info
-		}
-		i.createdAt = e.CreatedAt
-		i.expiresAt = e.ExpiresAt
+		return i.applyCreated(e)
 	case events.InvitationAccepted:
 		i.status = valueobjects.InvitationStatusAccepted
 		i.acceptedAt = &e.AcceptedAt
@@ -167,11 +172,40 @@ func (i *Invitation) apply(event domain.DomainEvent) {
 	case events.InvitationExpired:
 		i.status = valueobjects.InvitationStatusExpired
 	}
+	return nil
 }
 
-func parseUUID(s string) uuid.UUID {
-	id, _ := uuid.Parse(s)
-	return id
+func (i *Invitation) applyCreated(e events.InvitationCreated) error {
+	email, err := valueobjects.NewEmail(e.Email)
+	if err != nil {
+		return fmt.Errorf("%w: email %q: %v", domain.ErrCorruptedEvent, e.Email, err)
+	}
+	role, err := valueobjects.RoleFromString(e.Role)
+	if err != nil {
+		return fmt.Errorf("%w: role %q: %v", domain.ErrCorruptedEvent, e.Role, err)
+	}
+	i.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
+	i.email = email
+	i.role = role
+	i.status = valueobjects.InvitationStatusPending
+	if e.InviterID != "" && e.InviterEmail != "" {
+		inviterEmail, err := valueobjects.NewEmail(e.InviterEmail)
+		if err != nil {
+			return fmt.Errorf("%w: inviter email %q: %v", domain.ErrCorruptedEvent, e.InviterEmail, err)
+		}
+		inviterID, err := uuid.Parse(e.InviterID)
+		if err != nil {
+			return fmt.Errorf("%w: inviter ID %q: %v", domain.ErrCorruptedEvent, e.InviterID, err)
+		}
+		info, err := valueobjects.NewInviterInfo(inviterID, inviterEmail)
+		if err != nil {
+			return fmt.Errorf("%w: inviter info: %v", domain.ErrCorruptedEvent, err)
+		}
+		i.inviterInfo = &info
+	}
+	i.createdAt = e.CreatedAt
+	i.expiresAt = e.ExpiresAt
+	return nil
 }
 
 func (i *Invitation) Email() valueobjects.Email {

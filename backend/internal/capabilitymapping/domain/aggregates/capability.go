@@ -2,6 +2,7 @@ package aggregates
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"easi/backend/internal/capabilitymapping/domain/events"
@@ -57,8 +58,7 @@ func NewCapability(
 		level.Value(),
 	)
 
-	aggregate.apply(event)
-	aggregate.RaiseEvent(event)
+	aggregate.raise(event)
 
 	return aggregate, nil
 }
@@ -68,9 +68,16 @@ func LoadCapabilityFromHistory(events []domain.DomainEvent) (*Capability, error)
 		AggregateRoot: domain.NewAggregateRoot(),
 	}
 
+	var applyErr error
 	aggregate.LoadFromHistory(events, func(event domain.DomainEvent) {
-		aggregate.apply(event)
+		if applyErr != nil {
+			return
+		}
+		applyErr = aggregate.apply(event)
 	})
+	if applyErr != nil {
+		return nil, applyErr
+	}
 
 	return aggregate, nil
 }
@@ -82,8 +89,7 @@ func (c *Capability) Update(name valueobjects.CapabilityName, description valueo
 		description.Value(),
 	)
 
-	c.apply(event)
-	c.RaiseEvent(event)
+	c.raise(event)
 
 	return nil
 }
@@ -100,8 +106,7 @@ func (c *Capability) UpdateMetadata(metadata valueobjects.CapabilityMetadata) er
 		metadata.Status().Value(),
 	)
 
-	c.apply(event)
-	c.RaiseEvent(event)
+	c.raise(event)
 
 	return nil
 }
@@ -114,8 +119,7 @@ func (c *Capability) AddExpert(expert valueobjects.Expert) error {
 		expert.Contact(),
 	)
 
-	c.apply(event)
-	c.RaiseEvent(event)
+	c.raise(event)
 
 	return nil
 }
@@ -128,8 +132,7 @@ func (c *Capability) RemoveExpert(expert valueobjects.Expert) error {
 		expert.Contact(),
 	)
 
-	c.apply(event)
-	c.RaiseEvent(event)
+	c.raise(event)
 
 	return nil
 }
@@ -143,62 +146,94 @@ func (c *Capability) AddTag(tag valueobjects.Tag) error {
 
 	event := events.NewCapabilityTagAdded(c.ID(), tag.Value())
 
-	c.apply(event)
-	c.RaiseEvent(event)
+	c.raise(event)
 
 	return nil
 }
 
-func (c *Capability) apply(event domain.DomainEvent) {
+func (c *Capability) apply(event domain.DomainEvent) error {
 	switch e := event.(type) {
 	case events.CapabilityCreated:
-		c.applyCreated(e)
+		return c.applyCreated(e)
 	case events.CapabilityUpdated:
-		c.applyUpdated(e)
+		return c.applyUpdated(e)
 	case events.CapabilityMetadataUpdated:
-		c.applyMetadataUpdated(e)
+		return c.applyMetadataUpdated(e)
 	case events.CapabilityExpertAdded:
-		c.applyExpertAdded(e)
+		return c.applyExpertAdded(e)
 	case events.CapabilityExpertRemoved:
 		c.applyExpertRemoved(e)
 	case events.CapabilityTagAdded:
-		c.applyTagAdded(e)
+		return c.applyTagAdded(e)
 	case events.CapabilityParentChanged:
-		c.applyParentChanged(e)
+		return c.applyParentChanged(e)
 	case events.CapabilityLevelChanged:
-		c.applyLevelChanged(e)
+		return c.applyLevelChanged(e)
 	}
+	return nil
 }
 
-func (c *Capability) applyCreated(e events.CapabilityCreated) {
+func (c *Capability) applyCreated(e events.CapabilityCreated) error {
 	c.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
-	c.name, _ = valueobjects.NewCapabilityName(e.Name)
+	name, err := valueobjects.NewCapabilityName(e.Name)
+	if err != nil {
+		return fmt.Errorf("%w: capability name %q: %v", domain.ErrCorruptedEvent, e.Name, err)
+	}
+	c.name = name
 	c.description = valueobjects.MustNewDescription(e.Description)
 	if e.ParentID != "" {
-		c.parentID, _ = valueobjects.NewCapabilityIDFromString(e.ParentID)
+		parentID, err := valueobjects.NewCapabilityIDFromString(e.ParentID)
+		if err != nil {
+			return fmt.Errorf("%w: parent ID %q: %v", domain.ErrCorruptedEvent, e.ParentID, err)
+		}
+		c.parentID = parentID
 	}
-	c.level, _ = valueobjects.NewCapabilityLevel(e.Level)
+	level, err := valueobjects.NewCapabilityLevel(e.Level)
+	if err != nil {
+		return fmt.Errorf("%w: capability level %q: %v", domain.ErrCorruptedEvent, e.Level, err)
+	}
+	c.level = level
 	c.createdAt = e.CreatedAt
 	c.status = valueobjects.StatusActive
 	c.maturityLevel = valueobjects.MaturityGenesis
+	return nil
 }
 
-func (c *Capability) applyUpdated(e events.CapabilityUpdated) {
-	c.name, _ = valueobjects.NewCapabilityName(e.Name)
+func (c *Capability) applyUpdated(e events.CapabilityUpdated) error {
+	name, err := valueobjects.NewCapabilityName(e.Name)
+	if err != nil {
+		return fmt.Errorf("%w: capability name %q: %v", domain.ErrCorruptedEvent, e.Name, err)
+	}
+	c.name = name
 	c.description = valueobjects.MustNewDescription(e.Description)
+	return nil
 }
 
-func (c *Capability) applyMetadataUpdated(e events.CapabilityMetadataUpdated) {
-	c.maturityLevel, _ = valueobjects.NewMaturityLevelFromValue(e.MaturityValue)
-	c.ownershipModel, _ = valueobjects.NewOwnershipModel(e.OwnershipModel)
+func (c *Capability) applyMetadataUpdated(e events.CapabilityMetadataUpdated) error {
+	maturityLevel, err := valueobjects.NewMaturityLevelFromValue(e.MaturityValue)
+	if err != nil {
+		return fmt.Errorf("%w: maturity level %d: %v", domain.ErrCorruptedEvent, e.MaturityValue, err)
+	}
+	c.maturityLevel = maturityLevel
+	ownershipModel, err := valueobjects.NewOwnershipModel(e.OwnershipModel)
+	if err != nil {
+		return fmt.Errorf("%w: ownership model %q: %v", domain.ErrCorruptedEvent, e.OwnershipModel, err)
+	}
+	c.ownershipModel = ownershipModel
 	c.primaryOwner = valueobjects.NewOwner(e.PrimaryOwner)
 	c.eaOwner = valueobjects.NewOwner(e.EAOwner)
-	c.status, _ = valueobjects.NewCapabilityStatus(e.Status)
+	status, err := valueobjects.NewCapabilityStatus(e.Status)
+	if err != nil {
+		return fmt.Errorf("%w: capability status %q: %v", domain.ErrCorruptedEvent, e.Status, err)
+	}
+	c.status = status
+	return nil
 }
 
-func (c *Capability) applyExpertAdded(e events.CapabilityExpertAdded) {
+func (c *Capability) applyExpertAdded(e events.CapabilityExpertAdded) error {
 	expert := valueobjects.MustNewExpert(e.ExpertName, e.ExpertRole, e.ContactInfo, e.AddedAt)
 	c.experts = append(c.experts, expert)
+	return nil
 }
 
 func (c *Capability) applyExpertRemoved(e events.CapabilityExpertRemoved) {
@@ -215,22 +250,40 @@ func removeExpert(experts []valueobjects.Expert, name, role, contact string) []v
 	return result
 }
 
-func (c *Capability) applyTagAdded(e events.CapabilityTagAdded) {
-	tag, _ := valueobjects.NewTag(e.Tag)
+func (c *Capability) applyTagAdded(e events.CapabilityTagAdded) error {
+	tag, err := valueobjects.NewTag(e.Tag)
+	if err != nil {
+		return fmt.Errorf("%w: tag %q: %v", domain.ErrCorruptedEvent, e.Tag, err)
+	}
 	c.tags = append(c.tags, tag)
+	return nil
 }
 
-func (c *Capability) applyParentChanged(e events.CapabilityParentChanged) {
+func (c *Capability) applyParentChanged(e events.CapabilityParentChanged) error {
 	if e.NewParentID != "" {
-		c.parentID, _ = valueobjects.NewCapabilityIDFromString(e.NewParentID)
+		parentID, err := valueobjects.NewCapabilityIDFromString(e.NewParentID)
+		if err != nil {
+			return fmt.Errorf("%w: new parent ID %q: %v", domain.ErrCorruptedEvent, e.NewParentID, err)
+		}
+		c.parentID = parentID
 	} else {
 		c.parentID = valueobjects.CapabilityID{}
 	}
-	c.level, _ = valueobjects.NewCapabilityLevel(e.NewLevel)
+	level, err := valueobjects.NewCapabilityLevel(e.NewLevel)
+	if err != nil {
+		return fmt.Errorf("%w: new level %q: %v", domain.ErrCorruptedEvent, e.NewLevel, err)
+	}
+	c.level = level
+	return nil
 }
 
-func (c *Capability) applyLevelChanged(e events.CapabilityLevelChanged) {
-	c.level, _ = valueobjects.NewCapabilityLevel(e.NewLevel)
+func (c *Capability) applyLevelChanged(e events.CapabilityLevelChanged) error {
+	level, err := valueobjects.NewCapabilityLevel(e.NewLevel)
+	if err != nil {
+		return fmt.Errorf("%w: new level %q: %v", domain.ErrCorruptedEvent, e.NewLevel, err)
+	}
+	c.level = level
+	return nil
 }
 
 func (c *Capability) Name() valueobjects.CapabilityName {
@@ -298,8 +351,7 @@ func (c *Capability) ChangeParent(newParentID valueobjects.CapabilityID, newLeve
 		newLevel.Value(),
 	)
 
-	c.apply(event)
-	c.RaiseEvent(event)
+	c.raise(event)
 
 	return nil
 }
@@ -315,8 +367,7 @@ func (c *Capability) ChangeLevel(newLevel valueobjects.CapabilityLevel) error {
 		newLevel.Value(),
 	)
 
-	c.apply(event)
-	c.RaiseEvent(event)
+	c.raise(event)
 
 	return nil
 }
@@ -331,10 +382,16 @@ func (c *Capability) CanBeAssignedToDomain() error {
 func (c *Capability) Delete() error {
 	event := events.NewCapabilityDeleted(c.ID())
 
-	c.apply(event)
-	c.RaiseEvent(event)
+	c.raise(event)
 
 	return nil
+}
+
+func (c *Capability) raise(event domain.DomainEvent) {
+	if err := c.apply(event); err != nil {
+		panic(fmt.Sprintf("capabilitymapping: in-process apply failed: %v", err))
+	}
+	c.RaiseEvent(event)
 }
 
 func validateHierarchy(parentID valueobjects.CapabilityID, level valueobjects.CapabilityLevel) error {

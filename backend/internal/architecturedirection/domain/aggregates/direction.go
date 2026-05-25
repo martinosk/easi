@@ -17,7 +17,6 @@ var (
 	ErrNarrativeRequiredToPropose  = errors.New("narrative is required before advancing a direction to proposed")
 	ErrInvalidStatusTransition     = errors.New("status transition not allowed from current status")
 	ErrDirectionAgreedImmutable    = errors.New("agreed directions are immutable; reject and replace to change")
-	ErrCorruptedEvent              = errors.New("corrupted event store: cannot rehydrate direction")
 )
 
 type Direction struct {
@@ -214,7 +213,7 @@ func (d *Direction) applyStatusTransition(event domain.DomainEvent) (bool, error
 	}
 	status, err := valueobjects.NewDirectionStatus(target)
 	if err != nil {
-		return true, fmt.Errorf("%w: invalid status %q: %v", ErrCorruptedEvent, target, err)
+		return true, fmt.Errorf("%w: invalid status %q: %v", domain.ErrCorruptedEvent, target, err)
 	}
 	d.status = status
 	return true, nil
@@ -237,7 +236,7 @@ func (d *Direction) applyFieldUpdate(event domain.DomainEvent) error {
 func (d *Direction) applyNarrativeUpdated(evt events.DirectionNarrativeUpdated) error {
 	n, err := sharedvo.NewDescription(evt.Narrative)
 	if err != nil {
-		return fmt.Errorf("%w: narrative: %v", ErrCorruptedEvent, err)
+		return fmt.Errorf("%w: narrative: %v", domain.ErrCorruptedEvent, err)
 	}
 	d.narrative = n
 	return nil
@@ -246,7 +245,7 @@ func (d *Direction) applyNarrativeUpdated(evt events.DirectionNarrativeUpdated) 
 func (d *Direction) applyHorizonChanged(evt events.DirectionHorizonChanged) error {
 	h, err := valueobjects.NewHorizon(evt.Horizon)
 	if err != nil {
-		return fmt.Errorf("%w: horizon %q: %v", ErrCorruptedEvent, evt.Horizon, err)
+		return fmt.Errorf("%w: horizon %q: %v", domain.ErrCorruptedEvent, evt.Horizon, err)
 	}
 	d.horizon = h
 	return nil
@@ -273,11 +272,11 @@ func (d *Direction) applyPlacementsChanged(evt events.DirectionPlacementsChanged
 func (d *Direction) applyDrafted(evt events.DirectionDrafted) error {
 	ecRef, err := valueobjects.NewEnterpriseCapabilityRef(evt.EnterpriseCapabilityID)
 	if err != nil {
-		return fmt.Errorf("%w: enterprise capability ref %q: %v", ErrCorruptedEvent, evt.EnterpriseCapabilityID, err)
+		return fmt.Errorf("%w: enterprise capability ref %q: %v", domain.ErrCorruptedEvent, evt.EnterpriseCapabilityID, err)
 	}
 	dt, err := valueobjects.NewDirectionType(evt.Type)
 	if err != nil {
-		return fmt.Errorf("%w: direction type %q: %v", ErrCorruptedEvent, evt.Type, err)
+		return fmt.Errorf("%w: direction type %q: %v", domain.ErrCorruptedEvent, evt.Type, err)
 	}
 	sourceRefs, err := decodePhysicalRefs(evt.SourceCapabilityIDs)
 	if err != nil {
@@ -289,15 +288,15 @@ func (d *Direction) applyDrafted(evt events.DirectionDrafted) error {
 	}
 	horizon, err := valueobjects.NewHorizon(evt.Horizon)
 	if err != nil {
-		return fmt.Errorf("%w: horizon %q: %v", ErrCorruptedEvent, evt.Horizon, err)
+		return fmt.Errorf("%w: horizon %q: %v", domain.ErrCorruptedEvent, evt.Horizon, err)
 	}
 	narrative, err := sharedvo.NewDescription(evt.Narrative)
 	if err != nil {
-		return fmt.Errorf("%w: narrative: %v", ErrCorruptedEvent, err)
+		return fmt.Errorf("%w: narrative: %v", domain.ErrCorruptedEvent, err)
 	}
 	status, err := valueobjects.NewDirectionStatus(valueobjects.DirectionStatusDraft)
 	if err != nil {
-		return fmt.Errorf("%w: status: %v", ErrCorruptedEvent, err)
+		return fmt.Errorf("%w: status: %v", domain.ErrCorruptedEvent, err)
 	}
 	d.AggregateRoot = domain.NewAggregateRootWithID(evt.ID)
 	d.enterpriseCapabilityID = ecRef
@@ -368,7 +367,7 @@ func decodePhysicalRefs(values []string) ([]valueobjects.PhysicalCapabilityRef, 
 	for i, v := range values {
 		r, err := valueobjects.NewPhysicalCapabilityRef(v)
 		if err != nil {
-			return nil, fmt.Errorf("%w: physical capability ref %q: %v", ErrCorruptedEvent, v, err)
+			return nil, fmt.Errorf("%w: physical capability ref %q: %v", domain.ErrCorruptedEvent, v, err)
 		}
 		out[i] = r
 	}
@@ -380,7 +379,7 @@ func decodePlacements(values []events.PlacementData) ([]valueobjects.Placement, 
 	for i, v := range values {
 		p, err := valueobjects.NewPlacement(v.TargetBusinessDomainID, v.ResultingName)
 		if err != nil {
-			return nil, fmt.Errorf("%w: placement %d: %v", ErrCorruptedEvent, i, err)
+			return nil, fmt.Errorf("%w: placement %d: %v", domain.ErrCorruptedEvent, i, err)
 		}
 		out[i] = p
 	}

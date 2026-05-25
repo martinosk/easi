@@ -1,6 +1,7 @@
 package aggregates
 
 import (
+	"fmt"
 	"time"
 
 	"easi/backend/internal/capabilitymapping/domain/events"
@@ -33,8 +34,7 @@ func NewBusinessDomain(
 		domainArchitectID,
 	)
 
-	aggregate.apply(event)
-	aggregate.RaiseEvent(event)
+	aggregate.raise(event)
 
 	return aggregate, nil
 }
@@ -44,9 +44,16 @@ func LoadBusinessDomainFromHistory(events []domain.DomainEvent) (*BusinessDomain
 		AggregateRoot: domain.NewAggregateRoot(),
 	}
 
+	var applyErr error
 	aggregate.LoadFromHistory(events, func(event domain.DomainEvent) {
-		aggregate.apply(event)
+		if applyErr != nil {
+			return
+		}
+		applyErr = aggregate.apply(event)
 	})
+	if applyErr != nil {
+		return nil, applyErr
+	}
 
 	return aggregate, nil
 }
@@ -59,8 +66,7 @@ func (b *BusinessDomain) Update(name valueobjects.DomainName, description valueo
 		domainArchitectID,
 	)
 
-	b.apply(event)
-	b.RaiseEvent(event)
+	b.raise(event)
 
 	return nil
 }
@@ -68,26 +74,41 @@ func (b *BusinessDomain) Update(name valueobjects.DomainName, description valueo
 func (b *BusinessDomain) Delete() error {
 	event := events.NewBusinessDomainDeleted(b.ID())
 
-	b.apply(event)
-	b.RaiseEvent(event)
+	b.raise(event)
 
 	return nil
 }
 
-func (b *BusinessDomain) apply(event domain.DomainEvent) {
+func (b *BusinessDomain) raise(event domain.DomainEvent) {
+	if err := b.apply(event); err != nil {
+		panic(fmt.Sprintf("capabilitymapping: in-process apply failed: %v", err))
+	}
+	b.RaiseEvent(event)
+}
+
+func (b *BusinessDomain) apply(event domain.DomainEvent) error {
 	switch e := event.(type) {
 	case events.BusinessDomainCreated:
 		b.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
-		b.name, _ = valueobjects.NewDomainName(e.Name)
+		name, err := valueobjects.NewDomainName(e.Name)
+		if err != nil {
+			return fmt.Errorf("%w: domain name %q: %v", domain.ErrCorruptedEvent, e.Name, err)
+		}
+		b.name = name
 		b.description = valueobjects.MustNewDescription(e.Description)
 		b.domainArchitectID = e.DomainArchitectID
 		b.createdAt = e.CreatedAt
 	case events.BusinessDomainUpdated:
-		b.name, _ = valueobjects.NewDomainName(e.Name)
+		name, err := valueobjects.NewDomainName(e.Name)
+		if err != nil {
+			return fmt.Errorf("%w: domain name %q: %v", domain.ErrCorruptedEvent, e.Name, err)
+		}
+		b.name = name
 		b.description = valueobjects.MustNewDescription(e.Description)
 		b.domainArchitectID = e.DomainArchitectID
 	case events.BusinessDomainDeleted:
 	}
+	return nil
 }
 
 func (b *BusinessDomain) Name() valueobjects.DomainName {

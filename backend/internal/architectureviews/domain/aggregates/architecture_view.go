@@ -2,6 +2,7 @@ package aggregates
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"easi/backend/internal/architectureviews/domain/events"
@@ -48,12 +49,16 @@ func NewArchitectureView(name valueobjects.ViewName, description string, isDefau
 		owner.Email(),
 	)
 
-	aggregate.apply(viewCreatedEvent)
+	if err := aggregate.apply(viewCreatedEvent); err != nil {
+		return nil, err
+	}
 	aggregate.RaiseEvent(viewCreatedEvent)
 
 	if isDefault {
 		defaultEvent := events.NewDefaultViewChanged(aggregate.ID(), true)
-		aggregate.apply(defaultEvent)
+		if err := aggregate.apply(defaultEvent); err != nil {
+			return nil, err
+		}
 		aggregate.RaiseEvent(defaultEvent)
 	}
 
@@ -67,9 +72,12 @@ func (v *ArchitectureView) checkNotDeleted() error {
 	return nil
 }
 
-func (v *ArchitectureView) applyAndRaise(event domain.DomainEvent) {
-	v.apply(event)
+func (v *ArchitectureView) applyAndRaise(event domain.DomainEvent) error {
+	if err := v.apply(event); err != nil {
+		return err
+	}
 	v.RaiseEvent(event)
+	return nil
 }
 
 func (v *ArchitectureView) AddComponent(componentID string) error {
@@ -81,8 +89,7 @@ func (v *ArchitectureView) AddComponent(componentID string) error {
 		return ErrComponentAlreadyInView
 	}
 
-	v.applyAndRaise(events.NewComponentAddedToView(v.ID(), componentID, 0, 0))
-	return nil
+	return v.applyAndRaise(events.NewComponentAddedToView(v.ID(), componentID, 0, 0))
 }
 
 func (v *ArchitectureView) RemoveComponent(componentID string) error {
@@ -94,8 +101,7 @@ func (v *ArchitectureView) RemoveComponent(componentID string) error {
 		return ErrComponentNotFound
 	}
 
-	v.applyAndRaise(events.NewComponentRemovedFromView(v.ID(), componentID))
-	return nil
+	return v.applyAndRaise(events.NewComponentRemovedFromView(v.ID(), componentID))
 }
 
 func (v *ArchitectureView) Rename(newName valueobjects.ViewName) error {
@@ -107,8 +113,7 @@ func (v *ArchitectureView) Rename(newName valueobjects.ViewName) error {
 		return nil
 	}
 
-	v.applyAndRaise(events.NewViewRenamed(v.ID(), v.name.Value(), newName.Value()))
-	return nil
+	return v.applyAndRaise(events.NewViewRenamed(v.ID(), v.name.Value(), newName.Value()))
 }
 
 func (v *ArchitectureView) Delete() error {
@@ -120,8 +125,7 @@ func (v *ArchitectureView) Delete() error {
 		return ErrCannotDeleteDefaultView
 	}
 
-	v.applyAndRaise(events.NewViewDeleted(v.ID()))
-	return nil
+	return v.applyAndRaise(events.NewViewDeleted(v.ID()))
 }
 
 func (v *ArchitectureView) SetAsDefault() error {
@@ -141,8 +145,7 @@ func (v *ArchitectureView) setDefaultStatus(makeDefault bool) error {
 		return nil
 	}
 
-	v.applyAndRaise(events.NewDefaultViewChanged(v.ID(), makeDefault))
-	return nil
+	return v.applyAndRaise(events.NewDefaultViewChanged(v.ID(), makeDefault))
 }
 
 func LoadArchitectureViewFromHistory(events []domain.DomainEvent) (*ArchitectureView, error) {
@@ -151,39 +154,56 @@ func LoadArchitectureViewFromHistory(events []domain.DomainEvent) (*Architecture
 		components:    valueobjects.NewComponentMembership(),
 	}
 
+	var applyErr error
 	aggregate.LoadFromHistory(events, func(event domain.DomainEvent) {
-		aggregate.apply(event)
+		if applyErr != nil {
+			return
+		}
+		applyErr = aggregate.apply(event)
 	})
+	if applyErr != nil {
+		return nil, applyErr
+	}
 
 	return aggregate, nil
 }
 
-func (v *ArchitectureView) apply(event domain.DomainEvent) {
+func (v *ArchitectureView) apply(event domain.DomainEvent) error {
 	switch e := event.(type) {
 	case events.ViewCreated:
-		v.applyViewCreated(e)
+		return v.applyViewCreated(e)
 	case events.ComponentAddedToView:
 		v.applyComponentAdded(e)
 	case events.ComponentRemovedFromView:
 		v.applyComponentRemoved(e)
 	case events.ViewRenamed:
-		v.applyViewRenamed(e)
+		return v.applyViewRenamed(e)
 	case events.ViewDeleted:
 		v.applyViewDeleted()
 	case events.DefaultViewChanged:
 		v.applyDefaultViewChanged(e)
 	case events.ViewVisibilityChanged:
-		v.applyViewVisibilityChanged(e)
+		return v.applyViewVisibilityChanged(e)
 	}
+	return nil
 }
 
-func (v *ArchitectureView) applyViewCreated(e events.ViewCreated) {
+func (v *ArchitectureView) applyViewCreated(e events.ViewCreated) error {
+	name, err := valueobjects.NewViewName(e.Name)
+	if err != nil {
+		return fmt.Errorf("%w: view name %q: %v", domain.ErrCorruptedEvent, e.Name, err)
+	}
+	owner, err := valueobjects.NewViewOwner(e.OwnerUserID, e.OwnerEmail)
+	if err != nil {
+		return fmt.Errorf("%w: view owner: %v", domain.ErrCorruptedEvent, err)
+	}
 	v.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
-	v.name, _ = valueobjects.NewViewName(e.Name)
+	v.name = name
 	v.description = valueobjects.NewViewDescription(e.Description)
 	v.visibility = valueobjects.NewViewVisibility(e.IsPrivate)
-	v.owner, _ = valueobjects.NewViewOwner(e.OwnerUserID, e.OwnerEmail)
+	v.owner = owner
 	v.createdAt = e.CreatedAt
+	return nil
 }
 
 func (v *ArchitectureView) applyComponentAdded(e events.ComponentAddedToView) {
@@ -194,8 +214,13 @@ func (v *ArchitectureView) applyComponentRemoved(e events.ComponentRemovedFromVi
 	v.components.Remove(e.ComponentID)
 }
 
-func (v *ArchitectureView) applyViewRenamed(e events.ViewRenamed) {
-	v.name, _ = valueobjects.NewViewName(e.NewName)
+func (v *ArchitectureView) applyViewRenamed(e events.ViewRenamed) error {
+	name, err := valueobjects.NewViewName(e.NewName)
+	if err != nil {
+		return fmt.Errorf("%w: view name %q: %v", domain.ErrCorruptedEvent, e.NewName, err)
+	}
+	v.name = name
+	return nil
 }
 
 func (v *ArchitectureView) applyViewDeleted() {
@@ -266,8 +291,7 @@ func (v *ArchitectureView) MakePublic(newOwner valueobjects.ViewOwner) error {
 		return ErrViewAlreadyPublic
 	}
 
-	v.applyAndRaise(events.NewViewVisibilityChanged(v.ID(), false, newOwner.UserID(), newOwner.Email()))
-	return nil
+	return v.applyAndRaise(events.NewViewVisibilityChanged(v.ID(), false, newOwner.UserID(), newOwner.Email()))
 }
 
 func (v *ArchitectureView) MakePrivate() error {
@@ -279,11 +303,15 @@ func (v *ArchitectureView) MakePrivate() error {
 		return ErrViewAlreadyPrivate
 	}
 
-	v.applyAndRaise(events.NewViewVisibilityChanged(v.ID(), true, v.owner.UserID(), v.owner.Email()))
-	return nil
+	return v.applyAndRaise(events.NewViewVisibilityChanged(v.ID(), true, v.owner.UserID(), v.owner.Email()))
 }
 
-func (v *ArchitectureView) applyViewVisibilityChanged(e events.ViewVisibilityChanged) {
+func (v *ArchitectureView) applyViewVisibilityChanged(e events.ViewVisibilityChanged) error {
+	owner, err := valueobjects.NewViewOwner(e.OwnerUserID, e.OwnerEmail)
+	if err != nil {
+		return fmt.Errorf("%w: view owner: %v", domain.ErrCorruptedEvent, err)
+	}
 	v.visibility = valueobjects.NewViewVisibility(e.IsPrivate)
-	v.owner, _ = valueobjects.NewViewOwner(e.OwnerUserID, e.OwnerEmail)
+	v.owner = owner
+	return nil
 }

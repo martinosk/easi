@@ -33,9 +33,9 @@ func newDefaultConfigCreatedEvent() events.MetaModelConfigurationCreated {
 			{Order: 4, Name: "Commodity", MinValue: 75, MaxValue: 99},
 		},
 		Pillars: []events.StrategyPillarData{
-			{ID: "pillar-1", Name: "Always On", Description: "Core capabilities", Active: true},
-			{ID: "pillar-2", Name: "Grow", Description: "Growth capabilities", Active: true},
-			{ID: "pillar-3", Name: "Transform", Description: "Transformation capabilities", Active: true},
+			{ID: "00000000-0000-0000-0000-000000000001", Name: "Always On", Description: "Core capabilities", Active: true},
+			{ID: "00000000-0000-0000-0000-000000000002", Name: "Grow", Description: "Growth capabilities", Active: true},
+			{ID: "00000000-0000-0000-0000-000000000003", Name: "Transform", Description: "Transformation capabilities", Active: true},
 		},
 		CreatedBy: "admin@example.com",
 	})

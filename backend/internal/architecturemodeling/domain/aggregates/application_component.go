@@ -2,6 +2,7 @@ package aggregates
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"easi/backend/internal/architecturemodeling/domain/events"
@@ -34,7 +35,9 @@ func NewApplicationComponent(name valueobjects.ComponentName, description valueo
 		description.Value(),
 	)
 
-	aggregate.apply(event)
+	if err := aggregate.apply(event); err != nil {
+		return nil, err
+	}
 	aggregate.RaiseEvent(event)
 
 	return aggregate, nil
@@ -45,9 +48,16 @@ func LoadApplicationComponentFromHistory(events []domain.DomainEvent) (*Applicat
 		AggregateRoot: domain.NewAggregateRoot(),
 	}
 
+	var applyErr error
 	aggregate.LoadFromHistory(events, func(event domain.DomainEvent) {
-		aggregate.apply(event)
+		if applyErr != nil {
+			return
+		}
+		applyErr = aggregate.apply(event)
 	})
+	if applyErr != nil {
+		return nil, applyErr
+	}
 
 	return aggregate, nil
 }
@@ -59,7 +69,9 @@ func (a *ApplicationComponent) Update(name valueobjects.ComponentName, descripti
 		description.Value(),
 	)
 
-	a.apply(event)
+	if err := a.apply(event); err != nil {
+		return err
+	}
 	a.RaiseEvent(event)
 
 	return nil
@@ -71,7 +83,9 @@ func (a *ApplicationComponent) Delete() error {
 		a.name.Value(),
 	)
 
-	a.apply(event)
+	if err := a.apply(event); err != nil {
+		return err
+	}
 	a.RaiseEvent(event)
 
 	return nil
@@ -91,7 +105,9 @@ func (a *ApplicationComponent) AddExpert(expert valueobjects.Expert) error {
 		expert.Contact().Value(),
 	)
 
-	a.apply(event)
+	if err := a.apply(event); err != nil {
+		return err
+	}
 	a.RaiseEvent(event)
 
 	return nil
@@ -105,7 +121,9 @@ func (a *ApplicationComponent) RemoveExpert(expert valueobjects.Expert) error {
 		expert.Contact().Value(),
 	)
 
-	a.apply(event)
+	if err := a.apply(event); err != nil {
+		return err
+	}
 	a.RaiseEvent(event)
 
 	return nil
@@ -115,25 +133,59 @@ func (a *ApplicationComponent) Experts() []valueobjects.Expert {
 	return a.experts
 }
 
-// Note: This method should NOT increment the version - that's handled by LoadFromHistory or RaiseEvent
-func (a *ApplicationComponent) apply(event domain.DomainEvent) {
+func (a *ApplicationComponent) apply(event domain.DomainEvent) error {
 	switch e := event.(type) {
 	case events.ApplicationComponentCreated:
-		a.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
-		a.name, _ = valueobjects.NewComponentName(e.Name)
-		a.description = valueobjects.MustNewDescription(e.Description)
-		a.createdAt = e.CreatedAt
+		return a.applyCreated(e)
 	case events.ApplicationComponentUpdated:
-		a.name, _ = valueobjects.NewComponentName(e.Name)
-		a.description = valueobjects.MustNewDescription(e.Description)
+		return a.applyUpdated(e)
 	case events.ApplicationComponentDeleted:
 		a.isDeleted = true
 	case events.ApplicationComponentExpertAdded:
-		expert := valueobjects.MustNewExpert(e.ExpertName, e.ExpertRole, e.ContactInfo, e.AddedAt)
-		a.experts = append(a.experts, expert)
+		return a.applyExpertAdded(e)
 	case events.ApplicationComponentExpertRemoved:
 		a.experts = removeExpert(a.experts, e.ExpertName, e.ExpertRole, e.ContactInfo)
 	}
+	return nil
+}
+
+func (a *ApplicationComponent) applyCreated(e events.ApplicationComponentCreated) error {
+	name, err := valueobjects.NewComponentName(e.Name)
+	if err != nil {
+		return fmt.Errorf("%w: component name %q: %v", domain.ErrCorruptedEvent, e.Name, err)
+	}
+	description, err := valueobjects.NewDescription(e.Description)
+	if err != nil {
+		return fmt.Errorf("%w: description: %v", domain.ErrCorruptedEvent, err)
+	}
+	a.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
+	a.name = name
+	a.description = description
+	a.createdAt = e.CreatedAt
+	return nil
+}
+
+func (a *ApplicationComponent) applyUpdated(e events.ApplicationComponentUpdated) error {
+	name, err := valueobjects.NewComponentName(e.Name)
+	if err != nil {
+		return fmt.Errorf("%w: component name %q: %v", domain.ErrCorruptedEvent, e.Name, err)
+	}
+	description, err := valueobjects.NewDescription(e.Description)
+	if err != nil {
+		return fmt.Errorf("%w: description: %v", domain.ErrCorruptedEvent, err)
+	}
+	a.name = name
+	a.description = description
+	return nil
+}
+
+func (a *ApplicationComponent) applyExpertAdded(e events.ApplicationComponentExpertAdded) error {
+	expert, err := valueobjects.NewExpert(e.ExpertName, e.ExpertRole, e.ContactInfo, e.AddedAt)
+	if err != nil {
+		return fmt.Errorf("%w: expert: %v", domain.ErrCorruptedEvent, err)
+	}
+	a.experts = append(a.experts, expert)
+	return nil
 }
 
 func removeExpert(experts []valueobjects.Expert, name, role, contact string) []valueobjects.Expert {

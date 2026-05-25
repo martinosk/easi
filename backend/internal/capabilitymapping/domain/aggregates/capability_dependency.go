@@ -2,6 +2,7 @@ package aggregates
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"easi/backend/internal/capabilitymapping/domain/events"
@@ -97,8 +98,7 @@ func NewCapabilityDependency(
 		description.Value(),
 	)
 
-	aggregate.apply(event)
-	aggregate.RaiseEvent(event)
+	aggregate.raise(event)
 
 	return aggregate, nil
 }
@@ -108,9 +108,16 @@ func LoadCapabilityDependencyFromHistory(events []domain.DomainEvent) (*Capabili
 		AggregateRoot: domain.NewAggregateRoot(),
 	}
 
+	var applyErr error
 	aggregate.LoadFromHistory(events, func(event domain.DomainEvent) {
-		aggregate.apply(event)
+		if applyErr != nil {
+			return
+		}
+		applyErr = aggregate.apply(event)
 	})
+	if applyErr != nil {
+		return nil, applyErr
+	}
 
 	return aggregate, nil
 }
@@ -118,23 +125,42 @@ func LoadCapabilityDependencyFromHistory(events []domain.DomainEvent) (*Capabili
 func (cd *CapabilityDependency) Delete() error {
 	event := events.NewCapabilityDependencyDeleted(cd.ID())
 
-	cd.apply(event)
-	cd.RaiseEvent(event)
+	cd.raise(event)
 
 	return nil
 }
 
-func (cd *CapabilityDependency) apply(event domain.DomainEvent) {
+func (cd *CapabilityDependency) raise(event domain.DomainEvent) {
+	if err := cd.apply(event); err != nil {
+		panic(fmt.Sprintf("capabilitymapping: in-process apply failed: %v", err))
+	}
+	cd.RaiseEvent(event)
+}
+
+func (cd *CapabilityDependency) apply(event domain.DomainEvent) error {
 	switch e := event.(type) {
 	case events.CapabilityDependencyCreated:
 		cd.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
-		cd.sourceCapabilityID, _ = valueobjects.NewCapabilityIDFromString(e.SourceCapabilityID)
-		cd.targetCapabilityID, _ = valueobjects.NewCapabilityIDFromString(e.TargetCapabilityID)
-		cd.dependencyType, _ = valueobjects.NewDependencyType(e.DependencyType)
+		sourceCapabilityID, err := valueobjects.NewCapabilityIDFromString(e.SourceCapabilityID)
+		if err != nil {
+			return fmt.Errorf("%w: source capability ID %q: %v", domain.ErrCorruptedEvent, e.SourceCapabilityID, err)
+		}
+		cd.sourceCapabilityID = sourceCapabilityID
+		targetCapabilityID, err := valueobjects.NewCapabilityIDFromString(e.TargetCapabilityID)
+		if err != nil {
+			return fmt.Errorf("%w: target capability ID %q: %v", domain.ErrCorruptedEvent, e.TargetCapabilityID, err)
+		}
+		cd.targetCapabilityID = targetCapabilityID
+		dependencyType, err := valueobjects.NewDependencyType(e.DependencyType)
+		if err != nil {
+			return fmt.Errorf("%w: dependency type %q: %v", domain.ErrCorruptedEvent, e.DependencyType, err)
+		}
+		cd.dependencyType = dependencyType
 		cd.description = valueobjects.MustNewDescription(e.Description)
 		cd.createdAt = e.CreatedAt
 	case events.CapabilityDependencyDeleted:
 	}
+	return nil
 }
 
 func (cd *CapabilityDependency) SourceCapabilityID() valueobjects.CapabilityID {

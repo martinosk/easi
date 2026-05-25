@@ -1,6 +1,7 @@
 package aggregates
 
 import (
+	"fmt"
 	"time"
 
 	"easi/backend/internal/capabilitymapping/domain/events"
@@ -42,8 +43,7 @@ func SetStrategyImportance(params NewImportanceParams) (*StrategyImportance, err
 		Rationale:        params.Rationale.Value(),
 	})
 
-	aggregate.apply(event)
-	aggregate.RaiseEvent(event)
+	aggregate.raise(event)
 
 	return aggregate, nil
 }
@@ -53,9 +53,16 @@ func LoadStrategyImportanceFromHistory(eventHistory []domain.DomainEvent) (*Stra
 		AggregateRoot: domain.NewAggregateRoot(),
 	}
 
+	var applyErr error
 	aggregate.LoadFromHistory(eventHistory, func(event domain.DomainEvent) {
-		aggregate.apply(event)
+		if applyErr != nil {
+			return
+		}
+		applyErr = aggregate.apply(event)
 	})
+	if applyErr != nil {
+		return nil, applyErr
+	}
 
 	return aggregate, nil
 }
@@ -69,8 +76,7 @@ func (s *StrategyImportance) Update(importance valueobjects.Importance, rational
 		OldRationale:  s.rationale.Value(),
 	})
 
-	s.apply(event)
-	s.RaiseEvent(event)
+	s.raise(event)
 
 	return nil
 }
@@ -83,27 +89,62 @@ func (s *StrategyImportance) Remove() error {
 		s.pillarID.Value(),
 	)
 
-	s.apply(event)
-	s.RaiseEvent(event)
+	s.raise(event)
 
 	return nil
 }
 
-func (s *StrategyImportance) apply(event domain.DomainEvent) {
+func (s *StrategyImportance) raise(event domain.DomainEvent) {
+	if err := s.apply(event); err != nil {
+		panic(fmt.Sprintf("capabilitymapping: in-process apply failed: %v", err))
+	}
+	s.RaiseEvent(event)
+}
+
+func (s *StrategyImportance) apply(event domain.DomainEvent) error {
 	switch e := event.(type) {
 	case events.StrategyImportanceSet:
 		s.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
-		s.businessDomainID, _ = valueobjects.NewBusinessDomainIDFromString(e.BusinessDomainID)
-		s.capabilityID, _ = valueobjects.NewCapabilityIDFromString(e.CapabilityID)
-		s.pillarID, _ = valueobjects.NewPillarIDFromString(e.PillarID)
-		s.importance, _ = valueobjects.NewImportance(e.Importance)
-		s.rationale, _ = valueobjects.NewRationale(e.Rationale)
+		businessDomainID, err := valueobjects.NewBusinessDomainIDFromString(e.BusinessDomainID)
+		if err != nil {
+			return fmt.Errorf("%w: business domain ID %q: %v", domain.ErrCorruptedEvent, e.BusinessDomainID, err)
+		}
+		s.businessDomainID = businessDomainID
+		capabilityID, err := valueobjects.NewCapabilityIDFromString(e.CapabilityID)
+		if err != nil {
+			return fmt.Errorf("%w: capability ID %q: %v", domain.ErrCorruptedEvent, e.CapabilityID, err)
+		}
+		s.capabilityID = capabilityID
+		pillarID, err := valueobjects.NewPillarIDFromString(e.PillarID)
+		if err != nil {
+			return fmt.Errorf("%w: pillar ID %q: %v", domain.ErrCorruptedEvent, e.PillarID, err)
+		}
+		s.pillarID = pillarID
+		importance, err := valueobjects.NewImportance(e.Importance)
+		if err != nil {
+			return fmt.Errorf("%w: importance %d: %v", domain.ErrCorruptedEvent, e.Importance, err)
+		}
+		s.importance = importance
+		rationale, err := valueobjects.NewRationale(e.Rationale)
+		if err != nil {
+			return fmt.Errorf("%w: rationale: %v", domain.ErrCorruptedEvent, err)
+		}
+		s.rationale = rationale
 		s.setAt = e.SetAt
 	case events.StrategyImportanceUpdated:
-		s.importance, _ = valueobjects.NewImportance(e.Importance)
-		s.rationale, _ = valueobjects.NewRationale(e.Rationale)
+		importance, err := valueobjects.NewImportance(e.Importance)
+		if err != nil {
+			return fmt.Errorf("%w: importance %d: %v", domain.ErrCorruptedEvent, e.Importance, err)
+		}
+		s.importance = importance
+		rationale, err := valueobjects.NewRationale(e.Rationale)
+		if err != nil {
+			return fmt.Errorf("%w: rationale: %v", domain.ErrCorruptedEvent, err)
+		}
+		s.rationale = rationale
 	case events.StrategyImportanceRemoved:
 	}
+	return nil
 }
 
 func (s *StrategyImportance) BusinessDomainID() valueobjects.BusinessDomainID {

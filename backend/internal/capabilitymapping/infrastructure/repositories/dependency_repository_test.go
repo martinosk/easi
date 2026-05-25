@@ -16,7 +16,7 @@ import (
 func TestDependencyDeserializers_RoundTrip(t *testing.T) {
 	sourceID := valueobjects.NewCapabilityID()
 	targetID := valueobjects.NewCapabilityID()
-	depType, _ := valueobjects.NewDependencyType("uses")
+	depType, _ := valueobjects.NewDependencyType("Requires")
 	description := valueobjects.MustNewDescription("Source uses target")
 
 	original, err := aggregates.NewCapabilityDependency(sourceID, targetID, depType, description)
@@ -44,7 +44,7 @@ func TestDependencyDeserializers_RoundTrip(t *testing.T) {
 func TestDependencyDeserializers_AllEventsCanBeDeserialized(t *testing.T) {
 	sourceID := valueobjects.NewCapabilityID()
 	targetID := valueobjects.NewCapabilityID()
-	depType, _ := valueobjects.NewDependencyType("depends-on")
+	depType, _ := valueobjects.NewDependencyType("Enables")
 	description := valueobjects.MustNewDescription("Dependency description")
 
 	dependency, err := aggregates.NewCapabilityDependency(sourceID, targetID, depType, description)

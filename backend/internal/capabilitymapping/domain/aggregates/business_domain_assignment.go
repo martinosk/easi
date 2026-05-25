@@ -1,6 +1,7 @@
 package aggregates
 
 import (
+	"fmt"
 	"time"
 
 	"easi/backend/internal/capabilitymapping/domain/events"
@@ -29,8 +30,7 @@ func AssignCapabilityToDomain(
 		capabilityID.Value(),
 	)
 
-	aggregate.apply(event)
-	aggregate.RaiseEvent(event)
+	aggregate.raise(event)
 
 	return aggregate, nil
 }
@@ -40,9 +40,16 @@ func LoadBusinessDomainAssignmentFromHistory(events []domain.DomainEvent) (*Busi
 		AggregateRoot: domain.NewAggregateRoot(),
 	}
 
+	var applyErr error
 	aggregate.LoadFromHistory(events, func(event domain.DomainEvent) {
-		aggregate.apply(event)
+		if applyErr != nil {
+			return
+		}
+		applyErr = aggregate.apply(event)
 	})
+	if applyErr != nil {
+		return nil, applyErr
+	}
 
 	return aggregate, nil
 }
@@ -54,21 +61,36 @@ func (a *BusinessDomainAssignment) Unassign() error {
 		a.capabilityID.Value(),
 	)
 
-	a.apply(event)
-	a.RaiseEvent(event)
+	a.raise(event)
 
 	return nil
 }
 
-func (a *BusinessDomainAssignment) apply(event domain.DomainEvent) {
+func (a *BusinessDomainAssignment) raise(event domain.DomainEvent) {
+	if err := a.apply(event); err != nil {
+		panic(fmt.Sprintf("capabilitymapping: in-process apply failed: %v", err))
+	}
+	a.RaiseEvent(event)
+}
+
+func (a *BusinessDomainAssignment) apply(event domain.DomainEvent) error {
 	switch e := event.(type) {
 	case events.CapabilityAssignedToDomain:
 		a.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
-		a.businessDomainID, _ = valueobjects.NewBusinessDomainIDFromString(e.BusinessDomainID)
-		a.capabilityID, _ = valueobjects.NewCapabilityIDFromString(e.CapabilityID)
+		businessDomainID, err := valueobjects.NewBusinessDomainIDFromString(e.BusinessDomainID)
+		if err != nil {
+			return fmt.Errorf("%w: business domain ID %q: %v", domain.ErrCorruptedEvent, e.BusinessDomainID, err)
+		}
+		a.businessDomainID = businessDomainID
+		capabilityID, err := valueobjects.NewCapabilityIDFromString(e.CapabilityID)
+		if err != nil {
+			return fmt.Errorf("%w: capability ID %q: %v", domain.ErrCorruptedEvent, e.CapabilityID, err)
+		}
+		a.capabilityID = capabilityID
 		a.assignedAt = e.AssignedAt
 	case events.CapabilityUnassignedFromDomain:
 	}
+	return nil
 }
 
 func (a *BusinessDomainAssignment) BusinessDomainID() valueobjects.BusinessDomainID {

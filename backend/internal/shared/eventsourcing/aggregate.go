@@ -1,8 +1,12 @@
 package domain
 
 import (
+	"errors"
+
 	"github.com/google/uuid"
 )
+
+var ErrCorruptedEvent = errors.New("corrupted event store: cannot rehydrate aggregate")
 
 // AggregateRoot is the base for all aggregates in the system
 type AggregateRoot struct {
