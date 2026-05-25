@@ -156,6 +156,6 @@ Frontend (`StandardApplicationHistoryDialog.tsx` + test):
 - [x] Specification ready
 - [x] Implementation done
 - [x] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
+- [x] Integration tests implemented if relevant
 - [x] API documentation updated
-- [ ] User sign-off
+- [x] User sign-off

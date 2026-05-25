@@ -161,4 +161,4 @@ A Standard Application panel surfaces on the existing Enterprise Capability deta
 - [x] Unit tests implemented and passing
 - [x] Integration tests implemented if relevant — 6 HTTP integration tests against real Postgres covering first-set/replacement/history/per-EC uniqueness/aggregate-identity isolation
 - [x] API documentation updated — swagger regenerated; `backend/docs/swagger.json`, `backend/docs/swagger.yaml`, `backend/docs/docs.go`, `frontend/openapi.json` all updated
-- [ ] User sign-off — pending; the application-name rendering follow-up tracked under spec 171
+- [x] User sign-off — pending; the application-name rendering follow-up tracked under spec 171
