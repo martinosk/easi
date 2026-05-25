@@ -17,22 +17,13 @@ Enable enterprise architects to discover capability overlap across business doma
 - Track standardization requirements ("Payroll should be consolidated")
 - Analyze cross-domain maturity gaps ("IT Support Payroll is Genesis, should be Product")
 - Prioritize investments based on enterprise-wide view
-- Provide analytical foundation for strategic consolidation decisions (feeds into Enterprise Strategy context)
+- Provide analytical foundation for strategic consolidation decisions
 
 ## Relationship to Other Contexts
 
 ### Compared to Capability Mapping
 - **Capability Mapping**: "What capabilities exist in each domain and how are they realized?"
 - **Enterprise Architecture**: "Which capabilities across domains represent the same thing and where should we standardize?"
-
-### Compared to Enterprise Strategy (Future)
-- **Enterprise Architecture**: **Analyze** - "We have 5 payroll implementations with varying maturity, marked for standardization"
-- **Enterprise Strategy**: **Act** - "Execute consolidation workflow: propose → approve → migrate"
-
-These contexts are complementary:
-1. Enterprise Architecture identifies consolidation opportunities
-2. Enterprise Strategy executes consolidation workflows
-3. Results flow back to Capability Mapping
 
 ## Strategic Classification
 
@@ -105,7 +96,6 @@ These contexts are complementary:
 - To **MetaModel**: Read maturity scale configuration for section names
 
 ### Collaborators
-- **Enterprise Strategy Context** (future): Consumes enterprise capability data for consolidation proposals
 - **Strategic Analytics Dashboard** (future): Consumes events for reporting
 
 ### Integration Pattern
@@ -200,7 +190,7 @@ These contexts are complementary:
 
 4. **Cross-tenant patterns?** Should reference enterprise capabilities be shareable across tenants?
 
-5. **Consolidation workflow trigger?** Should high-importance standardization candidates auto-create Enterprise Strategy proposals?
+5. **Consolidation workflow trigger?** Should high-importance standardization candidates auto-create consolidation proposals?
 
 6. **Historical analysis?** Should we track how enterprise capability composition changed over time?
 
@@ -232,8 +222,6 @@ These contexts are complementary:
 ### Cross-Context Integration
 - **Downstream of MetaModel**: Subscribes to strategy pillar events
 - **Downstream of Capability Mapping**: Queries capability data, subscribes to deletion events
-- **Upstream to Enterprise Strategy** (future): Provides analysis data for consolidation proposals
-
 ## Collaboration Patterns
 
 ### With MetaModel Context
@@ -262,19 +250,6 @@ Capability Mapping → Enterprise Architecture (events)
 - Reaction: Remove links referencing deleted capability
 ```
 
-### With Enterprise Strategy Context (Future)
-
-**Analysis to Action**:
-```
-Enterprise Strategy → Enterprise Architecture (query)
-- Query: Get standardization candidates with high importance
-- Use: Suggest consolidation proposals
-
-Enterprise Architecture → Enterprise Strategy (data)
-- Data: Enterprise capability composition, maturity gaps
-- Use: Impact analysis during consolidation planning
-```
-
 ## Implementation Priority
 
 **Phase 1 (Spec 100: Create Enterprise Capability Groupings)**:
@@ -290,6 +265,5 @@ Enterprise Architecture → Enterprise Strategy (data)
 - Unlinked capabilities discovery
 
 **Phase 3 (Future)**:
-- Integration with Enterprise Strategy for consolidation workflow
 - Historical analysis and trend tracking
 - Auto-suggest linking based on name similarity

@@ -63,19 +63,12 @@ Enable enterprise architects to model business capabilities and map them to IT s
 - From **Architecture Modeling**:
   - `ApplicationComponentDeleted` - Remove system from capability realizations
 
-**Commands** (from other contexts - future):
-- From **Enterprise Strategy** (future):
-  - `AssignCapabilityToDomain` - Strategic process assigns capability to business domain
-  - `UnassignCapabilityFromDomain` - Strategic process removes assignment
-
 ### Collaborators
 - **Frontend UI**: Primary source of commands
 - **Architecture Modeling Context**: Source of truth for system definitions
-- **Enterprise Strategy Context** (future): Source of strategic domain assignments
 
 ### Relationship Types
 - **Customer-Supplier** with Architecture Modeling: Depends on component definitions
-- **Partnership** with Enterprise Strategy (future): Collaborative strategic modeling
 
 ## Outbound Communication
 
@@ -105,7 +98,6 @@ Enable enterprise architects to model business capabilities and map them to IT s
 ### Collaborators
 - **Frontend UI**: Consumes events for real-time updates
 - **Architecture Modeling Context**: Queries for system details
-- **Enterprise Strategy Context** (future): Subscribes to capability events for impact analysis
 
 ### Integration Pattern
 - **Event-driven integration** for capability changes
@@ -254,7 +246,6 @@ Enable enterprise architects to model business capabilities and map them to IT s
 ### Cross-Context Integration
 - **Downstream of Architecture Modeling**: Listens to `ApplicationComponentCreated`, `ApplicationComponentUpdated`, `ApplicationComponentDeleted` events
 - **Downstream of MetaModel**: Listens to `StrategyPillarAdded`, `StrategyPillarUpdated`, `StrategyPillarRemoved`, `PillarFitConfigurationUpdated`, `MaturityScaleConfigUpdated`, `MaturityScaleConfigReset`
-- **Upstream to Enterprise Strategy** (future): Publishes capability events for strategic analysis
 - **Read-only access** to Architecture Modeling read models
 
 ## New Business Domain Features (Specs 053-058)
@@ -262,12 +253,6 @@ Enable enterprise architects to model business capabilities and map them to IT s
 ### Additional Aggregates
 - **BusinessDomain**: Manages business domain lifecycle (CRUD)
 - **BusinessDomainAssignment**: Manages many-to-many capability-to-domain assignments
-
-### Integration with Enterprise Strategy Context (Future)
-When Enterprise Strategy context is implemented:
-- **Inbound**: Commands to assign/unassign capabilities during strategic consolidation/decomposition
-- **Outbound**: Events about capability assignments for strategic impact analysis
-- **Collaboration**: Partnership relationship for strategic capability planning
 
 ### Business Domain Queries
 - Get all business domains

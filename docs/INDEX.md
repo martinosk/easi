@@ -26,10 +26,11 @@ Quick reference for navigating EASI documentation.
 | MetaModel | [docs/architecture/MetaModel.md](architecture/MetaModel.md) | Supporting | Implemented |
 | AccessDelegation | [docs/architecture/README.md](architecture/README.md) | Supporting | Implemented |
 | ViewLayouts | [docs/architecture/README.md](architecture/README.md) | Supporting | Implemented |
+| ArchAssistant | [docs/architecture/ArchAssistant.md](architecture/ArchAssistant.md) | Supporting | Implemented |
+| ArchitectureDirection | [docs/architecture/README.md](architecture/README.md) | Core | Implemented |
 | Releases | [docs/architecture/Releases.md](architecture/Releases.md) | Generic | Implemented |
-| EnterpriseStrategy | [docs/architecture/EnterpriseStrategy.md](architecture/EnterpriseStrategy.md) | Core | Future |
 
-Full context map and published language catalogue: [docs/architecture/README.md](architecture/README.md)
+Full context map: [docs/architecture/README.md](architecture/README.md)
 
 ## Core Rules
 
