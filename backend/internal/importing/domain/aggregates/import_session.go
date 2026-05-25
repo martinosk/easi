@@ -475,16 +475,7 @@ func deserializeCapabilities(data map[string]interface{}) []ParsedElement {
 }
 
 func deserializeComponents(data map[string]interface{}) []ParsedElement {
-	maps := toMapSlice(data["components"])
-	result := make([]ParsedElement, 0, len(maps))
-	for _, m := range maps {
-		result = append(result, ParsedElement{
-			SourceID:    getString(m, "sourceId"),
-			Name:        getString(m, "name"),
-			Description: getString(m, "description"),
-		})
-	}
-	return result
+	return deserializeElements(data, "components")
 }
 
 func deserializeRelationships(data map[string]interface{}) []ParsedRelationship {
@@ -513,7 +504,11 @@ func deserializeParsedData(data map[string]interface{}) ParsedData {
 }
 
 func deserializeValueStreams(data map[string]interface{}) []ParsedElement {
-	maps := toMapSlice(data["valueStreams"])
+	return deserializeElements(data, "valueStreams")
+}
+
+func deserializeElements(data map[string]interface{}, key string) []ParsedElement {
+	maps := toMapSlice(data[key])
 	result := make([]ParsedElement, 0, len(maps))
 	for _, m := range maps {
 		result = append(result, ParsedElement{

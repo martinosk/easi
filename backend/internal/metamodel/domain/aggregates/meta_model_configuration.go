@@ -2,6 +2,7 @@ package aggregates
 
 import (
 	"fmt"
+	"time"
 
 	"easi/backend/internal/metamodel/domain/events"
 	"easi/backend/internal/metamodel/domain/valueobjects"
@@ -156,18 +157,8 @@ func (m *MetaModelConfiguration) applyMaturityScaleUpdated(e events.MaturityScal
 	if err != nil {
 		return fmt.Errorf("%w: maturity scale config: %v", domain.ErrCorruptedEvent, err)
 	}
-	modifiedAt, err := valueobjects.NewTimestamp(e.ModifiedAt)
-	if err != nil {
-		return fmt.Errorf("%w: modified at: %v", domain.ErrCorruptedEvent, err)
-	}
-	modifiedBy, err := valueobjects.NewUserEmail(e.ModifiedBy)
-	if err != nil {
-		return fmt.Errorf("%w: modified by %q: %v", domain.ErrCorruptedEvent, e.ModifiedBy, err)
-	}
 	m.maturityScaleConfig = maturityConfig
-	m.modifiedAt = modifiedAt
-	m.modifiedBy = modifiedBy
-	return nil
+	return m.applyModificationMetadata(e.ModifiedAt, e.ModifiedBy)
 }
 
 func (m *MetaModelConfiguration) applyMaturityScaleReset(e events.MaturityScaleConfigReset) error {
@@ -175,18 +166,8 @@ func (m *MetaModelConfiguration) applyMaturityScaleReset(e events.MaturityScaleC
 	if err != nil {
 		return fmt.Errorf("%w: maturity scale config: %v", domain.ErrCorruptedEvent, err)
 	}
-	modifiedAt, err := valueobjects.NewTimestamp(e.ModifiedAt)
-	if err != nil {
-		return fmt.Errorf("%w: modified at: %v", domain.ErrCorruptedEvent, err)
-	}
-	modifiedBy, err := valueobjects.NewUserEmail(e.ModifiedBy)
-	if err != nil {
-		return fmt.Errorf("%w: modified by %q: %v", domain.ErrCorruptedEvent, e.ModifiedBy, err)
-	}
 	m.maturityScaleConfig = maturityConfig
-	m.modifiedAt = modifiedAt
-	m.modifiedBy = modifiedBy
-	return nil
+	return m.applyModificationMetadata(e.ModifiedAt, e.ModifiedBy)
 }
 
 func (m *MetaModelConfiguration) applyPillarAdded(e events.StrategyPillarAdded) error {
@@ -210,18 +191,8 @@ func (m *MetaModelConfiguration) applyPillarAdded(e events.StrategyPillarAdded) 
 	if err != nil {
 		return fmt.Errorf("%w: adding pillar: %v", domain.ErrCorruptedEvent, err)
 	}
-	modifiedAt, err := valueobjects.NewTimestamp(e.ModifiedAt)
-	if err != nil {
-		return fmt.Errorf("%w: modified at: %v", domain.ErrCorruptedEvent, err)
-	}
-	modifiedBy, err := valueobjects.NewUserEmail(e.ModifiedBy)
-	if err != nil {
-		return fmt.Errorf("%w: modified by %q: %v", domain.ErrCorruptedEvent, e.ModifiedBy, err)
-	}
 	m.strategyPillarsConfig = config
-	m.modifiedAt = modifiedAt
-	m.modifiedBy = modifiedBy
-	return nil
+	return m.applyModificationMetadata(e.ModifiedAt, e.ModifiedBy)
 }
 
 func (m *MetaModelConfiguration) applyPillarUpdated(e events.StrategyPillarUpdated) error {
@@ -241,18 +212,8 @@ func (m *MetaModelConfiguration) applyPillarUpdated(e events.StrategyPillarUpdat
 	if err != nil {
 		return fmt.Errorf("%w: updating pillar: %v", domain.ErrCorruptedEvent, err)
 	}
-	modifiedAt, err := valueobjects.NewTimestamp(e.ModifiedAt)
-	if err != nil {
-		return fmt.Errorf("%w: modified at: %v", domain.ErrCorruptedEvent, err)
-	}
-	modifiedBy, err := valueobjects.NewUserEmail(e.ModifiedBy)
-	if err != nil {
-		return fmt.Errorf("%w: modified by %q: %v", domain.ErrCorruptedEvent, e.ModifiedBy, err)
-	}
 	m.strategyPillarsConfig = config
-	m.modifiedAt = modifiedAt
-	m.modifiedBy = modifiedBy
-	return nil
+	return m.applyModificationMetadata(e.ModifiedAt, e.ModifiedBy)
 }
 
 func (m *MetaModelConfiguration) applyPillarRemoved(e events.StrategyPillarRemoved) error {
@@ -264,18 +225,8 @@ func (m *MetaModelConfiguration) applyPillarRemoved(e events.StrategyPillarRemov
 	if err != nil {
 		return fmt.Errorf("%w: removing pillar: %v", domain.ErrCorruptedEvent, err)
 	}
-	modifiedAt, err := valueobjects.NewTimestamp(e.ModifiedAt)
-	if err != nil {
-		return fmt.Errorf("%w: modified at: %v", domain.ErrCorruptedEvent, err)
-	}
-	modifiedBy, err := valueobjects.NewUserEmail(e.ModifiedBy)
-	if err != nil {
-		return fmt.Errorf("%w: modified by %q: %v", domain.ErrCorruptedEvent, e.ModifiedBy, err)
-	}
 	m.strategyPillarsConfig = config
-	m.modifiedAt = modifiedAt
-	m.modifiedBy = modifiedBy
-	return nil
+	return m.applyModificationMetadata(e.ModifiedAt, e.ModifiedBy)
 }
 
 func (m *MetaModelConfiguration) applyPillarFitConfigurationUpdated(e events.PillarFitConfigurationUpdated) error {
@@ -295,15 +246,19 @@ func (m *MetaModelConfiguration) applyPillarFitConfigurationUpdated(e events.Pil
 	if err != nil {
 		return fmt.Errorf("%w: updating pillar fit configuration: %v", domain.ErrCorruptedEvent, err)
 	}
-	modifiedAt, err := valueobjects.NewTimestamp(e.ModifiedAt)
+	m.strategyPillarsConfig = config
+	return m.applyModificationMetadata(e.ModifiedAt, e.ModifiedBy)
+}
+
+func (m *MetaModelConfiguration) applyModificationMetadata(modifiedAtRaw time.Time, modifiedByRaw string) error {
+	modifiedAt, err := valueobjects.NewTimestamp(modifiedAtRaw)
 	if err != nil {
 		return fmt.Errorf("%w: modified at: %v", domain.ErrCorruptedEvent, err)
 	}
-	modifiedBy, err := valueobjects.NewUserEmail(e.ModifiedBy)
+	modifiedBy, err := valueobjects.NewUserEmail(modifiedByRaw)
 	if err != nil {
-		return fmt.Errorf("%w: modified by %q: %v", domain.ErrCorruptedEvent, e.ModifiedBy, err)
+		return fmt.Errorf("%w: modified by %q: %v", domain.ErrCorruptedEvent, modifiedByRaw, err)
 	}
-	m.strategyPillarsConfig = config
 	m.modifiedAt = modifiedAt
 	m.modifiedBy = modifiedBy
 	return nil
@@ -487,40 +442,48 @@ func eventDataToStrategyPillarsConfig(data []events.StrategyPillarData) valueobj
 func eventDataToStrategyPillarsConfigSafe(data []events.StrategyPillarData) (valueobjects.StrategyPillarsConfig, error) {
 	pillars := make([]valueobjects.StrategyPillar, len(data))
 	for i, d := range data {
-		id, err := valueobjects.NewStrategyPillarIDFromString(d.ID)
-		if err != nil {
-			return valueobjects.StrategyPillarsConfig{}, fmt.Errorf("pillar %d ID %q: %v", i, d.ID, err)
-		}
-		name, err := valueobjects.NewPillarName(d.Name)
-		if err != nil {
-			return valueobjects.StrategyPillarsConfig{}, fmt.Errorf("pillar %d name %q: %v", i, d.Name, err)
-		}
-		desc, err := valueobjects.NewPillarDescription(d.Description)
-		if err != nil {
-			return valueobjects.StrategyPillarsConfig{}, fmt.Errorf("pillar %d description: %v", i, err)
-		}
-		criteria, err := valueobjects.NewFitCriteria(d.FitCriteria)
-		if err != nil {
-			return valueobjects.StrategyPillarsConfig{}, fmt.Errorf("pillar %d fit criteria %q: %v", i, d.FitCriteria, err)
-		}
-		fitType, err := valueobjects.NewFitType(d.FitType)
-		if err != nil {
-			return valueobjects.StrategyPillarsConfig{}, fmt.Errorf("pillar %d fit type %q: %v", i, d.FitType, err)
-		}
-		var pillar valueobjects.StrategyPillar
-		if d.Active {
-			pillar, err = valueobjects.NewStrategyPillar(id, name, desc)
-		} else {
-			pillar, err = valueobjects.NewInactiveStrategyPillar(id, name, desc)
-		}
+		pillar, err := convertPillarEventData(d)
 		if err != nil {
 			return valueobjects.StrategyPillarsConfig{}, fmt.Errorf("pillar %d: %v", i, err)
 		}
-		pillars[i] = pillar.WithFitConfiguration(d.FitScoringEnabled, criteria, fitType)
+		pillars[i] = pillar
 	}
 	config, err := valueobjects.NewStrategyPillarsConfig(pillars)
 	if err != nil {
 		return valueobjects.StrategyPillarsConfig{}, err
 	}
 	return config, nil
+}
+
+func convertPillarEventData(d events.StrategyPillarData) (valueobjects.StrategyPillar, error) {
+	id, err := valueobjects.NewStrategyPillarIDFromString(d.ID)
+	if err != nil {
+		return valueobjects.StrategyPillar{}, fmt.Errorf("ID %q: %v", d.ID, err)
+	}
+	name, err := valueobjects.NewPillarName(d.Name)
+	if err != nil {
+		return valueobjects.StrategyPillar{}, fmt.Errorf("name %q: %v", d.Name, err)
+	}
+	desc, err := valueobjects.NewPillarDescription(d.Description)
+	if err != nil {
+		return valueobjects.StrategyPillar{}, fmt.Errorf("description: %v", err)
+	}
+	criteria, err := valueobjects.NewFitCriteria(d.FitCriteria)
+	if err != nil {
+		return valueobjects.StrategyPillar{}, fmt.Errorf("fit criteria %q: %v", d.FitCriteria, err)
+	}
+	fitType, err := valueobjects.NewFitType(d.FitType)
+	if err != nil {
+		return valueobjects.StrategyPillar{}, fmt.Errorf("fit type %q: %v", d.FitType, err)
+	}
+	var pillar valueobjects.StrategyPillar
+	if d.Active {
+		pillar, err = valueobjects.NewStrategyPillar(id, name, desc)
+	} else {
+		pillar, err = valueobjects.NewInactiveStrategyPillar(id, name, desc)
+	}
+	if err != nil {
+		return valueobjects.StrategyPillar{}, err
+	}
+	return pillar.WithFitConfiguration(d.FitScoringEnabled, criteria, fitType), nil
 }

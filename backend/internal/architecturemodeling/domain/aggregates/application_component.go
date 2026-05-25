@@ -150,32 +150,29 @@ func (a *ApplicationComponent) apply(event domain.DomainEvent) error {
 }
 
 func (a *ApplicationComponent) applyCreated(e events.ApplicationComponentCreated) error {
-	name, err := valueobjects.NewComponentName(e.Name)
-	if err != nil {
-		return fmt.Errorf("%w: component name %q: %v", domain.ErrCorruptedEvent, e.Name, err)
-	}
-	description, err := valueobjects.NewDescription(e.Description)
-	if err != nil {
-		return fmt.Errorf("%w: description: %v", domain.ErrCorruptedEvent, err)
+	if err := a.applyNameAndDescription(e.Name, e.Description); err != nil {
+		return err
 	}
 	a.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
-	a.name = name
-	a.description = description
 	a.createdAt = e.CreatedAt
 	return nil
 }
 
 func (a *ApplicationComponent) applyUpdated(e events.ApplicationComponentUpdated) error {
-	name, err := valueobjects.NewComponentName(e.Name)
+	return a.applyNameAndDescription(e.Name, e.Description)
+}
+
+func (a *ApplicationComponent) applyNameAndDescription(name, description string) error {
+	n, err := valueobjects.NewComponentName(name)
 	if err != nil {
-		return fmt.Errorf("%w: component name %q: %v", domain.ErrCorruptedEvent, e.Name, err)
+		return fmt.Errorf("%w: component name %q: %v", domain.ErrCorruptedEvent, name, err)
 	}
-	description, err := valueobjects.NewDescription(e.Description)
+	d, err := valueobjects.NewDescription(description)
 	if err != nil {
 		return fmt.Errorf("%w: description: %v", domain.ErrCorruptedEvent, err)
 	}
-	a.name = name
-	a.description = description
+	a.name = n
+	a.description = d
 	return nil
 }
 
