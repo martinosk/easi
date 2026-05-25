@@ -4,16 +4,21 @@ import (
 	"context"
 
 	"easi/backend/internal/architecturemodeling/application/commands"
+	"easi/backend/internal/architecturemodeling/domain/aggregates"
 	"easi/backend/internal/architecturemodeling/domain/valueobjects"
-	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
-type UpdateInternalTeamHandler struct {
-	repository *repositories.InternalTeamRepository
+type UpdateInternalTeamRepository interface {
+	GetByID(ctx context.Context, id string) (*aggregates.InternalTeam, error)
+	Save(ctx context.Context, team *aggregates.InternalTeam) error
 }
 
-func NewUpdateInternalTeamHandler(repository *repositories.InternalTeamRepository) *UpdateInternalTeamHandler {
+type UpdateInternalTeamHandler struct {
+	repository UpdateInternalTeamRepository
+}
+
+func NewUpdateInternalTeamHandler(repository UpdateInternalTeamRepository) *UpdateInternalTeamHandler {
 	return &UpdateInternalTeamHandler{
 		repository: repository,
 	}

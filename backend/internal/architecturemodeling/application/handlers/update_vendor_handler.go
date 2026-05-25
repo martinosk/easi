@@ -4,16 +4,21 @@ import (
 	"context"
 
 	"easi/backend/internal/architecturemodeling/application/commands"
+	"easi/backend/internal/architecturemodeling/domain/aggregates"
 	"easi/backend/internal/architecturemodeling/domain/valueobjects"
-	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
-type UpdateVendorHandler struct {
-	repository *repositories.VendorRepository
+type UpdateVendorRepository interface {
+	GetByID(ctx context.Context, id string) (*aggregates.Vendor, error)
+	Save(ctx context.Context, vendor *aggregates.Vendor) error
 }
 
-func NewUpdateVendorHandler(repository *repositories.VendorRepository) *UpdateVendorHandler {
+type UpdateVendorHandler struct {
+	repository UpdateVendorRepository
+}
+
+func NewUpdateVendorHandler(repository UpdateVendorRepository) *UpdateVendorHandler {
 	return &UpdateVendorHandler{
 		repository: repository,
 	}

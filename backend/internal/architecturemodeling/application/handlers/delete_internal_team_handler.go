@@ -6,20 +6,29 @@ import (
 
 	"easi/backend/internal/architecturemodeling/application/commands"
 	"easi/backend/internal/architecturemodeling/application/readmodels"
+	"easi/backend/internal/architecturemodeling/domain/aggregates"
 	"easi/backend/internal/architecturemodeling/domain/valueobjects"
-	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
+type DeleteInternalTeamRepository interface {
+	GetByID(ctx context.Context, id string) (*aggregates.InternalTeam, error)
+	Save(ctx context.Context, team *aggregates.InternalTeam) error
+}
+
+type DeleteInternalTeamRelationReader interface {
+	GetByTeamID(ctx context.Context, teamID string) ([]readmodels.BuiltByRelationshipDTO, error)
+}
+
 type DeleteInternalTeamHandler struct {
-	repository        *repositories.InternalTeamRepository
-	relationReadModel *readmodels.BuiltByRelationshipReadModel
+	repository        DeleteInternalTeamRepository
+	relationReadModel DeleteInternalTeamRelationReader
 	commandBus        cqrs.CommandBus
 }
 
 func NewDeleteInternalTeamHandler(
-	repository *repositories.InternalTeamRepository,
-	relationReadModel *readmodels.BuiltByRelationshipReadModel,
+	repository DeleteInternalTeamRepository,
+	relationReadModel DeleteInternalTeamRelationReader,
 	commandBus cqrs.CommandBus,
 ) *DeleteInternalTeamHandler {
 	return &DeleteInternalTeamHandler{

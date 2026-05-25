@@ -4,16 +4,21 @@ import (
 	"context"
 
 	"easi/backend/internal/architecturemodeling/application/commands"
+	"easi/backend/internal/architecturemodeling/domain/aggregates"
 	"easi/backend/internal/architecturemodeling/domain/valueobjects"
-	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
-type UpdateComponentRelationHandler struct {
-	repository *repositories.ComponentRelationRepository
+type UpdateComponentRelationRepository interface {
+	GetByID(ctx context.Context, id string) (*aggregates.ComponentRelation, error)
+	Save(ctx context.Context, relation *aggregates.ComponentRelation) error
 }
 
-func NewUpdateComponentRelationHandler(repository *repositories.ComponentRelationRepository) *UpdateComponentRelationHandler {
+type UpdateComponentRelationHandler struct {
+	repository UpdateComponentRelationRepository
+}
+
+func NewUpdateComponentRelationHandler(repository UpdateComponentRelationRepository) *UpdateComponentRelationHandler {
 	return &UpdateComponentRelationHandler{
 		repository: repository,
 	}

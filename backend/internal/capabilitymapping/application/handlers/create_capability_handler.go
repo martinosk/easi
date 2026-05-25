@@ -6,15 +6,18 @@ import (
 	"easi/backend/internal/capabilitymapping/application/commands"
 	"easi/backend/internal/capabilitymapping/domain/aggregates"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
-	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
-type CreateCapabilityHandler struct {
-	repository *repositories.CapabilityRepository
+type CreateCapabilityRepository interface {
+	Save(ctx context.Context, capability *aggregates.Capability) error
 }
 
-func NewCreateCapabilityHandler(repository *repositories.CapabilityRepository) *CreateCapabilityHandler {
+type CreateCapabilityHandler struct {
+	repository CreateCapabilityRepository
+}
+
+func NewCreateCapabilityHandler(repository CreateCapabilityRepository) *CreateCapabilityHandler {
 	return &CreateCapabilityHandler{
 		repository: repository,
 	}

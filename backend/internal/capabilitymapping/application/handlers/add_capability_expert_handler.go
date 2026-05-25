@@ -5,16 +5,21 @@ import (
 	"time"
 
 	"easi/backend/internal/capabilitymapping/application/commands"
+	"easi/backend/internal/capabilitymapping/domain/aggregates"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
-	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
-type AddCapabilityExpertHandler struct {
-	repository *repositories.CapabilityRepository
+type AddCapabilityExpertRepository interface {
+	GetByID(ctx context.Context, id string) (*aggregates.Capability, error)
+	Save(ctx context.Context, capability *aggregates.Capability) error
 }
 
-func NewAddCapabilityExpertHandler(repository *repositories.CapabilityRepository) *AddCapabilityExpertHandler {
+type AddCapabilityExpertHandler struct {
+	repository AddCapabilityExpertRepository
+}
+
+func NewAddCapabilityExpertHandler(repository AddCapabilityExpertRepository) *AddCapabilityExpertHandler {
 	return &AddCapabilityExpertHandler{
 		repository: repository,
 	}

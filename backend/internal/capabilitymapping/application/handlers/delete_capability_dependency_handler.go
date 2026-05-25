@@ -4,15 +4,20 @@ import (
 	"context"
 
 	"easi/backend/internal/capabilitymapping/application/commands"
-	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
+	"easi/backend/internal/capabilitymapping/domain/aggregates"
 	"easi/backend/internal/shared/cqrs"
 )
 
-type DeleteCapabilityDependencyHandler struct {
-	repository *repositories.DependencyRepository
+type DeleteCapabilityDependencyRepository interface {
+	GetByID(ctx context.Context, id string) (*aggregates.CapabilityDependency, error)
+	Save(ctx context.Context, dependency *aggregates.CapabilityDependency) error
 }
 
-func NewDeleteCapabilityDependencyHandler(repository *repositories.DependencyRepository) *DeleteCapabilityDependencyHandler {
+type DeleteCapabilityDependencyHandler struct {
+	repository DeleteCapabilityDependencyRepository
+}
+
+func NewDeleteCapabilityDependencyHandler(repository DeleteCapabilityDependencyRepository) *DeleteCapabilityDependencyHandler {
 	return &DeleteCapabilityDependencyHandler{
 		repository: repository,
 	}

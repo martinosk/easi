@@ -4,16 +4,21 @@ import (
 	"context"
 
 	"easi/backend/internal/architecturemodeling/application/commands"
+	"easi/backend/internal/architecturemodeling/domain/aggregates"
 	"easi/backend/internal/architecturemodeling/domain/valueobjects"
-	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
-type DeleteComponentRelationHandler struct {
-	repository *repositories.ComponentRelationRepository
+type DeleteComponentRelationRepository interface {
+	GetByID(ctx context.Context, id string) (*aggregates.ComponentRelation, error)
+	Save(ctx context.Context, relation *aggregates.ComponentRelation) error
 }
 
-func NewDeleteComponentRelationHandler(repository *repositories.ComponentRelationRepository) *DeleteComponentRelationHandler {
+type DeleteComponentRelationHandler struct {
+	repository DeleteComponentRelationRepository
+}
+
+func NewDeleteComponentRelationHandler(repository DeleteComponentRelationRepository) *DeleteComponentRelationHandler {
 	return &DeleteComponentRelationHandler{
 		repository: repository,
 	}

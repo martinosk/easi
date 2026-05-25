@@ -6,20 +6,29 @@ import (
 
 	"easi/backend/internal/architecturemodeling/application/commands"
 	"easi/backend/internal/architecturemodeling/application/readmodels"
+	"easi/backend/internal/architecturemodeling/domain/aggregates"
 	"easi/backend/internal/architecturemodeling/domain/valueobjects"
-	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
+type DeleteVendorRepository interface {
+	GetByID(ctx context.Context, id string) (*aggregates.Vendor, error)
+	Save(ctx context.Context, vendor *aggregates.Vendor) error
+}
+
+type DeleteVendorRelationReader interface {
+	GetByVendorID(ctx context.Context, vendorID string) ([]readmodels.PurchasedFromRelationshipDTO, error)
+}
+
 type DeleteVendorHandler struct {
-	repository        *repositories.VendorRepository
-	relationReadModel *readmodels.PurchasedFromRelationshipReadModel
+	repository        DeleteVendorRepository
+	relationReadModel DeleteVendorRelationReader
 	commandBus        cqrs.CommandBus
 }
 
 func NewDeleteVendorHandler(
-	repository *repositories.VendorRepository,
-	relationReadModel *readmodels.PurchasedFromRelationshipReadModel,
+	repository DeleteVendorRepository,
+	relationReadModel DeleteVendorRelationReader,
 	commandBus cqrs.CommandBus,
 ) *DeleteVendorHandler {
 	return &DeleteVendorHandler{

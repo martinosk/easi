@@ -6,15 +6,18 @@ import (
 	"easi/backend/internal/architecturemodeling/application/commands"
 	"easi/backend/internal/architecturemodeling/domain/aggregates"
 	"easi/backend/internal/architecturemodeling/domain/valueobjects"
-	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
-type CreateVendorHandler struct {
-	repository *repositories.VendorRepository
+type CreateVendorRepository interface {
+	Save(ctx context.Context, vendor *aggregates.Vendor) error
 }
 
-func NewCreateVendorHandler(repository *repositories.VendorRepository) *CreateVendorHandler {
+type CreateVendorHandler struct {
+	repository CreateVendorRepository
+}
+
+func NewCreateVendorHandler(repository CreateVendorRepository) *CreateVendorHandler {
 	return &CreateVendorHandler{
 		repository: repository,
 	}

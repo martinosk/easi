@@ -11,6 +11,7 @@ backend/internal/capabilitymapping/publishedlanguage/events.go
 backend/internal/metamodel/publishedlanguage/events.go
 backend/internal/accessdelegation/publishedlanguage/events.go
 backend/internal/valuestreams/publishedlanguage/events.go
+backend/internal/architecturedirection/publishedlanguage/events.go
 ```
 
 These packages contain **only constants**. No structs, no constructors, no logic.
@@ -67,6 +68,7 @@ func (p *Projector) ProjectEvent(ctx context.Context, eventType string, eventDat
 | `mmPL` | `metamodel/publishedlanguage` |
 | `adPL` | `accessdelegation/publishedlanguage` |
 | `vsPL` | `valuestreams/publishedlanguage` |
+| `adirPL` | `architecturedirection/publishedlanguage` |
 
 ## Complete Event Constants Catalogue
 
@@ -108,6 +110,8 @@ const (
     CapabilityParentChanged        = "CapabilityParentChanged"
     CapabilityAssignedToDomain     = "CapabilityAssignedToDomain"
     CapabilityUnassignedFromDomain = "CapabilityUnassignedFromDomain"
+    BusinessDomainCreated          = "BusinessDomainCreated"
+    BusinessDomainUpdated          = "BusinessDomainUpdated"
     BusinessDomainDeleted          = "BusinessDomainDeleted"
 )
 ```
@@ -144,6 +148,23 @@ const (
     ValueStreamStagesReordered        = "ValueStreamStagesReordered"
     ValueStreamStageCapabilityAdded   = "ValueStreamStageCapabilityAdded"
     ValueStreamStageCapabilityRemoved = "ValueStreamStageCapabilityRemoved"
+)
+```
+
+### Architecture Direction (`adirPL`)
+
+```go
+const (
+    DirectionDrafted                   = "DirectionDrafted"
+    DirectionProposed                  = "DirectionProposed"
+    DirectionAgreed                    = "DirectionAgreed"
+    DirectionRejected                  = "DirectionRejected"
+    DirectionNarrativeUpdated          = "DirectionNarrativeUpdated"
+    DirectionHorizonChanged            = "DirectionHorizonChanged"
+    DirectionPlacementsChanged         = "DirectionPlacementsChanged"
+    DirectionSourceCapabilitiesChanged = "DirectionSourceCapabilitiesChanged"
+
+    StandardApplicationSet = "StandardApplicationSet"
 )
 ```
 
@@ -267,6 +288,28 @@ Every event subscription that crosses a bounded context boundary is documented b
 | Event | Projector | Wired In | Purpose |
 |-------|-----------|----------|---------|
 | `EditGrantForNonUserCreated` | `InvitationAutoCreateProjector` | `infrastructure/api/router.go` `wireAutoInvitationProjector()` | Auto-create platform invitation for non-user grantee |
+
+### Architecture Direction consumes from:
+
+**Capability Mapping** (`cmPL`):
+
+| Event | Projector | Wired In | Purpose |
+|-------|-----------|----------|---------|
+| `CapabilityCreated` | `StaleReferenceProjector` | `architecturedirection/infrastructure/api/routes.go` `subscribeEvents()` | Cache capability name for stale detection |
+| `CapabilityUpdated` | `StaleReferenceProjector` | same | Update cached capability name |
+| `CapabilityDeleted` | `StaleReferenceProjector` | same | Mark source capabilities as stale |
+| `BusinessDomainCreated` | `StaleReferenceProjector` | same | Cache business domain name |
+| `BusinessDomainUpdated` | `StaleReferenceProjector` | same | Update cached business domain name |
+| `CapabilityAssignedToDomain` | `StaleReferenceProjector` | same | Update source capability's business domain |
+| `CapabilityUnassignedFromDomain` | `StaleReferenceProjector` | same | Clear source capability's business domain |
+
+**Architecture Modeling** (`amPL`):
+
+| Event | Projector | Wired In | Purpose |
+|-------|-----------|----------|---------|
+| `ApplicationComponentCreated` | `StaleApplicationProjector` | `architecturedirection/infrastructure/api/routes.go` `subscribeStandardApplicationEvents()` | Cache application component name |
+| `ApplicationComponentUpdated` | `StaleApplicationProjector` | same | Update cached application component name |
+| `ApplicationComponentDeleted` | `StaleApplicationProjector` | same | Mark standard applications as stale when component is deleted |
 
 ## Adding a New Cross-Context Event
 

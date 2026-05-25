@@ -4,16 +4,21 @@ import (
 	"context"
 
 	"easi/backend/internal/capabilitymapping/application/commands"
+	"easi/backend/internal/capabilitymapping/domain/aggregates"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
-	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
-type UpdateSystemRealizationHandler struct {
-	repository *repositories.RealizationRepository
+type UpdateSystemRealizationRepository interface {
+	GetByID(ctx context.Context, id string) (*aggregates.CapabilityRealization, error)
+	Save(ctx context.Context, realization *aggregates.CapabilityRealization) error
 }
 
-func NewUpdateSystemRealizationHandler(repository *repositories.RealizationRepository) *UpdateSystemRealizationHandler {
+type UpdateSystemRealizationHandler struct {
+	repository UpdateSystemRealizationRepository
+}
+
+func NewUpdateSystemRealizationHandler(repository UpdateSystemRealizationRepository) *UpdateSystemRealizationHandler {
 	return &UpdateSystemRealizationHandler{
 		repository: repository,
 	}

@@ -16,14 +16,22 @@ var (
 	ErrTargetCapabilityNotFound = errors.New("target capability not found")
 )
 
+type CreateDependencyRepository interface {
+	Save(ctx context.Context, dependency *aggregates.CapabilityDependency) error
+}
+
+type CreateDependencyCapabilityRepository interface {
+	GetByID(ctx context.Context, id string) (*aggregates.Capability, error)
+}
+
 type CreateCapabilityDependencyHandler struct {
-	dependencyRepository *repositories.DependencyRepository
-	capabilityRepository *repositories.CapabilityRepository
+	dependencyRepository CreateDependencyRepository
+	capabilityRepository CreateDependencyCapabilityRepository
 }
 
 func NewCreateCapabilityDependencyHandler(
-	dependencyRepository *repositories.DependencyRepository,
-	capabilityRepository *repositories.CapabilityRepository,
+	dependencyRepository CreateDependencyRepository,
+	capabilityRepository CreateDependencyCapabilityRepository,
 ) *CreateCapabilityDependencyHandler {
 	return &CreateCapabilityDependencyHandler{
 		dependencyRepository: dependencyRepository,

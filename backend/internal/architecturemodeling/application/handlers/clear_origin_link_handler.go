@@ -6,15 +6,19 @@ import (
 	"easi/backend/internal/architecturemodeling/application/commands"
 	"easi/backend/internal/architecturemodeling/domain/aggregates"
 	"easi/backend/internal/architecturemodeling/domain/valueobjects"
-	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
-type ClearOriginLinkHandler struct {
-	repository *repositories.ComponentOriginLinkRepository
+type ClearOriginLinkRepository interface {
+	GetByID(ctx context.Context, id string) (*aggregates.ComponentOriginLink, error)
+	Save(ctx context.Context, link *aggregates.ComponentOriginLink) error
 }
 
-func NewClearOriginLinkHandler(repository *repositories.ComponentOriginLinkRepository) *ClearOriginLinkHandler {
+type ClearOriginLinkHandler struct {
+	repository ClearOriginLinkRepository
+}
+
+func NewClearOriginLinkHandler(repository ClearOriginLinkRepository) *ClearOriginLinkHandler {
 	return &ClearOriginLinkHandler{repository: repository}
 }
 

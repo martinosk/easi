@@ -5,15 +5,14 @@ import (
 
 	"easi/backend/internal/capabilitymapping/application/commands"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
-	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
 type UpdateStrategyImportanceHandler struct {
-	importanceRepo *repositories.StrategyImportanceRepository
+	importanceRepo StrategyImportanceRepository
 }
 
-func NewUpdateStrategyImportanceHandler(importanceRepo *repositories.StrategyImportanceRepository) *UpdateStrategyImportanceHandler {
+func NewUpdateStrategyImportanceHandler(importanceRepo StrategyImportanceRepository) *UpdateStrategyImportanceHandler {
 	return &UpdateStrategyImportanceHandler{importanceRepo: importanceRepo}
 }
 

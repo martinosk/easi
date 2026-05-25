@@ -5,16 +5,19 @@ import (
 	"encoding/json"
 	"log"
 
-	"easi/backend/internal/capabilitymapping/application/readmodels"
 	"easi/backend/internal/capabilitymapping/domain/events"
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
-type OnCapabilityDeletedImportanceHandler struct {
-	importanceReadModel *readmodels.StrategyImportanceReadModel
+type OnCapabilityDeletedImportanceReader interface {
+	DeleteByCapability(ctx context.Context, capabilityID string) error
 }
 
-func NewOnCapabilityDeletedImportanceHandler(importanceReadModel *readmodels.StrategyImportanceReadModel) *OnCapabilityDeletedImportanceHandler {
+type OnCapabilityDeletedImportanceHandler struct {
+	importanceReadModel OnCapabilityDeletedImportanceReader
+}
+
+func NewOnCapabilityDeletedImportanceHandler(importanceReadModel OnCapabilityDeletedImportanceReader) *OnCapabilityDeletedImportanceHandler {
 	return &OnCapabilityDeletedImportanceHandler{importanceReadModel: importanceReadModel}
 }
 

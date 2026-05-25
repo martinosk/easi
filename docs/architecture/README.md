@@ -4,7 +4,7 @@ Bounded Context Canvases for all contexts in the EASI platform. Each canvas foll
 
 ## Overview
 
-EASI is built using Strategic Domain-Driven Design principles with clear bounded context boundaries. The system is organized into 11 bounded contexts across three classification tiers.
+EASI is built using Strategic Domain-Driven Design principles with clear bounded context boundaries. The system is organized into 12 bounded contexts across three classification tiers.
 
 ### 1. Architecture Modeling (Implemented)
 **Purpose:** Manage IT application landscape -- what systems exist and how they interact.
@@ -201,6 +201,23 @@ EASI is built using Strategic Domain-Driven Design principles with clear bounded
 
 ---
 
+### 12. Architecture Direction (Implemented)
+**Purpose:** Govern architectural direction decisions for enterprise capabilities -- standardization, migration horizons, and technology placement guidance.
+
+**Location:** `/backend/internal/architecturedirection/`
+
+**Key Responsibilities:**
+- Direction lifecycle (draft → propose → agree/reject)
+- Standard application designation per enterprise capability
+- Technology placement guidance and migration horizons
+- Stale reference detection when upstream capabilities or components change
+
+**Strategic Classification:** Core Domain
+
+**Published Language:** `architecturedirection/publishedlanguage` (`adirPL`)
+
+---
+
 ## Published Language Catalogue
 
 Each publishing bounded context exposes a `publishedlanguage/events.go` package containing typed string constants. These constants form the **published language** -- the contract between upstream and downstream contexts. Consuming contexts import only these constants, never domain event structs.
@@ -213,9 +230,9 @@ For implementation details and conventions, see [/docs/backend/cross-context-eve
 
 | Constant | Event Type String | Consumers |
 |----------|-------------------|-----------|
-| `ApplicationComponentCreated` | `"ApplicationComponentCreated"` | Capability Mapping (ComponentCacheProjector) |
-| `ApplicationComponentUpdated` | `"ApplicationComponentUpdated"` | Capability Mapping (ComponentCacheProjector, RealizationProjector) |
-| `ApplicationComponentDeleted` | `"ApplicationComponentDeleted"` | Capability Mapping (ComponentCacheProjector, RealizationProjector), Architecture Views, View Layouts, Access Delegation |
+| `ApplicationComponentCreated` | `"ApplicationComponentCreated"` | Capability Mapping (ComponentCacheProjector), Architecture Direction (StaleApplicationProjector) |
+| `ApplicationComponentUpdated` | `"ApplicationComponentUpdated"` | Capability Mapping (ComponentCacheProjector, RealizationProjector), Architecture Direction (StaleApplicationProjector) |
+| `ApplicationComponentDeleted` | `"ApplicationComponentDeleted"` | Capability Mapping (ComponentCacheProjector, RealizationProjector), Architecture Views, View Layouts, Access Delegation, Architecture Direction (StaleApplicationProjector) |
 | `ComponentRelationDeleted` | `"ComponentRelationDeleted"` | Architecture Views |
 | `AcquiredEntityDeleted` | `"AcquiredEntityDeleted"` | Access Delegation |
 | `VendorDeleted` | `"VendorDeleted"` | Access Delegation |
@@ -241,12 +258,14 @@ For implementation details and conventions, see [/docs/backend/cross-context-eve
 
 | Constant | Event Type String | Consumers |
 |----------|-------------------|-----------|
-| `CapabilityCreated` | `"CapabilityCreated"` | Enterprise Architecture (DomainCapabilityMetadataProjector), Value Streams (CapabilityProjector) |
-| `CapabilityUpdated` | `"CapabilityUpdated"` | Enterprise Architecture (DomainCapabilityMetadataProjector), Value Streams (CapabilityProjector, CapabilityNameSyncProjector) |
-| `CapabilityDeleted` | `"CapabilityDeleted"` | Enterprise Architecture (DomainCapabilityMetadataProjector), View Layouts, Access Delegation, Value Streams (CapabilityProjector, CapabilityDeletedHandler) |
+| `CapabilityCreated` | `"CapabilityCreated"` | Enterprise Architecture (DomainCapabilityMetadataProjector), Value Streams (CapabilityProjector), Architecture Direction (StaleReferenceProjector) |
+| `CapabilityUpdated` | `"CapabilityUpdated"` | Enterprise Architecture (DomainCapabilityMetadataProjector), Value Streams (CapabilityProjector, CapabilityNameSyncProjector), Architecture Direction (StaleReferenceProjector) |
+| `CapabilityDeleted` | `"CapabilityDeleted"` | Enterprise Architecture (DomainCapabilityMetadataProjector), View Layouts, Access Delegation, Value Streams (CapabilityProjector, CapabilityDeletedHandler), Architecture Direction (StaleReferenceProjector) |
 | `CapabilityParentChanged` | `"CapabilityParentChanged"` | Enterprise Architecture (DomainCapabilityMetadataProjector, EnterpriseCapabilityLinkProjector) |
-| `CapabilityAssignedToDomain` | `"CapabilityAssignedToDomain"` | Enterprise Architecture (DomainCapabilityMetadataProjector) |
-| `CapabilityUnassignedFromDomain` | `"CapabilityUnassignedFromDomain"` | Enterprise Architecture (DomainCapabilityMetadataProjector) |
+| `CapabilityAssignedToDomain` | `"CapabilityAssignedToDomain"` | Enterprise Architecture (DomainCapabilityMetadataProjector), Architecture Direction (StaleReferenceProjector) |
+| `CapabilityUnassignedFromDomain` | `"CapabilityUnassignedFromDomain"` | Enterprise Architecture (DomainCapabilityMetadataProjector), Architecture Direction (StaleReferenceProjector) |
+| `BusinessDomainCreated` | `"BusinessDomainCreated"` | Architecture Direction (StaleReferenceProjector) |
+| `BusinessDomainUpdated` | `"BusinessDomainUpdated"` | Architecture Direction (StaleReferenceProjector) |
 | `BusinessDomainDeleted` | `"BusinessDomainDeleted"` | View Layouts, Access Delegation |
 
 ### Architecture Views (`avPL`)
@@ -283,6 +302,22 @@ For implementation details and conventions, see [/docs/backend/cross-context-eve
 | `ValueStreamStagesReordered` | `"ValueStreamStagesReordered"` | (intra-context projector) |
 | `ValueStreamStageCapabilityAdded` | `"ValueStreamStageCapabilityAdded"` | (intra-context projector) |
 | `ValueStreamStageCapabilityRemoved` | `"ValueStreamStageCapabilityRemoved"` | (intra-context projector) |
+
+### Architecture Direction (`adirPL`)
+
+**Package:** `backend/internal/architecturedirection/publishedlanguage`
+
+| Constant | Event Type String | Consumers |
+|----------|-------------------|-----------|
+| `DirectionDrafted` | `"DirectionDrafted"` | (intra-context) |
+| `DirectionProposed` | `"DirectionProposed"` | (intra-context) |
+| `DirectionAgreed` | `"DirectionAgreed"` | (intra-context) |
+| `DirectionRejected` | `"DirectionRejected"` | (intra-context) |
+| `DirectionNarrativeUpdated` | `"DirectionNarrativeUpdated"` | (intra-context) |
+| `DirectionHorizonChanged` | `"DirectionHorizonChanged"` | (intra-context) |
+| `DirectionPlacementsChanged` | `"DirectionPlacementsChanged"` | (intra-context) |
+| `DirectionSourceCapabilitiesChanged` | `"DirectionSourceCapabilitiesChanged"` | (intra-context) |
+| `StandardApplicationSet` | `"StandardApplicationSet"` | (intra-context) |
 
 ### Arch Assistant (published language -- non-event)
 
@@ -380,8 +415,10 @@ flowchart LR
     AD[Access Delegation]
     AU[Auth]
     VS[Value Streams]
+    ADR[Architecture Direction]
 
     AM -->|ComponentCreated/Updated/Deleted| CM
+    AM -->|ComponentCreated/Updated/Deleted| ADR
     AM -->|ComponentDeleted, RelationDeleted| AV
     AM -->|ComponentDeleted| VL
     AM -->|ComponentDeleted, VendorDeleted, AcquiredEntityDeleted, InternalTeamDeleted| AD
@@ -400,6 +437,7 @@ flowchart LR
     AD -->|EditGrantForNonUserCreated| AU
 
     CM -->|CapabilityCreated/Updated/Deleted| VS
+    CM -->|CapabilityCreated/Updated/Deleted, BusinessDomainCreated/Updated, AssignedToDomain, UnassignedFromDomain| ADR
 
     AU -->|TenantCreated| AA
     AA[Arch Assistant] -.->|Loopback HTTP| AM
@@ -423,6 +461,8 @@ flowchart LR
 | Capability Mapping | View Layouts | Customer-Supplier | Event-driven (capability/domain deletion cleanup) |
 | Capability Mapping | Access Delegation | Customer-Supplier | Event-driven (artifact deletion revokes grants) |
 | Capability Mapping | Value Streams | Customer-Supplier | Event-driven (capability lifecycle via local cache projector) |
+| Capability Mapping | Architecture Direction | Customer-Supplier | Event-driven (capability/domain lifecycle for stale detection) |
+| Architecture Modeling | Architecture Direction | Customer-Supplier | Event-driven (component CRUD for stale detection) |
 | Architecture Views | View Layouts | Customer-Supplier | Event-driven (view deletion cleanup) |
 | Architecture Views | Access Delegation | Customer-Supplier | Event-driven (artifact deletion revokes grants) |
 | Access Delegation | Auth | Customer-Supplier | Event-driven (auto-invite non-users) |
@@ -468,6 +508,13 @@ This section documents every event subscription that crosses a bounded context b
 | `AcquiredEntityDeleted` | `ArtifactDeletionProjector` (acquired_entity) | Revoke edit grants for deleted acquired entities |
 | `VendorDeleted` | `ArtifactDeletionProjector` (vendor) | Revoke edit grants for deleted vendors |
 | `InternalTeamDeleted` | `ArtifactDeletionProjector` (internal_team) | Revoke edit grants for deleted internal teams |
+
+**Architecture Direction** (via `archPL`):
+| Event | Projector | Purpose |
+|-------|-----------|---------|
+| `ApplicationComponentCreated` | `StaleApplicationProjector` | Cache application component name |
+| `ApplicationComponentUpdated` | `StaleApplicationProjector` | Update cached application component name |
+| `ApplicationComponentDeleted` | `StaleApplicationProjector` | Mark standard applications as stale when component is deleted |
 
 ### MetaModel publishes to:
 
@@ -521,6 +568,17 @@ This section documents every event subscription that crosses a bounded context b
 | `CapabilityCreated` | `CapabilityProjector` | Cache capability name for existence check |
 | `CapabilityUpdated` | `CapabilityProjector`, `CapabilityNameSyncProjector` | Update cached name, update denormalized stage-capability names |
 | `CapabilityDeleted` | `CapabilityProjector`, `CapabilityDeletedHandler` | Remove cache entry, remove orphan capability references from stages |
+
+**Architecture Direction** (via `cmPL`):
+| Event | Projector | Purpose |
+|-------|-----------|---------|
+| `CapabilityCreated` | `StaleReferenceProjector` | Cache capability name for stale detection |
+| `CapabilityUpdated` | `StaleReferenceProjector` | Update cached capability name |
+| `CapabilityDeleted` | `StaleReferenceProjector` | Mark source capabilities as stale |
+| `BusinessDomainCreated` | `StaleReferenceProjector` | Cache business domain name |
+| `BusinessDomainUpdated` | `StaleReferenceProjector` | Update cached business domain name |
+| `CapabilityAssignedToDomain` | `StaleReferenceProjector` | Update source capability's business domain |
+| `CapabilityUnassignedFromDomain` | `StaleReferenceProjector` | Clear source capability's business domain |
 
 ### Architecture Views publishes to:
 
@@ -602,6 +660,7 @@ This ensures each context remains decoupled. The consumer cherry-picks only the 
 2. **Enterprise Architecture** -- Cross-domain capability analysis and standardization tracking
 3. **Value Streams** -- Value stream modeling with capability mapping to stages
 4. **Enterprise Strategy** (future) -- Strategic governance of domain evolution
+5. **Architecture Direction** -- Architectural direction governance and standardization decisions
 
 ### Supporting Domains (Essential but not differentiating)
 1. **Architecture Modeling** -- Standard application inventory
@@ -634,6 +693,8 @@ Each bounded context has:
 - `StrategyPillarCacheProjector` in both Capability Mapping and Enterprise Architecture caches pillar data from MetaModel
 - `DomainCapabilityMetadataProjector` in Enterprise Architecture caches capability metadata from Capability Mapping
 - `CapabilityProjector` in Value Streams caches capability names from Capability Mapping
+- `StaleReferenceProjector` in Architecture Direction caches capability and business domain names from Capability Mapping
+- `StaleApplicationProjector` in Architecture Direction caches application component names from Architecture Modeling
 
 ---
 
@@ -643,7 +704,7 @@ Each bounded context has:
 |---------|--------|----------|---------|--------------------|
 | Architecture Modeling | Implemented | `/backend/internal/architecturemodeling/` | Yes | 7 events |
 | Architecture Views | Implemented | `/backend/internal/architectureviews/` | Yes | 1 event |
-| Capability Mapping | Implemented | `/backend/internal/capabilitymapping/` | Yes | 7 events |
+| Capability Mapping | Implemented | `/backend/internal/capabilitymapping/` | Yes | 9 events |
 | MetaModel | Implemented | `/backend/internal/metamodel/` | Yes | 7 events |
 | Enterprise Architecture | Implemented | `/backend/internal/enterprisearchitecture/` | Yes | -- |
 | Value Streams | Implemented | `/backend/internal/valuestreams/` | Yes | 9 events |
@@ -651,4 +712,5 @@ Each bounded context has:
 | View Layouts | Implemented | `/backend/internal/viewlayouts/` | No (CRUD) | -- |
 | Releases | Implemented | `/backend/internal/releases/` | No (CRUD) | -- |
 | Arch Assistant | Implemented | `/backend/internal/archassistant/` | No (CRUD) | AgentToolSpec, AIConfigProvider |
+| Architecture Direction | Implemented | `/backend/internal/architecturedirection/` | Yes | 9 events |
 | Enterprise Strategy | Future | `/backend/internal/enterprisestrategy/` (future) | Yes (future) | -- |

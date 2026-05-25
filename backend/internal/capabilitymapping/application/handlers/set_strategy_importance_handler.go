@@ -8,7 +8,6 @@ import (
 	"easi/backend/internal/capabilitymapping/application/readmodels"
 	"easi/backend/internal/capabilitymapping/domain/aggregates"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
-	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	mmPL "easi/backend/internal/metamodel/publishedlanguage"
 	"easi/backend/internal/shared/cqrs"
 )
@@ -20,11 +19,28 @@ var (
 	ErrInvalidImportanceValue  = errors.New("importance must be between 1 and 5")
 )
 
+type StrategyImportanceRepository interface {
+	GetByID(ctx context.Context, id string) (*aggregates.StrategyImportance, error)
+	Save(ctx context.Context, importance *aggregates.StrategyImportance) error
+}
+
+type SetImportanceDomainReader interface {
+	GetByID(ctx context.Context, id string) (*readmodels.BusinessDomainDTO, error)
+}
+
+type SetImportanceCapabilityReader interface {
+	GetByID(ctx context.Context, id string) (*readmodels.CapabilityDTO, error)
+}
+
+type SetImportanceReader interface {
+	Exists(ctx context.Context, domainID, capabilityID, pillarID string) (bool, error)
+}
+
 type StrategyImportanceDeps struct {
-	ImportanceRepo   *repositories.StrategyImportanceRepository
-	DomainReader     *readmodels.BusinessDomainReadModel
-	CapabilityReader *readmodels.CapabilityReadModel
-	ImportanceReader *readmodels.StrategyImportanceReadModel
+	ImportanceRepo   StrategyImportanceRepository
+	DomainReader     SetImportanceDomainReader
+	CapabilityReader SetImportanceCapabilityReader
+	ImportanceReader SetImportanceReader
 	PillarsGateway   mmPL.StrategyPillarsGateway
 }
 

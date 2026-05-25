@@ -4,16 +4,21 @@ import (
 	"context"
 
 	"easi/backend/internal/capabilitymapping/application/commands"
+	"easi/backend/internal/capabilitymapping/domain/aggregates"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
-	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
-type AddCapabilityTagHandler struct {
-	repository *repositories.CapabilityRepository
+type AddCapabilityTagRepository interface {
+	GetByID(ctx context.Context, id string) (*aggregates.Capability, error)
+	Save(ctx context.Context, capability *aggregates.Capability) error
 }
 
-func NewAddCapabilityTagHandler(repository *repositories.CapabilityRepository) *AddCapabilityTagHandler {
+type AddCapabilityTagHandler struct {
+	repository AddCapabilityTagRepository
+}
+
+func NewAddCapabilityTagHandler(repository AddCapabilityTagRepository) *AddCapabilityTagHandler {
 	return &AddCapabilityTagHandler{
 		repository: repository,
 	}

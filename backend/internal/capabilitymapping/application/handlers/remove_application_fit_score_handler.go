@@ -5,15 +5,14 @@ import (
 
 	"easi/backend/internal/capabilitymapping/application/commands"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
-	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
 type RemoveApplicationFitScoreHandler struct {
-	repo *repositories.ApplicationFitScoreRepository
+	repo ApplicationFitScoreRepository
 }
 
-func NewRemoveApplicationFitScoreHandler(repo *repositories.ApplicationFitScoreRepository) *RemoveApplicationFitScoreHandler {
+func NewRemoveApplicationFitScoreHandler(repo ApplicationFitScoreRepository) *RemoveApplicationFitScoreHandler {
 	return &RemoveApplicationFitScoreHandler{repo: repo}
 }
 

@@ -8,9 +8,13 @@ import (
 	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
 )
 
+type OriginLinkRepository interface {
+	GetByID(ctx context.Context, id string) (*aggregates.ComponentOriginLink, error)
+}
+
 func getOrCreateComponentOriginLink(
 	ctx context.Context,
-	repo *repositories.ComponentOriginLinkRepository,
+	repo OriginLinkRepository,
 	componentID valueobjects.ComponentID,
 	originType valueobjects.OriginType,
 ) (*aggregates.ComponentOriginLink, error) {

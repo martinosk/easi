@@ -6,20 +6,30 @@ import (
 
 	"easi/backend/internal/architecturemodeling/application/commands"
 	"easi/backend/internal/architecturemodeling/application/readmodels"
+	"easi/backend/internal/architecturemodeling/domain/aggregates"
 	"easi/backend/internal/architecturemodeling/domain/valueobjects"
-	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
+type DeleteApplicationComponentRepository interface {
+	GetByID(ctx context.Context, id string) (*aggregates.ApplicationComponent, error)
+	Save(ctx context.Context, component *aggregates.ApplicationComponent) error
+}
+
+type DeleteApplicationComponentRelationReader interface {
+	GetBySourceID(ctx context.Context, sourceID string) ([]readmodels.ComponentRelationDTO, error)
+	GetByTargetID(ctx context.Context, targetID string) ([]readmodels.ComponentRelationDTO, error)
+}
+
 type DeleteApplicationComponentHandler struct {
-	repository     *repositories.ApplicationComponentRepository
-	relationReader *readmodels.ComponentRelationReadModel
+	repository     DeleteApplicationComponentRepository
+	relationReader DeleteApplicationComponentRelationReader
 	commandBus     cqrs.CommandBus
 }
 
 func NewDeleteApplicationComponentHandler(
-	repository *repositories.ApplicationComponentRepository,
-	relationReader *readmodels.ComponentRelationReadModel,
+	repository DeleteApplicationComponentRepository,
+	relationReader DeleteApplicationComponentRelationReader,
 	commandBus cqrs.CommandBus,
 ) *DeleteApplicationComponentHandler {
 	return &DeleteApplicationComponentHandler{

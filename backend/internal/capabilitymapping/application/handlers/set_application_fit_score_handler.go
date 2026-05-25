@@ -5,10 +5,8 @@ import (
 	"errors"
 
 	"easi/backend/internal/capabilitymapping/application/commands"
-	"easi/backend/internal/capabilitymapping/application/readmodels"
 	"easi/backend/internal/capabilitymapping/domain/aggregates"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
-	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	mmPL "easi/backend/internal/metamodel/publishedlanguage"
 	"easi/backend/internal/shared/cqrs"
 )
@@ -20,9 +18,18 @@ var (
 	ErrPillarFitScoringDisabled = errors.New("fit scoring is not enabled for this pillar")
 )
 
+type ApplicationFitScoreRepository interface {
+	GetByID(ctx context.Context, id string) (*aggregates.ApplicationFitScore, error)
+	Save(ctx context.Context, fitScore *aggregates.ApplicationFitScore) error
+}
+
+type SetFitScoreReader interface {
+	Exists(ctx context.Context, componentID, pillarID string) (bool, error)
+}
+
 type ApplicationFitScoreDeps struct {
-	FitScoreRepo   *repositories.ApplicationFitScoreRepository
-	FitScoreReader *readmodels.ApplicationFitScoreReadModel
+	FitScoreRepo   ApplicationFitScoreRepository
+	FitScoreReader SetFitScoreReader
 	PillarsGateway mmPL.StrategyPillarsGateway
 }
 

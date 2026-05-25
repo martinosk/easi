@@ -5,16 +5,21 @@ import (
 	"time"
 
 	"easi/backend/internal/architecturemodeling/application/commands"
+	"easi/backend/internal/architecturemodeling/domain/aggregates"
 	"easi/backend/internal/architecturemodeling/domain/valueobjects"
-	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
-type RemoveApplicationComponentExpertHandler struct {
-	repository *repositories.ApplicationComponentRepository
+type RemoveApplicationComponentExpertRepository interface {
+	GetByID(ctx context.Context, id string) (*aggregates.ApplicationComponent, error)
+	Save(ctx context.Context, component *aggregates.ApplicationComponent) error
 }
 
-func NewRemoveApplicationComponentExpertHandler(repository *repositories.ApplicationComponentRepository) *RemoveApplicationComponentExpertHandler {
+type RemoveApplicationComponentExpertHandler struct {
+	repository RemoveApplicationComponentExpertRepository
+}
+
+func NewRemoveApplicationComponentExpertHandler(repository RemoveApplicationComponentExpertRepository) *RemoveApplicationComponentExpertHandler {
 	return &RemoveApplicationComponentExpertHandler{
 		repository: repository,
 	}

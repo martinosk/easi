@@ -5,15 +5,14 @@ import (
 
 	"easi/backend/internal/capabilitymapping/application/commands"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
-	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
 type UpdateApplicationFitScoreHandler struct {
-	repo *repositories.ApplicationFitScoreRepository
+	repo ApplicationFitScoreRepository
 }
 
-func NewUpdateApplicationFitScoreHandler(repo *repositories.ApplicationFitScoreRepository) *UpdateApplicationFitScoreHandler {
+func NewUpdateApplicationFitScoreHandler(repo ApplicationFitScoreRepository) *UpdateApplicationFitScoreHandler {
 	return &UpdateApplicationFitScoreHandler{repo: repo}
 }
 

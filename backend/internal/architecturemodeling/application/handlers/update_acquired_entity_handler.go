@@ -4,16 +4,21 @@ import (
 	"context"
 
 	"easi/backend/internal/architecturemodeling/application/commands"
+	"easi/backend/internal/architecturemodeling/domain/aggregates"
 	"easi/backend/internal/architecturemodeling/domain/valueobjects"
-	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
-type UpdateAcquiredEntityHandler struct {
-	repository *repositories.AcquiredEntityRepository
+type UpdateAcquiredEntityRepository interface {
+	GetByID(ctx context.Context, id string) (*aggregates.AcquiredEntity, error)
+	Save(ctx context.Context, entity *aggregates.AcquiredEntity) error
 }
 
-func NewUpdateAcquiredEntityHandler(repository *repositories.AcquiredEntityRepository) *UpdateAcquiredEntityHandler {
+type UpdateAcquiredEntityHandler struct {
+	repository UpdateAcquiredEntityRepository
+}
+
+func NewUpdateAcquiredEntityHandler(repository UpdateAcquiredEntityRepository) *UpdateAcquiredEntityHandler {
 	return &UpdateAcquiredEntityHandler{
 		repository: repository,
 	}

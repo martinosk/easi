@@ -6,15 +6,18 @@ import (
 	"easi/backend/internal/architecturemodeling/application/commands"
 	"easi/backend/internal/architecturemodeling/domain/aggregates"
 	"easi/backend/internal/architecturemodeling/domain/valueobjects"
-	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
-type CreateApplicationComponentHandler struct {
-	repository *repositories.ApplicationComponentRepository
+type CreateApplicationComponentRepository interface {
+	Save(ctx context.Context, component *aggregates.ApplicationComponent) error
 }
 
-func NewCreateApplicationComponentHandler(repository *repositories.ApplicationComponentRepository) *CreateApplicationComponentHandler {
+type CreateApplicationComponentHandler struct {
+	repository CreateApplicationComponentRepository
+}
+
+func NewCreateApplicationComponentHandler(repository CreateApplicationComponentRepository) *CreateApplicationComponentHandler {
 	return &CreateApplicationComponentHandler{
 		repository: repository,
 	}

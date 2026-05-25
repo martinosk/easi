@@ -6,20 +6,29 @@ import (
 
 	"easi/backend/internal/architecturemodeling/application/commands"
 	"easi/backend/internal/architecturemodeling/application/readmodels"
+	"easi/backend/internal/architecturemodeling/domain/aggregates"
 	"easi/backend/internal/architecturemodeling/domain/valueobjects"
-	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
+type DeleteAcquiredEntityRepository interface {
+	GetByID(ctx context.Context, id string) (*aggregates.AcquiredEntity, error)
+	Save(ctx context.Context, entity *aggregates.AcquiredEntity) error
+}
+
+type DeleteAcquiredEntityRelationReader interface {
+	GetByEntityID(ctx context.Context, entityID string) ([]readmodels.AcquiredViaRelationshipDTO, error)
+}
+
 type DeleteAcquiredEntityHandler struct {
-	repository        *repositories.AcquiredEntityRepository
-	relationReadModel *readmodels.AcquiredViaRelationshipReadModel
+	repository        DeleteAcquiredEntityRepository
+	relationReadModel DeleteAcquiredEntityRelationReader
 	commandBus        cqrs.CommandBus
 }
 
 func NewDeleteAcquiredEntityHandler(
-	repository *repositories.AcquiredEntityRepository,
-	relationReadModel *readmodels.AcquiredViaRelationshipReadModel,
+	repository DeleteAcquiredEntityRepository,
+	relationReadModel DeleteAcquiredEntityRelationReader,
 	commandBus cqrs.CommandBus,
 ) *DeleteAcquiredEntityHandler {
 	return &DeleteAcquiredEntityHandler{

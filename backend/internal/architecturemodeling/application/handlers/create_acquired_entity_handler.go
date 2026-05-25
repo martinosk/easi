@@ -6,15 +6,18 @@ import (
 	"easi/backend/internal/architecturemodeling/application/commands"
 	"easi/backend/internal/architecturemodeling/domain/aggregates"
 	"easi/backend/internal/architecturemodeling/domain/valueobjects"
-	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
-type CreateAcquiredEntityHandler struct {
-	repository *repositories.AcquiredEntityRepository
+type CreateAcquiredEntityRepository interface {
+	Save(ctx context.Context, entity *aggregates.AcquiredEntity) error
 }
 
-func NewCreateAcquiredEntityHandler(repository *repositories.AcquiredEntityRepository) *CreateAcquiredEntityHandler {
+type CreateAcquiredEntityHandler struct {
+	repository CreateAcquiredEntityRepository
+}
+
+func NewCreateAcquiredEntityHandler(repository CreateAcquiredEntityRepository) *CreateAcquiredEntityHandler {
 	return &CreateAcquiredEntityHandler{
 		repository: repository,
 	}
