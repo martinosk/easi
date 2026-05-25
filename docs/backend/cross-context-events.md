@@ -102,17 +102,26 @@ const (
 
 ### Capability Mapping (`cmPL`)
 
+Cross-context constants live in `events.go`; intra-context constants live in `internal_events.go`.
+
 ```go
 const (
     CapabilityCreated              = "CapabilityCreated"
     CapabilityUpdated              = "CapabilityUpdated"
     CapabilityDeleted              = "CapabilityDeleted"
+    CapabilityMetadataUpdated      = "CapabilityMetadataUpdated"
     CapabilityParentChanged        = "CapabilityParentChanged"
+    CapabilityLevelChanged         = "CapabilityLevelChanged"
     CapabilityAssignedToDomain     = "CapabilityAssignedToDomain"
     CapabilityUnassignedFromDomain = "CapabilityUnassignedFromDomain"
+    SystemLinkedToCapability       = "SystemLinkedToCapability"
+    SystemRealizationDeleted       = "SystemRealizationDeleted"
     BusinessDomainCreated          = "BusinessDomainCreated"
     BusinessDomainUpdated          = "BusinessDomainUpdated"
     BusinessDomainDeleted          = "BusinessDomainDeleted"
+    EffectiveImportanceRecalculated = "EffectiveImportanceRecalculated"
+    ApplicationFitScoreSet          = "ApplicationFitScoreSet"
+    ApplicationFitScoreRemoved      = "ApplicationFitScoreRemoved"
 )
 ```
 
