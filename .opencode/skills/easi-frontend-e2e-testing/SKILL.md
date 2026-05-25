@@ -31,4 +31,7 @@ Defined in `dex-config.yaml` at the repo root. **Password for all users is `pass
 
 ## Testing with Playwright
 
-1. **Run the app in a browser before claiming a UI change done** — build + tests are necessary but not sufficient. 
+1. **Run the app in a browser before claiming a UI change done** — build + tests are necessary but not sufficient.
+2. **Restart the backend after Go changes.** `podman compose up -d --build backend`. Verify with curl before browser testing.
+3. **Test the full golden path.** Create → list → act → verify list updates. Not just "API returns 200".
+4. **Test empty states, error states, and permission gating.** Navigate with no data. Submit invalid input. Log in as stakeholder.

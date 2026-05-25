@@ -148,3 +148,6 @@ These class systems are being retired. Do not introduce new usages. Do not inven
 5. **Forms use `react-hook-form` + `zod`.** Schema in `src/lib/schemas/{domain}.ts`. Cross-field rules via `.superRefine()`.
 6. **Render tests through `renderWithProviders`** from `src/test/helpers/`.
 7. **Gate ReactFlow node-wrapper HOCs on the feature flag** — do not wrap unconditionally; ReactFlow expects a stable root element.
+8. **Never require users to enter GUIDs.** Every ID reference uses a searchable `Select` or `MultiSelect`. Chain selects when context is needed (pick EC first → auto-resolve Direction).
+9. **New features go where the domain lives.** "Under area X" = tab inside X, not a top-level nav item.
+10. **Empty states explain the feature.** `Title` + `Text` + call-to-action `Button`.
