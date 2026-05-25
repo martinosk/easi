@@ -60,10 +60,9 @@ func NewInvitation(
 		expiresAt,
 	)
 
-	if err := invitation.apply(event); err != nil {
+	if err := invitation.applyAndRaise(event); err != nil {
 		return nil, err
 	}
-	invitation.RaiseEvent(event)
 
 	return invitation, nil
 }
@@ -105,41 +104,21 @@ func (i *Invitation) Accept() error {
 		return ErrInvitationExpired
 	}
 
-	event := events.NewInvitationAccepted(i.ID(), i.email.Value())
-	if err := i.apply(event); err != nil {
-		return err
-	}
-	i.RaiseEvent(event)
-
-	return nil
+	return i.applyAndRaise(events.NewInvitationAccepted(i.ID(), i.email.Value()))
 }
 
 func (i *Invitation) Revoke() error {
 	if err := i.validatePendingForTransition(ErrInvitationAlreadyRevoked); err != nil {
 		return err
 	}
-
-	event := events.NewInvitationRevoked(i.ID())
-	if err := i.apply(event); err != nil {
-		return err
-	}
-	i.RaiseEvent(event)
-
-	return nil
+	return i.applyAndRaise(events.NewInvitationRevoked(i.ID()))
 }
 
 func (i *Invitation) MarkExpired() error {
 	if err := i.validatePendingForTransition(ErrInvitationAlreadyExpired); err != nil {
 		return err
 	}
-
-	event := events.NewInvitationExpired(i.ID())
-	if err := i.apply(event); err != nil {
-		return err
-	}
-	i.RaiseEvent(event)
-
-	return nil
+	return i.applyAndRaise(events.NewInvitationExpired(i.ID()))
 }
 
 func (i *Invitation) validatePendingForTransition(alreadyInStateErr error) error {
@@ -157,6 +136,14 @@ func (i *Invitation) validatePendingForTransition(alreadyInStateErr error) error
 
 func (i *Invitation) IsExpired() bool {
 	return time.Now().UTC().After(i.expiresAt)
+}
+
+func (i *Invitation) applyAndRaise(event domain.DomainEvent) error {
+	if err := i.apply(event); err != nil {
+		return err
+	}
+	i.RaiseEvent(event)
+	return nil
 }
 
 func (i *Invitation) apply(event domain.DomainEvent) error {

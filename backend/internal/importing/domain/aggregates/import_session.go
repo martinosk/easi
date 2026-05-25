@@ -113,10 +113,9 @@ func NewImportSession(config ImportSessionConfig) (*ImportSession, error) {
 		parsedDataMap,
 	)
 
-	if err := session.apply(event); err != nil {
+	if err := session.applyAndRaise(event); err != nil {
 		return nil, err
 	}
-	session.RaiseEvent(event)
 
 	return session, nil
 }
@@ -173,33 +172,19 @@ func (s *ImportSession) StartImport() error {
 	if !s.status.IsPending() {
 		return ErrImportAlreadyStarted
 	}
-
-	event := events.NewImportStarted(s.id.Value(), s.preview.TotalSupportedItems())
-	if err := s.apply(event); err != nil {
-		return err
-	}
-	s.RaiseEvent(event)
-
-	return nil
+	return s.applyAndRaise(events.NewImportStarted(s.id.Value(), s.preview.TotalSupportedItems()))
 }
 
 func (s *ImportSession) UpdateProgress(progress valueobjects.ImportProgress) error {
 	if !s.status.IsImporting() {
 		return ErrImportNotStarted
 	}
-
-	event := events.NewImportProgressUpdated(
+	return s.applyAndRaise(events.NewImportProgressUpdated(
 		s.id.Value(),
 		progress.Phase(),
 		progress.TotalItems(),
 		progress.CompletedItems(),
-	)
-	if err := s.apply(event); err != nil {
-		return err
-	}
-	s.RaiseEvent(event)
-
-	return nil
+	))
 }
 
 func (s *ImportSession) Complete(result ImportResult) error {
@@ -217,7 +202,7 @@ func (s *ImportSession) Complete(result ImportResult) error {
 		})
 	}
 
-	event := events.NewImportCompleted(
+	return s.applyAndRaise(events.NewImportCompleted(
 		s.id.Value(),
 		result.CapabilitiesCreated,
 		result.ComponentsCreated,
@@ -226,40 +211,28 @@ func (s *ImportSession) Complete(result ImportResult) error {
 		result.CapabilityMappings,
 		result.DomainAssignments,
 		errorMaps,
-	)
-	if err := s.apply(event); err != nil {
-		return err
-	}
-	s.RaiseEvent(event)
-
-	return nil
+	))
 }
 
 func (s *ImportSession) Fail(reason string) error {
 	if !s.status.IsImporting() {
 		return ErrImportNotStarted
 	}
-
-	event := events.NewImportFailed(s.id.Value(), reason)
-	if err := s.apply(event); err != nil {
-		return err
-	}
-	s.RaiseEvent(event)
-
-	return nil
+	return s.applyAndRaise(events.NewImportFailed(s.id.Value(), reason))
 }
 
 func (s *ImportSession) Cancel() error {
 	if !s.status.IsPending() {
 		return ErrCannotCancelStartedImport
 	}
+	return s.applyAndRaise(events.NewImportSessionCancelled(s.id.Value()))
+}
 
-	event := events.NewImportSessionCancelled(s.id.Value())
+func (s *ImportSession) applyAndRaise(event domain.DomainEvent) error {
 	if err := s.apply(event); err != nil {
 		return err
 	}
 	s.RaiseEvent(event)
-
 	return nil
 }
 
@@ -460,24 +433,6 @@ func toMapSlice(data interface{}) []map[string]interface{} {
 	return nil
 }
 
-func deserializeCapabilities(data map[string]interface{}) []ParsedElement {
-	maps := toMapSlice(data["capabilities"])
-	result := make([]ParsedElement, 0, len(maps))
-	for _, m := range maps {
-		result = append(result, ParsedElement{
-			SourceID:    getString(m, "sourceId"),
-			Name:        getString(m, "name"),
-			Description: getString(m, "description"),
-			ParentID:    getString(m, "parentId"),
-		})
-	}
-	return result
-}
-
-func deserializeComponents(data map[string]interface{}) []ParsedElement {
-	return deserializeElements(data, "components")
-}
-
 func deserializeRelationships(data map[string]interface{}) []ParsedRelationship {
 	maps := toMapSlice(data["relationships"])
 	result := make([]ParsedRelationship, 0, len(maps))
@@ -496,15 +451,11 @@ func deserializeRelationships(data map[string]interface{}) []ParsedRelationship 
 
 func deserializeParsedData(data map[string]interface{}) ParsedData {
 	return ParsedData{
-		Capabilities:  deserializeCapabilities(data),
-		Components:    deserializeComponents(data),
-		ValueStreams:  deserializeValueStreams(data),
+		Capabilities:  deserializeElements(data, "capabilities"),
+		Components:    deserializeElements(data, "components"),
+		ValueStreams:  deserializeElements(data, "valueStreams"),
 		Relationships: deserializeRelationships(data),
 	}
-}
-
-func deserializeValueStreams(data map[string]interface{}) []ParsedElement {
-	return deserializeElements(data, "valueStreams")
 }
 
 func deserializeElements(data map[string]interface{}, key string) []ParsedElement {
@@ -515,6 +466,7 @@ func deserializeElements(data map[string]interface{}, key string) []ParsedElemen
 			SourceID:    getString(m, "sourceId"),
 			Name:        getString(m, "name"),
 			Description: getString(m, "description"),
+			ParentID:    getString(m, "parentId"),
 		})
 	}
 	return result

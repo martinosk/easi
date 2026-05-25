@@ -95,13 +95,9 @@ func (h *CascadeDeleteCapabilityHandler) buildScope(ctx context.Context, id stri
 }
 
 func (h *CascadeDeleteCapabilityHandler) dispatchRealizationDeletes(ctx context.Context, scope valueobjects.DeletionScope) error {
-	var realizations []readmodels.RealizationDTO
-	for _, capID := range scope.AllIDs() {
-		r, err := h.deps.RealizationRM.GetByCapabilityID(ctx, capID.Value())
-		if err != nil {
-			return err
-		}
-		realizations = append(realizations, r...)
+	realizations, err := h.collectRealizations(ctx, scope)
+	if err != nil {
+		return err
 	}
 	for _, r := range realizations {
 		if _, err := h.deps.CommandBus.Dispatch(ctx, &commands.DeleteSystemRealization{ID: r.ID}); err != nil {
@@ -109,6 +105,18 @@ func (h *CascadeDeleteCapabilityHandler) dispatchRealizationDeletes(ctx context.
 		}
 	}
 	return nil
+}
+
+func (h *CascadeDeleteCapabilityHandler) collectRealizations(ctx context.Context, scope valueobjects.DeletionScope) ([]readmodels.RealizationDTO, error) {
+	var realizations []readmodels.RealizationDTO
+	for _, capID := range scope.AllIDs() {
+		r, err := h.deps.RealizationRM.GetByCapabilityID(ctx, capID.Value())
+		if err != nil {
+			return nil, err
+		}
+		realizations = append(realizations, r...)
+	}
+	return realizations, nil
 }
 
 func (h *CascadeDeleteCapabilityHandler) dispatchDependencyDeletes(ctx context.Context, scope valueobjects.DeletionScope) error {

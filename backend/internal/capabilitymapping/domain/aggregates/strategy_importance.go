@@ -104,46 +104,56 @@ func (s *StrategyImportance) raise(event domain.DomainEvent) {
 func (s *StrategyImportance) apply(event domain.DomainEvent) error {
 	switch e := event.(type) {
 	case events.StrategyImportanceSet:
-		s.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
-		businessDomainID, err := valueobjects.NewBusinessDomainIDFromString(e.BusinessDomainID)
-		if err != nil {
-			return fmt.Errorf("%w: business domain ID %q: %v", domain.ErrCorruptedEvent, e.BusinessDomainID, err)
-		}
-		s.businessDomainID = businessDomainID
-		capabilityID, err := valueobjects.NewCapabilityIDFromString(e.CapabilityID)
-		if err != nil {
-			return fmt.Errorf("%w: capability ID %q: %v", domain.ErrCorruptedEvent, e.CapabilityID, err)
-		}
-		s.capabilityID = capabilityID
-		pillarID, err := valueobjects.NewPillarIDFromString(e.PillarID)
-		if err != nil {
-			return fmt.Errorf("%w: pillar ID %q: %v", domain.ErrCorruptedEvent, e.PillarID, err)
-		}
-		s.pillarID = pillarID
-		importance, err := valueobjects.NewImportance(e.Importance)
-		if err != nil {
-			return fmt.Errorf("%w: importance %d: %v", domain.ErrCorruptedEvent, e.Importance, err)
-		}
-		s.importance = importance
-		rationale, err := valueobjects.NewRationale(e.Rationale)
-		if err != nil {
-			return fmt.Errorf("%w: rationale: %v", domain.ErrCorruptedEvent, err)
-		}
-		s.rationale = rationale
-		s.setAt = e.SetAt
+		return s.applySet(e)
 	case events.StrategyImportanceUpdated:
-		importance, err := valueobjects.NewImportance(e.Importance)
-		if err != nil {
-			return fmt.Errorf("%w: importance %d: %v", domain.ErrCorruptedEvent, e.Importance, err)
-		}
-		s.importance = importance
-		rationale, err := valueobjects.NewRationale(e.Rationale)
-		if err != nil {
-			return fmt.Errorf("%w: rationale: %v", domain.ErrCorruptedEvent, err)
-		}
-		s.rationale = rationale
+		return s.applyUpdated(e)
 	case events.StrategyImportanceRemoved:
 	}
+	return nil
+}
+
+func (s *StrategyImportance) applySet(e events.StrategyImportanceSet) error {
+	s.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
+	businessDomainID, err := valueobjects.NewBusinessDomainIDFromString(e.BusinessDomainID)
+	if err != nil {
+		return fmt.Errorf("%w: business domain ID %q: %v", domain.ErrCorruptedEvent, e.BusinessDomainID, err)
+	}
+	s.businessDomainID = businessDomainID
+	capabilityID, err := valueobjects.NewCapabilityIDFromString(e.CapabilityID)
+	if err != nil {
+		return fmt.Errorf("%w: capability ID %q: %v", domain.ErrCorruptedEvent, e.CapabilityID, err)
+	}
+	s.capabilityID = capabilityID
+	pillarID, err := valueobjects.NewPillarIDFromString(e.PillarID)
+	if err != nil {
+		return fmt.Errorf("%w: pillar ID %q: %v", domain.ErrCorruptedEvent, e.PillarID, err)
+	}
+	s.pillarID = pillarID
+	importance, err := valueobjects.NewImportance(e.Importance)
+	if err != nil {
+		return fmt.Errorf("%w: importance %d: %v", domain.ErrCorruptedEvent, e.Importance, err)
+	}
+	s.importance = importance
+	rationale, err := valueobjects.NewRationale(e.Rationale)
+	if err != nil {
+		return fmt.Errorf("%w: rationale: %v", domain.ErrCorruptedEvent, err)
+	}
+	s.rationale = rationale
+	s.setAt = e.SetAt
+	return nil
+}
+
+func (s *StrategyImportance) applyUpdated(e events.StrategyImportanceUpdated) error {
+	importance, err := valueobjects.NewImportance(e.Importance)
+	if err != nil {
+		return fmt.Errorf("%w: importance %d: %v", domain.ErrCorruptedEvent, e.Importance, err)
+	}
+	s.importance = importance
+	rationale, err := valueobjects.NewRationale(e.Rationale)
+	if err != nil {
+		return fmt.Errorf("%w: rationale: %v", domain.ErrCorruptedEvent, err)
+	}
+	s.rationale = rationale
 	return nil
 }
 

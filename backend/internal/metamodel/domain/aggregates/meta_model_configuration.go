@@ -456,6 +456,14 @@ func eventDataToStrategyPillarsConfigSafe(data []events.StrategyPillarData) (val
 }
 
 func convertPillarEventData(d events.StrategyPillarData) (valueobjects.StrategyPillar, error) {
+	pillar, err := buildBasePillar(d)
+	if err != nil {
+		return valueobjects.StrategyPillar{}, err
+	}
+	return applyFitConfiguration(pillar, d)
+}
+
+func buildBasePillar(d events.StrategyPillarData) (valueobjects.StrategyPillar, error) {
 	id, err := valueobjects.NewStrategyPillarIDFromString(d.ID)
 	if err != nil {
 		return valueobjects.StrategyPillar{}, fmt.Errorf("ID %q: %v", d.ID, err)
@@ -468,6 +476,13 @@ func convertPillarEventData(d events.StrategyPillarData) (valueobjects.StrategyP
 	if err != nil {
 		return valueobjects.StrategyPillar{}, fmt.Errorf("description: %v", err)
 	}
+	if d.Active {
+		return valueobjects.NewStrategyPillar(id, name, desc)
+	}
+	return valueobjects.NewInactiveStrategyPillar(id, name, desc)
+}
+
+func applyFitConfiguration(pillar valueobjects.StrategyPillar, d events.StrategyPillarData) (valueobjects.StrategyPillar, error) {
 	criteria, err := valueobjects.NewFitCriteria(d.FitCriteria)
 	if err != nil {
 		return valueobjects.StrategyPillar{}, fmt.Errorf("fit criteria %q: %v", d.FitCriteria, err)
@@ -475,15 +490,6 @@ func convertPillarEventData(d events.StrategyPillarData) (valueobjects.StrategyP
 	fitType, err := valueobjects.NewFitType(d.FitType)
 	if err != nil {
 		return valueobjects.StrategyPillar{}, fmt.Errorf("fit type %q: %v", d.FitType, err)
-	}
-	var pillar valueobjects.StrategyPillar
-	if d.Active {
-		pillar, err = valueobjects.NewStrategyPillar(id, name, desc)
-	} else {
-		pillar, err = valueobjects.NewInactiveStrategyPillar(id, name, desc)
-	}
-	if err != nil {
-		return valueobjects.StrategyPillar{}, err
 	}
 	return pillar.WithFitConfiguration(d.FitScoringEnabled, criteria, fitType), nil
 }
