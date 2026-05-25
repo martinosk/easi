@@ -295,8 +295,7 @@ func (h *CapabilityHandlers) UpdateCapability(w http.ResponseWriter, r *http.Req
 }
 
 type DeleteCapabilityRequest struct {
-	Cascade                     bool `json:"cascade"`
-	DeleteRealisingApplications bool `json:"deleteRealisingApplications"`
+	Cascade bool `json:"cascade"`
 }
 
 // DeleteCapability godoc
@@ -329,9 +328,8 @@ func (h *CapabilityHandlers) DeleteCapability(w http.ResponseWriter, r *http.Req
 	req := h.parseDeleteBody(r)
 
 	cmd := &commands.CascadeDeleteCapability{
-		ID:                          id,
-		Cascade:                     req.Cascade,
-		DeleteRealisingApplications: req.DeleteRealisingApplications,
+		ID:      id,
+		Cascade: req.Cascade,
 	}
 
 	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {

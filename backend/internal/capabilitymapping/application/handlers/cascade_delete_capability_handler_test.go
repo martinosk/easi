@@ -109,19 +109,6 @@ func (m *mockCascadeCommandBus) Dispatch(ctx context.Context, cmd cqrs.Command) 
 	return cqrs.EmptyResult(), m.err
 }
 
-type mockComponentDeleter struct {
-	deletedIDs []string
-	err        error
-}
-
-func (m *mockComponentDeleter) DeleteComponent(ctx context.Context, componentID string) error {
-	if m.err != nil {
-		return m.err
-	}
-	m.deletedIDs = append(m.deletedIDs, componentID)
-	return nil
-}
-
 func cascadeCapabilityWithParent(t *testing.T, level, parentID string) *aggregates.Capability {
 	t.Helper()
 	name, _ := valueobjects.NewCapabilityName("Capability " + level)
@@ -142,7 +129,6 @@ func defaultCascadeDeps(repo *mockCascadeRepository) CascadeDeleteDeps {
 		DependencyRM:     &mockCascadeDependencyRM{},
 		CommandBus:       &mockCascadeCommandBus{},
 		CapabilityLookup: &mockDeleteCapabilityLookup{},
-		ComponentDeleter: &mockComponentDeleter{},
 	}
 }
 
@@ -320,67 +306,6 @@ func TestCascadeDelete_DeduplicatesDependencies(t *testing.T) {
 	require.Len(t, cmdBus.dispatched, 1)
 }
 
-func TestCascadeDelete_DeleteRealisingApplications_DeletesExclusiveComponents(t *testing.T) {
-	root := createCapability(t, "L1")
-
-	repo := newMockCascadeRepo()
-	repo.capabilities[root.ID()] = root
-
-	deleter := &mockComponentDeleter{}
-	deps := defaultCascadeDeps(repo)
-	deps.ComponentDeleter = deleter
-	deps.RealizationRM = &mockCascadeRealizationRM{
-		realizationsByCapability: map[string][]readmodels.RealizationDTO{
-			root.ID(): {
-				{ID: "real-1", CapabilityID: root.ID(), ComponentID: "comp-exclusive", Origin: "Direct", LinkedAt: time.Now()},
-				{ID: "real-2", CapabilityID: root.ID(), ComponentID: "comp-shared", Origin: "Direct", LinkedAt: time.Now()},
-			},
-		},
-		realizationsByComponent: map[string][]readmodels.RealizationDTO{
-			"comp-exclusive": {{ID: "real-1", CapabilityID: root.ID(), ComponentID: "comp-exclusive", Origin: "Direct"}},
-			"comp-shared": {
-				{ID: "real-2", CapabilityID: root.ID(), ComponentID: "comp-shared", Origin: "Direct"},
-				{ID: "real-3", CapabilityID: "other-cap", ComponentID: "comp-shared", Origin: "Direct"},
-			},
-		},
-	}
-
-	handler := NewCascadeDeleteCapabilityHandler(deps)
-
-	cmd := &commands.CascadeDeleteCapability{ID: root.ID(), DeleteRealisingApplications: true}
-	_, err := handler.Handle(context.Background(), cmd)
-	require.NoError(t, err)
-
-	require.Len(t, deleter.deletedIDs, 1)
-	assert.Equal(t, "comp-exclusive", deleter.deletedIDs[0])
-}
-
-func TestCascadeDelete_DeleteRealisingApplications_False_SkipsComponentDeletion(t *testing.T) {
-	root := createCapability(t, "L1")
-
-	repo := newMockCascadeRepo()
-	repo.capabilities[root.ID()] = root
-
-	deleter := &mockComponentDeleter{}
-	deps := defaultCascadeDeps(repo)
-	deps.ComponentDeleter = deleter
-	deps.RealizationRM = &mockCascadeRealizationRM{
-		realizationsByCapability: map[string][]readmodels.RealizationDTO{
-			root.ID(): {{ID: "real-1", CapabilityID: root.ID(), ComponentID: "comp-exclusive", Origin: "Direct", LinkedAt: time.Now()}},
-		},
-		realizationsByComponent: map[string][]readmodels.RealizationDTO{
-			"comp-exclusive": {{ID: "real-1", CapabilityID: root.ID(), ComponentID: "comp-exclusive", Origin: "Direct"}},
-		},
-	}
-
-	handler := NewCascadeDeleteCapabilityHandler(deps)
-
-	cmd := &commands.CascadeDeleteCapability{ID: root.ID(), DeleteRealisingApplications: false}
-	_, err := handler.Handle(context.Background(), cmd)
-	require.NoError(t, err)
-
-	assert.Empty(t, deleter.deletedIDs)
-}
 
 func indexOfStr(strs []string, target string) int {
 	for i, s := range strs {

@@ -386,7 +386,6 @@ func registerCapabilityCommands(commandBus *cqrs.InMemoryCommandBus, repo *repos
 		DependencyRM:     dependencyRM,
 		CommandBus:       commandBus,
 		CapabilityLookup: capabilityRM,
-		ComponentDeleter: adapters.NewNoOpComponentDeleter(),
 	}))
 }
 

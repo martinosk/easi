@@ -29,10 +29,6 @@ type CascadeDependencyReadModel interface {
 	GetIncoming(ctx context.Context, capabilityID string) ([]readmodels.DependencyDTO, error)
 }
 
-type ComponentDeleter interface {
-	DeleteComponent(ctx context.Context, componentID string) error
-}
-
 type CascadeDeleteDeps struct {
 	Repository       DeleteCapabilityRepository
 	HierarchyService CascadeHierarchyService
@@ -40,7 +36,6 @@ type CascadeDeleteDeps struct {
 	DependencyRM     CascadeDependencyReadModel
 	CommandBus       CommandDispatcher
 	CapabilityLookup CapabilityParentLookup
-	ComponentDeleter ComponentDeleter
 }
 
 type CascadeDeleteCapabilityHandler struct {
@@ -66,15 +61,10 @@ func (h *CascadeDeleteCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Co
 		return cqrs.EmptyResult(), services.ErrCascadeRequiredForChildCapabilities
 	}
 
-	return cqrs.EmptyResult(), h.executeCascade(ctx, scope, command.DeleteRealisingApplications)
+	return cqrs.EmptyResult(), h.executeCascade(ctx, scope)
 }
 
-func (h *CascadeDeleteCapabilityHandler) executeCascade(ctx context.Context, scope valueobjects.DeletionScope, deleteApps bool) error {
-	exclusiveComponentIDs, err := collectExclusiveComponentIDs(ctx, h.deps.RealizationRM, scope)
-	if err != nil {
-		return err
-	}
-
+func (h *CascadeDeleteCapabilityHandler) executeCascade(ctx context.Context, scope valueobjects.DeletionScope) error {
 	if err := h.dispatchRealizationDeletes(ctx, scope); err != nil {
 		return err
 	}
@@ -83,15 +73,7 @@ func (h *CascadeDeleteCapabilityHandler) executeCascade(ctx context.Context, sco
 		return err
 	}
 
-	if err := h.deleteCapabilitiesBottomUp(ctx, scope); err != nil {
-		return err
-	}
-
-	if deleteApps {
-		h.deleteExclusiveComponents(ctx, exclusiveComponentIDs)
-	}
-
-	return nil
+	return h.deleteCapabilitiesBottomUp(ctx, scope)
 }
 
 func (h *CascadeDeleteCapabilityHandler) buildScope(ctx context.Context, id string) (valueobjects.DeletionScope, error) {
@@ -112,60 +94,14 @@ func (h *CascadeDeleteCapabilityHandler) buildScope(ctx context.Context, id stri
 	return valueobjects.NewDeletionScope(rootID, descendants), nil
 }
 
-func collectExclusiveComponentIDs(ctx context.Context, rm CascadeRealizationReadModel, scope valueobjects.DeletionScope) ([]string, error) {
-	allRealizations, err := collectAllRealizations(ctx, rm, scope)
-	if err != nil {
-		return nil, err
-	}
-
-	classified := make(map[string]bool)
-	var exclusive []string
-
-	for _, r := range allRealizations {
-		if _, done := classified[r.ComponentID]; done {
-			continue
-		}
-		isExclusive, err := isComponentExclusiveToScope(ctx, rm, r.ComponentID, scope)
-		if err != nil {
-			return nil, err
-		}
-		classified[r.ComponentID] = isExclusive
-		if isExclusive {
-			exclusive = append(exclusive, r.ComponentID)
-		}
-	}
-	return exclusive, nil
-}
-
-func collectAllRealizations(ctx context.Context, rm CascadeRealizationReadModel, scope valueobjects.DeletionScope) ([]readmodels.RealizationDTO, error) {
-	var all []readmodels.RealizationDTO
-	for _, capID := range scope.AllIDs() {
-		realizations, err := rm.GetByCapabilityID(ctx, capID.Value())
-		if err != nil {
-			return nil, err
-		}
-		all = append(all, realizations...)
-	}
-	return all, nil
-}
-
-func isComponentExclusiveToScope(ctx context.Context, rm CascadeRealizationReadModel, componentID string, scope valueobjects.DeletionScope) (bool, error) {
-	allForComponent, err := rm.GetByComponentID(ctx, componentID)
-	if err != nil {
-		return false, err
-	}
-	for _, cr := range allForComponent {
-		if !scope.Contains(cr.CapabilityID) {
-			return false, nil
-		}
-	}
-	return true, nil
-}
-
 func (h *CascadeDeleteCapabilityHandler) dispatchRealizationDeletes(ctx context.Context, scope valueobjects.DeletionScope) error {
-	realizations, err := collectAllRealizations(ctx, h.deps.RealizationRM, scope)
-	if err != nil {
-		return err
+	var realizations []readmodels.RealizationDTO
+	for _, capID := range scope.AllIDs() {
+		r, err := h.deps.RealizationRM.GetByCapabilityID(ctx, capID.Value())
+		if err != nil {
+			return err
+		}
+		realizations = append(realizations, r...)
 	}
 	for _, r := range realizations {
 		if _, err := h.deps.CommandBus.Dispatch(ctx, &commands.DeleteSystemRealization{ID: r.ID}); err != nil {
@@ -276,8 +212,15 @@ func (h *CascadeDeleteCapabilityHandler) buildInheritanceRemovals(ctx context.Co
 	return BuildRealizationRemovals(realizations, ancestorIDs), nil
 }
 
-func (h *CascadeDeleteCapabilityHandler) deleteExclusiveComponents(ctx context.Context, componentIDs []string) {
-	for _, id := range componentIDs {
-		_ = h.deps.ComponentDeleter.DeleteComponent(ctx, id)
+func isComponentExclusiveToScope(ctx context.Context, rm CascadeRealizationReadModel, componentID string, scope valueobjects.DeletionScope) (bool, error) {
+	allForComponent, err := rm.GetByComponentID(ctx, componentID)
+	if err != nil {
+		return false, err
 	}
+	for _, cr := range allForComponent {
+		if !scope.Contains(cr.CapabilityID) {
+			return false, nil
+		}
+	}
+	return true, nil
 }

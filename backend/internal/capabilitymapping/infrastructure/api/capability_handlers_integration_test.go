@@ -164,7 +164,6 @@ func setupHandlers(db *sql.DB) *CapabilityHandlers {
 		DependencyRM:     dependencyReadModel,
 		CommandBus:       commandBus,
 		CapabilityLookup: readModel,
-		ComponentDeleter: adapters.NewNoOpComponentDeleter(),
 	}))
 
 	impactQuery := handlers.NewDeleteImpactQuery(hierarchyService, realizationReadModel)
