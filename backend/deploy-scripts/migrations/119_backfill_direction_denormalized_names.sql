@@ -15,8 +15,9 @@ WHERE is_deleted = FALSE
 ON CONFLICT (tenant_id, entity_type, entity_id) DO UPDATE SET name = EXCLUDED.name;
 
 INSERT INTO architecturedirection.capability_domain_cache (tenant_id, capability_id, business_domain_id)
-SELECT tenant_id, capability_id, business_domain_id
+SELECT DISTINCT ON (tenant_id, capability_id) tenant_id, capability_id, business_domain_id
 FROM capabilitymapping.domain_capability_assignments
+ORDER BY tenant_id, capability_id
 ON CONFLICT (tenant_id, capability_id) DO UPDATE SET business_domain_id = EXCLUDED.business_domain_id;
 
 UPDATE architecturedirection.direction_source_capabilities dsc
