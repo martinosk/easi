@@ -1,80 +1,144 @@
-import { MantineProvider } from '@mantine/core';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { toEnterpriseCapabilityId } from '../../../api/types';
-
-vi.mock('../../enterprise-architecture/hooks/useEnterpriseCapabilities', () => ({
-  useEnterpriseCapability: vi.fn(),
-  useEnterpriseCapabilityLinks: vi.fn(),
-}));
-
-vi.mock('../../business-domains/hooks/useBusinessDomains', () => ({
-  useBusinessDomainsQuery: vi.fn(),
-}));
-
-vi.mock('../hooks/useDirection', () => ({
-  useCaptureDirection: vi.fn(),
-}));
-
-import {
-  useEnterpriseCapability,
-  useEnterpriseCapabilityLinks,
-} from '../../enterprise-architecture/hooks/useEnterpriseCapabilities';
-import { useBusinessDomainsQuery } from '../../business-domains/hooks/useBusinessDomains';
-import { useCaptureDirection } from '../hooks/useDirection';
+import { renderWithProviders } from '../../../test/helpers';
+import { seedSpec172Db } from '../../../test/mocks/spec172/store';
+import { directionApi } from '../api/directionApi';
 import { CaptureDirectionForm } from './CaptureDirectionForm';
 
-const mockedEC = vi.mocked(useEnterpriseCapability);
-const mockedLinks = vi.mocked(useEnterpriseCapabilityLinks);
-const mockedDomains = vi.mocked(useBusinessDomainsQuery);
-const mockedCapture = vi.mocked(useCaptureDirection);
+vi.mock('react-hot-toast', () => ({
+  default: { success: vi.fn(), error: vi.fn() },
+}));
 
-function setupHooks(ecName: string) {
-  mockedEC.mockReturnValue({ data: { id: 'ec-1', name: ecName } } as never);
-  mockedLinks.mockReturnValue({ data: [], isLoading: false } as never);
-  mockedDomains.mockReturnValue({
-    data: { data: [{ id: 'dom-1', name: 'Passenger' }] },
-    isLoading: false,
-  } as never);
-  mockedCapture.mockReturnValue({ mutateAsync: vi.fn(), isPending: false } as never);
+function seed() {
+  seedSpec172Db({
+    enterpriseCapabilities: [
+      { id: 'ec-crm', name: 'CRM', active: true, createdAt: '2026-01-01T00:00:00Z' },
+      { id: 'ec-tp', name: 'Take Payment', active: true, createdAt: '2026-01-01T00:00:00Z' },
+    ],
+    directions: [
+      {
+        id: 'dir-tp',
+        enterpriseCapabilityId: 'ec-tp',
+        type: 'consolidate',
+        status: 'proposed',
+        horizon: 'next',
+        sourceCapabilityIds: ['cap-fraud'],
+        createdAt: '2026-01-01T00:00:00Z',
+      },
+    ],
+    capabilities: [
+      {
+        id: 'cap-cim',
+        name: 'Customer Identity Mgmt',
+        level: 'L1',
+        parentId: null,
+        businessDomainId: 'bd-c',
+        businessDomainName: 'Customer',
+      },
+      {
+        id: 'cap-consent',
+        name: 'Customer Consent',
+        level: 'L2',
+        parentId: 'cap-cim',
+        businessDomainId: 'bd-c',
+        businessDomainName: 'Customer',
+      },
+      {
+        id: 'cap-fraud',
+        name: 'Customer Fraud Prevention',
+        level: 'L2',
+        parentId: 'cap-cim',
+        businessDomainId: 'bd-c',
+        businessDomainName: 'Customer',
+      },
+    ],
+  });
 }
 
-function renderForm() {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <MantineProvider>
-      <QueryClientProvider client={queryClient}>
-        <CaptureDirectionForm
-          enterpriseCapabilityId={toEnterpriseCapabilityId('ec-1')}
-          onCaptured={() => undefined}
-          onCancel={() => undefined}
-        />
-      </QueryClientProvider>
-    </MantineProvider>,
+function renderForm(overrides: Partial<Parameters<typeof CaptureDirectionForm>[0]> = {}) {
+  return renderWithProviders(
+    <CaptureDirectionForm
+      enterpriseCapabilityId={toEnterpriseCapabilityId('ec-crm')}
+      onCaptured={vi.fn()}
+      onCancel={vi.fn()}
+      {...overrides}
+    />,
+    { withRouter: false },
   );
 }
 
-describe('CaptureDirectionForm', () => {
-  it('pre-fills resulting name from the Enterprise Capability when a placement is added', async () => {
-    setupHooks('Customer Service');
+function search(term: string) {
+  fireEvent.change(screen.getByTestId('source-search-input'), { target: { value: term } });
+}
+
+describe('CaptureDirectionForm — search-driven source picker', () => {
+  it('searches capabilities and lists eligible candidates with an Add control', async () => {
+    seed();
     renderForm();
-
-    const user = userEvent.setup();
-    await user.click(screen.getByTestId('add-placement'));
-
-    const nameInput = screen.getByLabelText(/Resulting name for placement 1/i) as HTMLInputElement;
-    expect(nameInput.value).toBe('Customer Service');
+    search('customer');
+    await waitFor(() => expect(screen.getByTestId('candidate-cap-cim')).toBeInTheDocument());
+    expect(screen.getByTestId('add-candidate-cap-cim')).toBeEnabled();
   });
 
-  it('hides the add-placement button once a consolidate direction has one placement', async () => {
-    setupHooks('Customer Service');
+  it('marks a candidate already sourced elsewhere as ineligible and disables Add (R1)', async () => {
+    seed();
     renderForm();
+    search('customer');
+    await waitFor(() => expect(screen.getByTestId('candidate-cap-fraud')).toBeInTheDocument());
+    expect(screen.getByTestId('candidate-cap-fraud')).toHaveTextContent(/Take Payment/);
+    expect(screen.getByTestId('add-candidate-cap-fraud')).toBeDisabled();
+  });
 
-    const user = userEvent.setup();
-    await user.click(screen.getByTestId('add-placement'));
+  it('adds an eligible candidate as a selected chip and reflects the count', async () => {
+    seed();
+    renderForm();
+    search('customer');
+    await waitFor(() => expect(screen.getByTestId('add-candidate-cap-cim')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('add-candidate-cap-cim'));
+    expect(await screen.findByTestId('selected-chip-cap-cim')).toBeInTheDocument();
+    expect(screen.getByTestId('selected-count')).toHaveTextContent('1');
+  });
 
-    expect(screen.queryByTestId('add-placement')).not.toBeInTheDocument();
+  it('shows a draft cardinality hint explaining proposed needs 2 sources for consolidate (R8)', async () => {
+    seed();
+    renderForm();
+    search('customer');
+    await waitFor(() => expect(screen.getByTestId('add-candidate-cap-cim')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('add-candidate-cap-cim'));
+    expect(await screen.findByTestId('draft-cardinality-hint')).toHaveTextContent(/2 sources/i);
+  });
+
+  it('previews carve-outs for the selected source set (R2)', async () => {
+    seed();
+    renderForm();
+    search('customer');
+    await waitFor(() => expect(screen.getByTestId('add-candidate-cap-cim')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('add-candidate-cap-cim'));
+    await waitFor(() => expect(screen.getByTestId('composition-preview')).toHaveTextContent(/Customer Consent/));
+    expect(screen.getByTestId('composition-preview')).toHaveTextContent(/Take Payment/);
+  });
+
+  it('captures a draft direction with the selected source and calls onCaptured', async () => {
+    seed();
+    const onCaptured = vi.fn();
+    renderForm({ onCaptured });
+    search('customer');
+    await waitFor(() => expect(screen.getByTestId('add-candidate-cap-cim')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('add-candidate-cap-cim'));
+    await screen.findByTestId('selected-chip-cap-cim');
+
+    fireEvent.click(screen.getByTestId('capture-submit'));
+
+    await waitFor(() => expect(onCaptured).toHaveBeenCalled());
+    const result = await directionApi.getForEnterpriseCapability(toEnterpriseCapabilityId('ec-crm'));
+    expect(result.direction?.status).toBe('draft');
+    expect(result.direction?.sourceCapabilities.map((s) => s.id)).toEqual(['cap-cim']);
+  });
+
+  it('disables capture when no source is selected', async () => {
+    seed();
+    renderForm();
+    await waitFor(() => expect(screen.getByTestId('capture-submit')).toBeDisabled());
   });
 });

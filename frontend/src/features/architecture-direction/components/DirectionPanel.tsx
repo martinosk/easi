@@ -1,7 +1,6 @@
-import { Alert, Anchor, Badge, Box, Button, Group, List, Loader, Modal, Stack, Text, Title } from '@mantine/core';
-import { useMemo, useState } from 'react';
+import { Alert, Badge, Box, Button, Group, Loader, Modal, Stack, Text, Title } from '@mantine/core';
+import { useState } from 'react';
 import type { EnterpriseCapabilityId } from '../../../api/types';
-import { useBusinessDomainsQuery } from '../../business-domains/hooks/useBusinessDomains';
 import {
   useAgreeDirection,
   useDirectionForEnterpriseCapability,
@@ -101,9 +100,7 @@ function NoDirectionView({ canCapture, onCapture }: { canCapture: boolean; onCap
           No direction set
         </Badge>
       </Group>
-      <Text c="dimmed">
-        The architecture group has not captured a direction on this enterprise capability.
-      </Text>
+      <Text c="dimmed">The architecture group has not captured a direction on this enterprise capability.</Text>
       {canCapture && (
         <Group justify="flex-start">
           <Button onClick={onCapture} data-testid="capture-direction-button">
@@ -120,19 +117,7 @@ interface DirectionDetailProps {
   enterpriseCapabilityId: EnterpriseCapabilityId;
 }
 
-function usePlacementDomainNames() {
-  const { data: domainsResponse } = useBusinessDomainsQuery();
-  return useMemo(() => {
-    const lookup = new Map<string, string>();
-    for (const d of domainsResponse?.data ?? []) {
-      lookup.set(d.id, d.name);
-    }
-    return (id: string) => lookup.get(id);
-  }, [domainsResponse]);
-}
-
 function DirectionDetail({ direction, enterpriseCapabilityId }: DirectionDetailProps) {
-  const resolvePlacementDomain = usePlacementDomainNames();
   return (
     <Stack gap="sm">
       <Group justify="space-between" align="center">
@@ -154,20 +139,11 @@ function DirectionDetail({ direction, enterpriseCapabilityId }: DirectionDetailP
         <Text size="sm">{HORIZON_LABELS[direction.horizon]}</Text>
       </Box>
 
-      <Box>
-        <Text size="sm" fw={600}>
-          Sources
-        </Text>
-        <SourceList sources={direction.sourceCapabilities} />
-      </Box>
-
-      {direction.placements.length > 0 && (
-        <Box>
-          <Text size="sm" fw={600}>
-            Placements
-          </Text>
-          <PlacementList placements={direction.placements} resolveDomainName={resolvePlacementDomain} />
-        </Box>
+      {direction.status === 'agreed' && (
+        <Alert color="gray" variant="light" data-testid="agreed-immutable-callout">
+          This direction is agreed and its composition is frozen. To recompose, reject this direction and capture a new
+          one.
+        </Alert>
       )}
 
       <DirectionActions direction={direction} enterpriseCapabilityId={enterpriseCapabilityId} />
@@ -187,67 +163,6 @@ function DirectionNarrative({ narrative }: { narrative: Direction['narrative'] }
     <Text c="dimmed" size="sm" fs="italic">
       No narrative yet. Add one before advancing this direction to proposed.
     </Text>
-  );
-}
-
-function SourceList({ sources }: { sources: Direction['sourceCapabilities'] }) {
-  return (
-    <List size="sm" listStyleType="disc" data-testid="direction-sources">
-      {sources.map((source) => (
-        <List.Item key={source.id}>
-          <Anchor component="span" inherit>
-            {source.name ?? '—'}
-          </Anchor>
-          {source.businessDomainName && (
-            <Text component="span" size="xs" c="dimmed">
-              {' · '}
-              {source.businessDomainName}
-            </Text>
-          )}
-          {source.stale && (
-            <Text component="span" size="xs" c="red" data-testid="stale-reference" ml="xs">
-              (stale — source capability deleted)
-            </Text>
-          )}
-        </List.Item>
-      ))}
-    </List>
-  );
-}
-
-interface PlacementListProps {
-  placements: Direction['placements'];
-  resolveDomainName: (id: string) => string | undefined;
-}
-
-function PlacementList({ placements, resolveDomainName }: PlacementListProps) {
-  return (
-    <List size="sm" listStyleType="disc">
-      {placements.map((placement, i) => {
-        const domain = resolveDomainName(placement.targetBusinessDomainId);
-        const name = placement.resultingName;
-        return (
-          // biome-ignore lint/suspicious/noArrayIndexKey: placements may share a target domain ID; index is a stable composite key here
-          <List.Item key={`${placement.targetBusinessDomainId}-${i}`}>
-            {name ? (
-              <Anchor component="span" inherit>
-                {name}
-              </Anchor>
-            ) : (
-              <Text component="code" size="xs">
-                {placement.targetBusinessDomainId}
-              </Text>
-            )}
-            {domain && (
-              <Text component="span" size="xs" c="dimmed">
-                {' · '}
-                {domain}
-              </Text>
-            )}
-          </List.Item>
-        );
-      })}
-    </List>
   );
 }
 

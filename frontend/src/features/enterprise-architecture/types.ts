@@ -1,12 +1,12 @@
 import type {
-  CapabilityId,
+  CapabilityLevel,
   EnterpriseCapabilityId,
-  EnterpriseCapabilityLinkId,
   EnterpriseStrategicImportanceId,
   HATEOASLink,
+  HATEOASLinks,
 } from '../../api/types';
 
-export type { EnterpriseCapabilityId, EnterpriseCapabilityLinkId, EnterpriseStrategicImportanceId };
+export type { EnterpriseCapabilityId, EnterpriseStrategicImportanceId };
 
 export interface EnterpriseCapability {
   id: EnterpriseCapabilityId;
@@ -15,33 +15,63 @@ export interface EnterpriseCapability {
   category: string;
   active: boolean;
   targetMaturity?: number;
-  linkCount: number;
+  includedCapabilityCount: number;
   domainCount: number;
   createdAt: string;
   updatedAt?: string;
-  _links: {
+  _links: HATEOASLinks & {
     self: HATEOASLink;
     edit?: HATEOASLink;
     delete?: HATEOASLink;
-    'x-links': HATEOASLink;
-    'x-create-link'?: HATEOASLink;
-    'x-strategic-importance': HATEOASLink;
+    'x-strategic-importance'?: HATEOASLink;
+    'x-direction'?: HATEOASLink;
+    'x-composition'?: HATEOASLink;
   };
 }
 
-export interface EnterpriseCapabilityLink {
-  id: EnterpriseCapabilityLinkId;
-  enterpriseCapabilityId: EnterpriseCapabilityId;
-  domainCapabilityId: CapabilityId;
-  domainCapabilityName?: string;
-  businessDomainId?: string;
-  businessDomainName?: string;
-  linkedBy: string;
-  linkedAt: string;
-  _links: {
-    self: HATEOASLink;
-    up: HATEOASLink;
-    delete?: HATEOASLink;
+export type IncludedCapabilityRole = 'source' | 'implicit' | 'carved-out';
+
+export interface CarvedOutBy {
+  enterpriseCapabilityId: string;
+  enterpriseCapabilityName: string;
+}
+
+export interface IncludedCapabilityItem {
+  capabilityId: string;
+  name: string;
+  level: CapabilityLevel;
+  businessDomainId?: string | null;
+  businessDomainName?: string | null;
+  role: IncludedCapabilityRole;
+  carvedOutBy?: CarvedOutBy | null;
+  _links: HATEOASLinks & {
+    self?: HATEOASLink;
+    'x-exclude'?: HATEOASLink;
+    'x-owning-ec'?: HATEOASLink;
+  };
+}
+
+export interface CompositionDomainGroup {
+  businessDomainId: string | null;
+  businessDomainName: string | null;
+  items: IncludedCapabilityItem[];
+}
+
+export interface CompositionMeta {
+  sourceCount: number;
+  includedCount: number;
+  carvedOutCount: number;
+  domainCount: number;
+}
+
+export interface CompositionResponse {
+  data: CompositionDomainGroup[];
+  meta: CompositionMeta;
+  _links: HATEOASLinks & {
+    self?: HATEOASLink;
+    up?: HATEOASLink;
+    'x-direction'?: HATEOASLink;
+    'x-capture-direction'?: HATEOASLink;
   };
 }
 
@@ -72,10 +102,6 @@ export interface UpdateEnterpriseCapabilityRequest {
   category?: string;
 }
 
-export interface LinkCapabilityRequest {
-  domainCapabilityId: CapabilityId;
-}
-
 export interface SetStrategicImportanceRequest {
   pillarId: string;
   pillarName: string;
@@ -93,28 +119,6 @@ export interface EnterpriseCapabilitiesListResponse {
   _links: {
     self: HATEOASLink;
   };
-}
-
-export interface DomainCapabilityLinkStatus {
-  linked: boolean;
-  enterpriseCapabilityId?: EnterpriseCapabilityId;
-  enterpriseCapabilityName?: string;
-  linkId?: EnterpriseCapabilityLinkId;
-  _links: {
-    self: HATEOASLink;
-    up?: HATEOASLink;
-    'x-unlink'?: HATEOASLink;
-  };
-}
-
-export type CapabilityLinkStatus = 'available' | 'linked' | 'blocked_by_parent' | 'blocked_by_child';
-
-export interface CapabilityLinkStatusResponse {
-  capabilityId: string;
-  status: CapabilityLinkStatus;
-  linkedTo?: { id: string; name: string };
-  blockingCapability?: { id: string; name: string };
-  blockingEnterpriseCapabilityId?: string;
 }
 
 export interface MaturityDistribution {

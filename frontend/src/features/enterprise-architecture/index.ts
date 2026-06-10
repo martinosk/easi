@@ -5,6 +5,5 @@ export { EnterpriseArchPage } from './pages/EnterpriseArchPage';
 export type {
   CreateEnterpriseCapabilityRequest,
   EnterpriseCapability,
-  EnterpriseCapabilityLink,
   StrategicImportance,
 } from './types';

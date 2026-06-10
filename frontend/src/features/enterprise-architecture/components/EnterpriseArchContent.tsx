@@ -1,12 +1,10 @@
 import { Box, Center, Group, Loader, Stack, Text } from '@mantine/core';
 import React from 'react';
-import type { Capability } from '../../../api/types';
-import type { CapabilityLinkStatusResponse, EnterpriseCapability, EnterpriseCapabilityId } from '../types';
-import { DomainCapabilityDockPanel } from './DomainCapabilityDockPanel';
+import type { EnterpriseCapability } from '../types';
+import classes from './EnterpriseArchContent.module.css';
 import { EnterpriseCapabilitiesEmptyState } from './EnterpriseCapabilitiesEmptyState';
 import { EnterpriseCapabilitiesTable } from './EnterpriseCapabilitiesTable';
 import { EnterpriseCapabilityDetailPanel } from './EnterpriseCapabilityDetailPanel';
-import classes from './EnterpriseArchContent.module.css';
 
 interface EnterpriseArchContentProps {
   isLoading: boolean;
@@ -17,31 +15,10 @@ interface EnterpriseArchContentProps {
   onSelect: (capability: EnterpriseCapability) => void;
   onDelete: (capability: EnterpriseCapability) => void;
   onCreateNew: () => void;
-  isDockPanelOpen: boolean;
-  domainCapabilities: Capability[];
-  linkStatuses: Map<string, CapabilityLinkStatusResponse>;
-  isLoadingDomainCapabilities: boolean;
-  onCloseDockPanel: () => void;
-  onLinkCapability: (enterpriseCapabilityId: EnterpriseCapabilityId, domainCapability: Capability) => void;
 }
 
 export const EnterpriseArchContent = React.memo<EnterpriseArchContentProps>(
-  ({
-    isLoading,
-    error,
-    capabilities,
-    selectedCapability,
-    canWrite,
-    onSelect,
-    onDelete,
-    onCreateNew,
-    isDockPanelOpen,
-    domainCapabilities,
-    linkStatuses,
-    isLoadingDomainCapabilities,
-    onCloseDockPanel,
-    onLinkCapability,
-  }) => {
+  ({ isLoading, error, capabilities, selectedCapability, canWrite, onSelect, onDelete, onCreateNew }) => {
     if (isLoading) {
       return (
         <Center py="xl">
@@ -65,22 +42,14 @@ export const EnterpriseArchContent = React.memo<EnterpriseArchContentProps>(
       return <EnterpriseCapabilitiesEmptyState onCreateNew={onCreateNew} canWrite={canWrite} />;
     }
 
-    const hasAnyPanel = !!(selectedCapability || isDockPanelOpen);
-    const hasBothPanels = !!(selectedCapability && isDockPanelOpen);
-
     return (
       <Group align="flex-start" gap="lg" wrap="nowrap" className={classes.layout}>
-        <Box
-          flex={hasBothPanels ? 1 : hasAnyPanel ? 2 : 1}
-          miw={0}
-        >
+        <Box flex={selectedCapability ? 2 : 1} miw={0}>
           <EnterpriseCapabilitiesTable
             capabilities={capabilities}
             selectedId={selectedCapability?.id}
             onSelect={onSelect}
             onDelete={onDelete}
-            isDockPanelOpen={isDockPanelOpen}
-            onLinkCapability={onLinkCapability}
           />
         </Box>
         {selectedCapability && (
@@ -90,14 +59,6 @@ export const EnterpriseArchContent = React.memo<EnterpriseArchContentProps>(
               onClose={() => onSelect(selectedCapability)}
             />
           </Box>
-        )}
-        {isDockPanelOpen && (
-          <DomainCapabilityDockPanel
-            capabilities={domainCapabilities}
-            linkStatuses={linkStatuses}
-            isLoading={isLoadingDomainCapabilities}
-            onClose={onCloseDockPanel}
-          />
         )}
       </Group>
     );

@@ -1,63 +1,40 @@
-import { Badge, Box, CloseButton, Divider, Group, Loader, Paper, Stack, Text, Title } from '@mantine/core';
-import { useMemo } from 'react';
+import { Badge, Box, CloseButton, Divider, Group, Paper, Stack, Text, Title } from '@mantine/core';
 import { DirectionPanel } from '../../architecture-direction/components/DirectionPanel';
+import { useExcludeSource } from '../../architecture-direction/hooks/useDirection';
 import { StandardApplicationPanel } from '../../standard-application/components/StandardApplicationPanel';
-import { useEnterpriseCapabilityLinks, useUnlinkDomainCapability } from '../hooks/useEnterpriseCapabilities';
-import type { EnterpriseCapability, EnterpriseCapabilityLink } from '../types';
-import { LinkedCapabilitiesSection } from './LinkedCapabilitiesSection';
+import { useComposition } from '../hooks/useComposition';
+import type { EnterpriseCapability } from '../types';
 import classes from './EnterpriseCapabilityDetailPanel.module.css';
+import { IncludedCapabilitiesSection } from './IncludedCapabilitiesSection';
 
 interface EnterpriseCapabilityDetailPanelProps {
   capability: EnterpriseCapability;
   onClose: () => void;
 }
 
-interface GroupedDomain {
-  domainName: string;
-  links: EnterpriseCapabilityLink[];
-}
-
-function groupLinksByDomain(links: EnterpriseCapabilityLink[]): GroupedDomain[] {
-  const grouped = new Map<string, EnterpriseCapabilityLink[]>();
-  for (const link of links) {
-    const domainName = link.businessDomainName || 'Unassigned';
-    const existing = grouped.get(domainName);
-    if (existing) existing.push(link);
-    else grouped.set(domainName, [link]);
-  }
-  return Array.from(grouped.entries())
-    .map(([domainName, domainLinks]) => ({ domainName, links: domainLinks }))
-    .sort((a, b) => {
-      if (a.domainName === 'Unassigned') return 1;
-      if (b.domainName === 'Unassigned') return -1;
-      return a.domainName.localeCompare(b.domainName);
-    });
-}
-
-function StatPair({ label, value }: { label: string; value: number }) {
+function StatPair({ label, value }: { label: string; value: number | string }) {
   return (
-    <Group gap="xs" wrap="nowrap">
-      <Text size="sm" c="dimmed">
-        {label}:
-      </Text>
-      <Text size="sm" fw={600} c="blue.6">
+    <Stack gap={2}>
+      <Text size="xl" fw={700} c="blue.7">
         {value}
       </Text>
-    </Group>
+      <Text size="xs" c="dimmed">
+        {label}
+      </Text>
+    </Stack>
   );
 }
 
 export function EnterpriseCapabilityDetailPanel({ capability, onClose }: EnterpriseCapabilityDetailPanelProps) {
-  const { data: links, isLoading } = useEnterpriseCapabilityLinks(capability.id);
-  const unlinkMutation = useUnlinkDomainCapability();
+  const compositionQuery = useComposition(capability.id);
+  const excludeMutation = useExcludeSource();
 
-  const groupedLinks = useMemo(() => (links ? groupLinksByDomain(links) : []), [links]);
+  const meta = compositionQuery.data?.meta;
+  const includedCount = meta?.includedCount ?? capability.includedCapabilityCount;
+  const domainCount = meta?.domainCount ?? capability.domainCount;
 
-  const handleUnlink = async (link: EnterpriseCapabilityLink) => {
-    await unlinkMutation.mutateAsync({
-      enterpriseCapabilityId: capability.id,
-      linkId: link.id,
-    });
+  const handleExclude = (capabilityId: string) => {
+    excludeMutation.mutate({ enterpriseCapabilityId: capability.id, capabilityId });
   };
 
   return (
@@ -83,9 +60,9 @@ export function EnterpriseCapabilityDetailPanel({ capability, onClose }: Enterpr
 
         <Box>
           <Divider />
-          <Group gap="xl" py="md">
-            <StatPair label="Links" value={capability.linkCount} />
-            <StatPair label="Domains" value={capability.domainCount} />
+          <Group gap={48} py="md">
+            <StatPair label="Included capabilities" value={includedCount} />
+            <StatPair label="Domains" value={domainCount || '—'} />
           </Group>
           <Divider />
         </Box>
@@ -94,23 +71,12 @@ export function EnterpriseCapabilityDetailPanel({ capability, onClose }: Enterpr
 
         <StandardApplicationPanel enterpriseCapabilityId={capability.id} />
 
-        <Stack gap="sm">
-          <Title order={4}>Linked Capabilities</Title>
-          {isLoading ? (
-            <Group gap="xs">
-              <Loader size="sm" />
-              <Text size="sm" c="dimmed">
-                Loading linked capabilities...
-              </Text>
-            </Group>
-          ) : (
-            <LinkedCapabilitiesSection
-              groups={groupedLinks}
-              onUnlink={handleUnlink}
-              isUnlinking={unlinkMutation.isPending}
-            />
-          )}
-        </Stack>
+        <IncludedCapabilitiesSection
+          composition={compositionQuery.data}
+          isLoading={compositionQuery.isLoading}
+          onExclude={handleExclude}
+          isExcluding={excludeMutation.isPending}
+        />
       </Stack>
     </Paper>
   );

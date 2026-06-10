@@ -167,11 +167,22 @@ The standalone "linking" concept is removed entirely — directions are now the 
 Existing link rows are **hard-deleted** via migration — there is no migration of historical links into directions. After this change there is no residual linking data, schema, or code.
 
 
+## Implementation status
+
+**Frontend slice (done):** Implemented against an MSW stub API whose contract was designed and validated by the api-design-expert. Endpoints stubbed: `GET .../composition`, `GET /capabilities/source-candidates`, `POST .../direction/composition-preview`, `POST .../direction/sources`, `DELETE .../direction/sources/{capabilityId}`, plus capture/transition with R1 (409) and R5 (immutable) enforcement, and the R1/R2 most-specific-wins carve-out resolution. Standalone linking UI and its hooks/api/types were deleted. Built TDD; all unit tests pass; per-file code health 10.0 (stub `store.ts` 9.68 — inherent HATEOAS/DTO builder).
+
+Frontend decisions taken from the mockup (source of truth for the FE):
+- Capture modal drops the placements section; uses a search-driven source picker with R1 eligibility + an R2 carve-out preview, and a draft-cardinality hint (R8).
+- Source list/placements removed from the Direction panel — sources now surface only in the Included-capabilities composition view; the panel shows type/status/horizon/narrative/actions and an agreed-immutability callout.
+- Source-set edits use granular sub-resources (`POST .../sources`, `DELETE .../sources/{id}`); `sourceCapabilityIds` removed from the `PUT .../direction` request.
+
+**Remaining:** Go backend (aggregate, events, read model, migrations hard-deleting link rows, actor on `DirectionSourceCapabilitiesChanged` per R9), Swagger docs.
+
 ## Checklist
 
-- [ ] Specification ready
-- [ ] Implementation done
-- [ ] Unit tests implemented and passing
+- [x] Specification ready
+- [ ] Implementation done (frontend slice done; backend pending)
+- [ ] Unit tests implemented and passing (frontend done; backend pending)
 - [ ] Integration tests implemented if relevant
 - [ ] API documentation updated
 - [ ] User sign-off

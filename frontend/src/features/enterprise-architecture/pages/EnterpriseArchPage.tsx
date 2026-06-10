@@ -1,6 +1,5 @@
 import { Box, Container, Stack, Tabs, Text } from '@mantine/core';
 import { useCallback, useMemo, useState } from 'react';
-import type { Capability } from '../../../api/types';
 import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
 import { useUserStore } from '../../../store/userStore';
 import { CreateEnterpriseCapabilityModal } from '../components/CreateEnterpriseCapabilityModal';
@@ -10,14 +9,8 @@ import { MaturityAnalysisTab } from '../components/MaturityAnalysisTab';
 import { MaturityGapDetailPanel } from '../components/MaturityGapDetailPanel';
 import { StrategicFitTab } from '../components/StrategicFitTab';
 import { TimeSuggestionsTab } from '../components/TimeSuggestionsTab';
-import { useDomainCapabilityLinking } from '../hooks/useDomainCapabilityLinking';
 import { useEnterpriseCapabilities } from '../hooks/useEnterpriseCapabilities';
-import type {
-  CapabilityLinkStatusResponse,
-  CreateEnterpriseCapabilityRequest,
-  EnterpriseCapability,
-  EnterpriseCapabilityId,
-} from '../types';
+import type { CreateEnterpriseCapabilityRequest, EnterpriseCapability, EnterpriseCapabilityId } from '../types';
 import { getErrorMessage } from '../utils/errorMessages';
 import classes from './EnterpriseArchPage.module.css';
 
@@ -55,12 +48,6 @@ interface TabContentProps {
   onSelect: (capability: EnterpriseCapability) => void;
   onDelete: (capability: EnterpriseCapability) => void;
   onCreateNew: () => void;
-  isDockPanelOpen: boolean;
-  domainCapabilities: Capability[];
-  linkStatuses: Map<string, CapabilityLinkStatusResponse>;
-  isLoadingDomainCapabilities: boolean;
-  onCloseDockPanel: () => void;
-  onLinkCapability: (enterpriseCapabilityId: EnterpriseCapabilityId, domainCapability: Capability) => Promise<void>;
 }
 
 function TabContent({
@@ -122,7 +109,6 @@ export function EnterpriseArchPage() {
   const [activeTab, setActiveTab] = useState<TabType>('capabilities');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCapabilityId, setSelectedCapabilityId] = useState<EnterpriseCapabilityId | null>(null);
-  const [isDockPanelOpen, setIsDockPanelOpen] = useState(false);
   const [maturityGapDetailId, setMaturityGapDetailId] = useState<EnterpriseCapabilityId | null>(null);
 
   const { canRead, canWrite } = useEnterpriseArchPermissions();
@@ -134,13 +120,6 @@ export function EnterpriseArchPage() {
     () => capabilities.find((c) => c.id === selectedCapabilityId) || null,
     [capabilities, selectedCapabilityId],
   );
-
-  const {
-    domainCapabilities,
-    linkStatuses,
-    isLoading: isLoadingDomainCapabilities,
-    linkCapability,
-  } = useDomainCapabilityLinking(isDockPanelOpen);
 
   const handleCreateCapability = useCallback(
     async (request: CreateEnterpriseCapabilityRequest) => {
@@ -155,13 +134,6 @@ export function EnterpriseArchPage() {
       setSelectedCapabilityId(capability.id === selectedCapabilityId ? null : capability.id);
     },
     [selectedCapabilityId],
-  );
-
-  const handleLinkCapability = useCallback(
-    async (enterpriseCapabilityId: EnterpriseCapabilityId, domainCapability: Capability) => {
-      await linkCapability(enterpriseCapabilityId, domainCapability);
-    },
-    [linkCapability],
   );
 
   const handleTabChange = useCallback((value: string | null) => {
@@ -187,8 +159,6 @@ export function EnterpriseArchPage() {
           <EnterpriseArchHeader
             canWrite={canWrite}
             onCreateNew={() => setIsModalOpen(true)}
-            isDockPanelOpen={isDockPanelOpen}
-            onToggleDockPanel={() => setIsDockPanelOpen((prev) => !prev)}
             activeTab={activeTab}
             showTabActions={activeTab === 'capabilities'}
           />
@@ -214,12 +184,6 @@ export function EnterpriseArchPage() {
             onSelect={handleSelectCapability}
             onDelete={handleDeleteClick}
             onCreateNew={() => setIsModalOpen(true)}
-            isDockPanelOpen={isDockPanelOpen}
-            domainCapabilities={domainCapabilities}
-            linkStatuses={linkStatuses}
-            isLoadingDomainCapabilities={isLoadingDomainCapabilities}
-            onCloseDockPanel={() => setIsDockPanelOpen(false)}
-            onLinkCapability={handleLinkCapability}
           />
         </Stack>
       </Container>

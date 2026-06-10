@@ -1,30 +1,27 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
-  ActionIcon,
   Alert,
+  Badge,
   Box,
   Button,
-  Checkbox,
   Group,
   Loader,
+  NativeSelect,
+  Paper,
+  Pill,
   Select,
   Stack,
   Text,
   Textarea,
   TextInput,
 } from '@mantine/core';
-import { useEffect, useMemo } from 'react';
-import { Controller, useFieldArray, useForm } from 'react-hook-form';
+import { useEffect, useMemo, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
 import type { EnterpriseCapabilityId } from '../../../api/types';
 import { type CaptureDirectionFormData, captureDirectionSchema } from '../../../lib/schemas/direction';
 import { useBusinessDomainsQuery } from '../../business-domains/hooks/useBusinessDomains';
-import {
-  useEnterpriseCapability,
-  useEnterpriseCapabilityLinks,
-} from '../../enterprise-architecture/hooks/useEnterpriseCapabilities';
-import type { EnterpriseCapabilityLink } from '../../enterprise-architecture/types';
-import { useCaptureDirection } from '../hooks/useDirection';
-import type { DirectionType, Horizon } from '../types';
+import { useCaptureDirection, useCompositionPreview, useSourceCandidates } from '../hooks/useDirection';
+import type { DirectionType, Horizon, SourceCandidate } from '../types';
 
 interface CaptureDirectionFormProps {
   enterpriseCapabilityId: EnterpriseCapabilityId;
@@ -33,21 +30,9 @@ interface CaptureDirectionFormProps {
 }
 
 const TYPE_OPTIONS = [
-  {
-    value: 'consolidate',
-    label: 'Consolidate',
-    help: 'Multiple physical capabilities merge into one. Pick 2 or more sources.',
-  },
-  {
-    value: 'decompose',
-    label: 'Decompose',
-    help: 'One physical capability splits into multiple. Pick exactly 1 source.',
-  },
-  {
-    value: 'stay',
-    label: 'Stay',
-    help: 'Explicitly confirmed no change. Pick exactly 1 source. No target placements.',
-  },
+  { value: 'consolidate', label: 'Consolidate', help: 'Multiple capabilities merge into one.' },
+  { value: 'decompose', label: 'Decompose', help: 'One capability splits into multiple.' },
+  { value: 'stay', label: 'Stay', help: 'Explicitly confirmed: no change.' },
 ] as const satisfies ReadonlyArray<{ value: DirectionType; label: string; help: string }>;
 
 const HORIZON_OPTIONS = [
@@ -59,119 +44,165 @@ const HORIZON_OPTIONS = [
 const DEFAULT_VALUES: CaptureDirectionFormData = {
   type: 'consolidate',
   sourceCapabilityIds: [],
-  placements: [],
   horizon: 'next',
   narrative: '',
 };
 
-function canAddPlacement(type: DirectionType, currentCount: number): boolean {
-  if (type === 'consolidate') return currentCount === 0;
-  if (type === 'decompose') return true;
-  return false;
+function useSourceSelection() {
+  const [selected, setSelected] = useState<SourceCandidate[]>([]);
+  const selectedIds = useMemo(() => selected.map((s) => s.capabilityId), [selected]);
+  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+
+  const add = (candidate: SourceCandidate) =>
+    setSelected((prev) => (prev.some((s) => s.capabilityId === candidate.capabilityId) ? prev : [...prev, candidate]));
+  const remove = (capabilityId: string) => setSelected((prev) => prev.filter((s) => s.capabilityId !== capabilityId));
+
+  return { selected, selectedIds, selectedIdSet, add, remove };
 }
 
-function useCaptureDirectionFormState(enterpriseCapabilityId: EnterpriseCapabilityId, onCaptured: () => void) {
+function toDomainOptions(domains: { id: string; name: string }[]) {
+  return [{ value: '', label: 'All domains' }, ...domains.map((d) => ({ value: d.id, label: d.name }))];
+}
+
+function useCaptureDirectionController(enterpriseCapabilityId: EnterpriseCapabilityId, onCaptured: () => void) {
   const captureMutation = useCaptureDirection();
   const form = useForm<CaptureDirectionFormData>({
     resolver: zodResolver(captureDirectionSchema),
     defaultValues: DEFAULT_VALUES,
     mode: 'onChange',
   });
-  const placementsArray = useFieldArray({ control: form.control, name: 'placements' });
-  const type = form.watch('type');
-  const fieldCount = placementsArray.fields.length;
+  const { setValue } = form;
+
+  const [search, setSearch] = useState('');
+  const [domainId, setDomainId] = useState('');
+  const selection = useSourceSelection();
 
   useEffect(() => {
-    if (type === 'stay' && fieldCount > 0) {
-      form.setValue('placements', []);
-    }
-  }, [type, fieldCount, form]);
+    setValue('sourceCapabilityIds', selection.selectedIds, { shouldValidate: true });
+  }, [selection.selectedIds, setValue]);
 
-  const onSubmit = async (data: CaptureDirectionFormData) => {
+  const candidatesQuery = useSourceCandidates(enterpriseCapabilityId, { q: search, domainId: domainId || undefined });
+  const previewQuery = useCompositionPreview(enterpriseCapabilityId, selection.selectedIds);
+  const { data: domainsResponse } = useBusinessDomainsQuery();
+  const domainOptions = useMemo(() => toDomainOptions(domainsResponse?.data ?? []), [domainsResponse]);
+
+  const submit = form.handleSubmit(async (data) => {
     try {
       await captureMutation.mutateAsync({
         enterpriseCapabilityId,
         request: {
           type: data.type,
           sourceCapabilityIds: data.sourceCapabilityIds,
-          placements: data.type === 'stay' ? [] : data.placements,
           horizon: data.horizon,
           narrative: data.narrative.trim() || undefined,
         },
       });
       onCaptured();
     } catch {
-      // toast handled by hook
+      /* surfaced via toast by the mutation hook */
     }
-  };
+  });
 
-  return { form, placementsArray, onSubmit, isPending: captureMutation.isPending };
+  return {
+    form,
+    search,
+    setSearch,
+    domainId,
+    setDomainId,
+    domainOptions,
+    selection,
+    candidatesQuery,
+    previewQuery,
+    submit,
+    isPending: captureMutation.isPending,
+    ineligibleSelected: previewQuery.data?.sourceEligibility.some((e) => !e.eligible) ?? false,
+  };
 }
 
 export function CaptureDirectionForm({ enterpriseCapabilityId, onCaptured, onCancel }: CaptureDirectionFormProps) {
-  const { data: parentEC } = useEnterpriseCapability(enterpriseCapabilityId);
-  const defaultResultingName = parentEC?.name ?? '';
-  const { data: links, isLoading: linksLoading } = useEnterpriseCapabilityLinks(enterpriseCapabilityId);
-  const { data: domainsResponse, isLoading: domainsLoading } = useBusinessDomainsQuery();
-  const linkedCapabilities = useMemo(() => links ?? [], [links]);
-  const businessDomains = useMemo(() => domainsResponse?.data ?? [], [domainsResponse]);
-
-  const { form, placementsArray, onSubmit, isPending } = useCaptureDirectionFormState(
-    enterpriseCapabilityId,
-    onCaptured,
-  );
-  const { control, handleSubmit, watch, formState } = form;
+  const {
+    form,
+    search,
+    setSearch,
+    domainId,
+    setDomainId,
+    domainOptions,
+    selection,
+    candidatesQuery,
+    previewQuery,
+    submit,
+    isPending,
+    ineligibleSelected,
+  } = useCaptureDirectionController(enterpriseCapabilityId, onCaptured);
+  const { control, watch, formState } = form;
   const type = watch('type');
-  const placements = watch('placements');
+  const selected = selection.selected;
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} data-testid="capture-direction-form">
+    <form onSubmit={submit} data-testid="capture-direction-form">
       <Stack gap="md">
-        <TypeField control={control} />
+        <EnumField name="type" label="Direction type" control={control} options={TYPE_OPTIONS} />
 
-        <Controller
-          name="sourceCapabilityIds"
-          control={control}
-          render={({ field }) => (
-            <SourcePicker
-              loading={linksLoading}
-              links={linkedCapabilities}
-              selectedIds={field.value}
-              error={formState.errors.sourceCapabilityIds?.message ?? null}
-              onChange={field.onChange}
-            />
-          )}
-        />
+        <Stack gap="xs" data-testid="source-picker">
+          <Group justify="space-between" align="flex-end">
+            <Text size="sm" fw={600}>
+              Source capabilities
+            </Text>
+            <Badge variant="light" color="gray" data-testid="selected-count">
+              {selected.length}
+            </Badge>
+          </Group>
+          <Text size="xs" c="dimmed">
+            Search any domain capability by name (L1–L4, across all business domains). The chosen sources — and their
+            subtrees — become this EC&apos;s composition.
+          </Text>
 
-        {type !== 'stay' && (
-          <PlacementEditor
-            loading={domainsLoading}
-            placements={placements}
-            error={formState.errors.placements?.message ?? null}
-            canAdd={canAddPlacement(type, placementsArray.fields.length)}
-            onAdd={() =>
-              placementsArray.append({ targetBusinessDomainId: '', resultingName: defaultResultingName })
-            }
-            renderRow={(index) => (
-              <PlacementRow
-                key={placementsArray.fields[index].id}
-                index={index}
-                control={control}
-                domains={businessDomains}
-                onRemove={() => placementsArray.remove(index)}
+          <Group gap="xs" grow={false} wrap="nowrap">
+            <Box flex={1}>
+              <TextInput
+                placeholder="Search capabilities…"
+                value={search}
+                onChange={(e) => setSearch(e.currentTarget.value)}
+                data-testid="source-search-input"
+                aria-label="Search capabilities"
               />
-            )}
-          />
-        )}
+            </Box>
+            <NativeSelect
+              data={domainOptions}
+              value={domainId}
+              onChange={(e) => setDomainId(e.currentTarget.value)}
+              aria-label="Filter by business domain"
+              data-testid="domain-filter"
+            />
+          </Group>
 
-        <HorizonField control={control} />
+          <CandidateResults
+            query={candidatesQuery}
+            selectedIds={selection.selectedIdSet}
+            onAdd={selection.add}
+            searchActive={search.trim().length > 0}
+          />
+
+          <SelectedSources selected={selected} onRemove={selection.remove} />
+
+          {selected.length > 0 && <DraftCardinalityHint type={type} count={selected.length} />}
+
+          <CompositionPreview query={previewQuery} visible={selected.length > 0} />
+        </Stack>
+
+        <EnumField name="horizon" label="Horizon" control={control} options={HORIZON_OPTIONS} />
         <NarrativeField control={control} />
 
         <Group justify="flex-end" gap="sm">
           <Button variant="default" onClick={onCancel} disabled={isPending}>
             Cancel
           </Button>
-          <Button type="submit" loading={isPending} disabled={!formState.isValid || isPending}>
+          <Button
+            type="submit"
+            loading={isPending}
+            disabled={!formState.isValid || isPending || ineligibleSelected}
+            data-testid="capture-submit"
+          >
             Capture as draft
           </Button>
         </Group>
@@ -182,10 +213,8 @@ export function CaptureDirectionForm({ enterpriseCapabilityId, onCaptured, onCan
 
 type FormControl = ReturnType<typeof useForm<CaptureDirectionFormData>>['control'];
 
-type EnumFieldName = 'type' | 'horizon';
-
 interface EnumFieldProps<TValue extends string> {
-  name: EnumFieldName;
+  name: 'type' | 'horizon';
   label: string;
   control: FormControl;
   options: ReadonlyArray<{ value: TValue; label: string; help?: string }>;
@@ -211,14 +240,6 @@ function EnumField<TValue extends string>({ name, label, control, options }: Enu
   );
 }
 
-function TypeField({ control }: { control: FormControl }) {
-  return <EnumField name="type" label="Direction type" control={control} options={TYPE_OPTIONS} />;
-}
-
-function HorizonField({ control }: { control: FormControl }) {
-  return <EnumField name="horizon" label="Horizon" control={control} options={HORIZON_OPTIONS} />;
-}
-
 function NarrativeField({ control }: { control: FormControl }) {
   return (
     <Controller
@@ -239,134 +260,135 @@ function NarrativeField({ control }: { control: FormControl }) {
   );
 }
 
-interface SourcePickerProps {
-  loading: boolean;
-  links: EnterpriseCapabilityLink[];
-  selectedIds: string[];
-  error: string | null;
-  onChange: (selectedIds: string[]) => void;
+interface CandidateResultsProps {
+  query: ReturnType<typeof useSourceCandidates>;
+  selectedIds: Set<string>;
+  onAdd: (candidate: SourceCandidate) => void;
+  searchActive: boolean;
 }
 
-function SourcePicker({ loading, links, selectedIds, error, onChange }: SourcePickerProps) {
-  return (
-    <Stack gap="xs" data-testid="source-picker">
-      <Text size="sm" fw={600}>
-        Source physical capabilities
+function CandidateResults({ query, selectedIds, onAdd, searchActive }: CandidateResultsProps) {
+  if (!searchActive) return null;
+  if (query.isLoading) return <Loader size="sm" data-testid="candidates-loading" />;
+  const candidates = query.data?.data ?? [];
+  if (candidates.length === 0) {
+    return (
+      <Text size="xs" c="dimmed" data-testid="candidates-empty">
+        No matching capabilities.
       </Text>
-      {loading && <Loader size="sm" />}
-      {!loading && links.length === 0 && (
-        <Alert color="yellow" variant="light">
-          This Enterprise Capability has no linked physical capabilities yet. Link some on the Manage Links page first.
-        </Alert>
-      )}
-      {!loading && links.length > 0 && (
-        <Checkbox.Group value={selectedIds} onChange={onChange}>
-          <Stack gap={4}>
-            {links.map((link) => (
-              <Checkbox key={link.id} value={link.domainCapabilityId} label={<SourceLabel link={link} />} />
-            ))}
-          </Stack>
-        </Checkbox.Group>
-      )}
-      {error && (
-        <Text c="red" size="xs" data-testid="source-error">
-          {error}
-        </Text>
-      )}
-    </Stack>
+    );
+  }
+  return (
+    <Paper withBorder radius="md" data-testid="candidate-results">
+      <Stack gap={0}>
+        {candidates.map((candidate) => (
+          <CandidateRow
+            key={candidate.capabilityId}
+            candidate={candidate}
+            selected={selectedIds.has(candidate.capabilityId)}
+            onAdd={onAdd}
+          />
+        ))}
+      </Stack>
+    </Paper>
   );
 }
 
-function SourceLabel({ link }: { link: EnterpriseCapabilityLink }) {
+function CandidateRow({
+  candidate,
+  selected,
+  onAdd,
+}: {
+  candidate: SourceCandidate;
+  selected: boolean;
+  onAdd: (candidate: SourceCandidate) => void;
+}) {
   return (
-    <>
-      {link.domainCapabilityName || link.domainCapabilityId}
-      {link.businessDomainName && (
-        <Text component="span" c="dimmed" size="xs">
-          {' · '}
-          {link.businessDomainName}
-        </Text>
-      )}
-    </>
-  );
-}
-
-interface PlacementEditorProps {
-  loading: boolean;
-  placements: CaptureDirectionFormData['placements'];
-  error: string | null;
-  canAdd: boolean;
-  onAdd: () => void;
-  renderRow: (index: number) => React.ReactNode;
-}
-
-function PlacementEditor({ loading, placements, error, canAdd, onAdd, renderRow }: PlacementEditorProps) {
-  return (
-    <Stack gap="xs" data-testid="placement-editor">
-      <Text size="sm" fw={600}>
-        Target placements
-      </Text>
-      {loading && <Loader size="sm" />}
-      {!loading && placements.map((_p, index) => renderRow(index))}
-      {canAdd && (
-        <Group justify="flex-start">
-          <Button variant="subtle" size="xs" onClick={onAdd} data-testid="add-placement">
-            + Add placement
-          </Button>
-        </Group>
-      )}
-      {error && (
-        <Text c="red" size="xs" data-testid="placement-error">
-          {error}
-        </Text>
-      )}
-    </Stack>
-  );
-}
-
-interface PlacementRowProps {
-  index: number;
-  control: FormControl;
-  domains: { id: string; name: string }[];
-  onRemove: () => void;
-}
-
-function PlacementRow({ index, control, domains, onRemove }: PlacementRowProps) {
-  const position = index + 1;
-  return (
-    <Group gap="xs" wrap="nowrap" align="flex-end">
-      <Box flex={1}>
-        <Controller
-          name={`placements.${index}.targetBusinessDomainId`}
-          control={control}
-          render={({ field }) => (
-            <Select
-              placeholder="Select a business domain…"
-              aria-label={`Target business domain for placement ${position}`}
-              data={domains.map((d) => ({ value: d.id, label: d.name }))}
-              value={field.value || null}
-              onChange={(value) => field.onChange(value ?? '')}
-            />
-          )}
-        />
-      </Box>
-      <Box flex={1}>
-        <Controller
-          name={`placements.${index}.resultingName`}
-          control={control}
-          render={({ field }) => (
-            <TextInput
-              aria-label={`Resulting name for placement ${position}`}
-              placeholder="Resulting name"
-              value={field.value ?? ''}
-              onChange={(e) => field.onChange(e.currentTarget.value)}
-            />
-          )}
-        />
-      </Box>
-      <ActionIcon variant="subtle" color="red" aria-label={`Remove placement ${position}`} onClick={onRemove}>
-        ×
-      </ActionIcon>
+    <Group justify="space-between" wrap="nowrap" px="md" py="xs" data-testid={`candidate-${candidate.capabilityId}`}>
+      <Stack gap={0}>
+        <Text size="sm">{candidate.name}</Text>
+        {candidate.eligible ? (
+          <Text size="xs" c="dimmed">
+            {candidate.businessDomainName ?? 'Unassigned'} · {candidate.level}
+          </Text>
+        ) : (
+          <Text size="xs" c="red">
+            ⛔ {candidate.ineligibilityReason}
+          </Text>
+        )}
+      </Stack>
+      <Button
+        size="compact-xs"
+        variant="filled"
+        disabled={!candidate.eligible || selected}
+        onClick={() => onAdd(candidate)}
+        data-testid={`add-candidate-${candidate.capabilityId}`}
+      >
+        {selected ? 'Added' : '+ Add'}
+      </Button>
     </Group>
+  );
+}
+
+function SelectedSources({ selected, onRemove }: { selected: SourceCandidate[]; onRemove: (id: string) => void }) {
+  if (selected.length === 0) return null;
+  return (
+    <Box>
+      <Text size="xs" fw={600} c="dimmed" tt="uppercase">
+        Selected sources
+      </Text>
+      <Group gap="xs" mt={6}>
+        {selected.map((candidate) => (
+          <Pill
+            key={candidate.capabilityId}
+            withRemoveButton
+            onRemove={() => onRemove(candidate.capabilityId)}
+            data-testid={`selected-chip-${candidate.capabilityId}`}
+          >
+            {candidate.level} · {candidate.name}
+          </Pill>
+        ))}
+      </Group>
+    </Box>
+  );
+}
+
+function DraftCardinalityHint({ type, count }: { type: DirectionType; count: number }) {
+  const advanceRule =
+    type === 'consolidate'
+      ? 'Advancing to proposed requires at least 2 sources for a Consolidate direction.'
+      : 'Advancing to proposed enforces this type’s source cardinality.';
+  return (
+    <Alert color="yellow" variant="light" data-testid="draft-cardinality-hint">
+      {count} source{count === 1 ? '' : 's'} selected. A draft is accepted with any number of sources (even one).{' '}
+      {advanceRule}
+    </Alert>
+  );
+}
+
+function CompositionPreview({ query, visible }: { query: ReturnType<typeof useCompositionPreview>; visible: boolean }) {
+  if (!visible) return null;
+  if (query.isLoading || !query.data) {
+    return <Loader size="sm" data-testid="composition-preview-loading" />;
+  }
+  const included = query.data.includedCapabilities.filter((c) => c.role !== 'carved-out');
+  const carved = query.data.includedCapabilities.filter((c) => c.role === 'carved-out');
+  return (
+    <Alert
+      color="blue"
+      variant="light"
+      data-testid="composition-preview"
+      title="This source implicitly includes its descendants"
+    >
+      <Stack gap={4}>
+        <Text size="xs">Included here: {included.length > 0 ? included.map((c) => c.name).join(', ') : '—'}</Text>
+        {carved.length > 0 && (
+          <Text size="xs">
+            Carved out:{' '}
+            {carved.map((c) => `${c.name} (owned by ${c.carvedOutBy?.enterpriseCapabilityName})`).join(', ')}
+          </Text>
+        )}
+      </Stack>
+    </Alert>
   );
 }

@@ -5,13 +5,7 @@ import { invalidateFor } from '../../../lib/invalidateFor';
 import { enterpriseArchApi } from '../api/enterpriseArchApi';
 import { enterpriseCapabilitiesMutationEffects } from '../mutationEffects';
 import { enterpriseCapabilitiesQueryKeys } from '../queryKeys';
-import type {
-  CreateEnterpriseCapabilityRequest,
-  EnterpriseCapability,
-  EnterpriseCapabilityId,
-  EnterpriseCapabilityLinkId,
-  LinkCapabilityRequest,
-} from '../types';
+import type { CreateEnterpriseCapabilityRequest, EnterpriseCapability, EnterpriseCapabilityId } from '../types';
 import { getErrorMessage } from '../utils/errorMessages';
 
 export interface UseEnterpriseCapabilitiesResult {
@@ -103,43 +97,5 @@ export function useDeleteEnterpriseCapability() {
     effects: (_, { id }) => enterpriseCapabilitiesMutationEffects.delete(id),
     successMessage: (_, { name }) => `Enterprise capability "${name}" deleted`,
     errorMessage: 'Failed to delete capability',
-  });
-}
-
-export function useEnterpriseCapabilityLinks(enterpriseCapabilityId: EnterpriseCapabilityId | undefined) {
-  return useQuery({
-    queryKey: enterpriseCapabilitiesQueryKeys.links(enterpriseCapabilityId!),
-    queryFn: () => enterpriseArchApi.getLinks(enterpriseCapabilityId!),
-    enabled: !!enterpriseCapabilityId,
-  });
-}
-
-export function useLinkDomainCapability() {
-  return useEnterpriseMutation({
-    mutationFn: ({
-      enterpriseCapabilityId,
-      request,
-    }: {
-      enterpriseCapabilityId: EnterpriseCapabilityId;
-      request: LinkCapabilityRequest;
-    }) => enterpriseArchApi.linkDomainCapability(enterpriseCapabilityId, request),
-    effects: (_, { enterpriseCapabilityId }) => enterpriseCapabilitiesMutationEffects.link(enterpriseCapabilityId),
-    successMessage: () => 'Capability linked successfully',
-    errorMessage: 'Failed to link capability',
-  });
-}
-
-export function useUnlinkDomainCapability() {
-  return useEnterpriseMutation({
-    mutationFn: ({
-      enterpriseCapabilityId,
-      linkId,
-    }: {
-      enterpriseCapabilityId: EnterpriseCapabilityId;
-      linkId: EnterpriseCapabilityLinkId;
-    }) => enterpriseArchApi.unlinkDomainCapability(enterpriseCapabilityId, linkId),
-    effects: (_, { enterpriseCapabilityId }) => enterpriseCapabilitiesMutationEffects.unlink(enterpriseCapabilityId),
-    successMessage: () => 'Capability unlinked successfully',
-    errorMessage: 'Failed to unlink capability',
   });
 }

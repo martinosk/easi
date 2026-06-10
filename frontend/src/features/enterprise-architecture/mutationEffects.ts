@@ -8,24 +8,6 @@ export const enterpriseCapabilitiesMutationEffects = {
     enterpriseCapabilitiesQueryKeys.detail(enterpriseCapabilityId),
   ],
 
-  link: (enterpriseCapabilityId: string) => [
-    enterpriseCapabilitiesQueryKeys.links(enterpriseCapabilityId),
-    enterpriseCapabilitiesQueryKeys.detail(enterpriseCapabilityId),
-    enterpriseCapabilitiesQueryKeys.lists(),
-    maturityAnalysisQueryKeys.candidates(),
-    maturityAnalysisQueryKeys.unlinked(),
-    enterpriseCapabilitiesQueryKeys.linkStatuses(),
-  ],
-
-  unlink: (enterpriseCapabilityId: string) => [
-    enterpriseCapabilitiesQueryKeys.links(enterpriseCapabilityId),
-    enterpriseCapabilitiesQueryKeys.detail(enterpriseCapabilityId),
-    enterpriseCapabilitiesQueryKeys.lists(),
-    maturityAnalysisQueryKeys.candidates(),
-    maturityAnalysisQueryKeys.unlinked(),
-    enterpriseCapabilitiesQueryKeys.linkStatuses(),
-  ],
-
   setTargetMaturity: (enterpriseCapabilityId: string) => [
     enterpriseCapabilitiesQueryKeys.detail(enterpriseCapabilityId),
     enterpriseCapabilitiesQueryKeys.lists(),
