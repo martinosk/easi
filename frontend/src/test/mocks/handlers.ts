@@ -18,7 +18,7 @@ import {
 } from './db';
 import { spec172Handlers } from './spec172/handlers';
 
-const BASE_URL = 'http://localhost:8080';
+const BASE_URL = '*';
 
 const inheritanceAuditMockEntries = [
   {

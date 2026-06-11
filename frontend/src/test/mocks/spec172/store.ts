@@ -1,3 +1,4 @@
+import { toEnterpriseCapabilityId } from '../../../api/types';
 import type { Direction, DirectionStatus, ECDirectionResponse } from '../../../features/architecture-direction/types';
 import type {
   CompositionDomainGroup,
@@ -5,7 +6,6 @@ import type {
   EnterpriseCapability,
   IncludedCapabilityItem,
 } from '../../../features/enterprise-architecture/types';
-import { toEnterpriseCapabilityId } from '../../../api/types';
 import { type ActiveDirection, resolveComposition, type StubCapability } from './composition';
 
 export interface StubEnterpriseCapability {
@@ -56,6 +56,10 @@ export function seedSpec172Db(data: Partial<Spec172Db>): void {
 
 export function getStubEnterpriseCapability(id: string): StubEnterpriseCapability | undefined {
   return db.enterpriseCapabilities.find((ec) => ec.id === id);
+}
+
+export function getStubEnterpriseCapabilities(): StubEnterpriseCapability[] {
+  return db.enterpriseCapabilities;
 }
 
 export function getStubCapabilities(): StubCapability[] {
@@ -132,7 +136,10 @@ function includedItem(
     self: link(`/api/v1/capabilities/${item.capabilityId}`, 'GET'),
   };
   if (item.role === 'source' && !directionAgreed) {
-    links['x-exclude'] = link(`/api/v1/enterprise-capabilities/${ecId}/direction/sources/${item.capabilityId}`, 'DELETE');
+    links['x-exclude'] = link(
+      `/api/v1/enterprise-capabilities/${ecId}/direction/sources/${item.capabilityId}`,
+      'DELETE',
+    );
   }
   if (item.role === 'carved-out' && item.carvedOutBy) {
     links['x-owning-ec'] = link(`/api/v1/enterprise-capabilities/${item.carvedOutBy.enterpriseCapabilityId}`, 'GET');

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:mock": "VITE_USE_MOCK_API=true VITE_API_URL= vite",
     "dev:e2e": "vite --mode e2e",
     "build": "tsc -b && vite build",
     "lint": "biome lint .",
@@ -57,5 +58,10 @@
     "typescript": "~5.9.3",
     "vite": "^7.3.1",
     "vitest": "^4.0.18"
+  },
+  "msw": {
+    "workerDirectory": [
+      "public"
+    ]
   }
 }

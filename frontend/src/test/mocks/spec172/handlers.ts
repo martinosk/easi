@@ -10,7 +10,6 @@ import type {
 } from '../../../features/architecture-direction/types';
 import { evaluateEligibility, resolveComposition } from './composition';
 import {
-  type StubDirection,
   addDirection,
   buildCompositionResponse,
   buildDirectionDto,
@@ -18,12 +17,14 @@ import {
   buildEnterpriseCapabilityDto,
   getActiveDirection,
   getStubCapabilities,
+  getStubEnterpriseCapabilities,
   getStubEnterpriseCapability,
   otherActiveDirections,
+  type StubDirection,
   upsertDirection,
 } from './store';
 
-const BASE_URL = 'http://localhost:8080';
+const BASE_URL = '*';
 
 const link = (href: string, method: HttpMethod) => ({ href, method });
 
@@ -48,7 +49,8 @@ function immutableResponse(ecId: string) {
   return HttpResponse.json(
     {
       error: 'Conflict',
-      message: 'This direction is agreed and its source set is frozen. To recompose, reject the direction and capture a new one.',
+      message:
+        'This direction is agreed and its source set is frozen. To recompose, reject the direction and capture a new one.',
       details: { directionStatus: 'agreed' },
       _links: { 'x-reject': link(`/api/v1/enterprise-capabilities/${ecId}/direction/reject`, 'POST') },
     },
@@ -61,6 +63,13 @@ function newDirectionId(): string {
 }
 
 export const spec172Handlers = [
+  http.get(`${BASE_URL}/api/v1/enterprise-capabilities`, () => {
+    return HttpResponse.json({
+      data: getStubEnterpriseCapabilities().map(buildEnterpriseCapabilityDto),
+      _links: { self: link('/api/v1/enterprise-capabilities', 'GET') },
+    });
+  }),
+
   http.get(`${BASE_URL}/api/v1/enterprise-capabilities/:id`, ({ params }) => {
     const ec = getStubEnterpriseCapability(params.id as string);
     if (!ec) return new HttpResponse(null, { status: 404 });
@@ -134,45 +143,48 @@ export const spec172Handlers = [
     return HttpResponse.json(response);
   }),
 
-  http.post(`${BASE_URL}/api/v1/enterprise-capabilities/:id/direction/composition-preview`, async ({ params, request }) => {
-    const ecId = params.id as string;
-    const ec = getStubEnterpriseCapability(ecId);
-    if (!ec) return new HttpResponse(null, { status: 404 });
-    const body = (await request.json()) as CompositionPreviewRequest;
-    const sourceIds = body.sourceCapabilityIds ?? [];
+  http.post(
+    `${BASE_URL}/api/v1/enterprise-capabilities/:id/direction/composition-preview`,
+    async ({ params, request }) => {
+      const ecId = params.id as string;
+      const ec = getStubEnterpriseCapability(ecId);
+      if (!ec) return new HttpResponse(null, { status: 404 });
+      const body = (await request.json()) as CompositionPreviewRequest;
+      const sourceIds = body.sourceCapabilityIds ?? [];
 
-    const others = otherActiveDirections(ecId);
-    const synthetic = [{ ecId, ecName: ec.name, sourceCapabilityIds: sourceIds }, ...others];
-    const included = resolveComposition(ecId, synthetic, getStubCapabilities());
+      const others = otherActiveDirections(ecId);
+      const synthetic = [{ ecId, ecName: ec.name, sourceCapabilityIds: sourceIds }, ...others];
+      const included = resolveComposition(ecId, synthetic, getStubCapabilities());
 
-    const response: CompositionPreviewResponse = {
-      includedCapabilities: included.map((i) => ({
-        capabilityId: i.capabilityId,
-        name: i.name,
-        level: i.level,
-        businessDomainId: i.businessDomainId,
-        businessDomainName: i.businessDomainName,
-        role: i.role,
-        carvedOutBy: i.carvedOutBy,
-      })),
-      sourceEligibility: sourceIds.map((capId) => {
-        const e = evaluateEligibility(capId, ecId, others);
-        return {
-          capabilityId: capId,
-          eligible: e.eligible,
-          ineligibilityReason: e.ineligibilityReason,
-          conflictingEnterpriseCapability: e.conflictingEnterpriseCapability,
-        };
-      }),
-      meta: {
-        sourceCount: sourceIds.length,
-        includedCount: included.filter((i) => i.role !== 'carved-out').length,
-        carvedOutCount: included.filter((i) => i.role === 'carved-out').length,
-      },
-      _links: { self: link(`/api/v1/enterprise-capabilities/${ecId}/direction/composition-preview`, 'POST') },
-    };
-    return HttpResponse.json(response);
-  }),
+      const response: CompositionPreviewResponse = {
+        includedCapabilities: included.map((i) => ({
+          capabilityId: i.capabilityId,
+          name: i.name,
+          level: i.level,
+          businessDomainId: i.businessDomainId,
+          businessDomainName: i.businessDomainName,
+          role: i.role,
+          carvedOutBy: i.carvedOutBy,
+        })),
+        sourceEligibility: sourceIds.map((capId) => {
+          const e = evaluateEligibility(capId, ecId, others);
+          return {
+            capabilityId: capId,
+            eligible: e.eligible,
+            ineligibilityReason: e.ineligibilityReason,
+            conflictingEnterpriseCapability: e.conflictingEnterpriseCapability,
+          };
+        }),
+        meta: {
+          sourceCount: sourceIds.length,
+          includedCount: included.filter((i) => i.role !== 'carved-out').length,
+          carvedOutCount: included.filter((i) => i.role === 'carved-out').length,
+        },
+        _links: { self: link(`/api/v1/enterprise-capabilities/${ecId}/direction/composition-preview`, 'POST') },
+      };
+      return HttpResponse.json(response);
+    },
+  ),
 
   http.post(`${BASE_URL}/api/v1/enterprise-capabilities/:id/direction`, async ({ params, request }) => {
     const ecId = params.id as string;
@@ -190,7 +202,12 @@ export const spec172Handlers = [
       const e = evaluateEligibility(capId, ecId, others);
       if (!e.eligible && e.conflictingEnterpriseCapability) {
         const cap = getStubCapabilities().find((c) => c.id === capId);
-        return conflictResponse(e.conflictingEnterpriseCapability.name, cap?.name ?? capId, capId, e.conflictingEnterpriseCapability.id);
+        return conflictResponse(
+          e.conflictingEnterpriseCapability.name,
+          cap?.name ?? capId,
+          capId,
+          e.conflictingEnterpriseCapability.id,
+        );
       }
     }
     const direction: StubDirection = {
@@ -218,7 +235,12 @@ export const spec172Handlers = [
     const e = evaluateEligibility(body.capabilityId, ecId, others);
     if (!e.eligible && e.conflictingEnterpriseCapability) {
       const cap = getStubCapabilities().find((c) => c.id === body.capabilityId);
-      return conflictResponse(e.conflictingEnterpriseCapability.name, cap?.name ?? body.capabilityId, body.capabilityId, e.conflictingEnterpriseCapability.id);
+      return conflictResponse(
+        e.conflictingEnterpriseCapability.name,
+        cap?.name ?? body.capabilityId,
+        body.capabilityId,
+        e.conflictingEnterpriseCapability.id,
+      );
     }
     if (!direction.sourceCapabilityIds.includes(body.capabilityId)) {
       direction.sourceCapabilityIds.push(body.capabilityId);
