@@ -155,7 +155,6 @@ func TestGetDirectionForEC_DirectionAffordancesByStatus(t *testing.T) {
 func TestCaptureDirection_DispatchesCommand(t *testing.T) {
 	ecID := uuid.New().String()
 	src1, src2 := uuid.New().String(), uuid.New().String()
-	dom := uuid.New().String()
 	did := uuid.New().String()
 	bus := &mockCommandBus{createdID: did}
 	queries := &mockDirectionQueries{activeByEC: &readmodels.DirectionDTO{
@@ -169,7 +168,6 @@ func TestCaptureDirection_DispatchesCommand(t *testing.T) {
 	reqBody, _ := json.Marshal(CaptureDirectionRequest{
 		Type:                "consolidate",
 		SourceCapabilityIDs: []string{src1, src2},
-		Placements:          []PlacementRequest{{TargetBusinessDomainID: dom}},
 		Horizon:             "next",
 		Narrative:           "consolidating",
 	})
@@ -300,8 +298,6 @@ func TestUpdateDirection_DispatchesSingleAtomicCommand(t *testing.T) {
 	assert.Equal(t, "Refined", *cmd.Narrative)
 	require.NotNil(t, cmd.Horizon)
 	assert.Equal(t, "later", *cmd.Horizon)
-	assert.Nil(t, cmd.SourceCapabilityIDs)
-	assert.Nil(t, cmd.Placements)
 }
 
 func TestRejectDirection_NoActiveDirection_404(t *testing.T) {

@@ -12,6 +12,7 @@ import (
 	amPL "easi/backend/internal/architecturemodeling/publishedlanguage"
 	authPL "easi/backend/internal/auth/publishedlanguage"
 	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
+	eaPL "easi/backend/internal/enterprisearchitecture/publishedlanguage"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
 	sharedAPI "easi/backend/internal/shared/api"
@@ -26,14 +27,16 @@ type AuthMiddleware interface {
 }
 
 type RoutesDeps struct {
-	Router           chi.Router
-	CommandBus       *cqrs.InMemoryCommandBus
-	EventStore       eventstore.EventStore
-	EventBus         events.EventBus
-	DB               *database.TenantAwareDB
-	HATEOAS          *sharedAPI.HATEOASLinks
-	AuthMiddleware   AuthMiddleware
-	ReferenceChecker *services.ReferenceChecker
+	Router             chi.Router
+	CommandBus         *cqrs.InMemoryCommandBus
+	EventStore         eventstore.EventStore
+	EventBus           events.EventBus
+	DB                 *database.TenantAwareDB
+	HATEOAS            *sharedAPI.HATEOASLinks
+	AuthMiddleware     AuthMiddleware
+	ReferenceChecker   *services.ReferenceChecker
+	SourceEligibility  services.SourceEligibility
+	CompositionPreview CompositionPreviewProvider
 }
 
 func SetupRoutes(deps RoutesDeps) error {
@@ -41,12 +44,21 @@ func SetupRoutes(deps RoutesDeps) error {
 	repo := repositories.NewDirectionRepository(deps.EventStore)
 
 	subscribeEvents(deps.EventBus, readModel)
-	registerCommandHandlers(deps.CommandBus, repo, readModel, deps.ReferenceChecker)
+	deps.EventBus.Subscribe(eaPL.EnterpriseCapabilityDeleted,
+		projectors.NewEnterpriseCapabilityDeletedReactor(readModel, deps.CommandBus))
+	registerCommandHandlers(commandHandlerDeps{
+		commandBus:  deps.CommandBus,
+		repo:        repo,
+		readModel:   readModel,
+		refs:        deps.ReferenceChecker,
+		eligibility: deps.SourceEligibility,
+	})
 
 	links := NewDirectionLinks(deps.HATEOAS)
 	httpHandlers := NewDirectionHandlers(deps.CommandBus, readModel, links)
+	previewHandlers := NewCompositionPreviewHandlers(deps.CompositionPreview, deps.HATEOAS)
 
-	registerRoutes(deps.Router, httpHandlers, deps.AuthMiddleware)
+	registerRoutes(deps.Router, httpHandlers, previewHandlers, deps.AuthMiddleware)
 
 	setupStandardApplicationRoutes(deps)
 	return nil
@@ -115,24 +127,30 @@ func subscribeEvents(eventBus events.EventBus, rm *readmodels.DirectionReadModel
 	eventBus.Subscribe(cmPL.CapabilityUnassignedFromDomain, staleProjector)
 }
 
-func registerCommandHandlers(
-	commandBus *cqrs.InMemoryCommandBus,
-	repo *repositories.DirectionRepository,
-	rm *readmodels.DirectionReadModel,
-	refs *services.ReferenceChecker,
-) {
-	policy := services.NewDirectionReferenceService(refs, rm)
-	commandBus.Register("CaptureDirection", handlers.NewCaptureDirectionHandler(repo, policy))
-	commandBus.Register("AdvanceDirection", handlers.NewAdvanceDirectionHandler(repo))
-	commandBus.Register("RejectDirection", handlers.NewRejectDirectionHandler(repo))
-	commandBus.Register("UpdateDirection", handlers.NewUpdateDirectionHandler(repo))
+type commandHandlerDeps struct {
+	commandBus  *cqrs.InMemoryCommandBus
+	repo        *repositories.DirectionRepository
+	readModel   *readmodels.DirectionReadModel
+	refs        *services.ReferenceChecker
+	eligibility services.SourceEligibility
 }
 
-func registerRoutes(r chi.Router, h *DirectionHandlers, authMiddleware AuthMiddleware) {
+func registerCommandHandlers(deps commandHandlerDeps) {
+	policy := services.NewDirectionReferenceService(deps.refs, deps.readModel, deps.eligibility)
+	deps.commandBus.Register("CaptureDirection", handlers.NewCaptureDirectionHandler(deps.repo, policy))
+	deps.commandBus.Register("AdvanceDirection", handlers.NewAdvanceDirectionHandler(deps.repo))
+	deps.commandBus.Register("RejectDirection", handlers.NewRejectDirectionHandler(deps.repo))
+	deps.commandBus.Register("UpdateDirection", handlers.NewUpdateDirectionHandler(deps.repo))
+	deps.commandBus.Register("AddDirectionSource", handlers.NewAddDirectionSourceHandler(deps.repo, policy))
+	deps.commandBus.Register("RemoveDirectionSource", handlers.NewRemoveDirectionSourceHandler(deps.repo))
+}
+
+func registerRoutes(r chi.Router, h *DirectionHandlers, preview *CompositionPreviewHandlers, authMiddleware AuthMiddleware) {
 	r.Route("/enterprise-capabilities/{id}/direction", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequirePermission(authPL.PermArchitectureDirectionRead))
 			r.Get("/", h.GetDirectionForEnterpriseCapability)
+			r.Post("/composition-preview", preview.PreviewComposition)
 		})
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequirePermission(authPL.PermArchitectureDirectionWrite))
@@ -141,6 +159,8 @@ func registerRoutes(r chi.Router, h *DirectionHandlers, authMiddleware AuthMiddl
 			r.Post("/propose", h.ProposeDirection)
 			r.Post("/agree", h.AgreeDirection)
 			r.Post("/reject", h.RejectDirection)
+			r.Post("/sources", h.AddDirectionSource)
+			r.Delete("/sources/{capabilityId}", h.RemoveDirectionSource)
 		})
 	})
 }

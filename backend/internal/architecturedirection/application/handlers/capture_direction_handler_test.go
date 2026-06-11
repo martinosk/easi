@@ -45,14 +45,27 @@ func constantExists(value bool) services.ExistenceCheck {
 
 func allReferencesExist() *services.ReferenceChecker {
 	return &services.ReferenceChecker{
-		EnterpriseCapabilityExists: constantExists(true),
-		PhysicalCapabilityExists:   constantExists(true),
-		BusinessDomainExists:       constantExists(true),
+		EnterpriseCapabilityExists:   constantExists(true),
+		EnterpriseCapabilityIsActive: constantExists(true),
+		PhysicalCapabilityExists:     constantExists(true),
 	}
 }
 
+type fakeEligibility struct {
+	conflict *services.SourceConflict
+	err      error
+}
+
+func (f *fakeEligibility) FirstSourceConflict(_ context.Context, _ string, _ []string) (*services.SourceConflict, error) {
+	return f.conflict, f.err
+}
+
 func newPolicy(refs *services.ReferenceChecker, lookup services.ActiveDirectionLookup) *services.DirectionReferenceService {
-	return services.NewDirectionReferenceService(refs, lookup)
+	return services.NewDirectionReferenceService(refs, lookup, &fakeEligibility{})
+}
+
+func newPolicyWithEligibility(refs *services.ReferenceChecker, lookup services.ActiveDirectionLookup, eligibility services.SourceEligibility) *services.DirectionReferenceService {
+	return services.NewDirectionReferenceService(refs, lookup, eligibility)
 }
 
 func validCaptureCmd() *commands.CaptureDirection {
@@ -60,7 +73,6 @@ func validCaptureCmd() *commands.CaptureDirection {
 		EnterpriseCapabilityID: uuid.New().String(),
 		Type:                   "consolidate",
 		SourceCapabilityIDs:    []string{uuid.New().String(), uuid.New().String()},
-		Placements:             []commands.PlacementInput{{TargetBusinessDomainID: uuid.New().String()}},
 		Horizon:                "next",
 		Narrative:              "We consolidate two payroll systems into one.",
 	}
@@ -101,15 +113,45 @@ func TestCaptureDirectionHandler_InvalidType_Fails(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestCaptureDirectionHandler_InvalidSourceCount_Fails(t *testing.T) {
+func TestCaptureDirectionHandler_SingleSourceDraftIsAccepted(t *testing.T) {
 	repo := &mockDirectionRepository{}
 	lookup := &mockActiveDirectionLookup{}
 	handler := NewCaptureDirectionHandler(repo, newPolicy(allReferencesExist(), lookup))
 
 	cmd := validCaptureCmd()
-	cmd.SourceCapabilityIDs = []string{uuid.New().String()} // only 1 for consolidate
+	cmd.SourceCapabilityIDs = []string{uuid.New().String()}
 	_, err := handler.Handle(context.Background(), cmd)
-	assert.ErrorIs(t, err, aggregates.ErrInvalidSourceCardinality)
+	require.NoError(t, err, "a draft may carry a single source regardless of type (R8)")
+	require.Len(t, repo.saved, 1)
+}
+
+func TestCaptureDirectionHandler_InactiveEC_Fails(t *testing.T) {
+	repo := &mockDirectionRepository{}
+	refs := allReferencesExist()
+	refs.EnterpriseCapabilityIsActive = constantExists(false)
+	handler := NewCaptureDirectionHandler(repo, newPolicy(refs, &mockActiveDirectionLookup{}))
+
+	_, err := handler.Handle(context.Background(), validCaptureCmd())
+	assert.ErrorIs(t, err, services.ErrEnterpriseCapabilityInactive, "directions can only be captured on active ECs (R4)")
+	assert.Empty(t, repo.saved)
+}
+
+func TestCaptureDirectionHandler_SourceClaimedByOtherEC_Fails(t *testing.T) {
+	repo := &mockDirectionRepository{}
+	eligibility := &fakeEligibility{conflict: &services.SourceConflict{
+		CapabilityID:             "cap-1",
+		CapabilityName:           "Customer Account Creation",
+		EnterpriseCapabilityID:   "ec-other",
+		EnterpriseCapabilityName: "Customer Identity",
+	}}
+	handler := NewCaptureDirectionHandler(repo, newPolicyWithEligibility(allReferencesExist(), &mockActiveDirectionLookup{}, eligibility))
+
+	_, err := handler.Handle(context.Background(), validCaptureCmd())
+
+	var conflictErr *services.SourceConflictError
+	require.ErrorAs(t, err, &conflictErr, "sourcing a capability claimed by another EC's active direction is rejected (R1)")
+	assert.Equal(t, "ec-other", conflictErr.Conflict.EnterpriseCapabilityID)
+	assert.Empty(t, repo.saved)
 }
 
 func TestCaptureDirectionHandler_LookupError_Fails(t *testing.T) {
@@ -128,7 +170,6 @@ func TestCaptureDirectionHandler_UnknownReference_Fails(t *testing.T) {
 	}{
 		{"unknown enterprise capability", func(r *services.ReferenceChecker) { r.EnterpriseCapabilityExists = constantExists(false) }},
 		{"unknown source capability", func(r *services.ReferenceChecker) { r.PhysicalCapabilityExists = constantExists(false) }},
-		{"unknown target business domain", func(r *services.ReferenceChecker) { r.BusinessDomainExists = constantExists(false) }},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

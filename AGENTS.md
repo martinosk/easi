@@ -107,3 +107,4 @@ Before claiming any code change is done, run the `easi-codehealth` skill on ever
 - Environment variables follow `.env.example` patterns in each sub-directory.
 - Docker Compose (`docker-compose.yml`) starts local PostgreSQL and Dex (OIDC).
 - **Never add comments unless the user explicitly asks for them.**
+- Keep commit messages short, 1 line + 3 lines max. Never add "co-authored-by"

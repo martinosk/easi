@@ -4,10 +4,9 @@ import (
 	"context"
 	"database/sql"
 
+	domainservices "easi/backend/internal/enterprisearchitecture/domain/services"
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
-
-	"github.com/lib/pq"
 )
 
 type DomainCapabilityMetadataDTO struct {
@@ -107,6 +106,41 @@ func (rm *DomainCapabilityMetadataReadModel) GetByID(ctx context.Context, capabi
 	dto.BusinessDomainName = businessDomainName.String
 
 	return &dto, nil
+}
+
+func (rm *DomainCapabilityMetadataReadModel) AllCapabilityNodes(ctx context.Context) ([]domainservices.CapabilityNode, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var nodes []domainservices.CapabilityNode
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx,
+			`SELECT capability_id, capability_name, capability_level, parent_id, business_domain_id, business_domain_name
+			 FROM enterprisearchitecture.domain_capability_metadata
+			 WHERE tenant_id = $1 ORDER BY capability_name`,
+			tenantID.Value(),
+		)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = rows.Close() }()
+
+		for rows.Next() {
+			var node domainservices.CapabilityNode
+			var parentID, businessDomainID, businessDomainName sql.NullString
+			if err := rows.Scan(&node.ID, &node.Name, &node.Level, &parentID, &businessDomainID, &businessDomainName); err != nil {
+				return err
+			}
+			node.ParentID = parentID.String
+			node.BusinessDomainID = businessDomainID.String
+			node.BusinessDomainName = businessDomainName.String
+			nodes = append(nodes, node)
+		}
+		return rows.Err()
+	})
+	return nodes, err
 }
 
 func (rm *DomainCapabilityMetadataReadModel) GetCapabilityName(ctx context.Context, capabilityID string) (string, error) {
@@ -269,44 +303,6 @@ func (rm *DomainCapabilityMetadataReadModel) GetBusinessDomainForL1(ctx context.
 	return BusinessDomainRef{ID: businessDomainID.String, Name: businessDomainName.String}, nil
 }
 
-func (rm *DomainCapabilityMetadataReadModel) GetEnterpriseCapabilitiesLinkedToCapabilities(ctx context.Context, capabilityIDs []string) ([]string, error) {
-	if len(capabilityIDs) == 0 {
-		return nil, nil
-	}
-
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	args := []any{tenantID.Value(), pq.Array(capabilityIDs)}
-
-	var enterpriseCapabilityIDs []string
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		query := `
-			SELECT DISTINCT enterprise_capability_id
-			FROM enterprisearchitecture.enterprise_capability_links
-			WHERE tenant_id = $1 AND domain_capability_id = ANY($2)`
-
-		rows, err := tx.QueryContext(ctx, query, args...)
-		if err != nil {
-			return err
-		}
-		defer func() { _ = rows.Close() }()
-
-		for rows.Next() {
-			var id string
-			if err := rows.Scan(&id); err != nil {
-				return err
-			}
-			enterpriseCapabilityIDs = append(enterpriseCapabilityIDs, id)
-		}
-		return rows.Err()
-	})
-
-	return enterpriseCapabilityIDs, err
-}
-
 func (rm *DomainCapabilityMetadataReadModel) RecalculateL1ForSubtree(ctx context.Context, capabilityID string) error {
 	subtreeIDs, err := rm.GetSubtreeCapabilityIDs(ctx, capabilityID)
 	if err != nil {
@@ -383,34 +379,14 @@ func (rm *DomainCapabilityMetadataReadModel) UpdateMaturityValue(ctx context.Con
 	)
 }
 
-func (rm *DomainCapabilityMetadataReadModel) LookupBusinessDomainName(ctx context.Context, businessDomainID string) (string, error) {
-	if businessDomainID == "" {
-		return "", nil
-	}
-
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return "", err
-	}
-
-	var name string
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		return tx.QueryRowContext(ctx,
-			"SELECT business_domain_name FROM enterprisearchitecture.domain_capability_metadata WHERE tenant_id = $1 AND business_domain_id = $2 LIMIT 1",
-			tenantID.Value(), businessDomainID,
-		).Scan(&name)
-	})
-
-	if err == sql.ErrNoRows {
-		return businessDomainID, nil
-	}
-	if err != nil {
-		return businessDomainID, err
-	}
-
-	return name, nil
+func (rm *DomainCapabilityMetadataReadModel) UpdateBusinessDomainNameForDomain(ctx context.Context, businessDomainID, name string) error {
+	return rm.execForTenant(ctx,
+		`UPDATE enterprisearchitecture.domain_capability_metadata
+		 SET business_domain_name = $2
+		 WHERE tenant_id = $1 AND business_domain_id = $3`,
+		name, businessDomainID,
+	)
 }
-
 func (rm *DomainCapabilityMetadataReadModel) execForTenant(ctx context.Context, query string, args ...any) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {

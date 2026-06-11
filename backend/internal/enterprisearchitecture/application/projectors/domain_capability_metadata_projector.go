@@ -19,40 +19,20 @@ type MetadataStore interface {
 	UpdateParentAndL1(ctx context.Context, update readmodels.ParentL1Update) error
 	UpdateLevel(ctx context.Context, capabilityID string, newLevel string) error
 	UpdateBusinessDomainForL1Subtree(ctx context.Context, l1CapabilityID string, bd readmodels.BusinessDomainRef) error
+	UpdateBusinessDomainNameForDomain(ctx context.Context, businessDomainID, name string) error
 	RecalculateL1ForSubtree(ctx context.Context, capabilityID string) error
-	GetSubtreeCapabilityIDs(ctx context.Context, rootID string) ([]string, error)
-	GetEnterpriseCapabilitiesLinkedToCapabilities(ctx context.Context, capabilityIDs []string) ([]string, error)
-	LookupBusinessDomainName(ctx context.Context, businessDomainID string) (string, error)
 	UpdateMaturityValue(ctx context.Context, capabilityID string, maturityValue int) error
 }
 
-type CapabilityCountUpdater interface {
-	DecrementLinkCount(ctx context.Context, id string) error
-	RecalculateDomainCount(ctx context.Context, enterpriseCapabilityID string) error
-}
-
-type CapabilityLinkStore interface {
-	GetByDomainCapabilityID(ctx context.Context, domainCapabilityID string) (*readmodels.EnterpriseCapabilityLinkDTO, error)
-	Delete(ctx context.Context, id string) error
-	DeleteBlockingByBlocker(ctx context.Context, blockedByCapabilityID string) error
-}
+type BusinessDomainNameLookup func(ctx context.Context, businessDomainID string) (string, error)
 
 type DomainCapabilityMetadataProjector struct {
-	metadataReadModel   MetadataStore
-	capabilityReadModel CapabilityCountUpdater
-	linkReadModel       CapabilityLinkStore
+	metadataReadModel MetadataStore
+	domainNames       BusinessDomainNameLookup
 }
 
-func NewDomainCapabilityMetadataProjector(
-	metadataReadModel MetadataStore,
-	capabilityReadModel CapabilityCountUpdater,
-	linkReadModel CapabilityLinkStore,
-) *DomainCapabilityMetadataProjector {
-	return &DomainCapabilityMetadataProjector{
-		metadataReadModel:   metadataReadModel,
-		capabilityReadModel: capabilityReadModel,
-		linkReadModel:       linkReadModel,
-	}
+func NewDomainCapabilityMetadataProjector(metadataReadModel MetadataStore, domainNames BusinessDomainNameLookup) *DomainCapabilityMetadataProjector {
+	return &DomainCapabilityMetadataProjector{metadataReadModel: metadataReadModel, domainNames: domainNames}
 }
 
 func (p *DomainCapabilityMetadataProjector) Handle(ctx context.Context, event domain.DomainEvent) error {
@@ -75,6 +55,7 @@ func (p *DomainCapabilityMetadataProjector) ProjectEvent(ctx context.Context, ev
 		cmPL.CapabilityAssignedToDomain:     p.handleCapabilityAssignedToDomain,
 		cmPL.CapabilityUnassignedFromDomain: p.handleCapabilityUnassignedFromDomain,
 		cmPL.CapabilityMetadataUpdated:      p.handleCapabilityMetadataUpdated,
+		cmPL.BusinessDomainUpdated:          p.handleBusinessDomainUpdated,
 	}
 
 	if handler, exists := handlers[eventType]; exists {
@@ -156,44 +137,11 @@ type capabilityDeletedEvent struct {
 
 func (p *DomainCapabilityMetadataProjector) handleCapabilityDeleted(ctx context.Context, eventData []byte) error {
 	return handleProjection(ctx, eventData, func(ctx context.Context, event capabilityDeletedEvent) error {
-		if err := p.cleanupLinksForDeletedCapability(ctx, event.ID); err != nil {
-			return fmt.Errorf("project CapabilityDeleted cleanup links for capability %s: %w", event.ID, err)
-		}
 		if err := p.metadataReadModel.Delete(ctx, event.ID); err != nil {
 			return fmt.Errorf("project CapabilityDeleted metadata delete for capability %s: %w", event.ID, err)
 		}
 		return nil
 	})
-}
-
-func (p *DomainCapabilityMetadataProjector) cleanupLinksForDeletedCapability(ctx context.Context, capabilityID string) error {
-	link, err := p.linkReadModel.GetByDomainCapabilityID(ctx, capabilityID)
-	if err != nil {
-		log.Printf("Failed to check link for deleted capability %s: %v", capabilityID, err)
-		return fmt.Errorf("cleanup enterprise links/counts for deleted capability %s: %w", capabilityID, err)
-	}
-	if link == nil {
-		return nil
-	}
-
-	if err := p.linkReadModel.Delete(ctx, link.ID); err != nil {
-		log.Printf("Failed to delete link for capability %s: %v", capabilityID, err)
-		return fmt.Errorf("cleanup enterprise links/counts for deleted capability %s: %w", capabilityID, err)
-	}
-	if err := p.linkReadModel.DeleteBlockingByBlocker(ctx, capabilityID); err != nil {
-		log.Printf("Failed to delete blocking records for capability %s: %v", capabilityID, err)
-		return fmt.Errorf("cleanup enterprise links/counts for deleted capability %s: %w", capabilityID, err)
-	}
-	if err := p.capabilityReadModel.DecrementLinkCount(ctx, link.EnterpriseCapabilityID); err != nil {
-		log.Printf("Failed to decrement link count: %v", err)
-		return fmt.Errorf("cleanup enterprise links/counts for deleted capability %s: %w", capabilityID, err)
-	}
-	if err := p.capabilityReadModel.RecalculateDomainCount(ctx, link.EnterpriseCapabilityID); err != nil {
-		log.Printf("Failed to recalculate domain count: %v", err)
-		return fmt.Errorf("cleanup enterprise links/counts for deleted capability %s: %w", capabilityID, err)
-	}
-
-	return nil
 }
 
 type capabilityParentChangedEvent struct {
@@ -216,7 +164,7 @@ func (p *DomainCapabilityMetadataProjector) handleCapabilityParentChanged(ctx co
 			log.Printf("Failed to update parent for %s: %v", event.CapabilityID, err)
 			return fmt.Errorf("project CapabilityParentChanged parent/l1 update for capability %s: %w", event.CapabilityID, err)
 		}
-		return p.recalculateSubtreeAndDomainCounts(ctx, event.CapabilityID)
+		return p.recalculateL1ForSubtree(ctx, event.CapabilityID)
 	})
 }
 
@@ -243,11 +191,25 @@ type capabilityAssignedToDomainEvent struct {
 
 func (p *DomainCapabilityMetadataProjector) handleCapabilityAssignedToDomain(ctx context.Context, eventData []byte) error {
 	return handleProjection(ctx, eventData, func(ctx context.Context, event capabilityAssignedToDomainEvent) error {
-		domainName, err := p.lookupBusinessDomainName(ctx, event.BusinessDomainID)
+		domainName, err := p.domainNames(ctx, event.BusinessDomainID)
 		if err != nil {
 			return fmt.Errorf("project CapabilityAssignedToDomain lookup domain name for capability %s domain %s: %w", event.CapabilityID, event.BusinessDomainID, err)
 		}
 		return p.updateBusinessDomainAndRecalculate(ctx, event.CapabilityID, readmodels.BusinessDomainRef{ID: event.BusinessDomainID, Name: domainName})
+	})
+}
+
+type businessDomainUpdatedEvent struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+func (p *DomainCapabilityMetadataProjector) handleBusinessDomainUpdated(ctx context.Context, eventData []byte) error {
+	return handleProjection(ctx, eventData, func(ctx context.Context, event businessDomainUpdatedEvent) error {
+		if err := p.metadataReadModel.UpdateBusinessDomainNameForDomain(ctx, event.ID, event.Name); err != nil {
+			return fmt.Errorf("project BusinessDomainUpdated rename for domain %s: %w", event.ID, err)
+		}
+		return nil
 	})
 }
 
@@ -277,48 +239,15 @@ func (p *DomainCapabilityMetadataProjector) updateBusinessDomainAndRecalculate(c
 		}
 	}
 
-	return p.recalculateSubtreeAndDomainCounts(ctx, capabilityID)
+	return p.recalculateL1ForSubtree(ctx, capabilityID)
 }
 
-func (p *DomainCapabilityMetadataProjector) recalculateSubtreeAndDomainCounts(ctx context.Context, capabilityID string) error {
+func (p *DomainCapabilityMetadataProjector) recalculateL1ForSubtree(ctx context.Context, capabilityID string) error {
 	if err := p.metadataReadModel.RecalculateL1ForSubtree(ctx, capabilityID); err != nil {
 		log.Printf("Failed to recalculate L1 for subtree %s: %v", capabilityID, err)
 		return fmt.Errorf("recalculate l1 for subtree rooted at capability %s: %w", capabilityID, err)
 	}
-
-	subtreeIDs, err := p.metadataReadModel.GetSubtreeCapabilityIDs(ctx, capabilityID)
-	if err != nil {
-		log.Printf("Failed to get subtree for %s: %v", capabilityID, err)
-		return fmt.Errorf("load subtree capability ids for capability %s: %w", capabilityID, err)
-	}
-
-	return p.recalculateDomainCountsForLinkedCapabilities(ctx, subtreeIDs)
-}
-
-func (p *DomainCapabilityMetadataProjector) recalculateDomainCountsForLinkedCapabilities(ctx context.Context, capabilityIDs []string) error {
-	enterpriseCapIDs, err := p.metadataReadModel.GetEnterpriseCapabilitiesLinkedToCapabilities(ctx, capabilityIDs)
-	if err != nil {
-		log.Printf("Failed to get enterprise capabilities linked to capabilities: %v", err)
-		return fmt.Errorf("load enterprise capabilities linked to %d capabilities: %w", len(capabilityIDs), err)
-	}
-
-	for _, enterpriseCapID := range enterpriseCapIDs {
-		if err := p.capabilityReadModel.RecalculateDomainCount(ctx, enterpriseCapID); err != nil {
-			log.Printf("Failed to recalculate domain count for enterprise capability %s: %v", enterpriseCapID, err)
-			return fmt.Errorf("recalculate domain count for enterprise capability %s: %w", enterpriseCapID, err)
-		}
-	}
-
 	return nil
-}
-
-func (p *DomainCapabilityMetadataProjector) lookupBusinessDomainName(ctx context.Context, businessDomainID string) (string, error) {
-	name, err := p.metadataReadModel.LookupBusinessDomainName(ctx, businessDomainID)
-	if err != nil {
-		log.Printf("Failed to lookup business domain name for %s: %v", businessDomainID, err)
-		return "", fmt.Errorf("lookup business domain name %s: %w", businessDomainID, err)
-	}
-	return name, nil
 }
 
 type capabilityMetadataUpdatedEvent struct {

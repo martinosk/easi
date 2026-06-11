@@ -283,6 +283,58 @@ func (rm *DirectionReadModel) GetActiveByEnterpriseCapabilityID(ctx context.Cont
 	})
 }
 
+type ECDirectionSources struct {
+	EnterpriseCapabilityID string
+	Status                 string
+	SourceCapabilityIDs    []string
+}
+
+func (rm *DirectionReadModel) ActiveDirectionSourcesAcrossECs(ctx context.Context) ([]ECDirectionSources, error) {
+	tenantID, err := tenantOf(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var out []ECDirectionSources
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx,
+			`SELECT d.enterprise_capability_id, d.status, s.capability_id
+			 FROM architecturedirection.directions d
+			 LEFT JOIN architecturedirection.direction_source_capabilities s
+			   ON s.tenant_id = d.tenant_id AND s.direction_id = d.id
+			 WHERE d.tenant_id = $1 AND d.status != 'rejected'
+			 ORDER BY d.enterprise_capability_id, s.capability_id`,
+			tenantID,
+		)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = rows.Close() }()
+
+		indexByEC := map[string]int{}
+		for rows.Next() {
+			var ecID, status string
+			var capabilityID sql.NullString
+			if err := rows.Scan(&ecID, &status, &capabilityID); err != nil {
+				return err
+			}
+			index, exists := indexByEC[ecID]
+			if !exists {
+				out = append(out, ECDirectionSources{EnterpriseCapabilityID: ecID, Status: status, SourceCapabilityIDs: []string{}})
+				index = len(out) - 1
+				indexByEC[ecID] = index
+			}
+			if capabilityID.Valid {
+				out[index].SourceCapabilityIDs = append(out[index].SourceCapabilityIDs, capabilityID.String)
+			}
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		return nil, fmt.Errorf("load active direction sources across enterprise capabilities: %w", err)
+	}
+	return out, nil
+}
+
 func (rm *DirectionReadModel) HasActiveDirectionForEnterpriseCapability(ctx context.Context, enterpriseCapabilityID string) (bool, error) {
 	tenantID, err := tenantOf(ctx)
 	if err != nil {

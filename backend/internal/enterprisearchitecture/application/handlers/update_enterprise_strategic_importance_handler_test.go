@@ -100,10 +100,10 @@ func TestUpdateEnterpriseStrategicImportanceHandler_NonExistent_ReturnsError(t *
 
 func TestUpdateEnterpriseStrategicImportanceHandler_FailureCases(t *testing.T) {
 	tests := []struct {
-		name           string
-		makeRepo       func(existing *aggregates.EnterpriseStrategicImportance) *mockUpdateImportanceRepository
-		importance     int
-		expectNoSaves  bool
+		name          string
+		makeRepo      func(existing *aggregates.EnterpriseStrategicImportance) *mockUpdateImportanceRepository
+		importance    int
+		expectNoSaves bool
 	}{
 		{
 			name: "invalid importance value rejected before save",

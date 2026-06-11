@@ -14,11 +14,11 @@ import (
 )
 
 var (
-	testTenantID      = uuid.NewString()
-	testUserID        = uuid.NewString()
-	testOtherUserID   = uuid.NewString()
-	testConvID        = uuid.NewString()
-	testMsgID1        = uuid.NewString()
+	testTenantID    = uuid.NewString()
+	testUserID      = uuid.NewString()
+	testOtherUserID = uuid.NewString()
+	testConvID      = uuid.NewString()
+	testMsgID1      = uuid.NewString()
 )
 
 func TestNewConversation(t *testing.T) {

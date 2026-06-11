@@ -176,13 +176,30 @@ Frontend decisions taken from the mockup (source of truth for the FE):
 - Source list/placements removed from the Direction panel — sources now surface only in the Included-capabilities composition view; the panel shows type/status/horizon/narrative/actions and an agreed-immutability callout.
 - Source-set edits use granular sub-resources (`POST .../sources`, `DELETE .../sources/{id}`); `sourceCapabilityIds` removed from the `PUT .../direction` request.
 
-**Remaining:** Go backend (aggregate, events, read model, migrations hard-deleting link rows, actor on `DirectionSourceCapabilitiesChanged` per R9), Swagger docs.
+**Backend slice (done):** Implemented to the agreed contract, TDD throughout.
+
+- **R2 composition** is a pure domain service (`enterprisearchitecture/domain/services/composition_resolver.go`), an exact port of the stub's `composition.ts:resolveComposition`, unit-tested against every BDD scenario. **R1 eligibility** lives beside it (`EvaluateSourceEligibility`).
+- A `CompositionService` (`enterprisearchitecture/application/services`) loads inputs through provider interfaces — active direction sources come from the `architecturedirection` read model via a composition-root adapter, capability hierarchy/domain data from `domain_capability_metadata`, EC names/active-state from the EC read model — and powers: EC DTO counts, `GET .../composition`, `GET /capabilities/source-candidates`, `POST .../direction/composition-preview`, the cross-context R1 check at capture/add-source time, and maturity analysis membership.
+- **Direction aggregate:** draft relaxes source cardinality (R8, including empty source sets); type cardinality + narrative are enforced at propose; `AddSourceCapability`/`RemoveSourceCapability` emit `DirectionSourceCapabilitiesChanged` carrying the acting architect (R9); add is idempotent; agreed directions immutable (R5). Placement cardinality validation removed (placements deferred; capture no longer accepts them; historic events still apply).
+- **Endpoints:** `POST/DELETE .../direction/sources(/{capabilityId})` with contract 409 bodies (R1 details + `x-conflicting-ec`; R5 details + `x-reject`); `PUT .../direction` accepts only horizon/narrative; capture enforces R4 (409) and R1 (409); propose returns the type-specific 400 message; invalid-status transitions return 404 (O7).
+- **R6 cascade:** an `EnterpriseCapabilityDeletedReactor` in `architecturedirection` rejects the active direction when `EnterpriseCapabilityDeleted` is published; the EC delete handler no longer blocks on links.
+- **Linking removal:** all link aggregates/events/handlers/read models/routes deleted, including the `GET .../links`, `domain-capabilities/*/enterprise-link-status`, and `domain-capabilities/*/enterprise-capability` surfaces and the arch-assistant link tools. Migration `120_remove_enterprise_capability_links.sql` drops `enterprise_capability_links`, `capability_link_blocking`, and the obsolete `link_count`/`domain_count` columns (hard delete, no data migration).
+- **Maturity analysis** now derives EC membership from the composition (included, non-carved-out capabilities) instead of links; aggregation logic extracted into unit-tested pure functions.
+- **Bug fixes (found during live verification — source candidates showed every capability as "Unassigned"):** three compounding defects, diagnosed against the running stack.
+  1. *Severed projection chain (primary).* `InMemoryEventBus.Publish` aborted on the first failing handler and the event store swallowed the publish error. On a freshly seeded tenant, `DomainAssignmentEffectiveProjector` failed parsing the sentinel default-pillar IDs (`"default-always-on"` is not a UUID — no metamodel configured yet), which silently cut off the `enterprisearchitecture` metadata projector for every `CapabilityAssignedToDomain` event while the API returned 201. The bus now delivers to all handlers and aggregates failures (`errors.Join`); the effective-importance recompute skips sentinel pillars (they have no persistent identity, so no stored importance can reference them).
+  2. *Domain-name chicken-and-egg.* The EA metadata projector resolved domain names from `domain_capability_metadata` itself, which never contains a name the first time a domain is used. It now resolves names through a `BusinessDomainNameLookup` injected from the capabilitymapping read model at the composition root, and subscribes to `BusinessDomainUpdated` to refresh denormalized names on rename.
+  3. *Data repair.* Migrations `121` and `122` backfill `business_domain_id/name` from `capabilitymapping.domain_capability_assignments` (122 covers rows seeded after 121 already ran).
+- Swagger regenerated; full unit suite green. Integration tests were updated to the new constructors but could not be executed in this environment (no PostgreSQL reachable from the sandbox); `go vet -tags=integration` passes.
+
+Open items resolved (details in the contract's revision log): O1 cursor placeholder kept; O2 actor on the event payload only; O3 propose cardinality follows spec 167 type rules (consolidate ≥2, decompose/stay exactly 1); O4 `updatedAt` absent until first mutation; O5 on-the-fly computation; O6 existing event-driven stale flag; O7 404 on invalid-status transitions. Spec 167's narrative-required-to-propose rule is retained (not superseded by this spec).
+
+**Agreed FE↔BE API contract:** [`172_DirectionIsTheAssociation_api-contract.md`](172_DirectionIsTheAssociation_api-contract.md) — derived from the frontend MSW stub (the implemented, agreed contract). Backend implements to this; the shipped frontend consumes it unchanged.
 
 ## Checklist
 
 - [x] Specification ready
-- [ ] Implementation done (frontend slice done; backend pending)
-- [ ] Unit tests implemented and passing (frontend done; backend pending)
-- [ ] Integration tests implemented if relevant
-- [ ] API documentation updated
+- [x] Implementation done
+- [x] Unit tests implemented and passing
+- [ ] Integration tests implemented if relevant (existing suites updated to new constructors; not executable here — no database in this environment)
+- [x] API documentation updated
 - [ ] User sign-off

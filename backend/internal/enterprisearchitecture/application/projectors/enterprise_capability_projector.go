@@ -23,9 +23,6 @@ type EnterpriseCapabilityStore interface {
 	Insert(ctx context.Context, dto readmodels.EnterpriseCapabilityDTO) error
 	Update(ctx context.Context, params readmodels.UpdateCapabilityParams) error
 	Delete(ctx context.Context, id string) error
-	IncrementLinkCount(ctx context.Context, id string) error
-	DecrementLinkCount(ctx context.Context, id string) error
-	RecalculateDomainCount(ctx context.Context, enterpriseCapabilityID string) error
 	UpdateTargetMaturity(ctx context.Context, id string, targetMaturity int) error
 }
 
@@ -54,8 +51,6 @@ func (p *EnterpriseCapabilityProjector) ProjectEvent(ctx context.Context, eventT
 		"EnterpriseCapabilityCreated":           p.handleCreated,
 		"EnterpriseCapabilityUpdated":           p.handleUpdated,
 		"EnterpriseCapabilityDeleted":           p.handleDeleted,
-		"EnterpriseCapabilityLinked":            p.handleLinked,
-		"EnterpriseCapabilityUnlinked":          p.handleUnlinked,
 		"EnterpriseCapabilityTargetMaturitySet": p.handleTargetMaturitySet,
 	}
 
@@ -93,24 +88,6 @@ func (p *EnterpriseCapabilityProjector) projectUpdated(ctx context.Context, even
 func (p *EnterpriseCapabilityProjector) handleDeleted(ctx context.Context, eventData []byte) error {
 	return handleProjection(ctx, eventData, func(ctx context.Context, event events.EnterpriseCapabilityDeleted) error {
 		return p.readModel.Delete(ctx, event.ID)
-	})
-}
-
-func (p *EnterpriseCapabilityProjector) handleLinked(ctx context.Context, eventData []byte) error {
-	return handleProjection(ctx, eventData, func(ctx context.Context, event events.EnterpriseCapabilityLinked) error {
-		if err := p.readModel.IncrementLinkCount(ctx, event.EnterpriseCapabilityID); err != nil {
-			return fmt.Errorf("increment link count for enterprise capability %s: %w", event.EnterpriseCapabilityID, err)
-		}
-		return p.readModel.RecalculateDomainCount(ctx, event.EnterpriseCapabilityID)
-	})
-}
-
-func (p *EnterpriseCapabilityProjector) handleUnlinked(ctx context.Context, eventData []byte) error {
-	return handleProjection(ctx, eventData, func(ctx context.Context, event events.EnterpriseCapabilityUnlinked) error {
-		if err := p.readModel.DecrementLinkCount(ctx, event.EnterpriseCapabilityID); err != nil {
-			return fmt.Errorf("decrement link count for enterprise capability %s: %w", event.EnterpriseCapabilityID, err)
-		}
-		return p.readModel.RecalculateDomainCount(ctx, event.EnterpriseCapabilityID)
 	})
 }
 

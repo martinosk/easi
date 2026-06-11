@@ -30,11 +30,11 @@ type StandardApplicationDTO struct {
 }
 
 type StandardApplicationHistoryEntryDTO struct {
-	ApplicationID           string  `json:"applicationId"`
-	PreviousApplicationID   string  `json:"previousApplicationId,omitempty"`
-	ApplicationName         *string `json:"applicationName"`
-	PreviousApplicationName *string `json:"previousApplicationName,omitempty"`
-	Narrative               string  `json:"narrative"`
+	ApplicationID           string    `json:"applicationId"`
+	PreviousApplicationID   string    `json:"previousApplicationId,omitempty"`
+	ApplicationName         *string   `json:"applicationName"`
+	PreviousApplicationName *string   `json:"previousApplicationName,omitempty"`
+	Narrative               string    `json:"narrative"`
 	SetAt                   time.Time `json:"setAt"`
 }
 

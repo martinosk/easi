@@ -68,12 +68,16 @@ func (p *StaleReferenceProjector) ProjectEvent(ctx context.Context, eventType st
 	case cmPL.CapabilityCreated, cmPL.CapabilityUpdated:
 		return p.handleNameChange(ctx, eventData, nameChangeSpec{
 			entityType: "capability",
-			update:     func(ctx context.Context, id, name string) error { return p.readModel.UpdateCapabilityName(ctx, readmodels.CapabilityID(id), name) },
+			update: func(ctx context.Context, id, name string) error {
+				return p.readModel.UpdateCapabilityName(ctx, readmodels.CapabilityID(id), name)
+			},
 		})
 	case cmPL.BusinessDomainCreated, cmPL.BusinessDomainUpdated:
 		return p.handleNameChange(ctx, eventData, nameChangeSpec{
 			entityType: "business_domain",
-			update:     func(ctx context.Context, id, name string) error { return p.readModel.UpdateBusinessDomainName(ctx, id, name) },
+			update: func(ctx context.Context, id, name string) error {
+				return p.readModel.UpdateBusinessDomainName(ctx, id, name)
+			},
 		})
 	case cmPL.CapabilityAssignedToDomain:
 		return p.handleDomainAssignment(ctx, eventData, false)

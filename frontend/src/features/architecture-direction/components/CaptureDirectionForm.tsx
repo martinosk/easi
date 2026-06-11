@@ -360,7 +360,7 @@ function DraftCardinalityHint({ type, count }: { type: DirectionType; count: num
       : 'Advancing to proposed enforces this type’s source cardinality.';
   return (
     <Alert color="yellow" variant="light" data-testid="draft-cardinality-hint">
-      {count} source{count === 1 ? '' : 's'} selected. A draft is accepted with any number of sources (even one).{' '}
+      {count} source{count === 1 ? '' : 's'} selected. A draft is accepted with any number of sources.{' '}
       {advanceRule}
     </Alert>
   );

@@ -70,6 +70,7 @@ type ErrorWithLinksParams struct {
 	StatusCode int
 	Err        error
 	Message    string
+	Details    map[string]string
 	Links      map[string]Link
 }
 
@@ -82,6 +83,7 @@ func RespondErrorWithLinks(w http.ResponseWriter, params ErrorWithLinksParams) {
 	response := ErrorResponse{
 		Error:   http.StatusText(statusCode),
 		Message: params.Message,
+		Details: params.Details,
 		Links:   params.Links,
 	}
 	if params.Err != nil && params.Message == "" {

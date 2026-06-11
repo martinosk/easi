@@ -2,6 +2,7 @@ package events
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -53,40 +54,23 @@ func (b *InMemoryEventBus) Publish(ctx context.Context, events []domain.DomainEv
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 
+	var failures []error
 	for _, event := range events {
-		if err := b.publishToGlobalHandlers(ctx, event); err != nil {
-			return err
-		}
-		if err := b.publishToEventHandlers(ctx, event); err != nil {
-			return err
-		}
+		failures = append(failures, deliverToAll(ctx, b.globalHandlers, event, "global handler")...)
+		failures = append(failures, deliverToAll(ctx, b.handlers[event.EventType()], event, "handler")...)
 	}
 
-	return nil
+	return errors.Join(failures...)
 }
 
-func (b *InMemoryEventBus) publishToGlobalHandlers(ctx context.Context, event domain.DomainEvent) error {
-	for _, handler := range b.globalHandlers {
-		if err := handler.Handle(ctx, event); err != nil {
-			return fmt.Errorf("global handler failed for event %s: %w", event.EventType(), err)
-		}
-	}
-	return nil
-}
-
-func (b *InMemoryEventBus) publishToEventHandlers(ctx context.Context, event domain.DomainEvent) error {
-	eventType := event.EventType()
-	handlers, exists := b.handlers[eventType]
-	if !exists {
-		return nil
-	}
-
+func deliverToAll(ctx context.Context, handlers []EventHandler, event domain.DomainEvent, label string) []error {
+	var failures []error
 	for _, handler := range handlers {
 		if err := handler.Handle(ctx, event); err != nil {
-			return fmt.Errorf("handler failed for event %s: %w", eventType, err)
+			failures = append(failures, fmt.Errorf("%s failed for event %s: %w", label, event.EventType(), err))
 		}
 	}
-	return nil
+	return failures
 }
 
 // Subscribe registers a handler for a specific event type

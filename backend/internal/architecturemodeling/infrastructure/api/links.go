@@ -62,14 +62,14 @@ type relatedLinkSpec struct {
 }
 
 var (
-	componentTriggersSpec   = relatedLinkSpec{HrefSuffix: "/components", Title: "Component (triggers)", TargetType: "component", RelationType: "component-triggers"}
-	componentServesSpec     = relatedLinkSpec{HrefSuffix: "/components", Title: "Component (serves)", TargetType: "component", RelationType: "component-serves"}
-	componentAcquiredVia    = relatedLinkSpec{HrefSuffix: "/acquired-entities", Title: "Acquired Entity (acquired-via)", TargetType: "acquiredEntity", RelationType: "origin-acquired-via"}
-	componentPurchasedFrom  = relatedLinkSpec{HrefSuffix: "/vendors", Title: "Vendor (purchased-from)", TargetType: "vendor", RelationType: "origin-purchased-from"}
-	componentBuiltBy        = relatedLinkSpec{HrefSuffix: "/internal-teams", Title: "Internal Team (built-by)", TargetType: "internalTeam", RelationType: "origin-built-by"}
-	acquiredEntitySpec      = relatedLinkSpec{HrefSuffix: "/components", Title: "Component (acquired-via)", TargetType: "component", RelationType: "origin-acquired-via"}
-	vendorSpec              = relatedLinkSpec{HrefSuffix: "/components", Title: "Component (purchased-from)", TargetType: "component", RelationType: "origin-purchased-from"}
-	internalTeamSpec        = relatedLinkSpec{HrefSuffix: "/components", Title: "Component (built-by)", TargetType: "component", RelationType: "origin-built-by"}
+	componentTriggersSpec  = relatedLinkSpec{HrefSuffix: "/components", Title: "Component (triggers)", TargetType: "component", RelationType: "component-triggers"}
+	componentServesSpec    = relatedLinkSpec{HrefSuffix: "/components", Title: "Component (serves)", TargetType: "component", RelationType: "component-serves"}
+	componentAcquiredVia   = relatedLinkSpec{HrefSuffix: "/acquired-entities", Title: "Acquired Entity (acquired-via)", TargetType: "acquiredEntity", RelationType: "origin-acquired-via"}
+	componentPurchasedFrom = relatedLinkSpec{HrefSuffix: "/vendors", Title: "Vendor (purchased-from)", TargetType: "vendor", RelationType: "origin-purchased-from"}
+	componentBuiltBy       = relatedLinkSpec{HrefSuffix: "/internal-teams", Title: "Internal Team (built-by)", TargetType: "internalTeam", RelationType: "origin-built-by"}
+	acquiredEntitySpec     = relatedLinkSpec{HrefSuffix: "/components", Title: "Component (acquired-via)", TargetType: "component", RelationType: "origin-acquired-via"}
+	vendorSpec             = relatedLinkSpec{HrefSuffix: "/components", Title: "Component (purchased-from)", TargetType: "component", RelationType: "origin-purchased-from"}
+	internalTeamSpec       = relatedLinkSpec{HrefSuffix: "/components", Title: "Component (built-by)", TargetType: "component", RelationType: "origin-built-by"}
 )
 
 func (h *ArchitectureModelingLinks) buildRelated(spec relatedLinkSpec) types.RelatedLink {

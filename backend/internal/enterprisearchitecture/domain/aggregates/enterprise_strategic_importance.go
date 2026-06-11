@@ -104,6 +104,14 @@ func (s *EnterpriseStrategicImportance) apply(event domain.DomainEvent) {
 	}
 }
 
+func mustNewEnterpriseCapabilityIDFromString(value string) valueobjects.EnterpriseCapabilityID {
+	id, err := valueobjects.NewEnterpriseCapabilityIDFromString(value)
+	if err != nil {
+		panic("corrupted event store: invalid enterprise capability ID: " + value)
+	}
+	return id
+}
+
 func mustNewPillarIDFromString(value string) valueobjects.PillarID {
 	id, err := valueobjects.NewPillarIDFromString(value)
 	if err != nil {

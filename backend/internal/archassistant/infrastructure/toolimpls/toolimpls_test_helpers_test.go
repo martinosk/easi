@@ -37,7 +37,7 @@ var allExpectedSpecToolNames = []string{
 	"get_domain_importance_overview", "get_fit_scores_by_pillar",
 	"list_enterprise_capabilities", "get_enterprise_capability_details",
 	"create_enterprise_capability", "update_enterprise_capability", "delete_enterprise_capability",
-	"link_capability_to_enterprise", "unlink_capability_from_enterprise",
+	"get_enterprise_capability_composition", "search_direction_source_candidates",
 	"get_enterprise_strategic_importance", "set_enterprise_strategic_importance",
 	"get_time_suggestions",
 	"get_maturity_analysis", "get_maturity_gap_detail",

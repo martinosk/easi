@@ -11,12 +11,12 @@ import (
 )
 
 var (
-	ErrInvalidSourceCardinality    = errors.New("source capability count does not match the direction type")
-	ErrInvalidPlacementCardinality = errors.New("placement count does not match the direction type")
-	ErrDuplicateSourceCapabilities = errors.New("source capabilities must be unique")
-	ErrNarrativeRequiredToPropose  = errors.New("narrative is required before advancing a direction to proposed")
-	ErrInvalidStatusTransition     = errors.New("status transition not allowed from current status")
-	ErrDirectionAgreedImmutable    = errors.New("agreed directions are immutable; reject and replace to change")
+	ErrInvalidSourceCardinality       = errors.New("source capability count does not match the direction type")
+	ErrDuplicateSourceCapabilities    = errors.New("source capabilities must be unique")
+	ErrNarrativeRequiredToPropose     = errors.New("narrative is required before advancing a direction to proposed")
+	ErrInvalidStatusTransition        = errors.New("status transition not allowed from current status")
+	ErrDirectionAgreedImmutable       = errors.New("agreed directions are immutable; reject and replace to change")
+	ErrSourceCapabilityNotInDirection = errors.New("capability is not a source of this direction")
 )
 
 type Direction struct {
@@ -34,17 +34,13 @@ type DraftParams struct {
 	EnterpriseCapabilityID valueobjects.EnterpriseCapabilityRef
 	Type                   valueobjects.DirectionType
 	SourceCapabilityIDs    []valueobjects.PhysicalCapabilityRef
-	Placements             []valueobjects.Placement
 	Horizon                valueobjects.Horizon
 	Narrative              sharedvo.Description
 }
 
 func DraftDirection(params DraftParams) (*Direction, error) {
-	if err := validateSourceCardinality(params.Type, params.SourceCapabilityIDs); err != nil {
-		return nil, err
-	}
-	if err := validatePlacementCardinality(params.Type, params.Placements); err != nil {
-		return nil, err
+	if hasDuplicateRefs(params.SourceCapabilityIDs) {
+		return nil, ErrDuplicateSourceCapabilities
 	}
 
 	id := valueobjects.NewDirectionID()
@@ -57,7 +53,6 @@ func DraftDirection(params DraftParams) (*Direction, error) {
 		EnterpriseCapabilityID: params.EnterpriseCapabilityID.Value(),
 		Type:                   params.Type.Value(),
 		SourceCapabilityIDs:    refsToStrings(params.SourceCapabilityIDs),
-		Placements:             placementsToData(params.Placements),
 		Horizon:                params.Horizon.Value(),
 		Narrative:              params.Narrative.Value(),
 	})
@@ -90,6 +85,9 @@ func (d *Direction) Propose() error {
 	if d.narrative.IsEmpty() {
 		return ErrNarrativeRequiredToPropose
 	}
+	if err := validateSourceCardinality(d.directionType, d.sourceCapabilityIDs); err != nil {
+		return err
+	}
 	d.raise(events.NewDirectionProposed(d.ID()))
 	return nil
 }
@@ -112,7 +110,6 @@ func (d *Direction) Reject() error {
 }
 
 func (d *Direction) UpdateNarrative(narrative sharedvo.Description) error {
-
 	if err := d.requireEditable(); err != nil {
 		return err
 	}
@@ -128,26 +125,42 @@ func (d *Direction) ChangeHorizon(horizon valueobjects.Horizon) error {
 	return nil
 }
 
-func (d *Direction) ChangeSourceCapabilities(refs []valueobjects.PhysicalCapabilityRef) error {
+func (d *Direction) AddSourceCapability(ref valueobjects.PhysicalCapabilityRef, actor string) error {
 	if err := d.requireEditable(); err != nil {
 		return err
 	}
-	if err := validateSourceCardinality(d.directionType, refs); err != nil {
-		return err
+	if d.hasSource(ref) {
+		return nil
 	}
-	d.raise(events.NewDirectionSourceCapabilitiesChanged(d.ID(), refsToStrings(refs)))
+	updated := append(refsToStrings(d.sourceCapabilityIDs), ref.Value())
+	d.raise(events.NewDirectionSourceCapabilitiesChanged(d.ID(), updated, actor))
 	return nil
 }
 
-func (d *Direction) ChangePlacements(placements []valueobjects.Placement) error {
+func (d *Direction) RemoveSourceCapability(ref valueobjects.PhysicalCapabilityRef, actor string) error {
 	if err := d.requireEditable(); err != nil {
 		return err
 	}
-	if err := validatePlacementCardinality(d.directionType, placements); err != nil {
-		return err
+	if !d.hasSource(ref) {
+		return ErrSourceCapabilityNotInDirection
 	}
-	d.raise(events.NewDirectionPlacementsChanged(d.ID(), placementsToData(placements)))
+	updated := make([]string, 0, len(d.sourceCapabilityIDs)-1)
+	for _, existing := range d.sourceCapabilityIDs {
+		if existing.Value() != ref.Value() {
+			updated = append(updated, existing.Value())
+		}
+	}
+	d.raise(events.NewDirectionSourceCapabilitiesChanged(d.ID(), updated, actor))
 	return nil
+}
+
+func (d *Direction) hasSource(ref valueobjects.PhysicalCapabilityRef) bool {
+	for _, existing := range d.sourceCapabilityIDs {
+		if existing.Value() == ref.Value() {
+			return true
+		}
+	}
+	return false
 }
 
 func (d *Direction) EnterpriseCapabilityID() valueobjects.EnterpriseCapabilityRef {
@@ -157,11 +170,6 @@ func (d *Direction) Type() valueobjects.DirectionType     { return d.directionTy
 func (d *Direction) Status() valueobjects.DirectionStatus { return d.status }
 func (d *Direction) Horizon() valueobjects.Horizon        { return d.horizon }
 func (d *Direction) Narrative() sharedvo.Description      { return d.narrative }
-func (d *Direction) Placements() []valueobjects.Placement {
-	out := make([]valueobjects.Placement, len(d.placements))
-	copy(out, d.placements)
-	return out
-}
 func (d *Direction) SourceCapabilityIDs() []valueobjects.PhysicalCapabilityRef {
 	out := make([]valueobjects.PhysicalCapabilityRef, len(d.sourceCapabilityIDs))
 	copy(out, d.sourceCapabilityIDs)
@@ -310,9 +318,6 @@ func (d *Direction) applyDrafted(evt events.DirectionDrafted) error {
 }
 
 func validateSourceCardinality(t valueobjects.DirectionType, refs []valueobjects.PhysicalCapabilityRef) error {
-	if hasDuplicateRefs(refs) {
-		return ErrDuplicateSourceCapabilities
-	}
 	if t.RequiresExactlyOneSource() {
 		if len(refs) != t.ExactSourceCount() {
 			return ErrInvalidSourceCardinality
@@ -321,13 +326,6 @@ func validateSourceCardinality(t valueobjects.DirectionType, refs []valueobjects
 	}
 	if len(refs) < t.MinSourceCount() {
 		return ErrInvalidSourceCardinality
-	}
-	return nil
-}
-
-func validatePlacementCardinality(t valueobjects.DirectionType, placements []valueobjects.Placement) error {
-	if !t.IsValidPlacementCount(len(placements)) {
-		return ErrInvalidPlacementCardinality
 	}
 	return nil
 }

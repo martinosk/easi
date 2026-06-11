@@ -145,7 +145,7 @@ func TestDirectionProjector_SourceCapabilitiesChanged(t *testing.T) {
 	id := uuid.New().String()
 
 	src1, src2, src3 := uuid.New().String(), uuid.New().String(), uuid.New().String()
-	evt := events.NewDirectionSourceCapabilitiesChanged(id, []string{src1, src2, src3})
+	evt := events.NewDirectionSourceCapabilitiesChanged(id, []string{src1, src2, src3}, "architect@dfds.com")
 	require.NoError(t, projectViaJSON(t, projector, evt.EventType(), evt.EventData()))
 
 	expected := []readmodels.CapabilityID{readmodels.CapabilityID(src1), readmodels.CapabilityID(src2), readmodels.CapabilityID(src3)}

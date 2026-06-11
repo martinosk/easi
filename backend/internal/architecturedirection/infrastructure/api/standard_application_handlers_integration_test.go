@@ -83,9 +83,9 @@ func setupStandardApplicationTestDB(t *testing.T) (*standardApplicationTestConte
 
 	alwaysExists := func(_ context.Context, _ string) (bool, error) { return true, nil }
 	refs := &services.ReferenceChecker{
-		EnterpriseCapabilityExists: alwaysExists,
-		PhysicalCapabilityExists:   alwaysExists,
-		BusinessDomainExists:       alwaysExists,
+		EnterpriseCapabilityExists:   alwaysExists,
+		EnterpriseCapabilityIsActive: alwaysExists,
+		PhysicalCapabilityExists:     alwaysExists,
 	}
 	commandBus.Register("SetStandardApplication", handlers.NewSetStandardApplicationHandler(repo, readModel, refs))
 
@@ -309,4 +309,3 @@ func TestGetStandardApplicationHistory_NoStandard_Returns200WithEmptyEntries(t *
 	assert.Empty(t, body.Entries)
 	assert.Contains(t, body.Links, "self")
 }
-

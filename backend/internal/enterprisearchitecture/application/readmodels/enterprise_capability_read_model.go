@@ -12,17 +12,17 @@ import (
 )
 
 type EnterpriseCapabilityDTO struct {
-	ID             string      `json:"id"`
-	Name           string      `json:"name"`
-	Description    string      `json:"description,omitempty"`
-	Category       string      `json:"category,omitempty"`
-	Active         bool        `json:"active"`
-	TargetMaturity *int        `json:"targetMaturity,omitempty"`
-	LinkCount      int         `json:"linkCount"`
-	DomainCount    int         `json:"domainCount"`
-	CreatedAt      time.Time   `json:"createdAt"`
-	UpdatedAt      *time.Time  `json:"updatedAt,omitempty"`
-	Links          types.Links `json:"_links,omitempty"`
+	ID                      string      `json:"id"`
+	Name                    string      `json:"name"`
+	Description             string      `json:"description,omitempty"`
+	Category                string      `json:"category,omitempty"`
+	Active                  bool        `json:"active"`
+	TargetMaturity          *int        `json:"targetMaturity,omitempty"`
+	IncludedCapabilityCount int         `json:"includedCapabilityCount"`
+	DomainCount             int         `json:"domainCount"`
+	CreatedAt               time.Time   `json:"createdAt"`
+	UpdatedAt               *time.Time  `json:"updatedAt,omitempty"`
+	Links                   types.Links `json:"_links,omitempty"`
 }
 
 type EnterpriseCapabilityReadModel struct {
@@ -64,10 +64,10 @@ func (rm *EnterpriseCapabilityReadModel) Insert(ctx context.Context, dto Enterpr
 
 	return rm.execTenantQuery(ctx,
 		`INSERT INTO enterprisearchitecture.enterprise_capabilities
-		 (id, tenant_id, name, description, category, active, link_count, domain_count, created_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+		 (id, tenant_id, name, description, category, active, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		func(tid string) []interface{} {
-			return []interface{}{dto.ID, tid, dto.Name, dto.Description, dto.Category, dto.Active, 0, 0, dto.CreatedAt}
+			return []interface{}{dto.ID, tid, dto.Name, dto.Description, dto.Category, dto.Active, dto.CreatedAt}
 		},
 	)
 }
@@ -84,37 +84,6 @@ func (rm *EnterpriseCapabilityReadModel) Update(ctx context.Context, params Upda
 
 func (rm *EnterpriseCapabilityReadModel) Delete(ctx context.Context, id string) error {
 	return rm.execByID(ctx, "UPDATE enterprisearchitecture.enterprise_capabilities SET active = false, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $1 AND id = $2", id)
-}
-
-func (rm *EnterpriseCapabilityReadModel) IncrementLinkCount(ctx context.Context, id string) error {
-	return rm.execByID(ctx, "UPDATE enterprisearchitecture.enterprise_capabilities SET link_count = link_count + 1 WHERE tenant_id = $1 AND id = $2", id)
-}
-
-func (rm *EnterpriseCapabilityReadModel) DecrementLinkCount(ctx context.Context, id string) error {
-	return rm.execByID(ctx, "UPDATE enterprisearchitecture.enterprise_capabilities SET link_count = GREATEST(0, link_count - 1) WHERE tenant_id = $1 AND id = $2", id)
-}
-
-func (rm *EnterpriseCapabilityReadModel) RecalculateDomainCount(ctx context.Context, enterpriseCapabilityID string) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	query := `
-		UPDATE enterprisearchitecture.enterprise_capabilities SET domain_count = (
-			SELECT COUNT(DISTINCT dcm.business_domain_id)
-			FROM enterprisearchitecture.enterprise_capability_links ecl
-			JOIN enterprisearchitecture.domain_capability_metadata dcm
-				ON dcm.capability_id = ecl.domain_capability_id
-				AND dcm.tenant_id = ecl.tenant_id
-			WHERE ecl.tenant_id = $1
-				AND ecl.enterprise_capability_id = $2
-				AND dcm.business_domain_id IS NOT NULL
-		)
-		WHERE tenant_id = $1 AND id = $2`
-
-	_, err = rm.db.ExecContext(ctx, query, tenantID.Value(), enterpriseCapabilityID)
-	return err
 }
 
 func (rm *EnterpriseCapabilityReadModel) GetAll(ctx context.Context) ([]EnterpriseCapabilityDTO, error) {
@@ -148,6 +117,35 @@ func (rm *EnterpriseCapabilityReadModel) GetAll(ctx context.Context) ([]Enterpri
 	return capabilities, err
 }
 
+func (rm *EnterpriseCapabilityReadModel) ActiveEnterpriseCapabilityNames(ctx context.Context) (map[string]string, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	names := map[string]string{}
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx,
+			"SELECT id, name FROM enterprisearchitecture.enterprise_capabilities WHERE tenant_id = $1 AND active = true",
+			tenantID.Value(),
+		)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = rows.Close() }()
+
+		for rows.Next() {
+			var id, name string
+			if err := rows.Scan(&id, &name); err != nil {
+				return err
+			}
+			names[id] = name
+		}
+		return rows.Err()
+	})
+	return names, err
+}
+
 func (rm *EnterpriseCapabilityReadModel) GetByID(ctx context.Context, id string) (*EnterpriseCapabilityDTO, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
@@ -173,7 +171,7 @@ func (rm *EnterpriseCapabilityReadModel) GetByID(ctx context.Context, id string)
 	return result, err
 }
 
-const ecSelectColumns = "id, name, description, category, active, target_maturity, link_count, domain_count, created_at, updated_at"
+const ecSelectColumns = "id, name, description, category, active, target_maturity, created_at, updated_at"
 
 type ecRowScanner interface {
 	Scan(dest ...any) error
@@ -185,7 +183,7 @@ func scanEnterpriseCapability(row ecRowScanner) (EnterpriseCapabilityDTO, error)
 	var targetMaturity sql.NullInt64
 	var description, category sql.NullString
 
-	err := row.Scan(&dto.ID, &dto.Name, &description, &category, &dto.Active, &targetMaturity, &dto.LinkCount, &dto.DomainCount, &dto.CreatedAt, &updatedAt)
+	err := row.Scan(&dto.ID, &dto.Name, &description, &category, &dto.Active, &targetMaturity, &dto.CreatedAt, &updatedAt)
 	if err != nil {
 		return dto, err
 	}

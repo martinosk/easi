@@ -17,15 +17,16 @@ func init() {
 	registry.RegisterNotFound(repositories.ErrDirectionNotFound, "Direction not found")
 	registry.RegisterNotFound(repositories.ErrStandardApplicationNotFound, "Standard application not found")
 	registry.RegisterNotFound(services.ErrReferencedEntityNotFound, "A referenced entity does not exist or is not accessible")
+	registry.RegisterNotFound(aggregates.ErrSourceCapabilityNotInDirection, "Capability is not a source of this direction")
+	registry.RegisterNotFound(aggregates.ErrInvalidStatusTransition, "No active direction in a status that allows this transition")
 
 	registry.RegisterConflict(services.ErrActiveDirectionAlreadyExists, "An active direction already exists on this enterprise capability")
+	registry.RegisterConflict(services.ErrEnterpriseCapabilityInactive, "Directions can only be captured on active enterprise capabilities.")
 	registry.RegisterConflict(aggregates.ErrDirectionAgreedImmutable, "Agreed directions are immutable; reject and replace to change")
-	registry.RegisterConflict(aggregates.ErrInvalidStatusTransition, "Status transition not allowed from current status")
 	registry.RegisterConflict(readmodels.ErrStandardApplicationAlreadyExists, "A standard application already exists for this enterprise capability")
 
 	registry.RegisterValidation(aggregates.ErrNarrativeRequiredForStandardApplication, "A narrative is required when setting or changing the standard application")
 	registry.RegisterValidation(aggregates.ErrInvalidSourceCardinality, "Source capability count does not match the direction type")
-	registry.RegisterValidation(aggregates.ErrInvalidPlacementCardinality, "Placement count does not match the direction type")
 	registry.RegisterValidation(aggregates.ErrDuplicateSourceCapabilities, "Source capabilities must be unique")
 	registry.RegisterValidation(aggregates.ErrNarrativeRequiredToPropose, "A narrative is required before advancing a direction to proposed")
 	registry.RegisterValidation(valueobjects.ErrInvalidDirectionType, "Direction type must be one of consolidate, decompose, stay")

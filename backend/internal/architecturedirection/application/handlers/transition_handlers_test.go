@@ -47,8 +47,6 @@ func draftFixture(t *testing.T) *aggregates.Direction {
 	require.NoError(t, err)
 	r2, err := valueobjects.NewPhysicalCapabilityRef(uuid.New().String())
 	require.NoError(t, err)
-	p, err := valueobjects.NewPlacement(uuid.New().String(), "")
-	require.NoError(t, err)
 	h, err := valueobjects.NewHorizon("next")
 	require.NoError(t, err)
 	n, err := sharedvo.NewDescription("Some narrative.")
@@ -57,7 +55,6 @@ func draftFixture(t *testing.T) *aggregates.Direction {
 		EnterpriseCapabilityID: ec,
 		Type:                   dt,
 		SourceCapabilityIDs:    []valueobjects.PhysicalCapabilityRef{r1, r2},
-		Placements:             []valueobjects.Placement{p},
 		Horizon:                h,
 		Narrative:              n,
 	})
@@ -115,8 +112,6 @@ func TestRejectDirectionHandler_FromDraft(t *testing.T) {
 }
 
 func TestUpdateDirectionHandler_PerField(t *testing.T) {
-	newPhysIDs := []string{uuid.New().String(), uuid.New().String(), uuid.New().String()}
-	newDomID := uuid.New().String()
 	narrative := "Refined narrative."
 	horizon := "later"
 
@@ -145,25 +140,6 @@ func TestUpdateDirectionHandler_PerField(t *testing.T) {
 				assert.Equal(t, horizon, d.Horizon().Value())
 			},
 		},
-		{
-			name: "source capabilities only",
-			command: func(id string) *commands.UpdateDirection {
-				return &commands.UpdateDirection{DirectionID: id, SourceCapabilityIDs: &newPhysIDs}
-			},
-			assertion: func(t *testing.T, d *aggregates.Direction) {
-				assert.Len(t, d.SourceCapabilityIDs(), 3)
-			},
-		},
-		{
-			name: "placements only",
-			command: func(id string) *commands.UpdateDirection {
-				placements := []commands.PlacementInput{{TargetBusinessDomainID: newDomID, ResultingName: "Unified Payroll"}}
-				return &commands.UpdateDirection{DirectionID: id, Placements: &placements}
-			},
-			assertion: func(t *testing.T, d *aggregates.Direction) {
-				assert.Len(t, d.Placements(), 1)
-			},
-		},
 	}
 
 	for _, c := range cases {
@@ -183,14 +159,10 @@ func TestUpdateDirectionHandler_MultipleFieldsAtomic(t *testing.T) {
 	repo := &fakeRepoWithLoad{direction: d}
 	narrative := "Updated narrative."
 	horizon := "later"
-	placements := []commands.PlacementInput{
-		{TargetBusinessDomainID: uuid.New().String(), ResultingName: "Combined Payroll"},
-	}
 	cmd := &commands.UpdateDirection{
 		DirectionID: d.ID(),
 		Narrative:   &narrative,
 		Horizon:     &horizon,
-		Placements:  &placements,
 	}
 
 	_, err := NewUpdateDirectionHandler(repo).Handle(context.Background(), cmd)
@@ -200,7 +172,6 @@ func TestUpdateDirectionHandler_MultipleFieldsAtomic(t *testing.T) {
 	saved := repo.saved[0]
 	assert.Equal(t, narrative, saved.Narrative().Value())
 	assert.Equal(t, horizon, saved.Horizon().Value())
-	assert.Len(t, saved.Placements(), 1)
 }
 
 func TestUpdateDirectionHandler_InvalidValueDoesNotPersist(t *testing.T) {

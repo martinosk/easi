@@ -7,6 +7,8 @@ import (
 	authPL "easi/backend/internal/auth/publishedlanguage"
 	"easi/backend/internal/enterprisearchitecture/application/commands"
 	"easi/backend/internal/enterprisearchitecture/application/readmodels"
+	appservices "easi/backend/internal/enterprisearchitecture/application/services"
+	domainservices "easi/backend/internal/enterprisearchitecture/domain/services"
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
@@ -18,12 +20,9 @@ type EnterpriseCapabilityQueries interface {
 	GetByID(ctx context.Context, id string) (*readmodels.EnterpriseCapabilityDTO, error)
 }
 
-type EnterpriseCapabilityLinkQueries interface {
-	GetByID(ctx context.Context, id string) (*readmodels.EnterpriseCapabilityLinkDTO, error)
-	GetByEnterpriseCapabilityID(ctx context.Context, enterpriseCapabilityID string) ([]readmodels.EnterpriseCapabilityLinkDTO, error)
-	GetByDomainCapabilityID(ctx context.Context, domainCapabilityID string) (*readmodels.EnterpriseCapabilityLinkDTO, error)
-	GetLinkStatus(ctx context.Context, domainCapabilityID string) (*readmodels.CapabilityLinkStatusDTO, error)
-	GetBatchLinkStatus(ctx context.Context, domainCapabilityIDs []string) ([]readmodels.CapabilityLinkStatusDTO, error)
+type EnterpriseCapabilityCompositionCounts interface {
+	CompositionForEC(ctx context.Context, enterpriseCapabilityID string) (appservices.CompositionResult, error)
+	CountsForAll(ctx context.Context) (map[string]domainservices.CompositionCounts, error)
 }
 
 type EnterpriseStrategicImportanceQueries interface {
@@ -38,7 +37,7 @@ type MaturityAnalysisQueries interface {
 
 type EnterpriseCapabilityReadModels struct {
 	Capability       EnterpriseCapabilityQueries
-	Link             EnterpriseCapabilityLinkQueries
+	Composition      EnterpriseCapabilityCompositionCounts
 	Importance       EnterpriseStrategicImportanceQueries
 	MaturityAnalysis MaturityAnalysisQueries
 }
@@ -106,9 +105,16 @@ func (h *EnterpriseCapabilityHandlers) GetAllEnterpriseCapabilities(w http.Respo
 		sharedAPI.HandleError(w, err)
 		return
 	}
+	counts, err := h.readModels.Composition.CountsForAll(r.Context())
+	if err != nil {
+		sharedAPI.HandleError(w, err)
+		return
+	}
 
 	actor, _ := sharedctx.GetActor(r.Context())
 	for i := range capabilities {
+		capabilities[i].IncludedCapabilityCount = counts[capabilities[i].ID].IncludedCount
+		capabilities[i].DomainCount = counts[capabilities[i].ID].DomainCount
 		capabilities[i].Links = h.hateoas.EnterpriseCapabilityLinksForActor(capabilities[i].ID, actor)
 	}
 
@@ -128,6 +134,9 @@ func (h *EnterpriseCapabilityHandlers) GetAllEnterpriseCapabilities(w http.Respo
 func (h *EnterpriseCapabilityHandlers) GetEnterpriseCapabilityByID(w http.ResponseWriter, r *http.Request) {
 	capability := h.getCapabilityOrNotFound(w, r, sharedAPI.GetPathParam(r, "id"))
 	if capability == nil {
+		return
+	}
+	if !h.enrichCompositionCounts(w, r, capability) {
 		return
 	}
 	actor, _ := sharedctx.GetActor(r.Context())
@@ -256,6 +265,9 @@ func (h *EnterpriseCapabilityHandlers) respondWithCapability(w http.ResponseWrit
 		return
 	}
 
+	if !h.enrichCompositionCounts(w, r, capability) {
+		return
+	}
 	actor, _ := sharedctx.GetActor(r.Context())
 	capability.Links = h.hateoas.EnterpriseCapabilityLinksForActor(capability.ID, actor)
 	if statusCode == http.StatusCreated {
@@ -263,6 +275,17 @@ func (h *EnterpriseCapabilityHandlers) respondWithCapability(w http.ResponseWrit
 	} else {
 		sharedAPI.RespondJSON(w, statusCode, capability)
 	}
+}
+
+func (h *EnterpriseCapabilityHandlers) enrichCompositionCounts(w http.ResponseWriter, r *http.Request, capability *readmodels.EnterpriseCapabilityDTO) bool {
+	composition, err := h.readModels.Composition.CompositionForEC(r.Context(), capability.ID)
+	if err != nil {
+		sharedAPI.HandleError(w, err)
+		return false
+	}
+	capability.IncludedCapabilityCount = composition.Counts.IncludedCount
+	capability.DomainCount = composition.Counts.DomainCount
+	return true
 }
 
 func (h *EnterpriseCapabilityHandlers) dispatchAndRespondWithCapability(w http.ResponseWriter, r *http.Request, cmd cqrs.Command, capabilityID string) {

@@ -67,15 +67,10 @@ func captureParamsFromCommand(command *commands.CaptureDirection) (aggregates.Dr
 	if err != nil {
 		return aggregates.DraftParams{}, err
 	}
-	placements, err := buildPlacements(command.Placements)
-	if err != nil {
-		return aggregates.DraftParams{}, err
-	}
 	return aggregates.DraftParams{
 		EnterpriseCapabilityID: ecRef,
 		Type:                   dt,
 		SourceCapabilityIDs:    sourceRefs,
-		Placements:             placements,
 		Horizon:                horizon,
 		Narrative:              narrative,
 	}, nil
@@ -91,16 +86,4 @@ func buildSourceRefs(ids []string) ([]valueobjects.PhysicalCapabilityRef, error)
 		refs = append(refs, ref)
 	}
 	return refs, nil
-}
-
-func buildPlacements(inputs []commands.PlacementInput) ([]valueobjects.Placement, error) {
-	placements := make([]valueobjects.Placement, 0, len(inputs))
-	for _, in := range inputs {
-		p, err := valueobjects.NewPlacement(in.TargetBusinessDomainID, in.ResultingName)
-		if err != nil {
-			return nil, err
-		}
-		placements = append(placements, p)
-	}
-	return placements, nil
 }
