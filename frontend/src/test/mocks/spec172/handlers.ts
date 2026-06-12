@@ -7,6 +7,7 @@ import type {
   CompositionPreviewResponse,
   SourceCandidate,
   SourceCandidatesResponse,
+  UpdateDirectionRequest,
 } from '../../../features/architecture-direction/types';
 import { evaluateEligibility, resolveComposition } from './composition';
 import {
@@ -223,6 +224,21 @@ export const spec172Handlers = [
     return HttpResponse.json(buildDirectionDto(direction), { status: 201 });
   }),
 
+  http.put(`${BASE_URL}/api/v1/enterprise-capabilities/:id/direction`, async ({ params, request }) => {
+    const ecId = params.id as string;
+    const direction = getActiveDirection(ecId);
+    if (!direction) return new HttpResponse(null, { status: 404 });
+    if (direction.status !== 'draft' && direction.status !== 'proposed') {
+      return immutableResponse(ecId, direction.status);
+    }
+    const body = (await request.json()) as UpdateDirectionRequest;
+    if (body.horizon !== undefined) direction.horizon = body.horizon;
+    if (body.narrative !== undefined) direction.narrative = body.narrative;
+    direction.updatedAt = new Date().toISOString();
+    upsertDirection(direction);
+    return HttpResponse.json(buildDirectionDto(direction));
+  }),
+
   http.post(`${BASE_URL}/api/v1/enterprise-capabilities/:id/direction/sources`, async ({ params, request }) => {
     const ecId = params.id as string;
     const direction = getActiveDirection(ecId);
@@ -272,6 +288,7 @@ export const spec172Handlers = [
       propose: 'proposed',
       agree: 'agreed',
       reject: 'rejected',
+      revert: 'draft',
     };
     const next = transitions[action];
     if (!next) return new HttpResponse(null, { status: 404 });

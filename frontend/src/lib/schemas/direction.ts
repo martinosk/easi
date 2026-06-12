@@ -8,3 +8,10 @@ export const captureDirectionSchema = z.object({
 });
 
 export type CaptureDirectionFormData = z.infer<typeof captureDirectionSchema>;
+
+export const editDirectionSchema = z.object({
+  horizon: z.enum(['now', 'next', 'later']),
+  narrative: z.string(),
+});
+
+export type EditDirectionFormData = z.infer<typeof editDirectionSchema>;

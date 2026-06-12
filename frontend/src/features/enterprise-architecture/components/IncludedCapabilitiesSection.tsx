@@ -1,11 +1,9 @@
-import { Badge, Button, Group, Loader, Paper, Stack, Text, Title } from '@mantine/core';
+import { Badge, Group, Loader, Paper, Stack, Text, Title } from '@mantine/core';
 import type { CompositionDomainGroup, CompositionResponse, IncludedCapabilityItem } from '../types';
 
 interface IncludedCapabilitiesSectionProps {
   composition: CompositionResponse | undefined;
   isLoading: boolean;
-  onExclude: (capabilityId: string) => void;
-  isExcluding: boolean;
 }
 
 const LEVEL_COLORS: Record<IncludedCapabilityItem['level'], string> = {
@@ -15,12 +13,7 @@ const LEVEL_COLORS: Record<IncludedCapabilityItem['level'], string> = {
   L4: 'blue.4',
 };
 
-export function IncludedCapabilitiesSection({
-  composition,
-  isLoading,
-  onExclude,
-  isExcluding,
-}: IncludedCapabilitiesSectionProps) {
+export function IncludedCapabilitiesSection({ composition, isLoading }: IncludedCapabilitiesSectionProps) {
   return (
     <Stack gap="sm" data-testid="included-capabilities">
       <Group justify="space-between" align="center">
@@ -42,21 +35,9 @@ export function IncludedCapabilitiesSection({
       ) : !composition || composition.data.length === 0 ? (
         <EmptyState />
       ) : (
-        <>
-          {composition.data.map((group) => (
-            <DomainGroup
-              key={group.businessDomainId ?? '__unassigned__'}
-              group={group}
-              onExclude={onExclude}
-              isExcluding={isExcluding}
-            />
-          ))}
-          <Text size="xs" c="dimmed">
-            A source implicitly includes its descendants. A descendant sourced by a more specific direction on another
-            EC is carved out and owned there. Excluding a source removes it (and its implicit children) from this
-            direction.
-          </Text>
-        </>
+        composition.data.map((group) => (
+          <DomainGroup key={group.businessDomainId ?? '__unassigned__'} group={group} />
+        ))
       )}
     </Stack>
   );
@@ -72,13 +53,7 @@ function EmptyState() {
   );
 }
 
-interface DomainGroupProps {
-  group: CompositionDomainGroup;
-  onExclude: (capabilityId: string) => void;
-  isExcluding: boolean;
-}
-
-function DomainGroup({ group, onExclude, isExcluding }: DomainGroupProps) {
+function DomainGroup({ group }: { group: CompositionDomainGroup }) {
   return (
     <Stack gap={4}>
       <Paper bg="gray.1" px="md" py="xs" radius="sm">
@@ -88,22 +63,15 @@ function DomainGroup({ group, onExclude, isExcluding }: DomainGroupProps) {
       </Paper>
       <Stack gap={4}>
         {group.items.map((item) => (
-          <IncludedRow key={item.capabilityId} item={item} onExclude={onExclude} isExcluding={isExcluding} />
+          <IncludedRow key={item.capabilityId} item={item} />
         ))}
       </Stack>
     </Stack>
   );
 }
 
-interface IncludedRowProps {
-  item: IncludedCapabilityItem;
-  onExclude: (capabilityId: string) => void;
-  isExcluding: boolean;
-}
-
-function IncludedRow({ item, onExclude, isExcluding }: IncludedRowProps) {
+function IncludedRow({ item }: { item: IncludedCapabilityItem }) {
   const carved = item.role === 'carved-out';
-  const canExclude = item.role === 'source' && !!item._links['x-exclude'];
   return (
     <Group
       justify="space-between"
@@ -127,18 +95,6 @@ function IncludedRow({ item, onExclude, isExcluding }: IncludedRowProps) {
         </Text>
         <RoleTag item={item} />
       </Group>
-      {canExclude && (
-        <Button
-          size="compact-xs"
-          variant="subtle"
-          color="red"
-          disabled={isExcluding}
-          onClick={() => onExclude(item.capabilityId)}
-          data-testid={`exclude-${item.capabilityId}`}
-        >
-          Exclude
-        </Button>
-      )}
     </Group>
   );
 }

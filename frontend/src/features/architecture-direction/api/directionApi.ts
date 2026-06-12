@@ -44,6 +44,11 @@ export const directionApi = {
     return response.data;
   },
 
+  async revert(id: EnterpriseCapabilityId): Promise<Direction> {
+    const response = await httpClient.post<Direction>(path(id, '/revert'));
+    return response.data;
+  },
+
   async addSource(id: EnterpriseCapabilityId, capabilityId: string): Promise<Direction> {
     const response = await httpClient.post<Direction>(path(id, '/sources'), { capabilityId });
     return response.data;

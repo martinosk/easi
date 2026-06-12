@@ -20,4 +20,5 @@ export const directionMutationEffects = {
   propose: compositionEffects,
   agree: compositionEffects,
   reject: compositionEffects,
+  revert: compositionEffects,
 };

@@ -47,6 +47,7 @@ export interface Direction {
     'x-agree'?: HATEOASLink;
     'x-reject'?: HATEOASLink;
     'x-add-source'?: HATEOASLink;
+    'x-revert'?: HATEOASLink;
   };
 }
 

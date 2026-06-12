@@ -202,6 +202,7 @@ function directionLinks(direction: StubDirection): Direction['_links'] {
     ...(status === 'draft' && { 'x-add-source': link(`${base}/sources`, 'POST') }),
     ...(status === 'draft' && { 'x-propose': link(`${base}/propose`, 'POST') }),
     ...(status === 'proposed' && { 'x-agree': link(`${base}/agree`, 'POST') }),
+    ...(status === 'proposed' && { 'x-revert': link(`${base}/revert`, 'POST') }),
     ...(status !== 'rejected' && { 'x-reject': link(`${base}/reject`, 'POST') }),
   };
 }

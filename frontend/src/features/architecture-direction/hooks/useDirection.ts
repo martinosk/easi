@@ -106,6 +106,15 @@ export function useRejectDirection() {
   });
 }
 
+export function useRevertDirection() {
+  return useDirectionMutation<ByECArgs>({
+    call: ({ enterpriseCapabilityId }) => directionApi.revert(enterpriseCapabilityId),
+    invalidate: ({ enterpriseCapabilityId }) => directionMutationEffects.revert(enterpriseCapabilityId),
+    successMessage: 'Direction returned to draft',
+    failureMessage: 'Failed to return direction to draft',
+  });
+}
+
 export function useAddSource() {
   return useDirectionMutation<SourceMutationArgs>({
     call: ({ enterpriseCapabilityId, capabilityId }) => directionApi.addSource(enterpriseCapabilityId, capabilityId),

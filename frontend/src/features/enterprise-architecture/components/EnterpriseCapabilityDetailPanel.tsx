@@ -1,6 +1,5 @@
 import { Badge, Box, CloseButton, Divider, Group, Paper, Stack, Text, Title } from '@mantine/core';
 import { DirectionPanel } from '../../architecture-direction/components/DirectionPanel';
-import { useExcludeSource } from '../../architecture-direction/hooks/useDirection';
 import { StandardApplicationPanel } from '../../standard-application/components/StandardApplicationPanel';
 import { useComposition } from '../hooks/useComposition';
 import type { EnterpriseCapability } from '../types';
@@ -27,15 +26,10 @@ function StatPair({ label, value }: { label: string; value: number | string }) {
 
 export function EnterpriseCapabilityDetailPanel({ capability, onClose }: EnterpriseCapabilityDetailPanelProps) {
   const compositionQuery = useComposition(capability.id);
-  const excludeMutation = useExcludeSource();
 
   const meta = compositionQuery.data?.meta;
   const includedCount = meta?.includedCount ?? capability.includedCapabilityCount;
   const domainCount = meta?.domainCount ?? capability.domainCount;
-
-  const handleExclude = (capabilityId: string) => {
-    excludeMutation.mutate({ enterpriseCapabilityId: capability.id, capabilityId });
-  };
 
   return (
     <Paper shadow="sm" radius="lg" p="xl" className={classes.panel}>
@@ -74,8 +68,6 @@ export function EnterpriseCapabilityDetailPanel({ capability, onClose }: Enterpr
         <IncludedCapabilitiesSection
           composition={compositionQuery.data}
           isLoading={compositionQuery.isLoading}
-          onExclude={handleExclude}
-          isExcluding={excludeMutation.isPending}
         />
       </Stack>
     </Paper>

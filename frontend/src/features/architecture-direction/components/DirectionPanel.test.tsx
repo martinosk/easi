@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { toEnterpriseCapabilityId } from '../../../api/types';
-import type { ECDirectionResponse } from '../types';
+import type { Direction, ECDirectionResponse } from '../types';
 
 vi.mock('../api/directionApi', () => ({
   directionApi: {
@@ -26,6 +26,22 @@ function renderPanel(response: ECDirectionResponse) {
       </QueryClientProvider>
     </MantineProvider>,
   );
+}
+
+function makeDirection(overrides: Partial<Direction>): Direction {
+  return {
+    id: 'd-1',
+    enterpriseCapabilityId: toEnterpriseCapabilityId('ec-1'),
+    type: 'consolidate',
+    status: 'draft',
+    horizon: 'next',
+    narrative: 'We are consolidating payroll.',
+    sourceCapabilities: [],
+    placements: [],
+    createdAt: '2025-01-01T00:00:00Z',
+    _links: {},
+    ...overrides,
+  };
 }
 
 describe('DirectionPanel', () => {
@@ -61,21 +77,15 @@ describe('DirectionPanel', () => {
 
   it('renders type, status, and narrative for a draft direction (sources live in the composition view)', async () => {
     renderPanel({
-      direction: {
-        id: 'd-1',
-        enterpriseCapabilityId: toEnterpriseCapabilityId('ec-1'),
+      direction: makeDirection({
         type: 'consolidate',
-        status: 'draft',
-        horizon: 'next',
         narrative: 'We are consolidating payroll into one.',
         sourceCapabilities: [{ id: 'cap-1', stale: false, name: 'Payroll DK' }],
-        placements: [],
-        createdAt: '2025-01-01T00:00:00Z',
         _links: {
           'x-propose': { href: '/api/v1/enterprise-capabilities/ec-1/direction/propose', method: 'POST' },
           'x-reject': { href: '/api/v1/enterprise-capabilities/ec-1/direction/reject', method: 'POST' },
         },
-      },
+      }),
       _links: {},
     });
 
@@ -87,26 +97,77 @@ describe('DirectionPanel', () => {
     expect(screen.getByTestId('advance-to-proposed')).toBeInTheDocument();
     expect(screen.getByTestId('reject-direction')).toBeInTheDocument();
     expect(screen.queryByTestId('advance-to-agreed')).not.toBeInTheDocument();
-    // sources are no longer listed in the direction panel
     expect(screen.queryByTestId('direction-sources')).not.toBeInTheDocument();
+  });
+
+  it('shows Edit button for a draft direction when x-add-source link is present', async () => {
+    renderPanel({
+      direction: makeDirection({
+        _links: {
+          edit: { href: '/api/v1/enterprise-capabilities/ec-1/direction', method: 'PUT' },
+          'x-add-source': { href: '/api/v1/enterprise-capabilities/ec-1/direction/sources', method: 'POST' },
+          'x-propose': { href: '/api/v1/enterprise-capabilities/ec-1/direction/propose', method: 'POST' },
+          'x-reject': { href: '/api/v1/enterprise-capabilities/ec-1/direction/reject', method: 'POST' },
+        },
+      }),
+      _links: {},
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('edit-draft-direction')).toBeInTheDocument();
+    });
+  });
+
+  it('does not show Edit button when x-add-source link is absent', async () => {
+    renderPanel({
+      direction: makeDirection({
+        _links: {
+          'x-propose': { href: '/api/v1/enterprise-capabilities/ec-1/direction/propose', method: 'POST' },
+          'x-reject': { href: '/api/v1/enterprise-capabilities/ec-1/direction/reject', method: 'POST' },
+        },
+      }),
+      _links: {},
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('direction-status-badge')).toHaveTextContent(/draft/i);
+    });
+    expect(screen.queryByTestId('edit-draft-direction')).not.toBeInTheDocument();
+  });
+
+  it('shows Return to draft button and no frozen callout for a proposed direction with x-revert link', async () => {
+    renderPanel({
+      direction: makeDirection({
+        status: 'proposed',
+        _links: {
+          edit: { href: '/api/v1/enterprise-capabilities/ec-1/direction', method: 'PUT' },
+          'x-agree': { href: '/api/v1/enterprise-capabilities/ec-1/direction/agree', method: 'POST' },
+          'x-reject': { href: '/api/v1/enterprise-capabilities/ec-1/direction/reject', method: 'POST' },
+          'x-revert': { href: '/api/v1/enterprise-capabilities/ec-1/direction/revert', method: 'POST' },
+        },
+      }),
+      _links: {},
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('direction-status-badge')).toHaveTextContent(/proposed/i);
+    });
+    expect(screen.getByTestId('revert-to-draft')).toBeInTheDocument();
+    expect(screen.queryByTestId('direction-frozen-callout')).not.toBeInTheDocument();
   });
 
   it('offers reject (but not advance/edit) for an agreed direction and explains immutability', async () => {
     renderPanel({
-      direction: {
-        id: 'd-1',
-        enterpriseCapabilityId: toEnterpriseCapabilityId('ec-1'),
+      direction: makeDirection({
         type: 'stay',
         status: 'agreed',
         horizon: 'now',
         narrative: 'narrative',
         sourceCapabilities: [{ id: 'cap-1', stale: false, name: 'Some Cap' }],
-        placements: [],
-        createdAt: '2025-01-01T00:00:00Z',
         _links: {
           'x-reject': { href: '/api/v1/enterprise-capabilities/ec-1/direction/reject', method: 'POST' },
         },
-      },
+      }),
       _links: {},
     });
 

@@ -6,9 +6,11 @@ import {
   useDirectionForEnterpriseCapability,
   useProposeDirection,
   useRejectDirection,
+  useRevertDirection,
 } from '../hooks/useDirection';
 import type { Direction } from '../types';
 import { CaptureDirectionForm } from './CaptureDirectionForm';
+import { EditDraftDirectionForm } from './EditDraftDirectionForm';
 import { DirectionStatusBadge } from './DirectionStatusBadge';
 
 interface DirectionPanelProps {
@@ -30,6 +32,7 @@ const HORIZON_LABELS: Record<Direction['horizon'], string> = {
 export function DirectionPanel({ enterpriseCapabilityId }: DirectionPanelProps) {
   const { data, isLoading, error } = useDirectionForEnterpriseCapability(enterpriseCapabilityId);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   if (isLoading) {
     return (
@@ -60,7 +63,11 @@ export function DirectionPanel({ enterpriseCapabilityId }: DirectionPanelProps) 
     <>
       <PanelShell>
         {direction ? (
-          <DirectionDetail direction={direction} enterpriseCapabilityId={enterpriseCapabilityId} />
+          <DirectionDetail
+            direction={direction}
+            enterpriseCapabilityId={enterpriseCapabilityId}
+            onEdit={() => setIsEditing(true)}
+          />
         ) : (
           <NoDirectionView canCapture={canCapture} onCapture={() => setIsCapturing(true)} />
         )}
@@ -79,6 +86,23 @@ export function DirectionPanel({ enterpriseCapabilityId }: DirectionPanelProps) 
           onCancel={() => setIsCapturing(false)}
         />
       </Modal>
+      {direction && (
+        <Modal
+          opened={isEditing}
+          onClose={() => setIsEditing(false)}
+          title="Edit draft direction"
+          size="lg"
+          centered
+          data-testid="edit-direction-modal"
+        >
+          <EditDraftDirectionForm
+            enterpriseCapabilityId={enterpriseCapabilityId}
+            direction={direction}
+            onSaved={() => setIsEditing(false)}
+            onCancel={() => setIsEditing(false)}
+          />
+        </Modal>
+      )}
     </>
   );
 }
@@ -115,9 +139,11 @@ function NoDirectionView({ canCapture, onCapture }: { canCapture: boolean; onCap
 interface DirectionDetailProps {
   direction: Direction;
   enterpriseCapabilityId: EnterpriseCapabilityId;
+  onEdit?: () => void;
 }
 
-function DirectionDetail({ direction, enterpriseCapabilityId }: DirectionDetailProps) {
+function DirectionDetail({ direction, enterpriseCapabilityId, onEdit }: DirectionDetailProps) {
+  const canEdit = !!direction._links?.['x-add-source'];
   return (
     <Stack gap="sm">
       <Group justify="space-between" align="center">
@@ -127,7 +153,14 @@ function DirectionDetail({ direction, enterpriseCapabilityId }: DirectionDetailP
             {TYPE_LABELS[direction.type]}
           </Text>
         </Group>
-        <DirectionStatusBadge status={direction.status} />
+        <Group gap="xs">
+          {canEdit && onEdit && (
+            <Button size="compact-sm" variant="default" onClick={onEdit} data-testid="edit-draft-direction">
+              Edit
+            </Button>
+          )}
+          <DirectionStatusBadge status={direction.status} />
+        </Group>
       </Group>
 
       <DirectionNarrative narrative={direction.narrative} />
@@ -139,10 +172,10 @@ function DirectionDetail({ direction, enterpriseCapabilityId }: DirectionDetailP
         <Text size="sm">{HORIZON_LABELS[direction.horizon]}</Text>
       </Box>
 
-      {(direction.status === 'agreed' || direction.status === 'proposed') && (
+      {direction.status === 'agreed' && (
         <Alert color="gray" variant="light" data-testid="direction-frozen-callout">
-          This direction is {direction.status} and its composition is frozen. To recompose, reject this direction and
-          capture a new one.
+          This direction is agreed and its composition is frozen. To recompose, reject this direction and capture a new
+          one.
         </Alert>
       )}
 
@@ -170,8 +203,10 @@ function DirectionActions({ direction, enterpriseCapabilityId }: DirectionDetail
   const proposeMutation = useProposeDirection();
   const agreeMutation = useAgreeDirection();
   const rejectMutation = useRejectDirection();
+  const revertMutation = useRevertDirection();
   const links = direction._links ?? {};
-  const anyPending = proposeMutation.isPending || agreeMutation.isPending || rejectMutation.isPending;
+  const anyPending =
+    proposeMutation.isPending || agreeMutation.isPending || rejectMutation.isPending || revertMutation.isPending;
 
   return (
     <Group gap="sm" data-testid="direction-actions">
@@ -193,6 +228,17 @@ function DirectionActions({ direction, enterpriseCapabilityId }: DirectionDetail
           onClick={() => agreeMutation.mutate({ enterpriseCapabilityId })}
         >
           Advance to agreed
+        </Button>
+      )}
+      {links['x-revert'] && (
+        <Button
+          variant="default"
+          data-testid="revert-to-draft"
+          disabled={anyPending}
+          loading={revertMutation.isPending}
+          onClick={() => revertMutation.mutate({ enterpriseCapabilityId })}
+        >
+          Return to draft
         </Button>
       )}
       {links['x-reject'] && (
