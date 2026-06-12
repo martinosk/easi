@@ -130,12 +130,12 @@ export function buildEnterpriseCapabilityDto(ec: StubEnterpriseCapability): Ente
 function includedItem(
   ecId: string,
   item: ReturnType<typeof resolveComposition>[number],
-  directionAgreed: boolean,
+  isDraft: boolean,
 ): IncludedCapabilityItem {
   const links: IncludedCapabilityItem['_links'] = {
     self: link(`/api/v1/capabilities/${item.capabilityId}`, 'GET'),
   };
-  if (item.role === 'source' && !directionAgreed) {
+  if (item.role === 'source' && isDraft) {
     links['x-exclude'] = link(
       `/api/v1/enterprise-capabilities/${ecId}/direction/sources/${item.capabilityId}`,
       'DELETE',
@@ -158,7 +158,7 @@ function includedItem(
 
 export function buildCompositionResponse(ecId: string): CompositionResponse {
   const direction = getActiveDirection(ecId);
-  const agreed = direction?.status === 'agreed';
+  const isDraft = direction?.status === 'draft';
   const resolved = resolveComposition(ecId, allActiveDirections(), db.capabilities);
 
   const groupsByDomain = new Map<string, CompositionDomainGroup>();
@@ -169,7 +169,7 @@ export function buildCompositionResponse(ecId: string): CompositionResponse {
       group = { businessDomainId: item.businessDomainId, businessDomainName: item.businessDomainName, items: [] };
       groupsByDomain.set(key, group);
     }
-    group.items.push(includedItem(ecId, item, agreed));
+    group.items.push(includedItem(ecId, item, isDraft));
   }
 
   const included = resolved.filter((c) => c.role !== 'carved-out');
@@ -198,7 +198,8 @@ function directionLinks(direction: StubDirection): Direction['_links'] {
   return {
     self: link(base, 'GET'),
     up: link(`/api/v1/enterprise-capabilities/${direction.enterpriseCapabilityId}`, 'GET'),
-    ...(editable && { edit: link(base, 'PUT'), 'x-add-source': link(`${base}/sources`, 'POST') }),
+    ...(editable && { edit: link(base, 'PUT') }),
+    ...(status === 'draft' && { 'x-add-source': link(`${base}/sources`, 'POST') }),
     ...(status === 'draft' && { 'x-propose': link(`${base}/propose`, 'POST') }),
     ...(status === 'proposed' && { 'x-agree': link(`${base}/agree`, 'POST') }),
     ...(status !== 'rejected' && { 'x-reject': link(`${base}/reject`, 'POST') }),

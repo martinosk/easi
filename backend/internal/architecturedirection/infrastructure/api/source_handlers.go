@@ -49,7 +49,7 @@ func (h *DirectionHandlers) AddDirectionSource(w http.ResponseWriter, r *http.Re
 		Actor:        actor.Email,
 	}
 	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		h.respondSourceMutationError(w, err, ecID)
+		h.respondSourceMutationError(w, err, ecID, direction.Status)
 		return
 	}
 	h.respondWithActiveDirection(w, r, ecID, http.StatusOK)
@@ -84,16 +84,20 @@ func (h *DirectionHandlers) RemoveDirectionSource(w http.ResponseWriter, r *http
 		Actor:        actor.Email,
 	}
 	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		h.respondSourceMutationError(w, err, ecID)
+		h.respondSourceMutationError(w, err, ecID, direction.Status)
 		return
 	}
 	sharedAPI.RespondNoContent(w)
 }
 
-func (h *DirectionHandlers) respondSourceMutationError(w http.ResponseWriter, err error, ecID string) {
+func (h *DirectionHandlers) respondSourceMutationError(w http.ResponseWriter, err error, ecID, directionStatus string) {
 	var conflict *services.SourceConflictError
 	if errors.As(err, &conflict) {
 		h.respondSourceConflict(w, conflict)
+		return
+	}
+	if errors.Is(err, aggregates.ErrDirectionSourceSetFrozen) {
+		h.respondSourcesFrozen(w, ecID, directionStatus)
 		return
 	}
 	if errors.Is(err, aggregates.ErrDirectionAgreedImmutable) {
@@ -119,13 +123,17 @@ func (h *DirectionHandlers) respondSourceConflict(w http.ResponseWriter, conflic
 	})
 }
 
-func (h *DirectionHandlers) respondAgreedImmutable(w http.ResponseWriter, ecID string) {
+func (h *DirectionHandlers) respondSourcesFrozen(w http.ResponseWriter, ecID, status string) {
 	sharedAPI.RespondErrorWithLinks(w, sharedAPI.ErrorWithLinksParams{
 		StatusCode: http.StatusConflict,
-		Message:    "This direction is agreed and its source set is frozen. To recompose, reject the direction and capture a new one.",
-		Details:    map[string]string{"directionStatus": "agreed"},
+		Message:    "This direction is " + status + " and its source set is frozen. To recompose, reject the direction and capture a new one.",
+		Details:    map[string]string{"directionStatus": status},
 		Links: sharedAPI.Links{
 			"x-reject": h.hateoas.Post(directionResourcePath(ecID) + "/reject"),
 		},
 	})
+}
+
+func (h *DirectionHandlers) respondAgreedImmutable(w http.ResponseWriter, ecID string) {
+	h.respondSourcesFrozen(w, ecID, "agreed")
 }

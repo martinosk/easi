@@ -139,10 +139,10 @@ function DirectionDetail({ direction, enterpriseCapabilityId }: DirectionDetailP
         <Text size="sm">{HORIZON_LABELS[direction.horizon]}</Text>
       </Box>
 
-      {direction.status === 'agreed' && (
-        <Alert color="gray" variant="light" data-testid="agreed-immutable-callout">
-          This direction is agreed and its composition is frozen. To recompose, reject this direction and capture a new
-          one.
+      {(direction.status === 'agreed' || direction.status === 'proposed') && (
+        <Alert color="gray" variant="light" data-testid="direction-frozen-callout">
+          This direction is {direction.status} and its composition is frozen. To recompose, reject this direction and
+          capture a new one.
         </Alert>
       )}
 

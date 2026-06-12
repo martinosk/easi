@@ -153,24 +153,35 @@ func TestGetComposition_GroupsByDomainWithMetaAndLinks(t *testing.T) {
 	assert.NotContains(t, body.Links, "x-capture-direction", "an active direction exists")
 }
 
-func TestGetComposition_AgreedDirectionHidesExclude(t *testing.T) {
-	ecs := &fakeECQueries{byID: map[string]*readmodels.EnterpriseCapabilityDTO{
-		"ec-1": {ID: "ec-1", Name: "Customer Identity", Active: true},
-	}}
-	queries := &fakeCompositionQueries{composition: appservices.CompositionResult{
-		HasActiveDirection: true,
-		DirectionStatus:    "agreed",
-		Resolved: []domainservices.ResolvedCapability{
-			resolvedItem(domainNode("cap-001", "Customer Account Creation", "dom-001", "Customer"), "source", nil),
-		},
-		Counts: domainservices.CompositionCounts{SourceCount: 1, IncludedCount: 1},
-	}}
-	h := newCompositionHandlers(queries, ecs)
+func TestGetComposition_NonDraftDirectionHidesExclude(t *testing.T) {
+	cases := []struct {
+		status string
+		reason string
+	}{
+		{"proposed", "source set frozen once proposed"},
+		{"agreed", "agreed directions are immutable (R5)"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.status, func(t *testing.T) {
+			ecs := &fakeECQueries{byID: map[string]*readmodels.EnterpriseCapabilityDTO{
+				"ec-1": {ID: "ec-1", Name: "Customer Identity", Active: true},
+			}}
+			queries := &fakeCompositionQueries{composition: appservices.CompositionResult{
+				HasActiveDirection: true,
+				DirectionStatus:    tc.status,
+				Resolved: []domainservices.ResolvedCapability{
+					resolvedItem(domainNode("cap-001", "Customer Account Creation", "dom-001", "Customer"), "source", nil),
+				},
+				Counts: domainservices.CompositionCounts{SourceCount: 1, IncludedCount: 1},
+			}}
+			h := newCompositionHandlers(queries, ecs)
 
-	rec := performGet(compositionRouter(h), "/enterprise-capabilities/ec-1/composition")
+			rec := performGet(compositionRouter(h), "/enterprise-capabilities/ec-1/composition")
 
-	require.Equal(t, http.StatusOK, rec.Code)
-	assert.NotContains(t, rec.Body.String(), "x-exclude", "agreed directions are immutable (R5)")
+			require.Equal(t, http.StatusOK, rec.Code)
+			assert.NotContains(t, rec.Body.String(), "x-exclude", tc.reason)
+		})
+	}
 }
 
 func TestGetComposition_NoActiveDirection_EmptyDataAndCaptureLink(t *testing.T) {

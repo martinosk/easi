@@ -45,13 +45,12 @@ function conflictResponse(ecName: string, capabilityName: string, capabilityId: 
   );
 }
 
-function immutableResponse(ecId: string) {
+function immutableResponse(ecId: string, status: string) {
   return HttpResponse.json(
     {
       error: 'Conflict',
-      message:
-        'This direction is agreed and its source set is frozen. To recompose, reject the direction and capture a new one.',
-      details: { directionStatus: 'agreed' },
+      message: `This direction is ${status} and its source set is frozen. To recompose, reject the direction and capture a new one.`,
+      details: { directionStatus: status },
       _links: { 'x-reject': link(`/api/v1/enterprise-capabilities/${ecId}/direction/reject`, 'POST') },
     },
     { status: 409 },
@@ -228,7 +227,7 @@ export const spec172Handlers = [
     const ecId = params.id as string;
     const direction = getActiveDirection(ecId);
     if (!direction) return new HttpResponse(null, { status: 404 });
-    if (direction.status === 'agreed') return immutableResponse(ecId);
+    if (direction.status !== 'draft') return immutableResponse(ecId, direction.status);
 
     const body = (await request.json()) as AddSourceRequest;
     const others = otherActiveDirections(ecId);
@@ -255,7 +254,7 @@ export const spec172Handlers = [
     const capabilityId = params.capabilityId as string;
     const direction = getActiveDirection(ecId);
     if (!direction) return new HttpResponse(null, { status: 404 });
-    if (direction.status === 'agreed') return immutableResponse(ecId);
+    if (direction.status !== 'draft') return immutableResponse(ecId, direction.status);
     if (!direction.sourceCapabilityIds.includes(capabilityId)) return new HttpResponse(null, { status: 404 });
 
     direction.sourceCapabilityIds = direction.sourceCapabilityIds.filter((id) => id !== capabilityId);

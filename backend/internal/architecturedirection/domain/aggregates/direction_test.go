@@ -299,7 +299,15 @@ func TestAddSourceCapability_AlreadyPresent_IsIdempotent(t *testing.T) {
 func TestAddSourceCapability_OnAgreed_Fails(t *testing.T) {
 	d := agreedConsolidate(t)
 	err := d.AddSourceCapability(newPhysicalRef(t), "architect@dfds.com")
-	assert.ErrorIs(t, err, ErrDirectionAgreedImmutable)
+	assert.ErrorIs(t, err, ErrDirectionSourceSetFrozen)
+}
+
+func TestAddSourceCapability_OnProposed_Fails(t *testing.T) {
+	d := draftConsolidate(t)
+	require.NoError(t, d.Propose())
+	d.MarkChangesAsCommitted()
+	err := d.AddSourceCapability(newPhysicalRef(t), "architect@dfds.com")
+	assert.ErrorIs(t, err, ErrDirectionSourceSetFrozen)
 }
 
 func TestRemoveSourceCapability_RemovesAndRecordsActor(t *testing.T) {
@@ -337,7 +345,15 @@ func TestRemoveSourceCapability_NotInSourceSet_Fails(t *testing.T) {
 func TestRemoveSourceCapability_OnAgreed_Fails(t *testing.T) {
 	d := agreedConsolidate(t)
 	err := d.RemoveSourceCapability(d.SourceCapabilityIDs()[0], "architect@dfds.com")
-	assert.ErrorIs(t, err, ErrDirectionAgreedImmutable)
+	assert.ErrorIs(t, err, ErrDirectionSourceSetFrozen)
+}
+
+func TestRemoveSourceCapability_OnProposed_Fails(t *testing.T) {
+	d := draftConsolidate(t)
+	require.NoError(t, d.Propose())
+	d.MarkChangesAsCommitted()
+	err := d.RemoveSourceCapability(d.SourceCapabilityIDs()[0], "architect@dfds.com")
+	assert.ErrorIs(t, err, ErrDirectionSourceSetFrozen)
 }
 
 func TestLoadFromHistory_ReconstructsStatus(t *testing.T) {

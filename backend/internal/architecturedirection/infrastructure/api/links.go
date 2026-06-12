@@ -54,6 +54,8 @@ func (h *DirectionLinks) addWriteAffordances(links sharedAPI.Links, base, status
 	}
 	if canEdit(status) {
 		links["edit"] = h.Put(base)
+	}
+	if status == valueobjects.DirectionStatusDraft {
 		links["x-add-source"] = h.Post(base + "/sources")
 	}
 	if rel, target := nextAdvanceRel(status); rel != "" {

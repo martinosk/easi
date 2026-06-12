@@ -88,9 +88,9 @@ func TestAddDirectionSource_NoActiveDirection_404(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, rec.Code)
 }
 
-func TestAddDirectionSource_AgreedDirection_ImmutableConflictBody(t *testing.T) {
+func TestAddDirectionSource_AgreedDirection_SourceSetFrozenBody(t *testing.T) {
 	ecID := uuid.New().String()
-	bus := &mockCommandBus{err: aggregates.ErrDirectionAgreedImmutable}
+	bus := &mockCommandBus{err: aggregates.ErrDirectionSourceSetFrozen}
 	queries := &mockDirectionQueries{activeByEC: &readmodels.DirectionDTO{
 		ID: uuid.New().String(), EnterpriseCapabilityID: ecID, Status: "agreed",
 	}}
@@ -108,6 +108,25 @@ func TestAddDirectionSource_AgreedDirection_ImmutableConflictBody(t *testing.T) 
 	require.Contains(t, body.Links, "x-reject")
 	assert.Equal(t, "/api/v1/enterprise-capabilities/"+ecID+"/direction/reject", body.Links["x-reject"].Href)
 	assert.Equal(t, "POST", body.Links["x-reject"].Method)
+}
+
+func TestAddDirectionSource_ProposedDirection_SourceSetFrozenBody(t *testing.T) {
+	ecID := uuid.New().String()
+	bus := &mockCommandBus{err: aggregates.ErrDirectionSourceSetFrozen}
+	queries := &mockDirectionQueries{activeByEC: &readmodels.DirectionDTO{
+		ID: uuid.New().String(), EnterpriseCapabilityID: ecID, Status: "proposed",
+	}}
+	h := setupHandlers(bus, queries)
+
+	rec := postJSON(t, newSourceRouter(h),
+		"/enterprise-capabilities/"+ecID+"/direction/sources",
+		AddDirectionSourceRequest{CapabilityID: uuid.New().String()})
+
+	require.Equal(t, http.StatusConflict, rec.Code)
+	body := decodeErrorBody(t, rec)
+	assert.Equal(t, "proposed", body.Details["directionStatus"])
+	assert.Equal(t, "This direction is proposed and its source set is frozen. To recompose, reject the direction and capture a new one.", body.Message)
+	require.Contains(t, body.Links, "x-reject")
 }
 
 func TestAddDirectionSource_R1Conflict_BodyWithDetailsAndConflictLink(t *testing.T) {
@@ -177,21 +196,25 @@ func TestRemoveDirectionSource_NotASource_404(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, rec.Code)
 }
 
-func TestRemoveDirectionSource_AgreedDirection_ImmutableConflictBody(t *testing.T) {
-	ecID := uuid.New().String()
-	bus := &mockCommandBus{err: aggregates.ErrDirectionAgreedImmutable}
-	queries := &mockDirectionQueries{activeByEC: &readmodels.DirectionDTO{
-		ID: uuid.New().String(), EnterpriseCapabilityID: ecID, Status: "agreed",
-	}}
-	h := setupHandlers(bus, queries)
+func TestRemoveDirectionSource_NonDraftDirection_SourceSetFrozenBody(t *testing.T) {
+	for _, status := range []string{"agreed", "proposed"} {
+		t.Run(status, func(t *testing.T) {
+			ecID := uuid.New().String()
+			bus := &mockCommandBus{err: aggregates.ErrDirectionSourceSetFrozen}
+			queries := &mockDirectionQueries{activeByEC: &readmodels.DirectionDTO{
+				ID: uuid.New().String(), EnterpriseCapabilityID: ecID, Status: status,
+			}}
+			h := setupHandlers(bus, queries)
 
-	rec := performWithoutBody(newSourceRouter(h), http.MethodDelete,
-		"/enterprise-capabilities/"+ecID+"/direction/sources/"+uuid.New().String())
+			rec := performWithoutBody(newSourceRouter(h), http.MethodDelete,
+				"/enterprise-capabilities/"+ecID+"/direction/sources/"+uuid.New().String())
 
-	require.Equal(t, http.StatusConflict, rec.Code)
-	body := decodeErrorBody(t, rec)
-	assert.Equal(t, "agreed", body.Details["directionStatus"])
-	assert.Contains(t, body.Links, "x-reject")
+			require.Equal(t, http.StatusConflict, rec.Code)
+			body := decodeErrorBody(t, rec)
+			assert.Equal(t, status, body.Details["directionStatus"])
+			assert.Contains(t, body.Links, "x-reject")
+		})
+	}
 }
 
 func TestCaptureDirection_InactiveEC_409WithContractMessage(t *testing.T) {
@@ -263,14 +286,14 @@ func TestProposeDirection_CardinalityNotMet_400WithTypeSpecificMessage(t *testin
 	}
 }
 
-func TestDirectionLinks_EditableStatusesIncludeAddSource(t *testing.T) {
+func TestDirectionLinks_OnlyDraftIncludesAddSource(t *testing.T) {
 	ecID := uuid.New().String()
 	cases := []struct {
 		status        string
 		wantAddSource bool
 	}{
 		{"draft", true},
-		{"proposed", true},
+		{"proposed", false},
 		{"agreed", false},
 		{"rejected", false},
 	}

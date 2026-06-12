@@ -16,6 +16,7 @@ var (
 	ErrNarrativeRequiredToPropose     = errors.New("narrative is required before advancing a direction to proposed")
 	ErrInvalidStatusTransition        = errors.New("status transition not allowed from current status")
 	ErrDirectionAgreedImmutable       = errors.New("agreed directions are immutable; reject and replace to change")
+	ErrDirectionSourceSetFrozen       = errors.New("source set modifications are only allowed on draft directions")
 	ErrSourceCapabilityNotInDirection = errors.New("capability is not a source of this direction")
 )
 
@@ -126,7 +127,7 @@ func (d *Direction) ChangeHorizon(horizon valueobjects.Horizon) error {
 }
 
 func (d *Direction) AddSourceCapability(ref valueobjects.PhysicalCapabilityRef, actor string) error {
-	if err := d.requireEditable(); err != nil {
+	if err := d.requireDraft(); err != nil {
 		return err
 	}
 	if d.hasSource(ref) {
@@ -138,7 +139,7 @@ func (d *Direction) AddSourceCapability(ref valueobjects.PhysicalCapabilityRef, 
 }
 
 func (d *Direction) RemoveSourceCapability(ref valueobjects.PhysicalCapabilityRef, actor string) error {
-	if err := d.requireEditable(); err != nil {
+	if err := d.requireDraft(); err != nil {
 		return err
 	}
 	if !d.hasSource(ref) {
@@ -186,6 +187,13 @@ func (d *Direction) requireTransition(target valueobjects.DirectionStatus) error
 func (d *Direction) requireEditable() error {
 	if d.status.IsAgreed() || d.status.IsRejected() {
 		return ErrDirectionAgreedImmutable
+	}
+	return nil
+}
+
+func (d *Direction) requireDraft() error {
+	if !d.status.IsDraft() {
+		return ErrDirectionSourceSetFrozen
 	}
 	return nil
 }

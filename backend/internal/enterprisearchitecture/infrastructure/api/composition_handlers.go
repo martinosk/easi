@@ -183,7 +183,7 @@ func (h *CompositionHandlers) includedItem(ecID, directionStatus string, resolve
 }
 
 func canExcludeSource(role domainservices.CompositionRole, directionStatus string, actor sharedctx.Actor) bool {
-	if role != domainservices.RoleSource || directionStatus == "agreed" {
+	if role != domainservices.RoleSource || directionStatus != "draft" {
 		return false
 	}
 	return actor.CanWrite("architecture-direction")

@@ -113,7 +113,7 @@ describe('DirectionPanel', () => {
     await waitFor(() => {
       expect(screen.getByTestId('direction-status-badge')).toHaveTextContent(/agreed/i);
     });
-    expect(screen.getByTestId('agreed-immutable-callout')).toBeInTheDocument();
+    expect(screen.getByTestId('direction-frozen-callout')).toBeInTheDocument();
     expect(screen.queryByTestId('advance-to-proposed')).not.toBeInTheDocument();
     expect(screen.queryByTestId('advance-to-agreed')).not.toBeInTheDocument();
     expect(screen.getByTestId('reject-direction')).toBeInTheDocument();

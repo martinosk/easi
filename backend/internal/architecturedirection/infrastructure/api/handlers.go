@@ -112,7 +112,7 @@ func (h *DirectionHandlers) CaptureDirection(w http.ResponseWriter, r *http.Requ
 		Narrative:              req.Narrative,
 	}
 	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		h.respondSourceMutationError(w, err, ecID)
+		h.respondSourceMutationError(w, err, ecID, "")
 		return
 	}
 	h.respondWithActiveDirection(w, r, ecID, http.StatusCreated)
@@ -150,7 +150,7 @@ func (h *DirectionHandlers) UpdateDirection(w http.ResponseWriter, r *http.Reque
 		Horizon:     req.Horizon,
 	}
 	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		h.respondSourceMutationError(w, err, ecID)
+		h.respondSourceMutationError(w, err, ecID, direction.Status)
 		return
 	}
 	h.respondWithActiveDirection(w, r, ecID, http.StatusOK)

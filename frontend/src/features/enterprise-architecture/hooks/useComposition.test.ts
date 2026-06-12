@@ -24,7 +24,7 @@ function seedCarveOutScenario() {
         id: 'dir-crm',
         enterpriseCapabilityId: 'ec-crm',
         type: 'consolidate',
-        status: 'proposed',
+        status: 'draft',
         horizon: 'next',
         sourceCapabilityIds: ['cap-cim'],
         createdAt: '2026-01-01T00:00:00Z',
@@ -33,7 +33,7 @@ function seedCarveOutScenario() {
         id: 'dir-tp',
         enterpriseCapabilityId: 'ec-tp',
         type: 'consolidate',
-        status: 'proposed',
+        status: 'draft',
         horizon: 'next',
         sourceCapabilityIds: ['cap-fraud'],
         createdAt: '2026-01-01T00:00:00Z',
@@ -87,6 +87,34 @@ describe('useComposition', () => {
     expect(byId['cap-consent'].role).toBe('implicit');
     expect(byId['cap-fraud'].role).toBe('carved-out');
     expect(byId['cap-fraud'].carvedOutBy?.enterpriseCapabilityName).toBe('Take Payment');
+  });
+
+  it('omits x-exclude on sources when the direction is proposed (source set frozen)', async () => {
+    seedSpec172Db({
+      enterpriseCapabilities: [
+        { id: 'ec-ci', name: 'Customer Identity', active: true, createdAt: '2026-01-01T00:00:00Z' },
+      ],
+      directions: [
+        {
+          id: 'dir-ci',
+          enterpriseCapabilityId: 'ec-ci',
+          type: 'consolidate',
+          status: 'proposed',
+          horizon: 'now',
+          sourceCapabilityIds: ['cap-a'],
+          createdAt: '2026-01-01T00:00:00Z',
+        },
+      ],
+      capabilities: [
+        { id: 'cap-a', name: 'A', level: 'L2', parentId: null, businessDomainId: 'bd-c', businessDomainName: 'Customer' },
+      ],
+    });
+
+    const { result } = renderHook(() => useComposition(toEnterpriseCapabilityId('ec-ci')), { wrapper });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    const source = result.current.data!.data.flatMap((g) => g.items).find((i) => i.capabilityId === 'cap-a')!;
+    expect(source._links['x-exclude']).toBeUndefined();
   });
 
   it('omits x-exclude on sources when the direction is agreed (R5 immutability)', async () => {
