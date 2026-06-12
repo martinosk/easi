@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	appservices "easi/backend/internal/enterprisearchitecture/application/services"
@@ -202,6 +203,19 @@ func (h *CompositionHandlers) compositionLinks(ecID string, hasActiveDirection b
 	return links
 }
 
+func sourceCandidateLimit(params url.Values, search string) int {
+	if search == "" {
+		return 0
+	}
+	limit := defaultSourceCandidatesLimit
+	if raw := params.Get("limit"); raw != "" {
+		if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+	return limit
+}
+
 // GetSourceCandidates godoc
 // @Summary Search domain capabilities as direction source candidates
 // @Description Case-insensitive name search over domain capabilities with per-candidate R1 eligibility against active directions on other enterprise capabilities.
@@ -223,19 +237,14 @@ func (h *CompositionHandlers) GetSourceCandidates(w http.ResponseWriter, r *http
 	params := r.URL.Query()
 	search := params.Get("q")
 	ecID := params.Get("ecId")
-	if search == "" || ecID == "" {
+	if ecID == "" {
 		sharedAPI.RespondJSON(w, http.StatusBadRequest, sharedAPI.ErrorResponse{
 			Error:   "BadRequest",
-			Message: "q and ecId are required",
+			Message: "ecId is required",
 		})
 		return
 	}
-	limit := defaultSourceCandidatesLimit
-	if raw := params.Get("limit"); raw != "" {
-		if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
-			limit = parsed
-		}
-	}
+	limit := sourceCandidateLimit(params, search)
 
 	result, err := h.queries.SourceCandidates(r.Context(), appservices.SourceCandidatesQuery{
 		EnterpriseCapabilityID: ecID,

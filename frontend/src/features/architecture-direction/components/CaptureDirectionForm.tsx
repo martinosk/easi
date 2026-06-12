@@ -4,14 +4,15 @@ import {
   Badge,
   Box,
   Button,
+  type ComboboxItem,
   Group,
+  MultiSelect,
   NativeSelect,
-  Pill,
+  type OptionsFilter,
   Select,
   Stack,
   Text,
   Textarea,
-  TextInput,
 } from '@mantine/core';
 import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -20,7 +21,7 @@ import { type CaptureDirectionFormData, captureDirectionSchema } from '../../../
 import { useBusinessDomainsQuery } from '../../business-domains/hooks/useBusinessDomains';
 import { useCaptureDirection, useCompositionPreview, useSourceCandidates } from '../hooks/useDirection';
 import type { DirectionType, SourceCandidate } from '../types';
-import { CandidateResults, CompositionPreview, HORIZON_OPTIONS, toDomainOptions } from './sourcePickerPrimitives';
+import { CompositionPreview, HORIZON_OPTIONS, toDomainOptions } from './sourcePickerPrimitives';
 
 interface CaptureDirectionFormProps {
   enterpriseCapabilityId: EnterpriseCapabilityId;
@@ -41,16 +42,16 @@ const DEFAULT_VALUES: CaptureDirectionFormData = {
   narrative: '',
 };
 
-function useSourceSelection() {
-  const [selected, setSelected] = useState<SourceCandidate[]>([]);
-  const selectedIds = useMemo(() => selected.map((s) => s.capabilityId), [selected]);
-  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
-
-  const add = (candidate: SourceCandidate) =>
-    setSelected((prev) => (prev.some((s) => s.capabilityId === candidate.capabilityId) ? prev : [...prev, candidate]));
-  const remove = (capabilityId: string) => setSelected((prev) => prev.filter((s) => s.capabilityId !== capabilityId));
-
-  return { selected, selectedIds, selectedIdSet, add, remove };
+function buildCandidateFilter(candidateMap: Map<string, SourceCandidate>, domainId: string): OptionsFilter {
+  return ({ options, search }) => {
+    const term = search.toLowerCase();
+    return (options as ComboboxItem[]).filter((o) => {
+      const c = candidateMap.get(o.value);
+      if (!c) return false;
+      if (domainId && c.businessDomainId !== domainId) return false;
+      return !term || c.name.toLowerCase().includes(term);
+    });
+  };
 }
 
 function useCaptureDirectionController(enterpriseCapabilityId: EnterpriseCapabilityId, onCaptured: () => void) {
@@ -62,18 +63,37 @@ function useCaptureDirectionController(enterpriseCapabilityId: EnterpriseCapabil
   });
   const { setValue } = form;
 
-  const [search, setSearch] = useState('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [domainId, setDomainId] = useState('');
-  const selection = useSourceSelection();
 
   useEffect(() => {
-    setValue('sourceCapabilityIds', selection.selectedIds, { shouldValidate: true });
-  }, [selection.selectedIds, setValue]);
+    setValue('sourceCapabilityIds', selectedIds, { shouldValidate: true });
+  }, [selectedIds, setValue]);
 
-  const candidatesQuery = useSourceCandidates(enterpriseCapabilityId, { q: search, domainId: domainId || undefined });
-  const previewQuery = useCompositionPreview(enterpriseCapabilityId, selection.selectedIds);
+  const candidatesQuery = useSourceCandidates(enterpriseCapabilityId);
+  const previewQuery = useCompositionPreview(enterpriseCapabilityId, selectedIds);
   const { data: domainsResponse } = useBusinessDomainsQuery();
   const domainOptions = useMemo(() => toDomainOptions(domainsResponse?.data ?? []), [domainsResponse]);
+
+  const candidateMap = useMemo(() => {
+    const map = new Map<string, SourceCandidate>();
+    for (const c of candidatesQuery.data?.data ?? []) {
+      map.set(c.capabilityId, c);
+    }
+    return map;
+  }, [candidatesQuery.data]);
+
+  const allOptions = useMemo(
+    () =>
+      (candidatesQuery.data?.data ?? []).map((c) => ({
+        value: c.capabilityId,
+        label: c.name,
+        disabled: !c.eligible,
+      })),
+    [candidatesQuery.data],
+  );
+
+  const filterOptions = useMemo(() => buildCandidateFilter(candidateMap, domainId), [candidateMap, domainId]);
 
   const submit = form.handleSubmit(async (data) => {
     try {
@@ -92,12 +112,14 @@ function useCaptureDirectionController(enterpriseCapabilityId: EnterpriseCapabil
 
   return {
     form,
-    search,
-    setSearch,
+    selectedIds,
+    onSelectionChange: setSelectedIds,
+    allOptions,
+    filterOptions,
     domainId,
     setDomainId,
     domainOptions,
-    selection,
+    candidateMap,
     candidatesQuery,
     previewQuery,
     submit,
@@ -109,12 +131,14 @@ function useCaptureDirectionController(enterpriseCapabilityId: EnterpriseCapabil
 export function CaptureDirectionForm({ enterpriseCapabilityId, onCaptured, onCancel }: CaptureDirectionFormProps) {
   const {
     form,
-    search,
-    setSearch,
+    selectedIds,
+    onSelectionChange,
+    allOptions,
+    filterOptions,
     domainId,
     setDomainId,
     domainOptions,
-    selection,
+    candidateMap,
     candidatesQuery,
     previewQuery,
     submit,
@@ -123,7 +147,6 @@ export function CaptureDirectionForm({ enterpriseCapabilityId, onCaptured, onCan
   } = useCaptureDirectionController(enterpriseCapabilityId, onCaptured);
   const { control, watch, formState } = form;
   const type = watch('type');
-  const selected = selection.selected;
 
   return (
     <form onSubmit={submit} data-testid="capture-direction-form">
@@ -136,7 +159,7 @@ export function CaptureDirectionForm({ enterpriseCapabilityId, onCaptured, onCan
               Source capabilities
             </Text>
             <Badge variant="light" color="gray" data-testid="selected-count">
-              {selected.length}
+              {selectedIds.length}
             </Badge>
           </Group>
           <Text size="xs" c="dimmed">
@@ -144,14 +167,20 @@ export function CaptureDirectionForm({ enterpriseCapabilityId, onCaptured, onCan
             subtrees — become this EC&apos;s composition.
           </Text>
 
-          <Group gap="xs" grow={false} wrap="nowrap">
+          <Group gap="xs" align="flex-start" wrap="nowrap">
             <Box flex={1}>
-              <TextInput
-                placeholder="Search capabilities…"
-                value={search}
-                onChange={(e) => setSearch(e.currentTarget.value)}
+              <MultiSelect
+                placeholder={candidatesQuery.isLoading ? 'Loading capabilities…' : 'Search or scroll to add capabilities…'}
+                data={allOptions}
+                value={selectedIds}
+                onChange={onSelectionChange}
+                searchable
+                filter={filterOptions}
+                renderOption={({ option }) => <CandidateOptionContent option={option} candidateMap={candidateMap} />}
+                maxDropdownHeight={280}
+                nothingFoundMessage="No matching capabilities"
+                disabled={candidatesQuery.isLoading}
                 data-testid="source-search-input"
-                aria-label="Search capabilities"
               />
             </Box>
             <NativeSelect
@@ -163,18 +192,9 @@ export function CaptureDirectionForm({ enterpriseCapabilityId, onCaptured, onCan
             />
           </Group>
 
-          <CandidateResults
-            query={candidatesQuery}
-            selectedIds={selection.selectedIdSet}
-            onAdd={selection.add}
-            searchActive={search.trim().length > 0}
-          />
+          {selectedIds.length > 0 && <DraftCardinalityHint type={type} count={selectedIds.length} />}
 
-          <SelectedSources selected={selected} onRemove={selection.remove} />
-
-          {selected.length > 0 && <DraftCardinalityHint type={type} count={selected.length} />}
-
-          <CompositionPreview query={previewQuery} visible={selected.length > 0} />
+          <CompositionPreview query={previewQuery} visible={selectedIds.length > 0} />
         </Stack>
 
         <EnumField name="horizon" label="Horizon" control={control} options={HORIZON_OPTIONS} />
@@ -247,26 +267,28 @@ function NarrativeField({ control }: { control: FormControl }) {
   );
 }
 
-function SelectedSources({ selected, onRemove }: { selected: SourceCandidate[]; onRemove: (id: string) => void }) {
-  if (selected.length === 0) return null;
+function CandidateOptionContent({
+  option,
+  candidateMap,
+}: {
+  option: ComboboxItem;
+  candidateMap: Map<string, SourceCandidate>;
+}) {
+  const c = candidateMap.get(option.value);
+  if (!c) return <Text size="sm">{option.label}</Text>;
   return (
-    <Box>
-      <Text size="xs" fw={600} c="dimmed" tt="uppercase">
-        Selected sources
-      </Text>
-      <Group gap="xs" mt={6}>
-        {selected.map((candidate) => (
-          <Pill
-            key={candidate.capabilityId}
-            withRemoveButton
-            onRemove={() => onRemove(candidate.capabilityId)}
-            data-testid={`selected-chip-${candidate.capabilityId}`}
-          >
-            {candidate.level} · {candidate.name}
-          </Pill>
-        ))}
-      </Group>
-    </Box>
+    <Stack gap={0}>
+      <Text size="sm">{c.name}</Text>
+      {c.eligible ? (
+        <Text size="xs" c="dimmed">
+          {c.businessDomainName ?? 'Unassigned'} · {c.level}
+        </Text>
+      ) : (
+        <Text size="xs" c="red">
+          ⛔ {c.ineligibilityReason}
+        </Text>
+      )}
+    </Stack>
   );
 }
 
@@ -274,7 +296,7 @@ function DraftCardinalityHint({ type, count }: { type: DirectionType; count: num
   const advanceRule =
     type === 'consolidate'
       ? 'Advancing to proposed requires at least 2 sources for a Consolidate direction.'
-      : 'Advancing to proposed enforces this type’s source cardinality.';
+      : "Advancing to proposed enforces this type's source cardinality.";
   return (
     <Alert color="yellow" variant="light" data-testid="draft-cardinality-hint">
       {count} source{count === 1 ? '' : 's'} selected. A draft is accepted with any number of sources.{' '}

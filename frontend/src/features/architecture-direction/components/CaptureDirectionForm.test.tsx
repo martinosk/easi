@@ -1,4 +1,5 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { toEnterpriseCapabilityId } from '../../../api/types';
 import { renderWithProviders } from '../../../test/helpers';
@@ -68,65 +69,77 @@ function renderForm(overrides: Partial<Parameters<typeof CaptureDirectionForm>[0
   );
 }
 
-function search(term: string) {
-  fireEvent.change(screen.getByTestId('source-search-input'), { target: { value: term } });
+async function openDropdown(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByTestId('source-search-input'));
 }
 
-describe('CaptureDirectionForm — search-driven source picker', () => {
-  it('searches capabilities and lists eligible candidates with an Add control', async () => {
+async function selectCandidate(user: ReturnType<typeof userEvent.setup>, name: string) {
+  await openDropdown(user);
+  await user.click(await screen.findByText(name));
+}
+
+describe('CaptureDirectionForm — source picker', () => {
+  it('shows candidates immediately without searching', async () => {
     seed();
+    const user = userEvent.setup();
     renderForm();
-    search('customer');
-    await waitFor(() => expect(screen.getByTestId('candidate-cap-cim')).toBeInTheDocument());
-    expect(screen.getByTestId('add-candidate-cap-cim')).toBeEnabled();
+    await openDropdown(user);
+    expect(await screen.findByText('Customer Identity Mgmt')).toBeInTheDocument();
+    expect(screen.getByText('Customer Consent')).toBeInTheDocument();
   });
 
-  it('marks a candidate already sourced elsewhere as ineligible and disables Add (R1)', async () => {
+  it('marks a candidate already sourced elsewhere as ineligible — clicking it does not add it (R1)', async () => {
     seed();
+    const user = userEvent.setup();
     renderForm();
-    search('customer');
-    await waitFor(() => expect(screen.getByTestId('candidate-cap-fraud')).toBeInTheDocument());
-    expect(screen.getByTestId('candidate-cap-fraud')).toHaveTextContent(/Take Payment/);
-    expect(screen.getByTestId('add-candidate-cap-fraud')).toBeDisabled();
+    await openDropdown(user);
+    await screen.findByText('Customer Fraud Prevention');
+    await user.click(screen.getByText('Customer Fraud Prevention'));
+    expect(screen.getByTestId('selected-count')).toHaveTextContent('0');
   });
 
-  it('adds an eligible candidate as a selected chip and reflects the count', async () => {
+  it('adds an eligible candidate and reflects the count', async () => {
     seed();
+    const user = userEvent.setup();
     renderForm();
-    search('customer');
-    await waitFor(() => expect(screen.getByTestId('add-candidate-cap-cim')).toBeInTheDocument());
-    fireEvent.click(screen.getByTestId('add-candidate-cap-cim'));
-    expect(await screen.findByTestId('selected-chip-cap-cim')).toBeInTheDocument();
-    expect(screen.getByTestId('selected-count')).toHaveTextContent('1');
+    await selectCandidate(user, 'Customer Identity Mgmt');
+    await waitFor(() => expect(screen.getByTestId('selected-count')).toHaveTextContent('1'));
   });
 
   it('shows a draft cardinality hint explaining proposed needs 2 sources for consolidate (R8)', async () => {
     seed();
+    const user = userEvent.setup();
     renderForm();
-    search('customer');
-    await waitFor(() => expect(screen.getByTestId('add-candidate-cap-cim')).toBeInTheDocument());
-    fireEvent.click(screen.getByTestId('add-candidate-cap-cim'));
-    expect(await screen.findByTestId('draft-cardinality-hint')).toHaveTextContent(/2 sources/i);
+    await selectCandidate(user, 'Customer Identity Mgmt');
+    await waitFor(() => expect(screen.getByTestId('draft-cardinality-hint')).toHaveTextContent(/2 sources/i));
+  });
+
+  it('filters candidates by search term', async () => {
+    seed();
+    const user = userEvent.setup();
+    renderForm();
+    await waitFor(() => expect(screen.getByTestId('source-search-input')).not.toBeDisabled());
+    await user.type(screen.getByTestId('source-search-input'), 'Consent');
+    expect(await screen.findByText('Customer Consent')).toBeInTheDocument();
+    expect(screen.queryByText('Customer Identity Mgmt')).toBeNull();
   });
 
   it('previews carve-outs for the selected source set (R2)', async () => {
     seed();
+    const user = userEvent.setup();
     renderForm();
-    search('customer');
-    await waitFor(() => expect(screen.getByTestId('add-candidate-cap-cim')).toBeInTheDocument());
-    fireEvent.click(screen.getByTestId('add-candidate-cap-cim'));
+    await selectCandidate(user, 'Customer Identity Mgmt');
     await waitFor(() => expect(screen.getByTestId('composition-preview')).toHaveTextContent(/Customer Consent/));
     expect(screen.getByTestId('composition-preview')).toHaveTextContent(/Take Payment/);
   });
 
   it('captures a draft direction with the selected source and calls onCaptured', async () => {
     seed();
+    const user = userEvent.setup();
     const onCaptured = vi.fn();
     renderForm({ onCaptured });
-    search('customer');
-    await waitFor(() => expect(screen.getByTestId('add-candidate-cap-cim')).toBeInTheDocument());
-    fireEvent.click(screen.getByTestId('add-candidate-cap-cim'));
-    await screen.findByTestId('selected-chip-cap-cim');
+    await selectCandidate(user, 'Customer Identity Mgmt');
+    await waitFor(() => expect(screen.getByTestId('selected-count')).toHaveTextContent('1'));
 
     fireEvent.click(screen.getByTestId('capture-submit'));
 

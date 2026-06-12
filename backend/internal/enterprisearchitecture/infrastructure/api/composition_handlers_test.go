@@ -205,20 +205,25 @@ func TestGetComposition_NoActiveDirection_EmptyDataAndCaptureLink(t *testing.T) 
 	assert.Contains(t, body.Links, "x-capture-direction")
 }
 
-func TestGetSourceCandidates_MissingParams_400(t *testing.T) {
+func TestGetSourceCandidates_MissingEcId_400(t *testing.T) {
 	h := newCompositionHandlers(&fakeCompositionQueries{}, &fakeECQueries{})
 
-	for _, target := range []string{
-		"/capabilities/source-candidates?ecId=ec-1",
-		"/capabilities/source-candidates?q=customer",
-	} {
-		rec := performGet(compositionRouter(h), target)
-		require.Equal(t, http.StatusBadRequest, rec.Code)
-		var body map[string]any
-		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
-		assert.Equal(t, "BadRequest", body["error"])
-		assert.Equal(t, "q and ecId are required", body["message"])
-	}
+	rec := performGet(compositionRouter(h), "/capabilities/source-candidates?q=customer")
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	assert.Equal(t, "BadRequest", body["error"])
+	assert.Equal(t, "ecId is required", body["message"])
+}
+
+func TestGetSourceCandidates_EmptyQ_ReturnsAllCandidates(t *testing.T) {
+	h := newCompositionHandlers(&fakeCompositionQueries{candidates: appservices.SourceCandidatesResult{
+		Candidates: []appservices.SourceCandidate{{Node: domainservices.CapabilityNode{ID: "cap-1", Name: "Billing"}}},
+		HasMore:    false,
+	}}, &fakeECQueries{})
+
+	rec := performGet(compositionRouter(h), "/capabilities/source-candidates?ecId=ec-1")
+	require.Equal(t, http.StatusOK, rec.Code)
 }
 
 func TestGetSourceCandidates_ReturnsCandidatesWithEligibilityLinks(t *testing.T) {

@@ -5,7 +5,7 @@ import { invalidateFor } from '../../../lib/invalidateFor';
 import { directionApi } from '../api/directionApi';
 import { directionMutationEffects } from '../mutationEffects';
 import { directionQueryKeys } from '../queryKeys';
-import type { CaptureDirectionRequest, Direction, SourceCandidatesQuery, UpdateDirectionRequest } from '../types';
+import type { CaptureDirectionRequest, Direction, UpdateDirectionRequest } from '../types';
 
 interface SourceMutationArgs {
   enterpriseCapabilityId: EnterpriseCapabilityId;
@@ -137,18 +137,12 @@ export function useExcludeSource() {
   });
 }
 
-export function useSourceCandidates(
-  enterpriseCapabilityId: EnterpriseCapabilityId | undefined,
-  query: SourceCandidatesQuery,
-) {
-  const trimmed = query.q.trim();
+export function useSourceCandidates(enterpriseCapabilityId: EnterpriseCapabilityId | undefined) {
   return useQuery({
-    queryKey: directionQueryKeys.sourceCandidates(enterpriseCapabilityId ?? '', {
-      q: trimmed,
-      domainId: query.domainId,
-    }),
-    queryFn: () => directionApi.searchSourceCandidates(enterpriseCapabilityId!, { ...query, q: trimmed }),
-    enabled: !!enterpriseCapabilityId && trimmed.length > 0,
+    queryKey: directionQueryKeys.sourceCandidates(enterpriseCapabilityId ?? '', { q: '' }),
+    queryFn: () => directionApi.searchSourceCandidates(enterpriseCapabilityId!, { q: '' }),
+    enabled: !!enterpriseCapabilityId,
+    staleTime: 5 * 60 * 1000,
   });
 }
 

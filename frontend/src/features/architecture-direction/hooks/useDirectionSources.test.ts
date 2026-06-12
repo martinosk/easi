@@ -74,9 +74,9 @@ function seedScenario() {
 }
 
 describe('useSourceCandidates', () => {
-  it('returns candidates annotated with R1 eligibility', async () => {
+  it('loads all candidates immediately and annotates R1 eligibility', async () => {
     seedScenario();
-    const { result } = renderHook(() => useSourceCandidates(toEnterpriseCapabilityId('ec-crm'), { q: 'customer' }), {
+    const { result } = renderHook(() => useSourceCandidates(toEnterpriseCapabilityId('ec-crm')), {
       wrapper,
     });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
@@ -87,9 +87,9 @@ describe('useSourceCandidates', () => {
     expect(byId['cap-fraud'].conflictingEnterpriseCapability?.name).toBe('Take Payment');
   });
 
-  it('is disabled (does not fetch) when the search term is empty', () => {
+  it('is disabled when enterpriseCapabilityId is undefined', () => {
     seedScenario();
-    const { result } = renderHook(() => useSourceCandidates(toEnterpriseCapabilityId('ec-crm'), { q: '  ' }), {
+    const { result } = renderHook(() => useSourceCandidates(undefined), {
       wrapper,
     });
     expect(result.current.fetchStatus).toBe('idle');

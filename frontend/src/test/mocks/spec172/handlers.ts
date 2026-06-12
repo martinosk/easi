@@ -101,16 +101,16 @@ export const spec172Handlers = [
     const q = (url.searchParams.get('q') ?? '').trim();
     const ecId = url.searchParams.get('ecId') ?? '';
     const domainId = url.searchParams.get('domainId') ?? undefined;
-    const limit = Number(url.searchParams.get('limit') ?? '20');
-    if (!q || !ecId) {
-      return HttpResponse.json({ error: 'BadRequest', message: 'q and ecId are required' }, { status: 400 });
+    if (!ecId) {
+      return HttpResponse.json({ error: 'BadRequest', message: 'ecId is required' }, { status: 400 });
     }
 
     const others = otherActiveDirections(ecId);
     const matches = getStubCapabilities()
-      .filter((c) => c.name.toLowerCase().includes(q.toLowerCase()))
+      .filter((c) => !q || c.name.toLowerCase().includes(q.toLowerCase()))
       .filter((c) => !domainId || c.businessDomainId === domainId);
-    const limited = matches.slice(0, limit);
+    const limit = q ? Number(url.searchParams.get('limit') ?? '20') : 0;
+    const limited = limit > 0 ? matches.slice(0, limit) : matches;
 
     const data: SourceCandidate[] = limited.map((c) => {
       const eligibility = evaluateEligibility(c.id, ecId, others);

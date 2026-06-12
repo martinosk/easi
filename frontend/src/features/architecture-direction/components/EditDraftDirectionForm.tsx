@@ -3,17 +3,18 @@ import {
   Badge,
   Box,
   Button,
+  type ComboboxItem,
   Group,
+  MultiSelect,
   NativeSelect,
-  Pill,
+  type OptionsFilter,
   Select,
   Stack,
   Text,
   Textarea,
-  TextInput,
 } from '@mantine/core';
 import { useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import type { EnterpriseCapabilityId } from '../../../api/types';
@@ -24,35 +25,13 @@ import { directionApi } from '../api/directionApi';
 import { useCompositionPreview, useSourceCandidates } from '../hooks/useDirection';
 import { directionMutationEffects } from '../mutationEffects';
 import type { Direction, SourceCandidate } from '../types';
-import { CandidateResults, CompositionPreview, HORIZON_OPTIONS, toDomainOptions } from './sourcePickerPrimitives';
+import { CompositionPreview, HORIZON_OPTIONS, toDomainOptions } from './sourcePickerPrimitives';
 
 interface EditDraftDirectionFormProps {
   enterpriseCapabilityId: EnterpriseCapabilityId;
   direction: Direction;
   onSaved: () => void;
   onCancel: () => void;
-}
-
-interface EditableSource {
-  capabilityId: string;
-  name: string | null;
-}
-
-function useSourceSelection(initial: EditableSource[]) {
-  const [sources, setSources] = useState(initial);
-  const selectedIdSet = useMemo(() => new Set(sources.map((s) => s.capabilityId)), [sources]);
-
-  const addSource = (candidate: SourceCandidate) =>
-    setSources((prev) =>
-      prev.some((s) => s.capabilityId === candidate.capabilityId)
-        ? prev
-        : [...prev, { capabilityId: candidate.capabilityId, name: candidate.name }],
-    );
-
-  const removeSource = (capabilityId: string) =>
-    setSources((prev) => prev.filter((s) => s.capabilityId !== capabilityId));
-
-  return { sources, selectedIdSet, addSource, removeSource };
 }
 
 function useEditDraftController(
@@ -71,23 +50,62 @@ function useEditDraftController(
     },
   });
 
-  const initialSources = direction.sourceCapabilities
-    .filter((s) => !s.stale)
-    .map((s): EditableSource => ({ capabilityId: s.id as string, name: s.name }));
-
-  const { sources, selectedIdSet, addSource, removeSource } = useSourceSelection(initialSources);
-
-  const [search, setSearch] = useState('');
-  const [domainId, setDomainId] = useState('');
-
-  const candidatesQuery = useSourceCandidates(enterpriseCapabilityId, { q: search, domainId: domainId || undefined });
-  const previewQuery = useCompositionPreview(
-    enterpriseCapabilityId,
-    sources.map((s) => s.capabilityId),
+  const initialSelectedIds = useMemo(
+    () => direction.sourceCapabilities.filter((s) => !s.stale).map((s) => s.id as string),
+    [direction.sourceCapabilities],
   );
 
+  const [selectedIds, setSelectedIds] = useState<string[]>(initialSelectedIds);
+  const [domainId, setDomainId] = useState('');
+
+  const candidatesQuery = useSourceCandidates(enterpriseCapabilityId);
+  const previewQuery = useCompositionPreview(enterpriseCapabilityId, selectedIds);
   const { data: domainsResponse } = useBusinessDomainsQuery();
   const domainOptions = useMemo(() => toDomainOptions(domainsResponse?.data ?? []), [domainsResponse]);
+
+  const seedOptions = useMemo(
+    () =>
+      direction.sourceCapabilities
+        .filter((s) => !s.stale)
+        .map((s) => ({ value: s.id as string, label: s.name ?? (s.id as string), disabled: false })),
+    [direction.sourceCapabilities],
+  );
+
+  const candidateOptions = useMemo(
+    () =>
+      (candidatesQuery.data?.data ?? []).map((c) => ({
+        value: c.capabilityId,
+        label: c.name,
+        disabled: !c.eligible,
+      })),
+    [candidatesQuery.data],
+  );
+
+  const allOptions = useMemo(
+    () => (candidateOptions.length > 0 ? candidateOptions : seedOptions),
+    [candidateOptions, seedOptions],
+  );
+
+  const candidateMap = useMemo(() => {
+    const map = new Map<string, SourceCandidate>();
+    for (const c of candidatesQuery.data?.data ?? []) {
+      map.set(c.capabilityId, c);
+    }
+    return map;
+  }, [candidatesQuery.data]);
+
+  const filterOptions: OptionsFilter = useCallback(
+    ({ options, search }) => {
+      const term = search.toLowerCase();
+      return (options as ComboboxItem[]).filter((o) => {
+        const c = candidateMap.get(o.value);
+        if (!c) return !term && (!domainId || seedOptions.some((s) => s.value === o.value));
+        if (domainId && c.businessDomainId !== domainId) return false;
+        return !term || c.name.toLowerCase().includes(term);
+      });
+    },
+    [candidateMap, domainId, seedOptions],
+  );
 
   const ineligibleSelected = previewQuery.data?.sourceEligibility.some((e) => !e.eligible) ?? false;
 
@@ -95,12 +113,12 @@ function useEditDraftController(
     setIsPending(true);
     try {
       const originalIds = new Set(direction.sourceCapabilities.map((s) => s.id as string));
-      const currentCapabilityIds = new Set(sources.map((s) => s.capabilityId));
-      const toRemove = direction.sourceCapabilities.filter((s) => !currentCapabilityIds.has(s.id as string));
-      const toAdd = sources.filter((s) => !originalIds.has(s.capabilityId));
+      const currentIds = new Set(selectedIds);
+      const toRemove = direction.sourceCapabilities.filter((s) => !currentIds.has(s.id as string));
+      const toAdd = selectedIds.filter((id) => !originalIds.has(id));
 
       await Promise.all(toRemove.map((s) => directionApi.removeSource(enterpriseCapabilityId, s.id as string)));
-      await Promise.all(toAdd.map((s) => directionApi.addSource(enterpriseCapabilityId, s.capabilityId)));
+      await Promise.all(toAdd.map((id) => directionApi.addSource(enterpriseCapabilityId, id)));
 
       await directionApi.update(enterpriseCapabilityId, {
         horizon: data.horizon,
@@ -119,15 +137,14 @@ function useEditDraftController(
 
   return {
     form,
-    sources,
-    selectedIdSet,
-    addSource,
-    removeSource,
-    search,
-    setSearch,
+    selectedIds,
+    onSelectionChange: setSelectedIds,
+    allOptions,
+    filterOptions,
     domainId,
     setDomainId,
     domainOptions,
+    candidateMap,
     candidatesQuery,
     previewQuery,
     submit,
@@ -144,15 +161,14 @@ export function EditDraftDirectionForm({
 }: EditDraftDirectionFormProps) {
   const {
     form,
-    sources,
-    selectedIdSet,
-    addSource,
-    removeSource,
-    search,
-    setSearch,
+    selectedIds,
+    onSelectionChange,
+    allOptions,
+    filterOptions,
     domainId,
     setDomainId,
     domainOptions,
+    candidateMap,
     candidatesQuery,
     previewQuery,
     submit,
@@ -170,21 +186,27 @@ export function EditDraftDirectionForm({
               Source capabilities
             </Text>
             <Badge variant="light" color="gray" data-testid="selected-count">
-              {sources.length}
+              {selectedIds.length}
             </Badge>
           </Group>
           <Text size="xs" c="dimmed">
             Add or remove domain capabilities. Changes take effect when you save.
           </Text>
 
-          <Group gap="xs" grow={false} wrap="nowrap">
+          <Group gap="xs" align="flex-start" wrap="nowrap">
             <Box flex={1}>
-              <TextInput
-                placeholder="Search capabilities…"
-                value={search}
-                onChange={(e) => setSearch(e.currentTarget.value)}
+              <MultiSelect
+                placeholder={candidatesQuery.isLoading ? 'Loading capabilities…' : 'Search or scroll to add capabilities…'}
+                data={allOptions}
+                value={selectedIds}
+                onChange={onSelectionChange}
+                searchable
+                filter={filterOptions}
+                renderOption={({ option }) => <CandidateOptionContent option={option} candidateMap={candidateMap} />}
+                maxDropdownHeight={280}
+                nothingFoundMessage="No matching capabilities"
+                disabled={candidatesQuery.isLoading}
                 data-testid="source-search-input"
-                aria-label="Search capabilities"
               />
             </Box>
             <NativeSelect
@@ -196,16 +218,7 @@ export function EditDraftDirectionForm({
             />
           </Group>
 
-          <CandidateResults
-            query={candidatesQuery}
-            selectedIds={selectedIdSet}
-            onAdd={addSource}
-            searchActive={search.trim().length > 0}
-          />
-
-          <EditableSourcePills sources={sources} onRemove={removeSource} />
-
-          <CompositionPreview query={previewQuery} visible={sources.length > 0} />
+          <CompositionPreview query={previewQuery} visible={selectedIds.length > 0} />
         </Stack>
 
         <Controller
@@ -257,31 +270,27 @@ export function EditDraftDirectionForm({
   );
 }
 
-function EditableSourcePills({
-  sources,
-  onRemove,
+function CandidateOptionContent({
+  option,
+  candidateMap,
 }: {
-  sources: EditableSource[];
-  onRemove: (capabilityId: string) => void;
+  option: ComboboxItem;
+  candidateMap: Map<string, SourceCandidate>;
 }) {
-  if (sources.length === 0) return null;
+  const c = candidateMap.get(option.value);
+  if (!c) return <Text size="sm">{option.label}</Text>;
   return (
-    <Box>
-      <Text size="xs" fw={600} c="dimmed" tt="uppercase">
-        Selected sources
-      </Text>
-      <Group gap="xs" mt={6}>
-        {sources.map((source) => (
-          <Pill
-            key={source.capabilityId}
-            withRemoveButton
-            onRemove={() => onRemove(source.capabilityId)}
-            data-testid={`selected-chip-${source.capabilityId}`}
-          >
-            {source.name ?? source.capabilityId}
-          </Pill>
-        ))}
-      </Group>
-    </Box>
+    <Stack gap={0}>
+      <Text size="sm">{c.name}</Text>
+      {c.eligible ? (
+        <Text size="xs" c="dimmed">
+          {c.businessDomainName ?? 'Unassigned'} · {c.level}
+        </Text>
+      ) : (
+        <Text size="xs" c="red">
+          ⛔ {c.ineligibilityReason}
+        </Text>
+      )}
+    </Stack>
   );
 }
