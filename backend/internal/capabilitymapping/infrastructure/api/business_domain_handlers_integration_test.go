@@ -679,9 +679,9 @@ func TestRemoveCapabilityFromDomain_Integration(t *testing.T) {
 
 	handler := setupBusinessDomainHandlers(testCtx.db)
 
-	domainID := fmt.Sprintf("test-domain-%d", time.Now().UnixNano())
-	capID := fmt.Sprintf("test-cap-%d", time.Now().UnixNano())
-	assignmentID := fmt.Sprintf("test-assignment-%d", time.Now().UnixNano())
+	domainID := uuid.New().String()
+	capID := uuid.New().String()
+	assignmentID := uuid.New().String()
 	domainName := fmt.Sprintf("Test Domain %d", time.Now().UnixNano())
 
 	testCtx.createTestDomain(t, domainID, domainName, "Description")
