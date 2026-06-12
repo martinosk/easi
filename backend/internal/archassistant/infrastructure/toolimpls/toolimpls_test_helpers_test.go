@@ -1,8 +1,5 @@
 package toolimpls_test
 
-// allExpectedSpecToolNames is the single source of truth for the tools registered
-// via RegisterSpecTools (i.e. catalog-driven tools only, excluding composite tools).
-// Update this list whenever a tool is added, renamed, or removed.
 var allExpectedSpecToolNames = []string{
 	"list_applications", "get_application_details",
 	"create_application", "update_application", "delete_application",
@@ -49,8 +46,6 @@ var allExpectedSpecToolNames = []string{
 	"get_strategy_pillars", "get_maturity_scale",
 }
 
-// allExpectedToolNames is the full set of tools registered via RegisterAllTools,
-// which includes allExpectedSpecToolNames plus the four hand-coded composite tools.
 var allExpectedToolNames = append(
 	allExpectedSpecToolNames,
 	"list_application_relations", "search_architecture", "get_portfolio_summary", "query_domain_model",

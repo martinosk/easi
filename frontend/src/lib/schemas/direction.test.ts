@@ -16,8 +16,6 @@ describe('captureDirectionSchema', () => {
     expect(captureDirectionSchema.safeParse(makeBase()).success).toBe(true);
   });
 
-  // R8: a draft may carry a single source regardless of type. Full type cardinality
-  // (e.g. consolidate >= 2) is enforced only when advancing draft -> proposed, on the backend.
   it('accepts a consolidate draft with a single source (R8)', () => {
     expect(captureDirectionSchema.safeParse(makeBase({ sourceCapabilityIds: ['cap-1'] })).success).toBe(true);
   });

@@ -55,7 +55,7 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
-var Version = "0.7.0" // Set via ldflags at build time: -ldflags "-X 'easi/backend/internal/infrastructure/api.Version=x.y.z'"
+var Version = "0.7.0"
 
 var appVersion = getEnv("APP_VERSION", Version)
 

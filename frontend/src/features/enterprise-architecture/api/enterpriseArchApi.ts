@@ -24,6 +24,15 @@ function strategicImportanceUrl(
   return importanceId ? `${base}/${importanceId}` : base;
 }
 
+async function writeStrategicImportance(
+  method: 'post' | 'put',
+  url: string,
+  request: SetStrategicImportanceRequest | UpdateStrategicImportanceRequest,
+): Promise<StrategicImportance> {
+  const response = await httpClient[method]<StrategicImportance>(url, request);
+  return response.data;
+}
+
 export const enterpriseArchApi = {
   async getAll(): Promise<EnterpriseCapability[]> {
     const response = await httpClient.get<EnterpriseCapabilitiesListResponse>('/api/v1/enterprise-capabilities');
@@ -65,11 +74,7 @@ export const enterpriseArchApi = {
     enterpriseCapabilityId: EnterpriseCapabilityId,
     request: SetStrategicImportanceRequest,
   ): Promise<StrategicImportance> {
-    const response = await httpClient.post<StrategicImportance>(
-      strategicImportanceUrl(enterpriseCapabilityId),
-      request,
-    );
-    return response.data;
+    return writeStrategicImportance('post', strategicImportanceUrl(enterpriseCapabilityId), request);
   },
 
   async updateStrategicImportance(
@@ -77,11 +82,7 @@ export const enterpriseArchApi = {
     importanceId: EnterpriseStrategicImportanceId,
     request: UpdateStrategicImportanceRequest,
   ): Promise<StrategicImportance> {
-    const response = await httpClient.put<StrategicImportance>(
-      strategicImportanceUrl(enterpriseCapabilityId, importanceId),
-      request,
-    );
-    return response.data;
+    return writeStrategicImportance('put', strategicImportanceUrl(enterpriseCapabilityId, importanceId), request);
   },
 
   async removeStrategicImportance(

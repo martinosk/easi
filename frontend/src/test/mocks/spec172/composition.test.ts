@@ -2,13 +2,6 @@ import { describe, expect, it } from 'vitest';
 import type { ActiveDirection, StubCapability } from './composition';
 import { evaluateEligibility, resolveComposition } from './composition';
 
-// Tree used across scenarios (mirrors the spec's worked examples):
-//
-//   Customer Identity Mgmt (L1, cap-cim) [Customer]
-//   ├─ Customer Consent          (L2, cap-consent)  [Customer]
-//   └─ Customer Fraud Prevention (L2, cap-fraud)    [Customer]
-//      └─ Chargeback Handling    (L3, cap-charge)   [Customer]
-//   Credential Issuance          (L4, cap-cred)     [Access]
 function tree(): StubCapability[] {
   return [
     { id: 'cap-cim', name: 'Customer Identity Mgmt', level: 'L1', parentId: null, businessDomainId: 'bd-c', businessDomainName: 'Customer' },
@@ -75,11 +68,13 @@ describe('resolveComposition', () => {
   });
 
   it('a more-specific source carves a deeper node out of a carve-out (R2)', () => {
-    const directions: ActiveDirection[] = [
+    const tpAndDisputesDirections: ActiveDirection[] = [
       { ecId: 'ec-tp', ecName: 'Take Payment', sourceCapabilityIds: ['cap-fraud'] },
       { ecId: 'ec-disp', ecName: 'Disputes', sourceCapabilityIds: ['cap-charge'] },
     ];
-    const byId = Object.fromEntries(resolveComposition('ec-tp', directions, tree()).map((i) => [i.capabilityId, i]));
+    const byId = Object.fromEntries(
+      resolveComposition('ec-tp', tpAndDisputesDirections, tree()).map((i) => [i.capabilityId, i]),
+    );
     expect(byId['cap-fraud'].role).toBe('source');
     expect(byId['cap-charge']).toMatchObject({
       role: 'carved-out',
@@ -123,7 +118,6 @@ describe('evaluateEligibility (R1 same-node exclusivity)', () => {
     const directions: ActiveDirection[] = [
       { ecId: 'ec-tp', ecName: 'Take Payment', sourceCapabilityIds: ['cap-fraud'] },
     ];
-    // sourcing the ancestor cap-cim is accepted (carve-out, not rejection)
     expect(evaluateEligibility('cap-cim', 'ec-crm', directions).eligible).toBe(true);
   });
 });

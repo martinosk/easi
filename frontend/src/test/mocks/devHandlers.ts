@@ -2,8 +2,6 @@ import { HttpResponse, http } from 'msw';
 
 const BASE_URL = '*';
 
-// Dev-runtime-only stubs (not part of any feature contract): a fully-permissioned session so the
-// app authorizes when running against the mock with no backend. Tests do not use these.
 export const devHandlers = [
   http.get(`${BASE_URL}/api/v1/auth/sessions/current`, () => {
     return HttpResponse.json({

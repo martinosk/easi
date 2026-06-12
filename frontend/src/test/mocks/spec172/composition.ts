@@ -85,7 +85,7 @@ function visitNode(capId: string, ctx: TraversalContext): void {
   const carvedOutBy = ctx.owningByOtherEc.get(capId);
   if (carvedOutBy && !ctx.targetSources.has(capId)) {
     ctx.resolved.set(capId, toResolved(cap, 'carved-out', carvedOutBy));
-    return; // the carved subtree is owned by the other EC; do not descend
+    return;
   }
 
   ctx.resolved.set(capId, toResolved(cap, ctx.targetSources.has(capId) ? 'source' : 'implicit', null));

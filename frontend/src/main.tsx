@@ -1,5 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
-
 import { Button, Center, Group, MantineProvider, Stack, Text, Title } from '@mantine/core';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';

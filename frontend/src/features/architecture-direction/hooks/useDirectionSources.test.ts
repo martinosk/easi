@@ -83,7 +83,6 @@ describe('useSourceCandidates', () => {
 
     const byId = Object.fromEntries(result.current.data!.data.map((c) => [c.capabilityId, c]));
     expect(byId['cap-cim'].eligible).toBe(true);
-    // cap-fraud is sourced by Take Payment's active direction -> ineligible for CRM
     expect(byId['cap-fraud'].eligible).toBe(false);
     expect(byId['cap-fraud'].conflictingEnterpriseCapability?.name).toBe('Take Payment');
   });
