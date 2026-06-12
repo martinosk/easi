@@ -3,6 +3,7 @@ import { visualizer } from 'rollup-plugin-visualizer';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+  cacheDir: process.env.VITE_CACHE_DIR || undefined,
   plugins: [
     react(),
     visualizer({

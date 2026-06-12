@@ -2000,6 +2000,89 @@ const docTemplate = `{
                 }
             }
         },
+        "/capabilities/source-candidates": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Case-insensitive name search over domain capabilities with per-candidate R1 eligibility against active directions on other enterprise capabilities.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "enterprisearchitecture"
+                ],
+                "summary": "Search domain capabilities as direction source candidates",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Search term (case-insensitive substring match on capability name)",
+                        "name": "q",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Enterprise capability the sources are being searched for",
+                        "name": "ecId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter to capabilities in this business domain",
+                        "name": "domainId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Max results to return (default 20)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Opaque pagination cursor (reserved; not yet populated)",
+                        "name": "cursor",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_enterprisearchitecture_infrastructure_api.SourceCandidatesResponseDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/capabilities/{id}": {
             "get": {
                 "description": "Retrieves a specific business capability by its ID",
@@ -4254,131 +4337,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/domain-capabilities/enterprise-link-status": {
-            "get": {
-                "description": "Batch check link eligibility for domain capabilities, optionally filtered by business domain",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "enterprise-capabilities"
-                ],
-                "summary": "Get link eligibility status for multiple domain capabilities",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Comma-separated list of capability IDs",
-                        "name": "capabilityIds",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.CapabilityLinkStatusDTO"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/domain-capabilities/{domainCapabilityId}/enterprise-capability": {
-            "get": {
-                "description": "Retrieves the enterprise capability linked to a specific domain capability",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "enterprise-capabilities"
-                ],
-                "summary": "Get enterprise capability for a domain capability",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Domain capability ID",
-                        "name": "domainCapabilityId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/internal_enterprisearchitecture_infrastructure_api.DomainCapabilityEnterpriseResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/domain-capabilities/{domainCapabilityId}/enterprise-link-status": {
-            "get": {
-                "description": "Checks if a domain capability can be linked to an enterprise capability",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "enterprise-capabilities"
-                ],
-                "summary": "Get link eligibility status for a domain capability",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Domain capability ID",
-                        "name": "domainCapabilityId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.CapabilityLinkStatusDTO"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/edit-grants": {
             "get": {
                 "description": "Retrieves all active edit grants where the current user is the grantee",
@@ -4939,6 +4897,64 @@ const docTemplate = `{
                 }
             }
         },
+        "/enterprise-capabilities/{id}/composition": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Returns every domain capability included via the active direction's sources and their subtrees, grouped by business domain, with per-item role classification and carve-out attribution (R2).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "enterprisearchitecture"
+                ],
+                "summary": "Get the composition of an enterprise capability",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Enterprise capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_enterprisearchitecture_infrastructure_api.CompositionResponseDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/enterprise-capabilities/{id}/direction": {
             "get": {
                 "security": [
@@ -5219,6 +5235,82 @@ const docTemplate = `{
                 }
             }
         },
+        "/enterprise-capabilities/{id}/direction/composition-preview": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Stateless preview: resolves what the enterprise capability's composition would be for the given source set without persisting anything (R2 carve-out preview and R1 eligibility pre-flight).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "architecturedirection"
+                ],
+                "summary": "Preview the composition for a proposed source set",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Enterprise capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Proposed source capability IDs",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.CompositionPreviewRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.CompositionPreviewResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/enterprise-capabilities/{id}/direction/propose": {
             "post": {
                 "security": [
@@ -5346,63 +5438,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/enterprise-capabilities/{id}/links": {
-            "get": {
-                "description": "Retrieves all domain capabilities linked to an enterprise capability",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "enterprise-capabilities"
-                ],
-                "summary": "Get linked domain capabilities",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Enterprise capability ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseCapabilityLinkDTO"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    }
-                }
-            },
+        "/enterprise-capabilities/{id}/direction/sources": {
             "post": {
-                "description": "Links a domain capability to an enterprise capability",
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Adds a source to the active direction (R1 same-node exclusivity checked; agreed directions are immutable). Idempotent: re-adding an existing source returns the unchanged direction.",
                 "consumes": [
                     "application/json"
                 ],
@@ -5410,9 +5453,9 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "enterprise-capabilities"
+                    "architecturedirection"
                 ],
-                "summary": "Link a domain capability",
+                "summary": "Add a domain capability to the active direction's source set",
                 "parameters": [
                     {
                         "type": "string",
@@ -5422,24 +5465,36 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Link data",
-                        "name": "link",
+                        "description": "Capability to add",
+                        "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_enterprisearchitecture_infrastructure_api.LinkCapabilityRequest"
+                            "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.AddDirectionSourceRequest"
                         }
                     }
                 ],
                 "responses": {
-                    "201": {
-                        "description": "Created",
+                    "200": {
+                        "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseCapabilityLinkDTO"
+                            "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.DirectionDTO"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
@@ -5465,13 +5520,21 @@ const docTemplate = `{
                 }
             }
         },
-        "/enterprise-capabilities/{id}/links/{linkId}": {
+        "/enterprise-capabilities/{id}/direction/sources/{capabilityId}": {
             "delete": {
-                "description": "Removes the link between a domain capability and an enterprise capability",
-                "tags": [
-                    "enterprise-capabilities"
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
                 ],
-                "summary": "Unlink a domain capability",
+                "description": "Excludes a source from the active direction; the capability and its subtree leave the EC's composition. Agreed directions are immutable.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "architecturedirection"
+                ],
+                "summary": "Remove a domain capability from the active direction's source set",
                 "parameters": [
                     {
                         "type": "string",
@@ -5482,8 +5545,8 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Link ID",
-                        "name": "linkId",
+                        "description": "Domain capability ID to remove",
+                        "name": "capabilityId",
                         "in": "path",
                         "required": true
                     }
@@ -5492,8 +5555,26 @@ const docTemplate = `{
                     "204": {
                         "description": "No Content"
                     },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
@@ -11761,29 +11842,6 @@ const docTemplate = `{
                 }
             }
         },
-        "easi_backend_internal_enterprisearchitecture_application_readmodels.CapabilityLinkStatusDTO": {
-            "type": "object",
-            "properties": {
-                "_links": {
-                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
-                },
-                "blockingCapability": {
-                    "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.LinkedCapability"
-                },
-                "blockingEnterpriseCapabilityId": {
-                    "type": "string"
-                },
-                "capabilityId": {
-                    "type": "string"
-                },
-                "linkedTo": {
-                    "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.LinkedCapability"
-                },
-                "status": {
-                    "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.LinkStatus"
-                }
-            }
-        },
         "easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseCapabilityDTO": {
             "type": "object",
             "properties": {
@@ -11808,7 +11866,8 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
-                "linkCount": {
+                "includedCapabilityCount": {
+                    "description": "IncludedCapabilityCount and DomainCount are derived from the composition\nalgorithm (R2) at read time; they are not persisted columns.",
                     "type": "integer"
                 },
                 "name": {
@@ -11819,41 +11878,6 @@ const docTemplate = `{
                 },
                 "updatedAt": {
                     "type": "string"
-                }
-            }
-        },
-        "easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseCapabilityLinkDTO": {
-            "type": "object",
-            "properties": {
-                "_links": {
-                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
-                },
-                "businessDomainId": {
-                    "type": "string"
-                },
-                "businessDomainName": {
-                    "type": "string"
-                },
-                "domainCapabilityId": {
-                    "type": "string"
-                },
-                "domainCapabilityName": {
-                    "type": "string"
-                },
-                "enterpriseCapabilityId": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "linkedAt": {
-                    "type": "string"
-                },
-                "linkedBy": {
-                    "type": "string"
-                },
-                "maturityLevel": {
-                    "type": "integer"
                 }
             }
         },
@@ -11947,32 +11971,6 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.ImplementationDetailDTO"
                     }
-                }
-            }
-        },
-        "easi_backend_internal_enterprisearchitecture_application_readmodels.LinkStatus": {
-            "type": "string",
-            "enum": [
-                "available",
-                "linked",
-                "blocked_by_parent",
-                "blocked_by_child"
-            ],
-            "x-enum-varnames": [
-                "LinkStatusAvailable",
-                "LinkStatusLinked",
-                "LinkStatusBlockedByParent",
-                "LinkStatusBlockedByChild"
-            ]
-        },
-        "easi_backend_internal_enterprisearchitecture_application_readmodels.LinkedCapability": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
                 }
             }
         },
@@ -12778,6 +12776,14 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_architecturedirection_infrastructure_api.AddDirectionSourceRequest": {
+            "type": "object",
+            "properties": {
+                "capabilityId": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_architecturedirection_infrastructure_api.CaptureDirectionRequest": {
             "type": "object",
             "properties": {
@@ -12787,12 +12793,6 @@ const docTemplate = `{
                 "narrative": {
                     "type": "string"
                 },
-                "placements": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.PlacementRequest"
-                    }
-                },
                 "sourceCapabilityIds": {
                     "type": "array",
                     "items": {
@@ -12800,6 +12800,76 @@ const docTemplate = `{
                     }
                 },
                 "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_architecturedirection_infrastructure_api.CarvedOutByDTO": {
+            "type": "object",
+            "properties": {
+                "enterpriseCapabilityId": {
+                    "type": "string"
+                },
+                "enterpriseCapabilityName": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_architecturedirection_infrastructure_api.CompositionPreviewMetaDTO": {
+            "type": "object",
+            "properties": {
+                "carvedOutCount": {
+                    "type": "integer"
+                },
+                "includedCount": {
+                    "type": "integer"
+                },
+                "sourceCount": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_architecturedirection_infrastructure_api.CompositionPreviewRequest": {
+            "type": "object",
+            "properties": {
+                "sourceCapabilityIds": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "internal_architecturedirection_infrastructure_api.CompositionPreviewResponse": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_api.Links"
+                },
+                "includedCapabilities": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.PreviewIncludedCapabilityDTO"
+                    }
+                },
+                "meta": {
+                    "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.CompositionPreviewMetaDTO"
+                },
+                "sourceEligibility": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.SourceEligibilityDTO"
+                    }
+                }
+            }
+        },
+        "internal_architecturedirection_infrastructure_api.ConflictingECDTO": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
                     "type": "string"
                 }
             }
@@ -12826,13 +12896,28 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_architecturedirection_infrastructure_api.PlacementRequest": {
+        "internal_architecturedirection_infrastructure_api.PreviewIncludedCapabilityDTO": {
             "type": "object",
             "properties": {
-                "resultingName": {
+                "businessDomainId": {
                     "type": "string"
                 },
-                "targetBusinessDomainId": {
+                "businessDomainName": {
+                    "type": "string"
+                },
+                "capabilityId": {
+                    "type": "string"
+                },
+                "carvedOutBy": {
+                    "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.CarvedOutByDTO"
+                },
+                "level": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "role": {
                     "type": "string"
                 }
             }
@@ -12848,6 +12933,23 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_architecturedirection_infrastructure_api.SourceEligibilityDTO": {
+            "type": "object",
+            "properties": {
+                "capabilityId": {
+                    "type": "string"
+                },
+                "conflictingEnterpriseCapability": {
+                    "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.ConflictingECDTO"
+                },
+                "eligible": {
+                    "type": "boolean"
+                },
+                "ineligibilityReason": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_architecturedirection_infrastructure_api.UpdateDirectionRequest": {
             "type": "object",
             "properties": {
@@ -12856,18 +12958,6 @@ const docTemplate = `{
                 },
                 "narrative": {
                     "type": "string"
-                },
-                "placements": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.PlacementRequest"
-                    }
-                },
-                "sourceCapabilityIds": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
                 }
             }
         },
@@ -13640,9 +13730,6 @@ const docTemplate = `{
             "properties": {
                 "cascade": {
                     "type": "boolean"
-                },
-                "deleteRealisingApplications": {
-                    "type": "boolean"
                 }
             }
         },
@@ -14059,6 +14146,79 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_enterprisearchitecture_infrastructure_api.CarvedOutByDTO": {
+            "type": "object",
+            "properties": {
+                "enterpriseCapabilityId": {
+                    "type": "string"
+                },
+                "enterpriseCapabilityName": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_enterprisearchitecture_infrastructure_api.CompositionDomainGroupDTO": {
+            "type": "object",
+            "properties": {
+                "businessDomainId": {
+                    "type": "string"
+                },
+                "businessDomainName": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_enterprisearchitecture_infrastructure_api.IncludedCapabilityItemDTO"
+                    }
+                }
+            }
+        },
+        "internal_enterprisearchitecture_infrastructure_api.CompositionMetaDTO": {
+            "type": "object",
+            "properties": {
+                "carvedOutCount": {
+                    "type": "integer"
+                },
+                "domainCount": {
+                    "type": "integer"
+                },
+                "includedCount": {
+                    "type": "integer"
+                },
+                "sourceCount": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_enterprisearchitecture_infrastructure_api.CompositionResponseDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_enterprisearchitecture_infrastructure_api.CompositionDomainGroupDTO"
+                    }
+                },
+                "meta": {
+                    "$ref": "#/definitions/internal_enterprisearchitecture_infrastructure_api.CompositionMetaDTO"
+                }
+            }
+        },
+        "internal_enterprisearchitecture_infrastructure_api.ConflictingECDTO": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_enterprisearchitecture_infrastructure_api.CreateEnterpriseCapabilityRequest": {
             "type": "object",
             "properties": {
@@ -14073,30 +14233,31 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_enterprisearchitecture_infrastructure_api.DomainCapabilityEnterpriseResponse": {
+        "internal_enterprisearchitecture_infrastructure_api.IncludedCapabilityItemDTO": {
             "type": "object",
             "properties": {
                 "_links": {
                     "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
                 },
-                "enterpriseCapabilityId": {
+                "businessDomainId": {
                     "type": "string"
                 },
-                "enterpriseCapabilityName": {
+                "businessDomainName": {
                     "type": "string"
                 },
-                "linkId": {
+                "capabilityId": {
                     "type": "string"
                 },
-                "linked": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "internal_enterprisearchitecture_infrastructure_api.LinkCapabilityRequest": {
-            "type": "object",
-            "properties": {
-                "domainCapabilityId": {
+                "carvedOutBy": {
+                    "$ref": "#/definitions/internal_enterprisearchitecture_infrastructure_api.CarvedOutByDTO"
+                },
+                "level": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "role": {
                     "type": "string"
                 }
             }
@@ -14123,6 +14284,72 @@ const docTemplate = `{
             "properties": {
                 "targetMaturity": {
                     "type": "integer"
+                }
+            }
+        },
+        "internal_enterprisearchitecture_infrastructure_api.SourceCandidateDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "businessDomainId": {
+                    "type": "string"
+                },
+                "businessDomainName": {
+                    "type": "string"
+                },
+                "capabilityId": {
+                    "type": "string"
+                },
+                "conflictingEnterpriseCapability": {
+                    "$ref": "#/definitions/internal_enterprisearchitecture_infrastructure_api.ConflictingECDTO"
+                },
+                "eligible": {
+                    "type": "boolean"
+                },
+                "ineligibilityReason": {
+                    "type": "string"
+                },
+                "level": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parentId": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_enterprisearchitecture_infrastructure_api.SourceCandidatesPaginationDTO": {
+            "type": "object",
+            "properties": {
+                "cursor": {
+                    "type": "string"
+                },
+                "hasMore": {
+                    "type": "boolean"
+                },
+                "limit": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_enterprisearchitecture_infrastructure_api.SourceCandidatesResponseDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_enterprisearchitecture_infrastructure_api.SourceCandidateDTO"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/internal_enterprisearchitecture_infrastructure_api.SourceCandidatesPaginationDTO"
                 }
             }
         },

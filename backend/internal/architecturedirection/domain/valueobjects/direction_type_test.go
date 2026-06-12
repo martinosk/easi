@@ -62,20 +62,3 @@ func TestDirectionType_RequiredSourceCount(t *testing.T) {
 		})
 	}
 }
-
-func TestDirectionType_PlacementCardinality(t *testing.T) {
-	consolidate, _ := NewDirectionType("consolidate")
-	decompose, _ := NewDirectionType("decompose")
-	stay, _ := NewDirectionType("stay")
-
-	assert.False(t, consolidate.IsValidPlacementCount(0))
-	assert.True(t, consolidate.IsValidPlacementCount(1))
-	assert.False(t, consolidate.IsValidPlacementCount(2))
-
-	assert.False(t, decompose.IsValidPlacementCount(0))
-	assert.True(t, decompose.IsValidPlacementCount(1))
-	assert.True(t, decompose.IsValidPlacementCount(2))
-
-	assert.True(t, stay.IsValidPlacementCount(0))
-	assert.False(t, stay.IsValidPlacementCount(1))
-}

@@ -17,6 +17,19 @@ import (
 type mockMetadataStore struct {
 	updatedMaturityValues []maturityUpdate
 	updateErr             error
+	metaByID              map[string]*readmodels.DomainCapabilityMetadataDTO
+	domainSubtreeUpdates  []domainSubtreeUpdate
+	renamedDomains        []renamedDomain
+}
+
+type domainSubtreeUpdate struct {
+	L1CapabilityID string
+	BusinessDomain readmodels.BusinessDomainRef
+}
+
+type renamedDomain struct {
+	BusinessDomainID string
+	Name             string
 }
 
 type maturityUpdate struct {
@@ -25,7 +38,7 @@ type maturityUpdate struct {
 }
 
 func (m *mockMetadataStore) GetByID(ctx context.Context, capabilityID string) (*readmodels.DomainCapabilityMetadataDTO, error) {
-	return nil, nil
+	return m.metaByID[capabilityID], nil
 }
 func (m *mockMetadataStore) Insert(ctx context.Context, dto readmodels.DomainCapabilityMetadataDTO) error {
 	return nil
@@ -38,19 +51,16 @@ func (m *mockMetadataStore) UpdateLevel(ctx context.Context, capabilityID string
 	return nil
 }
 func (m *mockMetadataStore) UpdateBusinessDomainForL1Subtree(ctx context.Context, l1CapabilityID string, bd readmodels.BusinessDomainRef) error {
+	m.domainSubtreeUpdates = append(m.domainSubtreeUpdates, domainSubtreeUpdate{L1CapabilityID: l1CapabilityID, BusinessDomain: bd})
+	return nil
+}
+
+func (m *mockMetadataStore) UpdateBusinessDomainNameForDomain(ctx context.Context, businessDomainID, name string) error {
+	m.renamedDomains = append(m.renamedDomains, renamedDomain{BusinessDomainID: businessDomainID, Name: name})
 	return nil
 }
 func (m *mockMetadataStore) RecalculateL1ForSubtree(ctx context.Context, capabilityID string) error {
 	return nil
-}
-func (m *mockMetadataStore) GetSubtreeCapabilityIDs(ctx context.Context, rootID string) ([]string, error) {
-	return nil, nil
-}
-func (m *mockMetadataStore) GetEnterpriseCapabilitiesLinkedToCapabilities(ctx context.Context, capabilityIDs []string) ([]string, error) {
-	return nil, nil
-}
-func (m *mockMetadataStore) LookupBusinessDomainName(ctx context.Context, businessDomainID string) (string, error) {
-	return "", nil
 }
 func (m *mockMetadataStore) UpdateMaturityValue(ctx context.Context, capabilityID string, maturityValue int) error {
 	if m.updateErr != nil {
@@ -60,27 +70,47 @@ func (m *mockMetadataStore) UpdateMaturityValue(ctx context.Context, capabilityI
 	return nil
 }
 
-type mockCapabilityCountUpdater struct{}
-
-func (m *mockCapabilityCountUpdater) DecrementLinkCount(ctx context.Context, id string) error {
-	return nil
-}
-func (m *mockCapabilityCountUpdater) RecalculateDomainCount(ctx context.Context, enterpriseCapabilityID string) error {
-	return nil
-}
-
-type mockCapabilityLinkStore struct{}
-
-func (m *mockCapabilityLinkStore) GetByDomainCapabilityID(ctx context.Context, domainCapabilityID string) (*readmodels.EnterpriseCapabilityLinkDTO, error) {
-	return nil, nil
-}
-func (m *mockCapabilityLinkStore) Delete(ctx context.Context, id string) error { return nil }
-func (m *mockCapabilityLinkStore) DeleteBlockingByBlocker(ctx context.Context, blockedByCapabilityID string) error {
-	return nil
-}
-
 func newMetadataProjectorWithMock(mock *mockMetadataStore) *DomainCapabilityMetadataProjector {
-	return NewDomainCapabilityMetadataProjector(mock, &mockCapabilityCountUpdater{}, &mockCapabilityLinkStore{})
+	domainNames := func(_ context.Context, businessDomainID string) (string, error) {
+		return "Domain " + businessDomainID, nil
+	}
+	return NewDomainCapabilityMetadataProjector(mock, domainNames)
+}
+
+func TestMetadataProjector_AssignToDomain_ResolvesNameFromBusinessDomainLookup(t *testing.T) {
+	capabilityID := uuid.New().String()
+	domainID := uuid.New().String()
+	mock := &mockMetadataStore{metaByID: map[string]*readmodels.DomainCapabilityMetadataDTO{
+		capabilityID: {CapabilityID: capabilityID, CapabilityLevel: "L1", L1CapabilityID: capabilityID},
+	}}
+	projector := newMetadataProjectorWithMock(mock)
+
+	eventData, _ := json.Marshal(capabilityAssignedToDomainEvent{
+		ID:               uuid.New().String(),
+		BusinessDomainID: domainID,
+		CapabilityID:     capabilityID,
+	})
+	require.NoError(t, projector.ProjectEvent(context.Background(), cmPL.CapabilityAssignedToDomain, eventData))
+
+	require.Len(t, mock.domainSubtreeUpdates, 1)
+	update := mock.domainSubtreeUpdates[0]
+	assert.Equal(t, capabilityID, update.L1CapabilityID)
+	assert.Equal(t, domainID, update.BusinessDomain.ID)
+	assert.Equal(t, "Domain "+domainID, update.BusinessDomain.Name,
+		"the domain name must come from the business-domain read model, not from metadata rows that may not exist yet")
+}
+
+func TestMetadataProjector_BusinessDomainRenamed_UpdatesDenormalizedNames(t *testing.T) {
+	domainID := uuid.New().String()
+	mock := &mockMetadataStore{}
+	projector := newMetadataProjectorWithMock(mock)
+
+	eventData, _ := json.Marshal(map[string]string{"id": domainID, "name": "Marketing & Growth"})
+	require.NoError(t, projector.ProjectEvent(context.Background(), cmPL.BusinessDomainUpdated, eventData))
+
+	require.Len(t, mock.renamedDomains, 1)
+	assert.Equal(t, domainID, mock.renamedDomains[0].BusinessDomainID)
+	assert.Equal(t, "Marketing & Growth", mock.renamedDomains[0].Name)
 }
 
 func TestMetadataProjector_MetadataUpdated_UpdatesMaturityValue(t *testing.T) {

@@ -78,14 +78,16 @@ type DirectionSourceCapabilitiesChanged struct {
 	domain.BaseEvent
 	ID                  string    `json:"id"`
 	SourceCapabilityIDs []string  `json:"sourceCapabilityIds"`
+	Actor               string    `json:"actor"`
 	OccurredOn          time.Time `json:"occurredOn"`
 }
 
-func NewDirectionSourceCapabilitiesChanged(id string, sourceCapabilityIDs []string) DirectionSourceCapabilitiesChanged {
+func NewDirectionSourceCapabilitiesChanged(id string, sourceCapabilityIDs []string, actor string) DirectionSourceCapabilitiesChanged {
 	return DirectionSourceCapabilitiesChanged{
 		BaseEvent:           domain.NewBaseEvent(id),
 		ID:                  id,
 		SourceCapabilityIDs: sourceCapabilityIDs,
+		Actor:               actor,
 		OccurredOn:          time.Now().UTC(),
 	}
 }
@@ -93,5 +95,5 @@ func (e DirectionSourceCapabilitiesChanged) EventType() string {
 	return pl.DirectionSourceCapabilitiesChanged
 }
 func (e DirectionSourceCapabilitiesChanged) EventData() map[string]interface{} {
-	return map[string]interface{}{"id": e.ID, "sourceCapabilityIds": e.SourceCapabilityIDs, "occurredOn": e.OccurredOn}
+	return map[string]interface{}{"id": e.ID, "sourceCapabilityIds": e.SourceCapabilityIDs, "actor": e.Actor, "occurredOn": e.OccurredOn}
 }

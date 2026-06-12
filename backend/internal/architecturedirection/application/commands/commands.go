@@ -1,15 +1,9 @@
 package commands
 
-type PlacementInput struct {
-	TargetBusinessDomainID string
-	ResultingName          string
-}
-
 type CaptureDirection struct {
 	EnterpriseCapabilityID string
 	Type                   string
 	SourceCapabilityIDs    []string
-	Placements             []PlacementInput
 	Horizon                string
 	Narrative              string
 }
@@ -30,14 +24,28 @@ type RejectDirection struct {
 func (c RejectDirection) CommandName() string { return "RejectDirection" }
 
 type UpdateDirection struct {
-	DirectionID         string
-	Narrative           *string
-	Horizon             *string
-	SourceCapabilityIDs *[]string
-	Placements          *[]PlacementInput
+	DirectionID string
+	Narrative   *string
+	Horizon     *string
 }
 
 func (c UpdateDirection) CommandName() string { return "UpdateDirection" }
+
+type AddDirectionSource struct {
+	DirectionID  string
+	CapabilityID string
+	Actor        string
+}
+
+func (c AddDirectionSource) CommandName() string { return "AddDirectionSource" }
+
+type RemoveDirectionSource struct {
+	DirectionID  string
+	CapabilityID string
+	Actor        string
+}
+
+func (c RemoveDirectionSource) CommandName() string { return "RemoveDirectionSource" }
 
 type SetStandardApplication struct {
 	EnterpriseCapabilityID string

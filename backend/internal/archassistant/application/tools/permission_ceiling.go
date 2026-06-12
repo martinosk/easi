@@ -1,21 +1,21 @@
 package tools
 
 var agentPermissionCeiling = map[string]bool{
-	"components:read":       true,
-	"components:write":      true,
-	"capabilities:read":     true,
-	"capabilities:write":    true,
-	"domains:read":          true,
-	"domains:write":         true,
-	"valuestreams:read":     true,
-	"valuestreams:write":    true,
+	"components:read":              true,
+	"components:write":             true,
+	"capabilities:read":            true,
+	"capabilities:write":           true,
+	"domains:read":                 true,
+	"domains:write":                true,
+	"valuestreams:read":            true,
+	"valuestreams:write":           true,
 	"enterprise-arch:read":         true,
 	"enterprise-arch:write":        true,
 	"architecture-direction:read":  true,
 	"architecture-direction:write": true,
-	"views:read":            true,
-	"metamodel:read":        true,
-	"assistant:use":         true,
+	"views:read":                   true,
+	"metamodel:read":               true,
+	"assistant:use":                true,
 }
 
 type AgentScopedPermissions struct {

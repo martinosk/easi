@@ -13,27 +13,16 @@ func NewEnterpriseArchLinks(h *sharedAPI.HATEOASLinks) *EnterpriseArchLinks {
 	return &EnterpriseArchLinks{HATEOASLinks: h}
 }
 
-type LinkStatusParams struct {
-	CapabilityID  string
-	Status        string
-	LinkedToID    *string
-	BlockingCapID *string
-	BlockingEcID  *string
-}
-
 func (h *EnterpriseArchLinks) EnterpriseCapabilityLinksForActor(id string, actor sharedctx.Actor) sharedAPI.Links {
 	p := "/enterprise-capabilities/" + id
 	links := sharedAPI.Links{
 		"self":                   h.Get(p),
-		"x-links":                h.Get(p + "/links"),
 		"x-strategic-importance": h.Get(p + "/strategic-importance"),
-	}
-	if actor.CanRead("architecture-direction") {
-		links["x-direction"] = h.Get(p + "/direction")
+		"x-direction":            h.Get(p + "/direction"),
+		"x-composition":          h.Get(p + "/composition"),
 	}
 	if actor.CanWrite("enterprise-arch") {
 		links["edit"] = h.Put(p)
-		links["x-create-link"] = h.Post(p + "/links")
 	}
 	if actor.CanDelete("enterprise-arch") {
 		links["delete"] = h.Del(p)
@@ -43,21 +32,6 @@ func (h *EnterpriseArchLinks) EnterpriseCapabilityLinksForActor(id string, actor
 
 func (h *EnterpriseArchLinks) EnterpriseCapabilityCollectionLinks() sharedAPI.Links {
 	return sharedAPI.Links{"self": h.Get("/enterprise-capabilities")}
-}
-
-func (h *EnterpriseArchLinks) EnterpriseCapabilityLinkLinks(ecID, linkID string) sharedAPI.Links {
-	p := "/enterprise-capabilities/" + ecID + "/links/" + linkID
-	return sharedAPI.Links{
-		"self": h.Get(p), "delete": h.Del(p),
-		"x-enterprise-capability": h.Get("/enterprise-capabilities/" + ecID),
-	}
-}
-
-func (h *EnterpriseArchLinks) EnterpriseCapabilityLinksCollectionLinks(ecID string) sharedAPI.Links {
-	return sharedAPI.Links{
-		"self":                    h.Get("/enterprise-capabilities/" + ecID + "/links"),
-		"x-enterprise-capability": h.Get("/enterprise-capabilities/" + ecID),
-	}
 }
 
 func (h *EnterpriseArchLinks) enterpriseStrategicImportanceBase(ecID, impID string) sharedAPI.Links {
@@ -87,36 +61,6 @@ func (h *EnterpriseArchLinks) EnterpriseStrategicImportanceCollectionLinks(ecID 
 	}
 }
 
-func (h *EnterpriseArchLinks) DomainCapabilityEnterpriseLinks(dcID string) sharedAPI.Links {
-	return sharedAPI.Links{"self": h.Get("/domain-capabilities/" + dcID + "/enterprise-capability")}
-}
-
-func (h *EnterpriseArchLinks) DomainCapabilityEnterpriseLinkedLinks(dcID, ecID, linkID string) sharedAPI.Links {
-	return sharedAPI.Links{
-		"self":                    h.Get("/domain-capabilities/" + dcID + "/enterprise-capability"),
-		"x-enterprise-capability": h.Get("/enterprise-capabilities/" + ecID),
-		"x-unlink":                h.Del("/enterprise-capabilities/" + ecID + "/links/" + linkID),
-	}
-}
-
-func (h *EnterpriseArchLinks) CapabilityLinkStatusLinks(p LinkStatusParams) sharedAPI.Links {
-	links := sharedAPI.Links{"self": h.Get("/domain-capabilities/" + p.CapabilityID + "/enterprise-link-status")}
-	if p.Status == "available" {
-		links["x-available-enterprise-capabilities"] = h.Get("/enterprise-capabilities")
-	}
-	if p.LinkedToID != nil {
-		links["x-linked-to"] = h.Get("/enterprise-capabilities/" + *p.LinkedToID)
-		links["x-enterprise-capability"] = h.Get("/domain-capabilities/" + p.CapabilityID + "/enterprise-capability")
-	}
-	if p.BlockingCapID != nil {
-		links["x-blocking-capability"] = h.Get("/capabilities/" + *p.BlockingCapID)
-	}
-	if p.BlockingEcID != nil {
-		links["x-blocking-enterprise-capability"] = h.Get("/enterprise-capabilities/" + *p.BlockingEcID)
-	}
-	return links
-}
-
 func (h *EnterpriseArchLinks) MaturityAnalysisCandidateLinks(ecID string) sharedAPI.Links {
 	return sharedAPI.Links{
 		"self":           h.Get("/enterprise-capabilities/" + ecID),
@@ -139,8 +83,4 @@ func (h *EnterpriseArchLinks) MaturityGapDetailLinks(ecID string) sharedAPI.Link
 
 func (h *EnterpriseArchLinks) TimeSuggestionsCollectionLinks() sharedAPI.Links {
 	return sharedAPI.Links{"self": h.Get("/time-suggestions")}
-}
-
-func (h *EnterpriseArchLinks) UnlinkedCapabilitiesLinks() sharedAPI.Links {
-	return sharedAPI.Links{"self": h.Get("/domain-capabilities/unlinked")}
 }

@@ -29,9 +29,9 @@ func setupProjectorTest(t *testing.T) (context.Context, *DomainCapabilityMetadat
 
 	tenantDB := database.NewTenantAwareDB(db)
 	metadataRM := readmodels.NewDomainCapabilityMetadataReadModel(tenantDB)
-	capabilityRM := readmodels.NewEnterpriseCapabilityReadModel(tenantDB)
-	linkRM := readmodels.NewEnterpriseCapabilityLinkReadModel(tenantDB)
-	projector := NewDomainCapabilityMetadataProjector(metadataRM, capabilityRM, linkRM)
+	projector := NewDomainCapabilityMetadataProjector(metadataRM, func(_ context.Context, _ string) (string, error) {
+		return "Test Domain", nil
+	})
 
 	ctx := sharedctx.WithTenant(context.Background(), valueobjects.MustNewTenantID(testTenant))
 

@@ -3,10 +3,9 @@ export const enterpriseCapabilitiesQueryKeys = {
   lists: () => [...enterpriseCapabilitiesQueryKeys.all, 'list'] as const,
   details: () => [...enterpriseCapabilitiesQueryKeys.all, 'detail'] as const,
   detail: (id: string) => [...enterpriseCapabilitiesQueryKeys.details(), id] as const,
-  links: (id: string) => [...enterpriseCapabilitiesQueryKeys.detail(id), 'links'] as const,
+  composition: (id: string) => [...enterpriseCapabilitiesQueryKeys.detail(id), 'composition'] as const,
   strategicImportance: (id: string) => [...enterpriseCapabilitiesQueryKeys.detail(id), 'strategicImportance'] as const,
   maturityGap: (id: string) => [...enterpriseCapabilitiesQueryKeys.detail(id), 'maturityGap'] as const,
-  linkStatuses: () => ['linkStatuses'] as const,
 };
 
 export const maturityAnalysisQueryKeys = {

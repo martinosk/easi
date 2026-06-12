@@ -39,18 +39,6 @@ func (m *mockDeleteCapabilityRepository) GetByID(ctx context.Context, id string)
 	return nil, repositories.ErrEnterpriseCapabilityNotFound
 }
 
-type mockDeleteLinkCounter struct {
-	linkCount int
-	countErr  error
-}
-
-func (m *mockDeleteLinkCounter) CountByEnterpriseCapabilityID(ctx context.Context, enterpriseCapabilityID string) (int, error) {
-	if m.countErr != nil {
-		return 0, m.countErr
-	}
-	return m.linkCount, nil
-}
-
 func createDeleteTestCapability(t *testing.T, name string) *aggregates.EnterpriseCapability {
 	t.Helper()
 	capName, err := valueobjects.NewEnterpriseCapabilityName(name)
@@ -70,9 +58,8 @@ func TestDeleteEnterpriseCapabilityHandler_DeletesCapability(t *testing.T) {
 	existingCapability := createDeleteTestCapability(t, "To Be Deleted")
 
 	mockRepo := &mockDeleteCapabilityRepository{existingCapability: existingCapability}
-	mockLinkCounter := &mockDeleteLinkCounter{linkCount: 0}
 
-	handler := NewDeleteEnterpriseCapabilityHandler(mockRepo, mockLinkCounter)
+	handler := NewDeleteEnterpriseCapabilityHandler(mockRepo)
 
 	cmd := &commands.DeleteEnterpriseCapability{
 		ID: existingCapability.ID(),
@@ -86,28 +73,10 @@ func TestDeleteEnterpriseCapabilityHandler_DeletesCapability(t *testing.T) {
 	assert.False(t, deleted.IsActive())
 }
 
-func TestDeleteEnterpriseCapabilityHandler_WithLinks_ReturnsError(t *testing.T) {
-	existingCapability := createDeleteTestCapability(t, "Has Links")
-
-	mockRepo := &mockDeleteCapabilityRepository{existingCapability: existingCapability}
-	mockLinkCounter := &mockDeleteLinkCounter{linkCount: 3}
-
-	handler := NewDeleteEnterpriseCapabilityHandler(mockRepo, mockLinkCounter)
-
-	cmd := &commands.DeleteEnterpriseCapability{
-		ID: existingCapability.ID(),
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.ErrorIs(t, err, ErrCapabilityHasLinks)
-	assert.Len(t, mockRepo.savedCapabilities, 0)
-}
-
 func TestDeleteEnterpriseCapabilityHandler_NonExistent_ReturnsError(t *testing.T) {
 	mockRepo := &mockDeleteCapabilityRepository{getByIDErr: repositories.ErrEnterpriseCapabilityNotFound}
-	mockLinkCounter := &mockDeleteLinkCounter{linkCount: 0}
 
-	handler := NewDeleteEnterpriseCapabilityHandler(mockRepo, mockLinkCounter)
+	handler := NewDeleteEnterpriseCapabilityHandler(mockRepo)
 
 	cmd := &commands.DeleteEnterpriseCapability{
 		ID: "non-existent-id",
@@ -124,25 +93,8 @@ func TestDeleteEnterpriseCapabilityHandler_RepositoryError_ReturnsError(t *testi
 		existingCapability: existingCapability,
 		saveErr:            errors.New("save error"),
 	}
-	mockLinkCounter := &mockDeleteLinkCounter{linkCount: 0}
 
-	handler := NewDeleteEnterpriseCapabilityHandler(mockRepo, mockLinkCounter)
-
-	cmd := &commands.DeleteEnterpriseCapability{
-		ID: existingCapability.ID(),
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.Error(t, err)
-}
-
-func TestDeleteEnterpriseCapabilityHandler_LinkCountError_ReturnsError(t *testing.T) {
-	existingCapability := createDeleteTestCapability(t, "To Be Deleted")
-
-	mockRepo := &mockDeleteCapabilityRepository{existingCapability: existingCapability}
-	mockLinkCounter := &mockDeleteLinkCounter{countErr: errors.New("count error")}
-
-	handler := NewDeleteEnterpriseCapabilityHandler(mockRepo, mockLinkCounter)
+	handler := NewDeleteEnterpriseCapabilityHandler(mockRepo)
 
 	cmd := &commands.DeleteEnterpriseCapability{
 		ID: existingCapability.ID(),
@@ -150,5 +102,4 @@ func TestDeleteEnterpriseCapabilityHandler_LinkCountError_ReturnsError(t *testin
 
 	_, err := handler.Handle(context.Background(), cmd)
 	assert.Error(t, err)
-	assert.Len(t, mockRepo.savedCapabilities, 0)
 }

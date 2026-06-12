@@ -1,29 +1,24 @@
 import { auditQueryKeys } from '../audit/queryKeys';
+import { enterpriseCapabilitiesQueryKeys } from '../enterprise-architecture/queryKeys';
 import { directionQueryKeys } from './queryKeys';
 
+function compositionEffects(enterpriseCapabilityId: string) {
+  return [
+    directionQueryKeys.byEnterpriseCapability(enterpriseCapabilityId),
+    enterpriseCapabilitiesQueryKeys.composition(enterpriseCapabilityId),
+    enterpriseCapabilitiesQueryKeys.detail(enterpriseCapabilityId),
+    enterpriseCapabilitiesQueryKeys.lists(),
+    auditQueryKeys.history(enterpriseCapabilityId),
+  ];
+}
+
 export const directionMutationEffects = {
-  capture: (enterpriseCapabilityId: string) => [
-    directionQueryKeys.byEnterpriseCapability(enterpriseCapabilityId),
-    auditQueryKeys.history(enterpriseCapabilityId),
-  ],
-
-  update: (enterpriseCapabilityId: string) => [
-    directionQueryKeys.byEnterpriseCapability(enterpriseCapabilityId),
-    auditQueryKeys.history(enterpriseCapabilityId),
-  ],
-
-  propose: (enterpriseCapabilityId: string) => [
-    directionQueryKeys.byEnterpriseCapability(enterpriseCapabilityId),
-    auditQueryKeys.history(enterpriseCapabilityId),
-  ],
-
-  agree: (enterpriseCapabilityId: string) => [
-    directionQueryKeys.byEnterpriseCapability(enterpriseCapabilityId),
-    auditQueryKeys.history(enterpriseCapabilityId),
-  ],
-
-  reject: (enterpriseCapabilityId: string) => [
-    directionQueryKeys.byEnterpriseCapability(enterpriseCapabilityId),
-    auditQueryKeys.history(enterpriseCapabilityId),
-  ],
+  capture: compositionEffects,
+  addSource: compositionEffects,
+  removeSource: compositionEffects,
+  update: compositionEffects,
+  propose: compositionEffects,
+  agree: compositionEffects,
+  reject: compositionEffects,
+  revert: compositionEffects,
 };

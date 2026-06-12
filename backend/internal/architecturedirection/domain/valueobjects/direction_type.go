@@ -51,18 +51,6 @@ func (d DirectionType) MinSourceCount() int {
 	return 1
 }
 
-func (d DirectionType) IsValidPlacementCount(count int) bool {
-	switch d.value {
-	case DirectionTypeConsolidate:
-		return count == 1
-	case DirectionTypeDecompose:
-		return count >= 1
-	case DirectionTypeStay:
-		return count == 0
-	}
-	return false
-}
-
 func (d DirectionType) Equals(other domain.ValueObject) bool {
 	if otherType, ok := other.(DirectionType); ok {
 		return d.value == otherType.value

@@ -3,6 +3,7 @@ package aggregates
 import (
 	"testing"
 
+	"easi/backend/internal/architecturedirection/domain/events"
 	"easi/backend/internal/architecturedirection/domain/valueobjects"
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 
@@ -29,18 +30,16 @@ func newPhysicalRefs(t *testing.T, n int) []valueobjects.PhysicalCapabilityRef {
 	t.Helper()
 	refs := make([]valueobjects.PhysicalCapabilityRef, n)
 	for i := 0; i < n; i++ {
-		ref, err := valueobjects.NewPhysicalCapabilityRef(uuid.New().String())
-		require.NoError(t, err)
-		refs[i] = ref
+		refs[i] = newPhysicalRef(t)
 	}
 	return refs
 }
 
-func newPlacement(t *testing.T) valueobjects.Placement {
+func newPhysicalRef(t *testing.T) valueobjects.PhysicalCapabilityRef {
 	t.Helper()
-	p, err := valueobjects.NewPlacement(uuid.New().String(), "")
+	ref, err := valueobjects.NewPhysicalCapabilityRef(uuid.New().String())
 	require.NoError(t, err)
-	return p
+	return ref
 }
 
 func newECRef(t *testing.T) valueobjects.EnterpriseCapabilityRef {
@@ -58,12 +57,11 @@ func newNarrative(t *testing.T, v string) sharedvo.Description {
 }
 
 type draftOpts struct {
-	directionType    string
-	sourceCount      int
-	sources          []valueobjects.PhysicalCapabilityRef
-	includePlacement bool
-	horizon          string
-	narrative        string
+	directionType string
+	sourceCount   int
+	sources       []valueobjects.PhysicalCapabilityRef
+	horizon       string
+	narrative     string
 }
 
 func draftWith(t *testing.T, opts draftOpts) (*Direction, error) {
@@ -78,10 +76,6 @@ func draftWith(t *testing.T, opts draftOpts) (*Direction, error) {
 	if sources == nil {
 		sources = newPhysicalRefs(t, opts.sourceCount)
 	}
-	var placements []valueobjects.Placement
-	if opts.includePlacement {
-		placements = []valueobjects.Placement{newPlacement(t)}
-	}
 	var narrative sharedvo.Description
 	if opts.narrative != "" {
 		narrative = newNarrative(t, opts.narrative)
@@ -90,14 +84,13 @@ func draftWith(t *testing.T, opts draftOpts) (*Direction, error) {
 		EnterpriseCapabilityID: newECRef(t),
 		Type:                   newType(t, opts.directionType),
 		SourceCapabilityIDs:    sources,
-		Placements:             placements,
 		Horizon:                newHorizon(t, opts.horizon),
 		Narrative:              narrative,
 	})
 }
 
 func TestDraftDirection_Consolidate_TwoSources_Succeeds(t *testing.T) {
-	d, err := draftWith(t, draftOpts{sourceCount: 2, includePlacement: true})
+	d, err := draftWith(t, draftOpts{sourceCount: 2})
 	require.NoError(t, err)
 	assert.NotEmpty(t, d.ID())
 	assert.True(t, d.Status().IsDraft())
@@ -107,75 +100,40 @@ func TestDraftDirection_Consolidate_TwoSources_Succeeds(t *testing.T) {
 	assert.Equal(t, "DirectionDrafted", d.GetUncommittedChanges()[0].EventType())
 }
 
-func TestDraftDirection_Consolidate_OneSource_Fails(t *testing.T) {
-	_, err := draftWith(t, draftOpts{sourceCount: 1, includePlacement: true})
-	assert.ErrorIs(t, err, ErrInvalidSourceCardinality)
+func TestDraftDirection_SingleSourceIsAcceptedForAnyType(t *testing.T) {
+	for _, directionType := range []string{"consolidate", "decompose", "stay"} {
+		d, err := draftWith(t, draftOpts{directionType: directionType, sourceCount: 1, horizon: "now"})
+		require.NoError(t, err, "a draft may carry a single source regardless of type (R8)")
+		assert.True(t, d.Status().IsDraft())
+	}
 }
 
-func TestDraftDirection_Decompose_OneSource_Succeeds(t *testing.T) {
-	d, err := draftWith(t, draftOpts{directionType: "decompose", sourceCount: 1, includePlacement: true, horizon: "now"})
-	require.NoError(t, err)
-	assert.True(t, d.Type().IsDecompose())
-}
-
-func TestDraftDirection_Decompose_TwoSources_Fails(t *testing.T) {
-	_, err := draftWith(t, draftOpts{directionType: "decompose", sourceCount: 2, includePlacement: true, horizon: "now"})
-	assert.ErrorIs(t, err, ErrInvalidSourceCardinality)
-}
-
-func TestDraftDirection_Stay_OneSource_NoPlacements_Succeeds(t *testing.T) {
-	d, err := draftWith(t, draftOpts{directionType: "stay", sourceCount: 1, horizon: "now"})
-	require.NoError(t, err)
-	assert.True(t, d.Type().IsStay())
-	assert.Empty(t, d.Placements())
-}
-
-func TestDraftDirection_Stay_WithPlacements_Fails(t *testing.T) {
-	_, err := draftWith(t, draftOpts{directionType: "stay", sourceCount: 1, includePlacement: true, horizon: "now"})
-	assert.ErrorIs(t, err, ErrInvalidPlacementCardinality)
-}
-
-func TestDraftDirection_Consolidate_NoPlacements_Fails(t *testing.T) {
-	_, err := draftWith(t, draftOpts{sourceCount: 2, horizon: "now"})
-	assert.ErrorIs(t, err, ErrInvalidPlacementCardinality)
-}
-
-func TestDraftDirection_Consolidate_MultiplePlacements_Fails(t *testing.T) {
-	_, err := DraftDirection(DraftParams{
-		EnterpriseCapabilityID: newECRef(t),
-		Type:                   newType(t, "consolidate"),
-		SourceCapabilityIDs:    newPhysicalRefs(t, 2),
-		Placements:             []valueobjects.Placement{newPlacement(t), newPlacement(t)},
-		Horizon:                newHorizon(t, "now"),
-		Narrative:              sharedvo.Description{},
-	})
-	assert.ErrorIs(t, err, ErrInvalidPlacementCardinality)
-}
-
-func TestDraftDirection_Decompose_MultiplePlacements_Succeeds(t *testing.T) {
-	d, err := DraftDirection(DraftParams{
-		EnterpriseCapabilityID: newECRef(t),
-		Type:                   newType(t, "decompose"),
-		SourceCapabilityIDs:    newPhysicalRefs(t, 1),
-		Placements:             []valueobjects.Placement{newPlacement(t), newPlacement(t)},
-		Horizon:                newHorizon(t, "now"),
-		Narrative:              sharedvo.Description{},
-	})
-	require.NoError(t, err)
-	assert.Len(t, d.Placements(), 2)
+func TestDraftDirection_EmptySourceSetIsAccepted(t *testing.T) {
+	d, err := draftWith(t, draftOpts{sourceCount: 0})
+	require.NoError(t, err, "an empty source set is valid for a draft (R8)")
+	assert.Empty(t, d.SourceCapabilityIDs())
 }
 
 func TestDraftDirection_DuplicateSourceIDs_Fails(t *testing.T) {
 	refs := newPhysicalRefs(t, 1)
 	dup := []valueobjects.PhysicalCapabilityRef{refs[0], refs[0]}
-	_, err := draftWith(t, draftOpts{sources: dup, includePlacement: true})
+	_, err := draftWith(t, draftOpts{sources: dup})
 	assert.ErrorIs(t, err, ErrDuplicateSourceCapabilities)
 }
 
 func draftConsolidate(t *testing.T) *Direction {
 	t.Helper()
-	d, err := draftWith(t, draftOpts{sourceCount: 2, includePlacement: true, narrative: "We consolidate."})
+	d, err := draftWith(t, draftOpts{sourceCount: 2, narrative: "We consolidate."})
 	require.NoError(t, err)
+	d.MarkChangesAsCommitted()
+	return d
+}
+
+func agreedConsolidate(t *testing.T) *Direction {
+	t.Helper()
+	d := draftConsolidate(t)
+	require.NoError(t, d.Propose())
+	require.NoError(t, d.Agree())
 	d.MarkChangesAsCommitted()
 	return d
 }
@@ -191,7 +149,7 @@ func TestPropose_FromDraft_WithNarrative_Succeeds(t *testing.T) {
 }
 
 func TestPropose_WithoutNarrative_Fails(t *testing.T) {
-	d, err := draftWith(t, draftOpts{sourceCount: 2, includePlacement: true})
+	d, err := draftWith(t, draftOpts{sourceCount: 2})
 	require.NoError(t, err)
 	d.MarkChangesAsCommitted()
 
@@ -199,11 +157,39 @@ func TestPropose_WithoutNarrative_Fails(t *testing.T) {
 	assert.ErrorIs(t, err, ErrNarrativeRequiredToPropose)
 }
 
+func TestPropose_EnforcesTypeSourceCardinality(t *testing.T) {
+	cases := []struct {
+		name          string
+		directionType string
+		sourceCount   int
+		wantErr       error
+	}{
+		{"consolidate with one source is rejected", "consolidate", 1, ErrInvalidSourceCardinality},
+		{"consolidate with two sources advances", "consolidate", 2, nil},
+		{"decompose with two sources is rejected", "decompose", 2, ErrInvalidSourceCardinality},
+		{"decompose with one source advances", "decompose", 1, nil},
+		{"stay without a source is rejected", "stay", 0, ErrInvalidSourceCardinality},
+		{"stay with one source advances", "stay", 1, nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			d, err := draftWith(t, draftOpts{directionType: tc.directionType, sourceCount: tc.sourceCount, horizon: "now", narrative: "Because."})
+			require.NoError(t, err, "draft capture does not enforce cardinality (R8)")
+			d.MarkChangesAsCommitted()
+
+			err = d.Propose()
+			if tc.wantErr != nil {
+				assert.ErrorIs(t, err, tc.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			assert.True(t, d.Status().IsProposed())
+		})
+	}
+}
+
 func TestPropose_FromAgreed_Fails(t *testing.T) {
-	d := draftConsolidate(t)
-	require.NoError(t, d.Propose())
-	require.NoError(t, d.Agree())
-	d.MarkChangesAsCommitted()
+	d := agreedConsolidate(t)
 	err := d.Propose()
 	assert.ErrorIs(t, err, ErrInvalidStatusTransition)
 }
@@ -246,11 +232,7 @@ func TestReject_FromProposed_Succeeds(t *testing.T) {
 }
 
 func TestReject_FromAgreed_Succeeds(t *testing.T) {
-	d := draftConsolidate(t)
-	require.NoError(t, d.Propose())
-	require.NoError(t, d.Agree())
-	d.MarkChangesAsCommitted()
-
+	d := agreedConsolidate(t)
 	err := d.Reject()
 	require.NoError(t, err)
 	assert.True(t, d.Status().IsRejected())
@@ -274,11 +256,7 @@ func TestUpdateNarrative_PreAgreed_Succeeds(t *testing.T) {
 }
 
 func TestChangeHorizon_OnAgreed_Fails(t *testing.T) {
-	d := draftConsolidate(t)
-	require.NoError(t, d.Propose())
-	require.NoError(t, d.Agree())
-	d.MarkChangesAsCommitted()
-
+	d := agreedConsolidate(t)
 	err := d.ChangeHorizon(newHorizon(t, "later"))
 	assert.ErrorIs(t, err, ErrDirectionAgreedImmutable)
 }
@@ -290,34 +268,96 @@ func TestChangeHorizon_OnDraft_Succeeds(t *testing.T) {
 	assert.Equal(t, "later", d.Horizon().Value())
 }
 
-func TestChangeSourceCapabilities_OnAgreed_Fails(t *testing.T) {
+func TestAddSourceCapability_AppendsAndRecordsActor(t *testing.T) {
 	d := draftConsolidate(t)
-	require.NoError(t, d.Propose())
-	require.NoError(t, d.Agree())
-	d.MarkChangesAsCommitted()
+	added := newPhysicalRef(t)
 
-	err := d.ChangeSourceCapabilities(newPhysicalRefs(t, 2))
-	assert.ErrorIs(t, err, ErrDirectionAgreedImmutable)
+	err := d.AddSourceCapability(added, "architect@dfds.com")
+
+	require.NoError(t, err)
+	assert.Len(t, d.SourceCapabilityIDs(), 3)
+	uncommitted := d.GetUncommittedChanges()
+	require.Len(t, uncommitted, 1)
+	event, ok := uncommitted[0].(events.DirectionSourceCapabilitiesChanged)
+	require.True(t, ok)
+	assert.Len(t, event.SourceCapabilityIDs, 3)
+	assert.Contains(t, event.SourceCapabilityIDs, added.Value())
+	assert.Equal(t, "architect@dfds.com", event.Actor, "source-set changes must record the acting architect (R9)")
 }
 
-func TestChangeSourceCapabilities_RespectsTypeCardinality(t *testing.T) {
+func TestAddSourceCapability_AlreadyPresent_IsIdempotent(t *testing.T) {
 	d := draftConsolidate(t)
-	err := d.ChangeSourceCapabilities(newPhysicalRefs(t, 1))
-	assert.ErrorIs(t, err, ErrInvalidSourceCardinality)
+	existing := d.SourceCapabilityIDs()[0]
+
+	err := d.AddSourceCapability(existing, "architect@dfds.com")
+
+	require.NoError(t, err)
+	assert.Len(t, d.SourceCapabilityIDs(), 2)
+	assert.Empty(t, d.GetUncommittedChanges(), "re-adding an existing source emits no event")
 }
 
-func TestChangePlacements_OnAgreed_Fails(t *testing.T) {
+func TestAddSourceCapability_OnAgreed_Fails(t *testing.T) {
+	d := agreedConsolidate(t)
+	err := d.AddSourceCapability(newPhysicalRef(t), "architect@dfds.com")
+	assert.ErrorIs(t, err, ErrDirectionSourceSetFrozen)
+}
+
+func TestAddSourceCapability_OnProposed_Fails(t *testing.T) {
 	d := draftConsolidate(t)
 	require.NoError(t, d.Propose())
-	require.NoError(t, d.Agree())
 	d.MarkChangesAsCommitted()
+	err := d.AddSourceCapability(newPhysicalRef(t), "architect@dfds.com")
+	assert.ErrorIs(t, err, ErrDirectionSourceSetFrozen)
+}
 
-	err := d.ChangePlacements([]valueobjects.Placement{newPlacement(t)})
-	assert.ErrorIs(t, err, ErrDirectionAgreedImmutable)
+func TestRemoveSourceCapability_RemovesAndRecordsActor(t *testing.T) {
+	d := draftConsolidate(t)
+	removed := d.SourceCapabilityIDs()[0]
+
+	err := d.RemoveSourceCapability(removed, "architect@dfds.com")
+
+	require.NoError(t, err)
+	assert.Len(t, d.SourceCapabilityIDs(), 1)
+	uncommitted := d.GetUncommittedChanges()
+	require.Len(t, uncommitted, 1)
+	event, ok := uncommitted[0].(events.DirectionSourceCapabilitiesChanged)
+	require.True(t, ok)
+	assert.NotContains(t, event.SourceCapabilityIDs, removed.Value())
+	assert.Equal(t, "architect@dfds.com", event.Actor)
+}
+
+func TestRemoveSourceCapability_LeavingDraftWithSingleSourceIsAllowed(t *testing.T) {
+	d := draftConsolidate(t)
+	require.NoError(t, d.RemoveSourceCapability(d.SourceCapabilityIDs()[0], "architect@dfds.com"))
+
+	err := d.RemoveSourceCapability(d.SourceCapabilityIDs()[0], "architect@dfds.com")
+
+	require.NoError(t, err, "a draft source set may shrink below the type cardinality (R8)")
+	assert.Empty(t, d.SourceCapabilityIDs())
+}
+
+func TestRemoveSourceCapability_NotInSourceSet_Fails(t *testing.T) {
+	d := draftConsolidate(t)
+	err := d.RemoveSourceCapability(newPhysicalRef(t), "architect@dfds.com")
+	assert.ErrorIs(t, err, ErrSourceCapabilityNotInDirection)
+}
+
+func TestRemoveSourceCapability_OnAgreed_Fails(t *testing.T) {
+	d := agreedConsolidate(t)
+	err := d.RemoveSourceCapability(d.SourceCapabilityIDs()[0], "architect@dfds.com")
+	assert.ErrorIs(t, err, ErrDirectionSourceSetFrozen)
+}
+
+func TestRemoveSourceCapability_OnProposed_Fails(t *testing.T) {
+	d := draftConsolidate(t)
+	require.NoError(t, d.Propose())
+	d.MarkChangesAsCommitted()
+	err := d.RemoveSourceCapability(d.SourceCapabilityIDs()[0], "architect@dfds.com")
+	assert.ErrorIs(t, err, ErrDirectionSourceSetFrozen)
 }
 
 func TestLoadFromHistory_ReconstructsStatus(t *testing.T) {
-	fresh, err := draftWith(t, draftOpts{sourceCount: 2, includePlacement: true, narrative: "Some narrative."})
+	fresh, err := draftWith(t, draftOpts{sourceCount: 2, narrative: "Some narrative."})
 	require.NoError(t, err)
 	require.NoError(t, fresh.Propose())
 	require.NoError(t, fresh.Agree())
@@ -333,8 +373,19 @@ func TestLoadFromHistory_ReconstructsStatus(t *testing.T) {
 	assert.Equal(t, "next", loaded.Horizon().Value())
 }
 
+func TestLoadFromHistory_ReconstructsSourceSetFromChanges(t *testing.T) {
+	fresh, err := draftWith(t, draftOpts{sourceCount: 1, narrative: "x"})
+	require.NoError(t, err)
+	added := newPhysicalRef(t)
+	require.NoError(t, fresh.AddSourceCapability(added, "architect@dfds.com"))
+
+	loaded, err := LoadDirectionFromHistory(fresh.GetUncommittedChanges())
+	require.NoError(t, err)
+	require.Len(t, loaded.SourceCapabilityIDs(), 2)
+}
+
 func TestLoadFromHistory_AfterReject_IsTerminal(t *testing.T) {
-	fresh, err := draftWith(t, draftOpts{sourceCount: 2, includePlacement: true, narrative: "x"})
+	fresh, err := draftWith(t, draftOpts{sourceCount: 2, narrative: "x"})
 	require.NoError(t, err)
 	require.NoError(t, fresh.Reject())
 

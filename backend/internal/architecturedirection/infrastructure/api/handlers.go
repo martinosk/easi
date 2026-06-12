@@ -2,10 +2,12 @@ package api
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"easi/backend/internal/architecturedirection/application/commands"
 	"easi/backend/internal/architecturedirection/application/readmodels"
+	"easi/backend/internal/architecturedirection/domain/aggregates"
 	"easi/backend/internal/architecturedirection/domain/valueobjects"
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
@@ -31,24 +33,16 @@ func NewDirectionHandlers(commandBus cqrs.CommandBus, queries DirectionQueries, 
 	}
 }
 
-type PlacementRequest struct {
-	TargetBusinessDomainID string `json:"targetBusinessDomainId"`
-	ResultingName          string `json:"resultingName,omitempty"`
-}
-
 type CaptureDirectionRequest struct {
-	Type                string             `json:"type"`
-	SourceCapabilityIDs []string           `json:"sourceCapabilityIds"`
-	Placements          []PlacementRequest `json:"placements"`
-	Horizon             string             `json:"horizon"`
-	Narrative           string             `json:"narrative,omitempty"`
+	Type                string   `json:"type"`
+	SourceCapabilityIDs []string `json:"sourceCapabilityIds"`
+	Horizon             string   `json:"horizon"`
+	Narrative           string   `json:"narrative,omitempty"`
 }
 
 type UpdateDirectionRequest struct {
-	SourceCapabilityIDs *[]string           `json:"sourceCapabilityIds,omitempty"`
-	Placements          *[]PlacementRequest `json:"placements,omitempty"`
-	Horizon             *string             `json:"horizon,omitempty"`
-	Narrative           *string             `json:"narrative,omitempty"`
+	Horizon   *string `json:"horizon,omitempty"`
+	Narrative *string `json:"narrative,omitempty"`
 }
 
 type ECDirectionResponse struct {
@@ -114,12 +108,11 @@ func (h *DirectionHandlers) CaptureDirection(w http.ResponseWriter, r *http.Requ
 		EnterpriseCapabilityID: ecID,
 		Type:                   req.Type,
 		SourceCapabilityIDs:    req.SourceCapabilityIDs,
-		Placements:             placementsFromRequest(req.Placements),
 		Horizon:                req.Horizon,
 		Narrative:              req.Narrative,
 	}
 	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		sharedAPI.HandleError(w, err)
+		h.respondSourceMutationError(w, err, ecID, "")
 		return
 	}
 	h.respondWithActiveDirection(w, r, ecID, http.StatusCreated)
@@ -152,14 +145,12 @@ func (h *DirectionHandlers) UpdateDirection(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	cmd := &commands.UpdateDirection{
-		DirectionID:         direction.ID,
-		Narrative:           req.Narrative,
-		Horizon:             req.Horizon,
-		SourceCapabilityIDs: req.SourceCapabilityIDs,
-		Placements:          placementInputsFromRequest(req.Placements),
+		DirectionID: direction.ID,
+		Narrative:   req.Narrative,
+		Horizon:     req.Horizon,
 	}
 	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		sharedAPI.HandleError(w, err)
+		h.respondSourceMutationError(w, err, ecID, direction.Status)
 		return
 	}
 	h.respondWithActiveDirection(w, r, ecID, http.StatusOK)
@@ -239,10 +230,21 @@ func (h *DirectionHandlers) advance(w http.ResponseWriter, r *http.Request, targ
 	}
 	cmd := &commands.AdvanceDirection{DirectionID: direction.ID, TargetStatus: target}
 	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+		if errors.Is(err, aggregates.ErrInvalidSourceCardinality) {
+			sharedAPI.RespondError(w, http.StatusBadRequest, nil, proposeCardinalityMessage(direction.Type))
+			return
+		}
 		sharedAPI.HandleError(w, err)
 		return
 	}
 	h.respondWithActiveDirection(w, r, ecID, http.StatusOK)
+}
+
+func proposeCardinalityMessage(directionType string) string {
+	if directionType == valueobjects.DirectionTypeConsolidate {
+		return "A 'consolidate' direction requires at least 2 sources to be proposed."
+	}
+	return "A '" + directionType + "' direction requires exactly 1 source to be proposed."
 }
 
 func (h *DirectionHandlers) resolveActiveDirection(w http.ResponseWriter, r *http.Request, ecID string) (*readmodels.DirectionDTO, bool) {
@@ -286,23 +288,4 @@ func (h *DirectionHandlers) respondWithDirection(w http.ResponseWriter, r *http.
 		return
 	}
 	sharedAPI.RespondJSON(w, resp.statusCode, resp.direction)
-}
-
-func placementInputsFromRequest(input *[]PlacementRequest) *[]commands.PlacementInput {
-	if input == nil {
-		return nil
-	}
-	out := placementsFromRequest(*input)
-	return &out
-}
-
-func placementsFromRequest(input []PlacementRequest) []commands.PlacementInput {
-	out := make([]commands.PlacementInput, len(input))
-	for i, p := range input {
-		out[i] = commands.PlacementInput{
-			TargetBusinessDomainID: p.TargetBusinessDomainID,
-			ResultingName:          p.ResultingName,
-		}
-	}
-	return out
 }

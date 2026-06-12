@@ -11,6 +11,8 @@ import (
 
 	"easi/backend/internal/enterprisearchitecture/application/handlers"
 	"easi/backend/internal/enterprisearchitecture/application/readmodels"
+	appservices "easi/backend/internal/enterprisearchitecture/application/services"
+	domainservices "easi/backend/internal/enterprisearchitecture/domain/services"
 	"easi/backend/internal/enterprisearchitecture/domain/valueobjects"
 	"easi/backend/internal/shared/cqrs"
 
@@ -73,37 +75,16 @@ func (m *mockCapabilityReadModel) GetAll(ctx context.Context) ([]readmodels.Ente
 	return caps, nil
 }
 
-type mockLinkReadModel struct {
-	links map[string]*readmodels.EnterpriseCapabilityLinkDTO
+type mockCompositionCounts struct {
+	countsByEC map[string]domainservices.CompositionCounts
 }
 
-func newMockLinkReadModel() *mockLinkReadModel {
-	return &mockLinkReadModel{
-		links: make(map[string]*readmodels.EnterpriseCapabilityLinkDTO),
-	}
+func (m *mockCompositionCounts) CompositionForEC(ctx context.Context, enterpriseCapabilityID string) (appservices.CompositionResult, error) {
+	return appservices.CompositionResult{Counts: m.countsByEC[enterpriseCapabilityID]}, nil
 }
 
-func (m *mockLinkReadModel) GetByID(ctx context.Context, id string) (*readmodels.EnterpriseCapabilityLinkDTO, error) {
-	if link, ok := m.links[id]; ok {
-		return link, nil
-	}
-	return nil, nil
-}
-
-func (m *mockLinkReadModel) GetByEnterpriseCapabilityID(ctx context.Context, enterpriseCapabilityID string) ([]readmodels.EnterpriseCapabilityLinkDTO, error) {
-	return nil, nil
-}
-
-func (m *mockLinkReadModel) GetByDomainCapabilityID(ctx context.Context, domainCapabilityID string) (*readmodels.EnterpriseCapabilityLinkDTO, error) {
-	return nil, nil
-}
-
-func (m *mockLinkReadModel) GetLinkStatus(ctx context.Context, domainCapabilityID string) (*readmodels.CapabilityLinkStatusDTO, error) {
-	return nil, nil
-}
-
-func (m *mockLinkReadModel) GetBatchLinkStatus(ctx context.Context, domainCapabilityIDs []string) ([]readmodels.CapabilityLinkStatusDTO, error) {
-	return nil, nil
+func (m *mockCompositionCounts) CountsForAll(ctx context.Context) (map[string]domainservices.CompositionCounts, error) {
+	return m.countsByEC, nil
 }
 
 type mockImportanceReadModel struct{}
@@ -129,7 +110,7 @@ func (m *mockMaturityAnalysisReadModel) GetMaturityGapDetail(ctx context.Context
 type testHarness struct {
 	commandBus      *mockCommandBus
 	capabilityRM    *mockCapabilityReadModel
-	linkRM          *mockLinkReadModel
+	compositionRM   *mockCompositionCounts
 	importanceRM    *mockImportanceReadModel
 	sessionProvider *mockSessionProvider
 	handlers        *EnterpriseCapabilityHandlers
@@ -138,13 +119,13 @@ type testHarness struct {
 func newTestHarness() *testHarness {
 	commandBus := &mockCommandBus{}
 	capabilityRM := newMockCapabilityReadModel()
-	linkRM := newMockLinkReadModel()
+	compositionRM := &mockCompositionCounts{countsByEC: map[string]domainservices.CompositionCounts{}}
 	importanceRM := &mockImportanceReadModel{}
 	sessionProvider := &mockSessionProvider{email: "test@example.com"}
 
 	rm := &EnterpriseCapabilityReadModels{
 		Capability:       capabilityRM,
-		Link:             linkRM,
+		Composition:      compositionRM,
 		Importance:       importanceRM,
 		MaturityAnalysis: &mockMaturityAnalysisReadModel{},
 	}
@@ -152,7 +133,7 @@ func newTestHarness() *testHarness {
 	return &testHarness{
 		commandBus:      commandBus,
 		capabilityRM:    capabilityRM,
-		linkRM:          linkRM,
+		compositionRM:   compositionRM,
 		importanceRM:    importanceRM,
 		sessionProvider: sessionProvider,
 		handlers:        NewEnterpriseCapabilityHandlers(commandBus, rm, sessionProvider),
@@ -310,71 +291,33 @@ func TestSetStrategicImportance_InvalidValue_Returns400(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestLinkCapability_ConflictErrors_Return409(t *testing.T) {
-	tests := []struct {
-		name string
-		err  error
-	}{
-		{"domain capability already linked", handlers.ErrDomainCapabilityAlreadyLinked},
-		{"ancestor linked to different", handlers.ErrAncestorLinkedToDifferent},
-		{"descendant linked to different", handlers.ErrDescendantLinkedToDifferent},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			th := newTestHarness()
-			th.commandBus.dispatchErr = tt.err
-
-			capID := uuid.New().String()
-			th.capabilityRM.capabilities[capID] = &readmodels.EnterpriseCapabilityDTO{
-				ID:     capID,
-				Name:   "Test Capability",
-				Active: true,
-			}
-
-			body, _ := json.Marshal(LinkCapabilityRequest{
-				DomainCapabilityID: uuid.New().String(),
-			})
-
-			r := requestSpec{method: http.MethodPost, path: "/enterprise-capabilities/" + capID + "/links", id: capID, body: body}.build()
-			w := httptest.NewRecorder()
-
-			th.handlers.LinkCapability(w, r)
-
-			assert.Equal(t, http.StatusConflict, w.Code)
-		})
-	}
-}
-
-func TestLinkCapability_Success_Returns201WithLocation(t *testing.T) {
+func TestGetEnterpriseCapabilityByID_CountsDerivedFromComposition(t *testing.T) {
 	th := newTestHarness()
 
 	capID := uuid.New().String()
-	createdLinkID := uuid.New().String()
-	th.commandBus.createdID = createdLinkID
 	th.capabilityRM.capabilities[capID] = &readmodels.EnterpriseCapabilityDTO{
 		ID:     capID,
-		Name:   "Test Capability",
+		Name:   "Customer Identity",
 		Active: true,
 	}
-	th.linkRM.links[createdLinkID] = &readmodels.EnterpriseCapabilityLinkDTO{
-		ID:                     createdLinkID,
-		EnterpriseCapabilityID: capID,
-		DomainCapabilityID:     uuid.New().String(),
-		LinkedBy:               "test@example.com",
-		LinkedAt:               time.Now(),
-	}
+	th.compositionRM.countsByEC[capID] = domainservices.CompositionCounts{IncludedCount: 4, DomainCount: 2}
 
-	body, _ := json.Marshal(LinkCapabilityRequest{
-		DomainCapabilityID: uuid.New().String(),
-	})
-
-	r := requestSpec{method: http.MethodPost, path: "/enterprise-capabilities/" + capID + "/links", id: capID, body: body}.build()
+	r := requestSpec{method: http.MethodGet, path: "/enterprise-capabilities/" + capID, id: capID}.build()
 	w := httptest.NewRecorder()
 
-	th.handlers.LinkCapability(w, r)
+	th.handlers.GetEnterpriseCapabilityByID(w, r)
 
-	assert.Equal(t, http.StatusCreated, w.Code)
-	location := w.Header().Get("Location")
-	assert.Contains(t, location, "/enterprise-capabilities/"+capID+"/links/"+createdLinkID)
+	require.Equal(t, http.StatusOK, w.Code)
+	var response map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+	assert.Equal(t, float64(4), response["includedCapabilityCount"])
+	assert.Equal(t, float64(2), response["domainCount"])
+	assert.NotContains(t, response, "linkCount", "linkCount is removed by spec 172")
+
+	links, ok := response["_links"].(map[string]any)
+	require.True(t, ok)
+	assert.Contains(t, links, "x-direction")
+	assert.Contains(t, links, "x-composition")
+	assert.NotContains(t, links, "x-links")
+	assert.NotContains(t, links, "x-create-link")
 }

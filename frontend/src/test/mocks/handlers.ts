@@ -16,8 +16,9 @@ import {
   getViews,
   updateView,
 } from './db';
+import { spec172Handlers } from './spec172/handlers';
 
-const BASE_URL = 'http://localhost:8080';
+const BASE_URL = '*';
 
 const inheritanceAuditMockEntries = [
   {
@@ -51,6 +52,8 @@ const inheritanceAuditMockEntries = [
 ];
 
 export const handlers = [
+  ...spec172Handlers,
+
   http.get(`${BASE_URL}/api/v1/components`, () => {
     return HttpResponse.json({
       data: getComponents(),

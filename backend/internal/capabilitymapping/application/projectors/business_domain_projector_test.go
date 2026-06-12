@@ -136,10 +136,10 @@ type bdProjectorEvent interface {
 
 func TestBusinessDomainProjector_SingleSlotEvents(t *testing.T) {
 	tests := []struct {
-		name           string
-		event          bdProjectorEvent
-		wantInSlot     []string
-		slotFromMock   func(*mockBusinessDomainReadModel) []string
+		name         string
+		event        bdProjectorEvent
+		wantInSlot   []string
+		slotFromMock func(*mockBusinessDomainReadModel) []string
 	}{
 		{
 			name:         "BusinessDomainDeleted records the deleted id",

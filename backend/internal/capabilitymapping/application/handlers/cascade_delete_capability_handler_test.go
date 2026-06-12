@@ -306,7 +306,6 @@ func TestCascadeDelete_DeduplicatesDependencies(t *testing.T) {
 	require.Len(t, cmdBus.dispatched, 1)
 }
 
-
 func indexOfStr(strs []string, target string) int {
 	for i, s := range strs {
 		if s == target {

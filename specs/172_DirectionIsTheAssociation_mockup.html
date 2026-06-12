@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Spec 172 — Direction Is the Association · UI Mockup</title>
+<style>
+  :root {
+    --blue-6: #228be6;
+    --blue-7: #1c7ed6;
+    --blue-1: #d0ebff;
+    --blue-0: #e7f5ff;
+    --green-6: #40c057;
+    --green-1: #d3f9d8;
+    --red-6: #fa5252;
+    --red-1: #ffe3e3;
+    --yellow-1: #fff3bf;
+    --yellow-7: #f08c00;
+    --gray-0: #f8f9fa;
+    --gray-1: #f1f3f5;
+    --gray-2: #e9ecef;
+    --gray-3: #dee2e6;
+    --gray-5: #adb5bd;
+    --gray-6: #868e96;
+    --gray-7: #495057;
+    --gray-8: #343a40;
+    --gray-9: #212529;
+    --l1: #1e3a8a; --l2: #1d4ed8; --l3: #2563eb; --l4: #3b82f6;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,.05), 0 1px 2px rgba(0,0,0,.1);
+    --radius-lg: 16px;
+    --radius-md: 8px;
+    --radius-sm: 4px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--gray-1);
+    color: var(--gray-9);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 980px; margin: 0 auto; padding: 32px 24px 80px; }
+  .doc-head h1 { font-size: 28px; margin: 0 0 4px; }
+  .doc-head .sub { color: var(--gray-6); font-size: 15px; margin: 0 0 4px; }
+  .doc-head .specref { font-size: 13px; color: var(--gray-5); }
+
+  .screen-label {
+    margin: 44px 0 14px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--gray-6);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .screen-label::before {
+    content: ""; flex: 0 0 26px; height: 2px; background: var(--gray-3);
+  }
+  .screen-label .note { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--gray-5); }
+
+  /* Mantine Paper */
+  .paper {
+    background: #fff;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 24px;
+  }
+  .stack { display: flex; flex-direction: column; }
+  .gap-xs > * + * { margin-top: 8px; }
+  .gap-sm > * + * { margin-top: 12px; }
+  .gap-md > * + * { margin-top: 16px; }
+  .gap-lg > * + * { margin-top: 24px; }
+  .group { display: flex; align-items: center; gap: 12px; }
+  .group.between { justify-content: space-between; }
+  .group.top { align-items: flex-start; }
+  .group.wrap { flex-wrap: wrap; }
+  .flex1 { flex: 1; min-width: 0; }
+
+  h2.title { font-size: 22px; margin: 0; font-weight: 700; }
+  h4.title { font-size: 16px; margin: 0; font-weight: 600; }
+  .dimmed { color: var(--gray-6); }
+  .sm { font-size: 13px; }
+  .xs { font-size: 12px; }
+  .fw6 { font-weight: 600; }
+  .blue { color: var(--blue-7); }
+  .red { color: var(--red-6); }
+
+  .badge {
+    display: inline-flex; align-items: center;
+    font-size: 11px; font-weight: 700; letter-spacing: .03em;
+    text-transform: uppercase;
+    padding: 3px 9px; border-radius: var(--radius-sm);
+    line-height: 1.4;
+  }
+  .badge.light-gray { background: var(--gray-2); color: var(--gray-7); }
+  .badge.filled-gray { background: var(--gray-6); color: #fff; }
+  .badge.filled-blue { background: var(--blue-6); color: #fff; }
+  .badge.filled-green { background: var(--green-6); color: #fff; }
+  .badge.filled-red { background: var(--red-6); color: #fff; }
+
+  .divider { height: 1px; background: var(--gray-2); margin: 4px 0; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 14px; font-weight: 600;
+    padding: 8px 16px; border-radius: var(--radius-md);
+    border: 1px solid transparent; cursor: pointer; line-height: 1;
+  }
+  .btn.filled { background: var(--blue-6); color: #fff; }
+  .btn.default { background: #fff; color: var(--gray-8); border-color: var(--gray-3); }
+  .btn.compact { padding: 4px 10px; font-size: 12px; }
+  .btn.subtle-red { background: transparent; color: var(--red-6); border: none; padding: 4px 10px; font-size: 12px; }
+  .btn.disabled { background: var(--gray-2); color: var(--gray-5); cursor: not-allowed; }
+
+  .stat .num { font-size: 22px; font-weight: 700; color: var(--blue-7); line-height: 1; }
+  .stat .lbl { font-size: 12px; color: var(--gray-6); margin-top: 4px; }
+
+  /* sub-section box */
+  .section { border: 1px solid var(--gray-2); border-radius: var(--radius-md); padding: 16px; }
+  .section.flush { padding: 16px 0; border: none; border-top: 1px solid var(--gray-2); border-radius: 0; }
+
+  /* included capability row */
+  .domain-head {
+    background: var(--gray-1); color: var(--gray-7);
+    font-size: 13px; font-weight: 600;
+    padding: 6px 12px; border-radius: var(--radius-sm);
+  }
+  .cap-row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; padding: 8px 12px;
+    border-left: 3px solid var(--l1);
+    background: #fff;
+  }
+  .cap-row[data-level="L2"] { border-left-color: var(--l2); }
+  .cap-row[data-level="L3"] { border-left-color: var(--l3); }
+  .cap-row[data-level="L4"] { border-left-color: var(--l4); }
+  .cap-row .lvl { font-size: 10px; font-weight: 700; color: var(--gray-5); border: 1px solid var(--gray-3); border-radius: 3px; padding: 1px 4px; }
+
+  ul.sources { margin: 6px 0 0; padding-left: 20px; font-size: 13px; }
+  ul.sources li { margin: 3px 0; }
+  ul.sources a { color: var(--blue-7); text-decoration: none; }
+
+  .callout {
+    border-radius: var(--radius-md); padding: 12px 14px; font-size: 13px;
+    display: flex; gap: 10px; align-items: flex-start;
+  }
+  .callout .ic { flex: 0 0 auto; font-weight: 700; }
+  .callout.info { background: var(--blue-0); color: var(--blue-7); }
+  .callout.warn { background: var(--yellow-1); color: #a96b00; }
+  .callout.error { background: var(--red-1); color: #c92a2a; }
+  .callout.muted { background: var(--gray-1); color: var(--gray-7); }
+
+  .empty {
+    border: 1px dashed var(--gray-3); border-radius: var(--radius-md);
+    padding: 28px; text-align: center; color: var(--gray-6); font-size: 13px;
+  }
+
+  /* modal */
+  .modal-backdrop {
+    background: rgba(33,37,41,.45);
+    border-radius: var(--radius-lg);
+    padding: 40px 24px;
+  }
+  .modal {
+    max-width: 600px; margin: 0 auto;
+    background: #fff; border-radius: var(--radius-lg);
+    box-shadow: 0 10px 40px rgba(0,0,0,.2); overflow: hidden;
+  }
+  .modal-head {
+    padding: 16px 24px; border-bottom: 1px solid var(--gray-2);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .modal-head h3 { margin: 0; font-size: 17px; }
+  .modal-body { padding: 24px; }
+  label.fld { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  label.fld .req { color: var(--red-6); }
+  .fld-desc { font-size: 12px; color: var(--gray-6); margin: -2px 0 6px; }
+  .input, .select, .textarea {
+    width: 100%; border: 1px solid var(--gray-3); border-radius: var(--radius-md);
+    padding: 8px 12px; font-size: 14px; font-family: inherit; background: #fff;
+    color: var(--gray-9);
+  }
+  .select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23868e96' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; }
+  .check { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 4px 0; }
+  .check input { width: 16px; height: 16px; accent-color: var(--blue-6); }
+  .legend { font-size: 12px; color: var(--gray-5); margin-top: 6px; }
+
+  /* search-driven source picker */
+  .searchbox {
+    display: flex; align-items: center; gap: 8px;
+    border: 1px solid var(--gray-3); border-radius: var(--radius-md);
+    padding: 6px 10px; background: #fff;
+  }
+  .search-ic { font-size: 13px; color: var(--gray-5); }
+  .search-input { flex: 1; border: none; outline: none; font-size: 14px; font-family: inherit; color: var(--gray-9); background: transparent; }
+  .domain-filter { border: none; border-left: 1px solid var(--gray-2); padding: 2px 6px; font-size: 12px; color: var(--gray-7); background: transparent; outline: none; }
+
+  .results {
+    border: 1px solid var(--gray-2); border-top: none;
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+    margin-top: -1px; overflow: hidden;
+  }
+  .result-row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; padding: 8px 12px; border-top: 1px solid var(--gray-1);
+  }
+  .result-row:hover { background: var(--blue-0); }
+  .result-row.ineligible { background: var(--gray-0); }
+  .result-row.ineligible:hover { background: var(--gray-0); }
+  .result-row mark { background: var(--yellow-1); padding: 0 1px; }
+  .results-foot { padding: 6px 12px; font-size: 11px; color: var(--gray-5); background: var(--gray-0); border-top: 1px solid var(--gray-1); }
+
+  .selected-set { margin-top: 12px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--blue-0); color: var(--blue-7);
+    border: 1px solid var(--blue-1); border-radius: 999px;
+    padding: 3px 8px 3px 4px; font-size: 12px; font-weight: 600;
+  }
+  .chip .chip-lvl {
+    font-size: 9px; font-weight: 700; color: #fff; background: var(--l2);
+    border-radius: 999px; padding: 1px 5px;
+  }
+  .chip[data-level="L1"] .chip-lvl { background: var(--l1); }
+  .chip[data-level="L3"] .chip-lvl { background: var(--l3); }
+  .chip[data-level="L4"] .chip-lvl { background: var(--l4); }
+  .chip .chip-x { cursor: pointer; color: var(--blue-7); opacity: .6; font-weight: 700; }
+  .chip.ineligible { background: var(--red-1); color: #c92a2a; border-color: #ffc9c9; }
+  .chip.ineligible .chip-lvl { background: var(--red-6); }
+  .chip.ineligible .chip-x { color: #c92a2a; }
+
+  /* most-specific-wins composition rows */
+  .implicit-group { margin-left: 9px; padding-left: 14px; border-left: 1px dashed var(--gray-3); }
+  .cap-row.implicit { background: var(--gray-0); }
+  .cap-row.carved { background: var(--gray-0); }
+  .strike { text-decoration: line-through; color: var(--gray-5); }
+  .tag {
+    font-size: 10px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase;
+    padding: 1px 6px; border-radius: 999px; line-height: 1.6;
+  }
+  .tag.source { background: var(--blue-0); color: var(--blue-7); }
+  .tag.implicit { background: var(--gray-2); color: var(--gray-6); }
+  .tag.carved { background: var(--red-1); color: #c92a2a; text-transform: none; letter-spacing: 0; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="doc-head">
+    <h1>Direction Is the Association</h1>
+    <p class="sub">An Enterprise Capability's composition is its active Direction's sources and their subtrees. Standalone linking is gone.</p>
+    <p class="specref">UI mockup · Spec 172 · enterprise-architecture + architecture-direction</p>
+  </div>
+
+  <!-- ======================== STATE A: NO DIRECTION ======================== -->
+  <div class="screen-label">A · EC overview — no direction set <span class="note">(scenario: "EC overview when no direction is set")</span></div>
+  <div class="paper stack gap-lg">
+    <div class="group between top">
+      <div class="stack gap-xs">
+        <h2 class="title">Customer Identity</h2>
+        <div><span class="badge light-gray">Customer Domain</span></div>
+      </div>
+      <div style="color:var(--gray-5);font-size:20px;cursor:pointer;">×</div>
+    </div>
+    <div class="sm dimmed">Single source of truth for recognising and authenticating customers across channels.</div>
+
+    <div class="divider"></div>
+    <div class="group" style="gap:48px;">
+      <div class="stat"><div class="num">0</div><div class="lbl">Included capabilities</div></div>
+      <div class="stat"><div class="num">—</div><div class="lbl">Domains</div></div>
+    </div>
+
+    <!-- Direction panel: empty -->
+    <div class="section flush stack gap-sm">
+      <div class="group between">
+        <h4 class="title">Direction</h4>
+        <span class="badge light-gray">No direction set</span>
+      </div>
+      <div class="sm dimmed">The architecture group has not captured a direction on this enterprise capability. A direction's sources — and their subtrees — define which domain capabilities are included here.</div>
+      <div><button class="btn filled">+ Capture direction</button></div>
+    </div>
+
+    <!-- Included capabilities: empty -->
+    <div class="section flush stack gap-sm">
+      <h4 class="title">Included capabilities</h4>
+      <div class="empty">No capabilities included yet. Capture a direction to compose this Enterprise Capability.</div>
+    </div>
+  </div>
+
+  <!-- ======================== STATE B: ACTIVE EDITABLE DIRECTION ======================== -->
+  <div class="screen-label">B · EC overview — active editable direction <span class="note">(composition = each source plus its subtree; sources may be any of L1–L4)</span></div>
+  <div class="paper stack gap-lg">
+    <div class="group between top">
+      <div class="stack gap-xs">
+        <h2 class="title">Customer Identity</h2>
+        <div><span class="badge light-gray">Customer Domain</span></div>
+      </div>
+      <div style="color:var(--gray-5);font-size:20px;cursor:pointer;">×</div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="group" style="gap:48px;">
+      <div class="stat"><div class="num">4</div><div class="lbl">Included capabilities</div></div>
+      <div class="stat"><div class="num">2</div><div class="lbl">Domains</div></div>
+    </div>
+
+    <!-- Direction panel -->
+    <div class="section flush stack gap-sm">
+      <div class="group between">
+        <div class="group" style="gap:10px;">
+          <h4 class="title">Direction</h4>
+          <span class="sm dimmed">Consolidate</span>
+        </div>
+        <span class="badge filled-blue">Proposed</span>
+      </div>
+      <div class="sm">Fold the scattered account-creation and verification capabilities into one identity backbone owned by the Customer domain.</div>
+      <div>
+        <div class="sm fw6">Horizon</div>
+        <div class="sm">Next</div>
+      </div>
+      <div class="group wrap" style="gap:8px;">
+        <button class="btn filled">Advance to agreed</button>
+        <button class="btn default">Reject</button>
+      </div>
+    </div>
+
+    <!-- Included capabilities (effective composition under most-specific-wins) -->
+    <div class="section flush stack gap-sm">
+      <div class="group between">
+        <h4 class="title">Included capabilities</h4>
+        <span class="badge light-gray">2 sources · 4 included</span>
+      </div>
+
+      <div class="stack gap-xs">
+        <div class="domain-head">Customer Domain</div>
+        <div class="cap-row" data-level="L1">
+          <div class="group" style="gap:8px;"><span class="lvl">L1</span><span class="sm fw6">Customer Account Management</span><span class="tag source">source</span></div>
+          <button class="btn subtle-red">Exclude</button>
+        </div>
+        <div class="implicit-group stack gap-xs">
+          <div class="cap-row implicit" data-level="L2">
+            <div class="group" style="gap:8px;"><span class="lvl">L2</span><span class="sm">Customer Account Creation</span><span class="tag implicit">via parent</span></div>
+          </div>
+          <div class="cap-row implicit" data-level="L3">
+            <div class="group" style="gap:8px;"><span class="lvl">L3</span><span class="sm">Identity Verification</span><span class="tag implicit">via parent</span></div>
+          </div>
+          <div class="cap-row carved" data-level="L3">
+            <div class="group" style="gap:8px;"><span class="lvl">L3</span><span class="sm strike">Account Recovery</span><span class="tag carved">carved out · owned by “Take Payment”</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stack gap-xs">
+        <div class="domain-head">Access Domain</div>
+        <div class="cap-row" data-level="L4">
+          <div class="group" style="gap:8px;"><span class="lvl">L4</span><span class="sm fw6">Credential Issuance</span><span class="tag source">source</span></div>
+          <button class="btn subtle-red">Exclude</button>
+        </div>
+      </div>
+
+      <div class="legend">A <strong>source</strong> implicitly includes its descendants. A descendant sourced by a more specific direction on another EC is <strong>carved out</strong> and owned there. Excluding a source removes it (and its implicit children) from this direction.</div>
+    </div>
+  </div>
+
+  <!-- ======================== STATE C: AGREED (IMMUTABLE) ======================== -->
+  <div class="screen-label">C · EC overview — agreed direction is immutable <span class="note">(scenario: "Excluding from an agreed direction is rejected")</span></div>
+  <div class="paper stack gap-lg">
+    <div class="group between top">
+      <div class="stack gap-xs">
+        <h2 class="title">Customer Identity</h2>
+        <div><span class="badge light-gray">Customer Domain</span></div>
+      </div>
+      <div style="color:var(--gray-5);font-size:20px;cursor:pointer;">×</div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="group" style="gap:48px;">
+      <div class="stat"><div class="num">2</div><div class="lbl">Included capabilities</div></div>
+      <div class="stat"><div class="num">1</div><div class="lbl">Domains</div></div>
+    </div>
+
+    <div class="section flush stack gap-sm">
+      <div class="group between">
+        <div class="group" style="gap:10px;">
+          <h4 class="title">Direction</h4>
+          <span class="sm dimmed">Consolidate</span>
+        </div>
+        <span class="badge filled-green">Agreed</span>
+      </div>
+      <div class="sm">Identity backbone agreed by the architecture group; source set is now frozen.</div>
+      <div>
+        <div class="sm fw6">Horizon</div>
+        <div class="sm">Now</div>
+      </div>
+      <div class="callout muted">
+        <span class="ic">🔒</span>
+        <span>This direction is <strong>agreed</strong> and its composition is frozen. To recompose, reject this direction and capture a new one.</span>
+      </div>
+      <div class="group wrap" style="gap:8px;">
+        <button class="btn default">Reject &amp; recompose</button>
+      </div>
+    </div>
+
+    <div class="section flush stack gap-sm">
+      <div class="group between">
+        <h4 class="title">Included capabilities</h4>
+        <span class="badge light-gray">2 sources</span>
+      </div>
+      <div class="stack gap-xs">
+        <div class="domain-head">Customer Domain</div>
+        <div class="cap-row" data-level="L2">
+          <div class="group" style="gap:8px;"><span class="lvl">L2</span><span class="sm">Customer Account Creation</span></div>
+          <button class="btn disabled" title="Agreed directions are immutable">Exclude</button>
+        </div>
+        <div class="cap-row" data-level="L3">
+          <div class="group" style="gap:8px;"><span class="lvl">L3</span><span class="sm">Identity Verification</span></div>
+          <button class="btn disabled" title="Agreed directions are immutable">Exclude</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================== STATE D: CAPTURE MODAL ======================== -->
+  <div class="screen-label">D · Capture direction (draft) <span class="note">(R8: a draft may carry a single source regardless of type)</span></div>
+  <div class="modal-backdrop">
+    <div class="modal">
+      <div class="modal-head">
+        <h3>Capture a direction · Customer Identity</h3>
+        <span style="color:var(--gray-5);font-size:20px;cursor:pointer;">×</span>
+      </div>
+      <div class="modal-body stack gap-md">
+        <div>
+          <label class="fld">Direction type <span class="req">*</span></label>
+          <div class="fld-desc">Consolidate: multiple merge into one. Decompose: one splits into multiple. Stay: no change.</div>
+          <select class="select"><option>Consolidate</option><option>Decompose</option><option>Stay</option></select>
+        </div>
+
+        <div>
+          <div class="group between" style="align-items:flex-end;">
+            <label class="fld" style="margin-bottom:0;">Source capabilities <span class="req">*</span></label>
+            <span class="badge light-gray">3 selected</span>
+          </div>
+          <div class="fld-desc">Search any domain capability by name (L1–L4, across all business domains). The chosen sources — and their subtrees — become this EC's composition.</div>
+
+          <!-- search box -->
+          <div class="searchbox">
+            <span class="search-ic">🔍</span>
+            <input class="search-input" type="text" placeholder="Search capabilities…" value="customer acc" />
+            <select class="domain-filter">
+              <option>All domains</option>
+              <option>Customer Domain</option>
+              <option>Access Domain</option>
+            </select>
+          </div>
+
+          <!-- result dropdown (only matches render; list is virtualised / paged server-side) -->
+          <div class="results">
+            <div class="result-row">
+              <div class="stack" style="gap:0;">
+                <span class="sm">Customer Account <mark>Creation</mark></span>
+                <span class="xs dimmed">Customer Domain · L2</span>
+              </div>
+              <button class="btn compact filled">+ Add</button>
+            </div>
+            <div class="result-row">
+              <div class="stack" style="gap:0;">
+                <span class="sm">Customer Account Management</span>
+                <span class="xs dimmed">Customer Domain · L1</span>
+              </div>
+              <button class="btn compact filled">+ Add</button>
+            </div>
+            <div class="result-row ineligible">
+              <div class="stack" style="gap:0;">
+                <span class="sm">Account Recovery</span>
+                <span class="xs red">⛔ already sourced by an active direction on “Take Payment”</span>
+              </div>
+              <button class="btn compact disabled">Add</button>
+            </div>
+            <div class="results-foot">Showing top 3 of 41 matches — keep typing to narrow.</div>
+          </div>
+
+          <!-- running selected set -->
+          <div class="selected-set">
+            <div class="xs fw6 dimmed" style="text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">Selected sources</div>
+            <div class="group wrap" style="gap:6px;">
+              <span class="chip" data-level="L2"><span class="chip-lvl">L2</span>Customer Account Creation<span class="chip-x">×</span></span>
+              <span class="chip" data-level="L3"><span class="chip-lvl">L3</span>Identity Verification<span class="chip-x">×</span></span>
+              <span class="chip" data-level="L4"><span class="chip-lvl">L4</span>Credential Issuance<span class="chip-x">×</span></span>
+            </div>
+          </div>
+
+          <div class="callout warn" style="margin-top:10px;">
+            <span class="ic">⚠</span>
+            <span><strong>3 sources selected.</strong> A draft is accepted with any number of sources. Advancing to <em>proposed</em> requires ≥ 2 sources for a Consolidate direction.</span>
+          </div>
+        </div>
+
+        <div>
+          <label class="fld">Horizon <span class="req">*</span></label>
+          <select class="select"><option>Now</option><option>Next</option><option>Later</option></select>
+        </div>
+
+        <div>
+          <label class="fld">Narrative</label>
+          <div class="fld-desc">Required before advancing the direction to proposed.</div>
+          <textarea class="textarea" rows="3" placeholder="One or two sentences naming what the group decided and why."></textarea>
+        </div>
+
+        <div class="group" style="justify-content:flex-end;gap:12px;">
+          <button class="btn default">Cancel</button>
+          <button class="btn filled">Capture as draft</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================== STATE E: ELIGIBILITY REJECTION ======================== -->
+  <div class="screen-label">E · Capture rejected — same capability already sourced <span class="note">(R1: a capability can be sourced by only one active direction at a time)</span></div>
+  <div class="modal-backdrop">
+    <div class="modal">
+      <div class="modal-head">
+        <h3>Capture a direction · Identity Platform</h3>
+        <span style="color:var(--gray-5);font-size:20px;cursor:pointer;">×</span>
+      </div>
+      <div class="modal-body stack gap-md">
+        <div class="callout error">
+          <span class="ic">⛔</span>
+          <div>
+            <div class="fw6" style="margin-bottom:2px;">Direction rejected</div>
+            <div>“Customer Account Creation” is already a source of an active direction on <strong>Customer Identity</strong>. The same capability can be sourced by only one active direction at a time — reject that direction first to compose it elsewhere.</div>
+          </div>
+        </div>
+        <div>
+          <label class="fld">Source capabilities <span class="req">*</span></label>
+          <div class="searchbox">
+            <span class="search-ic">🔍</span>
+            <input class="search-input" type="text" placeholder="Search capabilities…" value="customer account" />
+            <select class="domain-filter"><option>All domains</option></select>
+          </div>
+          <div class="results">
+            <div class="result-row ineligible">
+              <div class="stack" style="gap:0;">
+                <span class="sm">Customer Account <mark>Creation</mark></span>
+                <span class="xs red">⛔ already sourced by an active direction on “Customer Identity”</span>
+              </div>
+              <button class="btn compact disabled">Add</button>
+            </div>
+            <div class="result-row">
+              <div class="stack" style="gap:0;">
+                <span class="sm">Customer Account Closure</span>
+                <span class="xs dimmed">Customer Domain · L3</span>
+              </div>
+              <button class="btn compact filled">+ Add</button>
+            </div>
+          </div>
+          <div class="selected-set">
+            <div class="xs fw6 dimmed" style="text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">Selected sources</div>
+            <div class="group wrap" style="gap:6px;">
+              <span class="chip ineligible" data-level="L2"><span class="chip-lvl">L2</span>Customer Account Creation<span class="chip-x">×</span></span>
+            </div>
+          </div>
+        </div>
+        <div class="group" style="justify-content:flex-end;gap:12px;">
+          <button class="btn default">Cancel</button>
+          <button class="btn disabled">Capture as draft</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================== STATE F: CARVE-OUT ACCEPTED ======================== -->
+  <div class="screen-label">F · Capture accepted with carve-out <span class="note">(most-specific-wins: source an ancestor; a descendant owned elsewhere stays put)</span></div>
+  <div class="modal-backdrop">
+    <div class="modal">
+      <div class="modal-head">
+        <h3>Capture a direction · CRM</h3>
+        <span style="color:var(--gray-5);font-size:20px;cursor:pointer;">×</span>
+      </div>
+      <div class="modal-body stack gap-md">
+        <div>
+          <label class="fld">Direction type <span class="req">*</span></label>
+          <select class="select"><option>Consolidate</option><option>Decompose</option><option>Stay</option></select>
+        </div>
+
+        <div>
+          <div class="group between" style="align-items:flex-end;">
+            <label class="fld" style="margin-bottom:0;">Source capabilities <span class="req">*</span></label>
+            <span class="badge light-gray">1 selected</span>
+          </div>
+          <div class="searchbox">
+            <span class="search-ic">🔍</span>
+            <input class="search-input" type="text" placeholder="Search capabilities…" value="customer identity" />
+            <select class="domain-filter"><option>All domains</option></select>
+          </div>
+          <div class="results">
+            <div class="result-row">
+              <div class="stack" style="gap:0;">
+                <span class="sm">Customer <mark>Identity</mark> Management</span>
+                <span class="xs dimmed">Customer Domain · L1 · 2 descendants</span>
+              </div>
+              <button class="btn compact filled">+ Add</button>
+            </div>
+          </div>
+          <div class="selected-set">
+            <div class="xs fw6 dimmed" style="text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">Selected sources</div>
+            <div class="group wrap" style="gap:6px;">
+              <span class="chip" data-level="L1"><span class="chip-lvl">L1</span>Customer Identity Management<span class="chip-x">×</span></span>
+            </div>
+          </div>
+
+          <div class="callout info" style="margin-top:10px;">
+            <span class="ic">ⓘ</span>
+            <div>
+              <div class="fw6" style="margin-bottom:2px;">This source implicitly includes its descendants</div>
+              <div>Included here: <strong>Customer Consent</strong> (L2). Carved out: <strong>Customer Fraud Prevention</strong> (L2) — sourced by an active direction on <strong>Take Payment</strong>, so it stays owned there. Capturing this direction is allowed.</div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label class="fld">Horizon <span class="req">*</span></label>
+          <select class="select"><option>Now</option><option>Next</option><option>Later</option></select>
+        </div>
+
+        <div class="group" style="justify-content:flex-end;gap:12px;">
+          <button class="btn default">Cancel</button>
+          <button class="btn filled">Capture as draft</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p style="margin-top:48px;font-size:12px;color:var(--gray-5);text-align:center;">
+    Static mockup — visual reference for Spec 172. Reuses the existing Mantine vocabulary (Paper · Badge · status colours gray/blue/green/red · L1–L4 border accents).
+  </p>
+
+</div>
+</body>
+</html>

@@ -6,6 +6,7 @@ import (
 
 	"easi/backend/internal/architecturedirection/application/commands"
 	"easi/backend/internal/architecturedirection/domain/aggregates"
+	"easi/backend/internal/architecturedirection/domain/services"
 	"easi/backend/internal/architecturedirection/domain/valueobjects"
 	"easi/backend/internal/shared/cqrs"
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
@@ -81,13 +82,55 @@ func applyUpdateDirection(c *commands.UpdateDirection, d *aggregates.Direction) 
 	if err := applyOptional(c.Narrative, sharedvo.NewDescription, d.UpdateNarrative); err != nil {
 		return err
 	}
-	if err := applyOptional(c.Horizon, valueobjects.NewHorizon, d.ChangeHorizon); err != nil {
-		return err
+	return applyOptional(c.Horizon, valueobjects.NewHorizon, d.ChangeHorizon)
+}
+
+type AddDirectionSourceHandler struct {
+	repo   DirectionLoaderRepository
+	policy *services.DirectionReferenceService
+}
+
+func NewAddDirectionSourceHandler(repo DirectionLoaderRepository, policy *services.DirectionReferenceService) *AddDirectionSourceHandler {
+	return &AddDirectionSourceHandler{repo: repo, policy: policy}
+}
+
+func (h *AddDirectionSourceHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
+	command, ok := cmd.(*commands.AddDirectionSource)
+	if !ok {
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
-	if err := applyOptional(c.SourceCapabilityIDs, buildSourceRefs, d.ChangeSourceCapabilities); err != nil {
-		return err
+	direction, err := h.repo.GetByID(ctx, command.DirectionID)
+	if err != nil {
+		return cqrs.EmptyResult(), err
 	}
-	return applyOptional(c.Placements, buildPlacements, d.ChangePlacements)
+	ref, err := valueobjects.NewPhysicalCapabilityRef(command.CapabilityID)
+	if err != nil {
+		return cqrs.EmptyResult(), err
+	}
+	if err := h.policy.VerifySourcesEligible(ctx, direction.EnterpriseCapabilityID().Value(), []string{command.CapabilityID}); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+	if err := direction.AddSourceCapability(ref, command.Actor); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+	if err := h.repo.Save(ctx, direction); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+	return cqrs.EmptyResult(), nil
+}
+
+func NewRemoveDirectionSourceHandler(repo DirectionLoaderRepository) cqrs.CommandHandler {
+	return &mutationHandler[*commands.RemoveDirectionSource]{
+		repo:          repo,
+		directionIDOf: func(c *commands.RemoveDirectionSource) string { return c.DirectionID },
+		apply: func(c *commands.RemoveDirectionSource, d *aggregates.Direction) error {
+			ref, err := valueobjects.NewPhysicalCapabilityRef(c.CapabilityID)
+			if err != nil {
+				return err
+			}
+			return d.RemoveSourceCapability(ref, c.Actor)
+		},
+	}
 }
 
 func applyOptional[Raw any, Parsed any](

@@ -15,9 +15,9 @@ import (
 	archAssistantAPI "easi/backend/internal/archassistant/infrastructure/api"
 	archAssistantRateLimit "easi/backend/internal/archassistant/infrastructure/ratelimit"
 	archAssistantRepos "easi/backend/internal/archassistant/infrastructure/repositories"
+	adReadModels "easi/backend/internal/architecturedirection/application/readmodels"
 	directionServices "easi/backend/internal/architecturedirection/domain/services"
 	directionAPI "easi/backend/internal/architecturedirection/infrastructure/api"
-	eaReadModels "easi/backend/internal/enterprisearchitecture/application/readmodels"
 	archReadModels "easi/backend/internal/architecturemodeling/application/readmodels"
 	archAdapters "easi/backend/internal/architecturemodeling/infrastructure/adapters"
 	architectureAPI "easi/backend/internal/architecturemodeling/infrastructure/api"
@@ -31,6 +31,7 @@ import (
 	capReadModels "easi/backend/internal/capabilitymapping/application/readmodels"
 	capAdapters "easi/backend/internal/capabilitymapping/infrastructure/adapters"
 	capabilityAPI "easi/backend/internal/capabilitymapping/infrastructure/api"
+	eaReadModels "easi/backend/internal/enterprisearchitecture/application/readmodels"
 	enterpriseArchAPI "easi/backend/internal/enterprisearchitecture/infrastructure/api"
 	importingAPI "easi/backend/internal/importing/infrastructure/api"
 	"easi/backend/internal/infrastructure/api/middleware"
@@ -54,7 +55,7 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
-var Version = "0.7.0" // Set via ldflags at build time: -ldflags "-X 'easi/backend/internal/infrastructure/api.Version=x.y.z'"
+var Version = "0.7.0"
 
 var appVersion = getEnv("APP_VERSION", Version)
 
@@ -260,31 +261,38 @@ func setupValueStreamsRoutes(r chi.Router, deps routerDependencies) {
 }
 
 func setupDomainRoutes(r chi.Router, deps routerDependencies) {
-	mustSetup(enterpriseArchAPI.SetupEnterpriseArchitectureRoutes(enterpriseArchAPI.EnterpriseArchRoutesDeps{
-		Router:          r,
-		CommandBus:      deps.commandBus,
-		EventStore:      deps.eventStore,
-		EventBus:        deps.eventBus,
-		DB:              deps.db,
-		AuthMiddleware:  deps.authDeps.AuthMiddleware,
-		SessionProvider: deps.authDeps.SessionManager,
-	}), "enterprise architecture routes")
+	directionReadModel := adReadModels.NewDirectionReadModel(deps.db)
+	compositionService, err := enterpriseArchAPI.SetupEnterpriseArchitectureRoutes(enterpriseArchAPI.EnterpriseArchRoutesDeps{
+		Router:              r,
+		CommandBus:          deps.commandBus,
+		EventStore:          deps.eventStore,
+		EventBus:            deps.eventBus,
+		DB:                  deps.db,
+		AuthMiddleware:      deps.authDeps.AuthMiddleware,
+		SessionProvider:     deps.authDeps.SessionManager,
+		DirectionSources:    directionSourcesAdapter{readModel: directionReadModel},
+		BusinessDomainNames: businessDomainNameLookup(capReadModels.NewBusinessDomainReadModel(deps.db)),
+	})
+	mustSetup(err, "enterprise architecture routes")
 
+	ecReadModel := eaReadModels.NewEnterpriseCapabilityReadModel(deps.db)
 	directionRefChecker := &directionServices.ReferenceChecker{
-		EnterpriseCapabilityExists: existsByID(eaReadModels.NewEnterpriseCapabilityReadModel(deps.db).GetByID),
-		PhysicalCapabilityExists:   existsByID(capReadModels.NewCapabilityReadModel(deps.db).GetByID),
-		BusinessDomainExists:       existsByID(capReadModels.NewBusinessDomainReadModel(deps.db).GetByID),
+		EnterpriseCapabilityExists:   existsByID(ecReadModel.GetByID),
+		EnterpriseCapabilityIsActive: enterpriseCapabilityIsActive(ecReadModel),
+		PhysicalCapabilityExists:     existsByID(capReadModels.NewCapabilityReadModel(deps.db).GetByID),
 	}
 
 	mustSetup(directionAPI.SetupRoutes(directionAPI.RoutesDeps{
-		Router:           r,
-		CommandBus:       deps.commandBus,
-		EventStore:       deps.eventStore,
-		EventBus:         deps.eventBus,
-		DB:               deps.db,
-		HATEOAS:          deps.hateoas,
-		AuthMiddleware:   deps.authDeps.AuthMiddleware,
-		ReferenceChecker: directionRefChecker,
+		Router:             r,
+		CommandBus:         deps.commandBus,
+		EventStore:         deps.eventStore,
+		EventBus:           deps.eventBus,
+		DB:                 deps.db,
+		HATEOAS:            deps.hateoas,
+		AuthMiddleware:     deps.authDeps.AuthMiddleware,
+		ReferenceChecker:   directionRefChecker,
+		SourceEligibility:  directionEligibilityAdapter{service: compositionService},
+		CompositionPreview: compositionPreviewAdapter{service: compositionService, capabilities: ecReadModel},
 	}), "architecture direction routes")
 
 	viewlayoutsAPI.SubscribeEvents(deps.eventBus, deps.db)

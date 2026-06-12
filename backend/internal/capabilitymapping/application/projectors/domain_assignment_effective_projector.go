@@ -132,6 +132,9 @@ func (p *DomainAssignmentEffectiveProjector) recomputeForAllActivePillars(ctx co
 		if !pillar.Active {
 			continue
 		}
+		if _, err := valueobjects.NewPillarIDFromString(pillar.ID); err != nil {
+			continue
+		}
 		if err := p.recomputer.RecomputeCapabilityAndDescendants(ctx, ImportanceScope{
 			CapabilityID:     capabilityID,
 			PillarID:         pillar.ID,

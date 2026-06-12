@@ -1,15 +1,16 @@
-import { Alert, Anchor, Badge, Box, Button, Group, List, Loader, Modal, Stack, Text, Title } from '@mantine/core';
-import { useMemo, useState } from 'react';
+import { Alert, Badge, Box, Button, Group, Loader, Modal, Stack, Text, Title } from '@mantine/core';
+import { useState } from 'react';
 import type { EnterpriseCapabilityId } from '../../../api/types';
-import { useBusinessDomainsQuery } from '../../business-domains/hooks/useBusinessDomains';
 import {
   useAgreeDirection,
   useDirectionForEnterpriseCapability,
   useProposeDirection,
   useRejectDirection,
+  useRevertDirection,
 } from '../hooks/useDirection';
 import type { Direction } from '../types';
 import { CaptureDirectionForm } from './CaptureDirectionForm';
+import { EditDraftDirectionForm } from './EditDraftDirectionForm';
 import { DirectionStatusBadge } from './DirectionStatusBadge';
 
 interface DirectionPanelProps {
@@ -31,6 +32,7 @@ const HORIZON_LABELS: Record<Direction['horizon'], string> = {
 export function DirectionPanel({ enterpriseCapabilityId }: DirectionPanelProps) {
   const { data, isLoading, error } = useDirectionForEnterpriseCapability(enterpriseCapabilityId);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   if (isLoading) {
     return (
@@ -61,7 +63,11 @@ export function DirectionPanel({ enterpriseCapabilityId }: DirectionPanelProps) 
     <>
       <PanelShell>
         {direction ? (
-          <DirectionDetail direction={direction} enterpriseCapabilityId={enterpriseCapabilityId} />
+          <DirectionDetail
+            direction={direction}
+            enterpriseCapabilityId={enterpriseCapabilityId}
+            onEdit={() => setIsEditing(true)}
+          />
         ) : (
           <NoDirectionView canCapture={canCapture} onCapture={() => setIsCapturing(true)} />
         )}
@@ -80,6 +86,23 @@ export function DirectionPanel({ enterpriseCapabilityId }: DirectionPanelProps) 
           onCancel={() => setIsCapturing(false)}
         />
       </Modal>
+      {direction && (
+        <Modal
+          opened={isEditing}
+          onClose={() => setIsEditing(false)}
+          title="Edit draft direction"
+          size="lg"
+          centered
+          data-testid="edit-direction-modal"
+        >
+          <EditDraftDirectionForm
+            enterpriseCapabilityId={enterpriseCapabilityId}
+            direction={direction}
+            onSaved={() => setIsEditing(false)}
+            onCancel={() => setIsEditing(false)}
+          />
+        </Modal>
+      )}
     </>
   );
 }
@@ -101,9 +124,7 @@ function NoDirectionView({ canCapture, onCapture }: { canCapture: boolean; onCap
           No direction set
         </Badge>
       </Group>
-      <Text c="dimmed">
-        The architecture group has not captured a direction on this enterprise capability.
-      </Text>
+      <Text c="dimmed">The architecture group has not captured a direction on this enterprise capability.</Text>
       {canCapture && (
         <Group justify="flex-start">
           <Button onClick={onCapture} data-testid="capture-direction-button">
@@ -118,21 +139,11 @@ function NoDirectionView({ canCapture, onCapture }: { canCapture: boolean; onCap
 interface DirectionDetailProps {
   direction: Direction;
   enterpriseCapabilityId: EnterpriseCapabilityId;
+  onEdit?: () => void;
 }
 
-function usePlacementDomainNames() {
-  const { data: domainsResponse } = useBusinessDomainsQuery();
-  return useMemo(() => {
-    const lookup = new Map<string, string>();
-    for (const d of domainsResponse?.data ?? []) {
-      lookup.set(d.id, d.name);
-    }
-    return (id: string) => lookup.get(id);
-  }, [domainsResponse]);
-}
-
-function DirectionDetail({ direction, enterpriseCapabilityId }: DirectionDetailProps) {
-  const resolvePlacementDomain = usePlacementDomainNames();
+function DirectionDetail({ direction, enterpriseCapabilityId, onEdit }: DirectionDetailProps) {
+  const canEdit = !!direction._links?.['x-add-source'];
   return (
     <Stack gap="sm">
       <Group justify="space-between" align="center">
@@ -142,7 +153,14 @@ function DirectionDetail({ direction, enterpriseCapabilityId }: DirectionDetailP
             {TYPE_LABELS[direction.type]}
           </Text>
         </Group>
-        <DirectionStatusBadge status={direction.status} />
+        <Group gap="xs">
+          {canEdit && onEdit && (
+            <Button size="compact-sm" variant="default" onClick={onEdit} data-testid="edit-draft-direction">
+              Edit
+            </Button>
+          )}
+          <DirectionStatusBadge status={direction.status} />
+        </Group>
       </Group>
 
       <DirectionNarrative narrative={direction.narrative} />
@@ -154,20 +172,11 @@ function DirectionDetail({ direction, enterpriseCapabilityId }: DirectionDetailP
         <Text size="sm">{HORIZON_LABELS[direction.horizon]}</Text>
       </Box>
 
-      <Box>
-        <Text size="sm" fw={600}>
-          Sources
-        </Text>
-        <SourceList sources={direction.sourceCapabilities} />
-      </Box>
-
-      {direction.placements.length > 0 && (
-        <Box>
-          <Text size="sm" fw={600}>
-            Placements
-          </Text>
-          <PlacementList placements={direction.placements} resolveDomainName={resolvePlacementDomain} />
-        </Box>
+      {direction.status === 'agreed' && (
+        <Alert color="gray" variant="light" data-testid="direction-frozen-callout">
+          This direction is agreed and its composition is frozen. To recompose, reject this direction and capture a new
+          one.
+        </Alert>
       )}
 
       <DirectionActions direction={direction} enterpriseCapabilityId={enterpriseCapabilityId} />
@@ -190,73 +199,14 @@ function DirectionNarrative({ narrative }: { narrative: Direction['narrative'] }
   );
 }
 
-function SourceList({ sources }: { sources: Direction['sourceCapabilities'] }) {
-  return (
-    <List size="sm" listStyleType="disc" data-testid="direction-sources">
-      {sources.map((source) => (
-        <List.Item key={source.id}>
-          <Anchor component="span" inherit>
-            {source.name ?? '—'}
-          </Anchor>
-          {source.businessDomainName && (
-            <Text component="span" size="xs" c="dimmed">
-              {' · '}
-              {source.businessDomainName}
-            </Text>
-          )}
-          {source.stale && (
-            <Text component="span" size="xs" c="red" data-testid="stale-reference" ml="xs">
-              (stale — source capability deleted)
-            </Text>
-          )}
-        </List.Item>
-      ))}
-    </List>
-  );
-}
-
-interface PlacementListProps {
-  placements: Direction['placements'];
-  resolveDomainName: (id: string) => string | undefined;
-}
-
-function PlacementList({ placements, resolveDomainName }: PlacementListProps) {
-  return (
-    <List size="sm" listStyleType="disc">
-      {placements.map((placement, i) => {
-        const domain = resolveDomainName(placement.targetBusinessDomainId);
-        const name = placement.resultingName;
-        return (
-          // biome-ignore lint/suspicious/noArrayIndexKey: placements may share a target domain ID; index is a stable composite key here
-          <List.Item key={`${placement.targetBusinessDomainId}-${i}`}>
-            {name ? (
-              <Anchor component="span" inherit>
-                {name}
-              </Anchor>
-            ) : (
-              <Text component="code" size="xs">
-                {placement.targetBusinessDomainId}
-              </Text>
-            )}
-            {domain && (
-              <Text component="span" size="xs" c="dimmed">
-                {' · '}
-                {domain}
-              </Text>
-            )}
-          </List.Item>
-        );
-      })}
-    </List>
-  );
-}
-
 function DirectionActions({ direction, enterpriseCapabilityId }: DirectionDetailProps) {
   const proposeMutation = useProposeDirection();
   const agreeMutation = useAgreeDirection();
   const rejectMutation = useRejectDirection();
+  const revertMutation = useRevertDirection();
   const links = direction._links ?? {};
-  const anyPending = proposeMutation.isPending || agreeMutation.isPending || rejectMutation.isPending;
+  const anyPending =
+    proposeMutation.isPending || agreeMutation.isPending || rejectMutation.isPending || revertMutation.isPending;
 
   return (
     <Group gap="sm" data-testid="direction-actions">
@@ -278,6 +228,17 @@ function DirectionActions({ direction, enterpriseCapabilityId }: DirectionDetail
           onClick={() => agreeMutation.mutate({ enterpriseCapabilityId })}
         >
           Advance to agreed
+        </Button>
+      )}
+      {links['x-revert'] && (
+        <Button
+          variant="default"
+          data-testid="revert-to-draft"
+          disabled={anyPending}
+          loading={revertMutation.isPending}
+          onClick={() => revertMutation.mutate({ enterpriseCapabilityId })}
+        >
+          Return to draft
         </Button>
       )}
       {links['x-reject'] && (

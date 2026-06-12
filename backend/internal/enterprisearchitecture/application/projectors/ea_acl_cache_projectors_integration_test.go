@@ -55,8 +55,6 @@ func setupACLCacheTest(t *testing.T) *aclCacheTestFixture {
 	importanceRM := readmodels.NewEAImportanceCacheReadModel(tenantDB)
 	fitScoreRM := readmodels.NewEAFitScoreCacheReadModel(tenantDB)
 	metadataRM := readmodels.NewDomainCapabilityMetadataReadModel(tenantDB)
-	capabilityRM := readmodels.NewEnterpriseCapabilityReadModel(tenantDB)
-	linkRM := readmodels.NewEnterpriseCapabilityLinkReadModel(tenantDB)
 
 	t.Cleanup(func() {
 		db.Exec("DELETE FROM enterprisearchitecture.ea_realization_cache WHERE tenant_id = $1", aclTestTenant)
@@ -77,7 +75,9 @@ func setupACLCacheTest(t *testing.T) *aclCacheTestFixture {
 		realizationProjector: NewEARealizationCacheProjector(realizationRM),
 		importanceProjector:  NewEAImportanceCacheProjector(importanceRM),
 		fitScoreProjector:    NewEAFitScoreCacheProjector(fitScoreRM),
-		metadataProjector:    NewDomainCapabilityMetadataProjector(metadataRM, capabilityRM, linkRM),
+		metadataProjector: NewDomainCapabilityMetadataProjector(metadataRM, func(_ context.Context, businessDomainID string) (string, error) {
+			return "Domain " + businessDomainID, nil
+		}),
 	}
 }
 
