@@ -265,15 +265,6 @@ async function createEnterpriseCapability(
   });
 }
 
-async function linkEnterpriseCapability(
-  enterpriseCapabilityId: string,
-  capabilityId: string
-): Promise<void> {
-  console.log(`  Linking enterprise capability to domain capability`);
-  await apiCall("POST", `/enterprise-capabilities/${enterpriseCapabilityId}/links`, {
-    capabilityId,
-  });
-}
 
 async function createView(name: string, description: string): Promise<View> {
   console.log(`  Creating view: ${name}`);
@@ -464,17 +455,17 @@ async function createInternalTeam(
 
 async function linkComponentToAcquiredEntity(acquiredEntityId: string, componentId: string, notes: string): Promise<void> {
   console.log(`  Linking component to acquired entity`);
-  await apiCall("POST", `/components/${componentId}/origin/acquired-via`, { acquiredEntityId, notes });
+  await apiCall("PUT", `/components/${componentId}/origin/acquired-via`, { acquiredEntityId, notes });
 }
 
 async function linkComponentToVendor(vendorId: string, componentId: string, notes: string): Promise<void> {
   console.log(`  Linking component to vendor`);
-  await apiCall("POST", `/components/${componentId}/origin/purchased-from`, { vendorId, notes });
+  await apiCall("PUT", `/components/${componentId}/origin/purchased-from`, { vendorId, notes });
 }
 
 async function linkComponentToInternalTeam(internalTeamId: string, componentId: string, notes: string): Promise<void> {
   console.log(`  Linking component to internal team`);
-  await apiCall("POST", `/components/${componentId}/origin/built-by`, { internalTeamId, notes });
+  await apiCall("PUT", `/components/${componentId}/origin/built-by`, { internalTeamId, notes });
 }
 
 async function seedComponents(): Promise<Map<string, Component>> {
@@ -711,57 +702,19 @@ async function seedBusinessDomains(
   return domains;
 }
 
-async function seedEnterpriseCapabilities(
-  capabilities: Map<string, Capability>
-): Promise<void> {
+async function seedEnterpriseCapabilities(): Promise<void> {
   console.log("\n🏛️ Seeding Enterprise Capabilities...");
 
   const enterpriseCapabilities = [
-    {
-      name: "Customer Identity",
-      description: "Enterprise-wide customer identity and access management",
-      category: "Customer",
-      linkedCapabilities: ["Customer Authentication", "Customer Onboarding"],
-    },
-    {
-      name: "Order Management",
-      description: "Enterprise order processing and fulfillment",
-      category: "Operations",
-      linkedCapabilities: ["Order Creation", "Order Processing", "Order Tracking"],
-    },
-    {
-      name: "Payment Platform",
-      description: "Enterprise payment processing infrastructure",
-      category: "Finance",
-      linkedCapabilities: ["Payment Processing", "Fraud Prevention"],
-    },
-    {
-      name: "Data Platform",
-      description: "Enterprise data management and analytics",
-      category: "Technology",
-      linkedCapabilities: ["Business Reporting", "Customer Analytics", "Predictive Analytics"],
-    },
-    {
-      name: "Integration Platform",
-      description: "Enterprise API and integration services",
-      category: "Technology",
-      linkedCapabilities: ["API Management", "System Monitoring"],
-    },
+    { name: "Customer Identity", description: "Enterprise-wide customer identity and access management", category: "Customer" },
+    { name: "Order Management", description: "Enterprise order processing and fulfillment", category: "Operations" },
+    { name: "Payment Platform", description: "Enterprise payment processing infrastructure", category: "Finance" },
+    { name: "Data Platform", description: "Enterprise data management and analytics", category: "Technology" },
+    { name: "Integration Platform", description: "Enterprise API and integration services", category: "Technology" },
   ];
 
   for (const ec of enterpriseCapabilities) {
-    const enterprise = await createEnterpriseCapability(ec.name, ec.description, ec.category);
-
-    for (const capName of ec.linkedCapabilities) {
-      const capability = capabilities.get(capName);
-      if (capability) {
-        try {
-          await linkEnterpriseCapability(enterprise.id, capability.id);
-        } catch (e) {
-          console.log(`    (Skipping link - may already exist or not eligible)`);
-        }
-      }
-    }
+    await createEnterpriseCapability(ec.name, ec.description, ec.category);
   }
 }
 
@@ -1309,7 +1262,7 @@ async function main(): Promise<void> {
     const capabilities = await seedCapabilities();
     const _domains = await seedBusinessDomains(capabilities);
 
-    await seedEnterpriseCapabilities(capabilities);
+    await seedEnterpriseCapabilities();
     await seedCapabilityDependencies(capabilities);
     await seedSystemRealizations(capabilities, components);
 
