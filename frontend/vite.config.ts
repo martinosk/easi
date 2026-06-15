@@ -18,15 +18,17 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/react-router-dom')) return 'react-vendor';
-          if (id.includes('node_modules/@mantine')) return 'mantine';
-          if (id.includes('node_modules/@xyflow') || id.includes('node_modules/dagre')) return 'reactflow';
-          if (id.includes('node_modules/dockview')) return 'dockview';
-          if (id.includes('node_modules/@tanstack')) return 'query';
-          if (id.includes('node_modules/react-hook-form') || id.includes('node_modules/@hookform') || id.includes('node_modules/zod')) return 'forms';
-          if (id.includes('node_modules/zustand')) return 'state';
-          if (id.includes('node_modules/react-markdown') || id.includes('node_modules/remark-gfm')) return 'markdown';
-          if (id.includes('node_modules/axios') || id.includes('node_modules/react-colorful') || id.includes('node_modules/react-hot-toast')) return 'utils';
+          const p = id.replaceAll('\\', '/');
+          const seg = (pkg: string) => p.includes(`/node_modules/${pkg}/`);
+          if (seg('react-dom') || seg('react-router-dom') || seg('react')) return 'react-vendor';
+          if (seg('@mantine/core') || seg('@mantine/hooks')) return 'mantine';
+          if (seg('@xyflow/react') || seg('dagre')) return 'reactflow';
+          if (seg('dockview')) return 'dockview';
+          if (seg('@tanstack/react-query') || seg('@tanstack/query-core')) return 'query';
+          if (seg('react-hook-form') || seg('@hookform/resolvers') || seg('zod')) return 'forms';
+          if (seg('zustand')) return 'state';
+          if (seg('react-markdown') || seg('remark-gfm')) return 'markdown';
+          if (seg('axios') || seg('react-colorful') || seg('react-hot-toast')) return 'utils';
         },
       },
     },

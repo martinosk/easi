@@ -1,14 +1,6 @@
 import { Button, Center, Group, MantineProvider, Stack, Text, Title } from '@mantine/core';
 import { QueryClientProvider } from '@tanstack/react-query';
-
-const ReactQueryDevtools = import.meta.env.PROD
-  ? () => null
-  : lazy(() =>
-      import('@tanstack/react-query-devtools').then((m) => ({
-        default: m.ReactQueryDevtools,
-      }))
-    );
-import { StrictMode, useEffect, lazy, Suspense } from 'react';
+import { StrictMode, useEffect, lazy, Suspense, type ComponentType, type ComponentProps } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import 'dockview/dist/styles/dockview.css';
@@ -23,6 +15,18 @@ import { ROUTES } from './routes/routePaths.ts';
 import { ProtectedRoute } from './routes/routes.tsx';
 import { useUserStore } from './store/userStore.ts';
 import { theme } from './theme/mantine';
+
+type DevtoolsProps = ComponentProps<
+  typeof import('@tanstack/react-query-devtools')['ReactQueryDevtools']
+>;
+
+const ReactQueryDevtools: ComponentType<DevtoolsProps> = import.meta.env.PROD
+  ? () => null
+  : (lazy(() =>
+      import('@tanstack/react-query-devtools').then((m) => ({
+        default: m.ReactQueryDevtools,
+      }))
+    ) as ComponentType<DevtoolsProps>);
 
 const basename = import.meta.env.BASE_URL.replace(/\/$/, '') || '';
 
