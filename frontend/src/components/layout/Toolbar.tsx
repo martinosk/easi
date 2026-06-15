@@ -5,7 +5,7 @@ import { ImportButton } from '../../features/importing';
 import { ColorSchemeSelector, EdgeTypeSelector } from '../../features/views';
 
 const ImportDialog = lazy(() =>
-  import('../../features/importing').then((module) => ({ default: module.ImportDialog })),
+  import('../../features/importing/components/ImportDialog').then((module) => ({ default: module.ImportDialog })),
 );
 
 interface PanelToggleProps {

@@ -17,16 +17,18 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          mantine: ['@mantine/core', '@mantine/hooks'],
-          reactflow: ['@xyflow/react', 'dagre'],
-          dockview: ['dockview'],
-          query: ['@tanstack/react-query'],
-          forms: ['react-hook-form', '@hookform/resolvers', 'zod'],
-          state: ['zustand'],
-          markdown: ['react-markdown', 'remark-gfm'],
-          utils: ['axios', 'react-colorful', 'react-hot-toast'],
+        manualChunks(id) {
+          const p = id.replaceAll('\\', '/');
+          const seg = (pkg: string) => p.includes(`/node_modules/${pkg}/`);
+          if (seg('react-dom') || seg('react-router-dom') || seg('react')) return 'react-vendor';
+          if (seg('@mantine/core') || seg('@mantine/hooks')) return 'mantine';
+          if (seg('@xyflow/react') || seg('dagre')) return 'reactflow';
+          if (seg('dockview')) return 'dockview';
+          if (seg('@tanstack/react-query') || seg('@tanstack/query-core')) return 'query';
+          if (seg('react-hook-form') || seg('@hookform/resolvers') || seg('zod')) return 'forms';
+          if (seg('zustand')) return 'state';
+          if (seg('react-markdown') || seg('remark-gfm')) return 'markdown';
+          if (seg('axios') || seg('react-colorful') || seg('react-hot-toast')) return 'utils';
         },
       },
     },
