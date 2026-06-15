@@ -72,7 +72,7 @@ export const useCanvasSelection = () => {
   }, [clearSelection, selectCapability]);
 
   const onNodeDragStop = useCallback(
-    (_event: React.MouseEvent, node: Node) => {
+    (_event: MouseEvent | TouchEvent, node: Node) => {
       if (!canEdit(currentView) || !currentViewId) return;
       const selectedNodes = reactFlowInstance.getNodes().filter((n) => n.selected);
       const nodesToPersist = getNodesToPersist(node, selectedNodes);

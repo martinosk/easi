@@ -1,7 +1,14 @@
 import { Button, Center, Group, MantineProvider, Stack, Text, Title } from '@mantine/core';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { StrictMode, useEffect } from 'react';
+
+const ReactQueryDevtools = import.meta.env.PROD
+  ? () => null
+  : lazy(() =>
+      import('@tanstack/react-query-devtools').then((m) => ({
+        default: m.ReactQueryDevtools,
+      }))
+    );
+import { StrictMode, useEffect, lazy, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import 'dockview/dist/styles/dockview.css';
@@ -93,7 +100,9 @@ function renderApp() {
               </SessionInitializer>
             </BrowserRouter>
           </MantineProvider>
-          <ReactQueryDevtools initialIsOpen={false} />
+          <Suspense fallback={null}>
+            <ReactQueryDevtools initialIsOpen={false} />
+          </Suspense>
         </QueryClientProvider>
       </ErrorBoundary>
     </StrictMode>,

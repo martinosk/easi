@@ -17,16 +17,16 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          mantine: ['@mantine/core', '@mantine/hooks'],
-          reactflow: ['@xyflow/react', 'dagre'],
-          dockview: ['dockview'],
-          query: ['@tanstack/react-query'],
-          forms: ['react-hook-form', '@hookform/resolvers', 'zod'],
-          state: ['zustand'],
-          markdown: ['react-markdown', 'remark-gfm'],
-          utils: ['axios', 'react-colorful', 'react-hot-toast'],
+        manualChunks(id) {
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/react-router-dom')) return 'react-vendor';
+          if (id.includes('node_modules/@mantine')) return 'mantine';
+          if (id.includes('node_modules/@xyflow') || id.includes('node_modules/dagre')) return 'reactflow';
+          if (id.includes('node_modules/dockview')) return 'dockview';
+          if (id.includes('node_modules/@tanstack')) return 'query';
+          if (id.includes('node_modules/react-hook-form') || id.includes('node_modules/@hookform') || id.includes('node_modules/zod')) return 'forms';
+          if (id.includes('node_modules/zustand')) return 'state';
+          if (id.includes('node_modules/react-markdown') || id.includes('node_modules/remark-gfm')) return 'markdown';
+          if (id.includes('node_modules/axios') || id.includes('node_modules/react-colorful') || id.includes('node_modules/react-hot-toast')) return 'utils';
         },
       },
     },
