@@ -21,7 +21,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     -o /app/api cmd/api/main.go
 
 # Run stage
-FROM alpine:3.23
+FROM alpine:3.24.1
 
 WORKDIR /app
 
