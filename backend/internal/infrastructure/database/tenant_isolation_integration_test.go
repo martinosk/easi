@@ -72,6 +72,81 @@ func (tc *testContext) uniqueID(suffix string) string {
 	return fmt.Sprintf("%s-%s", tc.testID, suffix)
 }
 
+func mustTenants(t *testing.T) (sharedvo.TenantID, sharedvo.TenantID) {
+	tenantA, err := sharedvo.NewTenantID("tenant-a")
+	require.NoError(t, err)
+	tenantB, err := sharedvo.NewTenantID("tenant-b")
+	require.NoError(t, err)
+	return tenantA, tenantB
+}
+
+type eventRow struct {
+	tenant      sharedvo.TenantID
+	aggregateID string
+	eventType   string
+	eventJSON   []byte
+	version     int
+}
+
+func (tc *testContext) insertEvent(t *testing.T, ctx context.Context, e eventRow) {
+	tx, err := tc.tenantDB.BeginTxWithTenant(ctx, nil)
+	require.NoError(t, err)
+	_, err = tx.ExecContext(ctx,
+		"INSERT INTO infrastructure.events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+		e.tenant.Value(), e.aggregateID, e.eventType, e.eventJSON, e.version, time.Now(), "test-user-id", "test@example.com",
+	)
+	require.NoError(t, err)
+	require.NoError(t, tx.Commit())
+}
+
+func (tc *testContext) scanInt(t *testing.T, ctx context.Context, query string, args ...interface{}) int {
+	var result int
+	err := tc.tenantDB.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		return tx.QueryRowContext(ctx, query, args...).Scan(&result)
+	})
+	require.NoError(t, err)
+	return result
+}
+
+func (tc *testContext) scanString(t *testing.T, ctx context.Context, query string, args ...interface{}) string {
+	var result string
+	err := tc.tenantDB.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		return tx.QueryRowContext(ctx, query, args...).Scan(&result)
+	})
+	require.NoError(t, err)
+	return result
+}
+
+func (tc *testContext) queryNames(t *testing.T, ctx context.Context, query string, args ...interface{}) []string {
+	var names []string
+	err := tc.tenantDB.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx, query, args...)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = rows.Close() }()
+		names, err = scanStringRows(rows)
+		if err != nil {
+			return err
+		}
+		return rows.Err()
+	})
+	require.NoError(t, err)
+	return names
+}
+
+func scanStringRows(rows *sql.Rows) ([]string, error) {
+	var names []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		names = append(names, name)
+	}
+	return names, nil
+}
+
 func TestTenantIsolation_ReadModelData(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
@@ -80,11 +155,7 @@ func TestTenantIsolation_ReadModelData(t *testing.T) {
 	ctx, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	tenantA, err := sharedvo.NewTenantID("tenant-a")
-	require.NoError(t, err)
-
-	tenantB, err := sharedvo.NewTenantID("tenant-b")
-	require.NoError(t, err)
+	tenantA, tenantB := mustTenants(t)
 
 	componentIDTenantA := ctx.uniqueID("comp-a")
 	componentIDTenantB := ctx.uniqueID("comp-b")
@@ -92,7 +163,7 @@ func TestTenantIsolation_ReadModelData(t *testing.T) {
 	ctxA := sharedctx.WithTenant(context.Background(), tenantA)
 	ctxB := sharedctx.WithTenant(context.Background(), tenantB)
 
-	_, err = ctx.tenantDB.ExecContext(ctxA,
+	_, err := ctx.tenantDB.ExecContext(ctxA,
 		"INSERT INTO architecturemodeling.application_components (id, tenant_id, name, description, created_at) VALUES ($1, $2, $3, $4, $5)",
 		componentIDTenantA, tenantA.Value(), "Component A", "Tenant A Component", time.Now(),
 	)
@@ -104,45 +175,13 @@ func TestTenantIsolation_ReadModelData(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	var countTenantB int
-	err = ctx.tenantDB.WithReadOnlyTx(ctxB, func(tx *sql.Tx) error {
-		return tx.QueryRowContext(ctxB,
-			"SELECT COUNT(*) FROM architecturemodeling.application_components WHERE tenant_id = $1 AND id = $2",
-			tenantB.Value(), componentIDTenantA,
-		).Scan(&countTenantB)
-	})
-	require.NoError(t, err)
-	assert.Equal(t, 0, countTenantB)
+	const countByID = "SELECT COUNT(*) FROM architecturemodeling.application_components WHERE tenant_id = $1 AND id = $2"
+	const nameByID = "SELECT name FROM architecturemodeling.application_components WHERE tenant_id = $1 AND id = $2"
 
-	var countTenantA int
-	err = ctx.tenantDB.WithReadOnlyTx(ctxA, func(tx *sql.Tx) error {
-		return tx.QueryRowContext(ctxA,
-			"SELECT COUNT(*) FROM architecturemodeling.application_components WHERE tenant_id = $1 AND id = $2",
-			tenantA.Value(), componentIDTenantA,
-		).Scan(&countTenantA)
-	})
-	require.NoError(t, err)
-	assert.Equal(t, 1, countTenantA)
-
-	var nameTenantA string
-	err = ctx.tenantDB.WithReadOnlyTx(ctxA, func(tx *sql.Tx) error {
-		return tx.QueryRowContext(ctxA,
-			"SELECT name FROM architecturemodeling.application_components WHERE tenant_id = $1 AND id = $2",
-			tenantA.Value(), componentIDTenantA,
-		).Scan(&nameTenantA)
-	})
-	require.NoError(t, err)
-	assert.Equal(t, "Component A", nameTenantA)
-
-	var nameTenantB string
-	err = ctx.tenantDB.WithReadOnlyTx(ctxB, func(tx *sql.Tx) error {
-		return tx.QueryRowContext(ctxB,
-			"SELECT name FROM architecturemodeling.application_components WHERE tenant_id = $1 AND id = $2",
-			tenantB.Value(), componentIDTenantB,
-		).Scan(&nameTenantB)
-	})
-	require.NoError(t, err)
-	assert.Equal(t, "Component B", nameTenantB)
+	assert.Equal(t, 0, ctx.scanInt(t, ctxB, countByID, tenantB.Value(), componentIDTenantA))
+	assert.Equal(t, 1, ctx.scanInt(t, ctxA, countByID, tenantA.Value(), componentIDTenantA))
+	assert.Equal(t, "Component A", ctx.scanString(t, ctxA, nameByID, tenantA.Value(), componentIDTenantA))
+	assert.Equal(t, "Component B", ctx.scanString(t, ctxB, nameByID, tenantB.Value(), componentIDTenantB))
 }
 
 func TestTenantIsolation_EventStoreData(t *testing.T) {
@@ -153,11 +192,7 @@ func TestTenantIsolation_EventStoreData(t *testing.T) {
 	ctx, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	tenantA, err := sharedvo.NewTenantID("tenant-a")
-	require.NoError(t, err)
-
-	tenantB, err := sharedvo.NewTenantID("tenant-b")
-	require.NoError(t, err)
+	tenantA, tenantB := mustTenants(t)
 
 	aggregateID := ctx.uniqueID("aggregate-1")
 
@@ -171,47 +206,14 @@ func TestTenantIsolation_EventStoreData(t *testing.T) {
 	eventJSON, err := json.Marshal(eventData)
 	require.NoError(t, err)
 
-	tx, err := ctx.tenantDB.BeginTxWithTenant(ctxA, nil)
-	require.NoError(t, err)
+	ctx.insertEvent(t, ctxA, eventRow{tenantA, aggregateID, "ComponentCreated", eventJSON, 1})
 
-	_, err = tx.ExecContext(ctxA,
-		"INSERT INTO infrastructure.events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-		tenantA.Value(), aggregateID, "ComponentCreated", eventJSON, 1, time.Now(), "test-user-id", "test@example.com",
-	)
-	require.NoError(t, err)
+	const countByAggregate = "SELECT COUNT(*) FROM infrastructure.events WHERE tenant_id = $1 AND aggregate_id = $2"
+	const eventTypeByAggregate = "SELECT event_type FROM infrastructure.events WHERE tenant_id = $1 AND aggregate_id = $2"
 
-	err = tx.Commit()
-	require.NoError(t, err)
-
-	var countTenantB int
-	err = ctx.tenantDB.WithReadOnlyTx(ctxB, func(tx *sql.Tx) error {
-		return tx.QueryRowContext(ctxB,
-			"SELECT COUNT(*) FROM infrastructure.events WHERE tenant_id = $1 AND aggregate_id = $2",
-			tenantB.Value(), aggregateID,
-		).Scan(&countTenantB)
-	})
-	require.NoError(t, err)
-	assert.Equal(t, 0, countTenantB)
-
-	var countTenantA int
-	err = ctx.tenantDB.WithReadOnlyTx(ctxA, func(tx *sql.Tx) error {
-		return tx.QueryRowContext(ctxA,
-			"SELECT COUNT(*) FROM infrastructure.events WHERE tenant_id = $1 AND aggregate_id = $2",
-			tenantA.Value(), aggregateID,
-		).Scan(&countTenantA)
-	})
-	require.NoError(t, err)
-	assert.Equal(t, 1, countTenantA)
-
-	var eventType string
-	err = ctx.tenantDB.WithReadOnlyTx(ctxA, func(tx *sql.Tx) error {
-		return tx.QueryRowContext(ctxA,
-			"SELECT event_type FROM infrastructure.events WHERE tenant_id = $1 AND aggregate_id = $2",
-			tenantA.Value(), aggregateID,
-		).Scan(&eventType)
-	})
-	require.NoError(t, err)
-	assert.Equal(t, "ComponentCreated", eventType)
+	assert.Equal(t, 0, ctx.scanInt(t, ctxB, countByAggregate, tenantB.Value(), aggregateID))
+	assert.Equal(t, 1, ctx.scanInt(t, ctxA, countByAggregate, tenantA.Value(), aggregateID))
+	assert.Equal(t, "ComponentCreated", ctx.scanString(t, ctxA, eventTypeByAggregate, tenantA.Value(), aggregateID))
 }
 
 func TestTenantIsolation_MultipleTablesConsistency(t *testing.T) {
@@ -222,11 +224,7 @@ func TestTenantIsolation_MultipleTablesConsistency(t *testing.T) {
 	ctx, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	tenantA, err := sharedvo.NewTenantID("tenant-a")
-	require.NoError(t, err)
-
-	tenantB, err := sharedvo.NewTenantID("tenant-b")
-	require.NoError(t, err)
+	tenantA, tenantB := mustTenants(t)
 
 	capabilityIDTenantA := ctx.uniqueID("cap-a")
 	capabilityIDTenantB := ctx.uniqueID("cap-b")
@@ -234,65 +232,26 @@ func TestTenantIsolation_MultipleTablesConsistency(t *testing.T) {
 	ctxA := sharedctx.WithTenant(context.Background(), tenantA)
 	ctxB := sharedctx.WithTenant(context.Background(), tenantB)
 
-	_, err = ctx.tenantDB.ExecContext(ctxA,
-		"INSERT INTO capabilitymapping.capabilities (id, tenant_id, name, description, level, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
+	const insertCapability = "INSERT INTO capabilitymapping.capabilities (id, tenant_id, name, description, level, created_at) VALUES ($1, $2, $3, $4, $5, $6)"
+	_, err := ctx.tenantDB.ExecContext(ctxA, insertCapability,
 		capabilityIDTenantA, tenantA.Value(), "Capability A", "Tenant A Capability", "L1", time.Now(),
 	)
 	require.NoError(t, err)
 
-	_, err = ctx.tenantDB.ExecContext(ctxB,
-		"INSERT INTO capabilitymapping.capabilities (id, tenant_id, name, description, level, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
+	_, err = ctx.tenantDB.ExecContext(ctxB, insertCapability,
 		capabilityIDTenantB, tenantB.Value(), "Capability B", "Tenant B Capability", "L1", time.Now(),
 	)
 	require.NoError(t, err)
 
-	var results []string
-	err = ctx.tenantDB.WithReadOnlyTx(ctxA, func(tx *sql.Tx) error {
-		rows, err := tx.QueryContext(ctxA,
-			"SELECT name FROM capabilitymapping.capabilities WHERE tenant_id = $1 AND id IN ($2, $3)",
-			tenantA.Value(), capabilityIDTenantA, capabilityIDTenantB,
-		)
-		if err != nil {
-			return err
-		}
-		defer func() { _ = rows.Close() }()
+	const namesByIDs = "SELECT name FROM capabilitymapping.capabilities WHERE tenant_id = $1 AND id IN ($2, $3)"
 
-		for rows.Next() {
-			var name string
-			if err := rows.Scan(&name); err != nil {
-				return err
-			}
-			results = append(results, name)
-		}
-		return rows.Err()
-	})
-	require.NoError(t, err)
-	assert.Len(t, results, 1)
-	assert.Equal(t, "Capability A", results[0])
+	resultsA := ctx.queryNames(t, ctxA, namesByIDs, tenantA.Value(), capabilityIDTenantA, capabilityIDTenantB)
+	assert.Len(t, resultsA, 1)
+	assert.Equal(t, "Capability A", resultsA[0])
 
-	results = nil
-	err = ctx.tenantDB.WithReadOnlyTx(ctxB, func(tx *sql.Tx) error {
-		rows, err := tx.QueryContext(ctxB,
-			"SELECT name FROM capabilitymapping.capabilities WHERE tenant_id = $1 AND id IN ($2, $3)",
-			tenantB.Value(), capabilityIDTenantA, capabilityIDTenantB,
-		)
-		if err != nil {
-			return err
-		}
-		defer func() { _ = rows.Close() }()
-
-		for rows.Next() {
-			var name string
-			if err := rows.Scan(&name); err != nil {
-				return err
-			}
-			results = append(results, name)
-		}
-		return rows.Err()
-	})
-	require.NoError(t, err)
-	assert.Len(t, results, 1)
-	assert.Equal(t, "Capability B", results[0])
+	resultsB := ctx.queryNames(t, ctxB, namesByIDs, tenantB.Value(), capabilityIDTenantA, capabilityIDTenantB)
+	assert.Len(t, resultsB, 1)
+	assert.Equal(t, "Capability B", resultsB[0])
 }
 
 func TestMissingTenantContext_FailsSafely(t *testing.T) {
@@ -350,14 +309,10 @@ func TestDefaultTenantFallback(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	var name string
-	err = ctx.tenantDB.WithReadOnlyTx(ctxWithDefault, func(tx *sql.Tx) error {
-		return tx.QueryRowContext(ctxWithDefault,
-			"SELECT name FROM architecturemodeling.application_components WHERE tenant_id = $1 AND id = $2",
-			defaultTenant.Value(), componentID,
-		).Scan(&name)
-	})
-	require.NoError(t, err)
+	name := ctx.scanString(t, ctxWithDefault,
+		"SELECT name FROM architecturemodeling.application_components WHERE tenant_id = $1 AND id = $2",
+		defaultTenant.Value(), componentID,
+	)
 	assert.Equal(t, "Default Component", name)
 }
 
@@ -369,11 +324,7 @@ func TestTenantContext_TransactionIsolation(t *testing.T) {
 	ctx, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	tenantA, err := sharedvo.NewTenantID("tenant-a")
-	require.NoError(t, err)
-
-	tenantB, err := sharedvo.NewTenantID("tenant-b")
-	require.NoError(t, err)
+	tenantA, tenantB := mustTenants(t)
 
 	componentID := ctx.uniqueID("tx-comp")
 
@@ -389,38 +340,14 @@ func TestTenantContext_TransactionIsolation(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	var countBeforeCommit int
-	err = ctx.tenantDB.WithReadOnlyTx(ctxA, func(tx *sql.Tx) error {
-		return tx.QueryRowContext(ctxA,
-			"SELECT COUNT(*) FROM architecturemodeling.application_components WHERE tenant_id = $1 AND id = $2",
-			tenantA.Value(), componentID,
-		).Scan(&countBeforeCommit)
-	})
-	require.NoError(t, err)
-	assert.Equal(t, 0, countBeforeCommit)
+	const countByID = "SELECT COUNT(*) FROM architecturemodeling.application_components WHERE tenant_id = $1 AND id = $2"
 
-	err = txA.Commit()
-	require.NoError(t, err)
+	assert.Equal(t, 0, ctx.scanInt(t, ctxA, countByID, tenantA.Value(), componentID))
 
-	var countAfterCommit int
-	err = ctx.tenantDB.WithReadOnlyTx(ctxA, func(tx *sql.Tx) error {
-		return tx.QueryRowContext(ctxA,
-			"SELECT COUNT(*) FROM architecturemodeling.application_components WHERE tenant_id = $1 AND id = $2",
-			tenantA.Value(), componentID,
-		).Scan(&countAfterCommit)
-	})
-	require.NoError(t, err)
-	assert.Equal(t, 1, countAfterCommit)
+	require.NoError(t, txA.Commit())
 
-	var countTenantB int
-	err = ctx.tenantDB.WithReadOnlyTx(ctxB, func(tx *sql.Tx) error {
-		return tx.QueryRowContext(ctxB,
-			"SELECT COUNT(*) FROM architecturemodeling.application_components WHERE tenant_id = $1 AND id = $2",
-			tenantB.Value(), componentID,
-		).Scan(&countTenantB)
-	})
-	require.NoError(t, err)
-	assert.Equal(t, 0, countTenantB)
+	assert.Equal(t, 1, ctx.scanInt(t, ctxA, countByID, tenantA.Value(), componentID))
+	assert.Equal(t, 0, ctx.scanInt(t, ctxB, countByID, tenantB.Value(), componentID))
 }
 
 func TestTenantContext_ReadOnlyTransaction(t *testing.T) {
@@ -444,14 +371,10 @@ func TestTenantContext_ReadOnlyTransaction(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	var name string
-	err = ctx.tenantDB.WithReadOnlyTx(ctxA, func(tx *sql.Tx) error {
-		return tx.QueryRowContext(ctxA,
-			"SELECT name FROM architecturemodeling.application_components WHERE tenant_id = $1 AND id = $2",
-			tenantA.Value(), componentID,
-		).Scan(&name)
-	})
-	require.NoError(t, err)
+	name := ctx.scanString(t, ctxA,
+		"SELECT name FROM architecturemodeling.application_components WHERE tenant_id = $1 AND id = $2",
+		tenantA.Value(), componentID,
+	)
 	assert.Equal(t, "Read Only Test", name)
 
 	err = ctx.tenantDB.WithReadOnlyTx(ctxA, func(tx *sql.Tx) error {
@@ -473,11 +396,7 @@ func TestTenantContext_EventVersioning(t *testing.T) {
 	ctx, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	tenantA, err := sharedvo.NewTenantID("tenant-a")
-	require.NoError(t, err)
-
-	tenantB, err := sharedvo.NewTenantID("tenant-b")
-	require.NoError(t, err)
+	tenantA, tenantB := mustTenants(t)
 
 	aggregateID := ctx.uniqueID("versioned-agg")
 
@@ -488,47 +407,11 @@ func TestTenantContext_EventVersioning(t *testing.T) {
 	eventJSON, err := json.Marshal(eventData)
 	require.NoError(t, err)
 
-	txA, err := ctx.tenantDB.BeginTxWithTenant(ctxA, nil)
-	require.NoError(t, err)
+	ctx.insertEvent(t, ctxA, eventRow{tenantA, aggregateID, "Event1", eventJSON, 1})
+	ctx.insertEvent(t, ctxB, eventRow{tenantB, aggregateID, "Event1", eventJSON, 1})
 
-	_, err = txA.ExecContext(ctxA,
-		"INSERT INTO infrastructure.events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-		tenantA.Value(), aggregateID, "Event1", eventJSON, 1, time.Now(), "test-user-id", "test@example.com",
-	)
-	require.NoError(t, err)
+	const versionByAggregate = "SELECT version FROM infrastructure.events WHERE tenant_id = $1 AND aggregate_id = $2"
 
-	err = txA.Commit()
-	require.NoError(t, err)
-
-	txB, err := ctx.tenantDB.BeginTxWithTenant(ctxB, nil)
-	require.NoError(t, err)
-
-	_, err = txB.ExecContext(ctxB,
-		"INSERT INTO infrastructure.events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-		tenantB.Value(), aggregateID, "Event1", eventJSON, 1, time.Now(), "test-user-id", "test@example.com",
-	)
-	require.NoError(t, err)
-
-	err = txB.Commit()
-	require.NoError(t, err)
-
-	var versionA int
-	err = ctx.tenantDB.WithReadOnlyTx(ctxA, func(tx *sql.Tx) error {
-		return tx.QueryRowContext(ctxA,
-			"SELECT version FROM infrastructure.events WHERE tenant_id = $1 AND aggregate_id = $2",
-			tenantA.Value(), aggregateID,
-		).Scan(&versionA)
-	})
-	require.NoError(t, err)
-	assert.Equal(t, 1, versionA)
-
-	var versionB int
-	err = ctx.tenantDB.WithReadOnlyTx(ctxB, func(tx *sql.Tx) error {
-		return tx.QueryRowContext(ctxB,
-			"SELECT version FROM infrastructure.events WHERE tenant_id = $1 AND aggregate_id = $2",
-			tenantB.Value(), aggregateID,
-		).Scan(&versionB)
-	})
-	require.NoError(t, err)
-	assert.Equal(t, 1, versionB)
+	assert.Equal(t, 1, ctx.scanInt(t, ctxA, versionByAggregate, tenantA.Value(), aggregateID))
+	assert.Equal(t, 1, ctx.scanInt(t, ctxB, versionByAggregate, tenantB.Value(), aggregateID))
 }

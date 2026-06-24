@@ -15,21 +15,29 @@ func NewPaginationHelper(basePath string) *PaginationHelper {
 	}
 }
 
-func (h *PaginationHelper) ProcessCursor(after string) (string, int64, error) {
+func processCursor[C any, V any](after string, decode func(string) (*C, error), project func(*C) (string, V)) (string, V, error) {
+	var zeroVal V
 	if after == "" {
-		return "", 0, nil
+		return "", zeroVal, nil
 	}
 
-	cursor, err := DecodeCursor(after)
+	cursor, err := decode(after)
 	if err != nil {
-		return "", 0, err
+		return "", zeroVal, err
 	}
 
 	if cursor == nil {
-		return "", 0, nil
+		return "", zeroVal, nil
 	}
 
-	return cursor.ID, cursor.Timestamp, nil
+	id, val := project(cursor)
+	return id, val, nil
+}
+
+func (h *PaginationHelper) ProcessCursor(after string) (string, int64, error) {
+	return processCursor(after, DecodeCursor, func(c *Cursor) (string, int64) {
+		return c.ID, c.Timestamp
+	})
 }
 
 type Pageable interface {
@@ -61,20 +69,9 @@ func (h *PaginationHelper) GenerateNextNameCursor(items []NamePageable, hasMore 
 }
 
 func (h *PaginationHelper) ProcessNameCursor(after string) (string, string, error) {
-	if after == "" {
-		return "", "", nil
-	}
-
-	cursor, err := DecodeNameCursor(after)
-	if err != nil {
-		return "", "", err
-	}
-
-	if cursor == nil {
-		return "", "", nil
-	}
-
-	return cursor.ID, cursor.Name, nil
+	return processCursor(after, DecodeNameCursor, func(c *NameCursor) (string, string) {
+		return c.ID, c.Name
+	})
 }
 
 func (h *PaginationHelper) BuildSelfLink(params PaginationParams) string {

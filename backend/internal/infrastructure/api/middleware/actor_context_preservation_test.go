@@ -113,8 +113,8 @@ func TestTenantMiddlewareWithSession_SetsActorOnContext(t *testing.T) {
 	assert.Equal(t, sharedctx.RoleArchitect, capturedActor.Role)
 }
 
-func TestActorPreservedAfterContextWithTenantOverwrite(t *testing.T) {
-	originalActor := sharedctx.NewActor("user-1", "user@acme.com", sharedctx.RoleArchitect)
+func runActorPreservationPipeline(t *testing.T, originalActor sharedctx.Actor) (sharedctx.Actor, bool) {
+	t.Helper()
 
 	setActorMiddleware := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -129,7 +129,6 @@ func TestActorPreservedAfterContextWithTenantOverwrite(t *testing.T) {
 	overwriteTenantAndPreserveActor := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			origCtx := r.Context()
-
 			tenantID := sharedvo.MustNewTenantID("acme")
 			newCtx := sharedctx.WithTenant(origCtx, tenantID)
 
@@ -157,6 +156,14 @@ func TestActorPreservedAfterContextWithTenantOverwrite(t *testing.T) {
 	router.ServeHTTP(rec, req)
 
 	assert.Equal(t, http.StatusOK, rec.Code)
+	return capturedActor, actorFound
+}
+
+func TestActorPreservedAfterContextWithTenantOverwrite(t *testing.T) {
+	originalActor := sharedctx.NewActor("user-1", "user@acme.com", sharedctx.RoleArchitect)
+
+	capturedActor, actorFound := runActorPreservationPipeline(t, originalActor)
+
 	assert.True(t, actorFound, "Actor must survive context replacement by downstream middleware")
 	assert.Equal(t, originalActor.Email, capturedActor.Email)
 	assert.Equal(t, originalActor.Role, capturedActor.Role)
@@ -171,46 +178,8 @@ func TestActorPreservedWithEditGrants(t *testing.T) {
 		"component": {"comp-1": true, "comp-2": true},
 	})
 
-	setActorMiddleware := func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx := r.Context()
-			tenantID := sharedvo.MustNewTenantID("acme")
-			ctx = sharedctx.WithTenant(ctx, tenantID)
-			ctx = sharedctx.WithActor(ctx, originalActor)
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
-	}
+	capturedActor, actorFound := runActorPreservationPipeline(t, originalActor)
 
-	overwriteTenantAndPreserveActor := func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			origCtx := r.Context()
-			tenantID := sharedvo.MustNewTenantID("acme")
-			newCtx := sharedctx.WithTenant(origCtx, tenantID)
-
-			if actor, ok := sharedctx.GetActor(origCtx); ok {
-				newCtx = sharedctx.WithActor(newCtx, actor)
-			}
-
-			next.ServeHTTP(w, r.WithContext(newCtx))
-		})
-	}
-
-	var capturedActor sharedctx.Actor
-	var actorFound bool
-
-	router := chi.NewRouter()
-	router.Use(setActorMiddleware)
-	router.Use(overwriteTenantAndPreserveActor)
-	router.Get("/test", func(w http.ResponseWriter, r *http.Request) {
-		capturedActor, actorFound = sharedctx.GetActor(r.Context())
-		w.WriteHeader(http.StatusOK)
-	})
-
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
-	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.True(t, actorFound, "Actor must survive context replacement")
 	assert.Equal(t, "stakeholder@acme.com", capturedActor.Email)
 	assert.True(t, capturedActor.HasEditGrant("components", "comp-1"), "Edit grants must be preserved")
