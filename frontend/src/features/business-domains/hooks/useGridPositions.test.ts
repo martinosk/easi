@@ -36,6 +36,18 @@ describe('useGridPositions', () => {
     vi.clearAllMocks();
   });
 
+  const renderLoaded = async (layout: LayoutContainer | null = mockLayout) => {
+    vi.mocked(apiClient.getLayout).mockResolvedValue(layout);
+
+    const { result } = renderHook(() => useGridPositions(domainId));
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    return result;
+  };
+
   describe('layout initialization', () => {
     it('should find existing layout for domain', async () => {
       vi.mocked(apiClient.getLayout).mockResolvedValue(mockLayout);
@@ -81,67 +93,29 @@ describe('useGridPositions', () => {
   });
 
   describe('position updates', () => {
-    it('should save position when capability is moved', async () => {
-      vi.mocked(apiClient.getLayout).mockResolvedValue(mockLayout);
-      vi.mocked(apiClient.upsertElementPosition).mockResolvedValue({
-        elementId: 'cap-1',
-        x: 2,
-        y: 1,
-        _links: {},
-      });
+    it.each([
+      { name: 'should save position when capability is moved', elementId: 'cap-1', x: 2, y: 1 },
+      { name: 'should add new capability position', elementId: 'cap-new', x: 0, y: 0 },
+    ])('$name', async ({ elementId, x, y }) => {
+      vi.mocked(apiClient.upsertElementPosition).mockResolvedValue({ elementId, x, y, _links: {} });
 
-      const { result } = renderHook(() => useGridPositions(domainId));
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
-      });
+      const result = await renderLoaded();
 
       await act(async () => {
-        await result.current.updatePosition('cap-1' as CapabilityId, 2, 1);
+        await result.current.updatePosition(elementId as CapabilityId, x, y);
       });
 
-      expect(apiClient.upsertElementPosition).toHaveBeenCalledWith('business-domain-grid', 'bd-finance', 'cap-1', {
-        x: 2,
-        y: 1,
+      expect(apiClient.upsertElementPosition).toHaveBeenCalledWith('business-domain-grid', 'bd-finance', elementId, {
+        x,
+        y,
       });
-      expect(result.current.positions['cap-1']).toEqual({ x: 2, y: 1 });
-    });
-
-    it('should add new capability position', async () => {
-      vi.mocked(apiClient.getLayout).mockResolvedValue(mockLayout);
-      vi.mocked(apiClient.upsertElementPosition).mockResolvedValue({
-        elementId: 'cap-new',
-        x: 0,
-        y: 0,
-        _links: {},
-      });
-
-      const { result } = renderHook(() => useGridPositions(domainId));
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
-      });
-
-      await act(async () => {
-        await result.current.updatePosition('cap-new' as CapabilityId, 0, 0);
-      });
-
-      expect(apiClient.upsertElementPosition).toHaveBeenCalledWith('business-domain-grid', 'bd-finance', 'cap-new', {
-        x: 0,
-        y: 0,
-      });
-      expect(result.current.positions['cap-new']).toEqual({ x: 0, y: 0 });
+      expect(result.current.positions[elementId]).toEqual({ x, y });
     });
 
     it('should rollback on API error', async () => {
-      vi.mocked(apiClient.getLayout).mockResolvedValue(mockLayout);
       vi.mocked(apiClient.upsertElementPosition).mockRejectedValue(new Error('API Error'));
 
-      const { result } = renderHook(() => useGridPositions(domainId));
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
-      });
+      const result = await renderLoaded();
 
       await act(async () => {
         try {
