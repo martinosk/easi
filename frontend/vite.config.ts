@@ -2,6 +2,25 @@ import react from '@vitejs/plugin-react';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { defineConfig } from 'vite';
 
+const vendorChunks: { chunk: string; packages: string[] }[] = [
+  { chunk: 'react-vendor', packages: ['react-dom', 'react-router-dom', 'react'] },
+  { chunk: 'mantine', packages: ['@mantine/core', '@mantine/hooks'] },
+  { chunk: 'reactflow', packages: ['@xyflow/react', 'dagre'] },
+  { chunk: 'dockview', packages: ['dockview'] },
+  { chunk: 'query', packages: ['@tanstack/react-query', '@tanstack/query-core'] },
+  { chunk: 'forms', packages: ['react-hook-form', '@hookform/resolvers', 'zod'] },
+  { chunk: 'state', packages: ['zustand'] },
+  { chunk: 'markdown', packages: ['react-markdown', 'remark-gfm'] },
+  { chunk: 'utils', packages: ['axios', 'react-colorful', 'react-hot-toast'] },
+];
+
+function chunkForModule(id: string): string | undefined {
+  const path = id.replaceAll('\\', '/');
+  return vendorChunks.find(({ packages }) =>
+    packages.some((pkg) => path.includes(`/node_modules/${pkg}/`)),
+  )?.chunk;
+}
+
 export default defineConfig({
   cacheDir: process.env.VITE_CACHE_DIR || undefined,
   plugins: [
@@ -17,19 +36,7 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          const p = id.replaceAll('\\', '/');
-          const seg = (pkg: string) => p.includes(`/node_modules/${pkg}/`);
-          if (seg('react-dom') || seg('react-router-dom') || seg('react')) return 'react-vendor';
-          if (seg('@mantine/core') || seg('@mantine/hooks')) return 'mantine';
-          if (seg('@xyflow/react') || seg('dagre')) return 'reactflow';
-          if (seg('dockview')) return 'dockview';
-          if (seg('@tanstack/react-query') || seg('@tanstack/query-core')) return 'query';
-          if (seg('react-hook-form') || seg('@hookform/resolvers') || seg('zod')) return 'forms';
-          if (seg('zustand')) return 'state';
-          if (seg('react-markdown') || seg('remark-gfm')) return 'markdown';
-          if (seg('axios') || seg('react-colorful') || seg('react-hot-toast')) return 'utils';
-        },
+        manualChunks: chunkForModule,
       },
     },
   },
