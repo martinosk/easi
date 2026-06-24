@@ -10,36 +10,36 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestFileSecretProvider_GetClientSecret(t *testing.T) {
+const testTenantID = "acme-corp"
+
+func writeTenantSecret(t *testing.T, secretName string, content []byte) *FileSecretProvider {
+	t.Helper()
 	tempDir := t.TempDir()
-	tenantID := "acme-corp"
-	secretValue := "super-secret-client-secret"
-
-	tenantDir := filepath.Join(tempDir, tenantID)
+	tenantDir := filepath.Join(tempDir, testTenantID)
 	require.NoError(t, os.MkdirAll(tenantDir, 0755))
-	require.NoError(t, os.WriteFile(filepath.Join(tenantDir, "client-secret"), []byte(secretValue), 0600))
-
-	provider := NewFileSecretProvider(tempDir)
-	secret, err := provider.GetClientSecret(context.Background(), tenantID)
-
-	assert.NoError(t, err)
-	assert.Equal(t, secretValue, secret)
+	require.NoError(t, os.WriteFile(filepath.Join(tenantDir, secretName), content, 0600))
+	return NewFileSecretProvider(tempDir)
 }
 
-func TestFileSecretProvider_GetClientSecret_TrimsWhitespace(t *testing.T) {
-	tempDir := t.TempDir()
-	tenantID := "acme-corp"
-	secretValue := "  secret-with-whitespace  \n"
+func TestFileSecretProvider_GetClientSecret(t *testing.T) {
+	tests := []struct {
+		name     string
+		stored   string
+		expected string
+	}{
+		{"returns secret", "super-secret-client-secret", "super-secret-client-secret"},
+		{"trims whitespace", "  secret-with-whitespace  \n", "secret-with-whitespace"},
+	}
 
-	tenantDir := filepath.Join(tempDir, tenantID)
-	require.NoError(t, os.MkdirAll(tenantDir, 0755))
-	require.NoError(t, os.WriteFile(filepath.Join(tenantDir, "client-secret"), []byte(secretValue), 0600))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			provider := writeTenantSecret(t, "client-secret", []byte(tt.stored))
+			secret, err := provider.GetClientSecret(context.Background(), testTenantID)
 
-	provider := NewFileSecretProvider(tempDir)
-	secret, err := provider.GetClientSecret(context.Background(), tenantID)
-
-	assert.NoError(t, err)
-	assert.Equal(t, "secret-with-whitespace", secret)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expected, secret)
+		})
+	}
 }
 
 func TestFileSecretProvider_GetClientSecret_NotFound(t *testing.T) {
@@ -53,16 +53,10 @@ func TestFileSecretProvider_GetClientSecret_NotFound(t *testing.T) {
 }
 
 func TestFileSecretProvider_GetPrivateKey(t *testing.T) {
-	tempDir := t.TempDir()
-	tenantID := "acme-corp"
 	privateKey := []byte("-----BEGIN RSA PRIVATE KEY-----\ntest-key-content\n-----END RSA PRIVATE KEY-----")
 
-	tenantDir := filepath.Join(tempDir, tenantID)
-	require.NoError(t, os.MkdirAll(tenantDir, 0755))
-	require.NoError(t, os.WriteFile(filepath.Join(tenantDir, "private-key"), privateKey, 0600))
-
-	provider := NewFileSecretProvider(tempDir)
-	key, err := provider.GetPrivateKey(context.Background(), tenantID)
+	provider := writeTenantSecret(t, "private-key", privateKey)
+	key, err := provider.GetPrivateKey(context.Background(), testTenantID)
 
 	assert.NoError(t, err)
 	assert.Equal(t, privateKey, key)
@@ -79,44 +73,30 @@ func TestFileSecretProvider_GetPrivateKey_NotFound(t *testing.T) {
 }
 
 func TestFileSecretProvider_GetCertificate(t *testing.T) {
-	tempDir := t.TempDir()
-	tenantID := "acme-corp"
 	certificate := []byte("-----BEGIN CERTIFICATE-----\ntest-cert-content\n-----END CERTIFICATE-----")
 
-	tenantDir := filepath.Join(tempDir, tenantID)
-	require.NoError(t, os.MkdirAll(tenantDir, 0755))
-	require.NoError(t, os.WriteFile(filepath.Join(tenantDir, "certificate"), certificate, 0600))
-
-	provider := NewFileSecretProvider(tempDir)
-	cert, err := provider.GetCertificate(context.Background(), tenantID)
+	provider := writeTenantSecret(t, "certificate", certificate)
+	cert, err := provider.GetCertificate(context.Background(), testTenantID)
 
 	assert.NoError(t, err)
 	assert.Equal(t, certificate, cert)
 }
 
 func TestFileSecretProvider_IsProvisioned(t *testing.T) {
-	tempDir := t.TempDir()
-	tenantID := "acme-corp"
+	tests := []struct {
+		name       string
+		secretName string
+	}{
+		{"client secret", "client-secret"},
+		{"private key jwt", "private-key"},
+	}
 
-	tenantDir := filepath.Join(tempDir, tenantID)
-	require.NoError(t, os.MkdirAll(tenantDir, 0755))
-	require.NoError(t, os.WriteFile(filepath.Join(tenantDir, "client-secret"), []byte("secret"), 0600))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			provider := writeTenantSecret(t, tt.secretName, []byte("secret"))
 
-	provider := NewFileSecretProvider(tempDir)
-
-	assert.True(t, provider.IsProvisioned(context.Background(), tenantID))
-	assert.False(t, provider.IsProvisioned(context.Background(), "nonexistent-tenant"))
-}
-
-func TestFileSecretProvider_IsProvisioned_PrivateKeyJWT(t *testing.T) {
-	tempDir := t.TempDir()
-	tenantID := "acme-corp"
-
-	tenantDir := filepath.Join(tempDir, tenantID)
-	require.NoError(t, os.MkdirAll(tenantDir, 0755))
-	require.NoError(t, os.WriteFile(filepath.Join(tenantDir, "private-key"), []byte("key"), 0600))
-
-	provider := NewFileSecretProvider(tempDir)
-
-	assert.True(t, provider.IsProvisioned(context.Background(), tenantID))
+			assert.True(t, provider.IsProvisioned(context.Background(), testTenantID))
+			assert.False(t, provider.IsProvisioned(context.Background(), "nonexistent-tenant"))
+		})
+	}
 }

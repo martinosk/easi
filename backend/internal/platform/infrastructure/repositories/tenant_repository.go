@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 	"time"
 )
 
@@ -42,18 +43,35 @@ func (r *TenantRepository) Create(ctx context.Context, record TenantRecord) erro
 	}
 	defer func() { _ = tx.Rollback() }()
 
+	if err := ensureTenantAbsent(ctx, tx, record.ID); err != nil {
+		return err
+	}
+	if err := ensureDomainsAvailable(ctx, tx, record.Domains); err != nil {
+		return err
+	}
+	if err := insertTenant(ctx, tx, record); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func ensureTenantAbsent(ctx context.Context, tx *sql.Tx, id string) error {
 	var exists bool
-	err = tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM platform.tenants WHERE id = $1)", record.ID).Scan(&exists)
+	err := tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM platform.tenants WHERE id = $1)", id).Scan(&exists)
 	if err != nil {
 		return err
 	}
 	if exists {
 		return ErrTenantAlreadyExists
 	}
+	return nil
+}
 
-	for _, domain := range record.Domains {
+func ensureDomainsAvailable(ctx context.Context, tx *sql.Tx, domains []string) error {
+	for _, domain := range domains {
 		var existingTenantID string
-		err = tx.QueryRowContext(ctx,
+		err := tx.QueryRowContext(ctx,
 			"SELECT tenant_id FROM platform.tenant_domains WHERE domain = $1",
 			domain,
 		).Scan(&existingTenantID)
@@ -64,8 +82,11 @@ func (r *TenantRepository) Create(ctx context.Context, record TenantRecord) erro
 			return err
 		}
 	}
+	return nil
+}
 
-	_, err = tx.ExecContext(ctx,
+func insertTenant(ctx context.Context, tx *sql.Tx, record TenantRecord) error {
+	_, err := tx.ExecContext(ctx,
 		`INSERT INTO platform.tenants (id, name, status, created_at, updated_at)
 		 VALUES ($1, $2, $3, $4, $5)`,
 		record.ID, record.Name, record.Status, record.CreatedAt, record.UpdatedAt,
@@ -74,8 +95,21 @@ func (r *TenantRepository) Create(ctx context.Context, record TenantRecord) erro
 		return err
 	}
 
+	if err := insertTenantDomains(ctx, tx, record); err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(ctx,
+		`INSERT INTO platform.tenant_oidc_configs (tenant_id, discovery_url, client_id, auth_method, scopes, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		record.ID, record.DiscoveryURL, record.ClientID, record.AuthMethod, record.Scopes, record.CreatedAt, record.UpdatedAt,
+	)
+	return err
+}
+
+func insertTenantDomains(ctx context.Context, tx *sql.Tx, record TenantRecord) error {
 	for _, domain := range record.Domains {
-		_, err = tx.ExecContext(ctx,
+		_, err := tx.ExecContext(ctx,
 			`INSERT INTO platform.tenant_domains (domain, tenant_id, created_at)
 			 VALUES ($1, $2, $3)`,
 			domain, record.ID, record.CreatedAt,
@@ -84,17 +118,7 @@ func (r *TenantRepository) Create(ctx context.Context, record TenantRecord) erro
 			return err
 		}
 	}
-
-	_, err = tx.ExecContext(ctx,
-		`INSERT INTO platform.tenant_oidc_configs (tenant_id, discovery_url, client_id, auth_method, scopes, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-		record.ID, record.DiscoveryURL, record.ClientID, record.AuthMethod, record.Scopes, record.CreatedAt, record.UpdatedAt,
-	)
-	if err != nil {
-		return err
-	}
-
-	return tx.Commit()
+	return nil
 }
 
 func (r *TenantRepository) GetByID(ctx context.Context, id string) (*TenantRecord, error) {
@@ -139,32 +163,7 @@ func (r *TenantRepository) GetByID(ctx context.Context, id string) (*TenantRecor
 }
 
 func (r *TenantRepository) List(ctx context.Context, status string, domain string) ([]*TenantRecord, error) {
-	query := `SELECT t.id, t.name, t.status, t.created_at, t.updated_at
-			  FROM platform.tenants t`
-	var args []interface{}
-	var conditions []string
-	argIndex := 1
-
-	if status != "" {
-		conditions = append(conditions, "t.status = $"+string(rune('0'+argIndex)))
-		args = append(args, status)
-		argIndex++
-	}
-
-	if domain != "" {
-		query += " JOIN platform.tenant_domains td ON t.id = td.tenant_id"
-		conditions = append(conditions, "td.domain = $"+string(rune('0'+argIndex)))
-		args = append(args, domain)
-	}
-
-	if len(conditions) > 0 {
-		query += " WHERE " + conditions[0]
-		for i := 1; i < len(conditions); i++ {
-			query += " AND " + conditions[i]
-		}
-	}
-
-	query += " ORDER BY t.created_at DESC"
+	query, args := buildListQuery(status, domain)
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -178,29 +177,57 @@ func (r *TenantRepository) List(ctx context.Context, status string, domain strin
 		if err := rows.Scan(&record.ID, &record.Name, &record.Status, &record.CreatedAt, &record.UpdatedAt); err != nil {
 			return nil, err
 		}
-
-		domainRows, err := r.db.QueryContext(ctx,
-			"SELECT domain FROM platform.tenant_domains WHERE tenant_id = $1",
-			record.ID,
-		)
-		if err != nil {
+		if err := r.loadDomains(ctx, record); err != nil {
 			return nil, err
 		}
-
-		for domainRows.Next() {
-			var d string
-			if err := domainRows.Scan(&d); err != nil {
-				_ = domainRows.Close()
-				return nil, err
-			}
-			record.Domains = append(record.Domains, d)
-		}
-		_ = domainRows.Close()
-
 		records = append(records, record)
 	}
 
 	return records, nil
+}
+
+func buildListQuery(status string, domain string) (string, []interface{}) {
+	query := `SELECT t.id, t.name, t.status, t.created_at, t.updated_at
+			  FROM platform.tenants t`
+	var args []interface{}
+	var conditions []string
+
+	if status != "" {
+		args = append(args, status)
+		conditions = append(conditions, "t.status = $"+string(rune('0'+len(args))))
+	}
+
+	if domain != "" {
+		query += " JOIN platform.tenant_domains td ON t.id = td.tenant_id"
+		args = append(args, domain)
+		conditions = append(conditions, "td.domain = $"+string(rune('0'+len(args))))
+	}
+
+	if len(conditions) > 0 {
+		query += " WHERE " + strings.Join(conditions, " AND ")
+	}
+
+	return query + " ORDER BY t.created_at DESC", args
+}
+
+func (r *TenantRepository) loadDomains(ctx context.Context, record *TenantRecord) error {
+	domainRows, err := r.db.QueryContext(ctx,
+		"SELECT domain FROM platform.tenant_domains WHERE tenant_id = $1",
+		record.ID,
+	)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = domainRows.Close() }()
+
+	for domainRows.Next() {
+		var d string
+		if err := domainRows.Scan(&d); err != nil {
+			return err
+		}
+		record.Domains = append(record.Domains, d)
+	}
+	return nil
 }
 
 func (r *TenantRepository) ExistsByID(ctx context.Context, id string) (bool, error) {
