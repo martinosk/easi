@@ -77,36 +77,49 @@ func TestCreateBusinessDomainHandler_ReturnsCreatedID(t *testing.T) {
 	assert.Equal(t, mockRepo.savedDomains[0].ID(), result.CreatedID)
 }
 
-func TestCreateBusinessDomainHandler_NameExists_ReturnsError(t *testing.T) {
-	mockRepo := &mockCreateBusinessDomainRepository{}
-	mockReadModel := &mockCreateBusinessDomainReadModel{nameExists: true}
-
-	handler := NewCreateBusinessDomainHandler(mockRepo, mockReadModel)
-
-	cmd := &commands.CreateBusinessDomain{
-		Name:        "Duplicate Name",
-		Description: "Should fail",
+func TestCreateBusinessDomainHandler_ErrorPaths(t *testing.T) {
+	tests := []struct {
+		name       string
+		readModel  *mockCreateBusinessDomainReadModel
+		cmd        *commands.CreateBusinessDomain
+		expectedIs error
+		msg        string
+	}{
+		{
+			name:       "name exists",
+			readModel:  &mockCreateBusinessDomainReadModel{nameExists: true},
+			cmd:        &commands.CreateBusinessDomain{Name: "Duplicate Name", Description: "Should fail"},
+			expectedIs: ErrBusinessDomainNameExists,
+			msg:        "Should not save domain when name exists",
+		},
+		{
+			name:      "invalid name",
+			readModel: &mockCreateBusinessDomainReadModel{nameExists: false},
+			cmd:       &commands.CreateBusinessDomain{Name: "", Description: "Invalid name"},
+			msg:       "Should not save domain with invalid name",
+		},
+		{
+			name:      "read model error",
+			readModel: &mockCreateBusinessDomainReadModel{checkErr: errors.New("database error")},
+			cmd:       &commands.CreateBusinessDomain{Name: "Test Domain", Description: "Test"},
+		},
 	}
 
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.ErrorIs(t, err, ErrBusinessDomainNameExists)
-	assert.Empty(t, mockRepo.savedDomains, "Should not save domain when name exists")
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := &mockCreateBusinessDomainRepository{}
+			handler := NewCreateBusinessDomainHandler(mockRepo, tt.readModel)
 
-func TestCreateBusinessDomainHandler_InvalidName_ReturnsError(t *testing.T) {
-	mockRepo := &mockCreateBusinessDomainRepository{}
-	mockReadModel := &mockCreateBusinessDomainReadModel{nameExists: false}
+			_, err := handler.Handle(context.Background(), tt.cmd)
 
-	handler := NewCreateBusinessDomainHandler(mockRepo, mockReadModel)
-
-	cmd := &commands.CreateBusinessDomain{
-		Name:        "",
-		Description: "Invalid name",
+			if tt.expectedIs != nil {
+				assert.ErrorIs(t, err, tt.expectedIs)
+			} else {
+				assert.Error(t, err)
+			}
+			assert.Empty(t, mockRepo.savedDomains, tt.msg)
+		})
 	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.Error(t, err)
-	assert.Empty(t, mockRepo.savedDomains, "Should not save domain with invalid name")
 }
 
 func TestCreateBusinessDomainHandler_InvalidCommand_ReturnsError(t *testing.T) {
@@ -119,20 +132,4 @@ func TestCreateBusinessDomainHandler_InvalidCommand_ReturnsError(t *testing.T) {
 
 	_, err := handler.Handle(context.Background(), invalidCmd)
 	assert.ErrorIs(t, err, cqrs.ErrInvalidCommand)
-}
-
-func TestCreateBusinessDomainHandler_ReadModelError_ReturnsError(t *testing.T) {
-	mockRepo := &mockCreateBusinessDomainRepository{}
-	mockReadModel := &mockCreateBusinessDomainReadModel{checkErr: errors.New("database error")}
-
-	handler := NewCreateBusinessDomainHandler(mockRepo, mockReadModel)
-
-	cmd := &commands.CreateBusinessDomain{
-		Name:        "Test Domain",
-		Description: "Test",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.Error(t, err)
-	assert.Empty(t, mockRepo.savedDomains)
 }

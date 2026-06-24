@@ -46,43 +46,59 @@ func (m *mockBusinessDomainDeletionService) CanDelete(ctx context.Context, domai
 	return m.canDeleteErr
 }
 
-func TestDeleteBusinessDomainHandler_DeletesBusinessDomain(t *testing.T) {
-	domain := createTestBusinessDomain(t, "Test Domain", "Description")
-	domainID := domain.ID()
-
-	mockRepo := &mockDeleteBusinessDomainRepository{domain: domain}
-	mockDeletionService := &mockBusinessDomainDeletionService{}
-
-	handler := NewDeleteBusinessDomainHandler(mockRepo, mockDeletionService)
-
-	cmd := &commands.DeleteBusinessDomain{
-		ID: domainID,
+func TestDeleteBusinessDomainHandler_WithExistingDomain(t *testing.T) {
+	tests := []struct {
+		name              string
+		canDeleteErr      error
+		expectErr         bool
+		expectedIs        error
+		expectedSaveCount int
+		msg               string
+	}{
+		{
+			name:              "deletes business domain",
+			expectedSaveCount: 1,
+			msg:               "Handler should save domain once",
+		},
+		{
+			name:              "domain has assignments",
+			canDeleteErr:      services.ErrBusinessDomainHasAssignments,
+			expectErr:         true,
+			expectedIs:        services.ErrBusinessDomainHasAssignments,
+			expectedSaveCount: 0,
+			msg:               "Should not save when domain has assignments",
+		},
+		{
+			name:              "deletion service error",
+			canDeleteErr:      errors.New("database error"),
+			expectErr:         true,
+			expectedSaveCount: 0,
+		},
 	}
 
-	_, err := handler.Handle(context.Background(), cmd)
-	require.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			domain := createTestBusinessDomain(t, "Test Domain", "Description")
+			mockRepo := &mockDeleteBusinessDomainRepository{domain: domain}
+			mockDeletionService := &mockBusinessDomainDeletionService{canDeleteErr: tt.canDeleteErr}
+			handler := NewDeleteBusinessDomainHandler(mockRepo, mockDeletionService)
 
-	assert.Equal(t, 1, mockRepo.savedCount, "Handler should save domain once")
-}
+			cmd := &commands.DeleteBusinessDomain{ID: domain.ID()}
 
-func TestDeleteBusinessDomainHandler_DomainHasAssignments_ReturnsError(t *testing.T) {
-	domain := createTestBusinessDomain(t, "Test Domain", "Description")
-	domainID := domain.ID()
+			_, err := handler.Handle(context.Background(), cmd)
 
-	mockRepo := &mockDeleteBusinessDomainRepository{domain: domain}
-	mockDeletionService := &mockBusinessDomainDeletionService{
-		canDeleteErr: services.ErrBusinessDomainHasAssignments,
+			if tt.expectErr {
+				if tt.expectedIs != nil {
+					assert.ErrorIs(t, err, tt.expectedIs)
+				} else {
+					assert.Error(t, err)
+				}
+			} else {
+				require.NoError(t, err)
+			}
+			assert.Equal(t, tt.expectedSaveCount, mockRepo.savedCount, tt.msg)
+		})
 	}
-
-	handler := NewDeleteBusinessDomainHandler(mockRepo, mockDeletionService)
-
-	cmd := &commands.DeleteBusinessDomain{
-		ID: domainID,
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.ErrorIs(t, err, services.ErrBusinessDomainHasAssignments)
-	assert.Equal(t, 0, mockRepo.savedCount, "Should not save when domain has assignments")
 }
 
 func TestDeleteBusinessDomainHandler_DomainNotFound_ReturnsError(t *testing.T) {
@@ -111,24 +127,4 @@ func TestDeleteBusinessDomainHandler_InvalidCommand_ReturnsError(t *testing.T) {
 
 	_, err := handler.Handle(context.Background(), invalidCmd)
 	assert.ErrorIs(t, err, cqrs.ErrInvalidCommand)
-}
-
-func TestDeleteBusinessDomainHandler_DeletionServiceError_ReturnsError(t *testing.T) {
-	domain := createTestBusinessDomain(t, "Test Domain", "Description")
-	domainID := domain.ID()
-
-	mockRepo := &mockDeleteBusinessDomainRepository{domain: domain}
-	mockDeletionService := &mockBusinessDomainDeletionService{
-		canDeleteErr: errors.New("database error"),
-	}
-
-	handler := NewDeleteBusinessDomainHandler(mockRepo, mockDeletionService)
-
-	cmd := &commands.DeleteBusinessDomain{
-		ID: domainID,
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.Error(t, err)
-	assert.Equal(t, 0, mockRepo.savedCount)
 }

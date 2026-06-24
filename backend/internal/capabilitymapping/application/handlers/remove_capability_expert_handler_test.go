@@ -85,27 +85,60 @@ func TestRemoveCapabilityExpertHandler_Success(t *testing.T) {
 	assert.Equal(t, "CapabilityExpertRemoved", uncommittedEvents[0].EventType())
 }
 
-func TestRemoveCapabilityExpertHandler_ExpertNoLongerInList(t *testing.T) {
-	capability := createCapabilityWithExpert(t)
-	capabilityID := capability.ID()
-
-	mockRepo := &mockRemoveExpertCapabilityRepository{
-		capability: capability,
+func TestRemoveCapabilityExpertHandler_WithExistingExpert(t *testing.T) {
+	tests := []struct {
+		name        string
+		expertName  string
+		saveErr     error
+		expectedErr error
+		assertSaved func(t *testing.T, repo *mockRemoveExpertCapabilityRepository)
+	}{
+		{
+			name:       "expert no longer in list",
+			expertName: "Alice Smith",
+			assertSaved: func(t *testing.T, repo *mockRemoveExpertCapabilityRepository) {
+				assert.Empty(t, repo.savedCap.Experts())
+			},
+		},
+		{
+			name:        "invalid expert data",
+			expertName:  "",
+			expectedErr: valueobjects.ErrExpertNameEmpty,
+		},
+		{
+			name:        "save error",
+			expertName:  "Alice Smith",
+			saveErr:     errors.New("failed to save"),
+			expectedErr: errors.New("failed to save"),
+		},
 	}
 
-	handler := NewRemoveCapabilityExpertHandler(mockRepo)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			capability := createCapabilityWithExpert(t)
+			mockRepo := &mockRemoveExpertCapabilityRepository{capability: capability, saveErr: tt.saveErr}
+			handler := NewRemoveCapabilityExpertHandler(mockRepo)
 
-	cmd := &commands.RemoveCapabilityExpert{
-		CapabilityID: capabilityID,
-		ExpertName:   "Alice Smith",
-		ExpertRole:   "Product Owner",
-		ContactInfo:  "alice@example.com",
+			cmd := &commands.RemoveCapabilityExpert{
+				CapabilityID: capability.ID(),
+				ExpertName:   tt.expertName,
+				ExpertRole:   "Product Owner",
+				ContactInfo:  "alice@example.com",
+			}
+
+			_, err := handler.Handle(context.Background(), cmd)
+
+			if tt.expectedErr != nil {
+				assert.Error(t, err)
+				assert.Equal(t, tt.expectedErr, err)
+				return
+			}
+			require.NoError(t, err)
+			if tt.assertSaved != nil {
+				tt.assertSaved(t, mockRepo)
+			}
+		})
 	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	require.NoError(t, err)
-
-	assert.Empty(t, mockRepo.savedCap.Experts())
 }
 
 func TestRemoveCapabilityExpertHandler_CapabilityNotFound_ReturnsError(t *testing.T) {
@@ -126,52 +159,6 @@ func TestRemoveCapabilityExpertHandler_CapabilityNotFound_ReturnsError(t *testin
 	_, err := handler.Handle(context.Background(), cmd)
 	assert.Error(t, err)
 	assert.Equal(t, notFoundErr, err)
-}
-
-func TestRemoveCapabilityExpertHandler_InvalidExpertData_ReturnsError(t *testing.T) {
-	capability := createCapabilityWithExpert(t)
-	capabilityID := capability.ID()
-
-	mockRepo := &mockRemoveExpertCapabilityRepository{
-		capability: capability,
-	}
-
-	handler := NewRemoveCapabilityExpertHandler(mockRepo)
-
-	cmd := &commands.RemoveCapabilityExpert{
-		CapabilityID: capabilityID,
-		ExpertName:   "",
-		ExpertRole:   "Product Owner",
-		ContactInfo:  "alice@example.com",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.Error(t, err)
-	assert.Equal(t, valueobjects.ErrExpertNameEmpty, err)
-}
-
-func TestRemoveCapabilityExpertHandler_SaveError_ReturnsError(t *testing.T) {
-	capability := createCapabilityWithExpert(t)
-	capabilityID := capability.ID()
-
-	saveErr := errors.New("failed to save")
-	mockRepo := &mockRemoveExpertCapabilityRepository{
-		capability: capability,
-		saveErr:    saveErr,
-	}
-
-	handler := NewRemoveCapabilityExpertHandler(mockRepo)
-
-	cmd := &commands.RemoveCapabilityExpert{
-		CapabilityID: capabilityID,
-		ExpertName:   "Alice Smith",
-		ExpertRole:   "Product Owner",
-		ContactInfo:  "alice@example.com",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.Error(t, err)
-	assert.Equal(t, saveErr, err)
 }
 
 func TestRemoveCapabilityExpertHandler_InvalidCommand_ReturnsError(t *testing.T) {

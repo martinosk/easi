@@ -45,19 +45,47 @@ func (m *mockAssignmentReadModel) GetByDomainID(ctx context.Context, domainID st
 	return nil, nil
 }
 
-func TestOnCapabilityDeletedHandler_NoAssignments_NoCommandsDispatched(t *testing.T) {
-	commandBus := &mockCommandBus{}
-	readModel := &mockAssignmentReadModel{
-		assignmentsByCapability: []readmodels.AssignmentDTO{},
+func TestOnCapabilityDeletedHandler_DispatchesPerAssignment(t *testing.T) {
+	tests := []struct {
+		name        string
+		assignments []readmodels.AssignmentDTO
+		queryError  error
+		expectErr   bool
+		expectCount int
+	}{
+		{
+			name:        "no assignments",
+			assignments: []readmodels.AssignmentDTO{},
+		},
+		{
+			name:       "read model error",
+			queryError: errors.New("database error"),
+			expectErr:  true,
+		},
 	}
 
-	handler := NewOnCapabilityDeletedHandler(commandBus, readModel)
-	event := events.NewCapabilityDeleted("cap-123")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			commandBus := &mockCommandBus{}
+			readModel := &mockAssignmentReadModel{
+				assignmentsByCapability: tt.assignments,
+				queryError:              tt.queryError,
+			}
 
-	err := handler.Handle(context.Background(), event)
+			handler := NewOnCapabilityDeletedHandler(commandBus, readModel)
+			event := events.NewCapabilityDeleted("cap-123")
 
-	assert.NoError(t, err)
-	assert.Empty(t, commandBus.dispatchedCommands)
+			err := handler.Handle(context.Background(), event)
+
+			if tt.expectErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), "database error")
+				return
+			}
+			assert.NoError(t, err)
+			assert.Len(t, commandBus.dispatchedCommands, tt.expectCount)
+		})
+	}
 }
 
 func TestOnCapabilityDeletedHandler_OneAssignment_DispatchesUnassignCommand(t *testing.T) {
@@ -115,20 +143,6 @@ func TestOnCapabilityDeletedHandler_MultipleAssignments_DispatchesAllUnassignCom
 	assert.Contains(t, assignmentIDs, "assign-3")
 }
 
-func TestOnCapabilityDeletedHandler_ReadModelError_ReturnsError(t *testing.T) {
-	commandBus := &mockCommandBus{}
-	readModel := &mockAssignmentReadModel{
-		queryError: errors.New("database error"),
-	}
-
-	handler := NewOnCapabilityDeletedHandler(commandBus, readModel)
-	event := events.NewCapabilityDeleted("cap-123")
-
-	err := handler.Handle(context.Background(), event)
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "database error")
-}
 
 func TestOnCapabilityDeletedHandler_CommandDispatchError_ContinuesWithOtherCommands(t *testing.T) {
 	commandBus := &mockCommandBus{
