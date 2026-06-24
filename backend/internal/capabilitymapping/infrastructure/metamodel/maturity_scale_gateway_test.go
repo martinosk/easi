@@ -20,20 +20,29 @@ func ctxWithTenant(tenantID string) context.Context {
 	return sharedctx.WithTenant(context.Background(), tid)
 }
 
+func standardSectionsResponse(genesisName string) map[string]interface{} {
+	return map[string]interface{}{
+		"sections": []map[string]interface{}{
+			{"order": 1, "name": genesisName, "minValue": 0, "maxValue": 24},
+			{"order": 2, "name": "Custom Built", "minValue": 25, "maxValue": 49},
+			{"order": 3, "name": "Product", "minValue": 50, "maxValue": 74},
+			{"order": 4, "name": "Commodity", "minValue": 75, "maxValue": 99},
+		},
+	}
+}
+
+func newCountingMaturityScaleServer(callCount *int) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		*callCount++
+		_ = json.NewEncoder(w).Encode(standardSectionsResponse("Genesis"))
+	}))
+}
+
 func TestMaturityScaleGateway_GetMaturityScaleConfig_FetchesFromAPI(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/api/v1/meta-model/maturity-scale", r.URL.Path)
 		assert.Equal(t, "tenant-123", r.Header.Get("X-Tenant-ID"))
-
-		response := map[string]interface{}{
-			"sections": []map[string]interface{}{
-				{"order": 1, "name": "Genesis", "minValue": 0, "maxValue": 24},
-				{"order": 2, "name": "Custom Built", "minValue": 25, "maxValue": 49},
-				{"order": 3, "name": "Product", "minValue": 50, "maxValue": 74},
-				{"order": 4, "name": "Commodity", "minValue": 75, "maxValue": 99},
-			},
-		}
-		_ = json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(standardSectionsResponse("Genesis"))
 	}))
 	defer server.Close()
 
@@ -50,92 +59,59 @@ func TestMaturityScaleGateway_GetMaturityScaleConfig_FetchesFromAPI(t *testing.T
 	assert.Equal(t, 24, config.Sections[0].MaxValue)
 }
 
-func TestMaturityScaleGateway_GetMaturityScaleConfig_CachesResult(t *testing.T) {
-	callCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		callCount++
-		response := map[string]interface{}{
-			"sections": []map[string]interface{}{
-				{"order": 1, "name": "Genesis", "minValue": 0, "maxValue": 24},
-				{"order": 2, "name": "Custom Built", "minValue": 25, "maxValue": 49},
-				{"order": 3, "name": "Product", "minValue": 50, "maxValue": 74},
-				{"order": 4, "name": "Commodity", "minValue": 75, "maxValue": 99},
-			},
-		}
-		_ = json.NewEncoder(w).Encode(response)
-	}))
-	defer server.Close()
+func TestMaturityScaleGateway_GetMaturityScaleConfig_CacheBehavior(t *testing.T) {
+	const tenantID = "tenant-123"
 
-	gateway := NewMaturityScaleGatewayWithClient(server.URL, server.Client(), 5*time.Minute)
-	ctx := ctxWithTenant("tenant-123")
+	cases := []struct {
+		name              string
+		ttl               time.Duration
+		betweenCalls      func(g MaturityScaleGateway)
+		expectedCallCount int
+		message           string
+	}{
+		{
+			name:              "caches result within ttl",
+			ttl:               5 * time.Minute,
+			betweenCalls:      func(MaturityScaleGateway) {},
+			expectedCallCount: 1,
+			message:           "Should use cached result",
+		},
+		{
+			name:              "refetches after cache expires",
+			ttl:               10 * time.Millisecond,
+			betweenCalls:      func(MaturityScaleGateway) { time.Sleep(20 * time.Millisecond) },
+			expectedCallCount: 2,
+			message:           "Should fetch again after cache expires",
+		},
+		{
+			name:              "refetches after cache invalidation",
+			ttl:               5 * time.Minute,
+			betweenCalls:      func(g MaturityScaleGateway) { g.InvalidateCache(tenantID) },
+			expectedCallCount: 2,
+			message:           "Should fetch again after cache invalidation",
+		},
+	}
 
-	_, err := gateway.GetMaturityScaleConfig(ctx)
-	require.NoError(t, err)
-	assert.Equal(t, 1, callCount)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			callCount := 0
+			server := newCountingMaturityScaleServer(&callCount)
+			defer server.Close()
 
-	_, err = gateway.GetMaturityScaleConfig(ctx)
-	require.NoError(t, err)
-	assert.Equal(t, 1, callCount, "Should use cached result")
-}
+			gateway := NewMaturityScaleGatewayWithClient(server.URL, server.Client(), tc.ttl)
+			ctx := ctxWithTenant(tenantID)
 
-func TestMaturityScaleGateway_GetMaturityScaleConfig_CacheExpires(t *testing.T) {
-	callCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		callCount++
-		response := map[string]interface{}{
-			"sections": []map[string]interface{}{
-				{"order": 1, "name": "Genesis", "minValue": 0, "maxValue": 24},
-				{"order": 2, "name": "Custom Built", "minValue": 25, "maxValue": 49},
-				{"order": 3, "name": "Product", "minValue": 50, "maxValue": 74},
-				{"order": 4, "name": "Commodity", "minValue": 75, "maxValue": 99},
-			},
-		}
-		_ = json.NewEncoder(w).Encode(response)
-	}))
-	defer server.Close()
+			_, err := gateway.GetMaturityScaleConfig(ctx)
+			require.NoError(t, err)
+			assert.Equal(t, 1, callCount)
 
-	gateway := NewMaturityScaleGatewayWithClient(server.URL, server.Client(), 10*time.Millisecond)
-	ctx := ctxWithTenant("tenant-123")
+			tc.betweenCalls(gateway)
 
-	_, err := gateway.GetMaturityScaleConfig(ctx)
-	require.NoError(t, err)
-	assert.Equal(t, 1, callCount)
-
-	time.Sleep(20 * time.Millisecond)
-
-	_, err = gateway.GetMaturityScaleConfig(ctx)
-	require.NoError(t, err)
-	assert.Equal(t, 2, callCount, "Should fetch again after cache expires")
-}
-
-func TestMaturityScaleGateway_InvalidateCache_RemovesCachedEntry(t *testing.T) {
-	callCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		callCount++
-		response := map[string]interface{}{
-			"sections": []map[string]interface{}{
-				{"order": 1, "name": "Genesis", "minValue": 0, "maxValue": 24},
-				{"order": 2, "name": "Custom Built", "minValue": 25, "maxValue": 49},
-				{"order": 3, "name": "Product", "minValue": 50, "maxValue": 74},
-				{"order": 4, "name": "Commodity", "minValue": 75, "maxValue": 99},
-			},
-		}
-		_ = json.NewEncoder(w).Encode(response)
-	}))
-	defer server.Close()
-
-	gateway := NewMaturityScaleGatewayWithClient(server.URL, server.Client(), 5*time.Minute)
-	ctx := ctxWithTenant("tenant-123")
-
-	_, err := gateway.GetMaturityScaleConfig(ctx)
-	require.NoError(t, err)
-	assert.Equal(t, 1, callCount)
-
-	gateway.InvalidateCache("tenant-123")
-
-	_, err = gateway.GetMaturityScaleConfig(ctx)
-	require.NoError(t, err)
-	assert.Equal(t, 2, callCount, "Should fetch again after cache invalidation")
+			_, err = gateway.GetMaturityScaleConfig(ctx)
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedCallCount, callCount, tc.message)
+		})
+	}
 }
 
 func TestMaturityScaleGateway_GetMaturityScaleConfig_ReturnsNilOnNotFound(t *testing.T) {
@@ -172,15 +148,7 @@ func TestMaturityScaleGateway_GetMaturityScaleConfig_ReturnsErrorOnServerError(t
 func TestMaturityScaleGateway_GetMaturityScaleConfig_SeparatesCachePerTenant(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tenantID := r.Header.Get("X-Tenant-ID")
-		response := map[string]interface{}{
-			"sections": []map[string]interface{}{
-				{"order": 1, "name": "Genesis for " + tenantID, "minValue": 0, "maxValue": 24},
-				{"order": 2, "name": "Custom Built", "minValue": 25, "maxValue": 49},
-				{"order": 3, "name": "Product", "minValue": 50, "maxValue": 74},
-				{"order": 4, "name": "Commodity", "minValue": 75, "maxValue": 99},
-			},
-		}
-		_ = json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(standardSectionsResponse("Genesis for " + tenantID))
 	}))
 	defer server.Close()
 

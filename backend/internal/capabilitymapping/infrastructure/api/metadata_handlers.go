@@ -129,22 +129,15 @@ func (h *CapabilityHandlers) UpdateCapabilityMetadata(w http.ResponseWriter, r *
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /capabilities/{id}/experts [post]
 func (h *CapabilityHandlers) AddCapabilityExpert(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-
-	var req AddCapabilityExpertRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
-		return
-	}
-
-	cmd := &commands.AddCapabilityExpert{
-		CapabilityID: id,
-		ExpertName:   req.ExpertName,
-		ExpertRole:   req.ExpertRole,
-		ContactInfo:  req.ContactInfo,
-	}
-
-	h.dispatchCapabilityCommand(w, r, cmd, "Failed to add expert")
+	decodeAndDispatchCapabilityCommand(h, w, r, "Failed to add expert",
+		func(id string, req AddCapabilityExpertRequest) cqrs.Command {
+			return &commands.AddCapabilityExpert{
+				CapabilityID: id,
+				ExpertName:   req.ExpertName,
+				ExpertRole:   req.ExpertRole,
+				ContactInfo:  req.ContactInfo,
+			}
+		})
 }
 
 // RemoveCapabilityExpert godoc
@@ -236,20 +229,24 @@ func (h *CapabilityHandlers) GetExpertRoles(w http.ResponseWriter, r *http.Reque
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /capabilities/{id}/tags [post]
 func (h *CapabilityHandlers) AddCapabilityTag(w http.ResponseWriter, r *http.Request) {
+	decodeAndDispatchCapabilityCommand(h, w, r, "Failed to add tag",
+		func(id string, req AddCapabilityTagRequest) cqrs.Command {
+			return &commands.AddCapabilityTag{
+				CapabilityID: id,
+				Tag:          req.Tag,
+			}
+		})
+}
+
+func decodeAndDispatchCapabilityCommand[T any](h *CapabilityHandlers, w http.ResponseWriter, r *http.Request, failureMsg string, build func(id string, req T) cqrs.Command) {
 	id := chi.URLParam(r, "id")
 
-	var req AddCapabilityTagRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+	req, ok := sharedAPI.DecodeRequestOrFail[T](w, r)
+	if !ok {
 		return
 	}
 
-	cmd := &commands.AddCapabilityTag{
-		CapabilityID: id,
-		Tag:          req.Tag,
-	}
-
-	h.dispatchCapabilityCommand(w, r, cmd, "Failed to add tag")
+	h.dispatchCapabilityCommand(w, r, build(id, req), failureMsg)
 }
 
 func (h *CapabilityHandlers) dispatchCapabilityCommand(w http.ResponseWriter, r *http.Request, cmd cqrs.Command, failureMsg string) {

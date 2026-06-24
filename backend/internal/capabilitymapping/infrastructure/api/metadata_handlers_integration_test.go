@@ -18,25 +18,48 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUpdateCapabilityMetadata_Integration(t *testing.T) {
-	testCtx, cleanup := setupTestDB(t)
-	defer cleanup()
+func withChiID(req *http.Request, id string) *http.Request {
+	return req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, &chi.Context{
+		URLParams: chi.RouteParams{
+			Keys:   []string{"id"},
+			Values: []string{id},
+		},
+	}))
+}
 
-	handlers := setupHandlers(testCtx.db)
+type jsonRequest struct {
+	method string
+	target string
+	id     string
+	body   interface{}
+}
 
-	createReqBody := CreateCapabilityRequest{
-		Name:        "Digital Transformation",
-		Description: "Transform business digitally",
-		Level:       "L1",
+func newJSONRequest(t *testing.T, spec jsonRequest) *http.Request {
+	encoded, err := json.Marshal(spec.body)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(spec.method, spec.target, bytes.NewReader(encoded))
+	req.Header.Set("Content-Type", "application/json")
+	req = withTestTenant(req)
+	if spec.id != "" {
+		req = withChiID(req, spec.id)
 	}
-	createBody, _ := json.Marshal(createReqBody)
+	return req
+}
 
-	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/capabilities", bytes.NewReader(createBody))
-	createReq.Header.Set("Content-Type", "application/json")
-	createReq = withTestTenant(createReq)
-	createW := httptest.NewRecorder()
+func invokeHandler(handler http.HandlerFunc, req *http.Request) *httptest.ResponseRecorder {
+	w := httptest.NewRecorder()
+	handler(w, req)
+	return w
+}
 
-	handlers.CreateCapability(createW, createReq)
+func createCapabilityForTest(t *testing.T, testCtx *testContext, handlers *CapabilityHandlers, body CreateCapabilityRequest) string {
+	createReq := newJSONRequest(t, jsonRequest{
+		method: http.MethodPost,
+		target: "/api/v1/capabilities",
+		body:   body,
+	})
+	createW := invokeHandler(handlers.CreateCapability, createReq)
 	assert.Equal(t, http.StatusCreated, createW.Code)
 
 	testCtx.setTenantContext(t)
@@ -48,46 +71,58 @@ func TestUpdateCapabilityMetadata_Integration(t *testing.T) {
 	testCtx.trackID(capabilityID)
 
 	time.Sleep(100 * time.Millisecond)
+	return capabilityID
+}
 
-	metadataReqBody := UpdateCapabilityMetadataRequest{
-		MaturityLevel:  "Custom Build",
-		OwnershipModel: "TribeOwned",
-		PrimaryOwner:   "Platform Tribe - John Doe",
-		EAOwner:        "Jane Smith",
-		Status:         "Active",
+func (ctx *testContext) requireEventDataContains(t *testing.T, aggregateID, eventType string, substrings ...string) {
+	ctx.setTenantContext(t)
+	var eventData string
+	err := ctx.db.QueryRow(
+		"SELECT event_data FROM infrastructure.events WHERE aggregate_id = $1 AND event_type = $2",
+		aggregateID, eventType,
+	).Scan(&eventData)
+	require.NoError(t, err)
+	for _, s := range substrings {
+		assert.Contains(t, eventData, s)
 	}
-	metadataBody, _ := json.Marshal(metadataReqBody)
+}
 
-	metadataReq := httptest.NewRequest(http.MethodPut, "/api/v1/capabilities/"+capabilityID+"/metadata", bytes.NewReader(metadataBody))
-	metadataReq.Header.Set("Content-Type", "application/json")
-	metadataReq = withTestTenant(metadataReq)
-	metadataReq = metadataReq.WithContext(context.WithValue(metadataReq.Context(), chi.RouteCtxKey, &chi.Context{
-		URLParams: chi.RouteParams{
-			Keys:   []string{"id"},
-			Values: []string{capabilityID},
+func TestUpdateCapabilityMetadata_Integration(t *testing.T) {
+	testCtx, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	handlers := setupHandlers(testCtx.db)
+
+	capabilityID := createCapabilityForTest(t, testCtx, handlers, CreateCapabilityRequest{
+		Name:        "Digital Transformation",
+		Description: "Transform business digitally",
+		Level:       "L1",
+	})
+
+	metadataReq := newJSONRequest(t, jsonRequest{
+		method: http.MethodPut,
+		target: "/api/v1/capabilities/" + capabilityID + "/metadata",
+		id:     capabilityID,
+		body: UpdateCapabilityMetadataRequest{
+			MaturityLevel:  "Custom Build",
+			OwnershipModel: "TribeOwned",
+			PrimaryOwner:   "Platform Tribe - John Doe",
+			EAOwner:        "Jane Smith",
+			Status:         "Active",
 		},
-	}))
-	metadataW := httptest.NewRecorder()
-
-	handlers.UpdateCapabilityMetadata(metadataW, metadataReq)
+	})
+	metadataW := invokeHandler(handlers.UpdateCapabilityMetadata, metadataReq)
 
 	assert.Equal(t, http.StatusOK, metadataW.Code)
 
-	testCtx.setTenantContext(t)
-	var metadataEventData string
-	err = testCtx.db.QueryRow(
-		"SELECT event_data FROM infrastructure.events WHERE aggregate_id = $1 AND event_type = 'CapabilityMetadataUpdated'",
-		capabilityID,
-	).Scan(&metadataEventData)
-	require.NoError(t, err)
-	assert.Contains(t, metadataEventData, `"maturityValue": 37`)
-	assert.Contains(t, metadataEventData, "TribeOwned")
+	testCtx.requireEventDataContains(t, capabilityID, "CapabilityMetadataUpdated", `"maturityValue": 37`, "TribeOwned")
 
 	time.Sleep(100 * time.Millisecond)
 
+	testCtx.setTenantContext(t)
 	var ownershipModel, status string
 	var maturityValue int
-	err = testCtx.db.QueryRow(
+	err := testCtx.db.QueryRow(
 		"SELECT maturity_value, ownership_model, status FROM capabilitymapping.capabilities WHERE id = $1",
 		capabilityID,
 	).Scan(&maturityValue, &ownershipModel, &status)
@@ -97,109 +132,45 @@ func TestUpdateCapabilityMetadata_Integration(t *testing.T) {
 	assert.Equal(t, "Active", status)
 }
 
-func TestUpdateCapabilityMetadata_InvalidMaturityValue_Integration(t *testing.T) {
-	testCtx, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	handlers := setupHandlers(testCtx.db)
-
-	createReqBody := CreateCapabilityRequest{
-		Name:  "Test Capability",
-		Level: "L1",
-	}
-	createBody, _ := json.Marshal(createReqBody)
-
-	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/capabilities", bytes.NewReader(createBody))
-	createReq.Header.Set("Content-Type", "application/json")
-	createReq = withTestTenant(createReq)
-	createW := httptest.NewRecorder()
-
-	handlers.CreateCapability(createW, createReq)
-	assert.Equal(t, http.StatusCreated, createW.Code)
-
-	testCtx.setTenantContext(t)
-	var capabilityID string
-	err := testCtx.db.QueryRow(
-		"SELECT aggregate_id FROM infrastructure.events WHERE event_type = 'CapabilityCreated' ORDER BY created_at DESC LIMIT 1",
-	).Scan(&capabilityID)
-	require.NoError(t, err)
-	testCtx.trackID(capabilityID)
-
-	time.Sleep(100 * time.Millisecond)
-
+func TestUpdateCapabilityMetadata_ValidationErrors_Integration(t *testing.T) {
 	invalidValue := 150
-	metadataReqBody := UpdateCapabilityMetadataRequest{
-		MaturityValue: &invalidValue,
-		Status:        "Active",
-	}
-	metadataBody, _ := json.Marshal(metadataReqBody)
 
-	metadataReq := httptest.NewRequest(http.MethodPut, "/api/v1/capabilities/"+capabilityID+"/metadata", bytes.NewReader(metadataBody))
-	metadataReq.Header.Set("Content-Type", "application/json")
-	metadataReq = withTestTenant(metadataReq)
-	metadataReq = metadataReq.WithContext(context.WithValue(metadataReq.Context(), chi.RouteCtxKey, &chi.Context{
-		URLParams: chi.RouteParams{
-			Keys:   []string{"id"},
-			Values: []string{capabilityID},
+	cases := []struct {
+		name string
+		body UpdateCapabilityMetadataRequest
+	}{
+		{
+			name: "maturity value out of range",
+			body: UpdateCapabilityMetadataRequest{MaturityValue: &invalidValue, Status: "Active"},
 		},
-	}))
-	metadataW := httptest.NewRecorder()
-
-	handlers.UpdateCapabilityMetadata(metadataW, metadataReq)
-
-	assert.Equal(t, http.StatusBadRequest, metadataW.Code)
-}
-
-func TestUpdateCapabilityMetadata_InvalidMaturityLevel_Integration(t *testing.T) {
-	testCtx, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	handlers := setupHandlers(testCtx.db)
-
-	createReqBody := CreateCapabilityRequest{
-		Name:  "Test Capability",
-		Level: "L1",
-	}
-	createBody, _ := json.Marshal(createReqBody)
-
-	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/capabilities", bytes.NewReader(createBody))
-	createReq.Header.Set("Content-Type", "application/json")
-	createReq = withTestTenant(createReq)
-	createW := httptest.NewRecorder()
-
-	handlers.CreateCapability(createW, createReq)
-	assert.Equal(t, http.StatusCreated, createW.Code)
-
-	testCtx.setTenantContext(t)
-	var capabilityID string
-	err := testCtx.db.QueryRow(
-		"SELECT aggregate_id FROM infrastructure.events WHERE event_type = 'CapabilityCreated' ORDER BY created_at DESC LIMIT 1",
-	).Scan(&capabilityID)
-	require.NoError(t, err)
-	testCtx.trackID(capabilityID)
-
-	time.Sleep(100 * time.Millisecond)
-
-	metadataReqBody := UpdateCapabilityMetadataRequest{
-		MaturityLevel: "InvalidLevel",
-		Status:        "Active",
-	}
-	metadataBody, _ := json.Marshal(metadataReqBody)
-
-	metadataReq := httptest.NewRequest(http.MethodPut, "/api/v1/capabilities/"+capabilityID+"/metadata", bytes.NewReader(metadataBody))
-	metadataReq.Header.Set("Content-Type", "application/json")
-	metadataReq = withTestTenant(metadataReq)
-	metadataReq = metadataReq.WithContext(context.WithValue(metadataReq.Context(), chi.RouteCtxKey, &chi.Context{
-		URLParams: chi.RouteParams{
-			Keys:   []string{"id"},
-			Values: []string{capabilityID},
+		{
+			name: "unknown maturity level",
+			body: UpdateCapabilityMetadataRequest{MaturityLevel: "InvalidLevel", Status: "Active"},
 		},
-	}))
-	metadataW := httptest.NewRecorder()
+	}
 
-	handlers.UpdateCapabilityMetadata(metadataW, metadataReq)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			testCtx, cleanup := setupTestDB(t)
+			defer cleanup()
 
-	assert.Equal(t, http.StatusBadRequest, metadataW.Code)
+			handlers := setupHandlers(testCtx.db)
+			capabilityID := createCapabilityForTest(t, testCtx, handlers, CreateCapabilityRequest{
+				Name:  "Test Capability",
+				Level: "L1",
+			})
+
+			req := newJSONRequest(t, jsonRequest{
+				method: http.MethodPut,
+				target: "/api/v1/capabilities/" + capabilityID + "/metadata",
+				id:     capabilityID,
+				body:   tc.body,
+			})
+			w := invokeHandler(handlers.UpdateCapabilityMetadata, req)
+
+			assert.Equal(t, http.StatusBadRequest, w.Code)
+		})
+	}
 }
 
 func TestAddCapabilityExpert_Integration(t *testing.T) {
@@ -208,173 +179,75 @@ func TestAddCapabilityExpert_Integration(t *testing.T) {
 
 	handlers := setupHandlers(testCtx.db)
 
-	createReqBody := CreateCapabilityRequest{
+	capabilityID := createCapabilityForTest(t, testCtx, handlers, CreateCapabilityRequest{
 		Name:  "Data Management",
 		Level: "L1",
-	}
-	createBody, _ := json.Marshal(createReqBody)
+	})
 
-	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/capabilities", bytes.NewReader(createBody))
-	createReq.Header.Set("Content-Type", "application/json")
-	createReq = withTestTenant(createReq)
-	createW := httptest.NewRecorder()
-
-	handlers.CreateCapability(createW, createReq)
-	assert.Equal(t, http.StatusCreated, createW.Code)
-
-	testCtx.setTenantContext(t)
-	var capabilityID string
-	err := testCtx.db.QueryRow(
-		"SELECT aggregate_id FROM infrastructure.events WHERE event_type = 'CapabilityCreated' ORDER BY created_at DESC LIMIT 1",
-	).Scan(&capabilityID)
-	require.NoError(t, err)
-	testCtx.trackID(capabilityID)
-
-	time.Sleep(100 * time.Millisecond)
-
-	expertReqBody := AddCapabilityExpertRequest{
-		ExpertName:  "Dr. Alice Johnson",
-		ExpertRole:  "Data Architect",
-		ContactInfo: "alice.johnson@example.com",
-	}
-	expertBody, _ := json.Marshal(expertReqBody)
-
-	expertReq := httptest.NewRequest(http.MethodPost, "/api/v1/capabilities/"+capabilityID+"/experts", bytes.NewReader(expertBody))
-	expertReq.Header.Set("Content-Type", "application/json")
-	expertReq = withTestTenant(expertReq)
-	expertReq = expertReq.WithContext(context.WithValue(expertReq.Context(), chi.RouteCtxKey, &chi.Context{
-		URLParams: chi.RouteParams{
-			Keys:   []string{"id"},
-			Values: []string{capabilityID},
+	expertReq := newJSONRequest(t, jsonRequest{
+		method: http.MethodPost,
+		target: "/api/v1/capabilities/" + capabilityID + "/experts",
+		id:     capabilityID,
+		body: AddCapabilityExpertRequest{
+			ExpertName:  "Dr. Alice Johnson",
+			ExpertRole:  "Data Architect",
+			ContactInfo: "alice.johnson@example.com",
 		},
-	}))
-	expertW := httptest.NewRecorder()
-
-	handlers.AddCapabilityExpert(expertW, expertReq)
+	})
+	expertW := invokeHandler(handlers.AddCapabilityExpert, expertReq)
 
 	assert.Equal(t, http.StatusNoContent, expertW.Code)
 
-	testCtx.setTenantContext(t)
-	var expertEventData string
-	err = testCtx.db.QueryRow(
-		"SELECT event_data FROM infrastructure.events WHERE aggregate_id = $1 AND event_type = 'CapabilityExpertAdded'",
-		capabilityID,
-	).Scan(&expertEventData)
-	require.NoError(t, err)
-	assert.Contains(t, expertEventData, "Dr. Alice Johnson")
-	assert.Contains(t, expertEventData, "Data Architect")
-	assert.Contains(t, expertEventData, "alice.johnson@example.com")
+	testCtx.requireEventDataContains(t, capabilityID, "CapabilityExpertAdded",
+		"Dr. Alice Johnson", "Data Architect", "alice.johnson@example.com")
 }
 
 func TestAddCapabilityTag_Integration(t *testing.T) {
-	testCtx, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	handlers := setupHandlers(testCtx.db)
-
-	createReqBody := CreateCapabilityRequest{
-		Name:  "API Management",
-		Level: "L1",
-	}
-	createBody, _ := json.Marshal(createReqBody)
-
-	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/capabilities", bytes.NewReader(createBody))
-	createReq.Header.Set("Content-Type", "application/json")
-	createReq = withTestTenant(createReq)
-	createW := httptest.NewRecorder()
-
-	handlers.CreateCapability(createW, createReq)
-	assert.Equal(t, http.StatusCreated, createW.Code)
-
-	testCtx.setTenantContext(t)
-	var capabilityID string
-	err := testCtx.db.QueryRow(
-		"SELECT aggregate_id FROM infrastructure.events WHERE event_type = 'CapabilityCreated' ORDER BY created_at DESC LIMIT 1",
-	).Scan(&capabilityID)
-	require.NoError(t, err)
-	testCtx.trackID(capabilityID)
-
-	time.Sleep(100 * time.Millisecond)
-
-	tagReqBody := AddCapabilityTagRequest{
-		Tag: "Cloud-native",
-	}
-	tagBody, _ := json.Marshal(tagReqBody)
-
-	tagReq := httptest.NewRequest(http.MethodPost, "/api/v1/capabilities/"+capabilityID+"/tags", bytes.NewReader(tagBody))
-	tagReq.Header.Set("Content-Type", "application/json")
-	tagReq = withTestTenant(tagReq)
-	tagReq = tagReq.WithContext(context.WithValue(tagReq.Context(), chi.RouteCtxKey, &chi.Context{
-		URLParams: chi.RouteParams{
-			Keys:   []string{"id"},
-			Values: []string{capabilityID},
+	cases := []struct {
+		name             string
+		tag              string
+		expectedStatus   int
+		expectedEventTag string
+	}{
+		{
+			name:             "valid tag is added",
+			tag:              "Cloud-native",
+			expectedStatus:   http.StatusNoContent,
+			expectedEventTag: "Cloud-native",
 		},
-	}))
-	tagW := httptest.NewRecorder()
-
-	handlers.AddCapabilityTag(tagW, tagReq)
-
-	assert.Equal(t, http.StatusNoContent, tagW.Code)
-
-	testCtx.setTenantContext(t)
-	var tagEventData string
-	err = testCtx.db.QueryRow(
-		"SELECT event_data FROM infrastructure.events WHERE aggregate_id = $1 AND event_type = 'CapabilityTagAdded'",
-		capabilityID,
-	).Scan(&tagEventData)
-	require.NoError(t, err)
-	assert.Contains(t, tagEventData, "Cloud-native")
-}
-
-func TestAddCapabilityTag_EmptyTag_Integration(t *testing.T) {
-	testCtx, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	handlers := setupHandlers(testCtx.db)
-
-	createReqBody := CreateCapabilityRequest{
-		Name:  "Test Capability",
-		Level: "L1",
-	}
-	createBody, _ := json.Marshal(createReqBody)
-
-	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/capabilities", bytes.NewReader(createBody))
-	createReq.Header.Set("Content-Type", "application/json")
-	createReq = withTestTenant(createReq)
-	createW := httptest.NewRecorder()
-
-	handlers.CreateCapability(createW, createReq)
-	assert.Equal(t, http.StatusCreated, createW.Code)
-
-	testCtx.setTenantContext(t)
-	var capabilityID string
-	err := testCtx.db.QueryRow(
-		"SELECT aggregate_id FROM infrastructure.events WHERE event_type = 'CapabilityCreated' ORDER BY created_at DESC LIMIT 1",
-	).Scan(&capabilityID)
-	require.NoError(t, err)
-	testCtx.trackID(capabilityID)
-
-	time.Sleep(100 * time.Millisecond)
-
-	tagReqBody := AddCapabilityTagRequest{
-		Tag: "",
-	}
-	tagBody, _ := json.Marshal(tagReqBody)
-
-	tagReq := httptest.NewRequest(http.MethodPost, "/api/v1/capabilities/"+capabilityID+"/tags", bytes.NewReader(tagBody))
-	tagReq.Header.Set("Content-Type", "application/json")
-	tagReq = withTestTenant(tagReq)
-	tagReq = tagReq.WithContext(context.WithValue(tagReq.Context(), chi.RouteCtxKey, &chi.Context{
-		URLParams: chi.RouteParams{
-			Keys:   []string{"id"},
-			Values: []string{capabilityID},
+		{
+			name:           "empty tag is rejected",
+			tag:            "",
+			expectedStatus: http.StatusBadRequest,
 		},
-	}))
-	tagW := httptest.NewRecorder()
+	}
 
-	handlers.AddCapabilityTag(tagW, tagReq)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			testCtx, cleanup := setupTestDB(t)
+			defer cleanup()
 
-	assert.Equal(t, http.StatusBadRequest, tagW.Code)
+			handlers := setupHandlers(testCtx.db)
+			capabilityID := createCapabilityForTest(t, testCtx, handlers, CreateCapabilityRequest{
+				Name:  "Test Capability",
+				Level: "L1",
+			})
+
+			tagReq := newJSONRequest(t, jsonRequest{
+				method: http.MethodPost,
+				target: "/api/v1/capabilities/" + capabilityID + "/tags",
+				id:     capabilityID,
+				body:   AddCapabilityTagRequest{Tag: tc.tag},
+			})
+			tagW := invokeHandler(handlers.AddCapabilityTag, tagReq)
+
+			assert.Equal(t, tc.expectedStatus, tagW.Code)
+
+			if tc.expectedEventTag != "" {
+				testCtx.requireEventDataContains(t, capabilityID, "CapabilityTagAdded", tc.expectedEventTag)
+			}
+		})
+	}
 }
 
 func TestUpdateCapabilityMetadata_NotFound_Integration(t *testing.T) {
@@ -385,24 +258,16 @@ func TestUpdateCapabilityMetadata_NotFound_Integration(t *testing.T) {
 
 	nonExistentID := fmt.Sprintf("non-existent-%d", time.Now().UnixNano())
 
-	metadataReqBody := UpdateCapabilityMetadataRequest{
-		MaturityLevel: "Genesis",
-		Status:        "Active",
-	}
-	metadataBody, _ := json.Marshal(metadataReqBody)
-
-	metadataReq := httptest.NewRequest(http.MethodPut, "/api/v1/capabilities/"+nonExistentID+"/metadata", bytes.NewReader(metadataBody))
-	metadataReq.Header.Set("Content-Type", "application/json")
-	metadataReq = withTestTenant(metadataReq)
-	metadataReq = metadataReq.WithContext(context.WithValue(metadataReq.Context(), chi.RouteCtxKey, &chi.Context{
-		URLParams: chi.RouteParams{
-			Keys:   []string{"id"},
-			Values: []string{nonExistentID},
+	metadataReq := newJSONRequest(t, jsonRequest{
+		method: http.MethodPut,
+		target: "/api/v1/capabilities/" + nonExistentID + "/metadata",
+		id:     nonExistentID,
+		body: UpdateCapabilityMetadataRequest{
+			MaturityLevel: "Genesis",
+			Status:        "Active",
 		},
-	}))
-	metadataW := httptest.NewRecorder()
-
-	handlers.UpdateCapabilityMetadata(metadataW, metadataReq)
+	})
+	metadataW := invokeHandler(handlers.UpdateCapabilityMetadata, metadataReq)
 
 	assert.Equal(t, http.StatusNotFound, metadataW.Code)
 }

@@ -77,6 +77,35 @@ func setupComponentCacheTestDB(t *testing.T) (*componentCacheTestContext, func()
 	return ctx, cleanup
 }
 
+type cachedComponent struct {
+	id   string
+	name string
+}
+
+func newCachedComponent(name string) cachedComponent {
+	return cachedComponent{id: uuid.New().String(), name: name}
+}
+
+func newComponentCacheTest(t *testing.T) *componentCacheTestContext {
+	testCtx, cleanup := setupComponentCacheTestDB(t)
+	t.Cleanup(cleanup)
+	return testCtx
+}
+
+func (ctx *componentCacheTestContext) requireComponent(t *testing.T, want cachedComponent, msg string) {
+	component, err := ctx.componentCacheRM.GetByID(tenantContext(), want.id)
+	require.NoError(t, err)
+	require.NotNil(t, component, msg)
+	assert.Equal(t, want.id, component.ID)
+	assert.Equal(t, want.name, component.Name)
+}
+
+func (ctx *componentCacheTestContext) requireNoComponent(t *testing.T, id, msg string) {
+	component, err := ctx.componentCacheRM.GetByID(tenantContext(), id)
+	require.NoError(t, err)
+	assert.Nil(t, component, msg)
+}
+
 func (ctx *componentCacheTestContext) setTenantContext(t *testing.T) {
 	_, err := ctx.db.Exec(fmt.Sprintf("SET app.current_tenant = '%s'", testTenantID()))
 	require.NoError(t, err)
@@ -86,156 +115,98 @@ func (ctx *componentCacheTestContext) trackComponentID(id string) {
 	ctx.createdComponentIDs = append(ctx.createdComponentIDs, id)
 }
 
-func (ctx *componentCacheTestContext) publishComponentCreated(t *testing.T, id, name string) {
-	event := archEvents.NewApplicationComponentCreated(id, name, "test description")
-	err := ctx.eventBus.Publish(tenantContext(), []domain.DomainEvent{event})
-	require.NoError(t, err)
-	ctx.trackComponentID(id)
-
-	time.Sleep(50 * time.Millisecond)
-}
-
-func (ctx *componentCacheTestContext) publishComponentUpdated(t *testing.T, id, name string) {
-	event := archEvents.NewApplicationComponentUpdated(id, name, "updated description")
+func (ctx *componentCacheTestContext) publishEvent(t *testing.T, event domain.DomainEvent) {
 	err := ctx.eventBus.Publish(tenantContext(), []domain.DomainEvent{event})
 	require.NoError(t, err)
 
 	time.Sleep(50 * time.Millisecond)
 }
 
-func (ctx *componentCacheTestContext) publishComponentDeleted(t *testing.T, id, name string) {
-	event := archEvents.NewApplicationComponentDeleted(id, name)
-	err := ctx.eventBus.Publish(tenantContext(), []domain.DomainEvent{event})
-	require.NoError(t, err)
+func (ctx *componentCacheTestContext) publishComponentCreated(t *testing.T, c cachedComponent) {
+	ctx.trackComponentID(c.id)
+	ctx.publishEvent(t, archEvents.NewApplicationComponentCreated(c.id, c.name, "test description"))
+}
 
-	time.Sleep(50 * time.Millisecond)
+func (ctx *componentCacheTestContext) publishComponentUpdated(t *testing.T, c cachedComponent) {
+	ctx.publishEvent(t, archEvents.NewApplicationComponentUpdated(c.id, c.name, "updated description"))
+}
+
+func (ctx *componentCacheTestContext) publishComponentDeleted(t *testing.T, c cachedComponent) {
+	ctx.publishEvent(t, archEvents.NewApplicationComponentDeleted(c.id, c.name))
 }
 
 func TestComponentCache_PopulatedByCreatedEvent_Integration(t *testing.T) {
-	testCtx, cleanup := setupComponentCacheTestDB(t)
-	defer cleanup()
+	testCtx := newComponentCacheTest(t)
 
-	componentID := uuid.New().String()
-	componentName := "Test Component Created"
+	component := newCachedComponent("Test Component Created")
 
-	testCtx.publishComponentCreated(t, componentID, componentName)
+	testCtx.publishComponentCreated(t, component)
 
-	component, err := testCtx.componentCacheRM.GetByID(tenantContext(), componentID)
-	require.NoError(t, err)
-	require.NotNil(t, component, "Component should be in cache after Created event")
-
-	assert.Equal(t, componentID, component.ID)
-	assert.Equal(t, componentName, component.Name)
+	testCtx.requireComponent(t, component, "Component should be in cache after Created event")
 }
 
 func TestComponentCache_UpdatedByUpdateEvent_Integration(t *testing.T) {
-	testCtx, cleanup := setupComponentCacheTestDB(t)
-	defer cleanup()
+	testCtx := newComponentCacheTest(t)
 
-	componentID := uuid.New().String()
-	originalName := "Original Name"
-	updatedName := "Updated Name"
+	original := newCachedComponent("Original Name")
+	updated := cachedComponent{id: original.id, name: "Updated Name"}
 
-	testCtx.publishComponentCreated(t, componentID, originalName)
+	testCtx.publishComponentCreated(t, original)
+	testCtx.requireComponent(t, original, "Component should be in cache after Created event")
 
-	component, err := testCtx.componentCacheRM.GetByID(tenantContext(), componentID)
-	require.NoError(t, err)
-	require.NotNil(t, component)
-	assert.Equal(t, originalName, component.Name)
-
-	testCtx.publishComponentUpdated(t, componentID, updatedName)
-
-	component, err = testCtx.componentCacheRM.GetByID(tenantContext(), componentID)
-	require.NoError(t, err)
-	require.NotNil(t, component)
-	assert.Equal(t, updatedName, component.Name)
+	testCtx.publishComponentUpdated(t, updated)
+	testCtx.requireComponent(t, updated, "Component should reflect updated name")
 }
 
 func TestComponentCache_RemovedByDeleteEvent_Integration(t *testing.T) {
-	testCtx, cleanup := setupComponentCacheTestDB(t)
-	defer cleanup()
+	testCtx := newComponentCacheTest(t)
 
-	componentID := uuid.New().String()
-	componentName := "Component To Delete"
+	component := newCachedComponent("Component To Delete")
 
-	testCtx.publishComponentCreated(t, componentID, componentName)
+	testCtx.publishComponentCreated(t, component)
+	testCtx.requireComponent(t, component, "Component should exist before delete")
 
-	component, err := testCtx.componentCacheRM.GetByID(tenantContext(), componentID)
-	require.NoError(t, err)
-	require.NotNil(t, component, "Component should exist before delete")
-
-	testCtx.publishComponentDeleted(t, componentID, componentName)
-
-	component, err = testCtx.componentCacheRM.GetByID(tenantContext(), componentID)
-	require.NoError(t, err)
-	assert.Nil(t, component, "Component should be removed from cache after Delete event")
+	testCtx.publishComponentDeleted(t, component)
+	testCtx.requireNoComponent(t, component.id, "Component should be removed from cache after Delete event")
 }
 
 func TestComponentCache_MultipleComponents_Integration(t *testing.T) {
-	testCtx, cleanup := setupComponentCacheTestDB(t)
-	defer cleanup()
+	testCtx := newComponentCacheTest(t)
 
-	comp1ID := uuid.New().String()
-	comp2ID := uuid.New().String()
-	comp3ID := uuid.New().String()
+	comp1 := newCachedComponent("Component 1")
+	comp2 := newCachedComponent("Component 2")
+	comp3 := newCachedComponent("Component 3")
 
-	testCtx.publishComponentCreated(t, comp1ID, "Component 1")
-	testCtx.publishComponentCreated(t, comp2ID, "Component 2")
-	testCtx.publishComponentCreated(t, comp3ID, "Component 3")
+	testCtx.publishComponentCreated(t, comp1)
+	testCtx.publishComponentCreated(t, comp2)
+	testCtx.publishComponentCreated(t, comp3)
 
-	comp1, err := testCtx.componentCacheRM.GetByID(tenantContext(), comp1ID)
-	require.NoError(t, err)
-	require.NotNil(t, comp1)
-	assert.Equal(t, "Component 1", comp1.Name)
+	testCtx.requireComponent(t, comp1, "Component 1 should exist")
+	testCtx.requireComponent(t, comp2, "Component 2 should exist")
+	testCtx.requireComponent(t, comp3, "Component 3 should exist")
 
-	comp2, err := testCtx.componentCacheRM.GetByID(tenantContext(), comp2ID)
-	require.NoError(t, err)
-	require.NotNil(t, comp2)
-	assert.Equal(t, "Component 2", comp2.Name)
+	testCtx.publishComponentDeleted(t, comp2)
 
-	comp3, err := testCtx.componentCacheRM.GetByID(tenantContext(), comp3ID)
-	require.NoError(t, err)
-	require.NotNil(t, comp3)
-	assert.Equal(t, "Component 3", comp3.Name)
-
-	testCtx.publishComponentDeleted(t, comp2ID, "Component 2")
-
-	comp1, err = testCtx.componentCacheRM.GetByID(tenantContext(), comp1ID)
-	require.NoError(t, err)
-	assert.NotNil(t, comp1, "Component 1 should still exist")
-
-	comp2, err = testCtx.componentCacheRM.GetByID(tenantContext(), comp2ID)
-	require.NoError(t, err)
-	assert.Nil(t, comp2, "Component 2 should be deleted")
-
-	comp3, err = testCtx.componentCacheRM.GetByID(tenantContext(), comp3ID)
-	require.NoError(t, err)
-	assert.NotNil(t, comp3, "Component 3 should still exist")
+	testCtx.requireComponent(t, comp1, "Component 1 should still exist")
+	testCtx.requireNoComponent(t, comp2.id, "Component 2 should be deleted")
+	testCtx.requireComponent(t, comp3, "Component 3 should still exist")
 }
 
 func TestComponentCache_NonExistentComponent_ReturnsNil_Integration(t *testing.T) {
-	testCtx, cleanup := setupComponentCacheTestDB(t)
-	defer cleanup()
+	testCtx := newComponentCacheTest(t)
 
 	nonExistentID := uuid.New().String()
 
-	component, err := testCtx.componentCacheRM.GetByID(tenantContext(), nonExistentID)
-	require.NoError(t, err)
-	assert.Nil(t, component, "Should return nil for non-existent component")
+	testCtx.requireNoComponent(t, nonExistentID, "Should return nil for non-existent component")
 }
 
 func TestComponentCache_UpdateNonExistent_CreatesEntry_Integration(t *testing.T) {
-	testCtx, cleanup := setupComponentCacheTestDB(t)
-	defer cleanup()
+	testCtx := newComponentCacheTest(t)
 
-	componentID := uuid.New().String()
-	componentName := "Created via Update"
+	component := newCachedComponent("Created via Update")
 
-	testCtx.trackComponentID(componentID)
-	testCtx.publishComponentUpdated(t, componentID, componentName)
+	testCtx.trackComponentID(component.id)
+	testCtx.publishComponentUpdated(t, component)
 
-	component, err := testCtx.componentCacheRM.GetByID(tenantContext(), componentID)
-	require.NoError(t, err)
-	require.NotNil(t, component, "Update event should create entry if not exists (upsert behavior)")
-	assert.Equal(t, componentName, component.Name)
+	testCtx.requireComponent(t, component, "Update event should create entry if not exists (upsert behavior)")
 }

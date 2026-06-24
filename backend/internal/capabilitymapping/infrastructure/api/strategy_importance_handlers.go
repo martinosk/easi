@@ -223,13 +223,10 @@ func (h *StrategyImportanceHandlers) RemoveImportance(w http.ResponseWriter, r *
 func (h *StrategyImportanceHandlers) GetImportanceByDomain(w http.ResponseWriter, r *http.Request) {
 	domainID := chi.URLParam(r, "id")
 
-	h.respondWithImportanceCollection(w, r, importanceCollectionQuery{
-		fetcher: func() ([]readmodels.StrategyImportanceDTO, error) {
+	h.respondWithSelfLinkedImportance(w, r, domainID, "/api/v1/business-domains/"+domainID+"/importance",
+		func() ([]readmodels.StrategyImportanceDTO, error) {
 			return h.importanceRM.GetByDomain(r.Context(), domainID)
-		},
-		domainID: domainID,
-		links:    selfOnlyLinks("/api/v1/business-domains/" + domainID + "/importance"),
-	})
+		})
 }
 
 // GetImportanceByCapability godoc
@@ -245,11 +242,17 @@ func (h *StrategyImportanceHandlers) GetImportanceByDomain(w http.ResponseWriter
 func (h *StrategyImportanceHandlers) GetImportanceByCapability(w http.ResponseWriter, r *http.Request) {
 	capabilityID := chi.URLParam(r, "id")
 
-	h.respondWithImportanceCollection(w, r, importanceCollectionQuery{
-		fetcher: func() ([]readmodels.StrategyImportanceDTO, error) {
+	h.respondWithSelfLinkedImportance(w, r, "", "/api/v1/capabilities/"+capabilityID+"/importance",
+		func() ([]readmodels.StrategyImportanceDTO, error) {
 			return h.importanceRM.GetByCapability(r.Context(), capabilityID)
-		},
-		links: selfOnlyLinks("/api/v1/capabilities/" + capabilityID + "/importance"),
+		})
+}
+
+func (h *StrategyImportanceHandlers) respondWithSelfLinkedImportance(w http.ResponseWriter, r *http.Request, domainID, selfPath string, fetcher func() ([]readmodels.StrategyImportanceDTO, error)) {
+	h.respondWithImportanceCollection(w, r, importanceCollectionQuery{
+		fetcher:  fetcher,
+		domainID: domainID,
+		links:    selfOnlyLinks(selfPath),
 	})
 }
 
