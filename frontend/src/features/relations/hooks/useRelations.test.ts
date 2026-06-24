@@ -49,6 +49,21 @@ describe('useRelations hooks', () => {
     vi.restoreAllMocks();
   });
 
+  async function expectMutationErrorToast<TVariables>(
+    useMutationHook: () => { mutateAsync: (variables: TVariables) => Promise<unknown> },
+    variables: TVariables,
+  ) {
+    const { result } = renderHook(useMutationHook, {
+      wrapper: createWrapper(queryClient),
+    });
+
+    await act(async () => {
+      try {
+        await result.current.mutateAsync(variables);
+      } catch {}
+    });
+  }
+
   describe('useRelations', () => {
     it('should fetch all relations', async () => {
       const relations = [
@@ -166,23 +181,12 @@ describe('useRelations hooks', () => {
     });
 
     it('should show error toast on failure', async () => {
-      const error = new Error('Source and target must be different');
-      vi.mocked(relationsApi.create).mockRejectedValue(error);
+      vi.mocked(relationsApi.create).mockRejectedValue(new Error('Source and target must be different'));
 
-      const { result } = renderHook(() => useCreateRelation(), {
-        wrapper: createWrapper(queryClient),
-      });
-
-      await act(async () => {
-        try {
-          await result.current.mutateAsync({
-            sourceComponentId: 'comp-1' as ComponentId,
-            targetComponentId: 'comp-1' as ComponentId,
-            relationType: 'Triggers',
-          });
-        } catch {
-          // Expected to throw
-        }
+      await expectMutationErrorToast(useCreateRelation, {
+        sourceComponentId: 'comp-1' as ComponentId,
+        targetComponentId: 'comp-1' as ComponentId,
+        relationType: 'Triggers',
       });
 
       expect(toast.error).toHaveBeenCalledWith('Source and target must be different');
@@ -230,22 +234,11 @@ describe('useRelations hooks', () => {
         id: 'rel-1' as RelationId,
         name: 'Original Name',
       });
-      const error = new Error('Update failed');
-      vi.mocked(relationsApi.update).mockRejectedValue(error);
+      vi.mocked(relationsApi.update).mockRejectedValue(new Error('Update failed'));
 
-      const { result } = renderHook(() => useUpdateRelation(), {
-        wrapper: createWrapper(queryClient),
-      });
-
-      await act(async () => {
-        try {
-          await result.current.mutateAsync({
-            relation: existingRelation,
-            request: { name: 'New Name' },
-          });
-        } catch {
-          // Expected to throw
-        }
+      await expectMutationErrorToast(useUpdateRelation, {
+        relation: existingRelation,
+        request: { name: 'New Name' },
       });
 
       expect(toast.error).toHaveBeenCalledWith('Update failed');
@@ -284,20 +277,9 @@ describe('useRelations hooks', () => {
         id: 'rel-1' as RelationId,
         name: 'To Delete',
       });
-      const error = new Error('Cannot delete relation');
-      vi.mocked(relationsApi.delete).mockRejectedValue(error);
+      vi.mocked(relationsApi.delete).mockRejectedValue(new Error('Cannot delete relation'));
 
-      const { result } = renderHook(() => useDeleteRelation(), {
-        wrapper: createWrapper(queryClient),
-      });
-
-      await act(async () => {
-        try {
-          await result.current.mutateAsync(relation);
-        } catch {
-          // Expected to throw
-        }
-      });
+      await expectMutationErrorToast(useDeleteRelation, relation);
 
       expect(toast.error).toHaveBeenCalledWith('Cannot delete relation');
     });
