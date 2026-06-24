@@ -59,6 +59,21 @@ function createWrapper(queryClient: QueryClient) {
 describe('useViews hooks', () => {
   let queryClient: QueryClient;
 
+  function renderMutation<TArgs, TResult>(hook: () => { mutateAsync: (args: TArgs) => Promise<TResult> }) {
+    const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    const { result } = renderHook(hook, { wrapper: createWrapper(queryClient) });
+    const run = (args: TArgs) => act(async () => void (await result.current.mutateAsync(args)));
+    return { invalidateQueriesSpy, run };
+  }
+
+  function expectInvalidatedLists(spy: ReturnType<typeof vi.spyOn>) {
+    expect(spy).toHaveBeenCalledWith({ queryKey: viewsQueryKeys.lists() });
+  }
+
+  function expectInvalidatedDetail(spy: ReturnType<typeof vi.spyOn>, viewId: string) {
+    expect(spy).toHaveBeenCalledWith({ queryKey: viewsQueryKeys.detail(viewId) });
+  }
+
   beforeEach(() => {
     vi.clearAllMocks();
     queryClient = new QueryClient({
@@ -142,29 +157,16 @@ describe('useViews hooks', () => {
   describe('useCreateView', () => {
     it('should create a view and invalidate cache', async () => {
       const newView = buildView({ id: 'view-2' as ViewId, name: 'New View' });
-
       vi.mocked(viewsApi.create).mockResolvedValue(newView);
-      const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
-      const { result } = renderHook(() => useCreateView(), {
-        wrapper: createWrapper(queryClient),
-      });
-
-      await act(async () => {
-        await result.current.mutateAsync({
-          name: 'New View',
-          description: 'Test description',
-        });
-      });
+      const { invalidateQueriesSpy, run } = renderMutation(useCreateView);
+      await run({ name: 'New View', description: 'Test description' });
 
       expect(viewsApi.create).toHaveBeenCalledWith({
         name: 'New View',
         description: 'Test description',
       });
-
-      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: viewsQueryKeys.lists(),
-      });
+      expectInvalidatedLists(invalidateQueriesSpy);
       expect(toast.success).toHaveBeenCalledWith('View "New View" created');
     });
 
@@ -192,23 +194,12 @@ describe('useViews hooks', () => {
     it('should delete view and invalidate cache', async () => {
       const view = buildView({ id: 'view-1' as ViewId, name: 'To Delete' });
       vi.mocked(viewsApi.delete).mockResolvedValue(undefined);
-      const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
-      const { result } = renderHook(() => useDeleteView(), {
-        wrapper: createWrapper(queryClient),
-      });
+      const { invalidateQueriesSpy, run } = renderMutation(useDeleteView);
+      await run(view);
 
-      await act(async () => {
-        await result.current.mutateAsync(view);
-      });
-
-      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: viewsQueryKeys.lists(),
-      });
-      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: viewsQueryKeys.detail('view-1'),
-      });
-
+      expectInvalidatedLists(invalidateQueriesSpy);
+      expectInvalidatedDetail(invalidateQueriesSpy, 'view-1');
       expect(toast.success).toHaveBeenCalledWith('View deleted');
     });
   });
@@ -216,26 +207,12 @@ describe('useViews hooks', () => {
   describe('useRenameView', () => {
     it('should rename view and invalidate cache', async () => {
       vi.mocked(viewsApi.rename).mockResolvedValue(undefined);
-      const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
-      const { result } = renderHook(() => useRenameView(), {
-        wrapper: createWrapper(queryClient),
-      });
+      const { invalidateQueriesSpy, run } = renderMutation(useRenameView);
+      await run({ viewId: 'view-1' as ViewId, request: { name: 'New Name' } });
 
-      await act(async () => {
-        await result.current.mutateAsync({
-          viewId: 'view-1' as ViewId,
-          request: { name: 'New Name' },
-        });
-      });
-
-      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: viewsQueryKeys.lists(),
-      });
-      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: viewsQueryKeys.detail('view-1'),
-      });
-
+      expectInvalidatedLists(invalidateQueriesSpy);
+      expectInvalidatedDetail(invalidateQueriesSpy, 'view-1');
       expect(toast.success).toHaveBeenCalledWith('View renamed');
     });
   });
@@ -243,20 +220,11 @@ describe('useViews hooks', () => {
   describe('useSetDefaultView', () => {
     it('should set default view and invalidate cache', async () => {
       vi.mocked(viewsApi.setDefault).mockResolvedValue(undefined);
-      const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
-      const { result } = renderHook(() => useSetDefaultView(), {
-        wrapper: createWrapper(queryClient),
-      });
+      const { invalidateQueriesSpy, run } = renderMutation(useSetDefaultView);
+      await run('view-2' as ViewId);
 
-      await act(async () => {
-        await result.current.mutateAsync('view-2' as ViewId);
-      });
-
-      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: viewsQueryKeys.lists(),
-      });
-
+      expectInvalidatedLists(invalidateQueriesSpy);
       expect(toast.success).toHaveBeenCalledWith('Default view updated');
     });
   });
@@ -264,21 +232,11 @@ describe('useViews hooks', () => {
   describe('useAddComponentToView', () => {
     it('should add component to view and invalidate view detail', async () => {
       vi.mocked(viewsApi.addComponent).mockResolvedValue(undefined);
-      const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
-      const { result } = renderHook(() => useAddComponentToView(), {
-        wrapper: createWrapper(queryClient),
-      });
-
-      await act(async () => {
-        await result.current.mutateAsync({
-          viewId: 'view-1' as ViewId,
-          request: {
-            componentId: 'comp-1' as ComponentId,
-            x: 100,
-            y: 200,
-          },
-        });
+      const { invalidateQueriesSpy, run } = renderMutation(useAddComponentToView);
+      await run({
+        viewId: 'view-1' as ViewId,
+        request: { componentId: 'comp-1' as ComponentId, x: 100, y: 200 },
       });
 
       expect(viewsApi.addComponent).toHaveBeenCalledWith('view-1', {
@@ -286,10 +244,7 @@ describe('useViews hooks', () => {
         x: 100,
         y: 200,
       });
-
-      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: viewsQueryKeys.detail('view-1'),
-      });
+      expectInvalidatedDetail(invalidateQueriesSpy, 'view-1');
     });
 
     it('should show error toast on failure', async () => {
@@ -318,24 +273,12 @@ describe('useViews hooks', () => {
   describe('useRemoveComponentFromView', () => {
     it('should remove component from view and invalidate view detail', async () => {
       vi.mocked(viewsApi.removeComponent).mockResolvedValue(undefined);
-      const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
-      const { result } = renderHook(() => useRemoveComponentFromView(), {
-        wrapper: createWrapper(queryClient),
-      });
-
-      await act(async () => {
-        await result.current.mutateAsync({
-          viewId: 'view-1' as ViewId,
-          componentId: 'comp-1' as ComponentId,
-        });
-      });
+      const { invalidateQueriesSpy, run } = renderMutation(useRemoveComponentFromView);
+      await run({ viewId: 'view-1' as ViewId, componentId: 'comp-1' as ComponentId });
 
       expect(viewsApi.removeComponent).toHaveBeenCalledWith('view-1', 'comp-1');
-
-      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: viewsQueryKeys.detail('view-1'),
-      });
+      expectInvalidatedDetail(invalidateQueriesSpy, 'view-1');
     });
   });
 });
