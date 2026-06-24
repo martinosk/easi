@@ -40,6 +40,12 @@ function noLinks(): { modelLinks: HATEOASLinks; viewElementLinks: HATEOASLinks }
   return { modelLinks: {}, viewElementLinks: {} };
 }
 
+type NodeLinks = { modelLinks: HATEOASLinks; viewElementLinks: HATEOASLinks };
+
+function twoNodes(first: NodeLinks, second: NodeLinks): NodeContextMenu[] {
+  return [makeNode({ nodeId: '1', ...first }), makeNode({ nodeId: '2', ...second })];
+}
+
 describe('computeAvailableActions', () => {
   it('returns empty for fewer than 2 nodes', () => {
     const single = [makeNode(linksWithRemoveAndDelete())];
@@ -71,38 +77,25 @@ describe('computeAvailableActions', () => {
   });
 
   it('returns only removeFromView when all can remove but not all can delete', () => {
-    const nodes = [
-      makeNode({ nodeId: '1', ...linksWithRemoveAndDelete() }),
-      makeNode({ nodeId: '2', ...linksWithRemoveOnly() }),
-    ];
-    const actions = computeAvailableActions(nodes);
+    const actions = computeAvailableActions(twoNodes(linksWithRemoveAndDelete(), linksWithRemoveOnly()));
     expect(actions).toHaveLength(1);
     expect(actions[0].type).toBe('removeFromView');
     expect(actions[0].label).toBe('Remove from View (2 items)');
   });
 
   it('returns only deleteFromModel when all can delete but not all can remove', () => {
-    const nodes = [
-      makeNode({ nodeId: '1', ...linksWithRemoveAndDelete() }),
-      makeNode({ nodeId: '2', ...linksWithDeleteOnly() }),
-    ];
-    const actions = computeAvailableActions(nodes);
+    const actions = computeAvailableActions(twoNodes(linksWithRemoveAndDelete(), linksWithDeleteOnly()));
     expect(actions).toHaveLength(1);
     expect(actions[0].type).toBe('deleteFromModel');
   });
 
   it('returns empty when no common actions', () => {
-    const nodes = [
-      makeNode({ nodeId: '1', ...linksWithRemoveOnly() }),
-      makeNode({ nodeId: '2', ...linksWithDeleteOnly() }),
-    ];
-    const actions = computeAvailableActions(nodes);
+    const actions = computeAvailableActions(twoNodes(linksWithRemoveOnly(), linksWithDeleteOnly()));
     expect(actions).toHaveLength(0);
   });
 
   it('returns empty when one node has no links', () => {
-    const nodes = [makeNode({ nodeId: '1', ...linksWithRemoveAndDelete() }), makeNode({ nodeId: '2', ...noLinks() })];
-    const actions = computeAvailableActions(nodes);
+    const actions = computeAvailableActions(twoNodes(linksWithRemoveAndDelete(), noLinks()));
     expect(actions).toHaveLength(0);
   });
 

@@ -31,103 +31,95 @@ const Harness: React.FC<{ onHandleClick: ClickFn; threshold?: number }> = ({
   );
 };
 
+type EventInit = { clientX: number; clientY: number; button?: number };
+
+type ClickSequence = {
+  threshold?: number;
+  downId: string;
+  upId: string;
+  down: EventInit;
+  up?: EventInit;
+};
+
+const fireClickSequence = ({ threshold, downId, upId, down, up = down }: ClickSequence) => {
+  const onHandleClick = vi.fn();
+  const { getByTestId } = render(<Harness onHandleClick={onHandleClick} threshold={threshold} />);
+  fireEvent.mouseDown(getByTestId(downId), down);
+  fireEvent.mouseUp(getByTestId(upId), up);
+  return onHandleClick;
+};
+
 describe('useHandleClickDetection', () => {
-  it('fires onHandleClick when mousedown and mouseup happen on the same handle without movement', () => {
-    const onHandleClick = vi.fn();
-    const { getByTestId } = render(<Harness onHandleClick={onHandleClick} />);
-    const handle = getByTestId('h-right-source');
+  const firesCases: ReadonlyArray<{
+    name: string;
+    sequence: ClickSequence;
+    expected: { nodeId: string; side: string; clientX: number; clientY: number };
+  }> = [
+    {
+      name: 'fires onHandleClick when mousedown and mouseup happen on the same handle without movement',
+      sequence: { downId: 'h-right-source', upId: 'h-right-source', down: { clientX: 50, clientY: 60 } },
+      expected: { nodeId: 'comp-1', side: 'right', clientX: 50, clientY: 60 },
+    },
+    {
+      name: 'fires when mouseup lands on the sibling source/target handle on the same side',
+      sequence: { downId: 'h-right-source', upId: 'h-right-target', down: { clientX: 50, clientY: 60 } },
+      expected: { nodeId: 'comp-1', side: 'right', clientX: 50, clientY: 60 },
+    },
+    {
+      name: 'reports the correct side for each handle position',
+      sequence: { downId: 'h-top-2', upId: 'h-top-2', down: { clientX: 70, clientY: 80 } },
+      expected: { nodeId: 'comp-2', side: 'top', clientX: 70, clientY: 80 },
+    },
+    {
+      name: 'reads nodeId from data-nodeid on the handle when present (React Flow style)',
+      sequence: { downId: 'rf-handle', upId: 'rf-handle', down: { clientX: 5, clientY: 5 } },
+      expected: { nodeId: 'rf-comp-99', side: 'left', clientX: 5, clientY: 5 },
+    },
+  ];
 
-    fireEvent.mouseDown(handle, { clientX: 50, clientY: 60 });
-    fireEvent.mouseUp(handle, { clientX: 50, clientY: 60 });
+  it.each(firesCases)('$name', ({ sequence, expected }) => {
+    const onHandleClick = fireClickSequence(sequence);
 
-    expect(onHandleClick).toHaveBeenCalledTimes(1);
-    expect(onHandleClick).toHaveBeenCalledWith({
-      nodeId: 'comp-1',
-      side: 'right',
-      clientX: 50,
-      clientY: 60,
-    });
+    expect(onHandleClick).toHaveBeenCalledWith(expected);
   });
 
-  it('fires when mouseup lands on the sibling source/target handle on the same side', () => {
-    const onHandleClick = vi.fn();
-    const { getByTestId } = render(<Harness onHandleClick={onHandleClick} />);
+  const ignoresCases: ReadonlyArray<{ name: string; sequence: ClickSequence }> = [
+    {
+      name: 'does not fire when movement exceeds the threshold (drag)',
+      sequence: {
+        threshold: 5,
+        downId: 'h-right-source',
+        upId: 'h-right-source',
+        down: { clientX: 50, clientY: 60 },
+        up: { clientX: 100, clientY: 60 },
+      },
+    },
+    {
+      name: 'does not fire when mousedown was not on a handle',
+      sequence: { downId: 'not-a-handle', upId: 'not-a-handle', down: { clientX: 10, clientY: 10 } },
+    },
+    {
+      name: 'does not fire when mouseup happens on a handle on a different side',
+      sequence: {
+        downId: 'h-right-source',
+        upId: 'h-left',
+        down: { clientX: 50, clientY: 60 },
+        up: { clientX: 51, clientY: 61 },
+      },
+    },
+    {
+      name: 'ignores non-primary mouse buttons (right-click)',
+      sequence: {
+        downId: 'h-right-source',
+        upId: 'h-right-source',
+        down: { button: 2, clientX: 50, clientY: 60 },
+      },
+    },
+  ];
 
-    fireEvent.mouseDown(getByTestId('h-right-source'), { clientX: 50, clientY: 60 });
-    fireEvent.mouseUp(getByTestId('h-right-target'), { clientX: 50, clientY: 60 });
-
-    expect(onHandleClick).toHaveBeenCalledTimes(1);
-    expect(onHandleClick).toHaveBeenCalledWith({
-      nodeId: 'comp-1',
-      side: 'right',
-      clientX: 50,
-      clientY: 60,
-    });
-  });
-
-  it('does not fire when movement exceeds the threshold (drag)', () => {
-    const onHandleClick = vi.fn();
-    const { getByTestId } = render(<Harness onHandleClick={onHandleClick} threshold={5} />);
-    const handle = getByTestId('h-right-source');
-
-    fireEvent.mouseDown(handle, { clientX: 50, clientY: 60 });
-    fireEvent.mouseUp(handle, { clientX: 100, clientY: 60 });
+  it.each(ignoresCases)('$name', ({ sequence }) => {
+    const onHandleClick = fireClickSequence(sequence);
 
     expect(onHandleClick).not.toHaveBeenCalled();
-  });
-
-  it('does not fire when mousedown was not on a handle', () => {
-    const onHandleClick = vi.fn();
-    const { getByTestId } = render(<Harness onHandleClick={onHandleClick} />);
-    const notAHandle = getByTestId('not-a-handle');
-
-    fireEvent.mouseDown(notAHandle, { clientX: 10, clientY: 10 });
-    fireEvent.mouseUp(notAHandle, { clientX: 10, clientY: 10 });
-
-    expect(onHandleClick).not.toHaveBeenCalled();
-  });
-
-  it('does not fire when mouseup happens on a handle on a different side', () => {
-    const onHandleClick = vi.fn();
-    const { getByTestId } = render(<Harness onHandleClick={onHandleClick} />);
-
-    fireEvent.mouseDown(getByTestId('h-right-source'), { clientX: 50, clientY: 60 });
-    fireEvent.mouseUp(getByTestId('h-left'), { clientX: 51, clientY: 61 });
-
-    expect(onHandleClick).not.toHaveBeenCalled();
-  });
-
-  it('ignores non-primary mouse buttons (right-click)', () => {
-    const onHandleClick = vi.fn();
-    const { getByTestId } = render(<Harness onHandleClick={onHandleClick} />);
-    const handle = getByTestId('h-right-source');
-
-    fireEvent.mouseDown(handle, { button: 2, clientX: 50, clientY: 60 });
-    fireEvent.mouseUp(handle, { button: 2, clientX: 50, clientY: 60 });
-
-    expect(onHandleClick).not.toHaveBeenCalled();
-  });
-
-  it('reports the correct side for each handle position', () => {
-    const onHandleClick = vi.fn();
-    const { getByTestId } = render(<Harness onHandleClick={onHandleClick} />);
-
-    fireEvent.mouseDown(getByTestId('h-top-2'), { clientX: 70, clientY: 80 });
-    fireEvent.mouseUp(getByTestId('h-top-2'), { clientX: 70, clientY: 80 });
-
-    expect(onHandleClick).toHaveBeenCalledWith({
-      nodeId: 'comp-2',
-      side: 'top',
-      clientX: 70,
-      clientY: 80,
-    });
-  });
-
-  it('reads nodeId from data-nodeid on the handle when present (React Flow style)', () => {
-    const onHandleClick = vi.fn();
-    const { getByTestId } = render(<Harness onHandleClick={onHandleClick} />);
-    fireEvent.mouseDown(getByTestId('rf-handle'), { clientX: 5, clientY: 5 });
-    fireEvent.mouseUp(getByTestId('rf-handle'), { clientX: 5, clientY: 5 });
-    expect(onHandleClick).toHaveBeenCalledWith({ nodeId: 'rf-comp-99', side: 'left', clientX: 5, clientY: 5 });
   });
 });
