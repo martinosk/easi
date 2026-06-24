@@ -1,10 +1,7 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { Alert, Button, Group, Modal, Stack, Textarea, TextInput } from '@mantine/core';
-import React, { useLayoutEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import type { InternalTeam, InternalTeamId } from '../../../api/types';
-import { type EditInternalTeamFormData, editInternalTeamSchema } from '../../../lib/schemas';
-import { useUpdateInternalTeam } from '../hooks/useInternalTeams';
+import React from 'react';
+import type { InternalTeam } from '../../../api/types';
+import { useEditInternalTeamForm } from './useEditInternalTeamForm';
 
 interface EditInternalTeamDialogProps {
   isOpen: boolean;
@@ -13,66 +10,13 @@ interface EditInternalTeamDialogProps {
 }
 
 export const EditInternalTeamDialog: React.FC<EditInternalTeamDialogProps> = ({ isOpen, onClose, team }) => {
-  const [backendError, setBackendError] = useState<string | null>(null);
-  const updateMutation = useUpdateInternalTeam();
-
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors, isValid },
-  } = useForm<EditInternalTeamFormData>({
-    resolver: zodResolver(editInternalTeamSchema),
-    mode: 'onChange',
-  });
-
-  useLayoutEffect(() => {
-    if (isOpen && team) {
-      reset({
-        name: team.name,
-        department: team.department || '',
-        contactPerson: team.contactPerson || '',
-        notes: team.notes || '',
-      });
-      if (backendError !== null) queueMicrotask(() => setBackendError(null));
-    }
-  }, [isOpen, team, reset, backendError]);
-
-  const handleClose = () => {
-    onClose();
-  };
-
-  const onSubmit = async (data: EditInternalTeamFormData) => {
-    if (!team) return;
-
-    setBackendError(null);
-    try {
-      await updateMutation.mutateAsync({
-        id: team.id as InternalTeamId,
-        request: {
-          name: data.name,
-          department: data.department || undefined,
-          contactPerson: data.contactPerson || undefined,
-          notes: data.notes || undefined,
-        },
-      });
-      handleClose();
-    } catch (err) {
-      setBackendError(err instanceof Error ? err.message : 'Failed to update internal team');
-    }
-  };
+  const { register, errors, isValid, backendError, isPending, submit } = useEditInternalTeamForm(isOpen, team, onClose);
 
   if (!team) return null;
 
   return (
-    <Modal
-      opened={isOpen}
-      onClose={handleClose}
-      title="Edit Internal Team"
-      centered
-      data-testid="edit-internal-team-dialog"
-    >
-      <form onSubmit={handleSubmit(onSubmit)}>
+    <Modal opened={isOpen} onClose={onClose} title="Edit Internal Team" centered data-testid="edit-internal-team-dialog">
+      <form onSubmit={submit}>
         <Stack gap="md">
           <TextInput
             label="Name"
@@ -81,7 +25,7 @@ export const EditInternalTeamDialog: React.FC<EditInternalTeamDialogProps> = ({ 
             required
             withAsterisk
             autoFocus
-            disabled={updateMutation.isPending}
+            disabled={isPending}
             error={errors.name?.message}
             data-testid="edit-internal-team-name-input"
           />
@@ -90,7 +34,7 @@ export const EditInternalTeamDialog: React.FC<EditInternalTeamDialogProps> = ({ 
             label="Department"
             placeholder="Enter department (optional)"
             {...register('department')}
-            disabled={updateMutation.isPending}
+            disabled={isPending}
             error={errors.department?.message}
             data-testid="edit-internal-team-department-input"
           />
@@ -99,7 +43,7 @@ export const EditInternalTeamDialog: React.FC<EditInternalTeamDialogProps> = ({ 
             label="Contact Person"
             placeholder="Enter contact person (optional)"
             {...register('contactPerson')}
-            disabled={updateMutation.isPending}
+            disabled={isPending}
             error={errors.contactPerson?.message}
             data-testid="edit-internal-team-contact-input"
           />
@@ -109,7 +53,7 @@ export const EditInternalTeamDialog: React.FC<EditInternalTeamDialogProps> = ({ 
             placeholder="Enter notes (optional)"
             {...register('notes')}
             rows={3}
-            disabled={updateMutation.isPending}
+            disabled={isPending}
             error={errors.notes?.message}
             data-testid="edit-internal-team-notes-input"
           />
@@ -121,20 +65,10 @@ export const EditInternalTeamDialog: React.FC<EditInternalTeamDialogProps> = ({ 
           )}
 
           <Group justify="flex-end" gap="sm">
-            <Button
-              variant="default"
-              onClick={handleClose}
-              disabled={updateMutation.isPending}
-              data-testid="edit-internal-team-cancel"
-            >
+            <Button variant="default" onClick={onClose} disabled={isPending} data-testid="edit-internal-team-cancel">
               Cancel
             </Button>
-            <Button
-              type="submit"
-              loading={updateMutation.isPending}
-              disabled={!isValid}
-              data-testid="edit-internal-team-submit"
-            >
+            <Button type="submit" loading={isPending} disabled={!isValid} data-testid="edit-internal-team-submit">
               Save Changes
             </Button>
           </Group>

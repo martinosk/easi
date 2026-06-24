@@ -1,3 +1,4 @@
+import type { ZodTypeAny } from 'zod';
 import { describe, expect, it } from 'vitest';
 import {
   createAcquiredEntitySchema,
@@ -7,6 +8,19 @@ import {
   editInternalTeamSchema,
   editVendorSchema,
 } from './originEntity';
+
+const expectTrimsField = (
+  schema: ZodTypeAny,
+  input: Record<string, unknown>,
+  field: string,
+  expected: string,
+): void => {
+  const result = schema.safeParse(input);
+  expect(result.success).toBe(true);
+  if (result.success) {
+    expect((result.data as Record<string, unknown>)[field]).toBe(expected);
+  }
+};
 
 describe('createAcquiredEntitySchema', () => {
   describe('name validation', () => {
@@ -18,13 +32,7 @@ describe('createAcquiredEntitySchema', () => {
     });
 
     it('should trim whitespace from name', () => {
-      const result = createAcquiredEntitySchema.safeParse({
-        name: '  TechCorp  ',
-      });
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.name).toBe('TechCorp');
-      }
+      expectTrimsField(createAcquiredEntitySchema, { name: '  TechCorp  ' }, 'name', 'TechCorp');
     });
 
     it('should reject empty name', () => {
@@ -133,14 +141,7 @@ describe('createAcquiredEntitySchema', () => {
     });
 
     it('should trim whitespace from notes', () => {
-      const result = createAcquiredEntitySchema.safeParse({
-        name: 'TechCorp',
-        notes: '  Some notes  ',
-      });
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.notes).toBe('Some notes');
-      }
+      expectTrimsField(createAcquiredEntitySchema, { name: 'TechCorp', notes: '  Some notes  ' }, 'notes', 'Some notes');
     });
 
     it('should reject notes exceeding 500 characters', () => {
@@ -190,13 +191,7 @@ describe('createVendorSchema', () => {
     });
 
     it('should trim whitespace from name', () => {
-      const result = createVendorSchema.safeParse({
-        name: '  SAP  ',
-      });
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.name).toBe('SAP');
-      }
+      expectTrimsField(createVendorSchema, { name: '  SAP  ' }, 'name', 'SAP');
     });
 
     it('should reject empty name', () => {
@@ -231,14 +226,12 @@ describe('createVendorSchema', () => {
     });
 
     it('should trim whitespace from implementation partner', () => {
-      const result = createVendorSchema.safeParse({
-        name: 'SAP',
-        implementationPartner: '  Accenture  ',
-      });
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.implementationPartner).toBe('Accenture');
-      }
+      expectTrimsField(
+        createVendorSchema,
+        { name: 'SAP', implementationPartner: '  Accenture  ' },
+        'implementationPartner',
+        'Accenture',
+      );
     });
 
     it('should reject implementation partner exceeding 100 characters', () => {
@@ -304,13 +297,7 @@ describe('createInternalTeamSchema', () => {
     });
 
     it('should trim whitespace from name', () => {
-      const result = createInternalTeamSchema.safeParse({
-        name: '  Platform Engineering  ',
-      });
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.name).toBe('Platform Engineering');
-      }
+      expectTrimsField(createInternalTeamSchema, { name: '  Platform Engineering  ' }, 'name', 'Platform Engineering');
     });
 
     it('should reject empty name', () => {
@@ -345,14 +332,12 @@ describe('createInternalTeamSchema', () => {
     });
 
     it('should trim whitespace from department', () => {
-      const result = createInternalTeamSchema.safeParse({
-        name: 'Platform Engineering',
-        department: '  Technology  ',
-      });
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.department).toBe('Technology');
-      }
+      expectTrimsField(
+        createInternalTeamSchema,
+        { name: 'Platform Engineering', department: '  Technology  ' },
+        'department',
+        'Technology',
+      );
     });
 
     it('should reject department exceeding 100 characters', () => {
@@ -381,14 +366,12 @@ describe('createInternalTeamSchema', () => {
     });
 
     it('should trim whitespace from contact person', () => {
-      const result = createInternalTeamSchema.safeParse({
-        name: 'Platform Engineering',
-        contactPerson: '  John Doe  ',
-      });
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.contactPerson).toBe('John Doe');
-      }
+      expectTrimsField(
+        createInternalTeamSchema,
+        { name: 'Platform Engineering', contactPerson: '  John Doe  ' },
+        'contactPerson',
+        'John Doe',
+      );
     });
 
     it('should reject contact person exceeding 100 characters', () => {

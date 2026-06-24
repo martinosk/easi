@@ -18,6 +18,7 @@ import type {
   VendorId,
   VendorsResponse,
 } from '../../../api/types';
+import { linkOriginComponent } from './linkOriginComponent';
 
 export const originEntitiesApi = {
   async getAllOriginRelationships(): Promise<AllOriginRelationshipsResponse> {
@@ -55,11 +56,7 @@ export const originEntitiesApi = {
       acquiredEntityId: AcquiredEntityId,
       notes?: string,
     ): Promise<OriginRelationship> {
-      const response = await httpClient.put<OriginRelationship>(
-        `/api/v1/components/${componentId}/origin/acquired-via`,
-        { acquiredEntityId, componentId, notes },
-      );
-      return response.data;
+      return linkOriginComponent(componentId, 'acquired-via', { acquiredEntityId, notes });
     },
 
     async unlinkComponent(componentId: string): Promise<void> {
@@ -93,11 +90,7 @@ export const originEntitiesApi = {
     },
 
     async linkComponent(componentId: string, vendorId: VendorId, notes?: string): Promise<OriginRelationship> {
-      const response = await httpClient.put<OriginRelationship>(
-        `/api/v1/components/${componentId}/origin/purchased-from`,
-        { vendorId, componentId, notes },
-      );
-      return response.data;
+      return linkOriginComponent(componentId, 'purchased-from', { vendorId, notes });
     },
 
     async unlinkComponent(componentId: string): Promise<void> {
@@ -135,12 +128,7 @@ export const originEntitiesApi = {
       internalTeamId: InternalTeamId,
       notes?: string,
     ): Promise<OriginRelationship> {
-      const response = await httpClient.put<OriginRelationship>(`/api/v1/components/${componentId}/origin/built-by`, {
-        internalTeamId,
-        componentId,
-        notes,
-      });
-      return response.data;
+      return linkOriginComponent(componentId, 'built-by', { internalTeamId, notes });
     },
 
     async unlinkComponent(componentId: string): Promise<void> {
