@@ -80,6 +80,20 @@ func (ctx *userTestContext) trackID(id string) {
 	ctx.createdIDs = append(ctx.createdIDs, id)
 }
 
+func newUserTestFixture(t *testing.T) (*userTestContext, *userTestFixture) {
+	testCtx, cleanup := setupUserTestDB(t)
+	t.Cleanup(cleanup)
+	return testCtx, setupUserHandlers(testCtx.db)
+}
+
+func (ctx *userTestContext) demoteExistingAdmins(t *testing.T) {
+	t.Helper()
+	_, err := ctx.db.Exec("SET app.current_tenant = 'acme'")
+	require.NoError(t, err)
+	_, err = ctx.db.Exec("UPDATE auth.users SET role = 'architect' WHERE role = 'admin'")
+	require.NoError(t, err)
+}
+
 type userTestFixture struct {
 	handlers       *UserHandlers
 	readModel      *readmodels.UserReadModel
@@ -186,8 +200,21 @@ func createTestUserSession(userID string) session.AuthSession {
 	return authSession
 }
 
-func (ctx *userTestContext) createUser(t *testing.T, email, role string) string {
+type userSpec struct {
+	email string
+	role  string
+}
+
+func (ctx *userTestContext) newUserSpec(prefix, role string) userSpec {
+	return userSpec{
+		email: fmt.Sprintf("%s-%s@acme.com", prefix, ctx.testID),
+		role:  role,
+	}
+}
+
+func (ctx *userTestContext) createUser(t *testing.T, spec userSpec) string {
 	t.Helper()
+	email, role := spec.email, spec.role
 	tenantDB := database.NewTenantAwareDB(ctx.db)
 	eventStore := eventstore.NewPostgresEventStore(tenantDB)
 	eventBus := events.NewInMemoryEventBus()
@@ -251,6 +278,13 @@ func (f *userTestFixture) patchUser(t *testing.T, userID string, body []byte) Us
 	return response
 }
 
+func (f *userTestFixture) requireUser(t *testing.T, userID string) *readmodels.UserDTO {
+	t.Helper()
+	user, err := f.readModel.GetByIDString(tenantContext(), userID)
+	require.NoError(t, err)
+	return user
+}
+
 func (f *userTestFixture) assertPatchConflict(t *testing.T, userID string, body []byte, expectedMsg string) {
 	t.Helper()
 	rec := f.authenticatedRequest(t, http.MethodPatch, fmt.Sprintf("/api/v1/users/%s", userID), body)
@@ -277,9 +311,9 @@ func TestGetAllUsers_Integration(t *testing.T) {
 
 	fixture := setupUserHandlers(testCtx.db)
 
-	adminID := testCtx.createUser(t, fmt.Sprintf("admin-list-%s@acme.com", testCtx.testID), "admin")
+	adminID := testCtx.createUser(t, testCtx.newUserSpec("admin-list", "admin"))
 	for i := 0; i < 3; i++ {
-		testCtx.createUser(t, fmt.Sprintf("list-user-%d-%s@acme.com", i, testCtx.testID), "architect")
+		testCtx.createUser(t, testCtx.newUserSpec(fmt.Sprintf("list-user-%d", i), "architect"))
 	}
 
 	fixture.setupAuthenticated(t, adminID)
@@ -293,9 +327,10 @@ func TestGetUserByID_Integration(t *testing.T) {
 
 	fixture := setupUserHandlers(testCtx.db)
 
-	adminID := testCtx.createUser(t, fmt.Sprintf("admin-getbyid-%s@acme.com", testCtx.testID), "admin")
-	email := fmt.Sprintf("get-user-%s@acme.com", testCtx.testID)
-	userID := testCtx.createUser(t, email, "stakeholder")
+	adminID := testCtx.createUser(t, testCtx.newUserSpec("admin-getbyid", "admin"))
+	spec := testCtx.newUserSpec("get-user", "stakeholder")
+	email := spec.email
+	userID := testCtx.createUser(t, spec)
 
 	fixture.setupAuthenticated(t, adminID)
 	rec := fixture.authenticatedRequest(t, http.MethodGet, fmt.Sprintf("/api/v1/users/%s", userID), nil)
@@ -317,7 +352,7 @@ func TestGetUserByID_NotFound_Integration(t *testing.T) {
 
 	fixture := setupUserHandlers(testCtx.db)
 
-	adminID := testCtx.createUser(t, fmt.Sprintf("admin-notfound-%s@acme.com", testCtx.testID), "admin")
+	adminID := testCtx.createUser(t, testCtx.newUserSpec("admin-notfound", "admin"))
 
 	fixture.setupAuthenticated(t, adminID)
 	rec := fixture.authenticatedRequest(t, http.MethodGet, fmt.Sprintf("/api/v1/users/%s", uuid.New().String()), nil)
@@ -325,22 +360,17 @@ func TestGetUserByID_NotFound_Integration(t *testing.T) {
 }
 
 func TestChangeUserRole_Integration(t *testing.T) {
-	testCtx, cleanup := setupUserTestDB(t)
-	defer cleanup()
+	testCtx, fixture := newUserTestFixture(t)
 
-	fixture := setupUserHandlers(testCtx.db)
-
-	adminID := testCtx.createUser(t, fmt.Sprintf("admin-changerole-%s@acme.com", testCtx.testID), "admin")
-	userID := testCtx.createUser(t, fmt.Sprintf("change-role-%s@acme.com", testCtx.testID), "architect")
+	adminID := testCtx.createUser(t, testCtx.newUserSpec("admin-changerole", "admin"))
+	userID := testCtx.createUser(t, testCtx.newUserSpec("change-role", "architect"))
 
 	fixture.setupAuthenticated(t, adminID)
 	body, _ := json.Marshal(UpdateUserRequest{Role: stringPtr("stakeholder")})
 	response := fixture.patchUser(t, userID, body)
 	assert.Equal(t, "stakeholder", response.Role)
 
-	user, err := fixture.readModel.GetByIDString(tenantContext(), userID)
-	require.NoError(t, err)
-	assert.Equal(t, "stakeholder", user.Role)
+	assert.Equal(t, "stakeholder", fixture.requireUser(t, userID).Role)
 }
 
 func TestChangeUserRole_InvalidRole_Integration(t *testing.T) {
@@ -349,8 +379,8 @@ func TestChangeUserRole_InvalidRole_Integration(t *testing.T) {
 
 	fixture := setupUserHandlers(testCtx.db)
 
-	adminID := testCtx.createUser(t, fmt.Sprintf("admin-invalidrole-%s@acme.com", testCtx.testID), "admin")
-	userID := testCtx.createUser(t, fmt.Sprintf("invalid-role-%s@acme.com", testCtx.testID), "architect")
+	adminID := testCtx.createUser(t, testCtx.newUserSpec("admin-invalidrole", "admin"))
+	userID := testCtx.createUser(t, testCtx.newUserSpec("invalid-role", "architect"))
 
 	fixture.setupAuthenticated(t, adminID)
 	body, _ := json.Marshal(UpdateUserRequest{Role: stringPtr("superadmin")})
@@ -359,22 +389,17 @@ func TestChangeUserRole_InvalidRole_Integration(t *testing.T) {
 }
 
 func TestDisableUser_Integration(t *testing.T) {
-	testCtx, cleanup := setupUserTestDB(t)
-	defer cleanup()
+	testCtx, fixture := newUserTestFixture(t)
 
-	fixture := setupUserHandlers(testCtx.db)
-
-	adminID := testCtx.createUser(t, fmt.Sprintf("admin-disable-%s@acme.com", testCtx.testID), "admin")
-	userID := testCtx.createUser(t, fmt.Sprintf("disable-user-%s@acme.com", testCtx.testID), "architect")
+	adminID := testCtx.createUser(t, testCtx.newUserSpec("admin-disable", "admin"))
+	userID := testCtx.createUser(t, testCtx.newUserSpec("disable-user", "architect"))
 
 	fixture.setupAuthenticated(t, adminID)
 	body, _ := json.Marshal(UpdateUserRequest{Status: stringPtr("disabled")})
 	response := fixture.patchUser(t, userID, body)
 	assert.Equal(t, "disabled", response.Status)
 
-	user, err := fixture.readModel.GetByIDString(tenantContext(), userID)
-	require.NoError(t, err)
-	assert.Equal(t, "disabled", user.Status)
+	assert.Equal(t, "disabled", fixture.requireUser(t, userID).Status)
 }
 
 func TestEnableUser_Integration(t *testing.T) {
@@ -383,8 +408,8 @@ func TestEnableUser_Integration(t *testing.T) {
 
 	fixture := setupUserHandlers(testCtx.db)
 
-	adminID := testCtx.createUser(t, fmt.Sprintf("admin-enable-%s@acme.com", testCtx.testID), "admin")
-	userID := testCtx.createUser(t, fmt.Sprintf("enable-user-%s@acme.com", testCtx.testID), "architect")
+	adminID := testCtx.createUser(t, testCtx.newUserSpec("admin-enable", "admin"))
+	userID := testCtx.createUser(t, testCtx.newUserSpec("enable-user", "architect"))
 
 	ctx := tenantContext()
 	_, err := fixture.commandBus.Dispatch(ctx, &commands.DisableUser{
@@ -404,68 +429,65 @@ func TestEnableUser_Integration(t *testing.T) {
 	assert.Equal(t, "active", response.Status)
 }
 
-func TestCannotDemoteLastAdmin_Integration(t *testing.T) {
-	testCtx, cleanup := setupUserTestDB(t)
-	defer cleanup()
-
-	_, err := testCtx.db.Exec("SET app.current_tenant = 'acme'")
-	require.NoError(t, err)
-	_, err = testCtx.db.Exec("UPDATE auth.users SET role = 'architect' WHERE role = 'admin'")
-	require.NoError(t, err)
-
-	fixture := setupUserHandlers(testCtx.db)
-
-	adminID := testCtx.createUser(t, fmt.Sprintf("sole-admin-demote-%s@acme.com", testCtx.testID), "admin")
-	otherUserID := testCtx.createUser(t, fmt.Sprintf("other-user-demote-%s@acme.com", testCtx.testID), "architect")
-
-	fixture.setupAuthenticated(t, otherUserID)
-	body, _ := json.Marshal(UpdateUserRequest{Role: stringPtr("architect")})
-	fixture.assertPatchConflict(t, adminID, body, "last admin")
-
-	admin, err := fixture.readModel.GetByIDString(tenantContext(), adminID)
-	require.NoError(t, err)
-	assert.Equal(t, "admin", admin.Role)
+type conflictCase struct {
+	name        string
+	arrange     func(t *testing.T, testCtx *userTestContext, fixture *userTestFixture) (actorID, targetID string)
+	request     UpdateUserRequest
+	expectedMsg string
+	verify      func(t *testing.T, user *readmodels.UserDTO)
 }
 
-func TestCannotDisableSelf_Integration(t *testing.T) {
-	testCtx, cleanup := setupUserTestDB(t)
-	defer cleanup()
+func TestUpdateUser_ConflictScenarios_Integration(t *testing.T) {
+	tests := []conflictCase{
+		{
+			name: "cannot demote last admin",
+			arrange: func(t *testing.T, testCtx *userTestContext, fixture *userTestFixture) (string, string) {
+				testCtx.demoteExistingAdmins(t)
+				adminID := testCtx.createUser(t, testCtx.newUserSpec("sole-admin-demote", "admin"))
+				otherUserID := testCtx.createUser(t, testCtx.newUserSpec("other-user-demote", "architect"))
+				return otherUserID, adminID
+			},
+			request:     UpdateUserRequest{Role: stringPtr("architect")},
+			expectedMsg: "last admin",
+			verify:      func(t *testing.T, user *readmodels.UserDTO) { assert.Equal(t, "admin", user.Role) },
+		},
+		{
+			name: "cannot disable self",
+			arrange: func(t *testing.T, testCtx *userTestContext, fixture *userTestFixture) (string, string) {
+				testCtx.createUser(t, testCtx.newUserSpec("other-admin-self", "admin"))
+				userID := testCtx.createUser(t, testCtx.newUserSpec("self-disable", "admin"))
+				return userID, userID
+			},
+			request:     UpdateUserRequest{Status: stringPtr("disabled")},
+			expectedMsg: "own account",
+			verify:      func(t *testing.T, user *readmodels.UserDTO) { assert.Equal(t, "active", user.Status) },
+		},
+		{
+			name: "cannot disable last admin",
+			arrange: func(t *testing.T, testCtx *userTestContext, fixture *userTestFixture) (string, string) {
+				testCtx.demoteExistingAdmins(t)
+				adminID := testCtx.createUser(t, testCtx.newUserSpec("sole-admin-disable", "admin"))
+				otherUserID := testCtx.createUser(t, testCtx.newUserSpec("other-user-disable", "architect"))
+				return otherUserID, adminID
+			},
+			request:     UpdateUserRequest{Status: stringPtr("disabled")},
+			expectedMsg: "last admin",
+			verify:      func(t *testing.T, user *readmodels.UserDTO) { assert.Equal(t, "active", user.Status) },
+		},
+	}
 
-	fixture := setupUserHandlers(testCtx.db)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testCtx, fixture := newUserTestFixture(t)
+			actorID, targetID := tt.arrange(t, testCtx, fixture)
 
-	testCtx.createUser(t, fmt.Sprintf("other-admin-self-%s@acme.com", testCtx.testID), "admin")
-	userID := testCtx.createUser(t, fmt.Sprintf("self-disable-%s@acme.com", testCtx.testID), "admin")
+			fixture.setupAuthenticated(t, actorID)
+			body, _ := json.Marshal(tt.request)
+			fixture.assertPatchConflict(t, targetID, body, tt.expectedMsg)
 
-	fixture.setupAuthenticated(t, userID)
-	body, _ := json.Marshal(UpdateUserRequest{Status: stringPtr("disabled")})
-	fixture.assertPatchConflict(t, userID, body, "own account")
-
-	user, err := fixture.readModel.GetByIDString(tenantContext(), userID)
-	require.NoError(t, err)
-	assert.Equal(t, "active", user.Status)
-}
-
-func TestCannotDisableLastAdmin_Integration(t *testing.T) {
-	testCtx, cleanup := setupUserTestDB(t)
-	defer cleanup()
-
-	_, err := testCtx.db.Exec("SET app.current_tenant = 'acme'")
-	require.NoError(t, err)
-	_, err = testCtx.db.Exec("UPDATE auth.users SET role = 'architect' WHERE role = 'admin'")
-	require.NoError(t, err)
-
-	fixture := setupUserHandlers(testCtx.db)
-
-	adminID := testCtx.createUser(t, fmt.Sprintf("sole-admin-disable-%s@acme.com", testCtx.testID), "admin")
-	otherUserID := testCtx.createUser(t, fmt.Sprintf("other-user-disable-%s@acme.com", testCtx.testID), "architect")
-
-	fixture.setupAuthenticated(t, otherUserID)
-	body, _ := json.Marshal(UpdateUserRequest{Status: stringPtr("disabled")})
-	fixture.assertPatchConflict(t, adminID, body, "last admin")
-
-	admin, err := fixture.readModel.GetByIDString(tenantContext(), adminID)
-	require.NoError(t, err)
-	assert.Equal(t, "active", admin.Status)
+			tt.verify(t, fixture.requireUser(t, targetID))
+		})
+	}
 }
 
 func TestDemoteAdmin_WithMultipleAdmins_Integration(t *testing.T) {
@@ -474,8 +496,8 @@ func TestDemoteAdmin_WithMultipleAdmins_Integration(t *testing.T) {
 
 	fixture := setupUserHandlers(testCtx.db)
 
-	admin1ID := testCtx.createUser(t, fmt.Sprintf("admin1-%s@acme.com", testCtx.testID), "admin")
-	admin2ID := testCtx.createUser(t, fmt.Sprintf("admin2-%s@acme.com", testCtx.testID), "admin")
+	admin1ID := testCtx.createUser(t, testCtx.newUserSpec("admin1", "admin"))
+	admin2ID := testCtx.createUser(t, testCtx.newUserSpec("admin2", "admin"))
 
 	fixture.setupAuthenticated(t, admin2ID)
 	body, _ := json.Marshal(UpdateUserRequest{Role: stringPtr("architect")})
@@ -497,9 +519,9 @@ func TestFilterUsersByStatus_Integration(t *testing.T) {
 
 	fixture := setupUserHandlers(testCtx.db)
 
-	adminID := testCtx.createUser(t, fmt.Sprintf("admin-filter-status-%s@acme.com", testCtx.testID), "admin")
-	testCtx.createUser(t, fmt.Sprintf("filter-active-%s@acme.com", testCtx.testID), "architect")
-	disabledUserID := testCtx.createUser(t, fmt.Sprintf("filter-disabled-%s@acme.com", testCtx.testID), "stakeholder")
+	adminID := testCtx.createUser(t, testCtx.newUserSpec("admin-filter-status", "admin"))
+	testCtx.createUser(t, testCtx.newUserSpec("filter-active", "architect"))
+	disabledUserID := testCtx.createUser(t, testCtx.newUserSpec("filter-disabled", "stakeholder"))
 
 	ctx := tenantContext()
 	_, err := fixture.commandBus.Dispatch(ctx, &commands.DisableUser{
@@ -523,8 +545,8 @@ func TestFilterUsersByRole_Integration(t *testing.T) {
 
 	fixture := setupUserHandlers(testCtx.db)
 
-	adminID := testCtx.createUser(t, fmt.Sprintf("role-admin-%s@acme.com", testCtx.testID), "admin")
-	testCtx.createUser(t, fmt.Sprintf("role-architect-%s@acme.com", testCtx.testID), "architect")
+	adminID := testCtx.createUser(t, testCtx.newUserSpec("role-admin", "admin"))
+	testCtx.createUser(t, testCtx.newUserSpec("role-architect", "architect"))
 
 	fixture.setupAuthenticated(t, adminID)
 	data := fixture.listUsersData(t, "role=admin&limit=50")
