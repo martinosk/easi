@@ -28,6 +28,43 @@ function createGrant(overrides: Partial<EditGrant> = {}): EditGrant {
   };
 }
 
+function mockGrantsQuery(query: Record<string, unknown>) {
+  vi.mocked(useEditGrantsForArtifact).mockReturnValue({
+    error: null,
+    isError: false,
+    ...query,
+  } as unknown as ReturnType<typeof useEditGrantsForArtifact>);
+}
+
+function mockGrantsLoaded(data: EditGrant[]) {
+  mockGrantsQuery({
+    data,
+    isLoading: false,
+    isPending: false,
+    isSuccess: true,
+    status: 'success',
+  });
+}
+
+function mockGrantsLoading() {
+  mockGrantsQuery({
+    data: undefined,
+    isLoading: true,
+    isPending: true,
+    isSuccess: false,
+    status: 'pending',
+  });
+}
+
+function createDeletableGrant() {
+  return createGrant({
+    id: 'g1',
+    _links: {
+      delete: { href: '/api/v1/edit-grants/g1', method: 'DELETE' },
+    },
+  });
+}
+
 describe('EditGrantsList', () => {
   const mockMutate = vi.fn();
 
@@ -56,15 +93,7 @@ describe('EditGrantsList', () => {
 
   describe('Loading state', () => {
     it('should show loading spinner while data is loading', () => {
-      vi.mocked(useEditGrantsForArtifact).mockReturnValue({
-        data: undefined,
-        isLoading: true,
-        error: null,
-        isError: false,
-        isPending: true,
-        isSuccess: false,
-        status: 'pending',
-      } as unknown as ReturnType<typeof useEditGrantsForArtifact>);
+      mockGrantsLoading();
 
       renderList();
 
@@ -74,15 +103,7 @@ describe('EditGrantsList', () => {
 
   describe('Empty state', () => {
     it('should show empty state when no grants exist', () => {
-      vi.mocked(useEditGrantsForArtifact).mockReturnValue({
-        data: [],
-        isLoading: false,
-        error: null,
-        isError: false,
-        isPending: false,
-        isSuccess: true,
-        status: 'success',
-      } as unknown as ReturnType<typeof useEditGrantsForArtifact>);
+      mockGrantsLoaded([]);
 
       renderList();
 
@@ -102,15 +123,7 @@ describe('EditGrantsList', () => {
         }),
       ];
 
-      vi.mocked(useEditGrantsForArtifact).mockReturnValue({
-        data: grants,
-        isLoading: false,
-        error: null,
-        isError: false,
-        isPending: false,
-        isSuccess: true,
-        status: 'success',
-      } as unknown as ReturnType<typeof useEditGrantsForArtifact>);
+      mockGrantsLoaded(grants);
 
       renderList();
 
@@ -122,15 +135,7 @@ describe('EditGrantsList', () => {
     });
 
     it('should display column headers', () => {
-      vi.mocked(useEditGrantsForArtifact).mockReturnValue({
-        data: [createGrant()],
-        isLoading: false,
-        error: null,
-        isError: false,
-        isPending: false,
-        isSuccess: true,
-        status: 'success',
-      } as unknown as ReturnType<typeof useEditGrantsForArtifact>);
+      mockGrantsLoaded([createGrant()]);
 
       renderList();
 
@@ -150,15 +155,7 @@ describe('EditGrantsList', () => {
     ];
 
     beforeEach(() => {
-      vi.mocked(useEditGrantsForArtifact).mockReturnValue({
-        data: mixedGrants,
-        isLoading: false,
-        error: null,
-        isError: false,
-        isPending: false,
-        isSuccess: true,
-        status: 'success',
-      } as unknown as ReturnType<typeof useEditGrantsForArtifact>);
+      mockGrantsLoaded(mixedGrants);
     });
 
     it('should render filter buttons for all statuses', () => {
@@ -209,15 +206,7 @@ describe('EditGrantsList', () => {
     });
 
     it('should show empty state when filter matches no grants', () => {
-      vi.mocked(useEditGrantsForArtifact).mockReturnValue({
-        data: [createGrant({ id: 'active-1', status: 'active' })],
-        isLoading: false,
-        error: null,
-        isError: false,
-        isPending: false,
-        isSuccess: true,
-        status: 'success',
-      } as unknown as ReturnType<typeof useEditGrantsForArtifact>);
+      mockGrantsLoaded([createGrant({ id: 'active-1', status: 'active' })]);
 
       renderList();
 
@@ -229,22 +218,7 @@ describe('EditGrantsList', () => {
 
   describe('Revoke action', () => {
     it('should show revoke button when delete link is present', () => {
-      const grant = createGrant({
-        id: 'g1',
-        _links: {
-          delete: { href: '/api/v1/edit-grants/g1', method: 'DELETE' },
-        },
-      });
-
-      vi.mocked(useEditGrantsForArtifact).mockReturnValue({
-        data: [grant],
-        isLoading: false,
-        error: null,
-        isError: false,
-        isPending: false,
-        isSuccess: true,
-        status: 'success',
-      } as unknown as ReturnType<typeof useEditGrantsForArtifact>);
+      mockGrantsLoaded([createDeletableGrant()]);
 
       renderList();
 
@@ -254,15 +228,7 @@ describe('EditGrantsList', () => {
     it('should not show revoke button when delete link is absent', () => {
       const grant = createGrant({ id: 'g1', status: 'revoked', _links: {} });
 
-      vi.mocked(useEditGrantsForArtifact).mockReturnValue({
-        data: [grant],
-        isLoading: false,
-        error: null,
-        isError: false,
-        isPending: false,
-        isSuccess: true,
-        status: 'success',
-      } as unknown as ReturnType<typeof useEditGrantsForArtifact>);
+      mockGrantsLoaded([grant]);
 
       renderList();
 
@@ -270,22 +236,7 @@ describe('EditGrantsList', () => {
     });
 
     it('should call revokeGrant.mutate with grant id when revoke is clicked', () => {
-      const grant = createGrant({
-        id: 'g1',
-        _links: {
-          delete: { href: '/api/v1/edit-grants/g1', method: 'DELETE' },
-        },
-      });
-
-      vi.mocked(useEditGrantsForArtifact).mockReturnValue({
-        data: [grant],
-        isLoading: false,
-        error: null,
-        isError: false,
-        isPending: false,
-        isSuccess: true,
-        status: 'success',
-      } as unknown as ReturnType<typeof useEditGrantsForArtifact>);
+      mockGrantsLoaded([createDeletableGrant()]);
 
       renderList();
 

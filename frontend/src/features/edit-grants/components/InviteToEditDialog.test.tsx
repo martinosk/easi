@@ -29,6 +29,16 @@ describe('InviteToEditDialog', () => {
     );
   }
 
+  function submitWithEmail(email: string) {
+    renderDialog();
+
+    fireEvent.change(screen.getByTestId('grantee-email-input'), {
+      target: { value: email },
+    });
+
+    fireEvent.submit(screen.getByTestId('grant-submit-btn').closest('form')!);
+  }
+
   describe('Dialog rendering', () => {
     it('should render dialog with title and description', () => {
       renderDialog();
@@ -117,13 +127,7 @@ describe('InviteToEditDialog', () => {
     it('should display error message when submission fails', async () => {
       mockOnSubmit.mockRejectedValueOnce(new Error('Cannot grant edit access to yourself'));
 
-      renderDialog();
-
-      fireEvent.change(screen.getByTestId('grantee-email-input'), {
-        target: { value: 'user@example.com' },
-      });
-
-      fireEvent.submit(screen.getByTestId('grant-submit-btn').closest('form')!);
+      submitWithEmail('user@example.com');
 
       await waitFor(() => {
         expect(screen.getByTestId('grant-error-message')).toHaveTextContent('Cannot grant edit access to yourself');
@@ -135,13 +139,7 @@ describe('InviteToEditDialog', () => {
     it('should display generic error for non-Error exceptions', async () => {
       mockOnSubmit.mockRejectedValueOnce('unknown');
 
-      renderDialog();
-
-      fireEvent.change(screen.getByTestId('grantee-email-input'), {
-        target: { value: 'user@example.com' },
-      });
-
-      fireEvent.submit(screen.getByTestId('grant-submit-btn').closest('form')!);
+      submitWithEmail('user@example.com');
 
       await waitFor(() => {
         expect(screen.getByTestId('grant-error-message')).toHaveTextContent('Failed to grant edit access');
