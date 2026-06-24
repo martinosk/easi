@@ -31,50 +31,31 @@ func TestNewOIDCConfig_ValidWithPrivateKeyJWTMethod(t *testing.T) {
 	assert.Equal(t, OIDCAuthMethodPrivateKeyJWT, config.AuthMethod())
 }
 
-func TestNewOIDCConfig_EmptyDiscoveryURL(t *testing.T) {
-	_, err := NewOIDCConfig("", "client-id", OIDCAuthMethodClientSecret, "openid")
-	assert.Error(t, err)
-	assert.Equal(t, ErrOIDCDiscoveryURLEmpty, err)
-}
+func TestNewOIDCConfig_ValidationErrors(t *testing.T) {
+	const validURL = "https://example.com/.well-known/openid-configuration"
 
-func TestNewOIDCConfig_InvalidDiscoveryURL(t *testing.T) {
-	_, err := NewOIDCConfig("not-a-url", "client-id", OIDCAuthMethodClientSecret, "openid")
-	assert.Error(t, err)
-	assert.Equal(t, ErrOIDCDiscoveryURLInvalid, err)
-}
+	tests := []struct {
+		name         string
+		discoveryURL string
+		clientID     string
+		authMethod   OIDCAuthMethod
+		expectedErr  error
+	}{
+		{"empty discovery url", "", "client-id", OIDCAuthMethodClientSecret, ErrOIDCDiscoveryURLEmpty},
+		{"invalid discovery url", "not-a-url", "client-id", OIDCAuthMethodClientSecret, ErrOIDCDiscoveryURLInvalid},
+		{"http discovery url", "http://example.com/.well-known/openid-configuration", "client-id", OIDCAuthMethodClientSecret, ErrOIDCDiscoveryURLNotHTTPS},
+		{"empty client id", validURL, "", OIDCAuthMethodClientSecret, ErrOIDCClientIDEmpty},
+		{"invalid auth method", validURL, "client-id", OIDCAuthMethod("invalid"), ErrOIDCAuthMethodInvalid},
+		{"empty auth method", validURL, "client-id", OIDCAuthMethod(""), ErrOIDCAuthMethodInvalid},
+	}
 
-func TestNewOIDCConfig_HTTPDiscoveryURL(t *testing.T) {
-	_, err := NewOIDCConfig("http://example.com/.well-known/openid-configuration", "client-id", OIDCAuthMethodClientSecret, "openid")
-	assert.Error(t, err)
-	assert.Equal(t, ErrOIDCDiscoveryURLNotHTTPS, err)
-}
-
-func TestNewOIDCConfig_EmptyClientID(t *testing.T) {
-	_, err := NewOIDCConfig("https://example.com/.well-known/openid-configuration", "", OIDCAuthMethodClientSecret, "openid")
-	assert.Error(t, err)
-	assert.Equal(t, ErrOIDCClientIDEmpty, err)
-}
-
-func TestNewOIDCConfig_InvalidAuthMethod(t *testing.T) {
-	_, err := NewOIDCConfig(
-		"https://example.com/.well-known/openid-configuration",
-		"client-id",
-		OIDCAuthMethod("invalid"),
-		"openid",
-	)
-	assert.Error(t, err)
-	assert.Equal(t, ErrOIDCAuthMethodInvalid, err)
-}
-
-func TestNewOIDCConfig_EmptyAuthMethod(t *testing.T) {
-	_, err := NewOIDCConfig(
-		"https://example.com/.well-known/openid-configuration",
-		"client-id",
-		OIDCAuthMethod(""),
-		"openid",
-	)
-	assert.Error(t, err)
-	assert.Equal(t, ErrOIDCAuthMethodInvalid, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := NewOIDCConfig(tt.discoveryURL, tt.clientID, tt.authMethod, "openid")
+			assert.Error(t, err)
+			assert.Equal(t, tt.expectedErr, err)
+		})
+	}
 }
 
 func TestNewOIDCConfig_DefaultScopes(t *testing.T) {

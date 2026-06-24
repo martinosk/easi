@@ -87,24 +87,56 @@ func TestUpdateBusinessDomainHandler_UpdatesBusinessDomain(t *testing.T) {
 	assert.Equal(t, "Updated Description", domain.Description().Value())
 }
 
-func TestUpdateBusinessDomainHandler_NameExistsForOtherDomain_ReturnsError(t *testing.T) {
-	domain := createTestBusinessDomain(t, "Original Name", "Description")
-	domainID := domain.ID()
-
-	mockRepo := &mockUpdateBusinessDomainRepository{domain: domain}
-	mockReadModel := &mockUpdateBusinessDomainReadModel{nameExists: true}
-
-	handler := NewUpdateBusinessDomainHandler(mockRepo, mockReadModel)
-
-	cmd := &commands.UpdateBusinessDomain{
-		ID:          domainID,
-		Name:        "Duplicate Name",
-		Description: "Description",
+func TestUpdateBusinessDomainHandler_ErrorPaths(t *testing.T) {
+	tests := []struct {
+		name       string
+		readModel  *mockUpdateBusinessDomainReadModel
+		cmdName    string
+		expectedIs error
+		msg        string
+	}{
+		{
+			name:       "name exists for other domain",
+			readModel:  &mockUpdateBusinessDomainReadModel{nameExists: true},
+			cmdName:    "Duplicate Name",
+			expectedIs: ErrBusinessDomainNameExists,
+			msg:        "Should not save when name exists",
+		},
+		{
+			name:      "invalid name",
+			readModel: &mockUpdateBusinessDomainReadModel{nameExists: false},
+			cmdName:   "",
+			msg:       "Should not save with invalid name",
+		},
+		{
+			name:      "read model error",
+			readModel: &mockUpdateBusinessDomainReadModel{checkErr: errors.New("database error")},
+			cmdName:   "New Name",
+		},
 	}
 
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.ErrorIs(t, err, ErrBusinessDomainNameExists)
-	assert.Equal(t, 0, mockRepo.savedCount, "Should not save when name exists")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			domain := createTestBusinessDomain(t, "Original Name", "Description")
+			mockRepo := &mockUpdateBusinessDomainRepository{domain: domain}
+			handler := NewUpdateBusinessDomainHandler(mockRepo, tt.readModel)
+
+			cmd := &commands.UpdateBusinessDomain{
+				ID:          domain.ID(),
+				Name:        tt.cmdName,
+				Description: "Description",
+			}
+
+			_, err := handler.Handle(context.Background(), cmd)
+
+			if tt.expectedIs != nil {
+				assert.ErrorIs(t, err, tt.expectedIs)
+			} else {
+				assert.Error(t, err)
+			}
+			assert.Equal(t, 0, mockRepo.savedCount, tt.msg)
+		})
+	}
 }
 
 func TestUpdateBusinessDomainHandler_DomainNotFound_ReturnsError(t *testing.T) {
@@ -125,26 +157,6 @@ func TestUpdateBusinessDomainHandler_DomainNotFound_ReturnsError(t *testing.T) {
 	assert.ErrorIs(t, err, ErrBusinessDomainNotFound)
 }
 
-func TestUpdateBusinessDomainHandler_InvalidName_ReturnsError(t *testing.T) {
-	domain := createTestBusinessDomain(t, "Original Name", "Description")
-	domainID := domain.ID()
-
-	mockRepo := &mockUpdateBusinessDomainRepository{domain: domain}
-	mockReadModel := &mockUpdateBusinessDomainReadModel{nameExists: false}
-
-	handler := NewUpdateBusinessDomainHandler(mockRepo, mockReadModel)
-
-	cmd := &commands.UpdateBusinessDomain{
-		ID:          domainID,
-		Name:        "",
-		Description: "Description",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.Error(t, err)
-	assert.Equal(t, 0, mockRepo.savedCount, "Should not save with invalid name")
-}
-
 func TestUpdateBusinessDomainHandler_InvalidCommand_ReturnsError(t *testing.T) {
 	mockRepo := &mockUpdateBusinessDomainRepository{}
 	mockReadModel := &mockUpdateBusinessDomainReadModel{}
@@ -155,24 +167,4 @@ func TestUpdateBusinessDomainHandler_InvalidCommand_ReturnsError(t *testing.T) {
 
 	_, err := handler.Handle(context.Background(), invalidCmd)
 	assert.ErrorIs(t, err, cqrs.ErrInvalidCommand)
-}
-
-func TestUpdateBusinessDomainHandler_ReadModelError_ReturnsError(t *testing.T) {
-	domain := createTestBusinessDomain(t, "Original Name", "Description")
-	domainID := domain.ID()
-
-	mockRepo := &mockUpdateBusinessDomainRepository{domain: domain}
-	mockReadModel := &mockUpdateBusinessDomainReadModel{checkErr: errors.New("database error")}
-
-	handler := NewUpdateBusinessDomainHandler(mockRepo, mockReadModel)
-
-	cmd := &commands.UpdateBusinessDomain{
-		ID:          domainID,
-		Name:        "New Name",
-		Description: "Description",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.Error(t, err)
-	assert.Equal(t, 0, mockRepo.savedCount)
 }

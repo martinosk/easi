@@ -28,19 +28,47 @@ func (m *mockAssignmentReadModelForDomain) GetByCapabilityID(ctx context.Context
 	return nil, nil
 }
 
-func TestOnBusinessDomainDeletedHandler_NoAssignments_NoCommandsDispatched(t *testing.T) {
-	commandBus := &mockCommandBus{}
-	readModel := &mockAssignmentReadModelForDomain{
-		assignmentsByDomain: []readmodels.AssignmentDTO{},
+func TestOnBusinessDomainDeletedHandler_DispatchesPerAssignment(t *testing.T) {
+	tests := []struct {
+		name        string
+		assignments []readmodels.AssignmentDTO
+		queryError  error
+		expectErr   bool
+		expectCount int
+	}{
+		{
+			name:        "no assignments",
+			assignments: []readmodels.AssignmentDTO{},
+		},
+		{
+			name:       "read model error",
+			queryError: errors.New("database error"),
+			expectErr:  true,
+		},
 	}
 
-	handler := NewOnBusinessDomainDeletedHandler(commandBus, readModel)
-	event := events.NewBusinessDomainDeleted("bd-123")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			commandBus := &mockCommandBus{}
+			readModel := &mockAssignmentReadModelForDomain{
+				assignmentsByDomain: tt.assignments,
+				queryError:          tt.queryError,
+			}
 
-	err := handler.Handle(context.Background(), event)
+			handler := NewOnBusinessDomainDeletedHandler(commandBus, readModel)
+			event := events.NewBusinessDomainDeleted("bd-123")
 
-	assert.NoError(t, err)
-	assert.Empty(t, commandBus.dispatchedCommands)
+			err := handler.Handle(context.Background(), event)
+
+			if tt.expectErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), "database error")
+				return
+			}
+			assert.NoError(t, err)
+			assert.Len(t, commandBus.dispatchedCommands, tt.expectCount)
+		})
+	}
 }
 
 func TestOnBusinessDomainDeletedHandler_OneAssignment_DispatchesUnassignCommand(t *testing.T) {
@@ -96,21 +124,6 @@ func TestOnBusinessDomainDeletedHandler_MultipleAssignments_DispatchesAllUnassig
 	assert.Contains(t, assignmentIDs, "assign-1")
 	assert.Contains(t, assignmentIDs, "assign-2")
 	assert.Contains(t, assignmentIDs, "assign-3")
-}
-
-func TestOnBusinessDomainDeletedHandler_ReadModelError_ReturnsError(t *testing.T) {
-	commandBus := &mockCommandBus{}
-	readModel := &mockAssignmentReadModelForDomain{
-		queryError: errors.New("database error"),
-	}
-
-	handler := NewOnBusinessDomainDeletedHandler(commandBus, readModel)
-	event := events.NewBusinessDomainDeleted("bd-123")
-
-	err := handler.Handle(context.Background(), event)
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "database error")
 }
 
 func TestOnBusinessDomainDeletedHandler_CommandDispatchError_ContinuesWithOtherCommands(t *testing.T) {

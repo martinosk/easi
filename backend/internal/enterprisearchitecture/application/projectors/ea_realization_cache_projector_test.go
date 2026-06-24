@@ -101,7 +101,7 @@ func TestRealizationCache_DeleteEvents(t *testing.T) {
 		{
 			"realization deleted removes by ID",
 			cmPL.SystemRealizationDeleted,
-			systemRealizationDeletedEvent{},
+			identifiedEvent{},
 			func(t *testing.T, m *mockRealizationCacheReadModel, id string) {
 				require.Len(t, m.deletedIDs, 1)
 				assert.Equal(t, id, m.deletedIDs[0])
@@ -110,7 +110,7 @@ func TestRealizationCache_DeleteEvents(t *testing.T) {
 		{
 			"capability deleted removes by capability ID",
 			cmPL.CapabilityDeleted,
-			realizationCapabilityDeletedEvent{},
+			identifiedEvent{},
 			func(t *testing.T, m *mockRealizationCacheReadModel, id string) {
 				require.Len(t, m.deletedCapabilityIDs, 1)
 				assert.Equal(t, id, m.deletedCapabilityIDs[0])
@@ -192,13 +192,13 @@ func TestRealizationCache_ErrorPropagation(t *testing.T) {
 			"delete error",
 			&mockRealizationCacheReadModel{deleteErr: errors.New("db error")},
 			cmPL.SystemRealizationDeleted,
-			systemRealizationDeletedEvent{ID: uuid.New().String()},
+			identifiedEvent{ID: uuid.New().String()},
 		},
 		{
 			"delete by capability error",
 			&mockRealizationCacheReadModel{deleteByCapErr: errors.New("db error")},
 			cmPL.CapabilityDeleted,
-			realizationCapabilityDeletedEvent{ID: uuid.New().String()},
+			identifiedEvent{ID: uuid.New().String()},
 		},
 		{
 			"update name error",

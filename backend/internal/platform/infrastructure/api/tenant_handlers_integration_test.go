@@ -83,6 +83,12 @@ func setupPlatformTestDB(t *testing.T) (*platformTestContext, func()) {
 	return ctx, cleanup
 }
 
+func setupPlatformTest(t *testing.T) (*platformTestContext, chi.Router, func()) {
+	ctx, cleanup := setupPlatformTestDB(t)
+	_, router := setupPlatformHandlers(ctx.db)
+	return ctx, router, cleanup
+}
+
 func (ctx *platformTestContext) trackTenant(id string) {
 	ctx.createdTenants = append(ctx.createdTenants, id)
 }
@@ -122,6 +128,43 @@ func setupPlatformHandlers(db *sql.DB) (*TenantHandlers, chi.Router) {
 	return tenantHandlers, r
 }
 
+func (ctx *platformTestContext) getOK(t *testing.T, url string, router chi.Router, out interface{}) {
+	w := ctx.makeRequest("GET", url, nil, router)
+	assert.Equal(t, http.StatusOK, w.Code)
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), out))
+}
+
+func (ctx *platformTestContext) createTenant(router chi.Router, prefix, name string) string {
+	tenantID := fmt.Sprintf("%s-%d", prefix, time.Now().UnixNano()%10000)
+	ctx.trackTenant(tenantID)
+
+	reqBody := CreateTenantRequest{
+		ID:      tenantID,
+		Name:    name,
+		Domains: []string{tenantID + ".com"},
+		OIDCConfig: OIDCConfigRequest{
+			DiscoveryURL: "https://login.microsoftonline.com/xxx/v2.0",
+			ClientID:     "client-id",
+			AuthMethod:   "client_secret",
+			Scopes:       "openid email profile",
+		},
+		FirstAdminEmail: "admin@" + tenantID + ".com",
+	}
+	body, _ := json.Marshal(reqBody)
+	ctx.makeRequest("POST", "/tenants", body, router)
+	return tenantID
+}
+
+func requireUnauthorized(t *testing.T, router chi.Router, apiKey string) {
+	req := httptest.NewRequest("GET", "/tenants", nil)
+	if apiKey != "" {
+		req.Header.Set("X-Platform-Admin-Key", apiKey)
+	}
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
 func (ctx *platformTestContext) makeRequest(method, url string, body []byte, router chi.Router) *httptest.ResponseRecorder {
 	var bodyReader io.Reader
 	if body != nil {
@@ -140,10 +183,8 @@ func (ctx *platformTestContext) makeRequest(method, url string, body []byte, rou
 }
 
 func TestCreateTenant_Integration(t *testing.T) {
-	ctx, cleanup := setupPlatformTestDB(t)
+	ctx, router, cleanup := setupPlatformTest(t)
 	defer cleanup()
-
-	_, router := setupPlatformHandlers(ctx.db)
 
 	tenantID := fmt.Sprintf("acme-%d", time.Now().UnixNano()%10000)
 	ctx.trackTenant(tenantID)
@@ -203,10 +244,8 @@ func TestCreateTenant_Integration(t *testing.T) {
 }
 
 func TestCreateTenant_DuplicateID_Integration(t *testing.T) {
-	ctx, cleanup := setupPlatformTestDB(t)
+	ctx, router, cleanup := setupPlatformTest(t)
 	defer cleanup()
-
-	_, router := setupPlatformHandlers(ctx.db)
 
 	tenantID := fmt.Sprintf("dup-%d", time.Now().UnixNano()%10000)
 	ctx.trackTenant(tenantID)
@@ -232,45 +271,21 @@ func TestCreateTenant_DuplicateID_Integration(t *testing.T) {
 }
 
 func TestGetTenantByID_Integration(t *testing.T) {
-	ctx, cleanup := setupPlatformTestDB(t)
+	ctx, router, cleanup := setupPlatformTest(t)
 	defer cleanup()
 
-	_, router := setupPlatformHandlers(ctx.db)
-
-	tenantID := fmt.Sprintf("get-%d", time.Now().UnixNano()%10000)
-	ctx.trackTenant(tenantID)
-
-	reqBody := CreateTenantRequest{
-		ID:      tenantID,
-		Name:    "Get Test Corp",
-		Domains: []string{tenantID + ".com"},
-		OIDCConfig: OIDCConfigRequest{
-			DiscoveryURL: "https://login.microsoftonline.com/xxx/v2.0",
-			ClientID:     "client-id",
-			AuthMethod:   "client_secret",
-		},
-		FirstAdminEmail: "admin@" + tenantID + ".com",
-	}
-	body, _ := json.Marshal(reqBody)
-	ctx.makeRequest("POST", "/tenants", body, router)
-
-	w := ctx.makeRequest("GET", "/tenants/"+tenantID, nil, router)
-
-	assert.Equal(t, http.StatusOK, w.Code)
+	tenantID := ctx.createTenant(router, "get", "Get Test Corp")
 
 	var response TenantResponse
-	err := json.Unmarshal(w.Body.Bytes(), &response)
-	require.NoError(t, err)
+	ctx.getOK(t, "/tenants/"+tenantID, router, &response)
 
 	assert.Equal(t, tenantID, response.ID)
 	assert.Equal(t, "Get Test Corp", response.Name)
 }
 
 func TestGetTenantByID_NotFound_Integration(t *testing.T) {
-	ctx, cleanup := setupPlatformTestDB(t)
+	ctx, router, cleanup := setupPlatformTest(t)
 	defer cleanup()
-
-	_, router := setupPlatformHandlers(ctx.db)
 
 	w := ctx.makeRequest("GET", "/tenants/nonexistent-tenant", nil, router)
 
@@ -278,63 +293,28 @@ func TestGetTenantByID_NotFound_Integration(t *testing.T) {
 }
 
 func TestListTenants_Integration(t *testing.T) {
-	ctx, cleanup := setupPlatformTestDB(t)
+	ctx, router, cleanup := setupPlatformTest(t)
 	defer cleanup()
 
-	_, router := setupPlatformHandlers(ctx.db)
-
-	tenantID := fmt.Sprintf("list-%d", time.Now().UnixNano()%10000)
-	ctx.trackTenant(tenantID)
-
-	reqBody := CreateTenantRequest{
-		ID:      tenantID,
-		Name:    "List Test Corp",
-		Domains: []string{tenantID + ".com"},
-		OIDCConfig: OIDCConfigRequest{
-			DiscoveryURL: "https://login.microsoftonline.com/xxx/v2.0",
-			ClientID:     "client-id",
-			AuthMethod:   "client_secret",
-		},
-		FirstAdminEmail: "admin@" + tenantID + ".com",
-	}
-	body, _ := json.Marshal(reqBody)
-	ctx.makeRequest("POST", "/tenants", body, router)
-
-	w := ctx.makeRequest("GET", "/tenants", nil, router)
-
-	assert.Equal(t, http.StatusOK, w.Code)
+	ctx.createTenant(router, "list", "List Test Corp")
 
 	var response map[string]interface{}
-	err := json.Unmarshal(w.Body.Bytes(), &response)
-	require.NoError(t, err)
+	ctx.getOK(t, "/tenants", router, &response)
 
 	assert.NotNil(t, response["data"])
 	assert.NotNil(t, response["_links"])
 }
 
 func TestPlatformAdminMiddleware_MissingKey_Integration(t *testing.T) {
-	ctx, cleanup := setupPlatformTestDB(t)
+	_, router, cleanup := setupPlatformTest(t)
 	defer cleanup()
 
-	_, router := setupPlatformHandlers(ctx.db)
-
-	req := httptest.NewRequest("GET", "/tenants", nil)
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	requireUnauthorized(t, router, "")
 }
 
 func TestPlatformAdminMiddleware_InvalidKey_Integration(t *testing.T) {
-	ctx, cleanup := setupPlatformTestDB(t)
+	_, router, cleanup := setupPlatformTest(t)
 	defer cleanup()
 
-	_, router := setupPlatformHandlers(ctx.db)
-
-	req := httptest.NewRequest("GET", "/tenants", nil)
-	req.Header.Set("X-Platform-Admin-Key", "wrong-key")
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	requireUnauthorized(t, router, "wrong-key")
 }

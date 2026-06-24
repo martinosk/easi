@@ -1,4 +1,4 @@
-import type { Edge, Node } from '@xyflow/react';
+import type { Edge, Node, OnNodeDrag } from '@xyflow/react';
 import { useReactFlow } from '@xyflow/react';
 import { useCallback } from 'react';
 import { toCapabilityId, toComponentId, toRelationId } from '../../../api/types';
@@ -71,8 +71,8 @@ export const useCanvasSelection = () => {
     selectCapability(null);
   }, [clearSelection, selectCapability]);
 
-  const onNodeDragStop = useCallback(
-    (_event: MouseEvent | TouchEvent, node: Node) => {
+  const onNodeDragStop = useCallback<OnNodeDrag<Node>>(
+    (_event, node) => {
       if (!canEdit(currentView) || !currentViewId) return;
       const selectedNodes = reactFlowInstance.getNodes().filter((n) => n.selected);
       const nodesToPersist = getNodesToPersist(node, selectedNodes);

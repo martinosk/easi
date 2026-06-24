@@ -334,30 +334,54 @@ func TestGetRelationByID_NotFound_Integration(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, w.Code)
 }
 
-func testComponentRelations(t *testing.T, testCtx *relationTestContext, handlers *RelationHandlers, direction string) {
-	componentID := uuid.New().String()
+type relationDirection struct {
+	name         string
+	handler      func(*RelationHandlers, http.ResponseWriter, *http.Request)
+	seedMatched  func(componentID, otherID string) (sourceID, targetID string)
+	seedExcluded func(componentID, otherID string) (sourceID, targetID string)
+	matchedID    func(rel readmodels.ComponentRelationDTO) string
+}
+
+var relationDirectionFrom = relationDirection{
+	name:         "from",
+	handler:      (*RelationHandlers).GetRelationsFromComponent,
+	seedMatched:  func(componentID, otherID string) (string, string) { return componentID, otherID },
+	seedExcluded: func(componentID, otherID string) (string, string) { return otherID, componentID },
+	matchedID:    func(rel readmodels.ComponentRelationDTO) string { return rel.SourceComponentID },
+}
+
+var relationDirectionTo = relationDirection{
+	name:         "to",
+	handler:      (*RelationHandlers).GetRelationsToComponent,
+	seedMatched:  func(componentID, otherID string) (string, string) { return otherID, componentID },
+	seedExcluded: func(componentID, otherID string) (string, string) { return componentID, otherID },
+	matchedID:    func(rel readmodels.ComponentRelationDTO) string { return rel.TargetComponentID },
+}
+
+func seedDirectionalRelations(t *testing.T, testCtx *relationTestContext, dir relationDirection, componentID string) (rel1, rel2, rel3 string) {
 	other1 := uuid.New().String()
 	other2 := uuid.New().String()
 	otherComp := uuid.New().String()
 
-	rel1 := uuid.New().String()
-	rel2 := uuid.New().String()
-	rel3 := uuid.New().String()
+	rel1 = uuid.New().String()
+	rel2 = uuid.New().String()
+	rel3 = uuid.New().String()
 
-	var sourceIDForMatch, targetIDForMatch string
-	if direction == "from" {
-		testCtx.createTestRelation(t, testRelationParams{ID: rel1, SourceID: componentID, TargetID: other1, RelationType: "Triggers", Name: "Relation 1", Description: "Description 1"})
-		testCtx.createTestRelation(t, testRelationParams{ID: rel2, SourceID: componentID, TargetID: other2, RelationType: "Serves", Name: "Relation 2", Description: "Description 2"})
-		testCtx.createTestRelation(t, testRelationParams{ID: rel3, SourceID: otherComp, TargetID: componentID, RelationType: "Triggers", Name: "Relation 3", Description: "Description 3"})
-		sourceIDForMatch = componentID
-	} else {
-		testCtx.createTestRelation(t, testRelationParams{ID: rel1, SourceID: other1, TargetID: componentID, RelationType: "Triggers", Name: "Relation 1", Description: "Description 1"})
-		testCtx.createTestRelation(t, testRelationParams{ID: rel2, SourceID: other2, TargetID: componentID, RelationType: "Serves", Name: "Relation 2", Description: "Description 2"})
-		testCtx.createTestRelation(t, testRelationParams{ID: rel3, SourceID: componentID, TargetID: otherComp, RelationType: "Triggers", Name: "Relation 3", Description: "Description 3"})
-		targetIDForMatch = componentID
-	}
+	src1, tgt1 := dir.seedMatched(componentID, other1)
+	src2, tgt2 := dir.seedMatched(componentID, other2)
+	src3, tgt3 := dir.seedExcluded(componentID, otherComp)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/relations/"+direction+"/"+componentID, nil)
+	testCtx.createTestRelation(t, testRelationParams{ID: rel1, SourceID: src1, TargetID: tgt1, RelationType: "Triggers", Name: "Relation 1", Description: "Description 1"})
+	testCtx.createTestRelation(t, testRelationParams{ID: rel2, SourceID: src2, TargetID: tgt2, RelationType: "Serves", Name: "Relation 2", Description: "Description 2"})
+	testCtx.createTestRelation(t, testRelationParams{ID: rel3, SourceID: src3, TargetID: tgt3, RelationType: "Triggers", Name: "Relation 3", Description: "Description 3"})
+	return rel1, rel2, rel3
+}
+
+func testComponentRelations(t *testing.T, testCtx *relationTestContext, handlers *RelationHandlers, dir relationDirection) {
+	componentID := uuid.New().String()
+	rel1, rel2, rel3 := seedDirectionalRelations(t, testCtx, dir, componentID)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/relations/"+dir.name+"/"+componentID, nil)
 	req = withTestTenant(req)
 	w := httptest.NewRecorder()
 
@@ -365,11 +389,7 @@ func testComponentRelations(t *testing.T, testCtx *relationTestContext, handlers
 	rctx.URLParams.Add("componentId", componentID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 
-	if direction == "from" {
-		handlers.GetRelationsFromComponent(w, req)
-	} else {
-		handlers.GetRelationsToComponent(w, req)
-	}
+	dir.handler(handlers, w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
@@ -383,15 +403,11 @@ func testComponentRelations(t *testing.T, testCtx *relationTestContext, handlers
 	for _, rel := range response.Data {
 		if rel.ID == rel1 || rel.ID == rel2 {
 			foundRelations++
-			if direction == "from" {
-				assert.Equal(t, sourceIDForMatch, rel.SourceComponentID)
-			} else {
-				assert.Equal(t, targetIDForMatch, rel.TargetComponentID)
-			}
+			assert.Equal(t, componentID, dir.matchedID(rel))
 		}
-		assert.NotEqual(t, rel3, rel.ID, "Relation with different "+direction+" component should not be included")
+		assert.NotEqual(t, rel3, rel.ID, "Relation with different "+dir.name+" component should not be included")
 	}
-	assert.Equal(t, 2, foundRelations, "Should find exactly 2 relations "+direction+" this component")
+	assert.Equal(t, 2, foundRelations, "Should find exactly 2 relations "+dir.name+" this component")
 }
 
 func TestGetRelationsFromComponent_Integration(t *testing.T) {
@@ -399,7 +415,7 @@ func TestGetRelationsFromComponent_Integration(t *testing.T) {
 	defer cleanup()
 
 	handlers, _ := setupRelationHandlers(testCtx.db)
-	testComponentRelations(t, testCtx, handlers, "from")
+	testComponentRelations(t, testCtx, handlers, relationDirectionFrom)
 }
 
 func TestGetRelationsToComponent_Integration(t *testing.T) {
@@ -407,7 +423,7 @@ func TestGetRelationsToComponent_Integration(t *testing.T) {
 	defer cleanup()
 
 	handlers, _ := setupRelationHandlers(testCtx.db)
-	testComponentRelations(t, testCtx, handlers, "to")
+	testComponentRelations(t, testCtx, handlers, relationDirectionTo)
 }
 
 func TestGetAllRelationsPaginated_Integration(t *testing.T) {
@@ -587,12 +603,19 @@ func createComponentViaAPI(t *testing.T, handlers *ComponentHandlers, name, desc
 	return w
 }
 
-func createRelationViaAPI(t *testing.T, handlers *RelationHandlers, sourceID, targetID, relationType, name string) *httptest.ResponseRecorder {
+type relationAPIParams struct {
+	sourceID     string
+	targetID     string
+	relationType string
+	name         string
+}
+
+func createRelationViaAPI(t *testing.T, handlers *RelationHandlers, params relationAPIParams) *httptest.ResponseRecorder {
 	reqBody := CreateComponentRelationRequest{
-		SourceComponentID: sourceID,
-		TargetComponentID: targetID,
-		RelationType:      relationType,
-		Name:              name,
+		SourceComponentID: params.sourceID,
+		TargetComponentID: params.targetID,
+		RelationType:      params.relationType,
+		Name:              params.name,
 	}
 	body, _ := json.Marshal(reqBody)
 
@@ -640,7 +663,12 @@ func TestCascadeDeleteRelations_Integration(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	targetComponentID := uuid.New().String()
-	createRelW := createRelationViaAPI(t, deps.relationHandlers, componentID, targetComponentID, "Triggers", "Test Relation")
+	createRelW := createRelationViaAPI(t, deps.relationHandlers, relationAPIParams{
+		sourceID:     componentID,
+		targetID:     targetComponentID,
+		relationType: "Triggers",
+		name:         "Test Relation",
+	})
 	assert.Equal(t, http.StatusCreated, createRelW.Code)
 
 	var relationID string

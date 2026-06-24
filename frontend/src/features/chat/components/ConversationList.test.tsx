@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react';
+import type { ComponentProps, ReactElement } from 'react';
 import { fireEvent, screen } from '@testing-library/react';
 import { renderWithProviders } from '../../../test/helpers';
 const render = (ui: ReactElement) => renderWithProviders(ui, { withRouter: false });
@@ -16,142 +16,89 @@ function buildConversation(overrides: Partial<Conversation> = {}): Conversation 
   };
 }
 
+type ListProps = ComponentProps<typeof ConversationList>;
+
+function renderList(overrides: Partial<ListProps> = {}) {
+  const props: ListProps = {
+    conversations: [],
+    activeConversationId: null,
+    onSelect: vi.fn(),
+    onDelete: vi.fn(),
+    onNewConversation: vi.fn(),
+    ...overrides,
+  };
+  render(<ConversationList {...props} />);
+  return props;
+}
+
 describe('ConversationList', () => {
   it('should render conversation titles', () => {
-    const conversations = [
-      buildConversation({ id: 'conv-1', title: 'Architecture review' }),
-      buildConversation({ id: 'conv-2', title: 'Portfolio analysis' }),
-    ];
-
-    render(
-      <ConversationList
-        conversations={conversations}
-        activeConversationId={null}
-        onSelect={vi.fn()}
-        onDelete={vi.fn()}
-        onNewConversation={vi.fn()}
-      />,
-    );
+    renderList({
+      conversations: [
+        buildConversation({ id: 'conv-1', title: 'Architecture review' }),
+        buildConversation({ id: 'conv-2', title: 'Portfolio analysis' }),
+      ],
+    });
 
     expect(screen.getByText('Architecture review')).toBeInTheDocument();
     expect(screen.getByText('Portfolio analysis')).toBeInTheDocument();
   });
 
   it('should call onSelect when a conversation is clicked', () => {
-    const onSelect = vi.fn();
-    const conversations = [buildConversation({ id: 'conv-1', title: 'Architecture review' })];
-
-    render(
-      <ConversationList
-        conversations={conversations}
-        activeConversationId={null}
-        onSelect={onSelect}
-        onDelete={vi.fn()}
-        onNewConversation={vi.fn()}
-      />,
-    );
+    const { onSelect } = renderList({
+      conversations: [buildConversation({ id: 'conv-1', title: 'Architecture review' })],
+    });
 
     fireEvent.click(screen.getByText('Architecture review'));
     expect(onSelect).toHaveBeenCalledWith('conv-1');
   });
 
   it('should highlight the active conversation', () => {
-    const conversations = [
-      buildConversation({ id: 'conv-1', title: 'Active chat' }),
-      buildConversation({ id: 'conv-2', title: 'Other chat' }),
-    ];
-
-    render(
-      <ConversationList
-        conversations={conversations}
-        activeConversationId="conv-1"
-        onSelect={vi.fn()}
-        onDelete={vi.fn()}
-        onNewConversation={vi.fn()}
-      />,
-    );
+    renderList({
+      conversations: [
+        buildConversation({ id: 'conv-1', title: 'Active chat' }),
+        buildConversation({ id: 'conv-2', title: 'Other chat' }),
+      ],
+      activeConversationId: 'conv-1',
+    });
 
     const activeItem = screen.getByText('Active chat').closest('.conversation-item');
     expect(activeItem).toHaveClass('conversation-item-active');
   });
 
   it('should call onDelete when delete button is clicked', () => {
-    const onDelete = vi.fn();
-    const conversations = [buildConversation({ id: 'conv-1', title: 'Delete me' })];
-
-    render(
-      <ConversationList
-        conversations={conversations}
-        activeConversationId={null}
-        onSelect={vi.fn()}
-        onDelete={onDelete}
-        onNewConversation={vi.fn()}
-      />,
-    );
+    const { onDelete } = renderList({
+      conversations: [buildConversation({ id: 'conv-1', title: 'Delete me' })],
+    });
 
     fireEvent.click(screen.getByLabelText('Delete conversation'));
     expect(onDelete).toHaveBeenCalledWith('conv-1');
   });
 
   it('should not trigger onSelect when delete button is clicked', () => {
-    const onSelect = vi.fn();
-    const conversations = [buildConversation({ id: 'conv-1', title: 'Test' })];
-
-    render(
-      <ConversationList
-        conversations={conversations}
-        activeConversationId={null}
-        onSelect={onSelect}
-        onDelete={vi.fn()}
-        onNewConversation={vi.fn()}
-      />,
-    );
+    const { onSelect } = renderList({
+      conversations: [buildConversation({ id: 'conv-1', title: 'Test' })],
+    });
 
     fireEvent.click(screen.getByLabelText('Delete conversation'));
     expect(onSelect).not.toHaveBeenCalled();
   });
 
   it('should render new conversation button', () => {
-    render(
-      <ConversationList
-        conversations={[]}
-        activeConversationId={null}
-        onSelect={vi.fn()}
-        onDelete={vi.fn()}
-        onNewConversation={vi.fn()}
-      />,
-    );
+    renderList();
 
     expect(screen.getByLabelText('New conversation')).toBeInTheDocument();
   });
 
   it('should call onNewConversation when new button is clicked', () => {
-    const onNew = vi.fn();
-
-    render(
-      <ConversationList
-        conversations={[]}
-        activeConversationId={null}
-        onSelect={vi.fn()}
-        onDelete={vi.fn()}
-        onNewConversation={onNew}
-      />,
-    );
+    const { onNewConversation } = renderList();
 
     fireEvent.click(screen.getByLabelText('New conversation'));
-    expect(onNew).toHaveBeenCalled();
+    expect(onNewConversation).toHaveBeenCalled();
   });
 
   it('should show empty state when no conversations', () => {
-    render(
-      <ConversationList
-        conversations={[]}
-        activeConversationId={null}
-        onSelect={vi.fn()}
-        onDelete={vi.fn()}
-        onNewConversation={vi.fn()}
-      />,
-    );
+    renderList();
 
     expect(screen.getByText('No conversations yet')).toBeInTheDocument();
   });

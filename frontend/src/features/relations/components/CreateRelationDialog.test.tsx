@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse, http } from 'msw';
+import type React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ComponentId } from '../../../api/types';
 import { createMantineTestWrapper, seedDb, server } from '../../../test/helpers';
@@ -12,6 +13,34 @@ Element.prototype.scrollIntoView = vi.fn();
 
 describe('CreateRelationDialog', () => {
   const mockOnClose = vi.fn();
+
+  const renderDialog = (props: Partial<React.ComponentProps<typeof CreateRelationDialog>> = {}) => {
+    const { Wrapper } = createMantineTestWrapper();
+    return render(<CreateRelationDialog isOpen={true} onClose={mockOnClose} {...props} />, { wrapper: Wrapper });
+  };
+
+  const renderPrefilledDialog = () => renderDialog({ sourceComponentId: '1', targetComponentId: '2' });
+
+  const submitButtonOf = () => screen.getByTestId('create-relation-submit') as HTMLButtonElement;
+
+  const captureRelationPost = () => {
+    const captured: { request: Record<string, unknown> | null } = { request: null };
+    server.use(
+      http.post(`${API_BASE}/api/v1/relations`, async ({ request }) => {
+        captured.request = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(
+          {
+            id: 'rel-1',
+            ...captured.request,
+            createdAt: '2024-01-01T00:00:00Z',
+            _links: { self: '/api/v1/relations/rel-1' },
+          },
+          { status: 201 },
+        );
+      }),
+    );
+    return captured;
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -40,8 +69,7 @@ describe('CreateRelationDialog', () => {
   });
 
   it('should render dialog when open', async () => {
-    const { Wrapper } = createMantineTestWrapper();
-    render(<CreateRelationDialog isOpen={true} onClose={mockOnClose} />, { wrapper: Wrapper });
+    renderDialog();
 
     await waitFor(() => {
       expect(screen.getAllByText('Create Relation')[0]).toBeInTheDocument();
@@ -52,8 +80,7 @@ describe('CreateRelationDialog', () => {
   });
 
   it('should display all components in dropdowns', async () => {
-    const { Wrapper } = createMantineTestWrapper();
-    render(<CreateRelationDialog isOpen={true} onClose={mockOnClose} />, { wrapper: Wrapper });
+    renderDialog();
 
     await waitFor(() => {
       expect(screen.getByTestId('relation-source-select')).toBeInTheDocument();
@@ -66,33 +93,24 @@ describe('CreateRelationDialog', () => {
   });
 
   it('should disable submit button when required fields are empty', async () => {
-    const { Wrapper } = createMantineTestWrapper();
-    render(<CreateRelationDialog isOpen={true} onClose={mockOnClose} />, { wrapper: Wrapper });
+    renderDialog();
 
     await waitFor(() => {
       expect(screen.getByTestId('create-relation-submit')).toBeInTheDocument();
     });
-    const submitButton = screen.getByTestId('create-relation-submit') as HTMLButtonElement;
-    expect(submitButton.disabled).toBe(true);
+    expect(submitButtonOf().disabled).toBe(true);
   });
 
   it('should enable submit button when source and target are pre-filled', async () => {
-    const { Wrapper } = createMantineTestWrapper();
-    render(<CreateRelationDialog isOpen={true} onClose={mockOnClose} sourceComponentId="1" targetComponentId="2" />, {
-      wrapper: Wrapper,
-    });
+    renderPrefilledDialog();
 
     await waitFor(() => {
-      const submitButton = screen.getByTestId('create-relation-submit') as HTMLButtonElement;
-      expect(submitButton.disabled).toBe(false);
+      expect(submitButtonOf().disabled).toBe(false);
     });
   });
 
   it('should pre-fill source and target when provided', async () => {
-    const { Wrapper } = createMantineTestWrapper();
-    render(<CreateRelationDialog isOpen={true} onClose={mockOnClose} sourceComponentId="1" targetComponentId="2" />, {
-      wrapper: Wrapper,
-    });
+    renderPrefilledDialog();
 
     await waitFor(() => {
       const sourceSelect = screen.getByTestId('relation-source-select') as HTMLInputElement;
@@ -103,10 +121,7 @@ describe('CreateRelationDialog', () => {
   });
 
   it('should disable source and target when pre-filled', async () => {
-    const { Wrapper } = createMantineTestWrapper();
-    render(<CreateRelationDialog isOpen={true} onClose={mockOnClose} sourceComponentId="1" targetComponentId="2" />, {
-      wrapper: Wrapper,
-    });
+    renderPrefilledDialog();
 
     await waitFor(() => {
       const sourceSelect = screen.getByTestId('relation-source-select');
@@ -117,10 +132,7 @@ describe('CreateRelationDialog', () => {
   });
 
   it('should display error when source and target are the same', async () => {
-    const { Wrapper } = createMantineTestWrapper();
-    render(<CreateRelationDialog isOpen={true} onClose={mockOnClose} sourceComponentId="1" targetComponentId="1" />, {
-      wrapper: Wrapper,
-    });
+    renderDialog({ sourceComponentId: '1', targetComponentId: '1' });
 
     await waitFor(() => {
       expect(screen.getByTestId('create-relation-submit')).toBeInTheDocument();
@@ -133,26 +145,9 @@ describe('CreateRelationDialog', () => {
   });
 
   it('should call API with valid data and close dialog', async () => {
-    let capturedRequest: Record<string, unknown> | null = null;
-    server.use(
-      http.post(`${API_BASE}/api/v1/relations`, async ({ request }) => {
-        capturedRequest = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json(
-          {
-            id: 'rel-1',
-            ...capturedRequest,
-            createdAt: '2024-01-01T00:00:00Z',
-            _links: { self: '/api/v1/relations/rel-1' },
-          },
-          { status: 201 },
-        );
-      }),
-    );
+    const captured = captureRelationPost();
 
-    const { Wrapper } = createMantineTestWrapper();
-    render(<CreateRelationDialog isOpen={true} onClose={mockOnClose} sourceComponentId="1" targetComponentId="2" />, {
-      wrapper: Wrapper,
-    });
+    renderPrefilledDialog();
 
     await waitFor(() => {
       expect(screen.getByTestId('relation-name-input')).toBeInTheDocument();
@@ -164,11 +159,10 @@ describe('CreateRelationDialog', () => {
     fireEvent.change(nameInput, { target: { value: 'Test Relation' } });
     fireEvent.change(descriptionInput, { target: { value: 'Test Description' } });
 
-    const submitButton = screen.getByTestId('create-relation-submit');
-    fireEvent.click(submitButton);
+    fireEvent.click(submitButtonOf());
 
     await waitFor(() => {
-      expect(capturedRequest).toEqual({
+      expect(captured.request).toEqual({
         sourceComponentId: '1',
         targetComponentId: '2',
         relationType: 'Triggers',
@@ -183,27 +177,10 @@ describe('CreateRelationDialog', () => {
   });
 
   it('should handle Serves relation type', async () => {
-    let capturedRequest: Record<string, unknown> | null = null;
-    server.use(
-      http.post(`${API_BASE}/api/v1/relations`, async ({ request }) => {
-        capturedRequest = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json(
-          {
-            id: 'rel-1',
-            ...capturedRequest,
-            createdAt: '2024-01-01T00:00:00Z',
-            _links: { self: '/api/v1/relations/rel-1' },
-          },
-          { status: 201 },
-        );
-      }),
-    );
+    const captured = captureRelationPost();
 
     const user = userEvent.setup();
-    const { Wrapper } = createMantineTestWrapper();
-    render(<CreateRelationDialog isOpen={true} onClose={mockOnClose} sourceComponentId="1" targetComponentId="2" />, {
-      wrapper: Wrapper,
-    });
+    renderPrefilledDialog();
 
     await waitFor(() => {
       expect(screen.getByTestId('relation-type-select')).toBeInTheDocument();
@@ -215,11 +192,10 @@ describe('CreateRelationDialog', () => {
     const servesOption = await screen.findByRole('option', { name: 'Serves', hidden: true });
     await user.click(servesOption);
 
-    const submitButton = screen.getByTestId('create-relation-submit');
-    fireEvent.click(submitButton);
+    fireEvent.click(submitButtonOf());
 
     await waitFor(() => {
-      expect(capturedRequest).toEqual(
+      expect(captured.request).toEqual(
         expect.objectContaining({
           relationType: 'Serves',
         }),
@@ -234,17 +210,13 @@ describe('CreateRelationDialog', () => {
       }),
     );
 
-    const { Wrapper } = createMantineTestWrapper();
-    render(<CreateRelationDialog isOpen={true} onClose={mockOnClose} sourceComponentId="1" targetComponentId="2" />, {
-      wrapper: Wrapper,
-    });
+    renderPrefilledDialog();
 
     await waitFor(() => {
       expect(screen.getByTestId('create-relation-submit')).toBeInTheDocument();
     });
 
-    const submitButton = screen.getByTestId('create-relation-submit');
-    fireEvent.click(submitButton);
+    fireEvent.click(submitButtonOf());
 
     await waitFor(() => {
       expect(screen.getByTestId('create-relation-error')).toBeInTheDocument();
@@ -254,8 +226,7 @@ describe('CreateRelationDialog', () => {
   });
 
   it('should close dialog when cancel is clicked', async () => {
-    const { Wrapper } = createMantineTestWrapper();
-    render(<CreateRelationDialog isOpen={true} onClose={mockOnClose} />, { wrapper: Wrapper });
+    renderDialog();
 
     await waitFor(() => {
       expect(screen.getByTestId('create-relation-cancel')).toBeInTheDocument();
@@ -268,25 +239,10 @@ describe('CreateRelationDialog', () => {
   });
 
   it('should select components via dropdown interaction', async () => {
-    let capturedRequest: Record<string, unknown> | null = null;
-    server.use(
-      http.post(`${API_BASE}/api/v1/relations`, async ({ request }) => {
-        capturedRequest = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json(
-          {
-            id: 'rel-1',
-            ...capturedRequest,
-            createdAt: '2024-01-01T00:00:00Z',
-            _links: { self: '/api/v1/relations/rel-1' },
-          },
-          { status: 201 },
-        );
-      }),
-    );
+    const captured = captureRelationPost();
 
     const user = userEvent.setup();
-    const { Wrapper } = createMantineTestWrapper();
-    render(<CreateRelationDialog isOpen={true} onClose={mockOnClose} />, { wrapper: Wrapper });
+    renderDialog();
 
     const sourceSelect = await screen.findByTestId('relation-source-select');
     await user.click(sourceSelect);
@@ -302,13 +258,12 @@ describe('CreateRelationDialog', () => {
     const componentB = await within(targetListbox).findByRole('option', { name: 'Component B', hidden: true });
     await user.click(componentB);
 
-    const submitButton = screen.getByTestId('create-relation-submit') as HTMLButtonElement;
-    expect(submitButton.disabled).toBe(false);
+    expect(submitButtonOf().disabled).toBe(false);
 
-    fireEvent.click(submitButton);
+    fireEvent.click(submitButtonOf());
 
     await waitFor(() => {
-      expect(capturedRequest).toEqual(
+      expect(captured.request).toEqual(
         expect.objectContaining({
           sourceComponentId: '1',
           targetComponentId: '2',
@@ -335,17 +290,13 @@ describe('CreateRelationDialog', () => {
       }),
     );
 
-    const { Wrapper } = createMantineTestWrapper();
-    render(<CreateRelationDialog isOpen={true} onClose={mockOnClose} sourceComponentId="1" targetComponentId="2" />, {
-      wrapper: Wrapper,
-    });
+    renderPrefilledDialog();
 
     await waitFor(() => {
       expect(screen.getByTestId('create-relation-submit')).toBeInTheDocument();
     });
 
-    const submitButton = screen.getByTestId('create-relation-submit');
-    fireEvent.click(submitButton);
+    fireEvent.click(submitButtonOf());
 
     await waitFor(() => {
       const nameInput = screen.getByTestId('relation-name-input') as HTMLInputElement;

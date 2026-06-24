@@ -24,6 +24,23 @@ function createWrapper() {
   );
 }
 
+type RenderOptions = {
+  suggestions?: TimeSuggestion[];
+  isLoading?: boolean;
+  error?: Error | null;
+};
+
+function renderTab({ suggestions = [], isLoading = false, error = null }: RenderOptions = {}) {
+  mockUseTimeSuggestions.mockReturnValue({
+    suggestions,
+    isLoading,
+    error,
+    refetch: vi.fn(),
+  });
+
+  render(<TimeSuggestionsTab />, { wrapper: createWrapper() });
+}
+
 const mockSuggestions: TimeSuggestion[] = [
   {
     capabilityId: 'cap-1',
@@ -69,54 +86,26 @@ describe('TimeSuggestionsTab', () => {
   });
 
   it('renders loading state', () => {
-    mockUseTimeSuggestions.mockReturnValue({
-      suggestions: [],
-      isLoading: true,
-      error: null,
-      refetch: vi.fn(),
-    });
-
-    render(<TimeSuggestionsTab />, { wrapper: createWrapper() });
+    renderTab({ isLoading: true });
 
     expect(screen.getByText('Loading TIME suggestions...')).toBeInTheDocument();
   });
 
   it('renders error state', () => {
-    mockUseTimeSuggestions.mockReturnValue({
-      suggestions: [],
-      isLoading: false,
-      error: new Error('Network error'),
-      refetch: vi.fn(),
-    });
-
-    render(<TimeSuggestionsTab />, { wrapper: createWrapper() });
+    renderTab({ error: new Error('Network error') });
 
     expect(screen.getByText(/Failed to load TIME suggestions/)).toBeInTheDocument();
     expect(screen.getByText(/Network error/)).toBeInTheDocument();
   });
 
   it('renders empty state when no suggestions', () => {
-    mockUseTimeSuggestions.mockReturnValue({
-      suggestions: [],
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
-
-    render(<TimeSuggestionsTab />, { wrapper: createWrapper() });
+    renderTab();
 
     expect(screen.getByText('No TIME Suggestions Available')).toBeInTheDocument();
   });
 
   it('renders suggestions table with data', () => {
-    mockUseTimeSuggestions.mockReturnValue({
-      suggestions: mockSuggestions,
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
-
-    render(<TimeSuggestionsTab />, { wrapper: createWrapper() });
+    renderTab({ suggestions: mockSuggestions });
 
     expect(screen.getAllByText('Customer Management')).toHaveLength(2);
     expect(screen.getByText('CRM System')).toBeInTheDocument();
@@ -126,14 +115,7 @@ describe('TimeSuggestionsTab', () => {
   });
 
   it('displays TIME badges correctly', () => {
-    mockUseTimeSuggestions.mockReturnValue({
-      suggestions: mockSuggestions,
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
-
-    render(<TimeSuggestionsTab />, { wrapper: createWrapper() });
+    renderTab({ suggestions: mockSuggestions });
 
     expect(screen.getAllByText('Tolerate').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Eliminate').length).toBeGreaterThanOrEqual(1);
@@ -142,28 +124,14 @@ describe('TimeSuggestionsTab', () => {
   });
 
   it('displays summary statistics correctly', () => {
-    mockUseTimeSuggestions.mockReturnValue({
-      suggestions: mockSuggestions,
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
-
-    render(<TimeSuggestionsTab />, { wrapper: createWrapper() });
+    renderTab({ suggestions: mockSuggestions });
 
     expect(screen.getByText('4')).toBeInTheDocument();
     expect(screen.getByText('Total Realizations')).toBeInTheDocument();
   });
 
   it('renders TIME legend with all classifications', () => {
-    mockUseTimeSuggestions.mockReturnValue({
-      suggestions: mockSuggestions,
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
-
-    render(<TimeSuggestionsTab />, { wrapper: createWrapper() });
+    renderTab({ suggestions: mockSuggestions });
 
     expect(screen.getByText('TIME Classifications')).toBeInTheDocument();
     expect(screen.getAllByText('Tolerate').length).toBeGreaterThanOrEqual(1);

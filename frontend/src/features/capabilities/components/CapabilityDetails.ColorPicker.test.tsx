@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { HttpResponse, http } from 'msw';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Capability, CapabilityId, View, ViewId } from '../../../api/types';
@@ -164,29 +164,32 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
     });
   });
 
+  const COLOR_PATH = `${API_BASE}/api/v1/views/:viewId/capabilities/:capabilityId/color`;
+
+  const selectColor = async (color: string) => {
+    await waitFor(() => {
+      expect(screen.getByTestId('color-picker-button')).toBeInTheDocument();
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('color-picker-button'));
+      fireEvent.change(screen.getByTestId('color-picker-input'), { target: { value: color } });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  };
+
   describe('API calls on color selection', () => {
     it('should call API to update capability color when color selected', async () => {
       let capturedColor: string | null = null;
       server.use(
-        http.patch(`${API_BASE}/api/v1/views/:viewId/capabilities/:capabilityId/color`, async ({ request }) => {
+        http.patch(COLOR_PATH, async ({ request }) => {
           const body = (await request.json()) as { color: string };
           capturedColor = body.color;
           return new HttpResponse(null, { status: 204 });
         }),
       );
 
-      const mockView = createMockView('custom');
-      renderCapabilityDetails(mockView);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('color-picker-button')).toBeInTheDocument();
-      });
-
-      const colorPickerButton = screen.getByTestId('color-picker-button');
-      fireEvent.click(colorPickerButton);
-
-      const colorInput = screen.getByTestId('color-picker-input');
-      fireEvent.change(colorInput, { target: { value: '#00FF00' } });
+      renderCapabilityDetails(createMockView('custom'));
+      await selectColor('#00FF00');
 
       await waitFor(() => {
         expect(capturedColor).toBe('#00FF00');
@@ -196,24 +199,14 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
     it('should call API with correct view ID and capability ID', async () => {
       let capturedParams: { viewId?: string; capabilityId?: string } = {};
       server.use(
-        http.patch(`${API_BASE}/api/v1/views/:viewId/capabilities/:capabilityId/color`, ({ params }) => {
+        http.patch(COLOR_PATH, ({ params }) => {
           capturedParams = { viewId: params.viewId as string, capabilityId: params.capabilityId as string };
           return new HttpResponse(null, { status: 204 });
         }),
       );
 
-      const mockView = createMockView('custom');
-      renderCapabilityDetails(mockView);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('color-picker-button')).toBeInTheDocument();
-      });
-
-      const colorPickerButton = screen.getByTestId('color-picker-button');
-      fireEvent.click(colorPickerButton);
-
-      const colorInput = screen.getByTestId('color-picker-input');
-      fireEvent.change(colorInput, { target: { value: '#AABBCC' } });
+      renderCapabilityDetails(createMockView('custom'));
+      await selectColor('#AABBCC');
 
       await waitFor(() => {
         expect(capturedParams.viewId).toBe('view-1');
@@ -226,24 +219,14 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
     it('should call error handler when API call fails', async () => {
       let apiCalled = false;
       server.use(
-        http.patch(`${API_BASE}/api/v1/views/:viewId/capabilities/:capabilityId/color`, () => {
+        http.patch(COLOR_PATH, () => {
           apiCalled = true;
           return HttpResponse.json({ error: 'Failed to update color' }, { status: 500 });
         }),
       );
 
-      const mockView = createMockView('custom', '#FF5733');
-      renderCapabilityDetails(mockView);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('color-picker-button')).toBeInTheDocument();
-      });
-
-      const colorPickerButton = screen.getByTestId('color-picker-button');
-      fireEvent.click(colorPickerButton);
-
-      const colorInput = screen.getByTestId('color-picker-input');
-      fireEvent.change(colorInput, { target: { value: '#00FF00' } });
+      renderCapabilityDetails(createMockView('custom', '#FF5733'));
+      await selectColor('#00FF00');
 
       await waitFor(() => {
         expect(apiCalled).toBe(true);

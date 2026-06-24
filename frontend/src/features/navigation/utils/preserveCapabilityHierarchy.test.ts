@@ -8,6 +8,13 @@ describe('preserveCapabilityHierarchy', () => {
     resetIdCounter();
   });
 
+  const cap = (id: string, name: string, parentId?: string, level: 'L2' | 'L3' = 'L2') =>
+    buildCapability({
+      id: toCapabilityId(id),
+      name,
+      ...(parentId ? { parentId: toCapabilityId(parentId), level } : {}),
+    });
+
   it('should return empty array when filtered capabilities is empty', () => {
     const allCapabilities = [
       buildCapability({ id: toCapabilityId('cap-root'), name: 'Root' }),
@@ -55,27 +62,11 @@ describe('preserveCapabilityHierarchy', () => {
   });
 
   it('should add grandparent when only grandchild matches', () => {
-    const grandparent = buildCapability({
-      id: toCapabilityId('cap-gp'),
-      name: 'Grandparent',
-    });
-    const parent = buildCapability({
-      id: toCapabilityId('cap-parent'),
-      name: 'Parent',
-      parentId: toCapabilityId('cap-gp'),
-      level: 'L2',
-    });
-    const grandchild = buildCapability({
-      id: toCapabilityId('cap-gc'),
-      name: 'Grandchild',
-      parentId: toCapabilityId('cap-parent'),
-      level: 'L3',
-    });
+    const grandparent = cap('cap-gp', 'Grandparent');
+    const parent = cap('cap-parent', 'Parent', 'cap-gp');
+    const grandchild = cap('cap-gc', 'Grandchild', 'cap-parent', 'L3');
 
-    const allCapabilities = [grandparent, parent, grandchild];
-    const filtered = [grandchild];
-
-    const result = preserveCapabilityHierarchy(filtered, allCapabilities);
+    const result = preserveCapabilityHierarchy([grandchild], [grandparent, parent, grandchild]);
 
     expect(result).toContainEqual(grandchild);
     expect(result).toContainEqual(parent);
@@ -84,24 +75,13 @@ describe('preserveCapabilityHierarchy', () => {
   });
 
   it('should not duplicate already-included parent capabilities', () => {
-    const parent = buildCapability({ id: toCapabilityId('cap-parent'), name: 'Parent' });
-    const childA = buildCapability({
-      id: toCapabilityId('cap-child-a'),
-      name: 'Child A',
-      parentId: toCapabilityId('cap-parent'),
-      level: 'L2',
-    });
-    const childB = buildCapability({
-      id: toCapabilityId('cap-child-b'),
-      name: 'Child B',
-      parentId: toCapabilityId('cap-parent'),
-      level: 'L2',
-    });
+    const parent = cap('cap-parent', 'Parent');
+    const childA = cap('cap-child-a', 'Child A', 'cap-parent');
+    const childB = cap('cap-child-b', 'Child B', 'cap-parent');
 
-    const allCapabilities = [parent, childA, childB];
-    const filtered = [parent, childA, childB];
+    const all = [parent, childA, childB];
 
-    const result = preserveCapabilityHierarchy(filtered, allCapabilities);
+    const result = preserveCapabilityHierarchy(all, all);
 
     const parentOccurrences = result.filter((c) => c.id === parent.id);
     expect(parentOccurrences).toHaveLength(1);
@@ -140,24 +120,11 @@ describe('preserveCapabilityHierarchy', () => {
   });
 
   it('should not duplicate parent when two children under same parent both match', () => {
-    const parent = buildCapability({ id: toCapabilityId('cap-parent'), name: 'Shared Parent' });
-    const childA = buildCapability({
-      id: toCapabilityId('cap-child-a'),
-      name: 'Child A',
-      parentId: toCapabilityId('cap-parent'),
-      level: 'L2',
-    });
-    const childB = buildCapability({
-      id: toCapabilityId('cap-child-b'),
-      name: 'Child B',
-      parentId: toCapabilityId('cap-parent'),
-      level: 'L2',
-    });
+    const parent = cap('cap-parent', 'Shared Parent');
+    const childA = cap('cap-child-a', 'Child A', 'cap-parent');
+    const childB = cap('cap-child-b', 'Child B', 'cap-parent');
 
-    const allCapabilities = [parent, childA, childB];
-    const filtered = [childA, childB];
-
-    const result = preserveCapabilityHierarchy(filtered, allCapabilities);
+    const result = preserveCapabilityHierarchy([childA, childB], [parent, childA, childB]);
 
     expect(result).toContainEqual(childA);
     expect(result).toContainEqual(childB);

@@ -18,25 +18,46 @@ describe('useCapabilitySelection', () => {
     createCapability('l2-1', 'Accounting', 'L2'),
   ];
 
-  it('starts with empty selection', () => {
+  const clickEvent = (shiftKey: boolean): React.MouseEvent =>
+    ({
+      shiftKey,
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn(),
+    }) as unknown as React.MouseEvent;
+
+  const renderSelection = () => {
     const onRegularClick = vi.fn();
     const { result } = renderHook(() => useCapabilitySelection(mockCapabilities, onRegularClick));
+    return { onRegularClick, result };
+  };
+
+  const shiftClick = (result: ReturnType<typeof renderSelection>['result'], ...capabilities: Capability[]) => {
+    act(() => {
+      for (const capability of capabilities) {
+        result.current.handleCapabilityClick(capability, clickEvent(true));
+      }
+    });
+  };
+
+  const expectSelected = (
+    result: ReturnType<typeof renderSelection>['result'],
+    id: string,
+    selected: boolean,
+  ) => {
+    expect(result.current.selectedCapabilities.has(id as CapabilityId)).toBe(selected);
+  };
+
+  it('starts with empty selection', () => {
+    const { result } = renderSelection();
 
     expect(result.current.selectedCapabilities.size).toBe(0);
   });
 
   it('calls onRegularClick on normal click (no shift)', () => {
-    const onRegularClick = vi.fn();
-    const { result } = renderHook(() => useCapabilitySelection(mockCapabilities, onRegularClick));
-
-    const mockEvent = {
-      shiftKey: false,
-      preventDefault: vi.fn(),
-      stopPropagation: vi.fn(),
-    } as unknown as React.MouseEvent;
+    const { onRegularClick, result } = renderSelection();
 
     act(() => {
-      result.current.handleCapabilityClick(mockCapabilities[0], mockEvent);
+      result.current.handleCapabilityClick(mockCapabilities[0], clickEvent(false));
     });
 
     expect(onRegularClick).toHaveBeenCalledWith(mockCapabilities[0]);
@@ -44,90 +65,52 @@ describe('useCapabilitySelection', () => {
   });
 
   it('toggles selection on shift-click', () => {
-    const onRegularClick = vi.fn();
-    const { result } = renderHook(() => useCapabilitySelection(mockCapabilities, onRegularClick));
+    const { result } = renderSelection();
 
-    const shiftEvent = {
-      shiftKey: true,
-      preventDefault: vi.fn(),
-      stopPropagation: vi.fn(),
-    } as unknown as React.MouseEvent;
+    shiftClick(result, mockCapabilities[0]);
+    expectSelected(result, 'l1-1', true);
 
-    act(() => {
-      result.current.handleCapabilityClick(mockCapabilities[0], shiftEvent);
-    });
-    expect(result.current.selectedCapabilities.has('l1-1' as CapabilityId)).toBe(true);
-
-    act(() => {
-      result.current.handleCapabilityClick(mockCapabilities[0], shiftEvent);
-    });
-    expect(result.current.selectedCapabilities.has('l1-1' as CapabilityId)).toBe(false);
+    shiftClick(result, mockCapabilities[0]);
+    expectSelected(result, 'l1-1', false);
   });
 
   it('allows multi-selection with shift-click', () => {
-    const onRegularClick = vi.fn();
-    const { result } = renderHook(() => useCapabilitySelection(mockCapabilities, onRegularClick));
+    const { result } = renderSelection();
 
-    const shiftEvent = {
-      shiftKey: true,
-      preventDefault: vi.fn(),
-      stopPropagation: vi.fn(),
-    } as unknown as React.MouseEvent;
-
-    act(() => {
-      result.current.handleCapabilityClick(mockCapabilities[0], shiftEvent);
-      result.current.handleCapabilityClick(mockCapabilities[1], shiftEvent);
-    });
+    shiftClick(result, mockCapabilities[0], mockCapabilities[1]);
 
     expect(result.current.selectedCapabilities.size).toBe(2);
-    expect(result.current.selectedCapabilities.has('l1-1' as CapabilityId)).toBe(true);
-    expect(result.current.selectedCapabilities.has('l1-2' as CapabilityId)).toBe(true);
+    expectSelected(result, 'l1-1', true);
+    expectSelected(result, 'l1-2', true);
   });
 
   it('clears selection on normal click', () => {
-    const onRegularClick = vi.fn();
-    const { result } = renderHook(() => useCapabilitySelection(mockCapabilities, onRegularClick));
+    const { result } = renderSelection();
 
-    const shiftEvent = {
-      shiftKey: true,
-      preventDefault: vi.fn(),
-      stopPropagation: vi.fn(),
-    } as unknown as React.MouseEvent;
-    const normalEvent = {
-      shiftKey: false,
-      preventDefault: vi.fn(),
-      stopPropagation: vi.fn(),
-    } as unknown as React.MouseEvent;
-
-    act(() => {
-      result.current.handleCapabilityClick(mockCapabilities[0], shiftEvent);
-      result.current.handleCapabilityClick(mockCapabilities[1], shiftEvent);
-    });
+    shiftClick(result, mockCapabilities[0], mockCapabilities[1]);
     expect(result.current.selectedCapabilities.size).toBe(2);
 
     act(() => {
-      result.current.handleCapabilityClick(mockCapabilities[0], normalEvent);
+      result.current.handleCapabilityClick(mockCapabilities[0], clickEvent(false));
     });
     expect(result.current.selectedCapabilities.size).toBe(0);
   });
 
   it('selectAllL1Capabilities selects only L1 capabilities', () => {
-    const onRegularClick = vi.fn();
-    const { result } = renderHook(() => useCapabilitySelection(mockCapabilities, onRegularClick));
+    const { result } = renderSelection();
 
     act(() => {
       result.current.selectAllL1Capabilities();
     });
 
     expect(result.current.selectedCapabilities.size).toBe(2);
-    expect(result.current.selectedCapabilities.has('l1-1' as CapabilityId)).toBe(true);
-    expect(result.current.selectedCapabilities.has('l1-2' as CapabilityId)).toBe(true);
-    expect(result.current.selectedCapabilities.has('l2-1' as CapabilityId)).toBe(false);
+    expectSelected(result, 'l1-1', true);
+    expectSelected(result, 'l1-2', true);
+    expectSelected(result, 'l2-1', false);
   });
 
   it('clearSelection clears all selections', () => {
-    const onRegularClick = vi.fn();
-    const { result } = renderHook(() => useCapabilitySelection(mockCapabilities, onRegularClick));
+    const { result } = renderSelection();
 
     act(() => {
       result.current.selectAllL1Capabilities();

@@ -71,85 +71,185 @@ func (tc *testContext) uniqueID(suffix string) string {
 	return fmt.Sprintf("%s-%s", tc.testID, suffix)
 }
 
-func TestAuditHistory_IncludesFitScoreEventsForComponent(t *testing.T) {
+type eventRow struct {
+	aggregateID string
+	eventType   string
+	data        map[string]any
+	version     int
+	occurredAt  time.Time
+	actorID     string
+	actorEmail  string
+}
+
+type eventInserter struct {
+	t        *testing.T
+	tx       *sql.Tx
+	ctx      context.Context
+	tenantID sharedvo.TenantID
+}
+
+func (ei eventInserter) insert(row eventRow) {
+	ei.t.Helper()
+
+	dataJSON, err := json.Marshal(row.data)
+	require.NoError(ei.t, err)
+
+	_, err = ei.tx.ExecContext(ei.ctx,
+		`INSERT INTO infrastructure.events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+		ei.tenantID.Value(), row.aggregateID, row.eventType, dataJSON, row.version, row.occurredAt, row.actorID, row.actorEmail,
+	)
+	require.NoError(ei.t, err)
+}
+
+type fitScoreExpectation struct {
+	eventType   string
+	aggregateID string
+	componentID string
+	score       float64
+}
+
+func assertFitScoreEntry(t *testing.T, entries []AuditEntry, want fitScoreExpectation) {
+	t.Helper()
+	for _, entry := range entries {
+		if entry.EventType != want.eventType {
+			continue
+		}
+		assert.Equal(t, want.aggregateID, entry.AggregateID)
+		assert.Equal(t, want.componentID, entry.EventData["componentId"])
+		assert.Equal(t, want.score, entry.EventData["score"])
+	}
+}
+
+func assertFitScoreComponent(t *testing.T, entries []AuditEntry, componentID, message string) {
+	t.Helper()
+	for _, entry := range entries {
+		if entry.EventType == "ApplicationFitScoreSet" {
+			assert.Equal(t, componentID, entry.EventData["componentId"], message)
+		}
+	}
+}
+
+type seedContext struct {
+	t        *testing.T
+	tc       *testContext
+	ctx      context.Context
+	tenantID sharedvo.TenantID
+}
+
+func newSeedContext(t *testing.T) (seedContext, func()) {
+	t.Helper()
+
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	ctx, cleanup := setupTestDB(t)
-	defer cleanup()
+	tc, cleanup := setupTestDB(t)
 
 	tenantID, err := sharedvo.NewTenantID("test-tenant")
 	require.NoError(t, err)
 
 	tenantCtx := sharedctx.WithTenant(context.Background(), tenantID)
 
-	componentID := ctx.uniqueID("component")
-	fitScoreAggregateID := ctx.uniqueID("fitscore")
-	pillarID := ctx.uniqueID("pillar")
+	return seedContext{t: t, tc: tc, ctx: tenantCtx, tenantID: tenantID}, cleanup
+}
 
-	componentEventData := map[string]any{
-		"id":          componentID,
-		"name":        "Test Component",
-		"description": "A test component",
+func (s seedContext) withTransaction(seed func(eventInserter)) {
+	s.t.Helper()
+
+	tx, err := s.tc.tenantDB.BeginTxWithTenant(s.ctx, nil)
+	require.NoError(s.t, err)
+
+	seed(eventInserter{t: s.t, tx: tx, ctx: s.ctx, tenantID: s.tenantID})
+
+	require.NoError(s.t, tx.Commit())
+}
+
+type componentFitScoreIDs struct {
+	componentID         string
+	fitScoreAggregateID string
+	pillarID            string
+}
+
+func (s seedContext) seedComponentFitScoreHistory(ids componentFitScoreIDs) {
+	s.t.Helper()
+
+	now := time.Now()
+	s.withTransaction(func(inserter eventInserter) {
+		inserter.insert(eventRow{
+			aggregateID: ids.componentID,
+			eventType:   "ApplicationComponentCreated",
+			data: map[string]any{
+				"id":          ids.componentID,
+				"name":        "Test Component",
+				"description": "A test component",
+			},
+			version:    1,
+			occurredAt: now,
+			actorID:    "user-1",
+			actorEmail: "user@test.com",
+		})
+
+		inserter.insert(eventRow{
+			aggregateID: ids.fitScoreAggregateID,
+			eventType:   "ApplicationFitScoreSet",
+			data: map[string]any{
+				"id":          ids.fitScoreAggregateID,
+				"componentId": ids.componentID,
+				"pillarId":    ids.pillarID,
+				"pillarName":  "Digital Transformation",
+				"score":       4,
+				"rationale":   "Good fit",
+				"scoredBy":    "architect@test.com",
+			},
+			version:    1,
+			occurredAt: now.Add(time.Second),
+			actorID:    "user-2",
+			actorEmail: "architect@test.com",
+		})
+
+		inserter.insert(eventRow{
+			aggregateID: ids.fitScoreAggregateID,
+			eventType:   "ApplicationFitScoreUpdated",
+			data: map[string]any{
+				"id":           ids.fitScoreAggregateID,
+				"componentId":  ids.componentID,
+				"score":        5,
+				"rationale":    "Excellent fit after review",
+				"oldScore":     4,
+				"oldRationale": "Good fit",
+				"updatedBy":    "architect@test.com",
+			},
+			version:    2,
+			occurredAt: now.Add(2 * time.Second),
+			actorID:    "user-2",
+			actorEmail: "architect@test.com",
+		})
+	})
+}
+
+func TestAuditHistory_IncludesFitScoreEventsForComponent(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
 	}
-	componentEventJSON, err := json.Marshal(componentEventData)
-	require.NoError(t, err)
 
-	tx, err := ctx.tenantDB.BeginTxWithTenant(tenantCtx, nil)
-	require.NoError(t, err)
+	seed, cleanup := newSeedContext(t)
+	defer cleanup()
 
-	_, err = tx.ExecContext(tenantCtx,
-		`INSERT INTO infrastructure.events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		tenantID.Value(), componentID, "ApplicationComponentCreated", componentEventJSON, 1, time.Now(), "user-1", "user@test.com",
-	)
-	require.NoError(t, err)
-
-	fitScoreEventData := map[string]any{
-		"id":          fitScoreAggregateID,
-		"componentId": componentID,
-		"pillarId":    pillarID,
-		"pillarName":  "Digital Transformation",
-		"score":       4,
-		"rationale":   "Good fit",
-		"scoredBy":    "architect@test.com",
+	ids := componentFitScoreIDs{
+		componentID:         seed.tc.uniqueID("component"),
+		fitScoreAggregateID: seed.tc.uniqueID("fitscore"),
+		pillarID:            seed.tc.uniqueID("pillar"),
 	}
-	fitScoreEventJSON, err := json.Marshal(fitScoreEventData)
-	require.NoError(t, err)
 
-	_, err = tx.ExecContext(tenantCtx,
-		`INSERT INTO infrastructure.events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		tenantID.Value(), fitScoreAggregateID, "ApplicationFitScoreSet", fitScoreEventJSON, 1, time.Now().Add(time.Second), "user-2", "architect@test.com",
-	)
-	require.NoError(t, err)
+	seed.seedComponentFitScoreHistory(ids)
 
-	fitScoreUpdateEventData := map[string]any{
-		"id":           fitScoreAggregateID,
-		"componentId":  componentID,
-		"score":        5,
-		"rationale":    "Excellent fit after review",
-		"oldScore":     4,
-		"oldRationale": "Good fit",
-		"updatedBy":    "architect@test.com",
-	}
-	fitScoreUpdateEventJSON, err := json.Marshal(fitScoreUpdateEventData)
-	require.NoError(t, err)
+	componentID := ids.componentID
+	fitScoreAggregateID := ids.fitScoreAggregateID
 
-	_, err = tx.ExecContext(tenantCtx,
-		`INSERT INTO infrastructure.events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		tenantID.Value(), fitScoreAggregateID, "ApplicationFitScoreUpdated", fitScoreUpdateEventJSON, 2, time.Now().Add(2*time.Second), "user-2", "architect@test.com",
-	)
-	require.NoError(t, err)
+	readModel := NewAuditHistoryReadModel(seed.tc.tenantDB)
 
-	err = tx.Commit()
-	require.NoError(t, err)
-
-	readModel := NewAuditHistoryReadModel(ctx.tenantDB)
-
-	entries, hasMore, _, err := readModel.GetHistoryByAggregateID(tenantCtx, componentID, 50, "")
+	entries, hasMore, _, err := readModel.GetHistoryByAggregateID(seed.ctx, componentID, 50, "")
 	require.NoError(t, err)
 	assert.False(t, hasMore)
 
@@ -164,18 +264,12 @@ func TestAuditHistory_IncludesFitScoreEventsForComponent(t *testing.T) {
 	assert.Contains(t, eventTypes, "ApplicationFitScoreSet", "Should include fit score set event")
 	assert.Contains(t, eventTypes, "ApplicationFitScoreUpdated", "Should include fit score updated event")
 
-	for _, entry := range entries {
-		if entry.EventType == "ApplicationFitScoreSet" {
-			assert.Equal(t, fitScoreAggregateID, entry.AggregateID)
-			assert.Equal(t, componentID, entry.EventData["componentId"])
-			assert.Equal(t, float64(4), entry.EventData["score"])
-		}
-		if entry.EventType == "ApplicationFitScoreUpdated" {
-			assert.Equal(t, fitScoreAggregateID, entry.AggregateID)
-			assert.Equal(t, componentID, entry.EventData["componentId"])
-			assert.Equal(t, float64(5), entry.EventData["score"])
-		}
-	}
+	assertFitScoreEntry(t, entries, fitScoreExpectation{
+		eventType: "ApplicationFitScoreSet", aggregateID: fitScoreAggregateID, componentID: componentID, score: float64(4),
+	})
+	assertFitScoreEntry(t, entries, fitScoreExpectation{
+		eventType: "ApplicationFitScoreUpdated", aggregateID: fitScoreAggregateID, componentID: componentID, score: float64(5),
+	})
 }
 
 func TestAuditHistory_DoesNotIncludeUnrelatedFitScoreEvents(t *testing.T) {
@@ -199,41 +293,48 @@ func TestAuditHistory_DoesNotIncludeUnrelatedFitScoreEvents(t *testing.T) {
 	tx, err := ctx.tenantDB.BeginTxWithTenant(tenantCtx, nil)
 	require.NoError(t, err)
 
-	componentAEventData, _ := json.Marshal(map[string]any{"id": componentA, "name": "Component A"})
-	_, err = tx.ExecContext(tenantCtx,
-		`INSERT INTO infrastructure.events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		tenantID.Value(), componentA, "ApplicationComponentCreated", componentAEventData, 1, time.Now(), "user-1", "user@test.com",
-	)
-	require.NoError(t, err)
+	now := time.Now()
+	inserter := eventInserter{t: t, tx: tx, ctx: tenantCtx, tenantID: tenantID}
 
-	componentBEventData, _ := json.Marshal(map[string]any{"id": componentB, "name": "Component B"})
-	_, err = tx.ExecContext(tenantCtx,
-		`INSERT INTO infrastructure.events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		tenantID.Value(), componentB, "ApplicationComponentCreated", componentBEventData, 1, time.Now(), "user-1", "user@test.com",
-	)
-	require.NoError(t, err)
-
-	fitScoreAEventData, _ := json.Marshal(map[string]any{
-		"id": fitScoreForA, "componentId": componentA, "score": 4,
+	inserter.insert(eventRow{
+		aggregateID: componentA,
+		eventType:   "ApplicationComponentCreated",
+		data:        map[string]any{"id": componentA, "name": "Component A"},
+		version:     1,
+		occurredAt:  now,
+		actorID:     "user-1",
+		actorEmail:  "user@test.com",
 	})
-	_, err = tx.ExecContext(tenantCtx,
-		`INSERT INTO infrastructure.events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		tenantID.Value(), fitScoreForA, "ApplicationFitScoreSet", fitScoreAEventData, 1, time.Now(), "user-2", "architect@test.com",
-	)
-	require.NoError(t, err)
 
-	fitScoreBEventData, _ := json.Marshal(map[string]any{
-		"id": fitScoreForB, "componentId": componentB, "score": 3,
+	inserter.insert(eventRow{
+		aggregateID: componentB,
+		eventType:   "ApplicationComponentCreated",
+		data:        map[string]any{"id": componentB, "name": "Component B"},
+		version:     1,
+		occurredAt:  now,
+		actorID:     "user-1",
+		actorEmail:  "user@test.com",
 	})
-	_, err = tx.ExecContext(tenantCtx,
-		`INSERT INTO infrastructure.events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		tenantID.Value(), fitScoreForB, "ApplicationFitScoreSet", fitScoreBEventData, 1, time.Now(), "user-2", "architect@test.com",
-	)
-	require.NoError(t, err)
+
+	inserter.insert(eventRow{
+		aggregateID: fitScoreForA,
+		eventType:   "ApplicationFitScoreSet",
+		data:        map[string]any{"id": fitScoreForA, "componentId": componentA, "score": 4},
+		version:     1,
+		occurredAt:  now,
+		actorID:     "user-2",
+		actorEmail:  "architect@test.com",
+	})
+
+	inserter.insert(eventRow{
+		aggregateID: fitScoreForB,
+		eventType:   "ApplicationFitScoreSet",
+		data:        map[string]any{"id": fitScoreForB, "componentId": componentB, "score": 3},
+		version:     1,
+		occurredAt:  now,
+		actorID:     "user-2",
+		actorEmail:  "architect@test.com",
+	})
 
 	err = tx.Commit()
 	require.NoError(t, err)
@@ -244,21 +345,11 @@ func TestAuditHistory_DoesNotIncludeUnrelatedFitScoreEvents(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Len(t, entriesA, 2, "Component A should have 2 events: created + its fit score")
-
-	for _, entry := range entriesA {
-		if entry.EventType == "ApplicationFitScoreSet" {
-			assert.Equal(t, componentA, entry.EventData["componentId"], "Should only include fit score for component A")
-		}
-	}
+	assertFitScoreComponent(t, entriesA, componentA, "Should only include fit score for component A")
 
 	entriesB, _, _, err := readModel.GetHistoryByAggregateID(tenantCtx, componentB, 50, "")
 	require.NoError(t, err)
 
 	assert.Len(t, entriesB, 2, "Component B should have 2 events: created + its fit score")
-
-	for _, entry := range entriesB {
-		if entry.EventType == "ApplicationFitScoreSet" {
-			assert.Equal(t, componentB, entry.EventData["componentId"], "Should only include fit score for component B")
-		}
-	}
+	assertFitScoreComponent(t, entriesB, componentB, "Should only include fit score for component B")
 }

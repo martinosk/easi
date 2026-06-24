@@ -57,6 +57,8 @@ function createWrapper(queryClient: QueryClient) {
     React.createElement(QueryClientProvider, { client: queryClient }, children);
 }
 
+type QueryKey = readonly unknown[];
+
 describe('useCapabilities hooks', () => {
   let queryClient: QueryClient;
 
@@ -73,6 +75,18 @@ describe('useCapabilities hooks', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
+
+  const renderMutation = <T,>(hook: () => T) => {
+    const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    const { result } = renderHook(hook, { wrapper: createWrapper(queryClient) });
+    return { result, invalidateQueriesSpy };
+  };
+
+  const expectInvalidated = (spy: ReturnType<typeof vi.spyOn>, ...keys: QueryKey[]) => {
+    for (const queryKey of keys) {
+      expect(spy).toHaveBeenCalledWith({ queryKey });
+    }
+  };
 
   describe('useCapabilities', () => {
     it('should fetch all capabilities', async () => {
@@ -144,11 +158,7 @@ describe('useCapabilities hooks', () => {
     it('should create a capability and invalidate cache', async () => {
       const newCapability = buildCapability({ id: 'cap-2' as CapabilityId, name: 'New Capability' });
       vi.mocked(capabilitiesApi.create).mockResolvedValue(newCapability);
-      const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
-
-      const { result } = renderHook(() => useCreateCapability(), {
-        wrapper: createWrapper(queryClient),
-      });
+      const { result, invalidateQueriesSpy } = renderMutation(() => useCreateCapability());
 
       await act(async () => {
         await result.current.mutateAsync({
@@ -164,9 +174,7 @@ describe('useCapabilities hooks', () => {
         level: 'L1',
       });
 
-      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: capabilitiesQueryKeys.lists(),
-      });
+      expectInvalidated(invalidateQueriesSpy, capabilitiesQueryKeys.lists());
       expect(toast.success).toHaveBeenCalledWith('Capability "New Capability" created');
     });
 
@@ -177,11 +185,7 @@ describe('useCapabilities hooks', () => {
         parentId: 'parent-1' as CapabilityId,
       });
       vi.mocked(capabilitiesApi.create).mockResolvedValue(newCapability);
-      const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
-
-      const { result } = renderHook(() => useCreateCapability(), {
-        wrapper: createWrapper(queryClient),
-      });
+      const { result, invalidateQueriesSpy } = renderMutation(() => useCreateCapability());
 
       await act(async () => {
         await result.current.mutateAsync({
@@ -191,9 +195,7 @@ describe('useCapabilities hooks', () => {
         });
       });
 
-      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: capabilitiesQueryKeys.children('parent-1'),
-      });
+      expectInvalidated(invalidateQueriesSpy, capabilitiesQueryKeys.children('parent-1'));
     });
 
     it('should show error toast on failure', async () => {
@@ -234,11 +236,7 @@ describe('useCapabilities hooks', () => {
       queryClient.setQueryData(capabilitiesQueryKeys.detail('cap-1'), existingCapability);
       vi.mocked(capabilitiesApi.update).mockResolvedValue(updatedCapability);
 
-      const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
-
-      const { result } = renderHook(() => useUpdateCapability(), {
-        wrapper: createWrapper(queryClient),
-      });
+      const { result, invalidateQueriesSpy } = renderMutation(() => useUpdateCapability());
 
       await act(async () => {
         await result.current.mutateAsync({
@@ -247,12 +245,11 @@ describe('useCapabilities hooks', () => {
         });
       });
 
-      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: capabilitiesQueryKeys.lists(),
-      });
-      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: capabilitiesQueryKeys.detail('cap-1'),
-      });
+      expectInvalidated(
+        invalidateQueriesSpy,
+        capabilitiesQueryKeys.lists(),
+        capabilitiesQueryKeys.detail('cap-1'),
+      );
 
       expect(toast.success).toHaveBeenCalledWith('Capability "Updated Name" updated');
     });
@@ -266,67 +263,42 @@ describe('useCapabilities hooks', () => {
       queryClient.setQueryData(capabilitiesQueryKeys.detail('cap-1'), capability);
       vi.mocked(capabilitiesApi.delete).mockResolvedValue(undefined);
 
-      const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
-
-      const { result } = renderHook(() => useDeleteCapability(), {
-        wrapper: createWrapper(queryClient),
-      });
+      const { result, invalidateQueriesSpy } = renderMutation(() => useDeleteCapability());
 
       await act(async () => {
         await result.current.mutateAsync({ capability });
       });
 
-      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: capabilitiesQueryKeys.lists(),
-      });
-
-      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: capabilitiesQueryKeys.detail('cap-1'),
-      });
+      expectInvalidated(
+        invalidateQueriesSpy,
+        capabilitiesQueryKeys.lists(),
+        capabilitiesQueryKeys.detail('cap-1'),
+      );
 
       expect(toast.success).toHaveBeenCalledWith('Capability deleted');
     });
 
-    it('should invalidate parent children query when parentId provided', async () => {
+    it.each([
+      {
+        name: 'should invalidate parent children query when parentId provided',
+        extra: { parentId: 'parent-1' },
+        expectedKey: capabilitiesQueryKeys.children('parent-1'),
+      },
+      {
+        name: 'should invalidate domain capabilities query when domainId provided',
+        extra: { domainId: 'domain-1' },
+        expectedKey: businessDomainsQueryKeys.capabilities('domain-1'),
+      },
+    ])('$name', async ({ extra, expectedKey }) => {
       const capability = buildCapability({ id: 'cap-1' as CapabilityId, name: 'To Delete' });
       vi.mocked(capabilitiesApi.delete).mockResolvedValue(undefined);
-      const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
-
-      const { result } = renderHook(() => useDeleteCapability(), {
-        wrapper: createWrapper(queryClient),
-      });
+      const { result, invalidateQueriesSpy } = renderMutation(() => useDeleteCapability());
 
       await act(async () => {
-        await result.current.mutateAsync({
-          capability,
-          parentId: 'parent-1',
-        });
+        await result.current.mutateAsync({ capability, ...extra });
       });
 
-      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: capabilitiesQueryKeys.children('parent-1'),
-      });
-    });
-
-    it('should invalidate domain capabilities query when domainId provided', async () => {
-      const capability = buildCapability({ id: 'cap-1' as CapabilityId, name: 'To Delete' });
-      vi.mocked(capabilitiesApi.delete).mockResolvedValue(undefined);
-      const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
-
-      const { result } = renderHook(() => useDeleteCapability(), {
-        wrapper: createWrapper(queryClient),
-      });
-
-      await act(async () => {
-        await result.current.mutateAsync({
-          capability,
-          domainId: 'domain-1',
-        });
-      });
-
-      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: businessDomainsQueryKeys.capabilities('domain-1'),
-      });
+      expectInvalidated(invalidateQueriesSpy, expectedKey);
     });
   });
 
@@ -362,11 +334,7 @@ describe('useCapabilities hooks', () => {
       });
 
       vi.mocked(capabilitiesApi.createDependency).mockResolvedValue(newDependency);
-      const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
-
-      const { result } = renderHook(() => useCreateCapabilityDependency(), {
-        wrapper: createWrapper(queryClient),
-      });
+      const { result, invalidateQueriesSpy } = renderMutation(() => useCreateCapabilityDependency());
 
       await act(async () => {
         await result.current.mutateAsync({
@@ -376,15 +344,12 @@ describe('useCapabilities hooks', () => {
         });
       });
 
-      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: capabilitiesQueryKeys.dependencies(),
-      });
-      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: capabilitiesQueryKeys.outgoing('cap-1'),
-      });
-      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: capabilitiesQueryKeys.incoming('cap-2'),
-      });
+      expectInvalidated(
+        invalidateQueriesSpy,
+        capabilitiesQueryKeys.dependencies(),
+        capabilitiesQueryKeys.outgoing('cap-1'),
+        capabilitiesQueryKeys.incoming('cap-2'),
+      );
       expect(toast.success).toHaveBeenCalledWith('Dependency created');
     });
   });
@@ -397,25 +362,18 @@ describe('useCapabilities hooks', () => {
         targetCapabilityId: 'cap-2' as CapabilityId,
       });
       vi.mocked(capabilitiesApi.deleteDependency).mockResolvedValue(undefined);
-      const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
-
-      const { result } = renderHook(() => useDeleteCapabilityDependency(), {
-        wrapper: createWrapper(queryClient),
-      });
+      const { result, invalidateQueriesSpy } = renderMutation(() => useDeleteCapabilityDependency());
 
       await act(async () => {
         await result.current.mutateAsync(dependency);
       });
 
-      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: capabilitiesQueryKeys.dependencies(),
-      });
-      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: capabilitiesQueryKeys.outgoing('cap-1'),
-      });
-      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: capabilitiesQueryKeys.incoming('cap-2'),
-      });
+      expectInvalidated(
+        invalidateQueriesSpy,
+        capabilitiesQueryKeys.dependencies(),
+        capabilitiesQueryKeys.outgoing('cap-1'),
+        capabilitiesQueryKeys.incoming('cap-2'),
+      );
       expect(toast.success).toHaveBeenCalledWith('Dependency deleted');
     });
   });

@@ -39,6 +39,33 @@ function renderWithProviders(ui: React.ReactElement, queryClient?: QueryClient) 
   );
 }
 
+async function renderAndEnterEditMode() {
+  renderWithProviders(<StrategyPillarsSettings />);
+  await waitFor(() => {
+    expect(screen.getByTestId('edit-pillars-btn')).toBeInTheDocument();
+  });
+  fireEvent.click(screen.getByTestId('edit-pillars-btn'));
+}
+
+function buildPillar(overrides: Partial<StrategyPillarsConfigurationWithVersion['data'][number]> = {}) {
+  return {
+    id: 'pillar-1',
+    name: 'Always On',
+    description: '',
+    active: true,
+    fitScoringEnabled: false,
+    fitCriteria: '',
+    fitType: '' as const,
+    _links: {},
+    ...overrides,
+  };
+}
+
+function mockConfig(data: StrategyPillarsConfigurationWithVersion['data']) {
+  const config: StrategyPillarsConfigurationWithVersion = { data, _links: {}, version: 1 };
+  vi.mocked(strategyPillarsApi.getConfiguration).mockResolvedValue(config);
+}
+
 const mockPillarsConfig: StrategyPillarsConfigurationWithVersion = {
   data: [
     {
@@ -111,51 +138,27 @@ describe('StrategyPillarsSettings', () => {
   });
 
   it('enters edit mode when edit button is clicked', async () => {
-    renderWithProviders(<StrategyPillarsSettings />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('edit-pillars-btn')).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByTestId('edit-pillars-btn'));
+    await renderAndEnterEditMode();
 
     expect(screen.getByTestId('save-pillars-btn')).toBeInTheDocument();
     expect(screen.getByTestId('cancel-pillars-btn')).toBeInTheDocument();
   });
 
   it('shows input fields in edit mode', async () => {
-    renderWithProviders(<StrategyPillarsSettings />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('edit-pillars-btn')).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByTestId('edit-pillars-btn'));
+    await renderAndEnterEditMode();
 
     expect(screen.getByTestId('pillar-name-input-0')).toBeInTheDocument();
     expect(screen.getByTestId('pillar-description-input-0')).toBeInTheDocument();
   });
 
   it('shows add pillar button in edit mode', async () => {
-    renderWithProviders(<StrategyPillarsSettings />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('edit-pillars-btn')).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByTestId('edit-pillars-btn'));
+    await renderAndEnterEditMode();
 
     expect(screen.getByTestId('add-pillar-btn')).toBeInTheDocument();
   });
 
   it('shows delete buttons for each pillar in edit mode when more than one pillar exists', async () => {
-    renderWithProviders(<StrategyPillarsSettings />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('edit-pillars-btn')).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByTestId('edit-pillars-btn'));
+    await renderAndEnterEditMode();
 
     expect(screen.getByTestId('delete-pillar-btn-0')).toBeInTheDocument();
     expect(screen.getByTestId('delete-pillar-btn-1')).toBeInTheDocument();
@@ -163,13 +166,7 @@ describe('StrategyPillarsSettings', () => {
   });
 
   it('cancels edit mode and reverts changes when cancel is clicked', async () => {
-    renderWithProviders(<StrategyPillarsSettings />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('edit-pillars-btn')).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByTestId('edit-pillars-btn'));
+    await renderAndEnterEditMode();
 
     const nameInput = screen.getByTestId('pillar-name-input-0') as HTMLInputElement;
     fireEvent.change(nameInput, { target: { value: 'Modified Name' } });
@@ -182,13 +179,7 @@ describe('StrategyPillarsSettings', () => {
   });
 
   it('validates that pillar name cannot be empty', async () => {
-    renderWithProviders(<StrategyPillarsSettings />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('edit-pillars-btn')).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByTestId('edit-pillars-btn'));
+    await renderAndEnterEditMode();
 
     const nameInput = screen.getByTestId('pillar-name-input-0');
     fireEvent.change(nameInput, { target: { value: '' } });
@@ -197,13 +188,7 @@ describe('StrategyPillarsSettings', () => {
   });
 
   it('validates pillar name uniqueness (case insensitive)', async () => {
-    renderWithProviders(<StrategyPillarsSettings />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('edit-pillars-btn')).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByTestId('edit-pillars-btn'));
+    await renderAndEnterEditMode();
 
     const nameInput = screen.getByTestId('pillar-name-input-0');
     fireEvent.change(nameInput, { target: { value: 'grow' } });
@@ -212,13 +197,7 @@ describe('StrategyPillarsSettings', () => {
   });
 
   it('disables save button when validation errors exist', async () => {
-    renderWithProviders(<StrategyPillarsSettings />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('edit-pillars-btn')).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByTestId('edit-pillars-btn'));
+    await renderAndEnterEditMode();
 
     const nameInput = screen.getByTestId('pillar-name-input-0');
     fireEvent.change(nameInput, { target: { value: '' } });
@@ -227,55 +206,27 @@ describe('StrategyPillarsSettings', () => {
   });
 
   it('adds a new pillar when add button is clicked', async () => {
-    renderWithProviders(<StrategyPillarsSettings />);
+    await renderAndEnterEditMode();
 
-    await waitFor(() => {
-      expect(screen.getByTestId('edit-pillars-btn')).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByTestId('edit-pillars-btn'));
     fireEvent.click(screen.getByTestId('add-pillar-btn'));
 
     expect(screen.getByTestId('pillar-name-input-3')).toBeInTheDocument();
   });
 
   it('disables add pillar button when max pillars (20) reached', async () => {
-    const maxPillarsConfig: StrategyPillarsConfigurationWithVersion = {
-      data: Array.from({ length: 20 }, (_, i) => ({
-        id: `pillar-${i}`,
-        name: `Pillar ${i + 1}`,
-        description: '',
-        active: true,
-        fitScoringEnabled: false,
-        fitCriteria: '',
-        fitType: '' as const,
-        _links: {},
-      })),
-      _links: {},
-      version: 1,
-    };
-    vi.mocked(strategyPillarsApi.getConfiguration).mockResolvedValue(maxPillarsConfig);
+    mockConfig(
+      Array.from({ length: 20 }, (_, i) => buildPillar({ id: `pillar-${i}`, name: `Pillar ${i + 1}` })),
+    );
 
-    renderWithProviders(<StrategyPillarsSettings />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('edit-pillars-btn')).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByTestId('edit-pillars-btn'));
+    await renderAndEnterEditMode();
 
     expect(screen.getByTestId('add-pillar-btn')).toBeDisabled();
     expect(screen.getByText(/maximum 20 pillars/i)).toBeInTheDocument();
   });
 
   it('marks pillar for deletion when delete button is clicked', async () => {
-    renderWithProviders(<StrategyPillarsSettings />);
+    await renderAndEnterEditMode();
 
-    await waitFor(() => {
-      expect(screen.getByTestId('edit-pillars-btn')).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByTestId('edit-pillars-btn'));
     fireEvent.click(screen.getByTestId('delete-pillar-btn-0'));
 
     const pillarRow = screen.getByTestId('pillar-row-0');
@@ -283,31 +234,9 @@ describe('StrategyPillarsSettings', () => {
   });
 
   it('disables delete button when only one active pillar remains', async () => {
-    const singlePillarConfig: StrategyPillarsConfigurationWithVersion = {
-      data: [
-        {
-          id: 'pillar-1',
-          name: 'Always On',
-          description: '',
-          active: true,
-          fitScoringEnabled: false,
-          fitCriteria: '',
-          fitType: '',
-          _links: {},
-        },
-      ],
-      _links: {},
-      version: 1,
-    };
-    vi.mocked(strategyPillarsApi.getConfiguration).mockResolvedValue(singlePillarConfig);
+    mockConfig([buildPillar({ id: 'pillar-1', name: 'Always On' })]);
 
-    renderWithProviders(<StrategyPillarsSettings />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('edit-pillars-btn')).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByTestId('edit-pillars-btn'));
+    await renderAndEnterEditMode();
 
     expect(screen.getByTestId('delete-pillar-btn-0')).toBeDisabled();
   });
@@ -326,13 +255,7 @@ describe('StrategyPillarsSettings', () => {
     vi.mocked(strategyPillarsApi.getConfiguration).mockResolvedValue(mockPillarsConfig);
     vi.mocked(strategyPillarsApi.batchUpdate).mockRejectedValue(new ApiError('Conflict', 409));
 
-    renderWithProviders(<StrategyPillarsSettings />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('edit-pillars-btn')).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByTestId('edit-pillars-btn'));
+    await renderAndEnterEditMode();
 
     const nameInput = screen.getByTestId('pillar-name-input-0');
     fireEvent.change(nameInput, { target: { value: 'Modified Name' } });
@@ -356,43 +279,11 @@ describe('StrategyPillarsSettings', () => {
   });
 
   it('filters out inactive pillars in view mode by default', async () => {
-    const configWithInactive: StrategyPillarsConfigurationWithVersion = {
-      data: [
-        {
-          id: 'pillar-1',
-          name: 'Always On',
-          description: '',
-          active: true,
-          fitScoringEnabled: false,
-          fitCriteria: '',
-          fitType: '',
-          _links: {},
-        },
-        {
-          id: 'pillar-2',
-          name: 'Grow',
-          description: '',
-          active: false,
-          fitScoringEnabled: false,
-          fitCriteria: '',
-          fitType: '',
-          _links: {},
-        },
-        {
-          id: 'pillar-3',
-          name: 'Transform',
-          description: '',
-          active: true,
-          fitScoringEnabled: false,
-          fitCriteria: '',
-          fitType: '',
-          _links: {},
-        },
-      ],
-      _links: {},
-      version: 1,
-    };
-    vi.mocked(strategyPillarsApi.getConfiguration).mockResolvedValue(configWithInactive);
+    mockConfig([
+      buildPillar({ id: 'pillar-1', name: 'Always On' }),
+      buildPillar({ id: 'pillar-2', name: 'Grow', active: false }),
+      buildPillar({ id: 'pillar-3', name: 'Transform' }),
+    ]);
 
     renderWithProviders(<StrategyPillarsSettings />);
 

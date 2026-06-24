@@ -65,45 +65,51 @@ func (m *mockDeleteCapabilityLookup) GetByID(ctx context.Context, id string) (*r
 	return nil, nil
 }
 
-func createTestCapability(t *testing.T) *aggregates.Capability {
+type capabilitySpec struct {
+	name        string
+	description string
+	level       string
+	parentID    valueobjects.CapabilityID
+}
+
+func newCommittedCapability(t *testing.T, spec capabilitySpec) *aggregates.Capability {
 	t.Helper()
 
-	name, err := valueobjects.NewCapabilityName("Test Capability")
+	capName, err := valueobjects.NewCapabilityName(spec.name)
 	require.NoError(t, err)
 
-	description := valueobjects.MustNewDescription("Test description")
-
-	level, err := valueobjects.NewCapabilityLevel("L1")
+	level, err := valueobjects.NewCapabilityLevel(spec.level)
 	require.NoError(t, err)
 
-	var parentID valueobjects.CapabilityID
-
-	capability, err := aggregates.NewCapability(name, description, parentID, level)
+	capability, err := aggregates.NewCapability(capName, valueobjects.MustNewDescription(spec.description), spec.parentID, level)
 	require.NoError(t, err)
 	capability.MarkChangesAsCommitted()
 
 	return capability
 }
 
-func createTestCapabilityWithParent(t *testing.T, parentIDStr string) *aggregates.Capability {
+func createTestCapability(t *testing.T) *aggregates.Capability {
 	t.Helper()
 
-	name, err := valueobjects.NewCapabilityName("Child Capability")
-	require.NoError(t, err)
+	return newCommittedCapability(t, capabilitySpec{
+		name:        "Test Capability",
+		description: "Test description",
+		level:       "L1",
+	})
+}
 
-	description := valueobjects.MustNewDescription("Child description")
-
-	level, err := valueobjects.NewCapabilityLevel("L2")
-	require.NoError(t, err)
+func createTestCapabilityWithParent(t *testing.T, parentIDStr string) *aggregates.Capability {
+	t.Helper()
 
 	parentID, err := valueobjects.NewCapabilityIDFromString(parentIDStr)
 	require.NoError(t, err)
 
-	capability, err := aggregates.NewCapability(name, description, parentID, level)
-	require.NoError(t, err)
-	capability.MarkChangesAsCommitted()
-
-	return capability
+	return newCommittedCapability(t, capabilitySpec{
+		name:        "Child Capability",
+		description: "Child description",
+		level:       "L2",
+		parentID:    parentID,
+	})
 }
 
 func newDeleteHandler(repo *mockDeleteCapabilityRepository, deletionSvc *mockCapabilityDeletionService, realizationRM *mockDeleteRealizationReadModel, capLookup *mockDeleteCapabilityLookup) *DeleteCapabilityHandler {
@@ -128,19 +134,58 @@ func TestDeleteCapabilityHandler_Success(t *testing.T) {
 	assert.Equal(t, "CapabilityDeleted", uncommittedEvents[0].EventType())
 }
 
-func TestDeleteCapabilityHandler_CapabilityHasChildren_ReturnsError(t *testing.T) {
-	capability := createTestCapability(t)
-	capabilityID := capability.ID()
+func TestDeleteCapabilityHandler_ErrorPaths(t *testing.T) {
+	tests := []struct {
+		name         string
+		canDeleteErr error
+		saveErr      error
+		expectedErr  error
+		expectSaved  bool
+	}{
+		{
+			name:         "capability has children",
+			canDeleteErr: services.ErrCapabilityHasChildren,
+			expectedErr:  services.ErrCapabilityHasChildren,
+		},
+		{
+			name:         "deletion service error",
+			canDeleteErr: errors.New("database connection error"),
+		},
+		{
+			name:        "save error",
+			saveErr:     errors.New("failed to save"),
+			expectSaved: true,
+		},
+	}
 
-	mockRepo := &mockDeleteCapabilityRepository{capability: capability}
-	handler := newDeleteHandler(mockRepo, &mockCapabilityDeletionService{canDeleteErr: services.ErrCapabilityHasChildren}, &mockDeleteRealizationReadModel{}, &mockDeleteCapabilityLookup{})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			capability := createTestCapability(t)
+			mockRepo := &mockDeleteCapabilityRepository{capability: capability, saveErr: tt.saveErr}
+			handler := newDeleteHandler(mockRepo, &mockCapabilityDeletionService{canDeleteErr: tt.canDeleteErr}, &mockDeleteRealizationReadModel{}, &mockDeleteCapabilityLookup{})
 
-	cmd := &commands.DeleteCapability{ID: capabilityID}
+			cmd := &commands.DeleteCapability{ID: capability.ID()}
 
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.Error(t, err)
-	assert.Equal(t, services.ErrCapabilityHasChildren, err)
-	assert.Nil(t, mockRepo.savedCap)
+			_, err := handler.Handle(context.Background(), cmd)
+			assert.Error(t, err)
+
+			expected := tt.expectedErr
+			if expected == nil {
+				if tt.canDeleteErr != nil {
+					expected = tt.canDeleteErr
+				} else {
+					expected = tt.saveErr
+				}
+			}
+			assert.Equal(t, expected, err)
+
+			if tt.expectSaved {
+				assert.NotNil(t, mockRepo.savedCap)
+			} else {
+				assert.Nil(t, mockRepo.savedCap)
+			}
+		})
+	}
 }
 
 func TestDeleteCapabilityHandler_CapabilityNotFound_ReturnsError(t *testing.T) {
@@ -153,36 +198,6 @@ func TestDeleteCapabilityHandler_CapabilityNotFound_ReturnsError(t *testing.T) {
 	_, err := handler.Handle(context.Background(), cmd)
 	assert.Error(t, err)
 	assert.Equal(t, notFoundErr, err)
-}
-
-func TestDeleteCapabilityHandler_DeletionServiceError_ReturnsError(t *testing.T) {
-	capability := createTestCapability(t)
-	capabilityID := capability.ID()
-
-	serviceErr := errors.New("database connection error")
-	mockRepo := &mockDeleteCapabilityRepository{capability: capability}
-	handler := newDeleteHandler(mockRepo, &mockCapabilityDeletionService{canDeleteErr: serviceErr}, &mockDeleteRealizationReadModel{}, &mockDeleteCapabilityLookup{})
-
-	cmd := &commands.DeleteCapability{ID: capabilityID}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.Error(t, err)
-	assert.Equal(t, serviceErr, err)
-}
-
-func TestDeleteCapabilityHandler_SaveError_ReturnsError(t *testing.T) {
-	capability := createTestCapability(t)
-	capabilityID := capability.ID()
-
-	saveErr := errors.New("failed to save")
-	mockRepo := &mockDeleteCapabilityRepository{capability: capability, saveErr: saveErr}
-	handler := newDeleteHandler(mockRepo, &mockCapabilityDeletionService{}, &mockDeleteRealizationReadModel{}, &mockDeleteCapabilityLookup{})
-
-	cmd := &commands.DeleteCapability{ID: capabilityID}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.Error(t, err)
-	assert.Equal(t, saveErr, err)
 }
 
 func TestDeleteCapabilityHandler_InvalidCommand_ReturnsError(t *testing.T) {

@@ -30,54 +30,46 @@ func (e mockEvent) EventData() map[string]interface{} { return e.eventData }
 
 var _ domain.DomainEvent = mockEvent{}
 
-func TestMaturityScaleConfigUpdatedHandler_InvalidatesCache(t *testing.T) {
-	cacheInvalidator := &mockCacheInvalidator{}
-	handler := NewMaturityScaleConfigUpdatedHandler(cacheInvalidator)
-
-	event := mockEvent{
-		aggregateID: "config-123",
-		eventType:   "MaturityScaleConfigUpdated",
-		eventData: map[string]interface{}{
-			"tenantId": "tenant-456",
+func TestMaturityScaleConfigUpdatedHandler(t *testing.T) {
+	tests := []struct {
+		name               string
+		eventData          map[string]interface{}
+		invalidatedTenants []string
+	}{
+		{
+			name:               "invalidates cache",
+			eventData:          map[string]interface{}{"tenantId": "tenant-456"},
+			invalidatedTenants: []string{"tenant-456"},
+		},
+		{
+			name:      "missing tenant id",
+			eventData: map[string]interface{}{},
+		},
+		{
+			name:      "invalid tenant id type",
+			eventData: map[string]interface{}{"tenantId": 12345},
 		},
 	}
 
-	err := handler.Handle(context.Background(), event)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cacheInvalidator := &mockCacheInvalidator{}
+			handler := NewMaturityScaleConfigUpdatedHandler(cacheInvalidator)
 
-	assert.NoError(t, err)
-	assert.Equal(t, []string{"tenant-456"}, cacheInvalidator.invalidatedTenants)
-}
+			event := mockEvent{
+				aggregateID: "config-123",
+				eventType:   "MaturityScaleConfigUpdated",
+				eventData:   tt.eventData,
+			}
 
-func TestMaturityScaleConfigUpdatedHandler_MissingTenantID_NoError(t *testing.T) {
-	cacheInvalidator := &mockCacheInvalidator{}
-	handler := NewMaturityScaleConfigUpdatedHandler(cacheInvalidator)
+			err := handler.Handle(context.Background(), event)
 
-	event := mockEvent{
-		aggregateID: "config-123",
-		eventType:   "MaturityScaleConfigUpdated",
-		eventData:   map[string]interface{}{},
+			assert.NoError(t, err)
+			if tt.invalidatedTenants == nil {
+				assert.Empty(t, cacheInvalidator.invalidatedTenants)
+			} else {
+				assert.Equal(t, tt.invalidatedTenants, cacheInvalidator.invalidatedTenants)
+			}
+		})
 	}
-
-	err := handler.Handle(context.Background(), event)
-
-	assert.NoError(t, err)
-	assert.Empty(t, cacheInvalidator.invalidatedTenants)
-}
-
-func TestMaturityScaleConfigUpdatedHandler_InvalidTenantIDType_NoError(t *testing.T) {
-	cacheInvalidator := &mockCacheInvalidator{}
-	handler := NewMaturityScaleConfigUpdatedHandler(cacheInvalidator)
-
-	event := mockEvent{
-		aggregateID: "config-123",
-		eventType:   "MaturityScaleConfigUpdated",
-		eventData: map[string]interface{}{
-			"tenantId": 12345,
-		},
-	}
-
-	err := handler.Handle(context.Background(), event)
-
-	assert.NoError(t, err)
-	assert.Empty(t, cacheInvalidator.invalidatedTenants)
 }

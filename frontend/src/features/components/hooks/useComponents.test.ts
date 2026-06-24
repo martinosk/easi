@@ -38,6 +38,8 @@ function createWrapper(queryClient: QueryClient) {
     React.createElement(QueryClientProvider, { client: queryClient }, children);
 }
 
+type QueryKey = readonly unknown[];
+
 describe('useComponents hooks', () => {
   let queryClient: QueryClient;
 
@@ -54,6 +56,36 @@ describe('useComponents hooks', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
+
+  const renderMutation = <T,>(hook: () => T) => {
+    const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    const { result } = renderHook(hook, { wrapper: createWrapper(queryClient) });
+    return { result, invalidateQueriesSpy };
+  };
+
+  const expectInvalidated = (spy: ReturnType<typeof vi.spyOn>, ...keys: QueryKey[]) => {
+    for (const queryKey of keys) {
+      expect(spy).toHaveBeenCalledWith({ queryKey });
+    }
+  };
+
+  const expectErrorToast = async <THook extends { mutateAsync: (arg: TArg) => Promise<unknown> }, TArg>(
+    hook: () => THook,
+    arg: TArg,
+    message: string,
+  ) => {
+    const { result } = renderHook(hook, { wrapper: createWrapper(queryClient) });
+
+    await act(async () => {
+      try {
+        await result.current.mutateAsync(arg);
+      } catch {
+        void 0;
+      }
+    });
+
+    expect(toast.error).toHaveBeenCalledWith(message);
+  };
 
   describe('useComponents', () => {
     it('should fetch all components', async () => {
@@ -132,11 +164,7 @@ describe('useComponents hooks', () => {
       });
 
       vi.mocked(componentsApi.create).mockResolvedValue(newComponent);
-      const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
-
-      const { result } = renderHook(() => useCreateComponent(), {
-        wrapper: createWrapper(queryClient),
-      });
+      const { result, invalidateQueriesSpy } = renderMutation(() => useCreateComponent());
 
       await act(async () => {
         await result.current.mutateAsync({
@@ -150,9 +178,7 @@ describe('useComponents hooks', () => {
         description: 'Test description',
       });
 
-      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: componentsQueryKeys.lists(),
-      });
+      expectInvalidated(invalidateQueriesSpy, componentsQueryKeys.lists());
       expect(toast.success).toHaveBeenCalledWith('Component "New Component" created');
     });
 
@@ -191,11 +217,7 @@ describe('useComponents hooks', () => {
       queryClient.setQueryData(componentsQueryKeys.detail('comp-1'), existingComponent);
       vi.mocked(componentsApi.update).mockResolvedValue(updatedComponent);
 
-      const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
-
-      const { result } = renderHook(() => useUpdateComponent(), {
-        wrapper: createWrapper(queryClient),
-      });
+      const { result, invalidateQueriesSpy } = renderMutation(() => useUpdateComponent());
 
       await act(async () => {
         await result.current.mutateAsync({
@@ -204,12 +226,11 @@ describe('useComponents hooks', () => {
         });
       });
 
-      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: componentsQueryKeys.lists(),
-      });
-      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: componentsQueryKeys.detail('comp-1'),
-      });
+      expectInvalidated(
+        invalidateQueriesSpy,
+        componentsQueryKeys.lists(),
+        componentsQueryKeys.detail('comp-1'),
+      );
 
       expect(toast.success).toHaveBeenCalledWith('Component "Updated Name" updated');
     });
@@ -219,25 +240,13 @@ describe('useComponents hooks', () => {
         id: 'comp-1' as ComponentId,
         name: 'Original Name',
       });
-      const error = new Error('Update failed');
-      vi.mocked(componentsApi.update).mockRejectedValue(error);
+      vi.mocked(componentsApi.update).mockRejectedValue(new Error('Update failed'));
 
-      const { result } = renderHook(() => useUpdateComponent(), {
-        wrapper: createWrapper(queryClient),
-      });
-
-      await act(async () => {
-        try {
-          await result.current.mutateAsync({
-            component: existingComponent,
-            request: { name: 'New Name' },
-          });
-        } catch {
-          // Expected to throw
-        }
-      });
-
-      expect(toast.error).toHaveBeenCalledWith('Update failed');
+      await expectErrorToast(
+        () => useUpdateComponent(),
+        { component: existingComponent, request: { name: 'New Name' } },
+        'Update failed',
+      );
     });
   });
 
@@ -252,22 +261,17 @@ describe('useComponents hooks', () => {
       queryClient.setQueryData(componentsQueryKeys.detail('comp-1'), component);
       vi.mocked(componentsApi.delete).mockResolvedValue(undefined);
 
-      const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
-
-      const { result } = renderHook(() => useDeleteComponent(), {
-        wrapper: createWrapper(queryClient),
-      });
+      const { result, invalidateQueriesSpy } = renderMutation(() => useDeleteComponent());
 
       await act(async () => {
         await result.current.mutateAsync(component);
       });
 
-      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: componentsQueryKeys.lists(),
-      });
-      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: componentsQueryKeys.detail('comp-1'),
-      });
+      expectInvalidated(
+        invalidateQueriesSpy,
+        componentsQueryKeys.lists(),
+        componentsQueryKeys.detail('comp-1'),
+      );
 
       expect(toast.success).toHaveBeenCalledWith('Component deleted');
     });
@@ -277,22 +281,9 @@ describe('useComponents hooks', () => {
         id: 'comp-1' as ComponentId,
         name: 'To Delete',
       });
-      const error = new Error('Cannot delete component in use');
-      vi.mocked(componentsApi.delete).mockRejectedValue(error);
+      vi.mocked(componentsApi.delete).mockRejectedValue(new Error('Cannot delete component in use'));
 
-      const { result } = renderHook(() => useDeleteComponent(), {
-        wrapper: createWrapper(queryClient),
-      });
-
-      await act(async () => {
-        try {
-          await result.current.mutateAsync(component);
-        } catch {
-          // Expected to throw
-        }
-      });
-
-      expect(toast.error).toHaveBeenCalledWith('Cannot delete component in use');
+      await expectErrorToast(() => useDeleteComponent(), component, 'Cannot delete component in use');
     });
   });
 });

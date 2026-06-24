@@ -127,6 +127,14 @@ func setupHandlers(db *sql.DB, tenantID string) *testHandlers {
 	}
 }
 
+func newTestHandlers(t *testing.T) (*testContext, *testHandlers) {
+	testCtx, cleanup := setupTestDB(t)
+	t.Cleanup(cleanup)
+
+	tenantID := generateTestTenantID()
+	return testCtx, setupHandlers(testCtx.db, tenantID)
+}
+
 func (h *testHandlers) tenantContext() context.Context {
 	return tenantContextWithID(h.tenantID)
 }
@@ -437,11 +445,7 @@ func TestGetMaturityScaleByID_NotFound_Integration(t *testing.T) {
 }
 
 func TestUpdateMaturityScale_AutoCreatesConfig_Integration(t *testing.T) {
-	testCtx, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	tenantID := generateTestTenantID()
-	h := setupHandlers(testCtx.db, tenantID)
+	_, h := newTestHandlers(t)
 
 	body, _ := json.Marshal(validSectionsRequest(0))
 	cookies := h.sessionManager.getSessionCookies(t, "admin@acme.com")
@@ -481,11 +485,7 @@ func TestResetMaturityScale_AutoCreatesConfig_Integration(t *testing.T) {
 }
 
 func TestUpdateMaturityScale_Unauthorized_Integration(t *testing.T) {
-	testCtx, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	tenantID := generateTestTenantID()
-	h := setupHandlers(testCtx.db, tenantID)
+	testCtx, h := newTestHandlers(t)
 	createTestConfiguration(t, testCtx, h)
 
 	body, _ := json.Marshal(validSectionsRequest(1))
@@ -499,11 +499,7 @@ func TestUpdateMaturityScale_Unauthorized_Integration(t *testing.T) {
 }
 
 func TestResetMaturityScale_Unauthorized_Integration(t *testing.T) {
-	testCtx, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	tenantID := generateTestTenantID()
-	h := setupHandlers(testCtx.db, tenantID)
+	testCtx, h := newTestHandlers(t)
 	createTestConfiguration(t, testCtx, h)
 
 	router := h.createRouter()

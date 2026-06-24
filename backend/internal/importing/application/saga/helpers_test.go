@@ -14,26 +14,28 @@ type metadataUpdateCall struct {
 }
 
 type fakeEntityStore struct {
+	prefix          string
 	createdIDs      map[string]string
 	createErrByName map[string]error
 	err             error
 }
 
-func newFakeEntityStore() fakeEntityStore {
+func newFakeEntityStore(prefix string) fakeEntityStore {
 	return fakeEntityStore{
+		prefix:          prefix,
 		createdIDs:      make(map[string]string),
 		createErrByName: make(map[string]error),
 	}
 }
 
-func (s *fakeEntityStore) create(prefix, name string) (string, error) {
+func (s *fakeEntityStore) create(name string) (string, error) {
 	if err, ok := s.createErrByName[name]; ok {
 		return "", err
 	}
 	if s.err != nil {
 		return "", s.err
 	}
-	id := prefix + name
+	id := s.prefix + name
 	s.createdIDs[name] = id
 	return id, nil
 }
@@ -44,11 +46,11 @@ type fakeComponentGateway struct {
 }
 
 func newFakeComponentGateway() *fakeComponentGateway {
-	return &fakeComponentGateway{fakeEntityStore: newFakeEntityStore()}
+	return &fakeComponentGateway{fakeEntityStore: newFakeEntityStore("comp-")}
 }
 
 func (f *fakeComponentGateway) CreateComponent(_ context.Context, name, _ string) (string, error) {
-	return f.create("comp-", name)
+	return f.create(name)
 }
 
 func (f *fakeComponentGateway) CreateRelation(_ context.Context, in publishedlanguage.CreateRelationInput) (string, error) {
@@ -69,14 +71,14 @@ type fakeCapabilityGateway struct {
 
 func newFakeCapabilityGateway() *fakeCapabilityGateway {
 	return &fakeCapabilityGateway{
-		fakeEntityStore: newFakeEntityStore(),
+		fakeEntityStore: newFakeEntityStore("cap-"),
 		linkErrByKey:    make(map[string]error),
 	}
 }
 
 func (f *fakeCapabilityGateway) CreateCapability(_ context.Context, in publishedlanguage.CreateCapabilityInput) (string, error) {
 	f.createCalls = append(f.createCalls, in)
-	return f.create("cap-", in.Name)
+	return f.create(in.Name)
 }
 
 func (f *fakeCapabilityGateway) UpdateMetadata(_ context.Context, id, eaOwner, status string) error {
@@ -107,13 +109,13 @@ type fakeValueStreamGateway struct {
 
 func newFakeValueStreamGateway() *fakeValueStreamGateway {
 	return &fakeValueStreamGateway{
-		fakeEntityStore: newFakeEntityStore(),
+		fakeEntityStore: newFakeEntityStore("vs-"),
 		stageIDs:        make(map[string]string),
 	}
 }
 
 func (f *fakeValueStreamGateway) CreateValueStream(_ context.Context, name, _ string) (string, error) {
-	return f.create("vs-", name)
+	return f.create(name)
 }
 
 func (f *fakeValueStreamGateway) AddStage(_ context.Context, vsID, _, _ string) (string, error) {
@@ -164,5 +166,19 @@ func assertNoErrors(t *testing.T, result aggregates.ImportResult) {
 	t.Helper()
 	for _, e := range result.Errors {
 		t.Errorf("unexpected import error: %s", e.Error())
+	}
+}
+
+func assertImportCounts(t *testing.T, result aggregates.ImportResult, expected map[string]int) {
+	t.Helper()
+	actual := map[string]int{
+		"components":         result.ComponentsCreated,
+		"capabilities":       result.CapabilitiesCreated,
+		"value streams":      result.ValueStreamsCreated,
+		"realizations":       result.RealizationsCreated,
+		"domain assignments": result.DomainAssignments,
+	}
+	for label, want := range expected {
+		expectCount(t, label, actual[label], want)
 	}
 }

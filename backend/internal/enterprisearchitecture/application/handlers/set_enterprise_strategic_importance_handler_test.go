@@ -9,6 +9,7 @@ import (
 	"easi/backend/internal/enterprisearchitecture/application/readmodels"
 	"easi/backend/internal/enterprisearchitecture/domain/aggregates"
 	"easi/backend/internal/enterprisearchitecture/infrastructure/repositories"
+	"easi/backend/internal/shared/cqrs"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -52,16 +53,34 @@ func (m *mockSetImportanceReadModel) GetByCapabilityAndPillar(ctx context.Contex
 	return m.existingImportance, nil
 }
 
-func TestSetEnterpriseStrategicImportanceHandler_SetsImportance(t *testing.T) {
-	mockRepo := &mockSetImportanceRepository{}
-	capabilityID := uuid.New().String()
-	mockCapabilityReadModel := &mockSetImportanceCapabilityReadModel{
+func existingCapabilityReadModel(capabilityID string) *mockSetImportanceCapabilityReadModel {
+	return &mockSetImportanceCapabilityReadModel{
 		existingCapability: &readmodels.EnterpriseCapabilityDTO{ID: capabilityID},
 	}
-	mockImportanceReadModel := &mockSetImportanceReadModel{existingImportance: nil}
+}
 
-	handler := NewSetEnterpriseStrategicImportanceHandler(mockRepo, mockCapabilityReadModel, mockImportanceReadModel)
+func setImportanceCommand(capabilityID string, importance int) *commands.SetEnterpriseStrategicImportance {
+	return &commands.SetEnterpriseStrategicImportance{
+		EnterpriseCapabilityID: capabilityID,
+		PillarID:               uuid.New().String(),
+		PillarName:             "Test Pillar",
+		Importance:             importance,
+	}
+}
 
+func runSetImportance(
+	repo *mockSetImportanceRepository,
+	capabilityReadModel *mockSetImportanceCapabilityReadModel,
+	importanceReadModel *mockSetImportanceReadModel,
+	cmd *commands.SetEnterpriseStrategicImportance,
+) (cqrs.CommandResult, error) {
+	handler := NewSetEnterpriseStrategicImportanceHandler(repo, capabilityReadModel, importanceReadModel)
+	return handler.Handle(context.Background(), cmd)
+}
+
+func TestSetEnterpriseStrategicImportanceHandler_SetsImportance(t *testing.T) {
+	repo := &mockSetImportanceRepository{}
+	capabilityID := uuid.New().String()
 	pillarID := uuid.New().String()
 	cmd := &commands.SetEnterpriseStrategicImportance{
 		EnterpriseCapabilityID: capabilityID,
@@ -71,11 +90,11 @@ func TestSetEnterpriseStrategicImportanceHandler_SetsImportance(t *testing.T) {
 		Rationale:              "Critical for business operations",
 	}
 
-	_, err := handler.Handle(context.Background(), cmd)
+	_, err := runSetImportance(repo, existingCapabilityReadModel(capabilityID), &mockSetImportanceReadModel{}, cmd)
 	require.NoError(t, err)
 
-	require.Len(t, mockRepo.savedImportances, 1)
-	importance := mockRepo.savedImportances[0]
+	require.Len(t, repo.savedImportances, 1)
+	importance := repo.savedImportances[0]
 	assert.Equal(t, capabilityID, importance.EnterpriseCapabilityID().Value())
 	assert.Equal(t, pillarID, importance.PillarID().Value())
 	assert.Equal(t, 4, importance.Importance().Value())
@@ -83,55 +102,24 @@ func TestSetEnterpriseStrategicImportanceHandler_SetsImportance(t *testing.T) {
 }
 
 func TestSetEnterpriseStrategicImportanceHandler_ReturnsCreatedID(t *testing.T) {
-	mockRepo := &mockSetImportanceRepository{}
+	repo := &mockSetImportanceRepository{}
 	capabilityID := uuid.New().String()
-	mockCapabilityReadModel := &mockSetImportanceCapabilityReadModel{
-		existingCapability: &readmodels.EnterpriseCapabilityDTO{ID: capabilityID},
-	}
-	mockImportanceReadModel := &mockSetImportanceReadModel{existingImportance: nil}
 
-	handler := NewSetEnterpriseStrategicImportanceHandler(mockRepo, mockCapabilityReadModel, mockImportanceReadModel)
-
-	pillarID := uuid.New().String()
-	cmd := &commands.SetEnterpriseStrategicImportance{
-		EnterpriseCapabilityID: capabilityID,
-		PillarID:               pillarID,
-		PillarName:             "Strategic Pillar 1",
-		Importance:             3,
-		Rationale:              "",
-	}
-
-	result, err := handler.Handle(context.Background(), cmd)
+	result, err := runSetImportance(repo, existingCapabilityReadModel(capabilityID), &mockSetImportanceReadModel{}, setImportanceCommand(capabilityID, 3))
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, result.CreatedID)
-	assert.Equal(t, mockRepo.savedImportances[0].ID(), result.CreatedID)
+	assert.Equal(t, repo.savedImportances[0].ID(), result.CreatedID)
 }
 
 func TestSetEnterpriseStrategicImportanceHandler_RaisesSetEvent(t *testing.T) {
-	mockRepo := &mockSetImportanceRepository{}
+	repo := &mockSetImportanceRepository{}
 	capabilityID := uuid.New().String()
-	mockCapabilityReadModel := &mockSetImportanceCapabilityReadModel{
-		existingCapability: &readmodels.EnterpriseCapabilityDTO{ID: capabilityID},
-	}
-	mockImportanceReadModel := &mockSetImportanceReadModel{existingImportance: nil}
 
-	handler := NewSetEnterpriseStrategicImportanceHandler(mockRepo, mockCapabilityReadModel, mockImportanceReadModel)
-
-	pillarID := uuid.New().String()
-	cmd := &commands.SetEnterpriseStrategicImportance{
-		EnterpriseCapabilityID: capabilityID,
-		PillarID:               pillarID,
-		PillarName:             "Strategic Pillar 1",
-		Importance:             5,
-		Rationale:              "",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
+	_, err := runSetImportance(repo, existingCapabilityReadModel(capabilityID), &mockSetImportanceReadModel{}, setImportanceCommand(capabilityID, 5))
 	require.NoError(t, err)
 
-	si := mockRepo.savedImportances[0]
-	uncommittedEvents := si.GetUncommittedChanges()
+	uncommittedEvents := repo.savedImportances[0].GetUncommittedChanges()
 	require.Len(t, uncommittedEvents, 1)
 	assert.Equal(t, "EnterpriseStrategicImportanceSet", uncommittedEvents[0].EventType())
 }
@@ -151,117 +139,75 @@ func TestSetEnterpriseStrategicImportanceHandler_ValidatesImportanceRange(t *tes
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockRepo := &mockSetImportanceRepository{}
+			repo := &mockSetImportanceRepository{}
 			capabilityID := uuid.New().String()
-			mockCapabilityReadModel := &mockSetImportanceCapabilityReadModel{
-				existingCapability: &readmodels.EnterpriseCapabilityDTO{ID: capabilityID},
-			}
-			mockImportanceReadModel := &mockSetImportanceReadModel{existingImportance: nil}
 
-			handler := NewSetEnterpriseStrategicImportanceHandler(mockRepo, mockCapabilityReadModel, mockImportanceReadModel)
-
-			pillarID := uuid.New().String()
-			cmd := &commands.SetEnterpriseStrategicImportance{
-				EnterpriseCapabilityID: capabilityID,
-				PillarID:               pillarID,
-				PillarName:             "Test Pillar",
-				Importance:             tc.importance,
-				Rationale:              "",
-			}
-
-			_, err := handler.Handle(context.Background(), cmd)
+			_, err := runSetImportance(repo, existingCapabilityReadModel(capabilityID), &mockSetImportanceReadModel{}, setImportanceCommand(capabilityID, tc.importance))
 			if tc.shouldFail {
 				assert.Error(t, err)
-				assert.Empty(t, mockRepo.savedImportances)
+				assert.Empty(t, repo.savedImportances)
 			} else {
 				assert.NoError(t, err)
-				require.Len(t, mockRepo.savedImportances, 1)
+				require.Len(t, repo.savedImportances, 1)
 			}
 		})
 	}
 }
 
-func TestSetEnterpriseStrategicImportanceHandler_NonExistentCapability_ReturnsError(t *testing.T) {
-	mockRepo := &mockSetImportanceRepository{}
-	mockCapabilityReadModel := &mockSetImportanceCapabilityReadModel{existingCapability: nil}
-	mockImportanceReadModel := &mockSetImportanceReadModel{existingImportance: nil}
-
-	handler := NewSetEnterpriseStrategicImportanceHandler(mockRepo, mockCapabilityReadModel, mockImportanceReadModel)
-
-	cmd := &commands.SetEnterpriseStrategicImportance{
-		EnterpriseCapabilityID: uuid.New().String(),
-		PillarID:               uuid.New().String(),
-		PillarName:             "Test Pillar",
-		Importance:             3,
-		Rationale:              "",
+func TestSetEnterpriseStrategicImportanceHandler_ErrorCases(t *testing.T) {
+	testCases := []struct {
+		name                string
+		repo                *mockSetImportanceRepository
+		capabilityReadModel *mockSetImportanceCapabilityReadModel
+		importanceReadModel *mockSetImportanceReadModel
+		wantErrIs           error
+		wantNoSaves         bool
+	}{
+		{
+			name:                "non-existent capability",
+			repo:                &mockSetImportanceRepository{},
+			capabilityReadModel: &mockSetImportanceCapabilityReadModel{existingCapability: nil},
+			importanceReadModel: &mockSetImportanceReadModel{},
+			wantErrIs:           repositories.ErrEnterpriseCapabilityNotFound,
+		},
+		{
+			name:                "importance already set",
+			repo:                &mockSetImportanceRepository{},
+			capabilityReadModel: existingCapabilityReadModel("set-cap-id"),
+			importanceReadModel: &mockSetImportanceReadModel{
+				existingImportance: &readmodels.EnterpriseStrategicImportanceDTO{ID: "existing-id"},
+			},
+			wantErrIs:   ErrImportanceAlreadySet,
+			wantNoSaves: true,
+		},
+		{
+			name:                "read model error",
+			repo:                &mockSetImportanceRepository{},
+			capabilityReadModel: &mockSetImportanceCapabilityReadModel{getByIDErr: errors.New("database error")},
+			importanceReadModel: &mockSetImportanceReadModel{},
+		},
+		{
+			name:                "repository error",
+			repo:                &mockSetImportanceRepository{saveErr: errors.New("save error")},
+			capabilityReadModel: existingCapabilityReadModel("save-cap-id"),
+			importanceReadModel: &mockSetImportanceReadModel{},
+		},
 	}
 
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.ErrorIs(t, err, repositories.ErrEnterpriseCapabilityNotFound)
-}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd := setImportanceCommand(uuid.New().String(), 3)
 
-func TestSetEnterpriseStrategicImportanceHandler_AlreadySet_ReturnsError(t *testing.T) {
-	mockRepo := &mockSetImportanceRepository{}
-	capabilityID := uuid.New().String()
-	mockCapabilityReadModel := &mockSetImportanceCapabilityReadModel{
-		existingCapability: &readmodels.EnterpriseCapabilityDTO{ID: capabilityID},
+			_, err := runSetImportance(tc.repo, tc.capabilityReadModel, tc.importanceReadModel, cmd)
+
+			if tc.wantErrIs != nil {
+				assert.ErrorIs(t, err, tc.wantErrIs)
+			} else {
+				assert.Error(t, err)
+			}
+			if tc.wantNoSaves {
+				assert.Empty(t, tc.repo.savedImportances)
+			}
+		})
 	}
-	mockImportanceReadModel := &mockSetImportanceReadModel{
-		existingImportance: &readmodels.EnterpriseStrategicImportanceDTO{ID: "existing-id"},
-	}
-
-	handler := NewSetEnterpriseStrategicImportanceHandler(mockRepo, mockCapabilityReadModel, mockImportanceReadModel)
-
-	cmd := &commands.SetEnterpriseStrategicImportance{
-		EnterpriseCapabilityID: capabilityID,
-		PillarID:               uuid.New().String(),
-		PillarName:             "Test Pillar",
-		Importance:             3,
-		Rationale:              "",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.ErrorIs(t, err, ErrImportanceAlreadySet)
-	assert.Empty(t, mockRepo.savedImportances)
-}
-
-func TestSetEnterpriseStrategicImportanceHandler_ReadModelError_ReturnsError(t *testing.T) {
-	mockRepo := &mockSetImportanceRepository{}
-	mockCapabilityReadModel := &mockSetImportanceCapabilityReadModel{getByIDErr: errors.New("database error")}
-	mockImportanceReadModel := &mockSetImportanceReadModel{}
-
-	handler := NewSetEnterpriseStrategicImportanceHandler(mockRepo, mockCapabilityReadModel, mockImportanceReadModel)
-
-	cmd := &commands.SetEnterpriseStrategicImportance{
-		EnterpriseCapabilityID: uuid.New().String(),
-		PillarID:               uuid.New().String(),
-		PillarName:             "Test Pillar",
-		Importance:             3,
-		Rationale:              "",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.Error(t, err)
-}
-
-func TestSetEnterpriseStrategicImportanceHandler_RepositoryError_ReturnsError(t *testing.T) {
-	mockRepo := &mockSetImportanceRepository{saveErr: errors.New("save error")}
-	capabilityID := uuid.New().String()
-	mockCapabilityReadModel := &mockSetImportanceCapabilityReadModel{
-		existingCapability: &readmodels.EnterpriseCapabilityDTO{ID: capabilityID},
-	}
-	mockImportanceReadModel := &mockSetImportanceReadModel{existingImportance: nil}
-
-	handler := NewSetEnterpriseStrategicImportanceHandler(mockRepo, mockCapabilityReadModel, mockImportanceReadModel)
-
-	cmd := &commands.SetEnterpriseStrategicImportance{
-		EnterpriseCapabilityID: capabilityID,
-		PillarID:               uuid.New().String(),
-		PillarName:             "Test Pillar",
-		Importance:             3,
-		Rationale:              "",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.Error(t, err)
 }
