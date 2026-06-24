@@ -335,11 +335,11 @@ func TestGetRelationByID_NotFound_Integration(t *testing.T) {
 }
 
 type relationDirection struct {
-	name        string
-	handler     func(*RelationHandlers, http.ResponseWriter, *http.Request)
-	seedMatched func(componentID, otherID string) (sourceID, targetID string)
+	name         string
+	handler      func(*RelationHandlers, http.ResponseWriter, *http.Request)
+	seedMatched  func(componentID, otherID string) (sourceID, targetID string)
 	seedExcluded func(componentID, otherID string) (sourceID, targetID string)
-	matchedID   func(rel readmodels.ComponentRelationDTO) string
+	matchedID    func(rel readmodels.ComponentRelationDTO) string
 }
 
 var relationDirectionFrom = relationDirection{

@@ -209,4 +209,3 @@ func TestLoadComponentRelationFromHistory(t *testing.T) {
 	assert.Equal(t, originalRelation.Name(), reconstructedRelation.Name())
 	assert.Equal(t, originalRelation.Description(), reconstructedRelation.Description())
 }
-

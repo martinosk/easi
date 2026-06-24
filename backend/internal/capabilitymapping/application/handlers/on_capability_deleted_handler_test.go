@@ -143,7 +143,6 @@ func TestOnCapabilityDeletedHandler_MultipleAssignments_DispatchesAllUnassignCom
 	assert.Contains(t, assignmentIDs, "assign-3")
 }
 
-
 func TestOnCapabilityDeletedHandler_CommandDispatchError_ContinuesWithOtherCommands(t *testing.T) {
 	commandBus := &mockCommandBus{
 		dispatchError: errors.New("command dispatch failed"),

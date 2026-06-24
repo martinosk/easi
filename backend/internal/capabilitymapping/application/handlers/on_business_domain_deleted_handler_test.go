@@ -126,7 +126,6 @@ func TestOnBusinessDomainDeletedHandler_MultipleAssignments_DispatchesAllUnassig
 	assert.Contains(t, assignmentIDs, "assign-3")
 }
 
-
 func TestOnBusinessDomainDeletedHandler_CommandDispatchError_ContinuesWithOtherCommands(t *testing.T) {
 	commandBus := &mockCommandBus{
 		dispatchError: errors.New("command dispatch failed"),

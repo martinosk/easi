@@ -122,22 +122,28 @@ func TestUpdateEnterpriseCapabilityHandler_ErrorCases(t *testing.T) {
 		wantNoSaves bool
 	}{
 		{
-			name:        "duplicate name",
-			repo:        func(c *aggregates.EnterpriseCapability) *mockUpdateCapabilityRepository { return &mockUpdateCapabilityRepository{existingCapability: c} },
+			name: "duplicate name",
+			repo: func(c *aggregates.EnterpriseCapability) *mockUpdateCapabilityRepository {
+				return &mockUpdateCapabilityRepository{existingCapability: c}
+			},
 			readModel:   &mockUpdateCapabilityReadModel{nameExists: true},
 			wantErrIs:   ErrEnterpriseCapabilityNameExists,
 			wantNoSaves: true,
 		},
 		{
-			name:      "non-existent capability",
-			repo:      func(c *aggregates.EnterpriseCapability) *mockUpdateCapabilityRepository { return &mockUpdateCapabilityRepository{getByIDErr: repositories.ErrEnterpriseCapabilityNotFound} },
+			name: "non-existent capability",
+			repo: func(c *aggregates.EnterpriseCapability) *mockUpdateCapabilityRepository {
+				return &mockUpdateCapabilityRepository{getByIDErr: repositories.ErrEnterpriseCapabilityNotFound}
+			},
 			readModel: &mockUpdateCapabilityReadModel{nameExists: false},
 			id:        "non-existent-id",
 			wantErrIs: repositories.ErrEnterpriseCapabilityNotFound,
 		},
 		{
-			name:        "read model error",
-			repo:        func(c *aggregates.EnterpriseCapability) *mockUpdateCapabilityRepository { return &mockUpdateCapabilityRepository{existingCapability: c} },
+			name: "read model error",
+			repo: func(c *aggregates.EnterpriseCapability) *mockUpdateCapabilityRepository {
+				return &mockUpdateCapabilityRepository{existingCapability: c}
+			},
 			readModel:   &mockUpdateCapabilityReadModel{checkErr: errors.New("database error")},
 			wantNoSaves: true,
 		},
