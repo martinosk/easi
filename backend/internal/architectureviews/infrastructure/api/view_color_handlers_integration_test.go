@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -68,17 +69,48 @@ var elementTypes = []elementColorConfig{
 	},
 }
 
-func TestUpdateColorScheme_AllValidValues_Integration(t *testing.T) {
-	testCtx, cleanup := setupViewTestDB(t)
-	defer cleanup()
+type colorTestEnv struct {
+	testCtx *viewTestContext
+	h       *viewTestHarness
+	viewID  string
+}
 
+func setupColorTest(t *testing.T) (colorTestEnv, func()) {
+	testCtx, cleanup := setupViewTestDB(t)
 	h := setupViewHandlers(testCtx.db)
 	viewID := testCtx.createViewViaAPI(t, h, "Test View", "Test Description")
+	return colorTestEnv{testCtx: testCtx, h: h, viewID: viewID}, cleanup
+}
+
+func (env colorTestEnv) patchColorScheme(t *testing.T, scheme string) *httptest.ResponseRecorder {
+	body, _ := json.Marshal(UpdateColorSchemeRequest{ColorScheme: scheme})
+	w, req := env.testCtx.makeRequest(t, http.MethodPatch, "/api/v1/views/"+env.viewID+"/color-scheme", body, map[string]string{"id": env.viewID})
+	env.h.colorHandlers.UpdateColorScheme(w, req)
+	return w
+}
+
+func (env colorTestEnv) addElement(t *testing.T, et elementColorConfig, elementID string, pos position) {
+	et.addFn(env.testCtx, t, env.h, env.viewID, elementID, pos)
+}
+
+func (env colorTestEnv) setColor(t *testing.T, et elementColorConfig, elementID, color string) {
+	env.testCtx.setElementColorViaAPI(t, elementColorRequest{h: env.h, viewID: env.viewID, elementID: elementID, elementType: et.name, color: color})
+}
+
+func (env colorTestEnv) currentColors(t *testing.T, et elementColorConfig) map[string]*string {
+	return et.colorsFn(env.testCtx.getViewViaAPI(t, env.h, env.viewID))
+}
+
+func uniqueElementID(prefix string) string {
+	return fmt.Sprintf("%s-%d", prefix, time.Now().UnixNano())
+}
+
+func TestUpdateColorScheme_AllValidValues_Integration(t *testing.T) {
+	env, cleanup := setupColorTest(t)
+	defer cleanup()
 
 	for _, scheme := range []string{"maturity", "classic", "custom"} {
-		body, _ := json.Marshal(UpdateColorSchemeRequest{ColorScheme: scheme})
-		w, req := testCtx.makeRequest(t, http.MethodPatch, "/api/v1/views/"+viewID+"/color-scheme", body, map[string]string{"id": viewID})
-		h.colorHandlers.UpdateColorScheme(w, req)
+		w := env.patchColorScheme(t, scheme)
 		assert.Equal(t, http.StatusOK, w.Code)
 
 		var response struct {
@@ -89,60 +121,46 @@ func TestUpdateColorScheme_AllValidValues_Integration(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, scheme, response.ColorScheme)
 		assert.Contains(t, response.Links, "self")
-		assert.Equal(t, "/api/v1/views/"+viewID+"/color-scheme", response.Links["self"].Href)
+		assert.Equal(t, "/api/v1/views/"+env.viewID+"/color-scheme", response.Links["self"].Href)
 		assert.Contains(t, response.Links, "view")
-		assert.Equal(t, "/api/v1/views/"+viewID, response.Links["view"].Href)
+		assert.Equal(t, "/api/v1/views/"+env.viewID, response.Links["view"].Href)
 
-		view := testCtx.getViewViaAPI(t, h, viewID)
+		view := env.testCtx.getViewViaAPI(t, env.h, env.viewID)
 		assert.Equal(t, scheme, view.ColorScheme)
 	}
 }
 
 func TestUpdateColorScheme_InvalidValue_Integration(t *testing.T) {
-	testCtx, cleanup := setupViewTestDB(t)
+	env, cleanup := setupColorTest(t)
 	defer cleanup()
 
-	h := setupViewHandlers(testCtx.db)
-	viewID := testCtx.createViewViaAPI(t, h, "Test View", "Test Description")
-
-	body, _ := json.Marshal(UpdateColorSchemeRequest{ColorScheme: "invalid-scheme"})
-	w, req := testCtx.makeRequest(t, http.MethodPatch, "/api/v1/views/"+viewID+"/color-scheme", body, map[string]string{"id": viewID})
-	h.colorHandlers.UpdateColorScheme(w, req)
+	w := env.patchColorScheme(t, "invalid-scheme")
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
 func TestGetViewByID_ReturnsColorScheme_Integration(t *testing.T) {
-	testCtx, cleanup := setupViewTestDB(t)
+	env, cleanup := setupColorTest(t)
 	defer cleanup()
 
-	h := setupViewHandlers(testCtx.db)
-	viewID := testCtx.createViewViaAPI(t, h, "Test View", "Test Description")
-
-	body, _ := json.Marshal(UpdateColorSchemeRequest{ColorScheme: "classic"})
-	w, req := testCtx.makeRequest(t, http.MethodPatch, "/api/v1/views/"+viewID+"/color-scheme", body, map[string]string{"id": viewID})
-	h.colorHandlers.UpdateColorScheme(w, req)
+	w := env.patchColorScheme(t, "classic")
 	require.Equal(t, http.StatusOK, w.Code)
 
-	view := testCtx.getViewViaAPI(t, h, viewID)
+	view := env.testCtx.getViewViaAPI(t, env.h, env.viewID)
 	assert.Equal(t, "classic", view.ColorScheme)
 }
 
 func TestUpdateElementColor_Integration(t *testing.T) {
 	for _, et := range elementTypes {
 		t.Run(et.name, func(t *testing.T) {
-			testCtx, cleanup := setupViewTestDB(t)
+			env, cleanup := setupColorTest(t)
 			defer cleanup()
 
-			h := setupViewHandlers(testCtx.db)
-			viewID := testCtx.createViewViaAPI(t, h, "Test View", "Test Description")
-			elementID := fmt.Sprintf("%s-%d", et.prefix, time.Now().UnixNano())
-			et.addFn(testCtx, t, h, viewID, elementID, position{100.0, 200.0})
+			elementID := uniqueElementID(et.prefix)
+			env.addElement(t, et, elementID, position{100.0, 200.0})
+			env.setColor(t, et, elementID, "#FF5733")
 
-			testCtx.setElementColorViaAPI(t, h, viewID, elementID, et.name, "#FF5733")
-
-			view := testCtx.getViewViaAPI(t, h, viewID)
-			colors := et.colorsFn(view)
+			colors := env.currentColors(t, et)
 			require.NotNil(t, colors[elementID])
 			assert.Equal(t, "#FF5733", *colors[elementID])
 		})
@@ -161,20 +179,18 @@ func TestUpdateComponentColor_InvalidValues_Integration(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			testCtx, cleanup := setupViewTestDB(t)
+			env, cleanup := setupColorTest(t)
 			defer cleanup()
 
-			h := setupViewHandlers(testCtx.db)
-			viewID := testCtx.createViewViaAPI(t, h, "Test View", "Test Description")
-			componentID := fmt.Sprintf("comp-%d", time.Now().UnixNano())
-			testCtx.addComponentViaAPI(t, h, viewID, componentID, position{100.0, 200.0})
+			componentID := uniqueElementID("comp")
+			env.testCtx.addComponentViaAPI(t, env.h, env.viewID, componentID, position{100.0, 200.0})
 
 			body, _ := json.Marshal(UpdateElementColorRequest{Color: tc.color})
-			w, req := testCtx.makeRequest(t, http.MethodPatch, "/api/v1/views/"+viewID+"/components/"+componentID+"/color", body, map[string]string{
-				"id":          viewID,
+			w, req := env.testCtx.makeRequest(t, http.MethodPatch, "/api/v1/views/"+env.viewID+"/components/"+componentID+"/color", body, map[string]string{
+				"id":          env.viewID,
 				"componentId": componentID,
 			})
-			h.colorHandlers.UpdateComponentColor(w, req)
+			env.h.colorHandlers.UpdateComponentColor(w, req)
 
 			assert.Equal(t, http.StatusBadRequest, w.Code)
 		})
@@ -184,25 +200,21 @@ func TestUpdateComponentColor_InvalidValues_Integration(t *testing.T) {
 func TestClearElementColor_Integration(t *testing.T) {
 	for _, et := range elementTypes {
 		t.Run(et.name, func(t *testing.T) {
-			testCtx, cleanup := setupViewTestDB(t)
+			env, cleanup := setupColorTest(t)
 			defer cleanup()
 
-			h := setupViewHandlers(testCtx.db)
-			viewID := testCtx.createViewViaAPI(t, h, "Test View", "Test Description")
-			elementID := fmt.Sprintf("%s-%d", et.prefix, time.Now().UnixNano())
-			et.addFn(testCtx, t, h, viewID, elementID, position{100.0, 200.0})
+			elementID := uniqueElementID(et.prefix)
+			env.addElement(t, et, elementID, position{100.0, 200.0})
+			env.setColor(t, et, elementID, "#FF5733")
 
-			testCtx.setElementColorViaAPI(t, h, viewID, elementID, et.name, "#FF5733")
-
-			w, req := testCtx.makeRequest(t, http.MethodDelete, "/api/v1/views/"+viewID+"/"+et.urlPath+"/"+elementID+"/color", nil, map[string]string{
-				"id":        viewID,
+			w, req := env.testCtx.makeRequest(t, http.MethodDelete, "/api/v1/views/"+env.viewID+"/"+et.urlPath+"/"+elementID+"/color", nil, map[string]string{
+				"id":        env.viewID,
 				et.urlParam: elementID,
 			})
-			et.clearFn(h)(w, req)
+			et.clearFn(env.h)(w, req)
 			require.Equal(t, http.StatusNoContent, w.Code)
 
-			view := testCtx.getViewViaAPI(t, h, viewID)
-			colors := et.colorsFn(view)
+			colors := env.currentColors(t, et)
 			assert.Nil(t, colors[elementID])
 		})
 	}
@@ -211,21 +223,16 @@ func TestClearElementColor_Integration(t *testing.T) {
 func TestGetViewByID_ReturnsCustomColors_Integration(t *testing.T) {
 	for _, et := range elementTypes {
 		t.Run(et.name, func(t *testing.T) {
-			testCtx, cleanup := setupViewTestDB(t)
+			env, cleanup := setupColorTest(t)
 			defer cleanup()
 
-			h := setupViewHandlers(testCtx.db)
-			viewID := testCtx.createViewViaAPI(t, h, "Test View", "Test Description")
+			elem1 := uniqueElementID(et.prefix + "-1")
+			elem2 := uniqueElementID(et.prefix + "-2")
+			env.addElement(t, et, elem1, position{100.0, 200.0})
+			env.addElement(t, et, elem2, position{300.0, 400.0})
+			env.setColor(t, et, elem1, "#FF5733")
 
-			elem1 := fmt.Sprintf("%s-1-%d", et.prefix, time.Now().UnixNano())
-			elem2 := fmt.Sprintf("%s-2-%d", et.prefix, time.Now().UnixNano())
-			et.addFn(testCtx, t, h, viewID, elem1, position{100.0, 200.0})
-			et.addFn(testCtx, t, h, viewID, elem2, position{300.0, 400.0})
-
-			testCtx.setElementColorViaAPI(t, h, viewID, elem1, et.name, "#FF5733")
-
-			view := testCtx.getViewViaAPI(t, h, viewID)
-			colors := et.colorsFn(view)
+			colors := env.currentColors(t, et)
 			require.NotNil(t, colors[elem1])
 			assert.Equal(t, "#FF5733", *colors[elem1])
 			assert.Nil(t, colors[elem2])
@@ -234,32 +241,29 @@ func TestGetViewByID_ReturnsCustomColors_Integration(t *testing.T) {
 }
 
 func TestGetViewByID_ReturnsHATEOASLinksForColors_Integration(t *testing.T) {
-	testCtx, cleanup := setupViewTestDB(t)
+	env, cleanup := setupColorTest(t)
 	defer cleanup()
 
-	h := setupViewHandlers(testCtx.db)
-	viewID := testCtx.createViewViaAPI(t, h, "Test View", "Test Description")
+	componentID := uniqueElementID("comp")
+	capabilityID := uniqueElementID("cap")
+	env.testCtx.addComponentViaAPI(t, env.h, env.viewID, componentID, position{100.0, 200.0})
+	env.testCtx.addCapabilityViaAPI(t, env.h, env.viewID, capabilityID, position{150.0, 250.0})
 
-	componentID := fmt.Sprintf("comp-%d", time.Now().UnixNano())
-	capabilityID := fmt.Sprintf("cap-%d", time.Now().UnixNano())
-	testCtx.addComponentViaAPI(t, h, viewID, componentID, position{100.0, 200.0})
-	testCtx.addCapabilityViaAPI(t, h, viewID, capabilityID, position{150.0, 250.0})
-
-	view := testCtx.getViewViaAPI(t, h, viewID)
+	view := env.testCtx.getViewViaAPI(t, env.h, env.viewID)
 
 	require.Len(t, view.Components, 1)
 	compLinks := view.Components[0].Links
 	assert.NotNil(t, compLinks)
 	assert.Contains(t, compLinks, "x-update-color")
 	assert.Contains(t, compLinks, "x-clear-color")
-	assert.Equal(t, "/api/v1/views/"+viewID+"/components/"+componentID+"/color", compLinks["x-update-color"].Href)
-	assert.Equal(t, "/api/v1/views/"+viewID+"/components/"+componentID+"/color", compLinks["x-clear-color"].Href)
+	assert.Equal(t, "/api/v1/views/"+env.viewID+"/components/"+componentID+"/color", compLinks["x-update-color"].Href)
+	assert.Equal(t, "/api/v1/views/"+env.viewID+"/components/"+componentID+"/color", compLinks["x-clear-color"].Href)
 
 	require.Len(t, view.Capabilities, 1)
 	capLinks := view.Capabilities[0].Links
 	assert.NotNil(t, capLinks)
 	assert.Contains(t, capLinks, "x-update-color")
 	assert.Contains(t, capLinks, "x-clear-color")
-	assert.Equal(t, "/api/v1/views/"+viewID+"/capabilities/"+capabilityID+"/color", capLinks["x-update-color"].Href)
-	assert.Equal(t, "/api/v1/views/"+viewID+"/capabilities/"+capabilityID+"/color", capLinks["x-clear-color"].Href)
+	assert.Equal(t, "/api/v1/views/"+env.viewID+"/capabilities/"+capabilityID+"/color", capLinks["x-update-color"].Href)
+	assert.Equal(t, "/api/v1/views/"+env.viewID+"/capabilities/"+capabilityID+"/color", capLinks["x-clear-color"].Href)
 }

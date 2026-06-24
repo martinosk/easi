@@ -192,22 +192,30 @@ func (ctx *viewTestContext) getViewViaAPI(t *testing.T, h *viewTestHarness, view
 	return response
 }
 
-func (ctx *viewTestContext) setElementColorViaAPI(t *testing.T, h *viewTestHarness, viewID, elementID, elementType, color string) {
-	body, _ := json.Marshal(UpdateElementColorRequest{Color: color})
+type elementColorRequest struct {
+	h           *viewTestHarness
+	viewID      string
+	elementID   string
+	elementType string
+	color       string
+}
+
+func (ctx *viewTestContext) setElementColorViaAPI(t *testing.T, r elementColorRequest) {
+	body, _ := json.Marshal(UpdateElementColorRequest{Color: r.color})
 
 	var urlPath, urlParam string
 	var handler func(http.ResponseWriter, *http.Request)
-	if elementType == "component" {
+	if r.elementType == "component" {
 		urlPath, urlParam = "components", "componentId"
-		handler = h.colorHandlers.UpdateComponentColor
+		handler = r.h.colorHandlers.UpdateComponentColor
 	} else {
 		urlPath, urlParam = "capabilities", "capabilityId"
-		handler = h.colorHandlers.UpdateCapabilityColor
+		handler = r.h.colorHandlers.UpdateCapabilityColor
 	}
 
-	w, req := ctx.makeRequest(t, http.MethodPatch, "/api/v1/views/"+viewID+"/"+urlPath+"/"+elementID+"/color", body, map[string]string{
-		"id":     viewID,
-		urlParam: elementID,
+	w, req := ctx.makeRequest(t, http.MethodPatch, "/api/v1/views/"+r.viewID+"/"+urlPath+"/"+r.elementID+"/color", body, map[string]string{
+		"id":     r.viewID,
+		urlParam: r.elementID,
 	})
 	handler(w, req)
 	require.Equal(t, http.StatusNoContent, w.Code)

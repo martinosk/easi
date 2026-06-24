@@ -7,29 +7,29 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewOriginLink_ValidData(t *testing.T) {
-	entityID := "entity-123"
-	notes, _ := NewNotes("Test notes")
-	linkedAt := time.Now()
+func TestNewOriginLink(t *testing.T) {
+	cases := []struct {
+		name        string
+		entityID    string
+		wantIsEmpty bool
+	}{
+		{name: "valid data", entityID: "entity-123", wantIsEmpty: false},
+		{name: "empty entity id", entityID: "", wantIsEmpty: true},
+	}
 
-	link := NewOriginLink(entityID, notes, linkedAt)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			notes, _ := NewNotes("Test notes")
+			linkedAt := time.Now()
 
-	assert.Equal(t, entityID, link.EntityID())
-	assert.Equal(t, notes, link.Notes())
-	assert.Equal(t, linkedAt, link.LinkedAt())
-	assert.False(t, link.IsEmpty())
-}
+			link := NewOriginLink(tc.entityID, notes, linkedAt)
 
-func TestNewOriginLink_EmptyEntityID(t *testing.T) {
-	notes, _ := NewNotes("Test notes")
-	linkedAt := time.Now()
-
-	link := NewOriginLink("", notes, linkedAt)
-
-	assert.Equal(t, "", link.EntityID())
-	assert.Equal(t, notes, link.Notes())
-	assert.Equal(t, linkedAt, link.LinkedAt())
-	assert.True(t, link.IsEmpty())
+			assert.Equal(t, tc.entityID, link.EntityID())
+			assert.Equal(t, notes, link.Notes())
+			assert.Equal(t, linkedAt, link.LinkedAt())
+			assert.Equal(t, tc.wantIsEmpty, link.IsEmpty())
+		})
+	}
 }
 
 func TestEmptyOriginLink(t *testing.T) {
