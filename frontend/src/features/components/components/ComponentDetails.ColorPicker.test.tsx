@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { HttpResponse, http } from 'msw';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { View } from '../../../api/types';
@@ -187,29 +187,39 @@ describe('ComponentDetails - ColorPicker Integration', () => {
     });
   });
 
+  const COLOR_PATH = `${API_BASE}/api/v1/views/:viewId/components/:componentId/color`;
+
+  const selectColor = async (color: string) => {
+    await waitFor(() => {
+      expect(screen.getByTestId('color-picker-button')).toBeInTheDocument();
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('color-picker-button'));
+      fireEvent.change(screen.getByTestId('color-picker-input'), { target: { value: color } });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  };
+
+  const clickClearColor = async () => {
+    await waitFor(() => {
+      expect(screen.getByText('Clear Color')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('Clear Color'));
+  };
+
   describe('API calls on color selection', () => {
     it('should call API to update component color when color selected', async () => {
       let capturedColor: string | null = null;
       server.use(
-        http.patch(`${API_BASE}/api/v1/views/:viewId/components/:componentId/color`, async ({ request }) => {
+        http.patch(COLOR_PATH, async ({ request }) => {
           const body = (await request.json()) as { color: string };
           capturedColor = body.color;
           return new HttpResponse(null, { status: 204 });
         }),
       );
 
-      const mockView = createMockView('custom');
-      renderComponentDetails(mockView);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('color-picker-button')).toBeInTheDocument();
-      });
-
-      const colorPickerButton = screen.getByTestId('color-picker-button');
-      fireEvent.click(colorPickerButton);
-
-      const colorInput = screen.getByTestId('color-picker-input');
-      fireEvent.change(colorInput, { target: { value: '#00FF00' } });
+      renderComponentDetails(createMockView('custom'));
+      await selectColor('#00FF00');
 
       await waitFor(() => {
         expect(capturedColor).toBe('#00FF00');
@@ -219,24 +229,14 @@ describe('ComponentDetails - ColorPicker Integration', () => {
     it('should call API with correct view ID and component ID', async () => {
       let capturedParams: { viewId?: string; componentId?: string } = {};
       server.use(
-        http.patch(`${API_BASE}/api/v1/views/:viewId/components/:componentId/color`, ({ params }) => {
+        http.patch(COLOR_PATH, ({ params }) => {
           capturedParams = { viewId: params.viewId as string, componentId: params.componentId as string };
           return new HttpResponse(null, { status: 204 });
         }),
       );
 
-      const mockView = createMockView('custom');
-      renderComponentDetails(mockView);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('color-picker-button')).toBeInTheDocument();
-      });
-
-      const colorPickerButton = screen.getByTestId('color-picker-button');
-      fireEvent.click(colorPickerButton);
-
-      const colorInput = screen.getByTestId('color-picker-input');
-      fireEvent.change(colorInput, { target: { value: '#AABBCC' } });
+      renderComponentDetails(createMockView('custom'));
+      await selectColor('#AABBCC');
 
       await waitFor(() => {
         expect(capturedParams.viewId).toBe('view-1');
@@ -249,24 +249,14 @@ describe('ComponentDetails - ColorPicker Integration', () => {
     it('should call error handler when API call fails', async () => {
       let apiCalled = false;
       server.use(
-        http.patch(`${API_BASE}/api/v1/views/:viewId/components/:componentId/color`, () => {
+        http.patch(COLOR_PATH, () => {
           apiCalled = true;
           return HttpResponse.json({ error: 'Failed to update color' }, { status: 500 });
         }),
       );
 
-      const mockView = createMockView('custom', '#FF5733');
-      renderComponentDetails(mockView);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('color-picker-button')).toBeInTheDocument();
-      });
-
-      const colorPickerButton = screen.getByTestId('color-picker-button');
-      fireEvent.click(colorPickerButton);
-
-      const colorInput = screen.getByTestId('color-picker-input');
-      fireEvent.change(colorInput, { target: { value: '#00FF00' } });
+      renderComponentDetails(createMockView('custom', '#FF5733'));
+      await selectColor('#00FF00');
 
       await waitFor(() => {
         expect(apiCalled).toBe(true);
@@ -323,48 +313,26 @@ describe('ComponentDetails - ColorPicker Integration', () => {
       });
     });
 
-    it('should call API to clear component color when clear button clicked', async () => {
-      let clearCalled = false;
-      server.use(
-        http.delete(`${API_BASE}/api/v1/views/:viewId/components/:componentId/color`, () => {
-          clearCalled = true;
-          return new HttpResponse(null, { status: 204 });
-        }),
-      );
-
-      const mockView = createMockView('custom', '#FF5733');
-      renderComponentDetails(mockView);
-
-      await waitFor(() => {
-        expect(screen.getByText('Clear Color')).toBeInTheDocument();
-      });
-
-      const clearButton = screen.getByText('Clear Color');
-      fireEvent.click(clearButton);
-
-      await waitFor(() => {
-        expect(clearCalled).toBe(true);
-      });
-    });
-
-    it('should call error handler when clear API call fails', async () => {
+    it.each([
+      {
+        name: 'should call API to clear component color when clear button clicked',
+        respond: () => new HttpResponse(null, { status: 204 }),
+      },
+      {
+        name: 'should call error handler when clear API call fails',
+        respond: () => HttpResponse.json({ error: 'Failed to clear color' }, { status: 500 }),
+      },
+    ])('$name', async ({ respond }) => {
       let apiCalled = false;
       server.use(
-        http.delete(`${API_BASE}/api/v1/views/:viewId/components/:componentId/color`, () => {
+        http.delete(COLOR_PATH, () => {
           apiCalled = true;
-          return HttpResponse.json({ error: 'Failed to clear color' }, { status: 500 });
+          return respond();
         }),
       );
 
-      const mockView = createMockView('custom', '#FF5733');
-      renderComponentDetails(mockView);
-
-      await waitFor(() => {
-        expect(screen.getByText('Clear Color')).toBeInTheDocument();
-      });
-
-      const clearButton = screen.getByText('Clear Color');
-      fireEvent.click(clearButton);
+      renderComponentDetails(createMockView('custom', '#FF5733'));
+      await clickClearColor();
 
       await waitFor(() => {
         expect(apiCalled).toBe(true);
