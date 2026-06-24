@@ -6,80 +6,33 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCategorizeGap_Liability_LargeGap(t *testing.T) {
+func TestCategorizeGap(t *testing.T) {
 	tests := []struct {
 		name       string
 		gap        int
 		importance int
+		expected   GapCategory
 	}{
-		{"gap 2, low importance", 2, 1},
-		{"gap 2, medium importance", 2, 3},
-		{"gap 2, high importance", 2, 5},
-		{"gap 3, any importance", 3, 2},
-		{"gap 4, any importance", 4, 1},
+		{"liability: gap 2, low importance", 2, 1, GapCategoryLiability},
+		{"liability: gap 2, medium importance", 2, 3, GapCategoryLiability},
+		{"liability: gap 2, high importance", 2, 5, GapCategoryLiability},
+		{"liability: gap 3, any importance", 3, 2, GapCategoryLiability},
+		{"liability: gap 4, any importance", 4, 1, GapCategoryLiability},
+		{"liability: gap 1, importance 4", 1, 4, GapCategoryLiability},
+		{"liability: gap 1, importance 5", 1, 5, GapCategoryLiability},
+		{"concern: gap 1, importance 1", 1, 1, GapCategoryConcern},
+		{"concern: gap 1, importance 2", 1, 2, GapCategoryConcern},
+		{"concern: gap 1, importance 3", 1, 3, GapCategoryConcern},
+		{"aligned: gap 0, low importance", 0, 1, GapCategoryAligned},
+		{"aligned: gap 0, high importance", 0, 5, GapCategoryAligned},
+		{"aligned: negative gap", -1, 3, GapCategoryAligned},
+		{"aligned: large negative gap", -3, 5, GapCategoryAligned},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := CategorizeGap(tt.gap, tt.importance)
-			assert.Equal(t, GapCategoryLiability, result)
-		})
-	}
-}
-
-func TestCategorizeGap_Liability_HighImportanceWithSmallGap(t *testing.T) {
-	tests := []struct {
-		name       string
-		gap        int
-		importance int
-	}{
-		{"gap 1, importance 4", 1, 4},
-		{"gap 1, importance 5", 1, 5},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := CategorizeGap(tt.gap, tt.importance)
-			assert.Equal(t, GapCategoryLiability, result)
-		})
-	}
-}
-
-func TestCategorizeGap_Concern(t *testing.T) {
-	tests := []struct {
-		name       string
-		gap        int
-		importance int
-	}{
-		{"gap 1, importance 1", 1, 1},
-		{"gap 1, importance 2", 1, 2},
-		{"gap 1, importance 3", 1, 3},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := CategorizeGap(tt.gap, tt.importance)
-			assert.Equal(t, GapCategoryConcern, result)
-		})
-	}
-}
-
-func TestCategorizeGap_Aligned(t *testing.T) {
-	tests := []struct {
-		name       string
-		gap        int
-		importance int
-	}{
-		{"gap 0, low importance", 0, 1},
-		{"gap 0, high importance", 0, 5},
-		{"negative gap", -1, 3},
-		{"large negative gap", -3, 5},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := CategorizeGap(tt.gap, tt.importance)
-			assert.Equal(t, GapCategoryAligned, result)
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }

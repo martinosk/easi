@@ -70,39 +70,65 @@ func (f *assignmentTestFixture) queryScalar(dest any, query string, args ...any)
 }
 
 func TestDomainCapabilityAssignmentReadModel_Insert(t *testing.T) {
-	f := newAssignmentFixture(t)
-	dto := f.makeDTO("test")
-	f.insertViaReadModel(dto)
+	tests := []struct {
+		name   string
+		prefix string
+		insert func(f *assignmentTestFixture, dto AssignmentDTO) AssignmentDTO
+		verify func(t *testing.T, f *assignmentTestFixture, dto AssignmentDTO)
+	}{
+		{
+			name:   "persists fields",
+			prefix: "test",
+			insert: func(f *assignmentTestFixture, dto AssignmentDTO) AssignmentDTO {
+				f.insertViaReadModel(dto)
+				return dto
+			},
+			verify: func(t *testing.T, f *assignmentTestFixture, dto AssignmentDTO) {
+				var domainID, capID string
+				f.queryScalar(&domainID, "SELECT business_domain_id FROM capabilitymapping.domain_capability_assignments WHERE assignment_id = $1", dto.AssignmentID)
+				f.queryScalar(&capID, "SELECT capability_id FROM capabilitymapping.domain_capability_assignments WHERE assignment_id = $1", dto.AssignmentID)
+				assert.Equal(t, dto.BusinessDomainID, domainID)
+				assert.Equal(t, dto.CapabilityID, capID)
+			},
+		},
+		{
+			name:   "idempotent replay",
+			prefix: "replay",
+			insert: func(f *assignmentTestFixture, dto AssignmentDTO) AssignmentDTO {
+				f.insertViaReadModel(dto)
+				f.insertViaReadModel(dto)
+				return dto
+			},
+			verify: func(t *testing.T, f *assignmentTestFixture, dto AssignmentDTO) {
+				var count int
+				f.queryScalar(&count, "SELECT COUNT(*) FROM capabilitymapping.domain_capability_assignments WHERE assignment_id = $1", dto.AssignmentID)
+				assert.Equal(t, 1, count)
+			},
+		},
+		{
+			name:   "replay convergence",
+			prefix: "converge",
+			insert: func(f *assignmentTestFixture, dto AssignmentDTO) AssignmentDTO {
+				f.insertViaReadModel(dto)
+				dto.CapabilityName = "Updated Name"
+				f.insertViaReadModel(dto)
+				return dto
+			},
+			verify: func(t *testing.T, f *assignmentTestFixture, dto AssignmentDTO) {
+				var name string
+				f.queryScalar(&name, "SELECT capability_name FROM capabilitymapping.domain_capability_assignments WHERE assignment_id = $1", dto.AssignmentID)
+				assert.Equal(t, "Updated Name", name)
+			},
+		},
+	}
 
-	var domainID, capID string
-	f.queryScalar(&domainID, "SELECT business_domain_id FROM capabilitymapping.domain_capability_assignments WHERE assignment_id = $1", dto.AssignmentID)
-	f.queryScalar(&capID, "SELECT capability_id FROM capabilitymapping.domain_capability_assignments WHERE assignment_id = $1", dto.AssignmentID)
-	assert.Equal(t, dto.BusinessDomainID, domainID)
-	assert.Equal(t, dto.CapabilityID, capID)
-}
-
-func TestDomainCapabilityAssignmentReadModel_Insert_IdempotentReplay(t *testing.T) {
-	f := newAssignmentFixture(t)
-	dto := f.makeDTO("replay")
-	f.insertViaReadModel(dto)
-	f.insertViaReadModel(dto)
-
-	var count int
-	f.queryScalar(&count, "SELECT COUNT(*) FROM capabilitymapping.domain_capability_assignments WHERE assignment_id = $1", dto.AssignmentID)
-	assert.Equal(t, 1, count)
-}
-
-func TestDomainCapabilityAssignmentReadModel_Insert_ReplayConvergence(t *testing.T) {
-	f := newAssignmentFixture(t)
-	dto := f.makeDTO("converge")
-	f.insertViaReadModel(dto)
-
-	dto.CapabilityName = "Updated Name"
-	f.insertViaReadModel(dto)
-
-	var name string
-	f.queryScalar(&name, "SELECT capability_name FROM capabilitymapping.domain_capability_assignments WHERE assignment_id = $1", dto.AssignmentID)
-	assert.Equal(t, "Updated Name", name)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newAssignmentFixture(t)
+			dto := tt.insert(f, f.makeDTO(tt.prefix))
+			tt.verify(t, f, dto)
+		})
+	}
 }
 
 func TestDomainCapabilityAssignmentReadModel_Delete(t *testing.T) {

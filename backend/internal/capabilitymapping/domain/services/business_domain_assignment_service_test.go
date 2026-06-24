@@ -83,95 +83,96 @@ func (m *mockHierarchyService) ValidateHierarchyChange(ctx context.Context, capa
 	return nil
 }
 
-func TestBusinessDomainAssignmentService_ReassignToL1Ancestor_NoAssignments(t *testing.T) {
+type assignmentServiceHarness struct {
+	lookup   *mockAssignmentLookup
+	executor *mockCommandExecutor
+	service  BusinessDomainAssignmentService
+}
+
+func newAssignmentServiceHarness() *assignmentServiceHarness {
 	lookup := newMockAssignmentLookup()
 	executor := newMockCommandExecutor()
-	hierarchy := &mockHierarchyService{}
-	service := NewBusinessDomainAssignmentService(lookup, executor, hierarchy)
+	return &assignmentServiceHarness{
+		lookup:   lookup,
+		executor: executor,
+		service:  NewBusinessDomainAssignmentService(lookup, executor, &mockHierarchyService{}),
+	}
+}
+
+func TestBusinessDomainAssignmentService_ReassignToL1Ancestor_NoAssignments(t *testing.T) {
+	h := newAssignmentServiceHarness()
 
 	capabilityID := valueobjects.NewCapabilityID()
 	newL1ID := valueobjects.NewCapabilityID()
 
-	err := service.ReassignToL1Ancestor(context.Background(), capabilityID, newL1ID)
+	err := h.service.ReassignToL1Ancestor(context.Background(), capabilityID, newL1ID)
 	require.NoError(t, err)
-	assert.Empty(t, executor.unassignedIDs)
-	assert.Empty(t, executor.assignedPairs)
+	assert.Empty(t, h.executor.unassignedIDs)
+	assert.Empty(t, h.executor.assignedPairs)
 }
 
 func TestBusinessDomainAssignmentService_ReassignToL1Ancestor_UnassignsOldAndAssignsNew(t *testing.T) {
-	lookup := newMockAssignmentLookup()
-	executor := newMockCommandExecutor()
-	hierarchy := &mockHierarchyService{}
-	service := NewBusinessDomainAssignmentService(lookup, executor, hierarchy)
+	h := newAssignmentServiceHarness()
 
 	capabilityID := valueobjects.NewCapabilityID()
 	domainID := valueobjects.NewBusinessDomainID()
 	newL1ID := valueobjects.NewCapabilityID()
 
-	lookup.addAssignment(capabilityID, "assignment-1", domainID)
-	lookup.setAssignmentExists(domainID, newL1ID, false)
+	h.lookup.addAssignment(capabilityID, "assignment-1", domainID)
+	h.lookup.setAssignmentExists(domainID, newL1ID, false)
 
-	err := service.ReassignToL1Ancestor(context.Background(), capabilityID, newL1ID)
+	err := h.service.ReassignToL1Ancestor(context.Background(), capabilityID, newL1ID)
 	require.NoError(t, err)
 
-	assert.Len(t, executor.unassignedIDs, 1)
-	assert.Equal(t, "assignment-1", executor.unassignedIDs[0])
+	assert.Len(t, h.executor.unassignedIDs, 1)
+	assert.Equal(t, "assignment-1", h.executor.unassignedIDs[0])
 
-	assert.Len(t, executor.assignedPairs, 1)
-	assert.Equal(t, domainID.Value(), executor.assignedPairs[0].DomainID.Value())
-	assert.Equal(t, newL1ID.Value(), executor.assignedPairs[0].CapabilityID.Value())
+	assert.Len(t, h.executor.assignedPairs, 1)
+	assert.Equal(t, domainID.Value(), h.executor.assignedPairs[0].DomainID.Value())
+	assert.Equal(t, newL1ID.Value(), h.executor.assignedPairs[0].CapabilityID.Value())
 }
 
 func TestBusinessDomainAssignmentService_ReassignToL1Ancestor_SkipsIfL1AlreadyAssigned(t *testing.T) {
-	lookup := newMockAssignmentLookup()
-	executor := newMockCommandExecutor()
-	hierarchy := &mockHierarchyService{}
-	service := NewBusinessDomainAssignmentService(lookup, executor, hierarchy)
+	h := newAssignmentServiceHarness()
 
 	capabilityID := valueobjects.NewCapabilityID()
 	domainID := valueobjects.NewBusinessDomainID()
 	newL1ID := valueobjects.NewCapabilityID()
 
-	lookup.addAssignment(capabilityID, "assignment-1", domainID)
-	lookup.setAssignmentExists(domainID, newL1ID, true)
+	h.lookup.addAssignment(capabilityID, "assignment-1", domainID)
+	h.lookup.setAssignmentExists(domainID, newL1ID, true)
 
-	err := service.ReassignToL1Ancestor(context.Background(), capabilityID, newL1ID)
+	err := h.service.ReassignToL1Ancestor(context.Background(), capabilityID, newL1ID)
 	require.NoError(t, err)
 
-	assert.Len(t, executor.unassignedIDs, 1)
-	assert.Empty(t, executor.assignedPairs)
+	assert.Len(t, h.executor.unassignedIDs, 1)
+	assert.Empty(t, h.executor.assignedPairs)
 }
 
 func TestBusinessDomainAssignmentService_UnassignAllForCapability_NoAssignments(t *testing.T) {
-	lookup := newMockAssignmentLookup()
-	executor := newMockCommandExecutor()
-	hierarchy := &mockHierarchyService{}
-	service := NewBusinessDomainAssignmentService(lookup, executor, hierarchy)
+	h := newAssignmentServiceHarness()
 
 	capabilityID := valueobjects.NewCapabilityID()
 
-	err := service.UnassignAllForCapability(context.Background(), capabilityID)
+	err := h.service.UnassignAllForCapability(context.Background(), capabilityID)
 	require.NoError(t, err)
-	assert.Empty(t, executor.unassignedIDs)
+	assert.Empty(t, h.executor.unassignedIDs)
 }
 
 func TestBusinessDomainAssignmentService_UnassignAllForCapability_UnassignsAll(t *testing.T) {
-	lookup := newMockAssignmentLookup()
-	executor := newMockCommandExecutor()
-	hierarchy := &mockHierarchyService{}
-	service := NewBusinessDomainAssignmentService(lookup, executor, hierarchy)
+	h := newAssignmentServiceHarness()
 
 	capabilityID := valueobjects.NewCapabilityID()
 	domainID1 := valueobjects.NewBusinessDomainID()
 	domainID2 := valueobjects.NewBusinessDomainID()
 
-	lookup.addAssignment(capabilityID, "assignment-1", domainID1)
-	lookup.addAssignment(capabilityID, "assignment-2", domainID2)
+	h.lookup.addAssignment(capabilityID, "assignment-1", domainID1)
+	h.lookup.addAssignment(capabilityID, "assignment-2", domainID2)
 
-	err := service.UnassignAllForCapability(context.Background(), capabilityID)
+	err := h.service.UnassignAllForCapability(context.Background(), capabilityID)
 	require.NoError(t, err)
 
-	assert.Len(t, executor.unassignedIDs, 2)
-	assert.Contains(t, executor.unassignedIDs, "assignment-1")
-	assert.Contains(t, executor.unassignedIDs, "assignment-2")
+	assert.Len(t, h.executor.unassignedIDs, 2)
+	assert.Contains(t, h.executor.unassignedIDs, "assignment-1")
+	assert.Contains(t, h.executor.unassignedIDs, "assignment-2")
 }

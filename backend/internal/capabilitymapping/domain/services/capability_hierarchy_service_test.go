@@ -50,149 +50,162 @@ func (m *mockCapabilityLookup) addChild(parentID, childID valueobjects.Capabilit
 	m.children[parentID.Value()] = append(m.children[parentID.Value()], childID)
 }
 
-func TestCapabilityHierarchyService_FindL1Ancestor_L1_ReturnsSelf(t *testing.T) {
-	lookup := newMockCapabilityLookup()
-	service := NewCapabilityHierarchyService(lookup)
-
-	l1ID := valueobjects.NewCapabilityID()
-	lookup.addCapability(l1ID, valueobjects.LevelL1, valueobjects.CapabilityID{})
-
-	result, err := service.FindL1Ancestor(context.Background(), l1ID)
-	require.NoError(t, err)
-	assert.Equal(t, l1ID.Value(), result.Value())
+type hierarchyHarness struct {
+	lookup  *mockCapabilityLookup
+	service CapabilityHierarchyService
 }
 
-func TestCapabilityHierarchyService_FindL1Ancestor_L2_ReturnsL1Parent(t *testing.T) {
+func newHierarchyHarness() *hierarchyHarness {
 	lookup := newMockCapabilityLookup()
-	service := NewCapabilityHierarchyService(lookup)
-
-	l1ID := valueobjects.NewCapabilityID()
-	l2ID := valueobjects.NewCapabilityID()
-
-	lookup.addCapability(l1ID, valueobjects.LevelL1, valueobjects.CapabilityID{})
-	lookup.addCapability(l2ID, valueobjects.LevelL2, l1ID)
-
-	result, err := service.FindL1Ancestor(context.Background(), l2ID)
-	require.NoError(t, err)
-	assert.Equal(t, l1ID.Value(), result.Value())
+	return &hierarchyHarness{
+		lookup:  lookup,
+		service: NewCapabilityHierarchyService(lookup),
+	}
 }
 
-func TestCapabilityHierarchyService_FindL1Ancestor_L3_ReturnsL1Ancestor(t *testing.T) {
-	lookup := newMockCapabilityLookup()
-	service := NewCapabilityHierarchyService(lookup)
-
+func (h *hierarchyHarness) addRootL1() valueobjects.CapabilityID {
 	l1ID := valueobjects.NewCapabilityID()
-	l2ID := valueobjects.NewCapabilityID()
-	l3ID := valueobjects.NewCapabilityID()
+	h.lookup.addCapability(l1ID, valueobjects.LevelL1, valueobjects.CapabilityID{})
+	return l1ID
+}
 
-	lookup.addCapability(l1ID, valueobjects.LevelL1, valueobjects.CapabilityID{})
-	lookup.addCapability(l2ID, valueobjects.LevelL2, l1ID)
-	lookup.addCapability(l3ID, valueobjects.LevelL3, l2ID)
+func (h *hierarchyHarness) addChildAt(level valueobjects.CapabilityLevel, parentID valueobjects.CapabilityID) valueobjects.CapabilityID {
+	childID := valueobjects.NewCapabilityID()
+	h.lookup.addCapability(childID, level, parentID)
+	h.lookup.addChild(parentID, childID)
+	return childID
+}
 
-	result, err := service.FindL1Ancestor(context.Background(), l3ID)
-	require.NoError(t, err)
-	assert.Equal(t, l1ID.Value(), result.Value())
+func TestCapabilityHierarchyService_FindL1Ancestor(t *testing.T) {
+	tests := []struct {
+		name  string
+		build func(h *hierarchyHarness) (target, expected valueobjects.CapabilityID)
+	}{
+		{
+			name: "L1 returns self",
+			build: func(h *hierarchyHarness) (valueobjects.CapabilityID, valueobjects.CapabilityID) {
+				l1ID := h.addRootL1()
+				return l1ID, l1ID
+			},
+		},
+		{
+			name: "L2 returns L1 parent",
+			build: func(h *hierarchyHarness) (valueobjects.CapabilityID, valueobjects.CapabilityID) {
+				l1ID := h.addRootL1()
+				l2ID := h.addChildAt(valueobjects.LevelL2, l1ID)
+				return l2ID, l1ID
+			},
+		},
+		{
+			name: "L3 returns L1 ancestor",
+			build: func(h *hierarchyHarness) (valueobjects.CapabilityID, valueobjects.CapabilityID) {
+				l1ID := h.addRootL1()
+				l2ID := h.addChildAt(valueobjects.LevelL2, l1ID)
+				l3ID := h.addChildAt(valueobjects.LevelL3, l2ID)
+				return l3ID, l1ID
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHierarchyHarness()
+			target, expected := tt.build(h)
+
+			result, err := h.service.FindL1Ancestor(context.Background(), target)
+			require.NoError(t, err)
+			assert.Equal(t, expected.Value(), result.Value())
+		})
+	}
 }
 
 func TestCapabilityHierarchyService_FindL1Ancestor_CapabilityNotFound(t *testing.T) {
-	lookup := newMockCapabilityLookup()
-	service := NewCapabilityHierarchyService(lookup)
+	h := newHierarchyHarness()
 
 	unknownID := valueobjects.NewCapabilityID()
 
-	_, err := service.FindL1Ancestor(context.Background(), unknownID)
+	_, err := h.service.FindL1Ancestor(context.Background(), unknownID)
 	assert.Error(t, err)
 	assert.Equal(t, ErrCapabilityNotFound, err)
 }
 
 func TestCapabilityHierarchyService_GetDescendants_NoChildren(t *testing.T) {
-	lookup := newMockCapabilityLookup()
-	service := NewCapabilityHierarchyService(lookup)
+	h := newHierarchyHarness()
 
-	l1ID := valueobjects.NewCapabilityID()
-	lookup.addCapability(l1ID, valueobjects.LevelL1, valueobjects.CapabilityID{})
+	l1ID := h.addRootL1()
 
-	descendants, err := service.GetDescendants(context.Background(), l1ID)
+	descendants, err := h.service.GetDescendants(context.Background(), l1ID)
 	require.NoError(t, err)
 	assert.Empty(t, descendants)
 }
 
 func TestCapabilityHierarchyService_GetDescendants_WithChildren(t *testing.T) {
-	lookup := newMockCapabilityLookup()
-	service := NewCapabilityHierarchyService(lookup)
+	h := newHierarchyHarness()
 
-	l1ID := valueobjects.NewCapabilityID()
-	l2ID := valueobjects.NewCapabilityID()
-	l3ID := valueobjects.NewCapabilityID()
+	l1ID := h.addRootL1()
+	l2ID := h.addChildAt(valueobjects.LevelL2, l1ID)
+	l3ID := h.addChildAt(valueobjects.LevelL3, l2ID)
 
-	lookup.addCapability(l1ID, valueobjects.LevelL1, valueobjects.CapabilityID{})
-	lookup.addCapability(l2ID, valueobjects.LevelL2, l1ID)
-	lookup.addCapability(l3ID, valueobjects.LevelL3, l2ID)
-
-	lookup.addChild(l1ID, l2ID)
-	lookup.addChild(l2ID, l3ID)
-
-	descendants, err := service.GetDescendants(context.Background(), l1ID)
+	descendants, err := h.service.GetDescendants(context.Background(), l1ID)
 	require.NoError(t, err)
 	assert.Len(t, descendants, 2)
 	assert.Contains(t, descendantIDs(descendants), l2ID.Value())
 	assert.Contains(t, descendantIDs(descendants), l3ID.Value())
 }
 
-func TestCapabilityHierarchyService_ValidateHierarchyChange_EmptyParent_Succeeds(t *testing.T) {
-	lookup := newMockCapabilityLookup()
-	service := NewCapabilityHierarchyService(lookup)
+func TestCapabilityHierarchyService_ValidateHierarchyChange(t *testing.T) {
+	tests := []struct {
+		name    string
+		build   func(h *hierarchyHarness) (capID, parentID valueobjects.CapabilityID)
+		wantErr error
+	}{
+		{
+			name: "empty parent succeeds",
+			build: func(h *hierarchyHarness) (valueobjects.CapabilityID, valueobjects.CapabilityID) {
+				return valueobjects.NewCapabilityID(), valueobjects.CapabilityID{}
+			},
+		},
+		{
+			name: "self reference fails",
+			build: func(h *hierarchyHarness) (valueobjects.CapabilityID, valueobjects.CapabilityID) {
+				capID := valueobjects.NewCapabilityID()
+				return capID, capID
+			},
+			wantErr: ErrWouldCreateCircularHierarchy,
+		},
+		{
+			name: "descendant as parent fails",
+			build: func(h *hierarchyHarness) (valueobjects.CapabilityID, valueobjects.CapabilityID) {
+				l1ID := h.addRootL1()
+				l2ID := h.addChildAt(valueobjects.LevelL2, l1ID)
+				return l1ID, l2ID
+			},
+			wantErr: ErrWouldCreateCircularHierarchy,
+		},
+		{
+			name: "valid parent succeeds",
+			build: func(h *hierarchyHarness) (valueobjects.CapabilityID, valueobjects.CapabilityID) {
+				l1ID := h.addRootL1()
+				l2ID := h.addChildAt(valueobjects.LevelL2, l1ID)
+				otherL1ID := h.addRootL1()
+				return l2ID, otherL1ID
+			},
+		},
+	}
 
-	capID := valueobjects.NewCapabilityID()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHierarchyHarness()
+			capID, parentID := tt.build(h)
 
-	err := service.ValidateHierarchyChange(context.Background(), capID, valueobjects.CapabilityID{})
-	assert.NoError(t, err)
-}
-
-func TestCapabilityHierarchyService_ValidateHierarchyChange_SelfReference_Fails(t *testing.T) {
-	lookup := newMockCapabilityLookup()
-	service := NewCapabilityHierarchyService(lookup)
-
-	capID := valueobjects.NewCapabilityID()
-
-	err := service.ValidateHierarchyChange(context.Background(), capID, capID)
-	assert.Error(t, err)
-	assert.Equal(t, ErrWouldCreateCircularHierarchy, err)
-}
-
-func TestCapabilityHierarchyService_ValidateHierarchyChange_DescendantAsParent_Fails(t *testing.T) {
-	lookup := newMockCapabilityLookup()
-	service := NewCapabilityHierarchyService(lookup)
-
-	l1ID := valueobjects.NewCapabilityID()
-	l2ID := valueobjects.NewCapabilityID()
-
-	lookup.addCapability(l1ID, valueobjects.LevelL1, valueobjects.CapabilityID{})
-	lookup.addCapability(l2ID, valueobjects.LevelL2, l1ID)
-
-	lookup.addChild(l1ID, l2ID)
-
-	err := service.ValidateHierarchyChange(context.Background(), l1ID, l2ID)
-	assert.Error(t, err)
-	assert.Equal(t, ErrWouldCreateCircularHierarchy, err)
-}
-
-func TestCapabilityHierarchyService_ValidateHierarchyChange_ValidParent_Succeeds(t *testing.T) {
-	lookup := newMockCapabilityLookup()
-	service := NewCapabilityHierarchyService(lookup)
-
-	l1ID := valueobjects.NewCapabilityID()
-	l2ID := valueobjects.NewCapabilityID()
-	otherL1ID := valueobjects.NewCapabilityID()
-
-	lookup.addCapability(l1ID, valueobjects.LevelL1, valueobjects.CapabilityID{})
-	lookup.addCapability(l2ID, valueobjects.LevelL2, l1ID)
-	lookup.addCapability(otherL1ID, valueobjects.LevelL1, valueobjects.CapabilityID{})
-
-	lookup.addChild(l1ID, l2ID)
-
-	err := service.ValidateHierarchyChange(context.Background(), l2ID, otherL1ID)
-	assert.NoError(t, err)
+			err := h.service.ValidateHierarchyChange(context.Background(), capID, parentID)
+			if tt.wantErr != nil {
+				assert.Equal(t, tt.wantErr, err)
+				return
+			}
+			assert.NoError(t, err)
+		})
+	}
 }
 
 func descendantIDs(descendants []valueobjects.CapabilityID) []string {
