@@ -67,14 +67,16 @@ type AddStageCapabilityRequest struct {
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /value-streams/{id}/stages [post]
 func (h *StageHandlers) CreateStage(w http.ResponseWriter, r *http.Request) {
-	decodeAndDispatchStage(h, w, r, func(req CreateStageRequest) (int, cqrs.Command) {
-		return http.StatusCreated, &commands.AddStage{
-			ValueStreamID: sharedAPI.GetPathParam(r, "id"),
-			Name:          req.Name,
-			Description:   req.Description,
-			Position:      req.Position,
-		}
-	})
+	decodeAndDispatchStage(h, w, r, http.StatusCreated, buildAddStageCommand)
+}
+
+func buildAddStageCommand(r *http.Request, req CreateStageRequest) cqrs.Command {
+	return &commands.AddStage{
+		ValueStreamID: sharedAPI.GetPathParam(r, "id"),
+		Name:          req.Name,
+		Description:   req.Description,
+		Position:      req.Position,
+	}
 }
 
 // UpdateStage godoc
@@ -93,14 +95,16 @@ func (h *StageHandlers) CreateStage(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /value-streams/{id}/stages/{stageId} [put]
 func (h *StageHandlers) UpdateStage(w http.ResponseWriter, r *http.Request) {
-	decodeAndDispatchStage(h, w, r, func(req UpdateStageRequest) (int, cqrs.Command) {
-		return http.StatusOK, &commands.UpdateStage{
-			ValueStreamID: sharedAPI.GetPathParam(r, "id"),
-			StageID:       sharedAPI.GetPathParam(r, "stageId"),
-			Name:          req.Name,
-			Description:   req.Description,
-		}
-	})
+	decodeAndDispatchStage(h, w, r, http.StatusOK, buildUpdateStageCommand)
+}
+
+func buildUpdateStageCommand(r *http.Request, req UpdateStageRequest) cqrs.Command {
+	return &commands.UpdateStage{
+		ValueStreamID: sharedAPI.GetPathParam(r, "id"),
+		StageID:       sharedAPI.GetPathParam(r, "stageId"),
+		Name:          req.Name,
+		Description:   req.Description,
+	}
 }
 
 // DeleteStage godoc
@@ -170,13 +174,15 @@ func (h *StageHandlers) ReorderStages(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /value-streams/{id}/stages/{stageId}/capabilities [post]
 func (h *StageHandlers) AddStageCapability(w http.ResponseWriter, r *http.Request) {
-	decodeAndDispatchStage(h, w, r, func(req AddStageCapabilityRequest) (int, cqrs.Command) {
-		return http.StatusOK, &commands.AddStageCapability{
-			ValueStreamID: sharedAPI.GetPathParam(r, "id"),
-			StageID:       sharedAPI.GetPathParam(r, "stageId"),
-			CapabilityID:  req.CapabilityID,
-		}
-	})
+	decodeAndDispatchStage(h, w, r, http.StatusOK, buildAddStageCapabilityCommand)
+}
+
+func buildAddStageCapabilityCommand(r *http.Request, req AddStageCapabilityRequest) cqrs.Command {
+	return &commands.AddStageCapability{
+		ValueStreamID: sharedAPI.GetPathParam(r, "id"),
+		StageID:       sharedAPI.GetPathParam(r, "stageId"),
+		CapabilityID:  req.CapabilityID,
+	}
 }
 
 // RemoveStageCapability godoc
@@ -224,13 +230,12 @@ func (h *StageHandlers) GetValueStreamCapabilities(w http.ResponseWriter, r *htt
 	sharedAPI.RespondCollection(w, http.StatusOK, caps, h.hateoas.CapabilitiesCollectionLinks(vsID))
 }
 
-func decodeAndDispatchStage[T any](h *StageHandlers, w http.ResponseWriter, r *http.Request, buildCmd func(T) (int, cqrs.Command)) {
+func decodeAndDispatchStage[T any](h *StageHandlers, w http.ResponseWriter, r *http.Request, statusCode int, buildCmd func(*http.Request, T) cqrs.Command) {
 	req, ok := sharedAPI.DecodeRequestOrFail[T](w, r)
 	if !ok {
 		return
 	}
-	statusCode, cmd := buildCmd(req)
-	h.dispatchStageCommand(w, r, statusCode, cmd)
+	h.dispatchStageCommand(w, r, statusCode, buildCmd(r, req))
 }
 
 func (h *StageHandlers) dispatchDeleteCommand(w http.ResponseWriter, r *http.Request, cmd cqrs.Command) {

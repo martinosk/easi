@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"easi/backend/internal/archassistant/infrastructure/llm"
@@ -153,42 +154,64 @@ func TestAnthropicClient_StreamChat_WithToolCalls(t *testing.T) {
 	assert.Equal(t, 30, doneEvent.TokensUsed)
 }
 
-func TestAnthropicClient_StreamChat_MultipleToolCalls(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+type sseEvent struct {
+	name string
+	data string
+}
+
+func encodeSSE(events []sseEvent) string {
+	var b strings.Builder
+	for _, e := range events {
+		b.WriteString("event: " + e.name + "\n")
+		b.WriteString("data: " + e.data + "\n\n")
+	}
+	return b.String()
+}
+
+func newSSEServer(t *testing.T, events []sseEvent) *httptest.Server {
+	t.Helper()
+	body := encodeSSE(events)
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.WriteHeader(http.StatusOK)
-
-		_, _ = fmt.Fprint(w, "event: content_block_start\n")
-		_, _ = fmt.Fprint(w, `data: {"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_1","name":"get_app","input":{}}}`+"\n\n")
-		_, _ = fmt.Fprint(w, "event: content_block_delta\n")
-		_, _ = fmt.Fprint(w, `data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\"id\":1}"}}`+"\n\n")
-		_, _ = fmt.Fprint(w, "event: content_block_stop\n")
-		_, _ = fmt.Fprint(w, `data: {"type":"content_block_stop","index":0}`+"\n\n")
-
-		_, _ = fmt.Fprint(w, "event: content_block_start\n")
-		_, _ = fmt.Fprint(w, `data: {"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"toolu_2","name":"get_vendor","input":{}}}`+"\n\n")
-		_, _ = fmt.Fprint(w, "event: content_block_delta\n")
-		_, _ = fmt.Fprint(w, `data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{\"id\":2}"}}`+"\n\n")
-		_, _ = fmt.Fprint(w, "event: content_block_stop\n")
-		_, _ = fmt.Fprint(w, `data: {"type":"content_block_stop","index":1}`+"\n\n")
-
-		_, _ = fmt.Fprint(w, "event: message_stop\n")
-		_, _ = fmt.Fprint(w, `data: {"type":"message_stop"}`+"\n\n")
+		_, _ = fmt.Fprint(w, body)
 	}))
-	defer server.Close()
+}
 
-	client := llm.NewAnthropicClient(server.URL, "test-key")
+func collectStreamEvents(t *testing.T, serverURL, prompt string) (tokens []string, toolCalls []llm.StreamEvent) {
+	t.Helper()
+	client := llm.NewAnthropicClient(serverURL, "test-key")
 	ch, err := client.StreamChat(context.Background(), []llm.Message{
-		{Role: llm.RoleUser, Content: "Get info"},
+		{Role: llm.RoleUser, Content: prompt},
 	}, llm.Options{Model: "claude-3-opus", MaxTokens: 100})
 	require.NoError(t, err)
 
-	var toolCallEvents []llm.StreamEvent
 	for event := range ch {
-		if event.Type == llm.EventToolCall {
-			toolCallEvents = append(toolCallEvents, event)
+		switch event.Type {
+		case llm.EventToken:
+			tokens = append(tokens, event.Content)
+		case llm.EventToolCall:
+			toolCalls = append(toolCalls, event)
 		}
 	}
+	return tokens, toolCalls
+}
+
+func TestAnthropicClient_StreamChat_MultipleToolCalls(t *testing.T) {
+	events := []sseEvent{
+		{"content_block_start", `{"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_1","name":"get_app","input":{}}}`},
+		{"content_block_delta", `{"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\"id\":1}"}}`},
+		{"content_block_stop", `{"type":"content_block_stop","index":0}`},
+		{"content_block_start", `{"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"toolu_2","name":"get_vendor","input":{}}}`},
+		{"content_block_delta", `{"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{\"id\":2}"}}`},
+		{"content_block_stop", `{"type":"content_block_stop","index":1}`},
+		{"message_stop", `{"type":"message_stop"}`},
+	}
+
+	server := newSSEServer(t, events)
+	defer server.Close()
+
+	_, toolCallEvents := collectStreamEvents(t, server.URL, "Get info")
 
 	require.Len(t, toolCallEvents, 1)
 	require.Len(t, toolCallEvents[0].ToolCalls, 2)
@@ -201,45 +224,20 @@ func TestAnthropicClient_StreamChat_MultipleToolCalls(t *testing.T) {
 }
 
 func TestAnthropicClient_StreamChat_TextThenToolCall(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/event-stream")
-		w.WriteHeader(http.StatusOK)
+	events := []sseEvent{
+		{"content_block_start", `{"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}`},
+		{"content_block_delta", `{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Let me look that up."}}`},
+		{"content_block_stop", `{"type":"content_block_stop","index":0}`},
+		{"content_block_start", `{"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"toolu_xyz","name":"search","input":{}}}`},
+		{"content_block_delta", `{"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{\"q\":\"test\"}"}}`},
+		{"content_block_stop", `{"type":"content_block_stop","index":1}`},
+		{"message_stop", `{"type":"message_stop"}`},
+	}
 
-		_, _ = fmt.Fprint(w, "event: content_block_start\n")
-		_, _ = fmt.Fprint(w, `data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}`+"\n\n")
-		_, _ = fmt.Fprint(w, "event: content_block_delta\n")
-		_, _ = fmt.Fprint(w, `data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Let me look that up."}}`+"\n\n")
-		_, _ = fmt.Fprint(w, "event: content_block_stop\n")
-		_, _ = fmt.Fprint(w, `data: {"type":"content_block_stop","index":0}`+"\n\n")
-
-		_, _ = fmt.Fprint(w, "event: content_block_start\n")
-		_, _ = fmt.Fprint(w, `data: {"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"toolu_xyz","name":"search","input":{}}}`+"\n\n")
-		_, _ = fmt.Fprint(w, "event: content_block_delta\n")
-		_, _ = fmt.Fprint(w, `data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{\"q\":\"test\"}"}}`+"\n\n")
-		_, _ = fmt.Fprint(w, "event: content_block_stop\n")
-		_, _ = fmt.Fprint(w, `data: {"type":"content_block_stop","index":1}`+"\n\n")
-
-		_, _ = fmt.Fprint(w, "event: message_stop\n")
-		_, _ = fmt.Fprint(w, `data: {"type":"message_stop"}`+"\n\n")
-	}))
+	server := newSSEServer(t, events)
 	defer server.Close()
 
-	client := llm.NewAnthropicClient(server.URL, "test-key")
-	ch, err := client.StreamChat(context.Background(), []llm.Message{
-		{Role: llm.RoleUser, Content: "Search for test"},
-	}, llm.Options{Model: "claude-3-opus", MaxTokens: 100})
-	require.NoError(t, err)
-
-	var tokens []string
-	var toolCallEvents []llm.StreamEvent
-	for event := range ch {
-		switch event.Type {
-		case llm.EventToken:
-			tokens = append(tokens, event.Content)
-		case llm.EventToolCall:
-			toolCallEvents = append(toolCallEvents, event)
-		}
-	}
+	tokens, toolCallEvents := collectStreamEvents(t, server.URL, "Search for test")
 
 	assert.Equal(t, []string{"Let me look that up."}, tokens)
 	require.Len(t, toolCallEvents, 1)

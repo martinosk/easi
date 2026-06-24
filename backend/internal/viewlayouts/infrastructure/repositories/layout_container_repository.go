@@ -76,35 +76,14 @@ func (r *LayoutContainerRepository) reconstituteContainer(
 	return container, nil
 }
 
-func (r *LayoutContainerRepository) GetByContext(
+func (r *LayoutContainerRepository) queryContainer(
 	ctx context.Context,
-	contextType valueobjects.LayoutContextType,
-	contextRef valueobjects.ContextRef,
+	loadRow func(tx *sql.Tx) (containerRow, valueobjects.LayoutContainerID, error),
 ) (*aggregates.LayoutContainer, error) {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	var container *aggregates.LayoutContainer
 
-	err = r.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		var row containerRow
-		err := tx.QueryRowContext(ctx,
-			`SELECT id, context_type, context_ref, preferences, version, created_at, updated_at
-			FROM viewlayouts.layout_containers
-			WHERE tenant_id = $1 AND context_type = $2 AND context_ref = $3`,
-			tenantID.Value(), contextType.Value(), contextRef.Value(),
-		).Scan(&row.id, &row.contextType, &row.contextRef, &row.prefsJSON, &row.version, &row.createdAt, &row.updatedAt)
-
-		if err == sql.ErrNoRows {
-			return ErrContainerNotFound
-		}
-		if err != nil {
-			return err
-		}
-
-		containerID, err := valueobjects.NewLayoutContainerIDFromString(row.id)
+	err := r.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		row, containerID, err := loadRow(tx)
 		if err != nil {
 			return err
 		}
@@ -120,6 +99,33 @@ func (r *LayoutContainerRepository) GetByContext(
 	return container, nil
 }
 
+func (r *LayoutContainerRepository) GetByContext(
+	ctx context.Context,
+	contextType valueobjects.LayoutContextType,
+	contextRef valueobjects.ContextRef,
+) (*aggregates.LayoutContainer, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.queryContainer(ctx, func(tx *sql.Tx) (containerRow, valueobjects.LayoutContainerID, error) {
+		var row containerRow
+		err := tx.QueryRowContext(ctx,
+			`SELECT id, context_type, context_ref, preferences, version, created_at, updated_at
+			FROM viewlayouts.layout_containers
+			WHERE tenant_id = $1 AND context_type = $2 AND context_ref = $3`,
+			tenantID.Value(), contextType.Value(), contextRef.Value(),
+		).Scan(&row.id, &row.contextType, &row.contextRef, &row.prefsJSON, &row.version, &row.createdAt, &row.updatedAt)
+		if err != nil {
+			return row, valueobjects.LayoutContainerID{}, mapNoRows(err)
+		}
+
+		containerID, err := valueobjects.NewLayoutContainerIDFromString(row.id)
+		return row, containerID, err
+	})
+}
+
 func (r *LayoutContainerRepository) GetByID(
 	ctx context.Context,
 	id valueobjects.LayoutContainerID,
@@ -129,9 +135,7 @@ func (r *LayoutContainerRepository) GetByID(
 		return nil, err
 	}
 
-	var container *aggregates.LayoutContainer
-
-	err = r.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+	return r.queryContainer(ctx, func(tx *sql.Tx) (containerRow, valueobjects.LayoutContainerID, error) {
 		row := containerRow{id: id.Value()}
 		err := tx.QueryRowContext(ctx,
 			`SELECT context_type, context_ref, preferences, version, created_at, updated_at
@@ -139,23 +143,15 @@ func (r *LayoutContainerRepository) GetByID(
 			WHERE tenant_id = $1 AND id = $2`,
 			tenantID.Value(), id.Value(),
 		).Scan(&row.contextType, &row.contextRef, &row.prefsJSON, &row.version, &row.createdAt, &row.updatedAt)
-
-		if err == sql.ErrNoRows {
-			return ErrContainerNotFound
-		}
-		if err != nil {
-			return err
-		}
-
-		container, err = r.reconstituteContainer(ctx, tx, row, id)
-		return err
+		return row, id, mapNoRows(err)
 	})
+}
 
-	if err != nil {
-		return nil, err
+func mapNoRows(err error) error {
+	if err == sql.ErrNoRows {
+		return ErrContainerNotFound
 	}
-
-	return container, nil
+	return err
 }
 
 type elementRow struct {
@@ -349,22 +345,25 @@ func (r *LayoutContainerRepository) UpsertElementPosition(
 	return err
 }
 
-func (r *LayoutContainerRepository) DeleteElementPosition(
-	ctx context.Context,
-	containerID valueobjects.LayoutContainerID,
-	elementID valueobjects.ElementID,
-) error {
+func (r *LayoutContainerRepository) execWithTenant(ctx context.Context, query string, args ...interface{}) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
 	}
 
-	_, err = r.db.ExecContext(ctx,
-		"DELETE FROM viewlayouts.element_positions WHERE tenant_id = $1 AND container_id = $2 AND element_id = $3",
-		tenantID.Value(), containerID.Value(), elementID.Value(),
-	)
-
+	_, err = r.db.ExecContext(ctx, query, append([]interface{}{tenantID.Value()}, args...)...)
 	return err
+}
+
+func (r *LayoutContainerRepository) DeleteElementPosition(
+	ctx context.Context,
+	containerID valueobjects.LayoutContainerID,
+	elementID valueobjects.ElementID,
+) error {
+	return r.execWithTenant(ctx,
+		"DELETE FROM viewlayouts.element_positions WHERE tenant_id = $1 AND container_id = $2 AND element_id = $3",
+		containerID.Value(), elementID.Value(),
+	)
 }
 
 func (r *LayoutContainerRepository) BatchUpdatePositions(
@@ -466,15 +465,8 @@ func (r *LayoutContainerRepository) DeleteElementFromAllLayouts(
 	ctx context.Context,
 	elementID valueobjects.ElementID,
 ) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	_, err = r.db.ExecContext(ctx,
+	return r.execWithTenant(ctx,
 		"DELETE FROM viewlayouts.element_positions WHERE tenant_id = $1 AND element_id = $2",
-		tenantID.Value(), elementID.Value(),
+		elementID.Value(),
 	)
-
-	return err
 }
