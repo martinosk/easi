@@ -294,50 +294,68 @@ func TestImportSaga_CapabilityFailureDoesNotPreventValueStreamCreation(t *testin
 	}
 }
 
-func TestImportSaga_ValueStreamFailureDoesNotPreventRealizationCreation(t *testing.T) {
-	f := newFixture()
-	f.vsGw.createErrByName["BrokenStream"] = errors.New("value stream create failed")
-
-	data := aggregates.ParsedData{
-		Components:   []aggregates.ParsedElement{{SourceID: "comp-1", Name: "MyComp"}},
-		Capabilities: []aggregates.ParsedElement{{SourceID: "cap-1", Name: "MyCap"}},
-		ValueStreams: []aggregates.ParsedElement{{SourceID: "vs-1", Name: "BrokenStream"}},
-		Relationships: []aggregates.ParsedRelationship{
-			{SourceID: "rel-1", Type: "Realization", SourceRef: "comp-1", TargetRef: "cap-1"},
+func TestImportSaga_FailureInOnePhaseDoesNotPreventLaterPhases(t *testing.T) {
+	cases := []struct {
+		name       string
+		injectFail func(f fixture)
+		data       aggregates.ParsedData
+		domainID   string
+		expected   map[string]int
+	}{
+		{
+			name: "ValueStreamFailureDoesNotPreventRealizationCreation",
+			injectFail: func(f fixture) {
+				f.vsGw.createErrByName["BrokenStream"] = errors.New("value stream create failed")
+			},
+			data: aggregates.ParsedData{
+				Components:   []aggregates.ParsedElement{{SourceID: "comp-1", Name: "MyComp"}},
+				Capabilities: []aggregates.ParsedElement{{SourceID: "cap-1", Name: "MyCap"}},
+				ValueStreams: []aggregates.ParsedElement{{SourceID: "vs-1", Name: "BrokenStream"}},
+				Relationships: []aggregates.ParsedRelationship{
+					{SourceID: "rel-1", Type: "Realization", SourceRef: "comp-1", TargetRef: "cap-1"},
+				},
+			},
+			expected: map[string]int{
+				"components":    1,
+				"capabilities":  1,
+				"value streams": 0,
+				"realizations":  1,
+			},
+		},
+		{
+			name: "RealizationFailureDoesNotPreventDomainAssignment",
+			injectFail: func(f fixture) {
+				f.capGw.linkErrByKey["comp-MyComp-cap-MyCap"] = errors.New("link failed")
+			},
+			data: aggregates.ParsedData{
+				Components:   []aggregates.ParsedElement{{SourceID: "comp-1", Name: "MyComp"}},
+				Capabilities: []aggregates.ParsedElement{{SourceID: "cap-1", Name: "MyCap"}},
+				Relationships: []aggregates.ParsedRelationship{
+					{SourceID: "rel-1", Type: "Realization", SourceRef: "comp-1", TargetRef: "cap-1"},
+				},
+			},
+			domainID: "domain-1",
+			expected: map[string]int{
+				"components":         1,
+				"capabilities":       1,
+				"realizations":       0,
+				"domain assignments": 1,
+			},
 		},
 	}
 
-	result := f.execute(t, data, "", "")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture()
+			tc.injectFail(f)
 
-	expectCount(t, "components", result.ComponentsCreated, 1)
-	expectCount(t, "capabilities", result.CapabilitiesCreated, 1)
-	expectCount(t, "value streams", result.ValueStreamsCreated, 0)
-	expectCount(t, "realizations", result.RealizationsCreated, 1)
-	if len(result.Errors) != 1 {
-		t.Fatalf("expected 1 error, got %d", len(result.Errors))
-	}
-}
+			result := f.execute(t, tc.data, tc.domainID, "")
 
-func TestImportSaga_RealizationFailureDoesNotPreventDomainAssignment(t *testing.T) {
-	f := newFixture()
-	f.capGw.linkErrByKey["comp-MyComp-cap-MyCap"] = errors.New("link failed")
-
-	data := aggregates.ParsedData{
-		Components:   []aggregates.ParsedElement{{SourceID: "comp-1", Name: "MyComp"}},
-		Capabilities: []aggregates.ParsedElement{{SourceID: "cap-1", Name: "MyCap"}},
-		Relationships: []aggregates.ParsedRelationship{
-			{SourceID: "rel-1", Type: "Realization", SourceRef: "comp-1", TargetRef: "cap-1"},
-		},
-	}
-
-	result := f.execute(t, data, "domain-1", "")
-
-	expectCount(t, "components", result.ComponentsCreated, 1)
-	expectCount(t, "capabilities", result.CapabilitiesCreated, 1)
-	expectCount(t, "realizations", result.RealizationsCreated, 0)
-	expectCount(t, "domain assignments", result.DomainAssignments, 1)
-	if len(result.Errors) != 1 {
-		t.Fatalf("expected 1 error, got %d", len(result.Errors))
+			assertImportCounts(t, result, tc.expected)
+			if len(result.Errors) != 1 {
+				t.Fatalf("expected 1 error, got %d", len(result.Errors))
+			}
+		})
 	}
 }
 
