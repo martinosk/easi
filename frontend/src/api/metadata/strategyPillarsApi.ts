@@ -58,7 +58,7 @@ export const strategyPillarsApi = {
     const response = await httpClient.get<StrategyPillarsConfiguration>(
       `${PILLARS_BASE_URL}?includeInactive=${includeInactive}`,
     );
-    return { ...response.data, version: parseETag(response.headers['etag']) };
+    return { ...response.data, version: parseETag(response.headers.etag) };
   },
 
   async batchUpdate(request: BatchUpdateRequest, version: number): Promise<BatchUpdateResponse> {
