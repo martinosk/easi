@@ -66,12 +66,12 @@ describe('CapabilitiesSection', () => {
     });
   }
 
-  function parentChildPair() {
+  function parentChildPair(parentName = 'Parent', childName = 'Child') {
     return [
-      createCapability({ id: 'cap-parent' as CapabilityId, name: 'Parent', level: 'L1' }),
+      createCapability({ id: 'cap-parent' as CapabilityId, name: parentName, level: 'L1' }),
       createCapability({
         id: 'cap-child' as CapabilityId,
-        name: 'Child',
+        name: childName,
         level: 'L2',
         parentId: 'cap-parent' as CapabilityId,
       }),
@@ -113,15 +113,7 @@ describe('CapabilitiesSection', () => {
     });
 
     it('should show nested child when child matches search', () => {
-      renderWithCapabilities([
-        createCapability({ id: 'cap-parent' as CapabilityId, name: 'Business', level: 'L1' }),
-        createCapability({
-          id: 'cap-child' as CapabilityId,
-          name: 'Invoicing',
-          level: 'L2',
-          parentId: 'cap-parent' as CapabilityId,
-        }),
-      ]);
+      renderWithCapabilities(parentChildPair('Business', 'Invoicing'));
 
       typeSearch('invoicing');
 
@@ -193,15 +185,7 @@ describe('CapabilitiesSection', () => {
     });
 
     it('should show parent match without requiring children to match', () => {
-      renderWithCapabilities([
-        createCapability({ id: 'cap-parent' as CapabilityId, name: 'Matching Parent', level: 'L1' }),
-        createCapability({
-          id: 'cap-child' as CapabilityId,
-          name: 'Unrelated Child',
-          level: 'L2',
-          parentId: 'cap-parent' as CapabilityId,
-        }),
-      ]);
+      renderWithCapabilities(parentChildPair('Matching Parent', 'Unrelated Child'));
 
       typeSearch('matching parent');
 
