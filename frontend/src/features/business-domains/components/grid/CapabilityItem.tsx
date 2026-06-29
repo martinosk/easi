@@ -110,9 +110,7 @@ function buildHandlers(
     onContextMenu: (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      if (capability.level === 'L1') {
-        onContextMenu?.(capability, e);
-      }
+      onContextMenu?.(capability, e);
     },
   };
 }

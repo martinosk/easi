@@ -21,7 +21,13 @@ describe('useCapabilityContextMenu', () => {
         delete: { href: '/api/v1/capabilities/l1-1', method: 'DELETE' },
       },
     },
-    createCapability('l2-1', 'Accounting', 'L2', 'l1-1'),
+    {
+      ...createCapability('l2-1', 'Accounting', 'L2', 'l1-1'),
+      _links: {
+        self: { href: '/api/v1/capabilities/l2-1', method: 'GET' },
+        delete: { href: '/api/v1/capabilities/l2-1', method: 'DELETE' },
+      },
+    },
   ];
 
   const mockDomainCapabilities: Capability[] = [
@@ -93,14 +99,8 @@ describe('useCapabilityContextMenu', () => {
     expect(result.current.contextMenuItems[1].label).toBe('Delete from Model');
   });
 
-  it('resolves L1 ancestor when removing L2 capability', async () => {
-    const dissociateCapability = vi.fn().mockResolvedValue(undefined);
-    const { result } = renderHook(() =>
-      useCapabilityContextMenu({
-        ...defaultProps,
-        dissociateCapability,
-      }),
-    );
+  it('hides Remove from Business Domain for capabilities without the link', () => {
+    const { result } = renderHook(() => useCapabilityContextMenu(defaultProps));
 
     const mockEvent = { preventDefault: vi.fn(), clientX: 100, clientY: 200 } as unknown as React.MouseEvent;
 
@@ -108,19 +108,26 @@ describe('useCapabilityContextMenu', () => {
       result.current.handleCapabilityContextMenu(mockCapabilities[1], mockEvent); // L2 capability
     });
 
-    await act(async () => {
-      await result.current.contextMenuItems[0].onClick(); // Remove from Business Domain
+    const labels = result.current.contextMenuItems.map((item) => item.label);
+    expect(labels).not.toContain('Remove from Business Domain');
+    expect(labels).toContain('Delete from Model');
+  });
+
+  it('deletes the clicked capability itself, not its L1 ancestor', () => {
+    const { result } = renderHook(() => useCapabilityContextMenu(defaultProps));
+
+    const mockEvent = { preventDefault: vi.fn(), clientX: 100, clientY: 200 } as unknown as React.MouseEvent;
+
+    act(() => {
+      result.current.handleCapabilityContextMenu(mockCapabilities[1], mockEvent); // L2 capability
     });
 
-    expect(dissociateCapability).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: 'l1-1',
-        level: 'L1',
-        _links: expect.objectContaining({
-          'x-remove-from-domain': { href: '/api/v1/business-domains/domain-1/capabilities/l1-1', method: 'DELETE' },
-        }),
-      }),
-    );
+    const deleteItem = result.current.contextMenuItems.find((item) => item.label === 'Delete from Model');
+    act(() => {
+      deleteItem?.onClick();
+    });
+
+    expect(result.current.capabilityToDelete).toEqual(expect.objectContaining({ id: 'l2-1', level: 'L2' }));
   });
 
   it('sets capability to delete when clicking delete option', () => {

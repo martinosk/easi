@@ -86,6 +86,19 @@ describe('VisualizationArea', () => {
     );
   });
 
+  it('forwards the context menu for nested L2-L4 capabilities', () => {
+    const handler = vi.fn();
+    render(<VisualizationArea {...defaultProps} onContextMenu={handler} />);
+
+    fireEvent.contextMenu(screen.getByText('Accounting'));
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'cap-2', name: 'Accounting' }),
+      expect.any(Object),
+    );
+  });
+
   it('marks selected capabilities so the grid can highlight them', () => {
     const selectedCapabilities = new Set(['cap-1' as CapabilityId]);
     render(<VisualizationArea {...defaultProps} selectedCapabilities={selectedCapabilities} />);
