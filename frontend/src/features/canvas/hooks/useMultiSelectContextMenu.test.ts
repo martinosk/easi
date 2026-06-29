@@ -99,6 +99,27 @@ describe('computeAvailableActions', () => {
     expect(actions).toHaveLength(0);
   });
 
+  it('returns removeFromView when drafted nodes lack view links on an unsaved view', () => {
+    const drafted = new Set(['1', '2']);
+    const actions = computeAvailableActions(twoNodes(noLinks(), noLinks()), (id) => drafted.has(id));
+    expect(actions).toHaveLength(1);
+    expect(actions[0].type).toBe('removeFromView');
+    expect(actions[0].label).toBe('Remove from View (2 items)');
+  });
+
+  it('returns removeFromView when some nodes are drafted and others have view links', () => {
+    const drafted = new Set(['1']);
+    const actions = computeAvailableActions(twoNodes(noLinks(), linksWithRemoveOnly()), (id) => drafted.has(id));
+    expect(actions).toHaveLength(1);
+    expect(actions[0].type).toBe('removeFromView');
+  });
+
+  it('does not show removeFromView when only some nodes are drafted and the rest lack links', () => {
+    const drafted = new Set(['1']);
+    const actions = computeAvailableActions(twoNodes(noLinks(), noLinks()), (id) => drafted.has(id));
+    expect(actions).toHaveLength(0);
+  });
+
   it('handles mixed node types', () => {
     const nodes = [
       makeNode({ nodeId: '1', nodeType: 'component', ...linksWithRemoveAndDelete() }),
