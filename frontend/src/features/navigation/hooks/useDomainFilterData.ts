@@ -8,7 +8,7 @@ import { businessDomainsQueryKeys } from '../../business-domains/queryKeys';
 import { useOriginRelationshipsQuery } from '../../origin-entities/hooks/useOriginRelationships';
 import type { DomainFilterData } from '../utils/filterByDomain';
 
-export function useDomainFilterData(allCapabilities: Capability[]) {
+export function useDomainFilterData(allCapabilities: Capability[], options: { enabled: boolean }) {
   const { data: domainsResponse } = useBusinessDomainsQuery();
   const domains = useMemo(() => domainsResponse?.data ?? [], [domainsResponse]);
 
@@ -17,6 +17,7 @@ export function useDomainFilterData(allCapabilities: Capability[]) {
       queryKey: businessDomainsQueryKeys.capabilities(domain.id),
       queryFn: () => businessDomainsApi.getCapabilitiesByDomainId(domain.id as BusinessDomainId),
       staleTime: 1000 * 60 * 5,
+      enabled: options.enabled,
     })),
   });
 
@@ -25,6 +26,7 @@ export function useDomainFilterData(allCapabilities: Capability[]) {
       queryKey: businessDomainsQueryKeys.realizations(domain.id, 4),
       queryFn: () => apiClient.getCapabilityRealizationsByDomain(domain.id as BusinessDomainId, 4),
       staleTime: 1000 * 60 * 5,
+      enabled: options.enabled,
     })),
   });
 

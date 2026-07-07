@@ -25,7 +25,9 @@ export function useFilteredTreeData() {
   const [selectedCreatorIds, setSelectedCreatorIds] = useState<string[]>([]);
   const [selectedDomainIds, setSelectedDomainIds] = useState<string[]>([]);
 
-  const { domains, domainFilterData } = useDomainFilterData(capabilities);
+  const { domains, domainFilterData } = useDomainFilterData(capabilities, {
+    enabled: selectedDomainIds.length > 0,
+  });
 
   const creatorMap = useMemo(
     () => new Map(artifactCreators.map((ac) => [ac.aggregateId, ac.creatorId])),
