@@ -30,6 +30,10 @@ type UserDTO struct {
 	LastLoginAt  *time.Time `json:"lastLoginAt,omitempty"`
 }
 
+func (u UserDTO) IsActiveAdmin() bool {
+	return u.Role == "admin" && u.Status == "active"
+}
+
 type UserEventData struct {
 	ID           string
 	Email        string
@@ -238,7 +242,7 @@ func (rm *UserReadModel) IsLastActiveAdmin(ctx context.Context, userID string) (
 }
 
 func (rm *UserReadModel) isActiveAdmin(user *UserDTO) bool {
-	return user != nil && user.Role == "admin" && user.Status == "active"
+	return user != nil && user.IsActiveAdmin()
 }
 
 func (rm *UserReadModel) GetAllPaginated(ctx context.Context, filter UserPaginationFilter) ([]UserDTO, bool, error) {

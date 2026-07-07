@@ -103,10 +103,12 @@ func (h *UserHandlers) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	activeAdminCount, _ := h.userReadModel.CountActiveAdmins(r.Context())
+
 	responses := make([]UserResponse, len(users))
 	for i, user := range users {
 		isCurrentUser := user.ID.String() == currentUserID
-		isLastAdmin, _ := h.userReadModel.IsLastActiveAdmin(r.Context(), user.ID.String())
+		isLastAdmin := activeAdminCount == 1 && user.IsActiveAdmin()
 		responses[i] = h.toUserResponse(user, isCurrentUser, isLastAdmin)
 	}
 
