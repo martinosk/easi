@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import type { InternalTeam, View } from '../../../../api/types';
 import type { TreeMultiSelectProps } from '../../types';
 import { TreeItemList } from '../shared/TreeItemList';
-import { TreeSearchInput } from '../shared/TreeSearchInput';
+import { TreeSearchInput } from '../../../../components/shared';
 import { TreeSection } from '../TreeSection';
 
 interface InternalTeamsSectionProps {
@@ -28,9 +28,9 @@ function filterTeams(teams: InternalTeam[], search: string): InternalTeam[] {
   return teams.filter(
     (t) =>
       t.name.toLowerCase().includes(searchLower) ||
-      (t.department && t.department.toLowerCase().includes(searchLower)) ||
-      (t.contactPerson && t.contactPerson.toLowerCase().includes(searchLower)) ||
-      (t.notes && t.notes.toLowerCase().includes(searchLower)),
+      (t.department?.toLowerCase().includes(searchLower)) ||
+      (t.contactPerson?.toLowerCase().includes(searchLower)) ||
+      (t.notes?.toLowerCase().includes(searchLower)),
   );
 }
 

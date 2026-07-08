@@ -243,7 +243,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
         [],
         [{ capabilityId: 'cap-1', customColor: '#AA00FF' }, { capabilityId: 'cap-3' }],
         'Customer Management',
-        [{ name: 'Customer Management', selector: '.capability-tree-item', color: '#AA00FF' }],
+        [{ name: 'Customer Management', selector: '[data-testid^="capability-tree-item-"]', color: '#AA00FF' }],
       );
     });
 
@@ -252,12 +252,12 @@ describe('NavigationTree - Custom Color Indicators', () => {
         createViewWithColorScheme('maturity', [], [{ capabilityId: 'cap-1', customColor: '#AA00FF' }]),
         'Customer Management',
       );
-      expectNoIndicator(findTreeItem('Customer Management', '.capability-tree-item'));
+      expectNoIndicator(findTreeItem('Customer Management', '[data-testid^="capability-tree-item-"]'));
     });
 
     it('should NOT show color indicator when colorScheme is "custom" but customColor is null', async () => {
       await renderAndWait(createViewWithColorScheme('custom', [], [{ capabilityId: 'cap-1' }]), 'Customer Management');
-      expectNoIndicator(findTreeItem('Customer Management', '.capability-tree-item'));
+      expectNoIndicator(findTreeItem('Customer Management', '[data-testid^="capability-tree-item-"]'));
     });
 
     it('should show correct color for each capability with custom colors', async () => {
@@ -269,8 +269,8 @@ describe('NavigationTree - Custom Color Indicators', () => {
         ],
         'Customer Management',
         [
-          { name: 'Customer Management', selector: '.capability-tree-item', color: '#FF00AA' },
-          { name: 'Shipping', selector: '.capability-tree-item', color: '#00FFAA' },
+          { name: 'Customer Management', selector: '[data-testid^="capability-tree-item-"]', color: '#FF00AA' },
+          { name: 'Shipping', selector: '[data-testid^="capability-tree-item-"]', color: '#00FFAA' },
         ],
       );
     });
@@ -284,8 +284,8 @@ describe('NavigationTree - Custom Color Indicators', () => {
         ),
         'Customer Management',
       );
-      fireEvent.click(within(findTreeItem('Customer Management', '.capability-tree-item')).getByRole('button'));
-      expectIndicatorWithColor(findTreeItem('Order Processing', '.capability-tree-item'), '#AABBCC');
+      fireEvent.click(within(findTreeItem('Customer Management', '[data-testid^="capability-tree-item-"]')).getByRole('button'));
+      expectIndicatorWithColor(findTreeItem('Order Processing', '[data-testid^="capability-tree-item-"]'), '#AABBCC');
     });
   });
 
@@ -313,13 +313,13 @@ describe('NavigationTree - Custom Color Indicators', () => {
       const { rerender } = renderWithRerender(initialView);
       await waitForText('Customer Management');
 
-      expectIndicatorWithColor(findTreeItem('Customer Management', '.capability-tree-item'), '#AA00FF');
+      expectIndicatorWithColor(findTreeItem('Customer Management', '[data-testid^="capability-tree-item-"]'), '#AA00FF');
 
       const classicView = createViewWithColorScheme('classic', [], [{ capabilityId: 'cap-1', customColor: '#AA00FF' }]);
       switchView(classicView);
       rerender(<NavigationTree />);
 
-      expectNoIndicator(findTreeItem('Customer Management', '.capability-tree-item'));
+      expectNoIndicator(findTreeItem('Customer Management', '[data-testid^="capability-tree-item-"]'));
     });
   });
 
@@ -351,8 +351,8 @@ describe('NavigationTree - Custom Color Indicators', () => {
       );
       expectIndicatorWithColor(findTreeItem('Payment Service', '.tree-item'), '#FF5733');
       expectNoIndicator(findTreeItem('Order Service', '.tree-item'));
-      expectIndicatorWithColor(findTreeItem('Customer Management', '.capability-tree-item'), '#AA00FF');
-      expectNoIndicator(findTreeItem('Shipping', '.capability-tree-item'));
+      expectIndicatorWithColor(findTreeItem('Customer Management', '[data-testid^="capability-tree-item-"]'), '#AA00FF');
+      expectNoIndicator(findTreeItem('Shipping', '[data-testid^="capability-tree-item-"]'));
     });
   });
 });

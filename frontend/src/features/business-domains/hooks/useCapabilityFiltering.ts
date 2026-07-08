@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { Capability, CapabilityId } from '../../../api/types';
-import type { CapabilityTreeNode } from './useCapabilityTree';
+import type { CapabilityTreeNode } from '../../capabilities/hooks/useCapabilityTree';
 
 export function useCapabilityFiltering(tree: CapabilityTreeNode[], capabilities: Capability[]) {
   const allCapabilities = useMemo(() => {

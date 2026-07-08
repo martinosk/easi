@@ -143,6 +143,20 @@ export function buildCapability(overrides: Partial<Capability> = {}): Capability
   };
 }
 
+export function buildCapabilityAt(
+  id: string,
+  name: string,
+  level: CapabilityLevel,
+  parentId?: string,
+): Capability {
+  return buildCapability({
+    id: toCapabilityId(id),
+    name,
+    level,
+    parentId: parentId ? toCapabilityId(parentId) : undefined,
+  });
+}
+
 export function buildCapabilityDependency(overrides: Partial<CapabilityDependency> = {}): CapabilityDependency {
   const id = overrides.id ?? toCapabilityDependencyId(nextId('dep'));
   return {

@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react';
 import type { Component, View } from '../../../../api/types';
 import type { EditingState, TreeMultiSelectProps } from '../../types';
 import { hasCustomColor } from '../../utils/treeUtils';
-import { TreeSearchInput } from '../shared/TreeSearchInput';
+import { TreeSearchInput } from '../../../../components/shared';
 import { TreeSection } from '../TreeSection';
 
 interface ColorIndicatorProps {
@@ -31,7 +31,7 @@ function filterComponents(components: Component[], search: string): Component[] 
   return components.filter(
     (c) =>
       c.name.toLowerCase().includes(searchLower) ||
-      (c.description && c.description.toLowerCase().includes(searchLower)),
+      (c.description?.toLowerCase().includes(searchLower)),
   );
 }
 

@@ -5,3 +5,4 @@ export { DetailField } from './DetailField';
 export { DialogManager } from './DialogManager';
 export { ErrorScreen } from './ErrorScreen';
 export { LoadingScreen } from './LoadingScreen';
+export { TreeSearchInput } from './TreeSearchInput';

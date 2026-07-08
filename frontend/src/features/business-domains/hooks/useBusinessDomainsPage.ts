@@ -10,7 +10,7 @@ import { useCapabilityContextMenu } from './useCapabilityContextMenu';
 import { useCapabilityFiltering } from './useCapabilityFiltering';
 import { useCapabilityRealizations } from './useCapabilityRealizations';
 import { useCapabilitySelection } from './useCapabilitySelection';
-import { useCapabilityTree } from './useCapabilityTree';
+import { useCapabilityTree } from '../../capabilities/hooks/useCapabilityTree';
 import { useDomainCapabilities } from './useDomainCapabilities';
 import { useDomainContextMenu } from './useDomainContextMenu';
 import { useDomainDialogManager } from './useDomainDialogManager';

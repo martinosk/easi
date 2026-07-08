@@ -1,0 +1,20 @@
+.maturityDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dotClassic {
+  background-color: #f9c268;
+}
+
+.colorSwatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+  margin-left: var(--spacing-sm);
+  border: 1px solid var(--color-gray-200);
+  flex-shrink: 0;
+}

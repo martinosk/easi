@@ -29,10 +29,10 @@ This file describes the tech stack, tooling, commands, and conventions for AI co
 
 | Layer    | Formatter                        | Linter                                                  | Detection    |
 |----------|----------------------------------|---------------------------------------------------------|--------------|
-| Frontend | ESLint (no separate formatter)   | ESLint — `frontend/eslint.config.js`                    | **Detected** |
+| Frontend | Biome                            | Biome — `frontend/biome.json`                           | **Detected** |
 | Backend  | gofmt (via golangci-lint)        | golangci-lint — `backend/.golangci.yml`                 | **Detected** |
 
-> No Prettier, Biome, or standalone formatter config was found in `frontend/`. ESLint is the sole configured tool.
+> Biome is the sole configured frontend tool (`npm run lint` → `biome lint .`). No ESLint or Prettier config exists in `frontend/`.
 
 ---
 

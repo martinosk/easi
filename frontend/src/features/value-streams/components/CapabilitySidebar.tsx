@@ -1,8 +1,10 @@
-import { ActionIcon, TextInput } from '@mantine/core';
-import { useCallback, useMemo, useState } from 'react';
+import { Badge, Box, Paper, Text } from '@mantine/core';
+import { useCallback } from 'react';
 import type { Capability } from '../../../api/types';
-import type { CapabilityTreeNode } from '../../business-domains/hooks/useCapabilityTree';
-import { useCapabilityTree } from '../../business-domains/hooks/useCapabilityTree';
+import { CapabilityTree } from '../../capabilities/components/CapabilityTree';
+import type { CapabilityTreeNode } from '../../capabilities/hooks/useCapabilityTree';
+import { useCapabilityTree } from '../../capabilities/hooks/useCapabilityTree';
+import classes from './CapabilitySidebar.module.css';
 
 interface CapabilitySidebarProps {
   mappedCapabilityIds: Set<string>;
@@ -11,169 +13,52 @@ interface CapabilitySidebarProps {
 
 export function CapabilitySidebar({ mappedCapabilityIds, onDragCapability }: CapabilitySidebarProps) {
   const { tree, isLoading } = useCapabilityTree();
-  const [filter, setFilter] = useState('');
 
-  const matchesFilter = useMemo(() => {
-    const check = (node: CapabilityTreeNode): boolean => {
-      if (!filter) return true;
-      const lower = filter.toLowerCase();
-      if (node.capability.name.toLowerCase().includes(lower)) return true;
-      return node.children.some((child) => check(child));
-    };
-    return check;
-  }, [filter]);
-
-  const filteredTree = filter ? tree.filter((node) => matchesFilter(node)) : tree;
-
-  if (isLoading) {
-    return (
-      <div className="cap-sidebar">
-        <div className="cap-sidebar-header">
-          <h3>Capabilities</h3>
-        </div>
-        <div className="cap-sidebar-loading">Loading capabilities...</div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="cap-sidebar" data-testid="capability-sidebar">
-      <div className="cap-sidebar-header">
-        <h3>Capabilities</h3>
-      </div>
-      <TextInput
-        className="cap-sidebar-filter"
-        placeholder="Filter capabilities..."
-        value={filter}
-        onChange={(e) => setFilter(e.currentTarget.value)}
-        data-testid="capability-filter"
-        size="xs"
-      />
-      <div className="cap-sidebar-tree">
-        {filteredTree.length === 0 ? (
-          <div className="cap-sidebar-empty">
-            {filter ? 'No capabilities match your filter' : 'No capabilities found'}
-          </div>
-        ) : (
-          filteredTree.map((node) => (
-            <TreeNode
-              key={node.capability.id}
-              node={node}
-              mappedCapabilityIds={mappedCapabilityIds}
-              onDragCapability={onDragCapability}
-              filter={filter}
-              matchesFilter={matchesFilter}
-            />
-          ))
-        )}
-      </div>
-    </div>
-  );
-}
-
-interface TreeNodeProps {
-  node: CapabilityTreeNode;
-  mappedCapabilityIds: Set<string>;
-  onDragCapability?: (capability: Capability) => void;
-  filter: string;
-  matchesFilter: (node: CapabilityTreeNode) => boolean;
-  depth?: number;
-}
-
-const LEVEL_COLORS: Record<string, string> = {
-  L1: 'var(--color-capability-l1)',
-  L2: 'var(--color-capability-l2)',
-  L3: 'var(--color-capability-l3)',
-  L4: 'var(--color-capability-l4)',
-};
-
-interface TreeNodeItemProps {
-  node: CapabilityTreeNode;
-  isMapped: boolean;
-  hasChildren: boolean;
-  expanded: boolean;
-  onToggle: () => void;
-  onDragStart: (e: React.DragEvent) => void;
-}
-
-function TreeNodeItem({ node, isMapped, hasChildren, expanded, onToggle, onDragStart }: TreeNodeItemProps) {
-  const level = node.capability.level || 'L1';
-
-  return (
-    <div
-      className={`cap-tree-item ${isMapped ? 'cap-tree-mapped' : ''}`}
-      draggable={!isMapped}
-      onDragStart={onDragStart}
-      data-testid={`cap-tree-${node.capability.id}`}
-    >
-      {hasChildren ? (
-        <ActionIcon variant="subtle" color="gray" size="xs" className="cap-tree-toggle" onClick={onToggle} aria-label={expanded ? 'Collapse' : 'Expand'}>
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            width="12"
-            height="12"
-            style={{ transform: expanded ? 'rotate(90deg)' : undefined, transition: 'transform 0.15s ease' }}
-          >
-            <path
-              d="M9 18l6-6-6-6"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </ActionIcon>
-      ) : (
-        <span className="cap-tree-toggle" />
-      )}
-      <span className="cap-tree-level" style={{ color: LEVEL_COLORS[level] }}>
-        {level}
-      </span>
-      <span className="cap-tree-name">{node.capability.name}</span>
-      {isMapped && <span className="cap-tree-badge">Mapped</span>}
-    </div>
-  );
-}
-
-function TreeNode({ node, mappedCapabilityIds, onDragCapability, filter, matchesFilter, depth = 0 }: TreeNodeProps) {
-  const [expanded, setExpanded] = useState(depth === 0);
-  const isMapped = mappedCapabilityIds.has(node.capability.id);
-  const hasChildren = node.children.length > 0;
-  const visibleChildren = filter ? node.children.filter((child) => matchesFilter(child)) : node.children;
-
-  const handleDragStart = useCallback(
-    (e: React.DragEvent) => {
-      e.dataTransfer.setData('application/json', JSON.stringify(node.capability));
-      e.dataTransfer.effectAllowed = 'copy';
-      onDragCapability?.(node.capability);
+  const getRowProps = useCallback(
+    (node: CapabilityTreeNode) => {
+      const isMapped = mappedCapabilityIds.has(node.capability.id);
+      return {
+        draggable: !isMapped,
+        dimmed: isMapped,
+        testId: `cap-tree-${node.capability.id}`,
+        onDragStart: (e: React.DragEvent) => {
+          e.dataTransfer.setData('application/json', JSON.stringify(node.capability));
+          e.dataTransfer.effectAllowed = 'copy';
+          onDragCapability?.(node.capability);
+        },
+      };
     },
-    [node.capability, onDragCapability],
+    [mappedCapabilityIds, onDragCapability],
+  );
+
+  const renderRight = useCallback(
+    (node: CapabilityTreeNode) =>
+      mappedCapabilityIds.has(node.capability.id) ? (
+        <Badge size="xs" variant="light" color="blue">
+          Mapped
+        </Badge>
+      ) : null,
+    [mappedCapabilityIds],
   );
 
   return (
-    <div className="cap-tree-node" style={{ paddingLeft: depth > 0 ? `${depth * 12}px` : undefined }}>
-      <TreeNodeItem
-        node={node}
-        isMapped={isMapped}
-        hasChildren={hasChildren}
-        expanded={expanded}
-        onToggle={() => setExpanded(!expanded)}
-        onDragStart={handleDragStart}
+    <Paper className={classes.sidebar} radius="lg" shadow="sm" data-testid="capability-sidebar">
+      <Box className={classes.header}>
+        <Text size="sm" fw={700} c="gray.7" tt="uppercase">
+          Capabilities
+        </Text>
+      </Box>
+      <CapabilityTree
+        tree={tree}
+        isLoading={isLoading}
+        className={classes.tree}
+        searchPlaceholder="Filter capabilities..."
+        searchTestId="capability-filter"
+        emptyText="No capabilities found"
+        noMatchText="No capabilities match your filter"
+        getRowProps={getRowProps}
+        renderRight={renderRight}
       />
-      {expanded &&
-        hasChildren &&
-        visibleChildren.map((child) => (
-          <TreeNode
-            key={child.capability.id}
-            node={child}
-            mappedCapabilityIds={mappedCapabilityIds}
-            onDragCapability={onDragCapability}
-            filter={filter}
-            matchesFilter={matchesFilter}
-            depth={depth + 1}
-          />
-        ))}
-    </div>
+    </Paper>
   );
 }

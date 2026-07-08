@@ -1,0 +1,81 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.tree {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-xs);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm, 4px);
+  cursor: default;
+  user-select: none;
+}
+
+.row:hover {
+  background-color: var(--color-gray-100);
+}
+
+.rowSelected,
+.rowSelected:hover {
+  background-color: var(--color-primary-light);
+}
+
+.rowDimmed {
+  opacity: 0.5;
+}
+
+.chevron {
+  transition: transform 0.15s ease;
+}
+
+.chevronOpen {
+  transform: rotate(90deg);
+}
+
+.chevronPlaceholder {
+  display: inline-block;
+  width: var(--spacing-md);
+  flex-shrink: 0;
+}
+
+.level {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.levelL1 {
+  color: var(--color-capability-l1);
+}
+
+.levelL2 {
+  color: var(--color-capability-l2);
+}
+
+.levelL3 {
+  color: var(--color-capability-l3);
+}
+
+.levelL4 {
+  color: var(--color-capability-l4);
+}
+
+.name {
+  font-size: var(--font-size-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.children {
+  padding-left: var(--spacing-md);
+}

@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import type { AcquiredEntity, View } from '../../../../api/types';
 import type { TreeMultiSelectProps } from '../../types';
 import { TreeItemList } from '../shared/TreeItemList';
-import { TreeSearchInput } from '../shared/TreeSearchInput';
+import { TreeSearchInput } from '../../../../components/shared';
 import { TreeSection } from '../TreeSection';
 
 interface AcquiredEntitiesSectionProps {
@@ -36,7 +36,7 @@ function filterEntities(entities: AcquiredEntity[], search: string): AcquiredEnt
   if (!search.trim()) return entities;
   const searchLower = search.toLowerCase();
   return entities.filter(
-    (e) => e.name.toLowerCase().includes(searchLower) || (e.notes && e.notes.toLowerCase().includes(searchLower)),
+    (e) => e.name.toLowerCase().includes(searchLower) || (e.notes?.toLowerCase().includes(searchLower)),
   );
 }
 

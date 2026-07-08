@@ -1,5 +1,6 @@
-import { screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
 import type { Capability, CapabilityId } from '../../../api/types';
 import { renderWithProviders } from '../../../test/helpers/renderWithProviders';
 import { CapabilityExplorer } from './CapabilityExplorer';
@@ -31,20 +32,33 @@ describe('CapabilityExplorer', () => {
     createCapability('cap-5', 'Order Validation', 'L2', 'cap-4'),
   ];
 
+  const expandRow = async (name: string) => {
+    const row = screen.getByText(name).closest('div')!;
+    await userEvent.click(within(row).getByLabelText('Expand'));
+  };
+
   describe('Hierarchical Nesting', () => {
-    it('should render L2 capabilities nested under their L1 parent', () => {
+    it('should reveal L2 capabilities when their L1 parent is expanded', async () => {
       render(
         <CapabilityExplorer capabilities={mockCapabilities} assignedCapabilityIds={new Set()} isLoading={false} />,
       );
+
+      expect(screen.queryByText('Customer Onboarding')).not.toBeInTheDocument();
+      await expandRow('Customer Management');
+      await expandRow('Order Processing');
 
       expect(screen.getByText('Customer Onboarding')).toBeInTheDocument();
       expect(screen.getByText('Order Validation')).toBeInTheDocument();
     });
 
-    it('should render L3 capabilities nested under their L2 parent', () => {
+    it('should reveal L3 capabilities when their L2 parent is expanded', async () => {
       render(
         <CapabilityExplorer capabilities={mockCapabilities} assignedCapabilityIds={new Set()} isLoading={false} />,
       );
+
+      await expandRow('Customer Management');
+      expect(screen.queryByText('Customer Verification')).not.toBeInTheDocument();
+      await expandRow('Customer Onboarding');
 
       expect(screen.getByText('Customer Verification')).toBeInTheDocument();
     });
@@ -88,6 +102,55 @@ describe('CapabilityExplorer', () => {
       expect(items[0]).toHaveTextContent('Alpha');
       expect(items[1]).toHaveTextContent('Middle');
       expect(items[2]).toHaveTextContent('Zebra');
+    });
+  });
+
+  describe('Search', () => {
+    it('filters capabilities by name and bolds the matched substring', async () => {
+      render(
+        <CapabilityExplorer capabilities={mockCapabilities} assignedCapabilityIds={new Set()} isLoading={false} />,
+      );
+
+      await userEvent.type(screen.getByPlaceholderText('Search capabilities...'), 'order');
+
+      expect(screen.queryByText('Customer Management')).not.toBeInTheDocument();
+      const marks = screen.getAllByText('Order');
+      expect(marks[0].tagName).toBe('MARK');
+      expect(marks[0]).toHaveStyle({ fontWeight: 700 });
+    });
+  });
+
+  describe('Assigned Badge', () => {
+    it('shows the Assigned badge with its preserved test id', () => {
+      render(
+        <CapabilityExplorer
+          capabilities={mockCapabilities}
+          assignedCapabilityIds={new Set(['cap-1' as CapabilityId])}
+          isLoading={false}
+        />,
+      );
+
+      expect(screen.getByTestId('assigned-indicator-cap-1')).toHaveTextContent('Assigned');
+    });
+  });
+
+  describe('Drag Serialization', () => {
+    it('serializes the L1 capability as JSON with move effect', () => {
+      const onDragStart = vi.fn();
+      render(
+        <CapabilityExplorer
+          capabilities={mockCapabilities}
+          assignedCapabilityIds={new Set()}
+          isLoading={false}
+          onDragStart={onDragStart}
+        />,
+      );
+
+      const setData = vi.fn();
+      fireEvent.dragStart(screen.getByTestId('draggable-cap-1'), { dataTransfer: { setData, effectAllowed: '' } });
+
+      expect(setData).toHaveBeenCalledWith('application/json', JSON.stringify(mockCapabilities[0]));
+      expect(onDragStart).toHaveBeenCalledWith(mockCapabilities[0]);
     });
   });
 });

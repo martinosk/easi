@@ -95,12 +95,12 @@ describe('CapabilitiesSection', () => {
 
       typeSearch('payment');
 
-      expect(screen.getByText('Payment Processing')).toBeInTheDocument();
+      expect(screen.getByTestId('capability-tree-item-cap-1')).toBeInTheDocument();
       expect(screen.queryByText('Order Management')).not.toBeInTheDocument();
       expect(screen.queryByText('Customer Support')).not.toBeInTheDocument();
     });
 
-    it('should filter capabilities by description', () => {
+    it('should match on name only, not description', () => {
       renderWithCapabilities([
         createCapability({ id: 'cap-1' as CapabilityId, name: 'Alpha', description: 'Handles invoicing' }),
         createCapability({ id: 'cap-2' as CapabilityId, name: 'Beta', description: 'Manages orders' }),
@@ -108,8 +108,18 @@ describe('CapabilitiesSection', () => {
 
       typeSearch('invoicing');
 
-      expect(screen.getByText('Alpha')).toBeInTheDocument();
-      expect(screen.queryByText('Beta')).not.toBeInTheDocument();
+      expect(screen.queryByText('Alpha')).not.toBeInTheDocument();
+      expect(screen.getByText('No matches')).toBeInTheDocument();
+    });
+
+    it('should bold the matched substring within the name', () => {
+      renderWithCapabilities([createCapability({ id: 'cap-1' as CapabilityId, name: 'Payment Processing' })]);
+
+      typeSearch('payment');
+
+      const mark = screen.getByText('Payment');
+      expect(mark.tagName).toBe('MARK');
+      expect(mark).toHaveStyle({ fontWeight: 700 });
     });
 
     it('should show nested child when child matches search', () => {
@@ -155,7 +165,7 @@ describe('CapabilitiesSection', () => {
 
       expect(screen.getByText('Enterprise')).toBeInTheDocument();
       expect(screen.getByText('Finance')).toBeInTheDocument();
-      expect(screen.getByText('Tax Reporting')).toBeInTheDocument();
+      expect(screen.getByTestId('capability-tree-item-cap-l3')).toBeInTheDocument();
     });
 
     it('should hide non-matching branches entirely', () => {
@@ -197,7 +207,7 @@ describe('CapabilitiesSection', () => {
 
       typeSearch('PAYMENT');
 
-      expect(screen.getByText('Payment Processing')).toBeInTheDocument();
+      expect(screen.getByTestId('capability-tree-item-cap-1')).toBeInTheDocument();
     });
 
     it('should show no matches message when search yields no results', () => {

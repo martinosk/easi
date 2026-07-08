@@ -270,7 +270,7 @@ describe('Capability UI Consistency', () => {
         await renderNavigationTree();
 
         await waitFor(() => {
-          const capabilityItem = screen.getByText('Inventory Control').closest('.capability-tree-item');
+          const capabilityItem = screen.getByText('Inventory Control').closest('[data-testid^="capability-tree-item-"]');
           expect(capabilityItem).toHaveAttribute('draggable', 'true');
         });
       });
@@ -283,7 +283,7 @@ describe('Capability UI Consistency', () => {
           expect(screen.getByText('Customer Management')).toBeInTheDocument();
         });
 
-        const capabilityItem = screen.getByText('Customer Management').closest('.capability-tree-item');
+        const capabilityItem = screen.getByText('Customer Management').closest('[data-testid^="capability-tree-item-"]');
         expect(capabilityItem).toBeTruthy();
 
         const mockDataTransfer = {
@@ -344,7 +344,7 @@ describe('Capability UI Consistency', () => {
         expect(screen.getByText('Customer Management')).toBeInTheDocument();
       });
 
-      const capabilityItem = screen.getByText('Customer Management').closest('.capability-tree-item');
+      const capabilityItem = screen.getByText('Customer Management').closest('[data-testid^="capability-tree-item-"]');
       fireEvent.click(capabilityItem!);
 
       expect(mockOnCapabilitySelect).toHaveBeenCalledWith('cap-1');
@@ -371,7 +371,7 @@ describe('Capability UI Consistency', () => {
       it('should show Edit option in capability tree context menu', async () => {
         setupMockStore();
         await renderNavigationTree({ onEditCapability: vi.fn() });
-        await openContextMenuOn('Customer Management', '.capability-tree-item');
+        await openContextMenuOn('Customer Management', '[data-testid^="capability-tree-item-"]');
 
         expect(screen.getByRole('menuitem', { name: 'Edit' })).toBeInTheDocument();
       });
@@ -379,7 +379,7 @@ describe('Capability UI Consistency', () => {
       it('should show Delete from Model option in capability tree context menu', async () => {
         setupMockStore();
         await renderNavigationTree();
-        await openContextMenuOn('Customer Management', '.capability-tree-item');
+        await openContextMenuOn('Customer Management', '[data-testid^="capability-tree-item-"]');
 
         expect(screen.getByRole('menuitem', { name: /Delete capability from model/i })).toBeInTheDocument();
       });
@@ -417,7 +417,7 @@ describe('Capability UI Consistency', () => {
           expect(screen.getByText('Customer Management')).toBeInTheDocument();
         });
 
-        const capabilityItem = screen.getByText('Customer Management').closest('.capability-tree-item');
+        const capabilityItem = screen.getByText('Customer Management').closest('[data-testid^="capability-tree-item-"]');
         fireEvent.contextMenu(capabilityItem!);
 
         await waitFor(() => {
@@ -468,7 +468,7 @@ describe('Capability Tree Item Selection', () => {
     await renderNavigationTree();
 
     await waitFor(() => {
-      const capabilityItem = screen.getByText('Customer Management').closest('.capability-tree-item');
+      const capabilityItem = screen.getByText('Customer Management').closest('[data-testid^="capability-tree-item-"]');
       fireEvent.click(capabilityItem!);
     });
   });
@@ -488,8 +488,8 @@ describe('Capability Expand/Collapse in Tree', () => {
     await renderNavigationTree();
 
     await waitFor(() => {
-      const customerManagementItem = screen.getByText('Customer Management').closest('.capability-tree-item');
-      expect(customerManagementItem?.querySelector('.capability-expand-btn')).toBeInTheDocument();
+      const customerManagementItem = screen.getByText('Customer Management').closest('[data-testid^="capability-tree-item-"]');
+      expect(customerManagementItem?.querySelector('button[aria-label="Expand"]')).toBeInTheDocument();
     });
   });
 
@@ -498,8 +498,8 @@ describe('Capability Expand/Collapse in Tree', () => {
     await renderNavigationTree();
 
     await waitFor(() => {
-      const inventoryControlItem = screen.getByText('Inventory Control').closest('.capability-tree-item');
-      expect(inventoryControlItem?.querySelector('.capability-expand-btn')).not.toBeInTheDocument();
+      const inventoryControlItem = screen.getByText('Inventory Control').closest('[data-testid^="capability-tree-item-"]');
+      expect(inventoryControlItem?.querySelector('button[aria-label="Expand"]')).not.toBeInTheDocument();
     });
   });
 
@@ -511,8 +511,8 @@ describe('Capability Expand/Collapse in Tree', () => {
       expect(screen.getByText('Customer Management')).toBeInTheDocument();
     });
 
-    const customerManagementItem = screen.getByText('Customer Management').closest('.capability-tree-item');
-    const expandBtn = customerManagementItem?.querySelector('.capability-expand-btn');
+    const customerManagementItem = screen.getByText('Customer Management').closest('[data-testid^="capability-tree-item-"]');
+    const expandBtn = customerManagementItem?.querySelector('button[aria-label="Expand"]');
     expect(expandBtn).toBeTruthy();
 
     expect(screen.queryByText('Order Processing')).not.toBeInTheDocument();

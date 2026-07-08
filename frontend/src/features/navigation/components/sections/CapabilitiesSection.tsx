@@ -1,114 +1,35 @@
-import { ActionIcon } from '@mantine/core';
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import type { Capability, View, ViewCapability } from '../../../../api/types';
 import { deriveMaturityValue } from '../../../../constants/maturityColors';
 import { useMaturityColorScale } from '../../../../hooks/useMaturityColorScale';
+import { CapabilityTree } from '../../../capabilities/components/CapabilityTree';
+import type { CapabilityTreeNode } from '../../../capabilities/hooks/useCapabilityTree';
+import { buildCapabilityTree } from '../../../capabilities/hooks/useCapabilityTree';
 import type { TreeSelectedItem } from '../../hooks/useTreeMultiSelect';
-import type { CapabilityTreeNode, TreeMultiSelectProps } from '../../types';
-import { buildCapabilityTree, getLevelNumber, hasCustomColor } from '../../utils/treeUtils';
-import { TreeSearchInput } from '../shared/TreeSearchInput';
+import type { TreeMultiSelectProps } from '../../types';
+import { hasCustomColor } from '../../utils/treeUtils';
 import { TreeSection } from '../TreeSection';
+import classes from './CapabilitiesSection.module.css';
 
-interface ColorIndicatorProps {
-  customColor: string | undefined;
+interface MaturityDotProps {
+  capability: Capability;
+  colorScheme: string;
 }
 
-const ColorIndicator: React.FC<ColorIndicatorProps> = ({ customColor }) => (
-  <div
-    data-testid="custom-color-indicator"
-    style={{
-      width: '10px',
-      height: '10px',
-      borderRadius: '2px',
-      backgroundColor: customColor,
-      display: 'inline-block',
-      marginLeft: '8px',
-      border: '1px solid rgba(0,0,0,0.1)',
-    }}
-  />
-);
+const MaturityDot: React.FC<MaturityDotProps> = ({ capability, colorScheme }) => {
+  const { getColorForValue, getSectionNameForValue } = useMaturityColorScale();
+  const value = capability.maturityValue ?? deriveMaturityValue(capability.maturityLevel);
+  const sectionName = capability.maturitySection?.name || getSectionNameForValue(value);
+  const isClassic = colorScheme === 'classic';
 
-interface ExpandButtonProps {
-  hasChildren: boolean;
-  isExpanded: boolean;
-  onClick: (e: React.MouseEvent) => void;
-}
-
-const ExpandButton: React.FC<ExpandButtonProps> = ({ hasChildren, isExpanded, onClick }) => {
-  if (!hasChildren) {
-    return <span className="capability-expand-placeholder" />;
-  }
   return (
-    <ActionIcon
-      variant="subtle"
-      color="gray"
-      size="xs"
-      className="capability-expand-btn"
-      onClick={onClick}
-      aria-label={isExpanded ? 'Collapse' : 'Expand'}
-    >
-      {isExpanded ? '\u25BC' : '\u25B6'}
-    </ActionIcon>
+    <span
+      className={`${classes.maturityDot} ${isClassic ? classes.dotClassic : ''}`}
+      style={isClassic ? undefined : { backgroundColor: getColorForValue(value) }}
+      title={`${sectionName} (${value})`}
+    />
   );
 };
-
-function flattenVisibleCapabilities(tree: CapabilityTreeNode[], expandedSet: Set<string>): TreeSelectedItem[] {
-  const result: TreeSelectedItem[] = [];
-  const walk = (nodes: CapabilityTreeNode[]) => {
-    for (const node of nodes) {
-      result.push({
-        id: node.capability.id,
-        name: node.capability.name,
-        type: 'capability',
-        links: node.capability._links,
-      });
-      if (node.children.length > 0 && expandedSet.has(node.capability.id)) {
-        walk(node.children);
-      }
-    }
-  };
-  walk(tree);
-  return result;
-}
-
-function capabilityMatchesSearch(capability: Capability, searchLower: string): boolean {
-  return (
-    capability.name.toLowerCase().includes(searchLower) ||
-    (capability.description?.toLowerCase().includes(searchLower) ?? false)
-  );
-}
-
-function filterCapabilityTree(tree: CapabilityTreeNode[], search: string): CapabilityTreeNode[] {
-  if (!search.trim()) return tree;
-  const searchLower = search.toLowerCase();
-
-  const filterNodes = (nodes: CapabilityTreeNode[]): CapabilityTreeNode[] => {
-    const result: CapabilityTreeNode[] = [];
-    for (const node of nodes) {
-      const filteredChildren = filterNodes(node.children);
-      if (capabilityMatchesSearch(node.capability, searchLower) || filteredChildren.length > 0) {
-        result.push({ ...node, children: filteredChildren });
-      }
-    }
-    return result;
-  };
-
-  return filterNodes(tree);
-}
-
-function collectExpandedIdsFromFilteredTree(tree: CapabilityTreeNode[]): Set<string> {
-  const ids = new Set<string>();
-  const walk = (nodes: CapabilityTreeNode[]) => {
-    for (const node of nodes) {
-      if (node.children.length > 0) {
-        ids.add(node.capability.id);
-        walk(node.children);
-      }
-    }
-  };
-  walk(tree);
-  return ids;
-}
 
 interface CapabilitiesSectionProps {
   capabilities: Capability[];
@@ -130,6 +51,10 @@ function defaultCapabilitiesInView(currentView: View | null): Set<string> {
   return new Set((currentView?.capabilities ?? []).map((vc) => vc.capabilityId));
 }
 
+function toSelectedItem(capability: Capability): TreeSelectedItem {
+  return { id: capability.id, name: capability.name, type: 'capability', links: capability._links };
+}
+
 export const CapabilitiesSection: React.FC<CapabilitiesSectionProps> = ({
   capabilities,
   currentView,
@@ -145,40 +70,22 @@ export const CapabilitiesSection: React.FC<CapabilitiesSectionProps> = ({
   setSelectedCapabilityId,
   multiSelect,
 }) => {
-  const [search, setSearch] = useState('');
-  const { getColorForValue, getSectionNameForValue } = useMaturityColorScale();
+  const [visibleItems, setVisibleItems] = useState<TreeSelectedItem[]>([]);
   const effectiveCapabilitiesInView = useMemo(
     () => capabilitiesInView ?? defaultCapabilitiesInView(currentView),
     [capabilitiesInView, currentView],
   );
-  const capabilityTree = useMemo(() => buildCapabilityTree(capabilities), [capabilities]);
+  const tree = useMemo(() => buildCapabilityTree(capabilities, { orphanRoots: 'any-level' }), [capabilities]);
 
-  const filteredTree = useMemo(() => filterCapabilityTree(capabilityTree, search), [capabilityTree, search]);
-
-  const searchExpandedIds = useMemo(
-    () => (search.trim() ? collectExpandedIdsFromFilteredTree(filteredTree) : null),
-    [filteredTree, search],
-  );
-
-  const effectiveExpanded = searchExpandedIds ?? expandedCapabilities;
-
-  const visibleItems = useMemo(
-    () => flattenVisibleCapabilities(filteredTree, effectiveExpanded),
-    [filteredTree, effectiveExpanded],
-  );
+  const handleVisibleNodesChange = useCallback((nodes: CapabilityTreeNode[]) => {
+    setVisibleItems(nodes.map((node) => toSelectedItem(node.capability)));
+  }, []);
 
   const handleCapabilityClick = (capability: Capability, event: React.MouseEvent) => {
-    const result = multiSelect.handleItemClick(
-      { id: capability.id, name: capability.name, type: 'capability', links: capability._links },
-      'capabilities',
-      visibleItems,
-      event,
-    );
+    const result = multiSelect.handleItemClick(toSelectedItem(capability), 'capabilities', visibleItems, event);
     if (result === 'single') {
       setSelectedCapabilityId(capability.id);
-      if (onCapabilitySelect) {
-        onCapabilitySelect(capability.id);
-      }
+      onCapabilitySelect?.(capability.id);
     }
   };
 
@@ -197,81 +104,39 @@ export const CapabilitiesSection: React.FC<CapabilitiesSectionProps> = ({
     }
   };
 
-  const getCapabilityNodeData = (node: CapabilityTreeNode) => {
+  const getRowProps = (node: CapabilityTreeNode) => {
     const { capability } = node;
-    const viewCapability = currentView?.capabilities.find((vc: ViewCapability) => vc.capabilityId === capability.id);
     const isOnCanvas = effectiveCapabilitiesInView.has(capability.id);
-    const customColor = viewCapability?.customColor;
-    const colorScheme = currentView?.colorScheme ?? 'maturity';
+    const baseTitle = capability.description || capability.name;
 
     return {
-      hasChildNodes: node.children.length > 0,
-      isExpanded: effectiveExpanded.has(capability.id),
-      levelNum: getLevelNumber(capability.level),
-      isSelected: selectedCapabilityId === capability.id || multiSelect.isMultiSelected(capability.id),
-      isOnCanvas,
-      showColorIndicator: hasCustomColor(currentView?.colorScheme, customColor),
-      title: isOnCanvas
-        ? capability.description || capability.name
-        : `${capability.description || capability.name} (not in view)`,
-      customColor,
-      colorScheme,
+      draggable: true,
+      selected: selectedCapabilityId === capability.id || multiSelect.isMultiSelected(capability.id),
+      dimmed: !isOnCanvas,
+      title: isOnCanvas ? baseTitle : `${baseTitle} (not in view)`,
+      testId: `capability-tree-item-${capability.id}`,
+      onClick: (e: React.MouseEvent) => handleCapabilityClick(capability, e),
+      onContextMenu: (e: React.MouseEvent) => handleContextMenu(e, capability),
+      onDragStart: (e: React.DragEvent) => handleDragStart(e, capability),
     };
   };
 
-  const buildCapabilityItemClassName = (levelNum: number, isSelected: boolean, isOnCanvas: boolean): string => {
-    return [
-      'capability-tree-item',
-      `capability-level-${levelNum}`,
-      isSelected && 'selected',
-      !isOnCanvas && 'not-in-view',
-    ]
-      .filter(Boolean)
-      .join(' ');
-  };
-
-  const renderCapabilityNode = (node: CapabilityTreeNode): React.ReactNode => {
-    const { capability, children } = node;
-    const nodeData = getCapabilityNodeData(node);
-
-    const effectiveMaturityValue = capability.maturityValue ?? deriveMaturityValue(capability.maturityLevel);
-    const maturityColor = nodeData.colorScheme === 'classic' ? '#f9c268' : getColorForValue(effectiveMaturityValue);
-    const sectionName = capability.maturitySection?.name || getSectionNameForValue(effectiveMaturityValue);
-    const maturityTooltip = `${sectionName} (${effectiveMaturityValue})`;
-
-    const handleExpandClick = (e: React.MouseEvent) => {
-      e.stopPropagation();
-      toggleCapabilityExpanded(capability.id);
-    };
+  const renderRight = (node: CapabilityTreeNode) => {
+    const { capability } = node;
+    const viewCapability = currentView?.capabilities.find((vc: ViewCapability) => vc.capabilityId === capability.id);
+    const colorScheme = currentView?.colorScheme ?? 'maturity';
 
     return (
-      <div key={capability.id}>
-        <div
-          className={buildCapabilityItemClassName(nodeData.levelNum, nodeData.isSelected, nodeData.isOnCanvas)}
-          draggable
-          onDragStart={(e) => handleDragStart(e, capability)}
-          onClick={(e) => handleCapabilityClick(capability, e)}
-          onContextMenu={(e) => handleContextMenu(e, capability)}
-          title={nodeData.title}
-        >
-          <ExpandButton
-            hasChildren={nodeData.hasChildNodes}
-            isExpanded={nodeData.isExpanded}
-            onClick={handleExpandClick}
-          />
-          <span className="capability-level-badge">{capability.level}:</span>
-          <span className="capability-name">{capability.name}</span>
+      <>
+        <MaturityDot capability={capability} colorScheme={colorScheme} />
+        {hasCustomColor(currentView?.colorScheme, viewCapability?.customColor) && (
           <span
-            className="capability-maturity-indicator"
-            style={{ backgroundColor: maturityColor }}
-            title={maturityTooltip}
+            data-testid="custom-color-indicator"
+            className={classes.colorSwatch}
+            style={{ backgroundColor: viewCapability?.customColor }}
           />
-          {nodeData.showColorIndicator && <ColorIndicator customColor={nodeData.customColor} />}
-        </div>
-        {nodeData.hasChildNodes && nodeData.isExpanded && (
-          <div className="capability-children">{children.map(renderCapabilityNode)}</div>
         )}
-      </div>
+      </>
     );
   };
 
@@ -285,14 +150,14 @@ export const CapabilitiesSection: React.FC<CapabilitiesSectionProps> = ({
       addTitle="Create new capability"
       addTestId="create-capability-button"
     >
-      <TreeSearchInput value={search} onChange={setSearch} placeholder="Search capabilities..." />
-      <div className="tree-items">
-        {filteredTree.length === 0 ? (
-          <div className="tree-item-empty">{capabilities.length === 0 ? 'No capabilities' : 'No matches'}</div>
-        ) : (
-          filteredTree.map(renderCapabilityNode)
-        )}
-      </div>
+      <CapabilityTree
+        tree={tree}
+        expandedIds={expandedCapabilities}
+        onToggleExpanded={toggleCapabilityExpanded}
+        getRowProps={getRowProps}
+        renderRight={renderRight}
+        onVisibleNodesChange={handleVisibleNodesChange}
+      />
     </TreeSection>
   );
 };

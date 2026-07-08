@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import type { Vendor, View } from '../../../../api/types';
 import type { TreeMultiSelectProps } from '../../types';
 import { TreeItemList } from '../shared/TreeItemList';
-import { TreeSearchInput } from '../shared/TreeSearchInput';
+import { TreeSearchInput } from '../../../../components/shared';
 import { TreeSection } from '../TreeSection';
 
 interface VendorsSectionProps {
@@ -28,8 +28,8 @@ function filterVendors(vendors: Vendor[], search: string): Vendor[] {
   return vendors.filter(
     (v) =>
       v.name.toLowerCase().includes(searchLower) ||
-      (v.implementationPartner && v.implementationPartner.toLowerCase().includes(searchLower)) ||
-      (v.notes && v.notes.toLowerCase().includes(searchLower)),
+      (v.implementationPartner?.toLowerCase().includes(searchLower)) ||
+      (v.notes?.toLowerCase().includes(searchLower)),
   );
 }
 

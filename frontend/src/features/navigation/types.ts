@@ -1,11 +1,6 @@
 import type { Capability, Component, ComponentId, View, ViewId } from '../../api/types';
 import type { TreeSelectedItem } from './hooks/useTreeMultiSelect';
 
-export interface CapabilityTreeNode {
-  capability: Capability;
-  children: CapabilityTreeNode[];
-}
-
 export interface NavigationTreeProps {
   onComponentSelect?: (componentId: string) => void;
   onViewSelect?: (viewId: string) => void;

@@ -1,10 +1,14 @@
 import { useMemo } from 'react';
 import type { Capability, CapabilityId } from '../../../api/types';
-import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
+import { useCapabilities } from './useCapabilities';
 
 export interface CapabilityTreeNode {
   capability: Capability;
   children: CapabilityTreeNode[];
+}
+
+export interface BuildCapabilityTreeOptions {
+  orphanRoots?: 'l1-only' | 'any-level';
 }
 
 export interface UseCapabilityTreeResult {
@@ -15,7 +19,11 @@ export interface UseCapabilityTreeResult {
   orphanedL1Ids: Set<CapabilityId>;
 }
 
-function buildTree(capabilities: Capability[]): CapabilityTreeNode[] {
+export function buildCapabilityTree(
+  capabilities: Capability[],
+  options: BuildCapabilityTreeOptions = {},
+): CapabilityTreeNode[] {
+  const orphanRoots = options.orphanRoots ?? 'l1-only';
   const map = new Map<CapabilityId, CapabilityTreeNode>();
 
   capabilities.forEach((cap) => {
@@ -28,7 +36,7 @@ function buildTree(capabilities: Capability[]): CapabilityTreeNode[] {
     const node = map.get(cap.id)!;
     if (cap.parentId && map.has(cap.parentId)) {
       map.get(cap.parentId)!.children.push(node);
-    } else if (cap.level === 'L1') {
+    } else if (orphanRoots === 'any-level' || cap.level === 'L1') {
       roots.push(node);
     }
   });
@@ -36,7 +44,7 @@ function buildTree(capabilities: Capability[]): CapabilityTreeNode[] {
   return roots.sort((a, b) => a.capability.name.localeCompare(b.capability.name));
 }
 
-function findOrphanedL1s(tree: CapabilityTreeNode[]): Set<CapabilityId> {
+export function findOrphanedL1Ids(tree: CapabilityTreeNode[]): Set<CapabilityId> {
   const orphaned = new Set<CapabilityId>();
 
   tree.forEach((node) => {
@@ -48,11 +56,12 @@ function findOrphanedL1s(tree: CapabilityTreeNode[]): Set<CapabilityId> {
   return orphaned;
 }
 
-export function useCapabilityTree(): UseCapabilityTreeResult {
+export function useCapabilityTree(options: BuildCapabilityTreeOptions = {}): UseCapabilityTreeResult {
   const { data: capabilities = [], isLoading, error, refetch } = useCapabilities();
+  const orphanRoots = options.orphanRoots;
 
-  const tree = useMemo(() => buildTree(capabilities), [capabilities]);
-  const orphanedL1Ids = useMemo(() => findOrphanedL1s(tree), [tree]);
+  const tree = useMemo(() => buildCapabilityTree(capabilities, { orphanRoots }), [capabilities, orphanRoots]);
+  const orphanedL1Ids = useMemo(() => findOrphanedL1Ids(tree), [tree]);
 
   return {
     tree,

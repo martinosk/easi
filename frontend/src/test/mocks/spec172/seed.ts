@@ -1,3 +1,5 @@
+import { buildCapabilityAt, buildView } from '../../helpers/entityBuilders';
+import { seedDb } from '../db';
 import type { StubCapability } from './composition';
 import type { StubDirection, StubEnterpriseCapability } from './store';
 import { seedSpec172Db } from './store';
@@ -135,5 +137,11 @@ export function seedDevData(): void {
     enterpriseCapabilities: devEnterpriseCapabilities,
     directions: devDirections,
     capabilities: devCapabilities,
+  });
+  seedDb({
+    capabilities: devCapabilities.map((cap) =>
+      buildCapabilityAt(cap.id, cap.name, cap.level, cap.parentId ?? undefined),
+    ),
+    views: [buildView({ name: 'Default View', isDefault: true })],
   });
 }
