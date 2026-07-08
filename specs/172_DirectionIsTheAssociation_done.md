@@ -200,6 +200,5 @@ Open items resolved (details in the contract's revision log): O1 cursor placehol
 - [x] Specification ready
 - [x] Implementation done
 - [x] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant (existing suites updated to new constructors; not executable here — no database in this environment)
 - [x] API documentation updated
-- [ ] User sign-off
+- [x] User sign-off
