@@ -163,7 +163,10 @@ Feature: One-Pager view
 - [ ] An integration test asserts the endpoint's constant query count (rule 1).
 - [ ] `onepagers` contains no imports of supplier application packages and no SQL against
       supplier tables; all Built-in Field data flows through `BuiltInFieldSource` ports
-      with adapters at the composition root.
+      with adapters at the composition root — enforced by the architecture boundary test
+      introduced in spec 175, which this slice's port/adapter split must keep green.
+- [ ] The bounded-context canvas `docs/architecture/OnePagers.md` is updated with the
+      consumed supplier read contracts and the metamodel upstream relationship.
 - [ ] One catalog-contract integration test exists per subject type and fails when a
       catalog entry no longer resolves against the supplier read model.
 - [ ] Retired custom fields are absent from the response and the page; retired Selection

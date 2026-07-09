@@ -179,6 +179,13 @@ Feature: One-Pager Configuration
       return 403; the UI gates its controls on the links
 - [ ] Every configuration change is persisted as its named past-tense event; replay
       reconstructs the configuration
+- [ ] A bounded-context canvas exists at `docs/architecture/OnePagers.md` following the
+      established canvas format (purpose, strategic classification, domain roles, inbound/
+      outbound communication, relationship types, ubiquitous language), and the context map
+      in `docs/architecture/README.md` includes `onepagers`
+- [ ] An architecture test fails the build when `internal/onepagers` imports any other
+      bounded context's packages — allowed imports are `internal/shared/**`, other contexts'
+      `publishedlanguage` packages, and third-party/stdlib
 - [ ] Every BDD scenario above has at least one corresponding test
 - [ ] Every modified file scores 10.0 in CodeScene per `easi-codehealth`
 
@@ -268,6 +275,18 @@ None. In this slice `onepagers` reads nothing from other contexts and publishes 
 events only to its own projector; the catalog is definition-only metadata. Supplier data
 flows only through consumer-defined ports and composition-root adapters (design doc D8),
 which land with the composed one-pager read, not with configuration.
+
+### Boundary Enforcement & Documentation
+
+- **Architecture test** — a Go test parses the import graph of `internal/onepagers/...`
+  and fails when any package imports another bounded context outside the allowed set
+  (`internal/shared/**`, other contexts' `publishedlanguage` packages). The new context
+  starts with its boundary machine-enforced; later slices inherit the guard unchanged
+  (ports live inside `onepagers`, adapters at the composition root outside it).
+- **Bounded-context canvas** — `docs/architecture/OnePagers.md` per the existing canvas
+  format, documenting purpose, strategic classification, inbound/outbound communication
+  (published language: the eleven configuration events; consumed: none in this slice),
+  and relationship types; `docs/architecture/README.md` context map updated.
 
 ---
 

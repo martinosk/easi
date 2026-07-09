@@ -149,6 +149,7 @@ Value-vs-definition validation (type match, active field, valid option) is a cro
 | Supplier read-model drift silently breaks catalogs | Mandatory per-subject-type integration tests binding catalog entries to supplier read contracts |
 | New subject types miss wiring steps | An add-a-subject-type checklist maintained across the slice specs: subject-type enumeration, catalog entries + settings tab (175), deletion policy subscription + subject port (176), field-source port + adapter + catalog-contract test (177) |
 | Impact preview implemented as raw cross-schema SQL under deadline | Subject population counts are a port method on `BuiltInFieldSource`, like all supplier reads |
+| Context boundary erosion over time | Architecture test (from spec 175) fails the build on any `internal/onepagers` import of another context outside `shared` and `publishedlanguage`; bounded-context canvas at `docs/architecture/OnePagers.md` documents the published language and dependencies |
 
 ## Vertical Slice Plan (each becomes its own numbered spec)
 
