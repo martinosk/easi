@@ -19,6 +19,7 @@ All locations are relative to `/backend/internal/`.
 | Releases | Generic | Track and communicate platform releases and version history | `releases/` | [Canvas](./Releases.md) |
 | Arch Assistant | Supporting | AI-powered conversational assistant for exploring and modifying enterprise architecture | `archassistant/` | [Canvas](./ArchAssistant.md) |
 | Architecture Direction | Core | Govern architectural direction decisions — standardization, migration horizons, technology placement | `architecturedirection/` | — |
+| OnePagers | Supporting | Configure per-subject-type one-pager fact sheets — built-in field selection and typed custom field definitions | `onepagers/` | [Canvas](./OnePagers.md) |
 
 ---
 
@@ -70,6 +71,14 @@ All locations are relative to `/backend/internal/`.
                   | [Generic Domain]|
                   └─────────────────┘
                   (Isolated -- no integration)
+
+                  ┌──────────────────────┐
+                  | OnePagers            |
+                  | (Fact Sheet Config)  |
+                  | [Supporting Domain]  |
+                  └──────────────────────┘
+                  (No cross-context integration -- publishes
+                   configuration events to its own projector only)
 
 ┌──────────────────────────────────────────────────────────┐
 | Arch Assistant                                           |

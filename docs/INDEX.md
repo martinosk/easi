@@ -28,6 +28,7 @@ Quick reference for navigating EASI documentation.
 | ViewLayouts | [docs/architecture/README.md](architecture/README.md) | Supporting | Implemented |
 | ArchAssistant | [docs/architecture/ArchAssistant.md](architecture/ArchAssistant.md) | Supporting | Implemented |
 | ArchitectureDirection | [docs/architecture/README.md](architecture/README.md) | Core | Implemented |
+| OnePagers | [docs/architecture/OnePagers.md](architecture/OnePagers.md) | Supporting | Implemented |
 | Releases | [docs/architecture/Releases.md](architecture/Releases.md) | Generic | Implemented |
 
 Full context map: [docs/architecture/README.md](architecture/README.md)

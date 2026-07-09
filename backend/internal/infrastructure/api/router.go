@@ -38,6 +38,7 @@ import (
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
 	metamodelAPI "easi/backend/internal/metamodel/infrastructure/api"
+	onepagersAPI "easi/backend/internal/onepagers/infrastructure/api"
 	platformAPI "easi/backend/internal/platform/infrastructure/api"
 	platformPL "easi/backend/internal/platform/publishedlanguage"
 	releasesAPI "easi/backend/internal/releases/infrastructure/api"
@@ -313,6 +314,17 @@ func setupDomainRoutes(r chi.Router, deps routerDependencies) {
 		AuthMiddleware:  deps.authDeps.AuthMiddleware,
 		SessionProvider: deps.authDeps.SessionManager,
 	}), "metamodel routes")
+
+	mustSetup(onepagersAPI.SetupOnePagersRoutes(onepagersAPI.OnePagersRoutesDeps{
+		Router:          r,
+		CommandBus:      deps.commandBus,
+		EventStore:      deps.eventStore,
+		EventBus:        deps.eventBus,
+		DB:              deps.db,
+		Hateoas:         deps.hateoas,
+		AuthMiddleware:  deps.authDeps.AuthMiddleware,
+		SessionProvider: deps.authDeps.SessionManager,
+	}), "one-pagers routes")
 }
 
 func setupSupportRoutes(r chi.Router, deps routerDependencies) {
