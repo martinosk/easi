@@ -132,6 +132,9 @@ Feature: Capture typed One-Pager facts on a subject
 7. **Aggregate invariants** — the aggregate itself rejects a value without a field ID,
    holds at most one value per field (recording replaces), and rejects all writes once
    archived.
+7a. **No-op writes are suppressed** — recording a value equal to the field's current
+   value appends no event; the edit form submits only dirty fields on section save, so
+   one edit never fans out into events for untouched fields.
 8. **Archived on subject deletion** — a policy reacts to subject deletion events by
    appending `OnePagerFactsArchived` to the facts stream; the projector removes the
    read-model rows; archived facts can never be resurrected.
@@ -271,6 +274,10 @@ No events flow from `onepagers` to other contexts.
    the aggregate in the domain, making resurrection impossible. Alternative: projector
    row deletion only (rejected — a later command could recreate facts for a dead
    subject).
+7. **No-op suppression caps stream growth** — with rule 7a, facts streams grow only with
+   real edits at human pace. Facts streams are the designated first snapshot candidate
+   if write-path replay ever profiles hot — decided by profiling, not preemptively,
+   mirroring the design doc's D6 posture on the completeness cache.
 
 ---
 
