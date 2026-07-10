@@ -60,6 +60,17 @@ func forbiddenImports(path string) ([]string, error) {
 	return forbidden, nil
 }
 
+func TestOnePagersExposesNoPublishedLanguage(t *testing.T) {
+	root, err := filepath.Abs(".")
+	if err != nil {
+		t.Fatalf("failed to resolve onepagers root: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(root, "publishedlanguage")); !os.IsNotExist(err) {
+		t.Error("BOUNDARY VIOLATION: internal/onepagers must not expose a publishedlanguage package — onepagers publishes no events to other contexts; its event types are internal aggregate mechanics")
+	}
+}
+
 func TestArchitectureBoundary(t *testing.T) {
 	root, err := filepath.Abs(".")
 	if err != nil {

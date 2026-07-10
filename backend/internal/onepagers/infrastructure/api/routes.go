@@ -7,10 +7,12 @@ import (
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
 	"easi/backend/internal/onepagers/application/handlers"
+	"easi/backend/internal/onepagers/application/ports"
 	"easi/backend/internal/onepagers/application/projectors"
 	"easi/backend/internal/onepagers/application/readmodels"
+	opevents "easi/backend/internal/onepagers/domain/events"
+	"easi/backend/internal/onepagers/domain/valueobjects"
 	"easi/backend/internal/onepagers/infrastructure/repositories"
-	oppl "easi/backend/internal/onepagers/publishedlanguage"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
@@ -31,6 +33,7 @@ type OnePagersRoutesDeps struct {
 	Hateoas         *sharedAPI.HATEOASLinks
 	AuthMiddleware  AuthMiddleware
 	SessionProvider authPL.SessionProvider
+	Subjects        ports.SubjectExistenceChecker
 }
 
 func SetupOnePagersRoutes(deps OnePagersRoutesDeps) error {
@@ -38,17 +41,84 @@ func SetupOnePagersRoutes(deps OnePagersRoutesDeps) error {
 	readModel := readmodels.NewOnePagerConfigurationReadModel(deps.DB)
 
 	projector := projectors.NewOnePagerConfigurationProjector(readModel)
-	for _, eventType := range oppl.AllEventTypes() {
+	for _, eventType := range opevents.ConfigurationEventTypes() {
 		deps.EventBus.Subscribe(eventType, projector)
 	}
 
 	registerCommands(deps.CommandBus, repo, readModel)
 
+	factsRepo := repositories.NewOnePagerFactsRepository(deps.EventStore)
+	factsReadModel := readmodels.NewOnePagerFactsReadModel(deps.DB)
+
+	factsProjector := projectors.NewOnePagerFactsProjector(factsReadModel)
+	for _, eventType := range opevents.FactsEventTypes() {
+		deps.EventBus.Subscribe(eventType, factsProjector)
+	}
+
+	deletionReactor := projectors.NewSubjectDeletedReactor(factsReadModel, deps.CommandBus)
+	for _, eventType := range projectors.SubjectDeletionEventTypes() {
+		deps.EventBus.Subscribe(eventType, deletionReactor)
+	}
+
+	registerFactsCommands(deps, factsRepo, readModel, factsReadModel)
+
 	links := NewOnePagerLinks(deps.Hateoas)
 	configHandlers := NewOnePagerConfigurationHandlers(deps.CommandBus, readModel, links, deps.SessionProvider)
 	registerRoutes(deps.Router, configHandlers, deps.AuthMiddleware)
 
+	factsHandlers := NewOnePagerFactsHandlers(OnePagerFactsHandlersDeps{
+		CommandBus:      deps.CommandBus,
+		Facts:           factsReadModel,
+		Configs:         readModel,
+		Links:           links,
+		SessionProvider: deps.SessionProvider,
+	})
+	registerFactsRoutes(deps.Router, factsHandlers, deps.AuthMiddleware)
+
 	return nil
+}
+
+func registerFactsCommands(
+	deps OnePagersRoutesDeps,
+	factsRepo *repositories.OnePagerFactsRepository,
+	configReadModel *readmodels.OnePagerConfigurationReadModel,
+	factsReadModel *readmodels.OnePagerFactsReadModel,
+) {
+	deps.CommandBus.Register("RecordFieldValue", handlers.NewRecordFieldValueHandler(factsRepo, configReadModel, factsReadModel, deps.Subjects))
+	deps.CommandBus.Register("ClearFieldValue", handlers.NewClearFieldValueHandler(factsRepo, configReadModel, factsReadModel))
+	deps.CommandBus.Register("ArchiveOnePagerFacts", handlers.NewArchiveOnePagerFactsHandler(factsRepo))
+}
+
+type subjectRoutePermissions struct {
+	read  authPL.Permission
+	write authPL.Permission
+}
+
+var factsPermissionsBySubjectType = map[string]subjectRoutePermissions{
+	"capability":            {read: authPL.PermCapabilitiesRead, write: authPL.PermCapabilitiesWrite},
+	"enterprise-capability": {read: authPL.PermEnterpriseArchRead, write: authPL.PermEnterpriseArchWrite},
+	"application":           {read: authPL.PermComponentsRead, write: authPL.PermComponentsWrite},
+	"acquired-entity":       {read: authPL.PermComponentsRead, write: authPL.PermComponentsWrite},
+	"vendor":                {read: authPL.PermComponentsRead, write: authPL.PermComponentsWrite},
+	"internal-team":         {read: authPL.PermComponentsRead, write: authPL.PermComponentsWrite},
+}
+
+func registerFactsRoutes(router chi.Router, h *OnePagerFactsHandlers, authMiddleware AuthMiddleware) {
+	for _, subjectType := range valueobjects.AllSubjectTypes() {
+		permissions := factsPermissionsBySubjectType[subjectType.Value()]
+		router.Route("/one-pagers/"+subjectType.Value()+"/{subjectID}/facts", func(r chi.Router) {
+			r.Group(func(r chi.Router) {
+				r.Use(authMiddleware.RequirePermission(permissions.read))
+				r.Get("/", h.GetFacts(subjectType))
+			})
+
+			r.Group(func(r chi.Router) {
+				r.Use(authMiddleware.RequirePermission(permissions.write))
+				r.Put("/{fieldID}", h.RecordValue(subjectType))
+				r.Delete("/{fieldID}", h.ClearValue(subjectType))
+			})
+		})
+	}
 }
 
 func registerCommands(

@@ -1,5 +1,6 @@
 import { Badge, Box, CloseButton, Divider, Group, Paper, Stack, Text, Title } from '@mantine/core';
 import { DirectionPanel } from '../../architecture-direction/components/DirectionPanel';
+import { OnePagerFactsSection } from '../../one-pagers';
 import { StandardApplicationPanel } from '../../standard-application/components/StandardApplicationPanel';
 import { useComposition } from '../hooks/useComposition';
 import type { EnterpriseCapability } from '../types';
@@ -64,6 +65,8 @@ export function EnterpriseCapabilityDetailPanel({ capability, onClose }: Enterpr
         <DirectionPanel enterpriseCapabilityId={capability.id} />
 
         <StandardApplicationPanel enterpriseCapabilityId={capability.id} />
+
+        <OnePagerFactsSection subjectType="enterprise-capability" subjectId={capability.id} />
 
         <IncludedCapabilitiesSection
           composition={compositionQuery.data}

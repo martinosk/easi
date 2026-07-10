@@ -8,7 +8,6 @@ import (
 
 	"easi/backend/internal/onepagers/application/readmodels"
 	"easi/backend/internal/onepagers/domain/events"
-	oppl "easi/backend/internal/onepagers/publishedlanguage"
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
@@ -35,7 +34,7 @@ func (p *OnePagerConfigurationProjector) Handle(ctx context.Context, event domai
 }
 
 func (p *OnePagerConfigurationProjector) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
-	if eventType == oppl.OnePagerConfigurationCreated {
+	if eventType == events.TypeOnePagerConfigurationCreated {
 		return p.handleCreated(ctx, eventData)
 	}
 	mutation, found := documentMutations[eventType]
@@ -74,16 +73,16 @@ func (p *OnePagerConfigurationProjector) handleCreated(ctx context.Context, even
 type documentMutation func(doc readmodels.ConfigurationDocument, eventData []byte) (readmodels.ConfigurationDocument, error)
 
 var documentMutations = map[string]documentMutation{
-	oppl.CustomFieldDefined:            mutate(applyCustomFieldDefined),
-	oppl.CustomFieldRenamed:            mutate(applyCustomFieldRenamed),
-	oppl.CustomFieldRequirementChanged: mutate(applyCustomFieldRequirementChanged),
-	oppl.CustomFieldRetired:            mutate(applyCustomFieldRetired),
-	oppl.CustomFieldReactivated:        mutate(applyCustomFieldReactivated),
-	oppl.BuiltInFieldIncluded:          mutate(applyBuiltInFieldIncluded),
-	oppl.BuiltInFieldExcluded:          mutate(applyBuiltInFieldExcluded),
-	oppl.OnePagerFieldsReordered:       mutate(applyFieldsReordered),
-	oppl.SelectionOptionAdded:          mutate(applySelectionOptionAdded),
-	oppl.SelectionOptionRetired:        mutate(applySelectionOptionRetired),
+	events.TypeCustomFieldDefined:            mutate(applyCustomFieldDefined),
+	events.TypeCustomFieldRenamed:            mutate(applyCustomFieldRenamed),
+	events.TypeCustomFieldRequirementChanged: mutate(applyCustomFieldRequirementChanged),
+	events.TypeCustomFieldRetired:            mutate(applyCustomFieldRetired),
+	events.TypeCustomFieldReactivated:        mutate(applyCustomFieldReactivated),
+	events.TypeBuiltInFieldIncluded:          mutate(applyBuiltInFieldIncluded),
+	events.TypeBuiltInFieldExcluded:          mutate(applyBuiltInFieldExcluded),
+	events.TypeOnePagerFieldsReordered:       mutate(applyFieldsReordered),
+	events.TypeSelectionOptionAdded:          mutate(applySelectionOptionAdded),
+	events.TypeSelectionOptionRetired:        mutate(applySelectionOptionRetired),
 }
 
 func mutate[E any](apply func(doc readmodels.ConfigurationDocument, event *E) readmodels.ConfigurationDocument) documentMutation {

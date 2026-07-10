@@ -6,8 +6,11 @@ import type {
   ChangeRequirementRequest,
   CustomField,
   DefineCustomFieldRequest,
+  FieldValue,
   OnePagerConfiguration,
+  OnePagerFacts,
   OnePagerSubjectType,
+  RecordFieldValueRequest,
   RenameCustomFieldRequest,
   ReorderFieldsRequest,
   SelectionOption,
@@ -58,4 +61,23 @@ export const onePagersApi = {
 
   retireSelectionOption: (option: SelectionOption, request: VersionRequest) =>
     sendCommand('post', option, 'x-retire', request),
+
+  async getFacts(subjectType: OnePagerSubjectType, subjectId: string): Promise<OnePagerFacts> {
+    const response = await httpClient.get<OnePagerFacts>(`/api/v1/one-pagers/${subjectType}/${subjectId}/facts`);
+    return response.data;
+  },
+
+  async recordFieldValue(
+    facts: OnePagerFacts,
+    fieldId: string,
+    request: RecordFieldValueRequest,
+  ): Promise<OnePagerFacts> {
+    const response = await httpClient.put<OnePagerFacts>(`${followLink(facts, 'x-record')}/${fieldId}`, request);
+    return response.data;
+  },
+
+  async clearFieldValue(fieldValue: FieldValue): Promise<OnePagerFacts> {
+    const response = await httpClient.delete<OnePagerFacts>(followLink(fieldValue, 'x-clear'));
+    return response.data;
+  },
 };

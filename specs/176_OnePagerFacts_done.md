@@ -102,6 +102,11 @@ Feature: Capture typed One-Pager facts on a subject
     When I record the first Field Value for it
     Then a single OnePagerFacts aggregate is created for that subject
     And recording further values reuses the same aggregate
+
+  Scenario: Saving several edited fields records every one of them
+    Given the subject's One-Pager section has two custom fields
+    When I edit both fields and save once
+    Then both Field Values are recorded
 ```
 
 ---
@@ -118,11 +123,12 @@ Feature: Capture typed One-Pager facts on a subject
    recorded; the creation handler verifies subject existence through the
    onepagers-defined subject port before creating.
 4. **Typed values only** — every Field Value is one of the closed set of
-   constructor-validated value objects: `TextValue` (trimmed, non-empty, length cap),
-   `NumberValue` (finite decimal), `DateValue` (ISO date), `LinkValue{Label, URL}`
-   (shared `URL` VO, absolute http(s)), `SelectionValue{OptionID}` (option exists on the
-   field definition), `ContactPerson{Name, Email, Company}` (non-empty name, validated
-   email, company optional).
+   constructor-validated value objects: `TextValue` (trimmed, non-empty, length cap
+   2000), `NumberValue` (finite decimal), `DateValue` (ISO date), `LinkValue{Label, URL}`
+   (label trimmed, non-empty, cap 200; shared `URL` VO, absolute http(s), cap 2048),
+   `SelectionValue{OptionID}` (option exists on the field definition),
+   `ContactPerson{Name, Email, Company}` (non-empty name, validated email, company
+   optional; name and company cap 200).
 5. **Value envelope** — every value is persisted, in event payloads and in the read
    model, as a discriminated `{type, version, value}` envelope (D9).
 6. **Definition validation at the handler** — the command handler loads the current
@@ -137,7 +143,9 @@ Feature: Capture typed One-Pager facts on a subject
    one edit never fans out into events for untouched fields.
 8. **Archived on subject deletion** — a policy reacts to subject deletion events by
    appending `OnePagerFactsArchived` to the facts stream; the projector removes the
-   read-model rows; archived facts can never be resurrected.
+   read-model rows; archived facts can never be resurrected. Archiving an already
+   archived facts stream is an idempotent no-op so redelivered deletion events append
+   no duplicate events; the archive event records the `system` actor.
 9. **Retired values persist** — retiring a field or a Selection option never removes
    recorded values; existing retired-option values render flagged.
 10. **Soft required at write time** — missing required fields are highlighted in the
@@ -162,6 +170,7 @@ Feature: Capture typed One-Pager facts on a subject
 - [ ] Saving with an empty required field succeeds; the field is visually highlighted.
 - [ ] Only one facts aggregate exists per subject, including under concurrent first
       writes (DB unique backstop).
+- [ ] Editing several fields and saving once records every edited field.
 - [ ] The One-Pager edit section appears on all six detail panels, driven by the
       subject type's configuration, hiding retired fields.
 - [ ] The shared `URL` value object exists in the shared kernel with unit tests.
@@ -214,10 +223,14 @@ the edit section via HATEOAS links, never by role inspection.
 - Events in the existing event store; value payloads as envelopes (D9).
 - Read model `onepagers.one_pager_facts` — one row per (subject, field), PK
   `(tenant_id, subject_type, subject_id, field_id)`, envelope JSONB column plus
-  extracted columns for the common render path, RLS tenant-isolation policy per the
-  existing table shape.
+  extracted columns for the common render path (`value_type`, `display_text`), RLS
+  tenant-isolation policy per the existing table shape.
 - The PK doubles as the one-facts-per-subject uniqueness backstop at the
   (tenant_id, subject_type, subject_id) level for aggregate creation.
+- Clearing a value nulls the envelope and extracted columns but keeps the row (reads
+  filter on `value IS NOT NULL`), so the facts-aggregate lookup for a subject survives
+  clearing every value and the one-facts-per-subject invariant holds; only archival
+  deletes the rows.
 
 ### Frontend
 
@@ -295,8 +308,8 @@ No events flow from `onepagers` to other contexts.
 ## Checklist
 
 - [x] Specification ready
-- [ ] Implementation done
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
-- [ ] API documentation updated
-- [ ] User sign-off
+- [x] Implementation done
+- [x] Unit tests implemented and passing
+- [x] Integration tests implemented if relevant
+- [x] API documentation updated
+- [x] User sign-off

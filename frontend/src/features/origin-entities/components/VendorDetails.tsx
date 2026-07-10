@@ -4,6 +4,7 @@ import type { OriginRelationship, Vendor } from '../../../api/types';
 import { DetailField } from '../../../components/shared/DetailField';
 import { hasLink } from '../../../utils/hateoas';
 import { AuditHistorySection } from '../../audit';
+import { OnePagerFactsSection } from '../../one-pagers';
 import { OriginEntityActions, OriginEntityRelationshipsList } from './OriginEntityPanelChrome';
 
 interface VendorDetailsProps {
@@ -52,6 +53,8 @@ export const VendorDetails: React.FC<VendorDetailsProps> = ({
       <DetailField label="Type">Vendor</DetailField>
 
       <OriginEntityRelationshipsList relationships={relationships} relationshipLabel="Purchased from" />
+
+      <OnePagerFactsSection subjectType="vendor" subjectId={vendor.id} />
 
       <AuditHistorySection aggregateId={vendor.id} />
     </Stack>

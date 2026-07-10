@@ -3,4 +3,7 @@ import type { OnePagerSubjectType } from './types';
 
 export const onePagersMutationEffects = {
   configuration: (subjectType: OnePagerSubjectType) => [onePagersQueryKeys.configuration(subjectType)],
+  facts: (subjectType: OnePagerSubjectType, subjectId: string) => [
+    onePagersQueryKeys.factsForSubject(subjectType, subjectId),
+  ],
 };

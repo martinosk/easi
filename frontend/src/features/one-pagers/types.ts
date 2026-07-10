@@ -1,5 +1,8 @@
 import type { HATEOASLink, HATEOASLinks } from '../../api/types';
 import { onePagerFieldTypeValues } from '../../lib/schemas/onePagerConfiguration';
+import type { ValueEnvelope } from '../../lib/schemas/onePagerFacts';
+
+export type { ValueEnvelope } from '../../lib/schemas/onePagerFacts';
 
 export const ONE_PAGER_SUBJECT_TYPES = [
   'capability',
@@ -116,4 +119,34 @@ export interface AddSelectionOptionRequest {
 export interface ReorderFieldsRequest {
   order: FieldRef[];
   version: number;
+}
+
+export interface FieldValueLinks extends HATEOASLinks {
+  'x-record'?: HATEOASLink;
+  'x-clear'?: HATEOASLink;
+}
+
+export interface FieldValue {
+  fieldId: string;
+  value: ValueEnvelope;
+  displayText: string;
+  retiredOption?: boolean;
+  modifiedAt: string;
+  modifiedBy: string;
+  _links?: FieldValueLinks;
+}
+
+export interface OnePagerFactsLinks extends HATEOASLinks {
+  'x-record'?: HATEOASLink;
+}
+
+export interface OnePagerFacts {
+  subjectType: OnePagerSubjectType;
+  subjectId: string;
+  values: FieldValue[];
+  _links: OnePagerFactsLinks;
+}
+
+export interface RecordFieldValueRequest {
+  value: ValueEnvelope;
 }

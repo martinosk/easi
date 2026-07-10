@@ -4,6 +4,7 @@ import type { AcquiredEntity, OriginRelationship } from '../../../api/types';
 import { DetailField } from '../../../components/shared/DetailField';
 import { hasLink } from '../../../utils/hateoas';
 import { AuditHistorySection } from '../../audit';
+import { OnePagerFactsSection } from '../../one-pagers';
 import { OriginEntityActions, OriginEntityRelationshipsList } from './OriginEntityPanelChrome';
 
 interface AcquiredEntityDetailsProps {
@@ -78,6 +79,8 @@ export const AcquiredEntityDetails: React.FC<AcquiredEntityDetailsProps> = ({
       <DetailField label="Type">Acquired Entity</DetailField>
 
       <OriginEntityRelationshipsList relationships={relationships} relationshipLabel="Acquired via" />
+
+      <OnePagerFactsSection subjectType="acquired-entity" subjectId={entity.id} />
 
       <AuditHistorySection aggregateId={entity.id} />
     </Stack>
