@@ -341,8 +341,8 @@ which land with the composed one-pager read, not with configuration.
 ## Checklist
 
 - [x] Specification ready
-- [ ] Implementation done
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
-- [ ] API documentation updated
-- [ ] User sign-off
+- [x] Implementation done
+- [x] Unit tests implemented and passing
+- [x] Integration tests implemented if relevant
+- [x] API documentation updated
+- [x] User sign-off

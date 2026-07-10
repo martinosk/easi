@@ -5,6 +5,7 @@ export * from './direction';
 export * from './editGrant';
 export * from './enterpriseCapability';
 export * from './invitation';
+export * from './onePagerConfiguration';
 export * from './originEntity';
 export * from './relation';
 export * from './standardApplication';

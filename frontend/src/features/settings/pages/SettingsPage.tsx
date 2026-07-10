@@ -1,5 +1,6 @@
 import { Navigate, NavLink, Route, Routes } from 'react-router-dom';
 import { useUserStore } from '../../../store/userStore';
+import { OnePagersSettings } from '../../one-pagers';
 import { AIConfigurationSettings } from '../components/AIConfigurationSettings';
 import { MaturityScaleSettings } from '../components/MaturityScaleSettings';
 import { StrategyPillarsSettings } from '../components/StrategyPillarsSettings';
@@ -46,6 +47,12 @@ export function SettingsPage() {
           >
             AI Configuration
           </NavLink>
+          <NavLink
+            to="/settings/one-pagers"
+            className={({ isActive }) => `settings-tab ${isActive ? 'settings-tab-active' : ''}`}
+          >
+            One-Pagers
+          </NavLink>
         </nav>
 
         <Routes>
@@ -53,6 +60,7 @@ export function SettingsPage() {
           <Route path="/maturity-scale" element={<MaturityScaleSettings />} />
           <Route path="/strategy-pillars" element={<StrategyPillarsSettings />} />
           <Route path="/ai-configuration" element={<AIConfigurationSettings />} />
+          <Route path="/one-pagers" element={<OnePagersSettings />} />
         </Routes>
       </div>
     </div>
