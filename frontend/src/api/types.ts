@@ -114,6 +114,7 @@ export interface Component {
   description?: string;
   experts?: Expert[];
   createdAt: string;
+  onePagerComplete?: boolean;
   _links: HATEOASLinks;
 }
 
@@ -311,6 +312,7 @@ export interface Capability {
   experts?: Expert[];
   tags?: string[];
   createdAt: string;
+  onePagerComplete?: boolean;
   _links: HATEOASLinks;
 }
 
@@ -842,6 +844,7 @@ export interface AcquiredEntity {
   componentCount: number;
   createdAt: string;
   updatedAt?: string;
+  onePagerComplete?: boolean;
   _links: HATEOASLinks;
 }
 
@@ -867,6 +870,7 @@ export interface Vendor {
   componentCount: number;
   createdAt: string;
   updatedAt?: string;
+  onePagerComplete?: boolean;
   _links: HATEOASLinks;
 }
 
@@ -891,6 +895,7 @@ export interface InternalTeam {
   componentCount: number;
   createdAt: string;
   updatedAt?: string;
+  onePagerComplete?: boolean;
   _links: HATEOASLinks;
 }
 

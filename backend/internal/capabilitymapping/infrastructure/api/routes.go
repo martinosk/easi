@@ -39,6 +39,7 @@ type RouteConfig struct {
 	StrategyPillarsGateway metamodel.StrategyPillarsGateway
 	SessionProvider        authPL.SessionProvider
 	AuthMiddleware         AuthMiddleware
+	OnePagerCompleteness   OnePagerCompletenessSource
 }
 
 func SetupCapabilityMappingRoutes(config *RouteConfig) error {
@@ -66,7 +67,13 @@ func SetupCapabilityMappingRoutes(config *RouteConfig) error {
 	hierarchyService := services.NewCapabilityHierarchyService(capabilityLookupAdapter)
 	impactQuery := handlers.NewDeleteImpactQuery(hierarchyService, rm.realization)
 	httpHandlers := &routeHTTPHandlers{
-		capability:           NewCapabilityHandlers(config.CommandBus, rm.capability, links, impactQuery),
+		capability: NewCapabilityHandlers(CapabilityHandlersDeps{
+			CommandBus:   config.CommandBus,
+			ReadModel:    rm.capability,
+			Links:        links,
+			ImpactQuery:  impactQuery,
+			Completeness: config.OnePagerCompleteness,
+		}),
 		dependency:           NewDependencyHandlers(config.CommandBus, rm.dependency, links),
 		realization:          NewRealizationHandlers(config.CommandBus, rm.realization, links),
 		maturityLevel:        NewMaturityLevelHandlers(config.MaturityScaleGateway),

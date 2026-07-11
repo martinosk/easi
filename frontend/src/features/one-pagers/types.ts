@@ -71,6 +71,7 @@ export interface BuiltInField {
 export interface OnePagerConfigurationLinks extends HATEOASLinks {
   'x-define-custom-field'?: HATEOASLink;
   'x-reorder'?: HATEOASLink;
+  'x-impact-preview'?: HATEOASLink;
 }
 
 export interface OnePagerConfiguration {
@@ -119,6 +120,12 @@ export interface AddSelectionOptionRequest {
 export interface ReorderFieldsRequest {
   order: FieldRef[];
   version: number;
+}
+
+export interface OnePagerImpactPreview {
+  subjectType: OnePagerSubjectType;
+  fieldId?: string;
+  affectedSubjectCount: number;
 }
 
 export interface FieldValueLinks extends HATEOASLinks {
@@ -214,10 +221,22 @@ export interface OnePagerViewCustomField {
 
 export type OnePagerViewField = OnePagerViewBuiltInField | OnePagerViewCustomField;
 
+export interface OnePagerMissingField {
+  fieldId: string;
+  name: string;
+}
+
+export interface OnePagerCompleteness {
+  requiredCount: number;
+  filledCount: number;
+  missingFields: OnePagerMissingField[];
+}
+
 export interface OnePagerView {
   subjectType: OnePagerSubjectType;
   subjectId: string;
   subjectName: string;
   fields: OnePagerViewField[];
+  completeness: OnePagerCompleteness;
   _links: OnePagerViewLinks;
 }

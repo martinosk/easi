@@ -67,7 +67,7 @@ func (ctx *testContext) insertEvent(t *testing.T, spec eventSpec) {
 }
 
 func (ctx *testContext) createCapabilityWithEvent(t *testing.T, spec capabilitySpec) {
-	ctx.createTestCapability(t, spec.ID, spec.Name, spec.Level, spec.ParentID)
+	ctx.createTestCapability(t, spec)
 	ctx.setTenantContext(t)
 	ctx.insertEvent(t, eventSpec{
 		AggregateID: spec.ID,

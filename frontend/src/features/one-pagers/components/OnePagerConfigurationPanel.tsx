@@ -1,14 +1,14 @@
 import { Alert, Divider, Loader, Stack } from '@mantine/core';
 import { useState } from 'react';
-import type { DefineCustomFieldFormData } from '../../../lib/schemas/onePagerConfiguration';
 import { hasLink } from '../../../utils/hateoas';
+import { useDefineCustomFieldFlow } from '../hooks/useDefineCustomFieldFlow';
 import { useOnePagerConfiguration } from '../hooks/useOnePagerConfiguration';
 import { useOnePagerFieldActions } from '../hooks/useOnePagerFieldActions';
-import { useDefineCustomField } from '../hooks/useOnePagerMutations';
-import type { CustomField, DefineCustomFieldRequest, OnePagerSubjectType } from '../types';
+import type { CustomField, OnePagerConfiguration, OnePagerSubjectType } from '../types';
 import { AddCustomFieldForm } from './AddCustomFieldForm';
 import { BuiltInFieldsCatalog } from './BuiltInFieldsCatalog';
 import { FieldList } from './FieldList';
+import { ImpactPreviewDialog } from './ImpactPreviewDialog';
 import { RenameFieldDialog } from './RenameFieldDialog';
 import { RetiredFieldsList } from './RetiredFieldsList';
 
@@ -16,15 +16,63 @@ interface OnePagerConfigurationPanelProps {
   subjectType: OnePagerSubjectType;
 }
 
+interface RequireFieldDialogsProps {
+  configuration: OnePagerConfiguration;
+  requireConfirmationField: CustomField | null;
+  isConfirmingRequired: boolean;
+  onConfirmField: (field: CustomField) => void;
+  onCancelField: () => void;
+  pendingNewFieldName: string | undefined;
+  isSavingNewField: boolean;
+  onConfirmNewField: () => void;
+  onCancelNewField: () => void;
+}
+
+function RequireFieldDialogs({
+  configuration,
+  requireConfirmationField,
+  isConfirmingRequired,
+  onConfirmField,
+  onCancelField,
+  pendingNewFieldName,
+  isSavingNewField,
+  onConfirmNewField,
+  onCancelNewField,
+}: RequireFieldDialogsProps) {
+  return (
+    <>
+      {requireConfirmationField && (
+        <ImpactPreviewDialog
+          key={requireConfirmationField.id}
+          configuration={configuration}
+          fieldName={requireConfirmationField.name}
+          fieldId={requireConfirmationField.id}
+          isConfirming={isConfirmingRequired}
+          onConfirm={() => onConfirmField(requireConfirmationField)}
+          onCancel={onCancelField}
+        />
+      )}
+
+      {pendingNewFieldName !== undefined && (
+        <ImpactPreviewDialog
+          configuration={configuration}
+          fieldName={pendingNewFieldName}
+          isConfirming={isSavingNewField}
+          onConfirm={onConfirmNewField}
+          onCancel={onCancelNewField}
+        />
+      )}
+    </>
+  );
+}
+
 export function OnePagerConfigurationPanel({ subjectType }: OnePagerConfigurationPanelProps) {
   const { data: configuration, isLoading, error } = useOnePagerConfiguration(subjectType);
   const [renamingField, setRenamingField] = useState<CustomField | null>(null);
-  const { fieldActions, includeField, reactivateField, saveRename, isRenaming } = useOnePagerFieldActions(
-    subjectType,
-    configuration,
-    setRenamingField,
-  );
-  const defineField = useDefineCustomField(subjectType);
+  const [requireConfirmationField, setRequireConfirmationField] = useState<CustomField | null>(null);
+  const { fieldActions, includeField, reactivateField, saveRename, isRenaming, confirmRequireField, isConfirmingRequired } =
+    useOnePagerFieldActions(subjectType, configuration, setRenamingField, setRequireConfirmationField);
+  const defineFieldFlow = useDefineCustomFieldFlow(subjectType, configuration);
 
   if (isLoading) return <Loader data-testid="one-pager-loading" />;
   if (error || !configuration) {
@@ -35,18 +83,6 @@ export function OnePagerConfigurationPanel({ subjectType }: OnePagerConfiguratio
     );
   }
 
-  const handleDefineField = (data: DefineCustomFieldFormData) => {
-    const request: DefineCustomFieldRequest = {
-      name: data.name,
-      fieldType: data.fieldType,
-      required: data.required,
-      helpText: data.helpText,
-      options: data.fieldType === 'selection' ? data.options : undefined,
-      version: configuration.version,
-    };
-    defineField.mutate({ configuration, request });
-  };
-
   return (
     <Stack gap="lg" data-testid={`one-pager-panel-${subjectType}`}>
       <FieldList configuration={configuration} actions={fieldActions} />
@@ -54,12 +90,16 @@ export function OnePagerConfigurationPanel({ subjectType }: OnePagerConfiguratio
       <BuiltInFieldsCatalog fields={configuration.builtInFields} onInclude={includeField} />
       <RetiredFieldsList fields={configuration.customFields} onReactivate={reactivateField} />
 
-      {hasLink(configuration, 'x-define-custom-field') ? (
+      {hasLink(configuration, 'x-define-custom-field') && (
         <>
           <Divider label="Add a custom field" labelPosition="left" />
-          <AddCustomFieldForm isSaving={defineField.isPending} onSubmit={handleDefineField} />
+          <AddCustomFieldForm
+            key={defineFieldFlow.formKey}
+            isSaving={defineFieldFlow.isSaving}
+            onSubmit={defineFieldFlow.handleSubmit}
+          />
         </>
-      ) : null}
+      )}
 
       {renamingField && (
         <RenameFieldDialog
@@ -70,6 +110,18 @@ export function OnePagerConfigurationPanel({ subjectType }: OnePagerConfiguratio
           onClose={() => setRenamingField(null)}
         />
       )}
+
+      <RequireFieldDialogs
+        configuration={configuration}
+        requireConfirmationField={requireConfirmationField}
+        isConfirmingRequired={isConfirmingRequired}
+        onConfirmField={(field) => confirmRequireField(field, () => setRequireConfirmationField(null))}
+        onCancelField={() => setRequireConfirmationField(null)}
+        pendingNewFieldName={defineFieldFlow.pendingNewField?.name}
+        isSavingNewField={defineFieldFlow.isSaving}
+        onConfirmNewField={defineFieldFlow.confirmPendingField}
+        onCancelNewField={defineFieldFlow.cancelPendingField}
+      />
     </Stack>
   );
 }

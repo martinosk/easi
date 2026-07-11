@@ -4,6 +4,7 @@ import type { Component, View } from '../../../../api/types';
 import type { EditingState, TreeMultiSelectProps } from '../../types';
 import { hasCustomColor } from '../../utils/treeUtils';
 import { TreeSearchInput } from '../../../../components/shared';
+import { OnePagerIncompleteIndicator } from '../../../one-pagers/components/OnePagerIncompleteIndicator';
 import { TreeSection } from '../TreeSection';
 
 interface ColorIndicatorProps {
@@ -101,6 +102,7 @@ const ComponentItem: React.FC<ComponentItemProps> = ({
   >
     <span className="tree-item-icon">📦</span>
     <span className="tree-item-label">{component.name}</span>
+    <OnePagerIncompleteIndicator id={component.id} onePagerComplete={component.onePagerComplete} />
     {showColorIndicator && <ColorIndicator customColor={customColor} />}
   </UnstyledButton>
 );

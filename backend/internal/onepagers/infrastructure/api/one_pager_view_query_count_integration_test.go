@@ -145,6 +145,10 @@ func (s capabilityBuiltInSource) FetchSubject(ctx context.Context, subjectID str
 	return &ports.SubjectSnapshot{Name: dto.Name, Fields: fields}, nil
 }
 
+func (s capabilityBuiltInSource) CountSubjects(ctx context.Context) (int, error) {
+	return s.readModel.Count(ctx)
+}
+
 type queryCountMaturityScaleAdapter struct {
 	configurations *metaReadModels.MetaModelConfigurationReadModel
 }

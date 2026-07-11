@@ -129,25 +129,25 @@ Feature: One-pager completeness evaluated at read time
 
 ## Acceptance Criteria
 
-- [ ] The one-pager response includes per-subject completeness: filled/required counts plus
+- [x] The one-pager response includes per-subject completeness: filled/required counts plus
       the IDs and display names of missing required fields — no second frontend call needed.
-- [ ] The one-pager page renders each valueless required field as "missing — required" and
+- [x] The one-pager page renders each valueless required field as "missing — required" and
       shows a completeness summary (e.g. "3 of 5 required fields filled").
-- [ ] Optional fields without values never affect completeness or render as missing.
-- [ ] Retiring a required field restores completeness on next read; reactivating it removes
+- [x] Optional fields without values never affect completeness or render as missing.
+- [x] Retiring a required field restores completeness on next read; reactivating it removes
       completeness again — with zero writes to any OnePagerFacts stream in both cases.
-- [ ] Flipping a field required marks all subjects lacking a value incomplete on next read,
+- [x] Flipping a field required marks all subjects lacking a value incomplete on next read,
       appends no facts events, and blocks no subject or facts edit.
-- [ ] Subject list endpoints return a per-row completeness indicator where rule 10 applies,
+- [x] Subject list endpoints return a per-row completeness indicator where rule 10 applies,
       computed set-based for the returned page; cursor pagination, ordering, and page size
       are unchanged, and the query count per page stays constant (no N+1).
-- [ ] The settings UI shows "Making <field> required will mark <N> <subject type>s
+- [x] The settings UI shows "Making <field> required will mark <N> <subject type>s
       incomplete" before the admin confirms a requirement change or a new required field,
       with N correct per rule 7.
-- [ ] The impact preview endpoint is a side-effect-free GET guarded by the configuration
+- [x] The impact preview endpoint is a side-effect-free GET guarded by the configuration
       write permission; population counts flow through the subject port method (rule 8).
-- [ ] No completeness cache table or projector exists in this slice (D6).
-- [ ] Every BDD scenario above has a corresponding automated test.
+- [x] No completeness cache table or projector exists in this slice (D6).
+- [x] Every BDD scenario above has a corresponding automated test.
 
 ---
 
@@ -243,8 +243,8 @@ the subject port, implemented by the composition-root adapters — never raw cro
 ## Checklist
 
 - [x] Specification ready
-- [ ] Implementation done
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
-- [ ] API documentation updated
-- [ ] User sign-off
+- [x] Implementation done
+- [x] Unit tests implemented and passing
+- [x] Integration tests implemented and passing
+- [x] API documentation updated
+- [x] User sign-off

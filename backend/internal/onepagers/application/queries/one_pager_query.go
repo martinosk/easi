@@ -28,10 +28,11 @@ type OnePagerQueryDeps struct {
 }
 
 type OnePager struct {
-	SubjectType string
-	SubjectID   string
-	SubjectName string
-	Fields      []Field
+	SubjectType  string
+	SubjectID    string
+	SubjectName  string
+	Fields       []Field
+	Completeness Completeness
 }
 
 type Field struct {
@@ -83,17 +84,20 @@ func (q *OnePagerQuery) Get(ctx context.Context, subjectType valueobjects.Subjec
 		return nil, fmt.Errorf("get one-pager facts for %s %s: %w", subjectType.Value(), subjectID, err)
 	}
 
-	fields := assembleFields(document, subjectType, snapshot, facts)
+	factsByFieldID := indexFactsByFieldID(facts)
+	fields := assembleFields(document, subjectType, snapshot, factsByFieldID)
+	completeness := computeCompleteness(document, factsByFieldID)
 
 	if err := q.applyMaturitySections(ctx, fields); err != nil {
 		return nil, err
 	}
 
 	return &OnePager{
-		SubjectType: subjectType.Value(),
-		SubjectID:   subjectID,
-		SubjectName: snapshot.Name,
-		Fields:      fields,
+		SubjectType:  subjectType.Value(),
+		SubjectID:    subjectID,
+		SubjectName:  snapshot.Name,
+		Fields:       fields,
+		Completeness: completeness,
 	}, nil
 }
 

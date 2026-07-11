@@ -58,6 +58,7 @@ function buildView(overrides: Partial<OnePagerView> = {}): OnePagerView {
     subjectId: 'cap-1',
     subjectName: 'Payments',
     fields: [],
+    completeness: { requiredCount: 0, filledCount: 0, missingFields: [] },
     _links: {
       self: { href: '/api/v1/one-pagers/capability/cap-1', method: 'GET' },
       'x-subject': { href: '/api/v1/capabilities/cap-1', method: 'GET' },
@@ -297,5 +298,95 @@ describe('OnePagerPage', () => {
 
     expect(await screen.findByText('One-pager not found')).toBeInTheDocument();
     expect(onePagersApi.getOnePager).not.toHaveBeenCalled();
+  });
+
+  it('shows a complete-subject summary and no missing markers when every required field is filled', async () => {
+    vi.mocked(onePagersApi.getOnePager).mockResolvedValue(
+      buildView({
+        fields: [
+          customField('f1', 'Contract link', {
+            type: 'link',
+            value: { type: 'link', version: 1, value: { label: 'MSA', url: 'https://example.com' } },
+            displayText: 'MSA',
+          }),
+          customField('f2', 'Contact person', {
+            type: 'contact-person',
+            value: { type: 'contact-person', version: 1, value: { name: 'Jane', email: 'jane@example.com' } },
+            displayText: 'Jane',
+          }),
+        ],
+        completeness: { requiredCount: 2, filledCount: 2, missingFields: [] },
+      }),
+    );
+
+    renderPage();
+
+    expect(await screen.findByTestId('one-pager-completeness-summary')).toHaveTextContent(
+      '2 of 2 required fields filled',
+    );
+    expect(screen.queryByText('missing — required')).not.toBeInTheDocument();
+  });
+
+  it('flags a missing required field and shows a partial completeness summary', async () => {
+    vi.mocked(onePagersApi.getOnePager).mockResolvedValue(
+      buildView({
+        fields: [
+          customField('f1', 'Contract link', { type: 'link', value: null }),
+          customField('f2', 'Contact person', {
+            type: 'contact-person',
+            value: { type: 'contact-person', version: 1, value: { name: 'Jane', email: 'jane@example.com' } },
+            displayText: 'Jane',
+          }),
+        ],
+        completeness: {
+          requiredCount: 2,
+          filledCount: 1,
+          missingFields: [{ fieldId: 'f1', name: 'Contract link' }],
+        },
+      }),
+    );
+
+    renderPage();
+
+    expect(await screen.findByTestId('one-pager-missing-required-f1')).toHaveTextContent('missing — required');
+    expect(screen.getByTestId('one-pager-completeness-summary')).toHaveTextContent('1 of 2 required fields filled');
+    expect(screen.queryByTestId('one-pager-missing-required-f2')).not.toBeInTheDocument();
+  });
+
+  it('does not flag an optional field with no value as missing', async () => {
+    vi.mocked(onePagersApi.getOnePager).mockResolvedValue(
+      buildView({
+        fields: [
+          customField('f1', 'Contract link', {
+            type: 'link',
+            value: { type: 'link', version: 1, value: { label: 'MSA', url: 'https://example.com' } },
+            displayText: 'MSA',
+          }),
+          customField('f2', 'Notes', { type: 'text', value: null }),
+        ],
+        completeness: { requiredCount: 1, filledCount: 1, missingFields: [] },
+      }),
+    );
+
+    renderPage();
+
+    expect(await screen.findByTestId('one-pager-completeness-summary')).toHaveTextContent(
+      '1 of 1 required fields filled',
+    );
+    expect(screen.queryByTestId('one-pager-missing-required-f2')).not.toBeInTheDocument();
+  });
+
+  it('renders no completeness summary when the configuration has no required fields', async () => {
+    vi.mocked(onePagersApi.getOnePager).mockResolvedValue(
+      buildView({
+        fields: [customField('f1', 'Notes', { type: 'text', value: null })],
+        completeness: { requiredCount: 0, filledCount: 0, missingFields: [] },
+      }),
+    );
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByText('Payments')).toBeInTheDocument());
+    expect(screen.queryByTestId('one-pager-completeness-summary')).not.toBeInTheDocument();
   });
 });

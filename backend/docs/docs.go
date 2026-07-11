@@ -8775,6 +8775,84 @@ const docTemplate = `{
                 }
             }
         },
+        "/one-pagers/configurations/{subjectType}/impact-preview": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Side-effect-free preview of how many subjects would be marked incomplete by making a custom field required. For an existing field, counts the subjects of the type lacking a recorded value; without fieldId, counts the full subject population for a new field being defined. Appends no events and changes no configuration or facts.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "one-pagers"
+                ],
+                "summary": "Preview the impact of a custom field requirement change",
+                "parameters": [
+                    {
+                        "enum": [
+                            "capability",
+                            "enterprise-capability",
+                            "application",
+                            "acquired-entity",
+                            "vendor",
+                            "internal-team"
+                        ],
+                        "type": "string",
+                        "description": "Subject type",
+                        "name": "subjectType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Existing custom field ID; omit for a new field being defined",
+                        "name": "fieldId",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_onepagers_infrastructure_api.ImpactPreviewDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/one-pagers/{subjectType}/{subjectID}": {
             "get": {
                 "security": [
@@ -8782,7 +8860,7 @@ const docTemplate = `{
                         "CookieAuth": []
                     }
                 ],
-                "description": "Assembles the tenant's one-pager configuration, the subject's recorded field values, and built-in field data sourced from the owning context into a single field list in the configured interleaved display order.",
+                "description": "Assembles the tenant's one-pager configuration, the subject's recorded field values, and built-in field data sourced from the owning context into a single field list in the configured interleaved display order, alongside a completeness summary of the active required custom fields.",
                 "produces": [
                     "application/json"
                 ],
@@ -12558,6 +12636,9 @@ const docTemplate = `{
                 "notes": {
                     "type": "string"
                 },
+                "onePagerComplete": {
+                    "type": "boolean"
+                },
                 "updatedAt": {
                     "type": "string"
                 }
@@ -12615,6 +12696,9 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                },
+                "onePagerComplete": {
+                    "type": "boolean"
                 }
             }
         },
@@ -12720,6 +12804,9 @@ const docTemplate = `{
                 "notes": {
                     "type": "string"
                 },
+                "onePagerComplete": {
+                    "type": "boolean"
+                },
                 "updatedAt": {
                     "type": "string"
                 }
@@ -12774,6 +12861,9 @@ const docTemplate = `{
                 },
                 "notes": {
                     "type": "string"
+                },
+                "onePagerComplete": {
+                    "type": "boolean"
                 },
                 "updatedAt": {
                     "type": "string"
@@ -12999,6 +13089,9 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "onePagerComplete": {
+                    "type": "boolean"
+                },
                 "ownershipModel": {
                     "type": "string"
                 },
@@ -13160,6 +13253,9 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                },
+                "onePagerComplete": {
+                    "type": "boolean"
                 },
                 "targetMaturity": {
                     "type": "integer"
@@ -15888,6 +15984,23 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_onepagers_infrastructure_api.CompletenessDTO": {
+            "type": "object",
+            "properties": {
+                "filledCount": {
+                    "type": "integer"
+                },
+                "missingFields": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_onepagers_infrastructure_api.MissingFieldDTO"
+                    }
+                },
+                "requiredCount": {
+                    "type": "integer"
+                }
+            }
+        },
         "internal_onepagers_infrastructure_api.CustomFieldDTO": {
             "type": "object",
             "properties": {
@@ -16023,6 +16136,23 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_onepagers_infrastructure_api.ImpactPreviewDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "affectedSubjectCount": {
+                    "type": "integer"
+                },
+                "fieldId": {
+                    "type": "string"
+                },
+                "subjectType": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_onepagers_infrastructure_api.MaturityValueDTO": {
             "type": "object",
             "properties": {
@@ -16031,6 +16161,17 @@ const docTemplate = `{
                 },
                 "value": {
                     "type": "integer"
+                }
+            }
+        },
+        "internal_onepagers_infrastructure_api.MissingFieldDTO": {
+            "type": "object",
+            "properties": {
+                "fieldId": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
                 }
             }
         },
@@ -16083,6 +16224,9 @@ const docTemplate = `{
             "properties": {
                 "_links": {
                     "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "completeness": {
+                    "$ref": "#/definitions/internal_onepagers_infrastructure_api.CompletenessDTO"
                 },
                 "fields": {
                     "type": "array",

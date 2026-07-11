@@ -1,0 +1,8 @@
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--color-warning);
+  flex-shrink: 0;
+  display: inline-block;
+}

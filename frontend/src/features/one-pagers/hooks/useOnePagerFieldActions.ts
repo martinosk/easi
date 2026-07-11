@@ -1,4 +1,5 @@
 import type { RenameCustomFieldFormData } from '../../../lib/schemas/onePagerConfiguration';
+import { hasLink } from '../../../utils/hateoas';
 import type { FieldRowActions } from '../components/FieldRow';
 import type { BuiltInField, CustomField, FieldRef, OnePagerConfiguration, OnePagerSubjectType } from '../types';
 import {
@@ -25,6 +26,7 @@ export function useOnePagerFieldActions(
   subjectType: OnePagerSubjectType,
   configuration: OnePagerConfiguration | undefined,
   onRename: (field: CustomField) => void,
+  onRequireConfirmationNeeded: (field: CustomField) => void,
 ) {
   const reorder = useReorderFields(subjectType);
   const includeBuiltIn = useIncludeBuiltInField(subjectType);
@@ -50,6 +52,10 @@ export function useOnePagerFieldActions(
     onRename,
     onToggleRequired: (field, required) => {
       if (version === undefined) return;
+      if (required && hasLink(configuration, 'x-impact-preview')) {
+        onRequireConfirmationNeeded(field);
+        return;
+      }
       changeRequirement.mutate({ field, request: { required, version } });
     },
     onRetireCustom: (field) => {
@@ -88,5 +94,18 @@ export function useOnePagerFieldActions(
     );
   };
 
-  return { fieldActions, includeField, reactivateField, saveRename, isRenaming: rename.isPending };
+  const confirmRequireField = (field: CustomField, onDone: () => void) => {
+    if (version === undefined) return;
+    changeRequirement.mutate({ field, request: { required: true, version } }, { onSuccess: onDone });
+  };
+
+  return {
+    fieldActions,
+    includeField,
+    reactivateField,
+    saveRename,
+    isRenaming: rename.isPending,
+    confirmRequireField,
+    isConfirmingRequired: changeRequirement.isPending,
+  };
 }

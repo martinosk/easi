@@ -1,6 +1,8 @@
 package api
 
 import (
+	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -16,6 +18,34 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestBuiltInFieldSource_CountSubjects(t *testing.T) {
+	t.Run("delegates to the count function", func(t *testing.T) {
+		source := builtInFieldSource("widget",
+			func(context.Context, string) (*string, error) { return nil, nil },
+			func(*string) *ports.SubjectSnapshot { return nil },
+			func(context.Context) (int, error) { return 42, nil },
+		)
+
+		count, err := source.CountSubjects(context.Background())
+
+		require.NoError(t, err)
+		assert.Equal(t, 42, count)
+	})
+
+	t.Run("wraps the count function error", func(t *testing.T) {
+		wantErr := errors.New("boom")
+		source := builtInFieldSource("widget",
+			func(context.Context, string) (*string, error) { return nil, nil },
+			func(*string) *ports.SubjectSnapshot { return nil },
+			func(context.Context) (int, error) { return 0, wantErr },
+		)
+
+		_, err := source.CountSubjects(context.Background())
+
+		assert.ErrorIs(t, err, wantErr)
+	})
+}
 
 func catalogFieldIDs(t *testing.T, subjectType string) []string {
 	t.Helper()

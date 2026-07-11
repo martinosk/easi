@@ -22,6 +22,7 @@ type EnterpriseCapabilityDTO struct {
 	DomainCount             int         `json:"domainCount"`
 	CreatedAt               time.Time   `json:"createdAt"`
 	UpdatedAt               *time.Time  `json:"updatedAt,omitempty"`
+	OnePagerComplete        *bool       `json:"onePagerComplete,omitempty"`
 	Links                   types.Links `json:"_links,omitempty"`
 }
 
@@ -144,6 +145,22 @@ func (rm *EnterpriseCapabilityReadModel) ActiveEnterpriseCapabilityNames(ctx con
 		return rows.Err()
 	})
 	return names, err
+}
+
+func (rm *EnterpriseCapabilityReadModel) Count(ctx context.Context) (int, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	var count int
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		return tx.QueryRowContext(ctx,
+			"SELECT COUNT(*) FROM enterprisearchitecture.enterprise_capabilities WHERE tenant_id = $1",
+			tenantID.Value(),
+		).Scan(&count)
+	})
+	return count, err
 }
 
 func (rm *EnterpriseCapabilityReadModel) GetByID(ctx context.Context, id string) (*EnterpriseCapabilityDTO, error) {

@@ -95,6 +95,7 @@ func TestBuildConfigurationDTO_NoWriteAffordancesWithoutWritePermission(t *testi
 
 	assert.NotContains(t, dto.Links, "x-define-custom-field")
 	assert.NotContains(t, dto.Links, "x-reorder")
+	assert.NotContains(t, dto.Links, "x-impact-preview")
 	for _, field := range dto.BuiltInFields {
 		assert.Empty(t, field.Links, field.ID)
 	}
@@ -118,6 +119,11 @@ func TestBuildConfigurationDTO_WriteAffordancesForAdmin(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "/api/v1/one-pagers/configurations/application/display-order", reorder.Href)
 	assert.Equal(t, "PUT", reorder.Method)
+
+	preview, ok := dto.Links["x-impact-preview"]
+	require.True(t, ok)
+	assert.Equal(t, "/api/v1/one-pagers/configurations/application/impact-preview", preview.Href)
+	assert.Equal(t, "GET", preview.Method)
 }
 
 func TestBuildConfigurationDTO_BuiltInFieldLinksReflectInclusion(t *testing.T) {

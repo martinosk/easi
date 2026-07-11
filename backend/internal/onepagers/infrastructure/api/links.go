@@ -37,6 +37,7 @@ func (l *OnePagerLinks) ConfigurationLinks(ctx linkContext) sharedAPI.Links {
 	if ctx.canWrite() {
 		links["x-define-custom-field"] = l.Post(configurationPath(ctx.subjectType) + "/custom-fields")
 		links["x-reorder"] = l.Put(configurationPath(ctx.subjectType) + "/display-order")
+		links["x-impact-preview"] = l.Get(configurationPath(ctx.subjectType) + "/impact-preview")
 	}
 	return links
 }

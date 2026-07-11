@@ -1,5 +1,6 @@
 import { UnstyledButton } from '@mantine/core';
 import React from 'react';
+import { OnePagerIncompleteIndicator } from '../../../one-pagers/components/OnePagerIncompleteIndicator';
 
 interface TreeItemProps<T> {
   item: T;
@@ -14,7 +15,7 @@ interface TreeItemProps<T> {
   onDragStart?: (e: React.DragEvent) => void;
 }
 
-function TreeItem<T>({
+function TreeItem<T extends { onePagerComplete?: boolean }>({
   isSelected,
   isInView,
   icon,
@@ -48,11 +49,12 @@ function TreeItem<T>({
     >
       <span className="tree-item-icon">{icon}</span>
       <span className="tree-item-label">{label}</span>
+      <OnePagerIncompleteIndicator id={item.id} onePagerComplete={item.onePagerComplete} />
     </UnstyledButton>
   );
 }
 
-interface TreeItemListProps<T extends { id: string; name: string }> {
+interface TreeItemListProps<T extends { id: string; name: string; onePagerComplete?: boolean }> {
   items: T[];
   emptyMessage: string;
   icon: string;
@@ -66,7 +68,7 @@ interface TreeItemListProps<T extends { id: string; name: string }> {
   onDragStart?: (e: React.DragEvent, item: T) => void;
 }
 
-export function TreeItemList<T extends { id: string; name: string }>({
+export function TreeItemList<T extends { id: string; name: string; onePagerComplete?: boolean }>({
   items,
   emptyMessage,
   icon,

@@ -36,10 +36,11 @@ type MaturityAnalysisQueries interface {
 }
 
 type EnterpriseCapabilityReadModels struct {
-	Capability       EnterpriseCapabilityQueries
-	Composition      EnterpriseCapabilityCompositionCounts
-	Importance       EnterpriseStrategicImportanceQueries
-	MaturityAnalysis MaturityAnalysisQueries
+	Capability           EnterpriseCapabilityQueries
+	Composition          EnterpriseCapabilityCompositionCounts
+	Importance           EnterpriseStrategicImportanceQueries
+	MaturityAnalysis     MaturityAnalysisQueries
+	OnePagerCompleteness OnePagerCompletenessSource
 }
 
 type EnterpriseCapabilityHandlers struct {
@@ -116,6 +117,11 @@ func (h *EnterpriseCapabilityHandlers) GetAllEnterpriseCapabilities(w http.Respo
 		capabilities[i].IncludedCapabilityCount = counts[capabilities[i].ID].IncludedCount
 		capabilities[i].DomainCount = counts[capabilities[i].ID].DomainCount
 		capabilities[i].Links = h.hateoas.EnterpriseCapabilityLinksForActor(capabilities[i].ID, actor)
+	}
+
+	if err := decorateEnterpriseCapabilitiesOnePagerCompleteness(r.Context(), h.readModels.OnePagerCompleteness, capabilities); err != nil {
+		sharedAPI.HandleError(w, err)
+		return
 	}
 
 	sharedAPI.RespondCollection(w, http.StatusOK, capabilities, h.hateoas.EnterpriseCapabilityCollectionLinks())

@@ -13,30 +13,53 @@ import (
 	"easi/backend/internal/onepagers/application/ports"
 )
 
-type builtInFieldFetch func(ctx context.Context, subjectID string) (*ports.SubjectSnapshot, error)
-
-func (f builtInFieldFetch) FetchSubject(ctx context.Context, subjectID string) (*ports.SubjectSnapshot, error) {
-	return f(ctx, subjectID)
+type builtInFieldAdapter struct {
+	fetch func(ctx context.Context, subjectID string) (*ports.SubjectSnapshot, error)
+	count func(ctx context.Context) (int, error)
 }
 
-func builtInFieldSource[T any](subjectType string, getByID func(context.Context, string) (*T, error), toSnapshot func(*T) *ports.SubjectSnapshot) ports.BuiltInFieldSource {
-	return builtInFieldFetch(func(ctx context.Context, subjectID string) (*ports.SubjectSnapshot, error) {
-		dto, err := getByID(ctx, subjectID)
-		if err != nil {
-			return nil, fmt.Errorf("fetch %s %s for one-pager: %w", subjectType, subjectID, err)
-		}
-		return toSnapshot(dto), nil
-	})
+func (a builtInFieldAdapter) FetchSubject(ctx context.Context, subjectID string) (*ports.SubjectSnapshot, error) {
+	return a.fetch(ctx, subjectID)
+}
+
+func (a builtInFieldAdapter) CountSubjects(ctx context.Context) (int, error) {
+	return a.count(ctx)
+}
+
+func builtInFieldSource[T any](subjectType string, getByID func(context.Context, string) (*T, error), toSnapshot func(*T) *ports.SubjectSnapshot, countSubjects func(context.Context) (int, error)) ports.BuiltInFieldSource {
+	return builtInFieldAdapter{
+		fetch: func(ctx context.Context, subjectID string) (*ports.SubjectSnapshot, error) {
+			dto, err := getByID(ctx, subjectID)
+			if err != nil {
+				return nil, fmt.Errorf("fetch %s %s for one-pager: %w", subjectType, subjectID, err)
+			}
+			return toSnapshot(dto), nil
+		},
+		count: func(ctx context.Context) (int, error) {
+			count, err := countSubjects(ctx)
+			if err != nil {
+				return 0, fmt.Errorf("count %s subjects for one-pager: %w", subjectType, err)
+			}
+			return count, nil
+		},
+	}
 }
 
 func newOnePagerBuiltInFieldSources(db *database.TenantAwareDB) map[string]ports.BuiltInFieldSource {
+	capabilities := capReadModels.NewCapabilityReadModel(db)
+	enterpriseCapabilities := eaReadModels.NewEnterpriseCapabilityReadModel(db)
+	applications := archReadModels.NewApplicationComponentReadModel(db)
+	acquiredEntities := archReadModels.NewAcquiredEntityReadModel(db)
+	vendors := archReadModels.NewVendorReadModel(db)
+	internalTeams := archReadModels.NewInternalTeamReadModel(db)
+
 	return map[string]ports.BuiltInFieldSource{
-		"capability":            builtInFieldSource("capability", capReadModels.NewCapabilityReadModel(db).GetByID, capabilitySnapshot),
-		"enterprise-capability": builtInFieldSource("enterprise capability", eaReadModels.NewEnterpriseCapabilityReadModel(db).GetByID, enterpriseCapabilitySnapshot),
-		"application":           builtInFieldSource("application", archReadModels.NewApplicationComponentReadModel(db).GetByID, applicationSnapshot),
-		"acquired-entity":       builtInFieldSource("acquired entity", archReadModels.NewAcquiredEntityReadModel(db).GetByID, acquiredEntitySnapshot),
-		"vendor":                builtInFieldSource("vendor", archReadModels.NewVendorReadModel(db).GetByID, vendorSnapshot),
-		"internal-team":         builtInFieldSource("internal team", archReadModels.NewInternalTeamReadModel(db).GetByID, internalTeamSnapshot),
+		"capability":            builtInFieldSource("capability", capabilities.GetByID, capabilitySnapshot, capabilities.Count),
+		"enterprise-capability": builtInFieldSource("enterprise capability", enterpriseCapabilities.GetByID, enterpriseCapabilitySnapshot, enterpriseCapabilities.Count),
+		"application":           builtInFieldSource("application", applications.GetByID, applicationSnapshot, applications.Count),
+		"acquired-entity":       builtInFieldSource("acquired entity", acquiredEntities.GetByID, acquiredEntitySnapshot, acquiredEntities.Count),
+		"vendor":                builtInFieldSource("vendor", vendors.GetByID, vendorSnapshot, vendors.Count),
+		"internal-team":         builtInFieldSource("internal team", internalTeams.GetByID, internalTeamSnapshot, internalTeams.Count),
 	}
 }
 

@@ -22,3 +22,12 @@ export const ONE_PAGER_SUBJECT_TYPE_TABS: SubjectTypeTab[] = ONE_PAGER_SUBJECT_T
 export function subjectTypeLabel(subjectType: OnePagerSubjectType): string {
   return SUBJECT_TYPE_LABELS[subjectType];
 }
+
+function pluralize(label: string): string {
+  if (/[^aeiou]y$/i.test(label)) return `${label.slice(0, -1)}ies`;
+  return `${label}s`;
+}
+
+export function pluralSubjectTypeLabel(subjectType: OnePagerSubjectType): string {
+  return pluralize(SUBJECT_TYPE_LABELS[subjectType]);
+}

@@ -24,7 +24,7 @@ func NewOnePagerViewHandlers(query onePagerReader, links *OnePagerLinks) *OnePag
 
 // GetOnePager godoc
 // @Summary Get the composed one-pager for a subject
-// @Description Assembles the tenant's one-pager configuration, the subject's recorded field values, and built-in field data sourced from the owning context into a single field list in the configured interleaved display order.
+// @Description Assembles the tenant's one-pager configuration, the subject's recorded field values, and built-in field data sourced from the owning context into a single field list in the configured interleaved display order, alongside a completeness summary of the active required custom fields.
 // @Tags one-pagers
 // @Produce json
 // @Param subjectType path string true "Subject type" Enums(capability, enterprise-capability, application, acquired-entity, vendor, internal-team)

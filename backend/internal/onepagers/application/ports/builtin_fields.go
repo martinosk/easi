@@ -43,6 +43,7 @@ type SubjectSnapshot struct {
 
 type BuiltInFieldSource interface {
 	FetchSubject(ctx context.Context, subjectID string) (*SubjectSnapshot, error)
+	CountSubjects(ctx context.Context) (int, error)
 }
 
 type MaturitySection struct {

@@ -16,18 +16,21 @@ type ComponentHandlers struct {
 	readModel        *readmodels.ApplicationComponentReadModel
 	hateoas          *ArchitectureModelingLinks
 	paginationHelper *sharedAPI.PaginationHelper
+	completeness     OnePagerCompletenessSource
 }
 
 func NewComponentHandlers(
 	commandBus cqrs.CommandBus,
 	readModel *readmodels.ApplicationComponentReadModel,
 	hateoas *ArchitectureModelingLinks,
+	completeness OnePagerCompletenessSource,
 ) *ComponentHandlers {
 	return &ComponentHandlers{
 		commandBus:       commandBus,
 		readModel:        readModel,
 		hateoas:          hateoas,
 		paginationHelper: sharedAPI.NewPaginationHelper("/api/v1/components"),
+		completeness:     completeness,
 	}
 }
 
@@ -121,6 +124,11 @@ func (h *ComponentHandlers) GetAllComponents(w http.ResponseWriter, r *http.Requ
 	})
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve components")
+		return
+	}
+
+	if err := decorateComponentsOnePagerCompleteness(r.Context(), h.completeness, components); err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to evaluate one-pager completeness")
 		return
 	}
 

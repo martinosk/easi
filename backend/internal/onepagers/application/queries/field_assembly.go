@@ -7,8 +7,7 @@ import (
 	"easi/backend/internal/onepagers/domain/valueobjects"
 )
 
-func assembleFields(document readmodels.ConfigurationDocument, subjectType valueobjects.SubjectType, snapshot *ports.SubjectSnapshot, facts []readmodels.FactRecord) []Field {
-	factsByFieldID := indexFactsByFieldID(facts)
+func assembleFields(document readmodels.ConfigurationDocument, subjectType valueobjects.SubjectType, snapshot *ports.SubjectSnapshot, factsByFieldID map[string]readmodels.FactRecord) []Field {
 	fields := make([]Field, 0, len(document.DisplayOrder))
 	for _, ref := range document.DisplayOrder {
 		if field, ok := buildField(ref, subjectType, snapshot, document, factsByFieldID); ok {

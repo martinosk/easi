@@ -1,5 +1,5 @@
 import { httpClient } from '../../../api/core/httpClient';
-import { followLink, type ResourceWithLinks } from '../../../utils/hateoas';
+import { followLink, getLink, type ResourceWithLinks } from '../../../utils/hateoas';
 import type {
   AddSelectionOptionRequest,
   BuiltInField,
@@ -9,6 +9,7 @@ import type {
   FieldValue,
   OnePagerConfiguration,
   OnePagerFacts,
+  OnePagerImpactPreview,
   OnePagerSubjectType,
   OnePagerView,
   RecordFieldValueRequest,
@@ -62,6 +63,14 @@ export const onePagersApi = {
 
   retireSelectionOption: (option: SelectionOption, request: VersionRequest) =>
     sendCommand('post', option, 'x-retire', request),
+
+  async getImpactPreview(configuration: OnePagerConfiguration, fieldId?: string): Promise<OnePagerImpactPreview> {
+    const base = getLink(configuration, 'x-impact-preview');
+    if (!base) throw new Error("Link 'x-impact-preview' not found on resource");
+    const url = fieldId ? `${base}?fieldId=${encodeURIComponent(fieldId)}` : base;
+    const response = await httpClient.get<OnePagerImpactPreview>(url);
+    return response.data;
+  },
 
   async getFacts(subjectType: OnePagerSubjectType, subjectId: string): Promise<OnePagerFacts> {
     const response = await httpClient.get<OnePagerFacts>(`/api/v1/one-pagers/${subjectType}/${subjectId}/facts`);

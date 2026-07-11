@@ -12,15 +12,16 @@ import (
 )
 
 type InternalTeamDTO struct {
-	ID            string              `json:"id"`
-	Name          string              `json:"name"`
-	Department    string              `json:"department,omitempty"`
-	ContactPerson string              `json:"contactPerson,omitempty"`
-	Notes         string              `json:"notes,omitempty"`
-	CreatedAt     time.Time           `json:"createdAt"`
-	UpdatedAt     *time.Time          `json:"updatedAt,omitempty"`
-	Links         types.Links         `json:"_links,omitempty"`
-	XRelated      []types.RelatedLink `json:"-"`
+	ID               string              `json:"id"`
+	Name             string              `json:"name"`
+	Department       string              `json:"department,omitempty"`
+	ContactPerson    string              `json:"contactPerson,omitempty"`
+	Notes            string              `json:"notes,omitempty"`
+	CreatedAt        time.Time           `json:"createdAt"`
+	UpdatedAt        *time.Time          `json:"updatedAt,omitempty"`
+	OnePagerComplete *bool               `json:"onePagerComplete,omitempty"`
+	Links            types.Links         `json:"_links,omitempty"`
+	XRelated         []types.RelatedLink `json:"-"`
 }
 
 func (d InternalTeamDTO) MarshalJSON() ([]byte, error) {
@@ -127,6 +128,23 @@ func (rm *InternalTeamReadModel) GetByID(ctx context.Context, id string) (*Inter
 	}
 
 	return &dto, nil
+}
+
+func (rm *InternalTeamReadModel) Count(ctx context.Context) (int, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	var count int
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		return tx.QueryRowContext(ctx,
+			"SELECT COUNT(*) FROM architecturemodeling.internal_teams WHERE tenant_id = $1 AND is_deleted = FALSE",
+			tenantID.Value(),
+		).Scan(&count)
+	})
+
+	return count, err
 }
 
 func (rm *InternalTeamReadModel) GetAll(ctx context.Context) ([]InternalTeamDTO, error) {

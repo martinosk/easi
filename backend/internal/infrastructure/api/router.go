@@ -226,6 +226,7 @@ func setupAccessDelegation(deps routerDependencies) *accessdelegationAPI.AccessD
 }
 
 func setupModelingRoutes(r chi.Router, deps routerDependencies) {
+	onePagerCompleteness := newOnePagerCompletenessIndicators(deps.db)
 	mustSetup(architectureAPI.SetupArchitectureModelingRoutes(architectureAPI.RouteConfig{
 		Router:         r,
 		CommandBus:     deps.commandBus,
@@ -234,6 +235,12 @@ func setupModelingRoutes(r chi.Router, deps routerDependencies) {
 		DB:             deps.db,
 		HATEOAS:        deps.hateoas,
 		AuthMiddleware: deps.authDeps.AuthMiddleware,
+		OnePagerCompleteness: architectureAPI.OnePagerCompletenessSources{
+			Components:       onePagerCompletenessFor(onePagerCompleteness, "application"),
+			AcquiredEntities: onePagerCompletenessFor(onePagerCompleteness, "acquired-entity"),
+			Vendors:          onePagerCompletenessFor(onePagerCompleteness, "vendor"),
+			InternalTeams:    onePagerCompletenessFor(onePagerCompleteness, "internal-team"),
+		},
 	}), "architecture modeling routes")
 
 	viewsAPI.SubscribeEvents(deps.eventBus, deps.commandBus, deps.db)
@@ -243,14 +250,15 @@ func setupModelingRoutes(r chi.Router, deps routerDependencies) {
 	viewsAPI.RegisterRoutes(r, viewHandlers, deps.authDeps.AuthMiddleware)
 
 	mustSetup(capabilityAPI.SetupCapabilityMappingRoutes(&capabilityAPI.RouteConfig{
-		Router:          r,
-		CommandBus:      deps.commandBus,
-		EventStore:      deps.eventStore,
-		EventBus:        deps.eventBus,
-		DB:              deps.db,
-		HATEOAS:         deps.hateoas,
-		SessionProvider: deps.authDeps.SessionManager,
-		AuthMiddleware:  deps.authDeps.AuthMiddleware,
+		Router:               r,
+		CommandBus:           deps.commandBus,
+		EventStore:           deps.eventStore,
+		EventBus:             deps.eventBus,
+		DB:                   deps.db,
+		HATEOAS:              deps.hateoas,
+		SessionProvider:      deps.authDeps.SessionManager,
+		AuthMiddleware:       deps.authDeps.AuthMiddleware,
+		OnePagerCompleteness: onePagerCompletenessFor(onePagerCompleteness, "capability"),
 	}), "capability mapping routes")
 }
 
@@ -269,15 +277,16 @@ func setupValueStreamsRoutes(r chi.Router, deps routerDependencies) {
 func setupDomainRoutes(r chi.Router, deps routerDependencies) {
 	directionReadModel := adReadModels.NewDirectionReadModel(deps.db)
 	compositionService, err := enterpriseArchAPI.SetupEnterpriseArchitectureRoutes(enterpriseArchAPI.EnterpriseArchRoutesDeps{
-		Router:              r,
-		CommandBus:          deps.commandBus,
-		EventStore:          deps.eventStore,
-		EventBus:            deps.eventBus,
-		DB:                  deps.db,
-		AuthMiddleware:      deps.authDeps.AuthMiddleware,
-		SessionProvider:     deps.authDeps.SessionManager,
-		DirectionSources:    directionSourcesAdapter{readModel: directionReadModel},
-		BusinessDomainNames: businessDomainNameLookup(capReadModels.NewBusinessDomainReadModel(deps.db)),
+		Router:               r,
+		CommandBus:           deps.commandBus,
+		EventStore:           deps.eventStore,
+		EventBus:             deps.eventBus,
+		DB:                   deps.db,
+		AuthMiddleware:       deps.authDeps.AuthMiddleware,
+		SessionProvider:      deps.authDeps.SessionManager,
+		DirectionSources:     directionSourcesAdapter{readModel: directionReadModel},
+		BusinessDomainNames:  businessDomainNameLookup(capReadModels.NewBusinessDomainReadModel(deps.db)),
+		OnePagerCompleteness: onePagerCompletenessFor(newOnePagerCompletenessIndicators(deps.db), "enterprise-capability"),
 	})
 	mustSetup(err, "enterprise architecture routes")
 

@@ -19,6 +19,7 @@ export interface EnterpriseCapability {
   domainCount: number;
   createdAt: string;
   updatedAt?: string;
+  onePagerComplete?: boolean;
   _links: HATEOASLinks & {
     self: HATEOASLink;
     edit?: HATEOASLink;

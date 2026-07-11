@@ -259,4 +259,24 @@ describe('CapabilitiesSection', () => {
       expect(screen.getByText('Beta')).toBeInTheDocument();
     });
   });
+
+  describe('one-pager completeness indicator', () => {
+    it('should show the indicator when onePagerComplete is false', () => {
+      renderWithCapabilities([createCapability({ id: 'cap-1' as CapabilityId, onePagerComplete: false })]);
+
+      expect(screen.getByTestId('one-pager-incomplete-cap-1')).toBeInTheDocument();
+    });
+
+    it('should not show the indicator when onePagerComplete is true', () => {
+      renderWithCapabilities([createCapability({ id: 'cap-1' as CapabilityId, onePagerComplete: true })]);
+
+      expect(screen.queryByTestId('one-pager-incomplete-cap-1')).not.toBeInTheDocument();
+    });
+
+    it('should not show the indicator when onePagerComplete is absent', () => {
+      renderWithCapabilities([createCapability({ id: 'cap-1' as CapabilityId })]);
+
+      expect(screen.queryByTestId('one-pager-incomplete-cap-1')).not.toBeInTheDocument();
+    });
+  });
 });

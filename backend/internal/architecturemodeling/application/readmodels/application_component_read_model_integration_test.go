@@ -227,3 +227,40 @@ func TestReadModel_Insert_IdempotentReplay(t *testing.T) {
 		})
 	}
 }
+
+func TestVendorReadModel_Count_Integration(t *testing.T) {
+	db := setupArchTestDB(t)
+	tenantDB := database.NewTenantAwareDB(db)
+	rm := NewVendorReadModel(tenantDB)
+
+	tenantID, err := sharedvo.NewTenantID(fmt.Sprintf("test-vendor-count-%d", time.Now().UnixNano()))
+	require.NoError(t, err)
+	ctx := sharedctx.WithTenant(context.Background(), tenantID)
+	t.Cleanup(func() {
+		_, _ = tenantDB.ExecContext(ctx, "DELETE FROM architecturemodeling.vendors WHERE tenant_id = $1", tenantID.Value())
+	})
+
+	zero, err := rm.Count(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 0, zero, "fresh tenant starts with zero vendors")
+
+	activeID := "vendor-count-active-" + tenantID.Value()
+	require.NoError(t, rm.Insert(ctx, VendorDTO{ID: activeID, Name: "Count Vendor Active", CreatedAt: time.Now().UTC()}))
+
+	deletedID := "vendor-count-deleted-" + tenantID.Value()
+	require.NoError(t, rm.Insert(ctx, VendorDTO{ID: deletedID, Name: "Count Vendor Deleted", CreatedAt: time.Now().UTC()}))
+	require.NoError(t, rm.MarkAsDeleted(ctx, deletedID, time.Now().UTC()))
+
+	otherTenantID, err := sharedvo.NewTenantID(fmt.Sprintf("test-vendor-count-other-%d", time.Now().UnixNano()))
+	require.NoError(t, err)
+	otherCtx := sharedctx.WithTenant(context.Background(), otherTenantID)
+	t.Cleanup(func() {
+		_, _ = tenantDB.ExecContext(otherCtx, "DELETE FROM architecturemodeling.vendors WHERE tenant_id = $1", otherTenantID.Value())
+	})
+	require.NoError(t, rm.Insert(otherCtx, VendorDTO{ID: "vendor-count-other-tenant", Name: "Other Tenant Vendor", CreatedAt: time.Now().UTC()}))
+
+	got, err := rm.Count(ctx)
+
+	require.NoError(t, err)
+	assert.Equal(t, 1, got, "count must include the active vendor, exclude the soft-deleted vendor, and exclude other tenants")
+}

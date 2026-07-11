@@ -25,6 +25,7 @@ function buildView(overrides: Partial<OnePagerView> = {}): OnePagerView {
     subjectId: 'vendor-1',
     subjectName: 'Acme Corp',
     fields: [],
+    completeness: { requiredCount: 0, filledCount: 0, missingFields: [] },
     _links: { self: { href: '/api/v1/one-pagers/vendor/vendor-1', method: 'GET' } },
     ...overrides,
   };

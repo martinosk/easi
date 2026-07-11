@@ -15,13 +15,14 @@ import (
 )
 
 type ApplicationComponentDTO struct {
-	ID          string              `json:"id"`
-	Name        string              `json:"name"`
-	Description string              `json:"description,omitempty"`
-	CreatedAt   time.Time           `json:"createdAt"`
-	Experts     []ExpertDTO         `json:"experts,omitempty"`
-	Links       types.Links         `json:"_links,omitempty"`
-	XRelated    []types.RelatedLink `json:"-"`
+	ID               string              `json:"id"`
+	Name             string              `json:"name"`
+	Description      string              `json:"description,omitempty"`
+	CreatedAt        time.Time           `json:"createdAt"`
+	Experts          []ExpertDTO         `json:"experts,omitempty"`
+	OnePagerComplete *bool               `json:"onePagerComplete,omitempty"`
+	Links            types.Links         `json:"_links,omitempty"`
+	XRelated         []types.RelatedLink `json:"-"`
 }
 
 func (d ApplicationComponentDTO) MarshalJSON() ([]byte, error) {
@@ -151,6 +152,26 @@ func (rm *ApplicationComponentReadModel) GetByID(ctx context.Context, id string)
 	}
 
 	return &dto, nil
+}
+
+func (rm *ApplicationComponentReadModel) Count(ctx context.Context) (int, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("resolve tenant for count application components: %w", err)
+	}
+
+	var count int
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		return tx.QueryRowContext(ctx,
+			"SELECT COUNT(*) FROM architecturemodeling.application_components WHERE tenant_id = $1 AND is_deleted = FALSE",
+			tenantID.Value(),
+		).Scan(&count)
+	})
+	if err != nil {
+		return 0, fmt.Errorf("count application components for tenant %s: %w", tenantID.Value(), err)
+	}
+
+	return count, nil
 }
 
 // GetAll retrieves all components for the current tenant

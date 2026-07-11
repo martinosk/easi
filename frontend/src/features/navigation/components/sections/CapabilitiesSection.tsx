@@ -8,6 +8,7 @@ import { buildCapabilityTree } from '../../../capabilities/hooks/useCapabilityTr
 import type { TreeSelectedItem } from '../../hooks/useTreeMultiSelect';
 import type { TreeMultiSelectProps } from '../../types';
 import { hasCustomColor } from '../../utils/treeUtils';
+import { OnePagerIncompleteIndicator } from '../../../one-pagers/components/OnePagerIncompleteIndicator';
 import { TreeSection } from '../TreeSection';
 import classes from './CapabilitiesSection.module.css';
 
@@ -129,6 +130,7 @@ export const CapabilitiesSection: React.FC<CapabilitiesSectionProps> = ({
     return (
       <>
         <MaturityDot capability={capability} colorScheme={colorScheme} />
+        <OnePagerIncompleteIndicator id={capability.id} onePagerComplete={capability.onePagerComplete} />
         {hasCustomColor(currentView?.colorScheme, viewCapability?.customColor) && (
           <span
             data-testid="custom-color-indicator"

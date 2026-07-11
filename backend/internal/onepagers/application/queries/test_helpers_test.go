@@ -43,11 +43,16 @@ type countingSubjectSource struct {
 	calls    int
 	snapshot *ports.SubjectSnapshot
 	err      error
+	count    int
 }
 
 func (f *countingSubjectSource) FetchSubject(_ context.Context, _ string) (*ports.SubjectSnapshot, error) {
 	f.calls++
 	return f.snapshot, f.err
+}
+
+func (f *countingSubjectSource) CountSubjects(_ context.Context) (int, error) {
+	return f.count, nil
 }
 
 type countingMaturitySource struct {

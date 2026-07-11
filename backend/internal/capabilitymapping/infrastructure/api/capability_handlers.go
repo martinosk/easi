@@ -19,23 +19,28 @@ import (
 )
 
 type CapabilityHandlers struct {
-	commandBus  cqrs.CommandBus
-	readModel   *readmodels.CapabilityReadModel
-	hateoas     *CapabilityMappingLinks
-	impactQuery *handlers.DeleteImpactQuery
+	commandBus   cqrs.CommandBus
+	readModel    *readmodels.CapabilityReadModel
+	hateoas      *CapabilityMappingLinks
+	impactQuery  *handlers.DeleteImpactQuery
+	completeness OnePagerCompletenessSource
 }
 
-func NewCapabilityHandlers(
-	commandBus cqrs.CommandBus,
-	readModel *readmodels.CapabilityReadModel,
-	hateoas *CapabilityMappingLinks,
-	impactQuery *handlers.DeleteImpactQuery,
-) *CapabilityHandlers {
+type CapabilityHandlersDeps struct {
+	CommandBus   cqrs.CommandBus
+	ReadModel    *readmodels.CapabilityReadModel
+	Links        *CapabilityMappingLinks
+	ImpactQuery  *handlers.DeleteImpactQuery
+	Completeness OnePagerCompletenessSource
+}
+
+func NewCapabilityHandlers(deps CapabilityHandlersDeps) *CapabilityHandlers {
 	return &CapabilityHandlers{
-		commandBus:  commandBus,
-		readModel:   readModel,
-		hateoas:     hateoas,
-		impactQuery: impactQuery,
+		commandBus:   deps.CommandBus,
+		readModel:    deps.ReadModel,
+		hateoas:      deps.Links,
+		impactQuery:  deps.ImpactQuery,
+		completeness: deps.Completeness,
 	}
 }
 
@@ -154,6 +159,11 @@ func (h *CapabilityHandlers) GetAllCapabilities(w http.ResponseWriter, r *http.R
 	capabilities, err := h.readModel.GetAll(r.Context())
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve capabilities")
+		return
+	}
+
+	if err := decorateCapabilitiesOnePagerCompleteness(r.Context(), h.completeness, capabilities); err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to evaluate one-pager completeness")
 		return
 	}
 

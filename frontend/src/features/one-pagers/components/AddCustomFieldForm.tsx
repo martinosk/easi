@@ -92,7 +92,6 @@ export function AddCustomFieldForm({ isSaving, onSubmit }: AddCustomFieldFormPro
     handleSubmit,
     watch,
     setValue,
-    reset,
     formState: { errors, isValid },
   } = useForm<DefineCustomFieldFormData>({
     resolver: zodResolver(defineCustomFieldSchema),
@@ -106,10 +105,7 @@ export function AddCustomFieldForm({ isSaving, onSubmit }: AddCustomFieldFormPro
     if (fieldType !== 'selection') setValue('options', [], { shouldValidate: true });
   }, [fieldType, setValue]);
 
-  const submit = handleSubmit((data) => {
-    onSubmit(data);
-    reset(DEFAULT_VALUES);
-  });
+  const submit = handleSubmit(onSubmit);
 
   return (
     <form onSubmit={submit} data-testid="one-pager-add-field-form">

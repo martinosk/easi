@@ -1,4 +1,5 @@
 import { Badge, Box, Button, Center, Divider, Group, Paper, Stack, Text, Title } from '@mantine/core';
+import { useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { ApiError } from '../../../api/types';
 import { ShareIcon } from '../../../components/shared/ContextMenu/icons';
@@ -10,7 +11,13 @@ import { FactValueDisplay } from '../components/FactValueDisplay';
 import { customFieldViewDisplayProps } from '../factFields';
 import { useOnePager } from '../hooks/useOnePager';
 import { subjectTypeLabel } from '../subjectTypes';
-import { ONE_PAGER_SUBJECT_TYPES, type OnePagerSubjectType, type OnePagerView, type OnePagerViewField } from '../types';
+import {
+  ONE_PAGER_SUBJECT_TYPES,
+  type OnePagerCompleteness,
+  type OnePagerSubjectType,
+  type OnePagerView,
+  type OnePagerViewField,
+} from '../types';
 
 const NOT_FOUND_MESSAGE = 'One-pager not found';
 
@@ -37,7 +44,7 @@ function fieldKey(field: OnePagerViewField): string {
   return field.kind === 'builtIn' ? `builtIn-${field.builtIn.id}` : `custom-${field.custom.fieldId}`;
 }
 
-function OnePagerFieldRow({ field }: { field: OnePagerViewField }) {
+function OnePagerFieldRow({ field, missingFieldIds }: { field: OnePagerViewField; missingFieldIds: Set<string> }) {
   if (field.kind === 'builtIn') {
     return (
       <DetailField label={field.builtIn.label}>
@@ -46,6 +53,15 @@ function OnePagerFieldRow({ field }: { field: OnePagerViewField }) {
     );
   }
   const { field: customField, fieldValue } = customFieldViewDisplayProps(field.custom);
+  if (missingFieldIds.has(field.custom.fieldId)) {
+    return (
+      <DetailField label={field.custom.name}>
+        <Text size="sm" c="orange.7" data-testid={`one-pager-missing-required-${field.custom.fieldId}`}>
+          missing — required
+        </Text>
+      </DetailField>
+    );
+  }
   return (
     <DetailField label={field.custom.name}>
       <FactValueDisplay field={customField} fieldValue={fieldValue} />
@@ -53,7 +69,27 @@ function OnePagerFieldRow({ field }: { field: OnePagerViewField }) {
   );
 }
 
+function CompletenessSummary({ completeness }: { completeness: OnePagerCompleteness }) {
+  if (completeness.requiredCount === 0) return null;
+  const complete = completeness.filledCount === completeness.requiredCount;
+  return (
+    <Badge
+      data-testid="one-pager-completeness-summary"
+      variant="light"
+      color={complete ? 'teal' : 'orange'}
+      radius="sm"
+    >
+      {`${completeness.filledCount} of ${completeness.requiredCount} required fields filled`}
+    </Badge>
+  );
+}
+
 function OnePagerSheet({ view }: { view: OnePagerView }) {
+  const missingFieldIds = useMemo(
+    () => new Set(view.completeness.missingFields.map((field) => field.fieldId)),
+    [view.completeness.missingFields],
+  );
+
   const handleShare = () => {
     copyToClipboard(generateOnePagerShareUrl(view.subjectType, view.subjectId));
   };
@@ -65,9 +101,12 @@ function OnePagerSheet({ view }: { view: OnePagerView }) {
           <Group justify="space-between" align="flex-start" wrap="nowrap">
             <Stack gap="xs">
               <Title order={2}>{view.subjectName}</Title>
-              <Badge variant="light" color="gray" radius="sm">
-                {subjectTypeLabel(view.subjectType)}
-              </Badge>
+              <Group gap="xs">
+                <Badge variant="light" color="gray" radius="sm">
+                  {subjectTypeLabel(view.subjectType)}
+                </Badge>
+                <CompletenessSummary completeness={view.completeness} />
+              </Group>
             </Stack>
             <Button variant="light" leftSection={<ShareIcon />} onClick={handleShare}>
               Share (copy URL)
@@ -78,7 +117,7 @@ function OnePagerSheet({ view }: { view: OnePagerView }) {
 
           <Stack gap="sm">
             {view.fields.map((field) => (
-              <OnePagerFieldRow key={fieldKey(field)} field={field} />
+              <OnePagerFieldRow key={fieldKey(field)} field={field} missingFieldIds={missingFieldIds} />
             ))}
           </Stack>
         </Stack>

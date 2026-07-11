@@ -8,11 +8,23 @@ import (
 )
 
 type OnePagerDTO struct {
-	SubjectType string             `json:"subjectType"`
-	SubjectID   string             `json:"subjectId"`
-	SubjectName string             `json:"subjectName"`
-	Fields      []OnePagerFieldDTO `json:"fields"`
-	Links       types.Links        `json:"_links,omitempty"`
+	SubjectType  string             `json:"subjectType"`
+	SubjectID    string             `json:"subjectId"`
+	SubjectName  string             `json:"subjectName"`
+	Fields       []OnePagerFieldDTO `json:"fields"`
+	Completeness CompletenessDTO    `json:"completeness"`
+	Links        types.Links        `json:"_links,omitempty"`
+}
+
+type CompletenessDTO struct {
+	RequiredCount int               `json:"requiredCount"`
+	FilledCount   int               `json:"filledCount"`
+	MissingFields []MissingFieldDTO `json:"missingFields"`
+}
+
+type MissingFieldDTO struct {
+	FieldID string `json:"fieldId"`
+	Name    string `json:"name"`
 }
 
 type OnePagerFieldDTO struct {
@@ -64,11 +76,24 @@ func BuildOnePagerDTO(onePager *queries.OnePager, links *OnePagerLinks) OnePager
 		}
 	}
 	return OnePagerDTO{
-		SubjectType: onePager.SubjectType,
-		SubjectID:   onePager.SubjectID,
-		SubjectName: onePager.SubjectName,
-		Fields:      fields,
-		Links:       links.viewLinks(onePager.SubjectType, onePager.SubjectID),
+		SubjectType:  onePager.SubjectType,
+		SubjectID:    onePager.SubjectID,
+		SubjectName:  onePager.SubjectName,
+		Fields:       fields,
+		Completeness: completenessDTOFrom(onePager.Completeness),
+		Links:        links.viewLinks(onePager.SubjectType, onePager.SubjectID),
+	}
+}
+
+func completenessDTOFrom(completeness queries.Completeness) CompletenessDTO {
+	missingFields := make([]MissingFieldDTO, len(completeness.MissingFields))
+	for i, field := range completeness.MissingFields {
+		missingFields[i] = MissingFieldDTO{FieldID: field.FieldID, Name: field.Name}
+	}
+	return CompletenessDTO{
+		RequiredCount: completeness.RequiredCount,
+		FilledCount:   completeness.FilledCount,
+		MissingFields: missingFields,
 	}
 }
 

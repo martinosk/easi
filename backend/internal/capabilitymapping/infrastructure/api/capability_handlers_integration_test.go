@@ -86,18 +86,14 @@ func (ctx *testContext) trackID(id string) {
 	ctx.createdIDs = append(ctx.createdIDs, id)
 }
 
-func (ctx *testContext) createTestCapability(t *testing.T, id, name, level string, parentID ...string) {
+func (ctx *testContext) createTestCapability(t *testing.T, spec capabilitySpec) {
 	ctx.setTenantContext(t)
-	parent := ""
-	if len(parentID) > 0 {
-		parent = parentID[0]
-	}
 	_, err := ctx.db.Exec(
 		"INSERT INTO capabilitymapping.capabilities (id, name, description, level, parent_id, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
-		id, name, "", level, parent, testTenantID(), "Genesis", "Active",
+		spec.ID, spec.Name, "", spec.Level, spec.ParentID, testTenantID(), "Genesis", "Active",
 	)
 	require.NoError(t, err)
-	ctx.trackID(id)
+	ctx.trackID(spec.ID)
 }
 
 func setupHandlers(db *sql.DB) *CapabilityHandlers {
@@ -168,7 +164,7 @@ func setupHandlers(db *sql.DB) *CapabilityHandlers {
 
 	impactQuery := handlers.NewDeleteImpactQuery(hierarchyService, realizationReadModel)
 
-	return NewCapabilityHandlers(commandBus, readModel, links, impactQuery)
+	return NewCapabilityHandlers(CapabilityHandlersDeps{CommandBus: commandBus, ReadModel: readModel, Links: links, ImpactQuery: impactQuery})
 }
 
 func TestCreateCapability_Integration(t *testing.T) {
@@ -225,8 +221,8 @@ func TestGetAllCapabilities_Integration(t *testing.T) {
 
 	id1 := fmt.Sprintf("test-cap-1-%d", time.Now().UnixNano())
 	id2 := fmt.Sprintf("test-cap-2-%d", time.Now().UnixNano())
-	testCtx.createTestCapability(t, id1, "Sales Management", "L1")
-	testCtx.createTestCapability(t, id2, "Order Processing", "L2")
+	testCtx.createTestCapability(t, capabilitySpec{ID: id1, Name: "Sales Management", Level: "L1"})
+	testCtx.createTestCapability(t, capabilitySpec{ID: id2, Name: "Order Processing", Level: "L2"})
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/capabilities", nil)
 	req = withTestTenant(req)
@@ -260,7 +256,7 @@ func TestGetCapabilityByID_Integration(t *testing.T) {
 	handlers := setupHandlers(testCtx.db)
 
 	capabilityID := fmt.Sprintf("test-capability-%d", time.Now().UnixNano())
-	testCtx.createTestCapability(t, capabilityID, "Payment Processing", "L2")
+	testCtx.createTestCapability(t, capabilitySpec{ID: capabilityID, Name: "Payment Processing", Level: "L2"})
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/capabilities/"+capabilityID, nil)
 	req = withTestTenant(req)
@@ -416,7 +412,7 @@ func TestGetCapabilityChildren_Integration(t *testing.T) {
 	childID1 := fmt.Sprintf("test-child-1-%d", time.Now().UnixNano())
 	childID2 := fmt.Sprintf("test-child-2-%d", time.Now().UnixNano())
 
-	testCtx.createTestCapability(t, parentID, "Parent Capability", "L1")
+	testCtx.createTestCapability(t, capabilitySpec{ID: parentID, Name: "Parent Capability", Level: "L1"})
 
 	testCtx.setTenantContext(t)
 	_, err := testCtx.db.Exec(
@@ -552,7 +548,7 @@ func TestDeleteCapability_HasChildren_Integration(t *testing.T) {
 	childID := uuid.New().String()
 
 	testCtx.createCapabilityWithEvent(t, capabilitySpec{ID: parentID, Name: "Parent Capability", Level: "L1"})
-	testCtx.createTestCapability(t, childID, "Child Capability", "L2", parentID)
+	testCtx.createTestCapability(t, capabilitySpec{ID: childID, Name: "Child Capability", Level: "L2", ParentID: parentID})
 
 	deleteReq := httptest.NewRequest(http.MethodDelete, "/api/v1/capabilities/"+parentID, nil)
 	deleteReq = withTestTenant(deleteReq)

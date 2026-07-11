@@ -577,7 +577,7 @@ func setupCascadeTestDependencies(testCtx *testContext) *cascadeTestDependencies
 	commandBus.Register("CreateComponentRelation", createRelationHandler)
 	commandBus.Register("DeleteComponentRelation", deleteRelationHandler)
 
-	componentHandlers := NewComponentHandlers(commandBus, componentReadModel, links)
+	componentHandlers := NewComponentHandlers(commandBus, componentReadModel, links, nil)
 	relationHandlers := NewRelationHandlers(commandBus, relationReadModel, links)
 
 	return &cascadeTestDependencies{

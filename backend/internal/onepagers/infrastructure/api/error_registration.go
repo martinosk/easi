@@ -20,6 +20,7 @@ func init() {
 	registry.RegisterNotFound(handlers.ErrFieldNotDefined, "Field is not defined on the subject type's one-pager configuration")
 	registry.RegisterNotFound(handlers.ErrSubjectNotFound, "Subject does not exist")
 	registry.RegisterNotFound(queries.ErrSubjectNotFound, "Subject does not exist")
+	registry.RegisterNotFound(queries.ErrFieldNotConfigured, "Field is not defined on the subject type's one-pager configuration")
 
 	registry.RegisterConflict(handlers.ErrConfigurationAlreadyExists, "A configuration already exists for this subject type")
 	registry.RegisterConflict(aggregates.ErrDuplicateFieldName, "A field with this display name already exists")

@@ -67,7 +67,13 @@ func SetupOnePagersRoutes(deps OnePagersRoutesDeps) error {
 
 	links := NewOnePagerLinks(deps.Hateoas)
 	configHandlers := NewOnePagerConfigurationHandlers(deps.CommandBus, readModel, links, deps.SessionProvider)
-	registerRoutes(deps.Router, configHandlers, deps.AuthMiddleware)
+	impactPreviewQuery := queries.NewImpactPreviewQuery(queries.ImpactPreviewDeps{
+		Configurations: readModel,
+		Facts:          factsReadModel,
+		Subjects:       deps.BuiltInFields,
+	})
+	impactPreviewHandlers := NewImpactPreviewHandlers(impactPreviewQuery, links)
+	registerRoutes(deps.Router, configHandlers, impactPreviewHandlers, deps.AuthMiddleware)
 
 	factsHandlers := NewOnePagerFactsHandlers(OnePagerFactsHandlersDeps{
 		CommandBus:      deps.CommandBus,
@@ -156,7 +162,7 @@ func registerCommands(
 	commandBus.Register("RetireSelectionOption", handlers.NewRetireSelectionOptionHandler(repo))
 }
 
-func registerRoutes(router chi.Router, h *OnePagerConfigurationHandlers, authMiddleware AuthMiddleware) {
+func registerRoutes(router chi.Router, h *OnePagerConfigurationHandlers, previewHandlers *ImpactPreviewHandlers, authMiddleware AuthMiddleware) {
 	router.Route("/one-pagers/configurations/{subjectType}", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequirePermission(authPL.PermMetaModelRead))
@@ -165,6 +171,7 @@ func registerRoutes(router chi.Router, h *OnePagerConfigurationHandlers, authMid
 
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequirePermission(authPL.PermMetaModelWrite))
+			r.Get("/impact-preview", previewHandlers.GetImpactPreview)
 			r.Post("/custom-fields", h.DefineCustomField)
 			r.Put("/custom-fields/{fieldID}", h.RenameCustomField)
 			r.Put("/custom-fields/{fieldID}/requirement", h.ChangeCustomFieldRequirement)
