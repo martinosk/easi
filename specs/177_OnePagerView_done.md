@@ -1,6 +1,6 @@
 # 177 — OnePagerView
 
-> **Status:** ongoing
+> **Status:** done
 > **Depends on:** [175 — OnePagerConfiguration](175_OnePagerConfiguration_done.md), [176 — OnePagerFacts capture](176_OnePagerFacts_done.md)
 
 ---
@@ -339,4 +339,4 @@ Decisions made at implementation start (2026-07-11), within the approved archite
 - [x] Unit tests implemented and passing
 - [x] Integration tests implemented if relevant
 - [x] API documentation updated
-- [ ] User sign-off
+- [x] User sign-off
