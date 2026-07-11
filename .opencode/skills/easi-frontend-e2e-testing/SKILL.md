@@ -19,7 +19,7 @@ EASI's full stack (backend + Postgres + Dex OIDC) runs locally via Docker Compos
 
 ## Dex test users (local OIDC)
 
-Defined in `dex-config.yaml` at the repo root. **Password for all users is `password`.**
+Defined in `dex-config.yaml` at the repo root. **Password for all users is `password`.** Tenant is `acme` (domain `acme.com`).
 
 | Email | Role |
 |---|---|
@@ -28,10 +28,26 @@ Defined in `dex-config.yaml` at the repo root. **Password for all users is `pass
 | `stakeholder@acme.com` | stakeholder (read-only) |
 | `nono@acme.com` | persona-non-grata (deny test) |
 
+## Login requires an invitation, not just a dex user
+
+Dex only authenticates. The OIDC callback then requires a row in `auth.invitations` for the email — without one, the backend logs `no valid invitation for email <email>` and the app bounces back to the login screen with no visible error.
+
+Seed invitations through the platform admin API (header `X-Platform-Admin-Key: localdev` locally):
+
+```
+curl -H "X-Platform-Admin-Key: localdev" http://localhost:8080/api/v1/platform/tenants
+curl -X POST -H "X-Platform-Admin-Key: localdev" -H "Content-Type: application/json" \
+  -d '{"email":"architect@acme.com","role":"architect"}' \
+  http://localhost:8080/api/v1/platform/tenants/acme/invitations
+```
+
+Check current invitations: `podman exec easi-postgres psql -U easi -d easi -c "SELECT email, role FROM auth.invitations;"`
+
 
 ## Testing with Playwright
 
 1. **Run the app in a browser before claiming a UI change done** — build + tests are necessary but not sufficient.
-2. **Restart the backend after Go changes.** `podman compose up -d --build backend`. Verify with curl before browser testing.
+2. **Restart the backend after Go changes.** `podman compose up -d --build backend`. Verify with curl before browser testing. The `migrate` container image goes stale the same way — `podman compose build migrate` when the DB is missing recent migrations.
 3. **Test the full golden path.** Create → list → act → verify list updates. Not just "API returns 200".
 4. **Test empty states, error states, and permission gating.** Navigate with no data. Submit invalid input. Log in as stakeholder.
+5. **Headless typing into Mantine/React controlled inputs may not register.** If a typed value doesn't appear, set it via the native value setter and dispatch an `input` event in page context: `Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(input, text); input.dispatchEvent(new Event('input', {bubbles: true}))`. Plain dex forms accept direct `.value` assignment + `form.submit()`.
