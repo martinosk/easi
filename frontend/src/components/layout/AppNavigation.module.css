@@ -1,0 +1,110 @@
+.header {
+  height: 52px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-lg);
+  padding: 0 var(--spacing-lg);
+  background: var(--skin-brand);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+  position: relative;
+  z-index: 100;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-shrink: 0;
+}
+
+.logo {
+  width: 22px;
+  height: 22px;
+}
+
+.wordmark {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 17px;
+  color: var(--skin-on-brand);
+  letter-spacing: -0.01em;
+}
+
+.nav {
+  display: flex;
+  align-items: stretch;
+  gap: var(--spacing-xs);
+  height: 100%;
+}
+
+.navItem {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  height: 100%;
+  padding: 6px 12px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--skin-on-brand-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.navItem:hover {
+  color: var(--skin-on-brand);
+  background: color-mix(in srgb, var(--skin-on-brand) 10%, transparent);
+}
+
+.navItemActive {
+  color: var(--skin-on-brand);
+}
+
+.navItemActive::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+  height: 2px;
+  background: var(--skin-on-brand);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-shrink: 0;
+}
+
+.tenant {
+  font-size: var(--font-size-xs);
+  color: var(--skin-on-brand-muted);
+}
+
+.actionButton {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: 6px 10px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--skin-on-brand-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.actionButton:hover {
+  color: var(--skin-on-brand);
+  background: color-mix(in srgb, var(--skin-on-brand) 10%, transparent);
+}

@@ -1,10 +1,316 @@
-.canvas-toolbar {
+/* Component Node */
+.component-node {
+  min-width: 180px;
+  position: relative;
+  max-width: 280px;
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  border: 1px solid var(--line-strong);
+  transition: border-color 120ms ease;
+}
+
+.component-node:hover {
+  border-color: var(--skin-focus);
+}
+
+.component-node--maturity::before {
+  content: "";
   position: absolute;
-  top: var(--spacing-md);
-  right: var(--spacing-md);
-  z-index: 6;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  border-top-left-radius: var(--radius-md);
+  border-bottom-left-radius: var(--radius-md);
+  background: var(--skin-accent-6);
+}
+
+.component-node--classic {
+  background: var(--color-blue-1);
+}
+
+.component-node.component-node-selected {
+  border: 2px solid var(--skin-focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--skin-focus) 20%, transparent);
+}
+
+.component-node-header {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: var(--spacing-xs);
+}
+
+.component-node-description {
+  font-size: var(--font-size-sm);
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.react-flow__handle {
+  cursor: pointer;
+}
+
+.component-handle,
+.capability-handle,
+.origin-entity-handle {
+  width: 9px;
+  height: 9px;
+  background: var(--surface);
+  border: 2px solid var(--line-strong);
+  border-radius: 50%;
+  transition: border-color 120ms ease;
+}
+
+.component-handle:hover,
+.capability-handle:hover,
+.origin-entity-handle:hover {
+  border-color: var(--skin-focus);
+}
+
+/* Handle specific positions */
+.component-handle-top,
+.capability-handle-top,
+.origin-entity-handle-top {
+  top: -6px;
+}
+
+.component-handle-bottom,
+.capability-handle-bottom,
+.origin-entity-handle-bottom {
+  bottom: -6px;
+}
+
+.component-handle-left,
+.capability-handle-left,
+.origin-entity-handle-left {
+  left: -6px;
+}
+
+.component-handle-right,
+.capability-handle-right,
+.origin-entity-handle-right {
+  right: -6px;
+}
+
+/* Capability Node */
+.capability-node {
+  width: 200px;
+  position: relative;
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  transition: border-color 120ms ease;
+}
+
+.capability-node:hover {
+  border-color: var(--skin-focus);
+}
+
+.capability-node--classic {
+  background: var(--color-blue-1);
+}
+
+.capability-node.capability-node-selected {
+  border: 2px solid var(--skin-focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--skin-focus) 20%, transparent);
+}
+
+.capability-node-content {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.capability-node-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-weight: 600;
+}
+
+.capability-node-icon {
+  font-size: var(--font-size-base);
+}
+
+.capability-node-level {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  opacity: 0.9;
+}
+
+.capability-node-name {
+  font-size: var(--font-size-base);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capability-node-maturity {
+  font-size: var(--font-size-xs);
+  background: transparent;
+  border: 1px solid color-mix(in srgb, currentColor 40%, transparent);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  width: fit-content;
+}
+
+/* Classic color scheme */
+.component-node.classic-text .component-node-header,
+.capability-node.classic-text .capability-node-header {
+  color: var(--ink);
+}
+
+.component-node.classic-text .component-node-description {
+  color: var(--muted);
+}
+
+/* React Flow customization */
+/* React Flow container must fill parent */
+.react-flow {
+  width: 100%;
+  height: 100%;
+}
+
+.react-flow__node {
+  cursor: pointer;
+}
+
+.react-flow__edge {
+  cursor: pointer;
+}
+
+.react-flow__edge-path {
+  stroke: var(--line-strong);
+  stroke-width: 2;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: var(--skin-focus);
+  stroke-width: 3;
+}
+
+.react-flow__controls {
+  box-shadow: var(--shadow-md);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+}
+
+.react-flow__controls-button {
+  border-bottom: 1px solid var(--line);
+}
+
+.react-flow__controls-button:hover {
+  background: var(--well);
+}
+
+.react-flow__minimap {
+  box-shadow: var(--shadow-md);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+}
+
+.react-flow__edge.realization-edge .react-flow__edge-path {
+  stroke: var(--status-positive);
+  stroke-dasharray: 5, 5;
+  stroke-width: 2px;
+}
+
+.react-flow__edge.realization-edge.inherited .react-flow__edge-path {
+  opacity: 0.6;
+}
+
+/* Origin Entity Node */
+.origin-entity-node {
+  position: relative;
+  min-width: 150px;
+  max-width: 220px;
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 120ms ease;
+}
+
+.origin-entity-node:hover {
+  border-color: var(--skin-focus);
+}
+
+.origin-entity-node::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  border-top-left-radius: var(--radius-md);
+  border-bottom-left-radius: var(--radius-md);
+  background: var(--line-strong);
+}
+
+.origin-entity-node-acquired::before {
+  background: var(--entity-acquired);
+}
+
+.origin-entity-node-vendor::before {
+  background: var(--entity-vendor);
+}
+
+.origin-entity-node-team::before {
+  background: var(--entity-team);
+}
+
+.origin-entity-node.origin-entity-node-selected {
+  border: 2px solid var(--skin-focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--skin-focus) 20%, transparent);
+}
+
+.origin-entity-node-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.origin-entity-node-header {
+  display: flex;
   align-items: center;
   gap: var(--spacing-sm);
+}
+
+.origin-entity-node-icon {
+  display: flex;
+  align-items: center;
+}
+
+.origin-entity-node-acquired .origin-entity-node-icon {
+  color: var(--entity-acquired);
+}
+
+.origin-entity-node-vendor .origin-entity-node-icon {
+  color: var(--entity-vendor);
+}
+
+.origin-entity-node-team .origin-entity-node-icon {
+  color: var(--entity-team);
+}
+
+.origin-entity-node-label {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.origin-entity-node-type {
+  font-size: var(--font-size-xs);
+  color: var(--muted);
 }

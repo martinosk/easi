@@ -58,7 +58,7 @@ function setDragImage(event: React.DragEvent, count: number): void {
   const dragLabel = document.createElement('div');
   dragLabel.textContent = `${count} items`;
   dragLabel.style.cssText =
-    'position:absolute;top:-1000px;padding:4px 8px;background:#4a90d9;color:#fff;border-radius:4px;font-size:12px;';
+    'position:absolute;top:-1000px;padding:4px 8px;background:var(--skin-accent-6);color:var(--skin-on-brand);border-radius:4px;font-size:12px;';
   document.body.appendChild(dragLabel);
   event.dataTransfer.setDragImage(dragLabel, 0, 0);
   requestAnimationFrame(() => document.body.removeChild(dragLabel));

@@ -1,8 +1,9 @@
+import { IconUsers } from '@tabler/icons-react';
 import React, { useMemo, useState } from 'react';
 import type { InternalTeam, View } from '../../../../api/types';
+import { TreeSearchInput } from '../../../../components/shared';
 import type { TreeMultiSelectProps } from '../../types';
 import { TreeItemList } from '../shared/TreeItemList';
-import { TreeSearchInput } from '../../../../components/shared';
 import { TreeSection } from '../TreeSection';
 
 interface InternalTeamsSectionProps {
@@ -28,9 +29,9 @@ function filterTeams(teams: InternalTeam[], search: string): InternalTeam[] {
   return teams.filter(
     (t) =>
       t.name.toLowerCase().includes(searchLower) ||
-      (t.department?.toLowerCase().includes(searchLower)) ||
-      (t.contactPerson?.toLowerCase().includes(searchLower)) ||
-      (t.notes?.toLowerCase().includes(searchLower)),
+      t.department?.toLowerCase().includes(searchLower) ||
+      t.contactPerson?.toLowerCase().includes(searchLower) ||
+      t.notes?.toLowerCase().includes(searchLower),
   );
 }
 
@@ -110,7 +111,7 @@ export const InternalTeamsSection: React.FC<InternalTeamsSectionProps> = ({
         <TreeItemList
           items={filteredTeams}
           emptyMessage={emptyMessage}
-          icon="👥"
+          icon={<IconUsers size={16} stroke={1.75} />}
           dragDataKey="internalTeamId"
           isSelected={(team) => selectedTeamId === team.id || multiSelect.isMultiSelected(team.id)}
           isInView={(team) => !currentView || teamIdsOnCanvas.has(team.id)}

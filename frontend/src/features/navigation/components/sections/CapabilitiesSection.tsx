@@ -1,3 +1,4 @@
+import { Tooltip } from '@mantine/core';
 import React, { useCallback, useMemo, useState } from 'react';
 import type { Capability, View, ViewCapability } from '../../../../api/types';
 import { deriveMaturityValue } from '../../../../constants/maturityColors';
@@ -5,10 +6,10 @@ import { useMaturityColorScale } from '../../../../hooks/useMaturityColorScale';
 import { CapabilityTree } from '../../../capabilities/components/CapabilityTree';
 import type { CapabilityTreeNode } from '../../../capabilities/hooks/useCapabilityTree';
 import { buildCapabilityTree } from '../../../capabilities/hooks/useCapabilityTree';
+import { OnePagerIncompleteIndicator } from '../../../one-pagers/components/OnePagerIncompleteIndicator';
 import type { TreeSelectedItem } from '../../hooks/useTreeMultiSelect';
 import type { TreeMultiSelectProps } from '../../types';
 import { hasCustomColor } from '../../utils/treeUtils';
-import { OnePagerIncompleteIndicator } from '../../../one-pagers/components/OnePagerIncompleteIndicator';
 import { TreeSection } from '../TreeSection';
 import classes from './CapabilitiesSection.module.css';
 
@@ -21,14 +22,13 @@ const MaturityDot: React.FC<MaturityDotProps> = ({ capability, colorScheme }) =>
   const { getColorForValue, getSectionNameForValue } = useMaturityColorScale();
   const value = capability.maturityValue ?? deriveMaturityValue(capability.maturityLevel);
   const sectionName = capability.maturitySection?.name || getSectionNameForValue(value);
-  const isClassic = colorScheme === 'classic';
+
+  if (colorScheme === 'classic') return null;
 
   return (
-    <span
-      className={`${classes.maturityDot} ${isClassic ? classes.dotClassic : ''}`}
-      style={isClassic ? undefined : { backgroundColor: getColorForValue(value) }}
-      title={`${sectionName} (${value})`}
-    />
+    <Tooltip label={`Maturity: ${sectionName}`} withArrow>
+      <span className={classes.maturityDot} style={{ backgroundColor: getColorForValue(value) }} />
+    </Tooltip>
   );
 };
 
@@ -132,11 +132,13 @@ export const CapabilitiesSection: React.FC<CapabilitiesSectionProps> = ({
         <MaturityDot capability={capability} colorScheme={colorScheme} />
         <OnePagerIncompleteIndicator id={capability.id} onePagerComplete={capability.onePagerComplete} />
         {hasCustomColor(currentView?.colorScheme, viewCapability?.customColor) && (
-          <span
-            data-testid="custom-color-indicator"
-            className={classes.colorSwatch}
-            style={{ backgroundColor: viewCapability?.customColor }}
-          />
+          <Tooltip label="Custom colour in this view" withArrow>
+            <span
+              data-testid="custom-color-indicator"
+              className={classes.colorSwatch}
+              style={{ backgroundColor: viewCapability?.customColor }}
+            />
+          </Tooltip>
         )}
       </>
     );

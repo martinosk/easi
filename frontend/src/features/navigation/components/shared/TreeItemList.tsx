@@ -6,7 +6,7 @@ interface TreeItemProps<T> {
   item: T;
   isSelected: boolean;
   isInView: boolean;
-  icon: string;
+  icon: React.ReactNode;
   label: React.ReactNode;
   title: string;
   dragDataKey: string;
@@ -57,7 +57,7 @@ function TreeItem<T extends { onePagerComplete?: boolean }>({
 interface TreeItemListProps<T extends { id: string; name: string; onePagerComplete?: boolean }> {
   items: T[];
   emptyMessage: string;
-  icon: string;
+  icon: React.ReactNode;
   dragDataKey: string;
   isSelected: (item: T) => boolean;
   isInView: (item: T) => boolean;

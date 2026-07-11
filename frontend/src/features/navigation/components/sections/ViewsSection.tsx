@@ -1,4 +1,5 @@
 import { TextInput, UnstyledButton } from '@mantine/core';
+import { IconEye, IconLock } from '@tabler/icons-react';
 import React, { useMemo } from 'react';
 import type { View } from '../../../../api/types';
 import { useActiveUsers } from '../../../users/hooks/useUsers';
@@ -47,7 +48,12 @@ interface ViewEditInputProps {
   editInputRef: React.RefObject<HTMLInputElement | null>;
 }
 
-const ViewEditInput: React.FC<ViewEditInputProps> = ({ editingState, setEditingState, onRenameSubmit, editInputRef }) => {
+const ViewEditInput: React.FC<ViewEditInputProps> = ({
+  editingState,
+  setEditingState,
+  onRenameSubmit,
+  editInputRef,
+}) => {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       onRenameSubmit();
@@ -58,7 +64,9 @@ const ViewEditInput: React.FC<ViewEditInputProps> = ({ editingState, setEditingS
 
   return (
     <div className="tree-item-edit">
-      <span className="tree-item-icon">👁️</span>
+      <span className="tree-item-icon">
+        <IconEye size={16} stroke={1.75} />
+      </span>
       <TextInput
         ref={editInputRef}
         className="tree-item-input"
@@ -82,7 +90,14 @@ interface ViewButtonProps {
   onContextMenu: (e: React.MouseEvent) => void;
 }
 
-const ViewButton: React.FC<ViewButtonProps> = ({ view, isActive, ownerDisplayName, onClick, onDoubleClick, onContextMenu }) => (
+const ViewButton: React.FC<ViewButtonProps> = ({
+  view,
+  isActive,
+  ownerDisplayName,
+  onClick,
+  onDoubleClick,
+  onContextMenu,
+}) => (
   <UnstyledButton
     type="button"
     className={`tree-item ${isActive ? 'selected' : ''}`}
@@ -91,7 +106,9 @@ const ViewButton: React.FC<ViewButtonProps> = ({ view, isActive, ownerDisplayNam
     onContextMenu={onContextMenu}
     title={view.isPrivate ? `Private view by ${ownerDisplayName}` : view.name}
   >
-    <span className="tree-item-icon">{view.isPrivate ? '🔒' : '👁️'}</span>
+    <span className="tree-item-icon">
+      {view.isPrivate ? <IconLock size={16} stroke={1.75} /> : <IconEye size={16} stroke={1.75} />}
+    </span>
     <span className="tree-item-label">
       {view.name}
       {view.isPrivate && <span className="owner-badge"> ({ownerDisplayName})</span>}

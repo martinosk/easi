@@ -6,7 +6,6 @@ const vendorChunks: { chunk: string; packages: string[] }[] = [
   { chunk: 'react-vendor', packages: ['react-dom', 'react-router-dom', 'react'] },
   { chunk: 'mantine', packages: ['@mantine/core', '@mantine/hooks'] },
   { chunk: 'reactflow', packages: ['@xyflow/react', 'dagre'] },
-  { chunk: 'dockview', packages: ['dockview'] },
   { chunk: 'query', packages: ['@tanstack/react-query', '@tanstack/query-core'] },
   { chunk: 'forms', packages: ['react-hook-form', '@hookform/resolvers', 'zod'] },
   { chunk: 'state', packages: ['zustand'] },
@@ -16,9 +15,7 @@ const vendorChunks: { chunk: string; packages: string[] }[] = [
 
 function chunkForModule(id: string): string | undefined {
   const path = id.replaceAll('\\', '/');
-  return vendorChunks.find(({ packages }) =>
-    packages.some((pkg) => path.includes(`/node_modules/${pkg}/`)),
-  )?.chunk;
+  return vendorChunks.find(({ packages }) => packages.some((pkg) => path.includes(`/node_modules/${pkg}/`)))?.chunk;
 }
 
 export default defineConfig({

@@ -31,12 +31,13 @@ import { useContextMenu } from '../hooks/useContextMenu';
 import { useCreateDynamicView } from '../hooks/useCreateDynamicView';
 import { useDeleteConfirmation } from '../hooks/useDeleteConfirmation';
 import { AutoLayoutButton } from './AutoLayoutButton';
+import { CanvasCommandsPortal } from './CanvasCommandsPortal';
 import { EdgeContextMenu } from './context-menus/EdgeContextMenu';
 import { MultiSelectContextMenu } from './context-menus/MultiSelectContextMenu';
 import { type GenerateViewTarget, type InviteTarget, NodeContextMenu } from './context-menus/NodeContextMenu';
+import { DynamicModeContainer } from './DynamicModeContainer';
 import { BulkConfirmationDialog } from './dialogs/BulkConfirmationDialog';
 import { DeleteConfirmationWrapper } from './dialogs/DeleteConfirmationWrapper';
-import { DynamicModeContainer } from './DynamicModeContainer';
 import { HandleCreateController } from './HandleCreateController';
 import { withDynamicExpansion } from './withDynamicExpansion';
 
@@ -44,6 +45,28 @@ interface ComponentCanvasProps {
   onConnect: (source: string, target: string) => void;
   onComponentDrop?: (componentId: string, x: number, y: number) => void;
 }
+
+interface MinimapColors {
+  component: string;
+  componentSelected: string;
+  capability: string;
+  capabilitySelected: string;
+}
+
+let cachedMinimapColors: MinimapColors | null = null;
+
+const resolveMinimapColors = (): MinimapColors => {
+  if (cachedMinimapColors) return cachedMinimapColors;
+  const styles = getComputedStyle(document.documentElement);
+  const readVar = (name: string) => styles.getPropertyValue(name).trim();
+  cachedMinimapColors = {
+    component: readVar('--skin-accent-4'),
+    componentSelected: readVar('--skin-accent-8'),
+    capability: readVar('--skin-accent-5'),
+    capabilitySelected: readVar('--skin-accent-9'),
+  };
+  return cachedMinimapColors;
+};
 
 export interface ComponentCanvasRef {
   centerOnNode: (nodeId: string) => void;
@@ -194,20 +217,21 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
             zoomable
             onClick={handleMiniMapClick}
             nodeColor={(node) => {
+              const colors = resolveMinimapColors();
               if (node.type === 'capability') {
                 const capId = node.id.replace('cap-', '');
-                return capId === selectedCapabilityId ? '#1f2937' : '#374151';
+                return capId === selectedCapabilityId ? colors.capabilitySelected : colors.capability;
               }
-              return node.id === selectedNodeId ? '#8b5cf6' : '#3b82f6';
+              return node.id === selectedNodeId ? colors.componentSelected : colors.component;
             }}
             maskColor="rgba(0, 0, 0, 0.1)"
           />
         </ReactFlow>
 
-        <div className="canvas-toolbar">
+        <CanvasCommandsPortal>
           <AutoLayoutButton />
           <DynamicModeContainer />
-        </div>
+        </CanvasCommandsPortal>
 
         <HandleCreateController />
 

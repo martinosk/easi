@@ -1,6 +1,6 @@
 import { useMemo, useRef } from 'react';
 import type { ComponentId, ViewId } from '../../api/types';
-import { DockviewLayout } from '../../components/layout/DockviewLayout';
+import { CanvasWorkspace } from '../../components/layout/CanvasWorkspace';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useAppStore } from '../../store/appStore';
 import { useUserStore } from '../../store/userStore';
@@ -42,7 +42,7 @@ export default function CanvasContainer() {
   useKeyboardShortcuts({ onDelete: handleRemoveFromView });
 
   return (
-    <DockviewLayout
+    <CanvasWorkspace
       canvasRef={canvasRef}
       selectedNodeId={selectedNodeId}
       selectedEdgeId={selectedEdgeId}

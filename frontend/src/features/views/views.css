@@ -1,6 +1,6 @@
 .view-selector {
   flex-shrink: 0;
-  background: white;
+  background: var(--surface);
   border-bottom: 1px solid var(--color-gray-200);
   padding: var(--spacing-xs) var(--spacing-md);
   box-shadow: var(--shadow-sm);
@@ -25,8 +25,8 @@
 }
 
 .view-tab.active {
-  background: var(--color-primary-light);
-  border-bottom-color: var(--color-primary);
+  background: var(--surface);
+  border-bottom-color: var(--skin-accent-8);
 }
 
 .view-tab-body {
@@ -35,7 +35,7 @@
   font-weight: 500;
   border: none;
   background: transparent;
-  color: var(--color-gray-600);
+  color: var(--muted);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -44,12 +44,12 @@
 }
 
 .view-tab.active .view-tab-body {
-  color: var(--color-primary-dark);
+  color: var(--ink);
   font-weight: 600;
 }
 
 .view-tab-body:hover {
-  color: var(--color-gray-900);
+  color: var(--ink);
 }
 
 .view-tab-name {
@@ -64,7 +64,7 @@
 }
 
 .view-tab-dirty {
-  color: var(--color-warning, #f59e0b);
+  color: var(--color-warning);
   font-size: 0.6rem;
   margin-left: 4px;
   line-height: 1;

@@ -1,11 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { Capability, CapabilityId } from '../../../api/types';
-import {
-  type ContextMenuItem,
-  FolderMinusIcon,
-  TrashIcon,
-  UserPlusIcon,
-} from '../../../components/shared/ContextMenu';
+import { type ContextMenuItem, FolderMinusIcon, TrashIcon, UserPlusIcon } from '../../../components/shared/ContextMenu';
 import { hasLink } from '../../../utils/hateoas';
 
 interface CapabilityContextMenuState {

@@ -9,6 +9,10 @@ interface UseCapabilitySelectionResult {
   setSelectedCapabilities: (value: Set<CapabilityId>) => void;
 }
 
+function isMultiSelectModifierPressed(event: React.MouseEvent): boolean {
+  return event.shiftKey || event.ctrlKey || event.metaKey;
+}
+
 export function useCapabilitySelection(
   capabilities: Capability[],
   onRegularClick: (capability: Capability) => void,
@@ -17,7 +21,7 @@ export function useCapabilitySelection(
 
   const handleCapabilityClick = useCallback(
     (capability: Capability, event: React.MouseEvent) => {
-      if (event.shiftKey) {
+      if (isMultiSelectModifierPressed(event)) {
         event.preventDefault();
         event.stopPropagation();
         setSelectedCapabilities((prev) => {

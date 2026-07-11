@@ -1,4 +1,4 @@
-import { Alert, Button, Center, Paper, Stack, Text, TextInput, Title } from '@mantine/core';
+import { Alert, Button, Center, Group, Paper, Stack, Text, TextInput, Title } from '@mantine/core';
 import { type FC, type FormEvent, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { resetLoginRedirectFlag } from '../../../api';
@@ -78,16 +78,21 @@ export const LoginPage: FC = () => {
   };
 
   return (
-    <Center className={classes.background} p="lg">
-      <Paper shadow="xl" radius="xl" p="xl" w="100%" maw={420}>
-        <Stack gap="xl">
-          <Stack gap="xs" align="center">
-            <Title order={1}>Welcome to EASI</Title>
-            <Text size="sm" c="dimmed">
-              Enterprise Architecture - Simple
-            </Text>
-          </Stack>
+    <Center className={classes.page} p="lg">
+      <Stack className={classes.column} gap="xl" align="center">
+        <Stack gap="sm" align="center">
+          <Group gap="sm" align="center">
+            <div className={classes.tick} />
+            <Title order={1} className={classes.wordmark}>
+              easi
+            </Title>
+          </Group>
+          <Text size="sm" className={classes.tagline}>
+            Map capabilities, applications, and the journeys between them.
+          </Text>
+        </Stack>
 
+        <Paper withBorder radius="lg" shadow="xs" p="lg" w="100%" className={classes.card}>
           <form onSubmit={handleSubmit}>
             <Stack gap="lg">
               <TextInput
@@ -108,8 +113,12 @@ export const LoginPage: FC = () => {
               </Button>
             </Stack>
           </form>
-        </Stack>
-      </Paper>
+        </Paper>
+
+        <Text size="xs" className={classes.footer}>
+          EASI — enterprise architecture
+        </Text>
+      </Stack>
     </Center>
   );
 };

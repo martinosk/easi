@@ -1,10 +1,14 @@
 import { Button, Center, Group, MantineProvider, Stack, Text, Title } from '@mantine/core';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { StrictMode, useEffect, lazy, Suspense, type ComponentType, type ComponentProps } from 'react';
+import { type ComponentProps, type ComponentType, lazy, StrictMode, Suspense, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import 'dockview/dist/styles/dockview.css';
+import '@fontsource-variable/inter/index.css';
+import '@fontsource-variable/schibsted-grotesk/index.css';
+import '@fontsource-variable/spline-sans-mono/index.css';
 import '@mantine/core/styles.css';
+import './theme/tokens.css';
+import './theme/skins.css';
 import './index.css';
 import App from './App.tsx';
 import { ErrorBoundary } from './components/shared/ErrorBoundary.tsx';
@@ -15,17 +19,16 @@ import { ROUTES } from './routes/routePaths.ts';
 import { ProtectedRoute } from './routes/routes.tsx';
 import { useUserStore } from './store/userStore.ts';
 import { theme } from './theme/mantine';
+import { initSkin } from './theme/skin';
 
-type DevtoolsProps = ComponentProps<
-  typeof import('@tanstack/react-query-devtools')['ReactQueryDevtools']
->;
+type DevtoolsProps = ComponentProps<typeof import('@tanstack/react-query-devtools')['ReactQueryDevtools']>;
 
 const ReactQueryDevtools: ComponentType<DevtoolsProps> = import.meta.env.PROD
   ? () => null
   : (lazy(() =>
       import('@tanstack/react-query-devtools').then((m) => ({
         default: m.ReactQueryDevtools,
-      }))
+      })),
     ) as ComponentType<DevtoolsProps>);
 
 const basename = import.meta.env.BASE_URL.replace(/\/$/, '') || '';
@@ -114,4 +117,5 @@ function renderApp() {
   );
 }
 
+initSkin();
 enableMocking().then(renderApp);

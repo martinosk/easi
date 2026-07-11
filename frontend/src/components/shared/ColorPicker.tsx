@@ -1,6 +1,7 @@
 import { TextInput, UnstyledButton } from '@mantine/core';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { HexColorPicker } from 'react-colorful';
+import classes from './ColorPicker.module.css';
 
 interface ColorPickerProps {
   color: string | null;
@@ -86,7 +87,7 @@ export function ColorPicker({ color, onChange, disabled, disabledTooltip }: Colo
   };
 
   return (
-    <div ref={pickerRef} style={{ position: 'relative', display: 'inline-block' }}>
+    <div ref={pickerRef} className={classes.wrapper}>
       <UnstyledButton
         component="button"
         type="button"
@@ -94,47 +95,17 @@ export function ColorPicker({ color, onChange, disabled, disabledTooltip }: Colo
         onClick={handleButtonClick}
         disabled={disabled}
         title={disabled && disabledTooltip ? disabledTooltip : undefined}
-        style={{
-          padding: '8px',
-          border: '1px solid #ccc',
-          borderRadius: '4px',
-          background: 'white',
-          cursor: disabled ? 'not-allowed' : 'pointer',
-          opacity: disabled ? 0.6 : 1,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-        }}
+        className={classes.button}
       >
-        <div
-          data-testid="color-picker-display"
-          style={{
-            width: '32px',
-            height: '32px',
-            backgroundColor: displayColor,
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-          }}
-        />
+        <div data-testid="color-picker-display" className={classes.swatch} style={{ backgroundColor: displayColor }} />
         <span>{displayColor}</span>
       </UnstyledButton>
 
       {!disabled && (
         <div
           data-testid="color-picker-popover"
-          style={{
-            display: isOpen ? 'block' : 'none',
-            position: 'absolute',
-            top: '100%',
-            left: 0,
-            marginTop: '4px',
-            zIndex: 1000,
-            padding: '16px',
-            background: 'white',
-            border: '1px solid #ccc',
-            borderRadius: '8px',
-            boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
-          }}
+          className={classes.popover}
+          style={{ display: isOpen ? 'block' : 'none' }}
         >
           <HexColorPicker color={displayColor} onChange={handleColorChange} />
           <TextInput

@@ -14,6 +14,7 @@ import {
   UsersIcon,
   ValueStreamsIcon,
 } from './AppNavigation.icons';
+import classes from './AppNavigation.module.css';
 import { UserMenu } from './UserMenu';
 
 interface AppNavigationProps {
@@ -45,23 +46,41 @@ interface NavEntry {
 const NAV_ENTRIES: readonly NavEntry[] = [
   { view: 'canvas', label: 'Architecture Canvas', testId: 'nav-canvas', icon: CanvasIcon },
   { view: 'business-domains', label: 'Business Domains', testId: 'nav-business-domains', icon: BusinessDomainsIcon },
-  { view: 'value-streams', label: 'Value Streams', testId: 'nav-value-streams', icon: ValueStreamsIcon, permission: 'valuestreams:read' },
-  { view: 'enterprise-architecture', label: 'Enterprise Architecture', testId: 'nav-enterprise-architecture', icon: EnterpriseArchIcon, permission: 'enterprise-arch:read' },
+  {
+    view: 'value-streams',
+    label: 'Value Streams',
+    testId: 'nav-value-streams',
+    icon: ValueStreamsIcon,
+    permission: 'valuestreams:read',
+  },
+  {
+    view: 'enterprise-architecture',
+    label: 'Enterprise Architecture',
+    testId: 'nav-enterprise-architecture',
+    icon: EnterpriseArchIcon,
+    permission: 'enterprise-arch:read',
+  },
   { view: 'users', label: 'Users', testId: 'nav-users', icon: UsersIcon, permission: 'users:read' },
-  { view: 'invitations', label: 'Invitations', testId: 'nav-invitations', icon: InvitationsIcon, permission: 'invitations:manage' },
+  {
+    view: 'invitations',
+    label: 'Invitations',
+    testId: 'nav-invitations',
+    icon: InvitationsIcon,
+    permission: 'invitations:manage',
+  },
   { view: 'settings', label: 'Settings', testId: 'nav-settings', icon: SettingsIcon, permission: 'metamodel:write' },
 ];
 
 function NavItems({ currentView, onNavigate }: { currentView: AppView; onNavigate: (view: AppView) => void }) {
   const hasPermission = useUserStore((state) => state.hasPermission);
   return (
-    <nav className="app-header-nav">
+    <nav className={classes.nav}>
       {NAV_ENTRIES.filter((e) => !e.permission || hasPermission(e.permission)).map((entry) => (
         <UnstyledButton
           key={entry.view}
           component="button"
           type="button"
-          className={`app-header-nav-item ${currentView === entry.view ? 'app-header-nav-item-active' : ''}`}
+          className={`${classes.navItem} ${currentView === entry.view ? classes.navItemActive : ''}`}
           onClick={() => onNavigate(entry.view)}
           data-testid={entry.testId}
         >
@@ -75,24 +94,26 @@ function NavItems({ currentView, onNavigate }: { currentView: AppView; onNavigat
 
 export function AppNavigation({ currentView, onOpenReleaseNotes, chatButton }: AppNavigationProps) {
   const navigate = useNavigate();
+  const tenant = useUserStore((state) => state.tenant);
   const handleNavigate = (view: AppView) => navigate(viewRouteMap[view]);
 
   return (
-    <header className="app-header" data-testid="app-navigation">
-      <div className="app-header-brand">
-        <img src={logo} alt="easi logo" className="app-header-logo" />
-        <span className="app-header-title">easi</span>
+    <header className={classes.header} data-testid="app-navigation">
+      <div className={classes.brand}>
+        <img src={logo} alt="easi logo" className={classes.logo} />
+        <span className={classes.wordmark}>easi</span>
       </div>
 
       <NavItems currentView={currentView} onNavigate={handleNavigate} />
 
-      <div className="app-header-actions">
+      <div className={classes.actions}>
+        {tenant && <span className={classes.tenant}>{tenant.name}</span>}
         {chatButton}
         {onOpenReleaseNotes && (
           <UnstyledButton
             component="button"
             type="button"
-            className="app-header-action-btn"
+            className={classes.actionButton}
             onClick={onOpenReleaseNotes}
             title="View release notes"
           >

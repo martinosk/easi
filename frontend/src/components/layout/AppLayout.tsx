@@ -14,19 +14,19 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         toastOptions={{
           duration: 3000,
           style: {
-            background: '#363636',
-            color: '#fff',
+            background: 'var(--ink)',
+            color: 'var(--surface)',
           },
           success: {
             iconTheme: {
-              primary: '#10b981',
-              secondary: '#fff',
+              primary: 'var(--status-positive)',
+              secondary: 'var(--surface)',
             },
           },
           error: {
             iconTheme: {
-              primary: '#ef4444',
-              secondary: '#fff',
+              primary: 'var(--status-danger)',
+              secondary: 'var(--surface)',
             },
           },
         }}

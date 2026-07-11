@@ -1,5 +1,6 @@
+import { NativeSelect, Tooltip } from '@mantine/core';
+import { IconVectorSpline } from '@tabler/icons-react';
 import React from 'react';
-import { NativeSelect } from '@mantine/core';
 import { useCurrentView } from '../hooks/useCurrentView';
 import { useUpdateViewEdgeType } from '../hooks/useViews';
 
@@ -26,15 +27,17 @@ export const EdgeTypeSelector: React.FC = () => {
   };
 
   return (
-    <NativeSelect
-      id="edge-type-select"
-      label="Edge Type"
-      data={EDGE_TYPE_OPTIONS}
-      value={edgeType}
-      onChange={handleChange}
-      aria-label="Select edge type for relations"
-      disabled={updateEdgeTypeMutation.isPending}
-      size="xs"
-    />
+    <Tooltip label="Edge style">
+      <NativeSelect
+        id="edge-type-select"
+        leftSection={<IconVectorSpline size={14} stroke={1.75} />}
+        data={EDGE_TYPE_OPTIONS}
+        value={edgeType}
+        onChange={handleChange}
+        aria-label="Select edge type for relations"
+        disabled={updateEdgeTypeMutation.isPending}
+        size="xs"
+      />
+    </Tooltip>
   );
 };

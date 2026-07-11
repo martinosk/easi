@@ -1,5 +1,5 @@
 import type { MantineColorsTuple } from '@mantine/core';
-import { createTheme } from '@mantine/core';
+import { Badge, Button, createTheme, Drawer, Menu, Modal, Tooltip } from '@mantine/core';
 
 const cssVar = (name: string) => `var(--${name})`;
 
@@ -20,10 +20,37 @@ const gray: MantineColorsTuple = [
   cssVar('color-gray-900'),
 ];
 
+const componentExtensions = {
+  Button: Button.extend({
+    styles: { root: { fontWeight: 500 } },
+  }),
+  Badge: Badge.extend({
+    styles: { root: { fontWeight: 600, textTransform: 'none' } },
+  }),
+  Modal: Modal.extend({
+    defaultProps: {
+      radius: 'lg',
+      shadow: 'xl',
+      overlayProps: { opacity: 0.35, color: cssVar('color-gray-900') },
+    },
+  }),
+  Drawer: Drawer.extend({
+    defaultProps: { radius: 0, shadow: 'xl' },
+  }),
+  Menu: Menu.extend({
+    defaultProps: { shadow: 'lg', radius: 'md' },
+  }),
+  Tooltip: Tooltip.extend({
+    defaultProps: { fz: 'xs' },
+  }),
+};
+
 export const theme = createTheme({
-  primaryColor: 'blue',
-  defaultRadius: 'md',
+  primaryColor: 'accent',
+  primaryShade: 8,
+  defaultRadius: 'sm',
   colors: {
+    accent: paletteTuple('skin-accent'),
     blue: paletteTuple('color-blue'),
     purple: paletteTuple('color-purple'),
     gray,
@@ -58,6 +85,17 @@ export const theme = createTheme({
     lg: cssVar('shadow-lg'),
     xl: cssVar('shadow-xl'),
   },
-  fontFamily: cssVar('font-family'),
-  headings: { fontFamily: cssVar('font-family') },
+  fontFamily: cssVar('font-ui'),
+  fontFamilyMonospace: cssVar('font-mono'),
+  headings: {
+    fontFamily: cssVar('font-display'),
+    fontWeight: '600',
+    sizes: {
+      h1: { fontSize: '1.5rem' },
+      h2: { fontSize: '1.25rem' },
+      h3: { fontSize: '1.0625rem' },
+      h4: { fontSize: '0.9375rem' },
+    },
+  },
+  components: componentExtensions,
 });

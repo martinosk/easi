@@ -25,6 +25,13 @@ describe('useCapabilitySelection', () => {
       stopPropagation: vi.fn(),
     }) as unknown as React.MouseEvent;
 
+  const modifierClickEvent = (mod: 'ctrlKey' | 'metaKey'): React.MouseEvent =>
+    ({
+      [mod]: true,
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn(),
+    }) as unknown as React.MouseEvent;
+
   const renderSelection = () => {
     const onRegularClick = vi.fn();
     const { result } = renderHook(() => useCapabilitySelection(mockCapabilities, onRegularClick));
@@ -39,11 +46,7 @@ describe('useCapabilitySelection', () => {
     });
   };
 
-  const expectSelected = (
-    result: ReturnType<typeof renderSelection>['result'],
-    id: string,
-    selected: boolean,
-  ) => {
+  const expectSelected = (result: ReturnType<typeof renderSelection>['result'], id: string, selected: boolean) => {
     expect(result.current.selectedCapabilities.has(id as CapabilityId)).toBe(selected);
   };
 
@@ -94,6 +97,21 @@ describe('useCapabilitySelection', () => {
       result.current.handleCapabilityClick(mockCapabilities[0], clickEvent(false));
     });
     expect(result.current.selectedCapabilities.size).toBe(0);
+  });
+
+  it('toggles selection on ctrl-click and cmd-click, matching the Domain Board multi-select gesture', () => {
+    const { result } = renderSelection();
+
+    act(() => {
+      result.current.handleCapabilityClick(mockCapabilities[0], modifierClickEvent('ctrlKey'));
+    });
+    expectSelected(result, 'l1-1', true);
+
+    act(() => {
+      result.current.handleCapabilityClick(mockCapabilities[1], modifierClickEvent('metaKey'));
+    });
+    expectSelected(result, 'l1-1', true);
+    expectSelected(result, 'l1-2', true);
   });
 
   it('selectAllL1Capabilities selects only L1 capabilities', () => {

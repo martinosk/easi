@@ -1,4 +1,5 @@
 import { Box, Divider, Group, Stack, Text } from '@mantine/core';
+import { IconBuildingSkyscraper, IconBuildingStore, IconUsers } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import React from 'react';
 import { httpClient } from '../../../api/core/httpClient';
@@ -101,13 +102,13 @@ const getRelationshipTypeLabel = (type: OriginRelationshipType): string => {
   return labels[type] || type;
 };
 
-const getRelationshipTypeIcon = (type: OriginRelationshipType): string => {
-  const icons: Record<OriginRelationshipType, string> = {
-    AcquiredVia: '🏢',
-    PurchasedFrom: '🏪',
-    BuiltBy: '👥',
+const getRelationshipTypeIcon = (type: OriginRelationshipType): React.ReactNode => {
+  const icons: Record<OriginRelationshipType, React.ReactNode> = {
+    AcquiredVia: <IconBuildingSkyscraper size={16} stroke={1.75} />,
+    PurchasedFrom: <IconBuildingStore size={16} stroke={1.75} />,
+    BuiltBy: <IconUsers size={16} stroke={1.75} />,
   };
-  return icons[type] || '•';
+  return icons[type] ?? null;
 };
 
 const getRelationshipTypeColor = (type: OriginRelationshipType): string => {
@@ -147,7 +148,7 @@ export const ComponentOriginsSection: React.FC<ComponentOriginsSectionProps> = (
           <React.Fragment key={origin.id}>
             {index > 0 && <Divider />}
             <Group gap="sm" py="xs" wrap="nowrap">
-              <Text size="md">{getRelationshipTypeIcon(origin.relationshipType)}</Text>
+              {getRelationshipTypeIcon(origin.relationshipType)}
               <Box flex={1}>
                 <Text size="sm" fw={500}>
                   {origin.originEntityName}

@@ -1,8 +1,9 @@
+import { IconBuildingSkyscraper } from '@tabler/icons-react';
 import React, { useMemo, useState } from 'react';
 import type { AcquiredEntity, View } from '../../../../api/types';
+import { TreeSearchInput } from '../../../../components/shared';
 import type { TreeMultiSelectProps } from '../../types';
 import { TreeItemList } from '../shared/TreeItemList';
-import { TreeSearchInput } from '../../../../components/shared';
 import { TreeSection } from '../TreeSection';
 
 interface AcquiredEntitiesSectionProps {
@@ -36,7 +37,7 @@ function filterEntities(entities: AcquiredEntity[], search: string): AcquiredEnt
   if (!search.trim()) return entities;
   const searchLower = search.toLowerCase();
   return entities.filter(
-    (e) => e.name.toLowerCase().includes(searchLower) || (e.notes?.toLowerCase().includes(searchLower)),
+    (e) => e.name.toLowerCase().includes(searchLower) || e.notes?.toLowerCase().includes(searchLower),
   );
 }
 
@@ -115,7 +116,7 @@ export const AcquiredEntitiesSection: React.FC<AcquiredEntitiesSectionProps> = (
         <TreeItemList
           items={filteredEntities}
           emptyMessage={emptyMessage}
-          icon="🏢"
+          icon={<IconBuildingSkyscraper size={16} stroke={1.75} />}
           dragDataKey="acquiredEntityId"
           isSelected={(entity) => selectedEntityId === entity.id || multiSelect.isMultiSelected(entity.id)}
           isInView={(entity) => !currentView || entityIdsOnCanvas.has(entity.id)}

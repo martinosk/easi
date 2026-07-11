@@ -2,25 +2,19 @@ import { useCallback, useState } from 'react';
 import toast from 'react-hot-toast';
 import type { BusinessDomainId, Capability, CapabilityId } from '../../../api/types';
 
-export interface PendingReassignment {
-  capability: Capability;
-  newParent: Capability;
-}
-
 interface UseDragHandlersProps {
-  domainId: BusinessDomainId | null;
-  capabilities: Capability[];
-  assignedCapabilityIds: Set<CapabilityId>;
-  positions: Record<CapabilityId, { x: number; y: number }>;
-  updatePosition: (capabilityId: CapabilityId, x: number, y: number) => Promise<void>;
-  associateCapability: (capabilityId: CapabilityId) => Promise<void>;
-  refetchCapabilities: () => Promise<void>;
-  refetchRealizations?: () => Promise<void>;
+  associateCapability: (domainId: BusinessDomainId, capabilityId: CapabilityId) => Promise<void>;
+  isCapabilityAssignedToDomain: (domainId: BusinessDomainId, capabilityId: CapabilityId) => boolean;
+  refetchDomain: (domainId: BusinessDomainId) => Promise<void>;
 }
 
-export function useDragHandlers(props: UseDragHandlersProps) {
+export function useDragHandlers({
+  associateCapability,
+  isCapabilityAssignedToDomain,
+  refetchDomain,
+}: UseDragHandlersProps) {
   const [activeCapability, setActiveCapability] = useState<Capability | null>(null);
-  const [isDragOver, setIsDragOver] = useState(false);
+  const [dragOverDomainId, setDragOverDomainId] = useState<BusinessDomainId | null>(null);
 
   const handleDragStart = useCallback((capability: Capability) => {
     setActiveCapability(capability);
@@ -28,26 +22,26 @@ export function useDragHandlers(props: UseDragHandlersProps) {
 
   const handleDragEnd = useCallback(() => {
     setActiveCapability(null);
-    setIsDragOver(false);
+    setDragOverDomainId(null);
   }, []);
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
+  const handleDragOver = useCallback((domainId: BusinessDomainId, e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    setIsDragOver(true);
+    setDragOverDomainId(domainId);
   }, []);
 
   const handleDragLeave = useCallback(() => {
-    setIsDragOver(false);
+    setDragOverDomainId(null);
   }, []);
 
   const handleDrop = useCallback(
-    async (e: React.DragEvent) => {
+    async (domainId: BusinessDomainId, e: React.DragEvent) => {
       e.preventDefault();
-      setIsDragOver(false);
+      setDragOverDomainId(null);
 
       const capabilityJson = e.dataTransfer.getData('application/json');
-      if (!capabilityJson || !props.domainId) {
+      if (!capabilityJson) {
         setActiveCapability(null);
         return;
       }
@@ -60,28 +54,25 @@ export function useDragHandlers(props: UseDragHandlersProps) {
           return;
         }
 
-        if (props.assignedCapabilityIds.has(capability.id)) {
+        if (isCapabilityAssignedToDomain(domainId, capability.id)) {
           setActiveCapability(null);
           return;
         }
 
-        await props.associateCapability(capability.id);
-        await props.refetchCapabilities();
-        await props.refetchRealizations?.();
-        const currentCount = props.capabilities.filter((c) => c.level === 'L1').length;
-        await props.updatePosition(capability.id, currentCount, 0);
+        await associateCapability(domainId, capability.id);
+        await refetchDomain(domainId);
       } catch {
         toast.error('Failed to assign capability');
       } finally {
         setActiveCapability(null);
       }
     },
-    [props],
+    [associateCapability, isCapabilityAssignedToDomain, refetchDomain],
   );
 
   return {
     activeCapability,
-    isDragOver,
+    dragOverDomainId,
     handleDragStart,
     handleDragEnd,
     handleDragOver,

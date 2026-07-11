@@ -1,0 +1,7 @@
+.rail {
+  width: 20rem;
+  flex: none;
+  border-left: 1px solid var(--line);
+  background: var(--surface);
+  overflow-y: auto;
+}

@@ -1,4 +1,18 @@
-import { Accordion, Badge, Box, Center, Group, Loader, Paper, Select, SimpleGrid, Stack, Text, Title } from '@mantine/core';
+import {
+  Accordion,
+  Badge,
+  Box,
+  Center,
+  Group,
+  Loader,
+  Paper,
+  Select,
+  SimpleGrid,
+  Stack,
+  Text,
+  Title,
+} from '@mantine/core';
+import { IconStar, IconStarFilled } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import type { ApiError, RealizationFit, StrategicFitSummary } from '../../../api/types';
 import { useStrategyPillarsConfig } from '../../../hooks/useStrategyPillarsSettings';
@@ -79,7 +93,12 @@ interface RealizationFitCardProps {
 function RealizationFitCard({ realization }: RealizationFitCardProps) {
   const accent = CATEGORY_COLOR[realization.category as FitCategory];
   return (
-    <Paper withBorder radius="md" p="md" style={{ borderLeft: `4px solid var(--mantine-color-${accent.replace('.', '-')})` }}>
+    <Paper
+      withBorder
+      radius="md"
+      p="md"
+      style={{ borderLeft: `4px solid var(--mantine-color-${accent.replace('.', '-')})` }}
+    >
       <Stack gap="sm">
         <Group justify="space-between" wrap="nowrap">
           <Group gap="xs" wrap="nowrap">
@@ -149,9 +168,9 @@ function ScoreStars({ score }: { score: number }) {
   return (
     <Group gap={2}>
       {SCORE_RANGE.map((i) => (
-        <Text key={i} size="sm" c={i <= score ? 'yellow.6' : 'gray.4'}>
-          ★
-        </Text>
+        <Box key={i} component="span" c={i <= score ? 'yellow.6' : 'gray.4'}>
+          {i <= score ? <IconStarFilled size={16} stroke={1.75} /> : <IconStar size={16} stroke={1.75} />}
+        </Box>
       ))}
       <Text size="xs" c="dimmed" ml={4}>
         ({score})

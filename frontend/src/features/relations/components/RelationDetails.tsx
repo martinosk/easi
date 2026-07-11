@@ -1,4 +1,5 @@
-import { Anchor, Badge, Button, Group, Stack, Text, Title } from '@mantine/core';
+import { Anchor, Badge, Box, Button, Group, Stack, Text, Title } from '@mantine/core';
+import { IconExternalLink } from '@tabler/icons-react';
 import React from 'react';
 import type { Component, Relation } from '../../../api/types';
 import { DetailField } from '../../../components/shared/DetailField';
@@ -56,9 +57,9 @@ const ReferenceLink: React.FC<ReferenceLinkProps> = ({ href }) => {
   return (
     <Anchor href={href} target="_blank" rel="noopener noreferrer" size="sm">
       <Group gap="xs">
-        <Text component="span" aria-hidden>
-          📚
-        </Text>
+        <Box component="span" aria-hidden>
+          <IconExternalLink size={16} stroke={1.75} />
+        </Box>
         <Text component="span">Reference Documentation</Text>
       </Group>
     </Anchor>

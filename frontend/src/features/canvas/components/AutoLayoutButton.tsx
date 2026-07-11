@@ -24,6 +24,7 @@ export const AutoLayoutButton: React.FC = () => {
   return (
     <Button
       variant="default"
+      size="xs"
       leftSection={isLayouting ? <Loader size="xs" /> : <AutoLayoutIcon />}
       onClick={() => void applyAutoLayout()}
       disabled={isDisabled}

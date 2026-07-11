@@ -1,8 +1,9 @@
 import { Handle, Position } from '@xyflow/react';
 import React from 'react';
+import { DEFAULT_CUSTOM_COLOR } from '../../constants/maturityColors';
 import { useCurrentView } from '../../features/views/hooks/useCurrentView';
+import { getContrastTextColor } from './contrastText';
 
-type HexColor = string;
 type ColorScheme = 'maturity' | 'classic' | 'custom';
 
 export interface ComponentNodeData {
@@ -12,41 +13,18 @@ export interface ComponentNodeData {
   customColor?: string;
 }
 
-const COMPONENT_COLORS: Record<ColorScheme, HexColor> = {
-  maturity: '#3b82f6',
-  classic: '#bfd9f0',
-  custom: '#3b82f6',
+const SCHEME_CLASS_NAMES: Record<ColorScheme, string> = {
+  maturity: 'component-node--maturity',
+  classic: 'component-node--classic classic-text',
+  custom: 'component-node--custom',
 };
 
-const DEFAULT_CUSTOM_COLOR: HexColor = '#E0E0E0';
-const SELECTED_BORDER_COLOR: HexColor = '#374151';
-
-const getColorByScheme = (colorScheme: ColorScheme): HexColor => {
-  return COMPONENT_COLORS[colorScheme];
-};
-
-const getBackgroundGradient = (baseColor: HexColor): string => {
-  return `linear-gradient(135deg, ${baseColor} 0%, ${baseColor}dd 100%)`;
-};
-
-const hasValidCustomColor = (customColor: HexColor | undefined): boolean => {
+const hasValidCustomColor = (customColor: string | undefined): boolean => {
   return customColor !== undefined && customColor.trim() !== '';
 };
 
-interface ColorConfig {
-  colorScheme: ColorScheme;
-  customColor: HexColor | undefined;
-}
-
-const resolveBaseColor = (config: ColorConfig): HexColor => {
-  if (config.colorScheme === 'custom') {
-    return hasValidCustomColor(config.customColor) ? config.customColor! : DEFAULT_CUSTOM_COLOR;
-  }
-  return getColorByScheme(config.colorScheme);
-};
-
-const resolveBorderColor = (isSelected: boolean, baseColor: HexColor): HexColor => {
-  return isSelected ? SELECTED_BORDER_COLOR : baseColor;
+const resolveCustomFill = (customColor: string | undefined): string => {
+  return hasValidCustomColor(customColor) ? (customColor as string) : DEFAULT_CUSTOM_COLOR;
 };
 
 export const ComponentNode: React.FC<{ data: ComponentNodeData; id: string; selected?: boolean }> = ({
@@ -57,19 +35,17 @@ export const ComponentNode: React.FC<{ data: ComponentNodeData; id: string; sele
   const { currentView } = useCurrentView();
   const colorScheme = (currentView?.colorScheme || 'maturity') as ColorScheme;
   const isSelected = data.isSelected || !!selected;
+  const isCustom = colorScheme === 'custom';
+  const customFill = isCustom ? resolveCustomFill(data.customColor) : undefined;
 
-  const baseColor = resolveBaseColor({ colorScheme, customColor: data.customColor });
-  const borderColor = resolveBorderColor(isSelected, baseColor);
-
-  const nodeClassName = `component-node ${isSelected ? 'component-node-selected' : ''} ${colorScheme === 'classic' ? 'classic-text' : ''}`;
+  const nodeClassName = ['component-node', SCHEME_CLASS_NAMES[colorScheme], isSelected ? 'component-node-selected' : '']
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <div
       className={nodeClassName}
-      style={{
-        background: getBackgroundGradient(baseColor),
-        borderColor: borderColor,
-      }}
+      style={customFill ? { backgroundColor: customFill, color: getContrastTextColor(customFill) } : undefined}
       data-component-id={id}
     >
       <Handle type="source" position={Position.Top} id="top" className="component-handle component-handle-top" />

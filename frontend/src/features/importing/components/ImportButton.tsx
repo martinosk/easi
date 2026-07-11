@@ -8,6 +8,7 @@ export function ImportButton({ onClick }: ImportButtonProps) {
   return (
     <Button
       variant="default"
+      size="xs"
       onClick={onClick}
       data-testid="import-button"
       title="Import from ArchiMate Open Exchange"

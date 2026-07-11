@@ -75,8 +75,8 @@ describe('ReleaseNotesOverlay', () => {
     it.each([
       { heading: 'Major Features', item: 'New feature', icon: '★' },
       { heading: 'Bug Fixes', item: 'Fixed issue', icon: '✓' },
-      { heading: 'Breaking Changes', item: 'API change', icon: '⚠' },
-      { heading: 'API Changes', item: 'New endpoint', icon: '⚡' },
+      { heading: 'Breaking Changes', item: 'API change', icon: '⚠︎' },
+      { heading: 'API Changes', item: 'New endpoint', icon: '◆' },
     ])('should show $icon icon for $heading section', ({ heading, item, icon }) => {
       const release: Release = { ...mockRelease, notes: `## ${heading}\n- ${item}` };
 

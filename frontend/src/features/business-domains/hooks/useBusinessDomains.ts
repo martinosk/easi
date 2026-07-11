@@ -86,22 +86,6 @@ export function useBusinessDomain(id: BusinessDomainId | undefined) {
   });
 }
 
-export function useDomainCapabilities(capabilitiesLink: string | undefined) {
-  return useQuery({
-    queryKey: businessDomainsQueryKeys.capabilitiesByLink(capabilitiesLink!),
-    queryFn: () => businessDomainsApi.getCapabilities(capabilitiesLink!),
-    enabled: !!capabilitiesLink,
-  });
-}
-
-export function useCapabilityRealizationsByDomain(domainId: BusinessDomainId | undefined, depth: number = 4) {
-  return useQuery({
-    queryKey: businessDomainsQueryKeys.realizations(domainId!, depth),
-    queryFn: () => businessDomainsApi.getCapabilityRealizations(domainId!, depth),
-    enabled: !!domainId,
-  });
-}
-
 interface MutationConfig<TArgs, TResult> {
   mutationFn: (args: TArgs) => Promise<TResult>;
   effects: (result: TResult, args: TArgs) => ReadonlyArray<readonly unknown[]>;

@@ -1,4 +1,5 @@
 import { ActionIcon, UnstyledButton } from '@mantine/core';
+import { IconLock } from '@tabler/icons-react';
 import React, { useCallback, useMemo, useState } from 'react';
 import type { View, ViewId } from '../../../api/types';
 import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
@@ -79,7 +80,11 @@ function ViewTab({ view, isActive, isOnlyTab, ownerLookup, onSelect, onRequestCl
         title={title}
         aria-label={`Switch to ${view.name}`}
       >
-        {view.isPrivate && <span className="private-indicator">🔒</span>}
+        {view.isPrivate && (
+          <span className="private-indicator">
+            <IconLock size={16} stroke={1.75} />
+          </span>
+        )}
         <span className="view-tab-name">
           {view.name}
           {view.isPrivate && ` (${ownerName})`}
@@ -111,7 +116,11 @@ interface CloseHandlers {
   requestClose: (view: View) => void;
 }
 
-function useCloseHandlers(currentView: View | null, openViewIds: ViewId[], setPendingClose: (v: View | null) => void): CloseHandlers {
+function useCloseHandlers(
+  currentView: View | null,
+  openViewIds: ViewId[],
+  setPendingClose: (v: View | null) => void,
+): CloseHandlers {
   const setCurrentViewId = useAppStore((s) => s.setCurrentViewId);
   const closeView = useAppStore((s) => s.closeView);
   const discardDraftForView = useAppStore((s) => s.discardDraftForView);

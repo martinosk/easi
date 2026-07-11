@@ -1,0 +1,53 @@
+:root {
+  --skin-brand: #232b33;
+  --skin-on-brand: #ffffff;
+  --skin-on-brand-muted: #9facb6;
+  --skin-focus: #3457d5;
+
+  --skin-accent-0: #f2f4f6;
+  --skin-accent-1: #e4e8eb;
+  --skin-accent-2: #cbd2d8;
+  --skin-accent-3: #a9b4bd;
+  --skin-accent-4: #8494a0;
+  --skin-accent-5: #5f7180;
+  --skin-accent-6: #475866;
+  --skin-accent-7: #34434f;
+  --skin-accent-8: #242f38;
+  --skin-accent-9: #161e25;
+}
+
+[data-skin="harbor"] {
+  --skin-brand: #1f3a5f;
+  --skin-on-brand: #ffffff;
+  --skin-on-brand-muted: #9db4d0;
+  --skin-focus: #4e86d8;
+
+  --skin-accent-0: #eef3f9;
+  --skin-accent-1: #dce7f2;
+  --skin-accent-2: #bccfe4;
+  --skin-accent-3: #93afce;
+  --skin-accent-4: #6b90b6;
+  --skin-accent-5: #4a729d;
+  --skin-accent-6: #365a83;
+  --skin-accent-7: #28486c;
+  --skin-accent-8: #1f3a5f;
+  --skin-accent-9: #152a47;
+}
+
+[data-skin="evergreen"] {
+  --skin-brand: #1e3d33;
+  --skin-on-brand: #ffffff;
+  --skin-on-brand-muted: #9cb8ac;
+  --skin-focus: #2e7d5b;
+
+  --skin-accent-0: #eff5f2;
+  --skin-accent-1: #deeae4;
+  --skin-accent-2: #c0d6cb;
+  --skin-accent-3: #9abba9;
+  --skin-accent-4: #729d86;
+  --skin-accent-5: #527f68;
+  --skin-accent-6: #3e6653;
+  --skin-accent-7: #2f5142;
+  --skin-accent-8: #234034;
+  --skin-accent-9: #172b23;
+}

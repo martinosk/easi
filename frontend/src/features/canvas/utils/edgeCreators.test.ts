@@ -43,9 +43,9 @@ describe('createOriginRelationshipEdges', () => {
   };
 
   const relationshipTypeConfig = [
-    { type: 'AcquiredVia', prefix: 'acq', entityId: 'ae-123', label: 'Acquired via', color: '#8b5cf6' },
-    { type: 'PurchasedFrom', prefix: 'vendor', entityId: 'v-456', label: 'Purchased from', color: '#ec4899' },
-    { type: 'BuiltBy', prefix: 'team', entityId: 'it-789', label: 'Built by', color: '#14b8a6' },
+    { type: 'AcquiredVia', prefix: 'acq', entityId: 'ae-123', label: 'Acquired via', color: '#5F4FC7' },
+    { type: 'PurchasedFrom', prefix: 'vendor', entityId: 'v-456', label: 'Purchased from', color: '#B23A6B' },
+    { type: 'BuiltBy', prefix: 'team', entityId: 'it-789', label: 'Built by', color: '#0E7A80' },
   ] as const;
 
   const callWithRelType = (config: (typeof relationshipTypeConfig)[number], ctxOverrides = {}) => {
@@ -183,7 +183,7 @@ describe('createOriginRelationshipEdges', () => {
 
     it('should include arrow marker at end', () => {
       const edges = callWithDefaults();
-      expect(edges[0].markerEnd).toEqual({ type: MarkerType.ArrowClosed, color: '#8b5cf6' });
+      expect(edges[0].markerEnd).toEqual({ type: MarkerType.ArrowClosed, color: '#5F4FC7' });
     });
 
     it('should use specified edge type', () => {

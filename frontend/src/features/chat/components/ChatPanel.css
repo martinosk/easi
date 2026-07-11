@@ -4,7 +4,7 @@
   top: 0;
   height: 100vh;
   width: 400px;
-  background: white;
+  background: var(--surface);
   box-shadow: -4px 0 12px rgba(0, 0, 0, 0.15);
   display: flex;
   flex-direction: column;
@@ -29,7 +29,7 @@
 
 .chat-panel-header {
   border-bottom: 1px solid var(--color-gray-200);
-  background: var(--color-gray-50);
+  background: var(--well);
   flex-shrink: 0;
 }
 
@@ -59,8 +59,8 @@
 }
 
 .chat-message-user .chat-message-bubble {
-  background: var(--color-primary);
-  color: white;
+  background: var(--skin-accent-0);
+  color: var(--skin-accent-8);
   border-radius: var(--radius-lg) var(--radius-lg) var(--radius-sm) var(--radius-lg);
   max-width: 85%;
   padding: var(--spacing-sm) var(--spacing-md);
@@ -73,8 +73,8 @@
 }
 
 .chat-message-assistant .chat-message-bubble {
-  background: var(--color-gray-100);
-  color: var(--color-gray-800);
+  background: var(--well);
+  color: var(--ink);
   border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) var(--radius-sm);
   max-width: 85%;
   padding: var(--spacing-sm) var(--spacing-md);
@@ -115,7 +115,7 @@
 }
 
 .chat-message-assistant .chat-message-bubble pre {
-  background: var(--color-gray-800);
+  background: var(--color-gray-900);
   color: var(--color-gray-100);
   padding: var(--spacing-sm);
   border-radius: var(--radius-md);
@@ -138,7 +138,7 @@
 
 .chat-message-assistant .chat-message-bubble th,
 .chat-message-assistant .chat-message-bubble td {
-  border: 1px solid var(--color-gray-300);
+  border: 1px solid var(--line-strong);
   padding: var(--spacing-xs) var(--spacing-sm);
   text-align: left;
 }
@@ -170,17 +170,17 @@
 }
 
 .chat-error {
-  background: #fef2f2;
+  background: var(--status-danger-bg);
   color: var(--color-error);
   padding: var(--spacing-sm) var(--spacing-md);
   border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
-  border: 1px solid #fecaca;
+  border: 1px solid var(--status-danger-line);
 }
 
 .chat-input-area {
   border-top: 1px solid var(--color-gray-200);
-  background: white;
+  background: var(--surface);
   flex-shrink: 0;
 }
 
@@ -191,7 +191,7 @@
   padding: 6px 10px;
   border-radius: var(--radius-md);
   font-size: var(--font-size-xs);
-  color: var(--color-gray-600);
+  color: var(--muted);
   cursor: pointer;
   flex-wrap: wrap;
   transition: background 0.15s ease;
@@ -216,7 +216,7 @@
 }
 
 .tool-call-activity {
-  color: var(--color-gray-400);
+  color: var(--faint);
   font-style: italic;
 }
 
@@ -246,23 +246,23 @@
 }
 
 .tool-call-completed {
-  color: var(--color-gray-500);
+  color: var(--muted);
 }
 
 .tool-call-completed .tool-call-status-icon {
-  color: var(--color-success, #22c55e);
+  color: var(--color-success);
 }
 
 .tool-call-error {
-  color: var(--color-error, #ef4444);
+  color: var(--color-error);
 }
 
 .tool-call-error .tool-call-status-icon {
-  color: var(--color-error, #ef4444);
+  color: var(--color-error);
 }
 
 .tool-call-error-message {
-  color: var(--color-error, #ef4444);
+  color: var(--color-error);
   font-size: var(--font-size-xs);
 }
 
@@ -270,17 +270,17 @@
   width: 100%;
   margin-top: 4px;
   padding: 6px 8px;
-  background: var(--color-gray-50);
+  background: var(--well);
   border-radius: var(--radius-sm);
   font-size: var(--font-size-xs);
-  color: var(--color-gray-600);
+  color: var(--muted);
   white-space: pre-wrap;
   word-break: break-word;
 }
 
 .conversation-list {
   border-bottom: 1px solid var(--color-gray-200);
-  background: var(--color-gray-50);
+  background: var(--well);
   max-height: 300px;
   overflow-y: auto;
   flex-shrink: 0;
@@ -294,7 +294,7 @@
   padding: var(--spacing-md);
   text-align: center;
   font-size: var(--font-size-sm);
-  color: var(--color-gray-400);
+  color: var(--faint);
 }
 
 .conversation-list-items {
@@ -316,7 +316,7 @@
 }
 
 .conversation-item-active {
-  background: var(--color-gray-200);
+  background: var(--skin-accent-0);
 }
 
 .conversation-item-content {
@@ -329,7 +329,7 @@
 
 .conversation-item-title {
   font-size: var(--font-size-sm);
-  color: var(--color-gray-800);
+  color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -337,7 +337,7 @@
 
 .conversation-item-time {
   font-size: var(--font-size-xs);
-  color: var(--color-gray-400);
+  color: var(--faint);
 }
 
 .conversation-delete-btn {

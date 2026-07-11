@@ -2,6 +2,6 @@
   width: 100%;
   flex: 1;
   min-height: 0;
-  background: var(--mantine-color-gray-0);
+  background: var(--bg);
   overflow: auto;
 }

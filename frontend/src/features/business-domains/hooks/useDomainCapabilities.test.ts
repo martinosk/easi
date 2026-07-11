@@ -4,11 +4,10 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BusinessDomainId, Capability, CapabilityId } from '../../../api/types';
 import { businessDomainsQueryKeys } from '../queryKeys';
-import { useDomainCapabilities } from './useDomainCapabilities';
+import { useAssociateCapability, useDissociateCapability } from './useDomainCapabilities';
 
 vi.mock('../api', () => ({
   businessDomainsApi: {
-    getCapabilitiesByDomainId: vi.fn(),
     associateCapabilityByDomainId: vi.fn(),
     dissociateCapabilityByDomainId: vi.fn(),
   },
@@ -33,7 +32,7 @@ const createCapability = (id: string, name: string): Capability => ({
   createdAt: '2024-01-01',
   _links: {
     self: { href: `/api/v1/capabilities/${id}`, method: 'GET' },
-    removeFromDomain: { href: `/api/v1/capabilities/${id}/remove`, method: 'DELETE' },
+    'x-remove-from-domain': { href: `/api/v1/business-domains/domain-1/capabilities/${id}`, method: 'DELETE' },
   },
 });
 
@@ -42,7 +41,7 @@ function createWrapper(queryClient: QueryClient) {
     React.createElement(QueryClientProvider, { client: queryClient }, children);
 }
 
-describe('useDomainCapabilities - Business Domain Query Invalidation', () => {
+describe('useAssociateCapability / useDissociateCapability', () => {
   let queryClient: QueryClient;
   let invalidateQueriesSpy: ReturnType<typeof vi.spyOn>;
   const domainId = 'domain-1' as BusinessDomainId;
@@ -50,126 +49,69 @@ describe('useDomainCapabilities - Business Domain Query Invalidation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     queryClient = new QueryClient({
-      defaultOptions: {
-        queries: { retry: false },
-        mutations: { retry: false },
-      },
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     });
     invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
-    vi.mocked(businessDomainsApi.getCapabilitiesByDomainId).mockResolvedValue([]);
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  const renderDomainCapabilities = async (waitForCapabilityCount?: number) => {
-    const { result } = renderHook(() => useDomainCapabilities(domainId), {
-      wrapper: createWrapper(queryClient),
+  it('associates a capability with a domain given at call time (not bound to the hook)', async () => {
+    vi.mocked(businessDomainsApi.associateCapabilityByDomainId).mockResolvedValue(undefined);
+    const { result } = renderHook(() => useAssociateCapability(), { wrapper: createWrapper(queryClient) });
+
+    await act(async () => {
+      await result.current.mutateAsync({ domainId, capabilityId: 'cap-1' as CapabilityId });
     });
 
-    await waitFor(() => {
-      if (waitForCapabilityCount === undefined) {
-        expect(result.current.isLoading).toBe(false);
-      } else {
-        expect(result.current.capabilities).toHaveLength(waitForCapabilityCount);
-      }
+    expect(businessDomainsApi.associateCapabilityByDomainId).toHaveBeenCalledWith(domainId, {
+      capabilityId: 'cap-1',
     });
-
-    return result;
-  };
-
-  const expectCapabilitiesInvalidated = () => {
+    expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: businessDomainsQueryKeys.capabilities(domainId) });
     expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-      queryKey: businessDomainsQueryKeys.capabilities(domainId),
-    });
-  };
-
-  describe('useQuery behavior', () => {
-    it('should fetch capabilities using useQuery when domainId is provided', async () => {
-      const capabilities = [createCapability('cap-1', 'Test Capability')];
-      vi.mocked(businessDomainsApi.getCapabilitiesByDomainId).mockResolvedValue(capabilities);
-
-      const { result } = renderHook(() => useDomainCapabilities(domainId), {
-        wrapper: createWrapper(queryClient),
-      });
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
-      });
-
-      expect(businessDomainsApi.getCapabilitiesByDomainId).toHaveBeenCalledWith(domainId);
-      expect(result.current.capabilities).toEqual(capabilities);
-    });
-
-    it('should not fetch when domainId is undefined', async () => {
-      const { result } = renderHook(() => useDomainCapabilities(undefined), {
-        wrapper: createWrapper(queryClient),
-      });
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
-      });
-
-      expect(businessDomainsApi.getCapabilitiesByDomainId).not.toHaveBeenCalled();
-      expect(result.current.capabilities).toEqual([]);
+      queryKey: businessDomainsQueryKeys.realizations(domainId, 4),
     });
   });
 
-  describe('associateCapability', () => {
-    beforeEach(() => {
-      vi.mocked(businessDomainsApi.associateCapabilityByDomainId).mockResolvedValue(undefined);
+  it('can associate the same capability with a different domain on a subsequent call', async () => {
+    vi.mocked(businessDomainsApi.associateCapabilityByDomainId).mockResolvedValue(undefined);
+    const { result } = renderHook(() => useAssociateCapability(), { wrapper: createWrapper(queryClient) });
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        domainId: 'domain-1' as BusinessDomainId,
+        capabilityId: 'cap-1' as CapabilityId,
+      });
+    });
+    await act(async () => {
+      await result.current.mutateAsync({
+        domainId: 'domain-2' as BusinessDomainId,
+        capabilityId: 'cap-1' as CapabilityId,
+      });
     });
 
-    it('should invalidate domain capabilities query after successful association', async () => {
-      const result = await renderDomainCapabilities();
-
-      await act(async () => {
-        await result.current.associateCapability('cap-1' as CapabilityId);
-      });
-
-      expectCapabilitiesInvalidated();
+    expect(businessDomainsApi.associateCapabilityByDomainId).toHaveBeenNthCalledWith(1, 'domain-1', {
+      capabilityId: 'cap-1',
     });
-
-    it('should call associateCapabilityByDomainId with correct arguments', async () => {
-      const result = await renderDomainCapabilities();
-
-      await act(async () => {
-        await result.current.associateCapability('cap-1' as CapabilityId);
-      });
-
-      expect(businessDomainsApi.associateCapabilityByDomainId).toHaveBeenCalledWith(domainId, {
-        capabilityId: 'cap-1',
-      });
+    expect(businessDomainsApi.associateCapabilityByDomainId).toHaveBeenNthCalledWith(2, 'domain-2', {
+      capabilityId: 'cap-1',
     });
   });
 
-  describe('dissociateCapability', () => {
+  it('dissociates a capability from a domain and invalidates that domain query', async () => {
+    vi.mocked(businessDomainsApi.dissociateCapabilityByDomainId).mockResolvedValue(undefined);
     const capability = createCapability('cap-1', 'Test Capability');
+    const { result } = renderHook(() => useDissociateCapability(), { wrapper: createWrapper(queryClient) });
 
-    beforeEach(() => {
-      vi.mocked(businessDomainsApi.getCapabilitiesByDomainId).mockResolvedValue([capability]);
-      vi.mocked(businessDomainsApi.dissociateCapabilityByDomainId).mockResolvedValue(undefined);
+    await act(async () => {
+      await result.current.mutateAsync({ domainId, capability });
     });
 
-    it('should invalidate domain capabilities query after successful dissociation', async () => {
-      const result = await renderDomainCapabilities(1);
+    expect(businessDomainsApi.dissociateCapabilityByDomainId).toHaveBeenCalledWith(domainId, 'cap-1');
+    expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: businessDomainsQueryKeys.capabilities(domainId) });
 
-      await act(async () => {
-        await result.current.dissociateCapability(capability);
-      });
-
-      expectCapabilitiesInvalidated();
-    });
-
-    it('should call dissociateCapabilityByDomainId with correct arguments', async () => {
-      const result = await renderDomainCapabilities(1);
-
-      await act(async () => {
-        await result.current.dissociateCapability(capability);
-      });
-
-      expect(businessDomainsApi.dissociateCapabilityByDomainId).toHaveBeenCalledWith(domainId, 'cap-1');
-    });
+    await waitFor(() => expect(result.current.isPending).toBe(false));
   });
 });

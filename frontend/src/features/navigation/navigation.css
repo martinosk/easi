@@ -2,7 +2,7 @@
 .navigation-tree {
   width: 100%;
   min-width: 0;
-  background: white;
+  background: var(--surface);
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -40,9 +40,9 @@
 }
 
 .navigation-tree-header h3 {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   font-weight: 700;
-  color: var(--color-gray-700);
+  color: var(--faint);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin: 0;
@@ -142,9 +142,9 @@
 }
 
 .tree-item.selected {
-  background: linear-gradient(to right, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05));
+  background: var(--skin-accent-0);
   color: var(--color-primary);
-  border-left-color: var(--color-primary);
+  border-left-color: var(--skin-accent-6);
   font-weight: 600;
 }
 
@@ -185,8 +185,8 @@
   align-items: center;
   gap: var(--spacing-sm);
   padding: var(--spacing-sm) var(--spacing-lg) var(--spacing-sm) calc(var(--spacing-lg) + var(--spacing-md));
-  background: linear-gradient(to right, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05));
-  border-left: 2px solid var(--color-primary);
+  background: var(--skin-accent-0);
+  border-left: 2px solid var(--skin-accent-6);
 }
 
 .tree-item-input {
@@ -208,7 +208,7 @@
 .tree-filter-label {
   font-size: var(--font-size-xs);
   font-weight: 600;
-  color: var(--color-gray-500);
+  color: var(--faint);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -238,10 +238,10 @@
   top: calc(100% + 4px);
   left: 0;
   z-index: 50;
-  background: white;
+  background: var(--surface);
   border: 1px solid var(--color-gray-200);
   border-radius: var(--radius-md);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
   min-width: 220px;
   max-width: 280px;
   max-height: 400px;

@@ -29,7 +29,7 @@
 .stage-connector {
   width: 32px;
   height: 2px;
-  background: var(--color-gray-300);
+  background: var(--line-strong);
   align-self: center;
   margin-top: var(--spacing-xl);
   flex-shrink: 0;
@@ -46,9 +46,9 @@
   width: 22px;
   height: 22px;
   border-radius: 9999px;
-  border: 1.5px dashed var(--color-gray-300);
-  background: white;
-  color: var(--color-gray-400);
+  border: 1.5px dashed var(--line-strong);
+  background: var(--surface);
+  color: var(--faint);
   cursor: pointer;
   padding: 0;
   margin-top: 4px;
@@ -66,12 +66,13 @@
 .stage-insert-btn:hover {
   border-color: var(--color-primary);
   color: var(--color-primary);
-  background: rgba(59, 130, 246, 0.06);
+  background: var(--skin-accent-0);
 }
 
 .stage-column {
   width: 260px;
-  background: white;
+  background: var(--well);
+  border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   padding: var(--spacing-md);
@@ -107,7 +108,7 @@
   width: 1.5rem;
   height: 1.5rem;
   background: var(--color-primary);
-  color: white;
+  color: var(--skin-on-brand);
   border-radius: 9999px;
   font-size: var(--font-size-xs);
   font-weight: 700;
@@ -119,7 +120,7 @@
   flex: 1;
   font-size: var(--font-size-base);
   font-weight: 600;
-  color: var(--color-gray-900);
+  color: var(--ink);
   margin: 0;
   line-height: 1.4;
   word-break: break-word;
@@ -159,13 +160,13 @@
 }
 
 .stage-action-danger:hover {
-  background: rgba(239, 68, 68, 0.1);
+  background: var(--status-danger-bg);
   color: var(--color-error);
 }
 
 .stage-description {
   font-size: var(--font-size-xs);
-  color: var(--color-gray-500);
+  color: var(--muted);
   line-height: 1.5;
   margin: 0 0 var(--spacing-sm);
 }
@@ -181,7 +182,7 @@
 
 .stage-no-caps {
   font-size: var(--font-size-xs);
-  color: var(--color-gray-400);
+  color: var(--faint);
   font-style: italic;
 }
 
@@ -190,10 +191,11 @@
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  background: var(--color-gray-100);
+  background: var(--status-positive-bg);
+  border: 1px solid var(--status-positive-line);
   border-radius: 9999px;
   font-size: var(--font-size-xs);
-  color: var(--color-gray-700);
+  color: var(--status-positive);
   max-width: 100%;
 }
 
@@ -211,7 +213,7 @@
   height: 1rem;
   border: none;
   background: none;
-  color: var(--color-gray-400);
+  color: var(--status-positive);
   cursor: pointer;
   padding: 0;
   font-size: 14px;
@@ -221,8 +223,8 @@
 }
 
 .cap-chip-remove:hover {
-  background: var(--color-gray-200);
-  color: var(--color-gray-700);
+  background: var(--status-positive-line);
+  color: var(--status-positive);
 }
 
 .stage-add-btn {
@@ -233,10 +235,10 @@
   gap: var(--spacing-xs);
   width: 160px;
   min-height: 120px;
-  border: 2px dashed var(--color-gray-300);
+  border: 2px dashed var(--line-strong);
   border-radius: var(--radius-lg);
   background: none;
-  color: var(--color-gray-400);
+  color: var(--faint);
   cursor: pointer;
   font-size: var(--font-size-sm);
   font-weight: 500;
@@ -249,7 +251,7 @@
 .stage-add-btn:hover {
   border-color: var(--color-primary);
   color: var(--color-primary);
-  background: rgba(59, 130, 246, 0.04);
+  background: var(--skin-accent-0);
 }
 
 .stage-flow-empty {
@@ -259,22 +261,22 @@
   justify-content: center;
   padding: var(--spacing-2xl) var(--spacing-xl);
   gap: var(--spacing-md);
-  background: white;
+  background: var(--surface);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
-  color: var(--color-gray-400);
+  color: var(--faint);
 }
 
 .stage-flow-empty h3 {
   font-size: var(--font-size-lg);
   font-weight: 600;
-  color: var(--color-gray-900);
+  color: var(--ink);
   margin: 0;
 }
 
 .stage-flow-empty p {
   font-size: var(--font-size-sm);
-  color: var(--color-gray-500);
+  color: var(--muted);
   text-align: center;
   max-width: 400px;
   margin: 0;
@@ -294,10 +296,10 @@
 .vsd-summary-value {
   font-size: var(--font-size-xl);
   font-weight: 700;
-  color: var(--color-gray-900);
+  color: var(--ink);
 }
 
 .vsd-summary-label {
   font-size: var(--font-size-sm);
-  color: var(--color-gray-500);
+  color: var(--muted);
 }

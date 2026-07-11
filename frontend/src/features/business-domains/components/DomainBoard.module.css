@@ -1,0 +1,39 @@
+.page {
+  background: var(--bg);
+  flex: 1;
+  min-height: 0;
+}
+
+.toolbarRow {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: var(--spacing-md) var(--spacing-lg) 0;
+}
+
+.boardRow {
+  display: flex;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
+}
+
+.boardScroll {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
+  gap: var(--spacing-md);
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: var(--spacing-md) var(--spacing-lg) var(--spacing-xl);
+}
+
+.emptyState {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: var(--spacing-xl) var(--spacing-lg);
+}

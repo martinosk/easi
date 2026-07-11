@@ -1,0 +1,121 @@
+:root {
+  /* Typography */
+  --font-ui: "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Schibsted Grotesk Variable", var(--font-ui);
+  --font-mono: "Spline Sans Mono Variable", ui-monospace, "Cascadia Mono", "Segoe UI Mono", monospace;
+  --font-family: var(--font-ui);
+
+  --font-size-xs: 0.6875rem;
+  --font-size-sm: 0.8125rem;
+  --font-size-base: 0.875rem;
+  --font-size-lg: 1rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+
+  /* Neutral ramp */
+  --color-gray-50: #f7f9fa;
+  --color-gray-100: #eff2f4;
+  --color-gray-200: #e2e7eb;
+  --color-gray-300: #cbd4da;
+  --color-gray-400: #9facb6;
+  --color-gray-500: #71818d;
+  --color-gray-600: #55636e;
+  --color-gray-700: #3d4a54;
+  --color-gray-800: #28323b;
+  --color-gray-900: #161e25;
+
+  /* Semantic surfaces */
+  --bg: #f2f5f7;
+  --surface: #ffffff;
+  --well: #f7f9fa;
+  --line: #e2e7eb;
+  --line-strong: #c1ccd4;
+  --ink: #1b242c;
+  --muted: #5c6b77;
+  --faint: #8d9ba7;
+
+  /* Status system */
+  --status-positive: #0c7a55;
+  --status-positive-bg: #e1f3eb;
+  --status-positive-line: #99d4bc;
+  --status-progress: #b45e06;
+  --status-progress-bg: #fcf0dc;
+  --status-progress-line: #eacb8f;
+  --status-neutral: #5c6b77;
+  --status-neutral-bg: #eef2f5;
+  --status-neutral-line: #c9d4dc;
+  --status-future: #5f4fc7;
+  --status-future-bg: #edeafc;
+  --status-future-line: #c0b8ee;
+  --status-danger: #b3362f;
+  --status-danger-bg: #fbeae8;
+  --status-danger-line: #ebb4af;
+
+  /* Legacy semantic aliases */
+  --color-success: #0c7a55;
+  --color-error: #b3362f;
+  --color-warning: #b45e06;
+  --color-triggers: #c25e0a;
+  --color-serves: #4768a8;
+  --color-primary: var(--skin-accent-6);
+  --color-primary-dark: var(--skin-accent-7);
+  --color-primary-light: var(--skin-accent-4);
+  --color-secondary: #5f4fc7;
+  --color-secondary-dark: #4c3fa6;
+  --color-secondary-light: #8b7dd8;
+  --color-capability-l1: #28323b;
+  --color-capability-l2: #3d4a54;
+  --color-capability-l3: #55636e;
+  --color-capability-l4: #71818d;
+
+  /* Legacy blue ramp */
+  --color-blue-0: #edf2fa;
+  --color-blue-1: #dbe4f5;
+  --color-blue-2: #b9cbe8;
+  --color-blue-3: #8fa9d6;
+  --color-blue-4: #6787c0;
+  --color-blue-5: #4768a8;
+  --color-blue-6: #35538d;
+  --color-blue-7: #284273;
+  --color-blue-8: #1d325a;
+  --color-blue-9: #142442;
+
+  /* Legacy purple ramp */
+  --color-purple-0: #f1effc;
+  --color-purple-1: #e3dff9;
+  --color-purple-2: #c8c1f0;
+  --color-purple-3: #a99ee4;
+  --color-purple-4: #8b7dd8;
+  --color-purple-5: #6f5ecc;
+  --color-purple-6: #5f4fc7;
+  --color-purple-7: #4c3fa6;
+  --color-purple-8: #3b3183;
+  --color-purple-9: #2a2360;
+
+  /* Spacing */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
+
+  /* Radii */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Shadows */
+  --shadow-xs: 0 1px 2px rgba(22, 30, 37, 0.06);
+  --shadow-sm: 0 1px 3px rgba(22, 30, 37, 0.08);
+  --shadow-md: 0 2px 8px rgba(22, 30, 37, 0.08);
+  --shadow-lg: 0 8px 24px rgba(22, 30, 37, 0.12);
+  --shadow-xl: 0 16px 40px rgba(22, 30, 37, 0.16);
+
+  /* Origin entity accents */
+  --entity-acquired: #5f4fc7;
+  --entity-vendor: #b23a6b;
+  --entity-team: #0e7a80;
+}

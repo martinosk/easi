@@ -46,10 +46,7 @@ function ScoreDots({ value }: ScoreDotsProps) {
           h={10}
           style={{
             borderRadius: '50%',
-            background:
-              s <= value
-                ? 'var(--mantine-color-blue-6)'
-                : 'var(--mantine-color-gray-3)',
+            background: s <= value ? 'var(--mantine-color-blue-6)' : 'var(--mantine-color-gray-3)',
           }}
         />
       ))}
@@ -150,12 +147,7 @@ function ImportanceDisplay({
         )}
         <Group gap="xs">
           {importance._links?.edit && (
-            <Button
-              variant="subtle"
-              size="compact-xs"
-              onClick={onEdit}
-              data-testid={`edit-importance-${pillarId}`}
-            >
+            <Button variant="subtle" size="compact-xs" onClick={onEdit} data-testid={`edit-importance-${pillarId}`}>
               Edit
             </Button>
           )}

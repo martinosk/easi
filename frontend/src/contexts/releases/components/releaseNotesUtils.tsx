@@ -15,8 +15,8 @@ const SECTION_STYLES: Record<string, SectionStyle> = {
   feature: { icon: '★', color: 'blue' },
   bug: { icon: '✓', color: 'green' },
   fix: { icon: '✓', color: 'green' },
-  api: { icon: '⚡', color: 'grape' },
-  breaking: { icon: '⚠', color: 'orange' },
+  api: { icon: '◆', color: 'grape' },
+  breaking: { icon: '⚠︎', color: 'orange' },
   default: { icon: '•', color: 'gray' },
 };
 

@@ -4,16 +4,15 @@ export interface SectionColors {
 }
 
 export const SECTION_COLORS: Record<number, SectionColors> = {
-  1: { lightColor: '#FEE2E2', saturatedColor: '#EF4444' },
-  2: { lightColor: '#FFEDD5', saturatedColor: '#F97316' },
-  3: { lightColor: '#FEF9C3', saturatedColor: '#EAB308' },
-  4: { lightColor: '#D1FAE5', saturatedColor: '#10B981' },
+  1: { lightColor: '#F6D9D5', saturatedColor: '#EF4444' },
+  2: { lightColor: '#F3E3C9', saturatedColor: '#F97316' },
+  3: { lightColor: '#EFE9C8', saturatedColor: '#EAB308' },
+  4: { lightColor: '#CFE8DA', saturatedColor: '#10B981' },
 };
 
 export const DEFAULT_MATURITY_COLOR = '#6b7280';
-export const CLASSIC_COLOR = '#f9c268';
-export const DEFAULT_CUSTOM_COLOR = '#E0E0E0';
-export const SELECTED_BORDER_COLOR = '#374151';
+export const CLASSIC_COLOR = '#DBE4F5';
+export const DEFAULT_CUSTOM_COLOR = '#E2E7EB';
 
 export const MATURITY_LEVEL_MIDPOINTS: Record<string, number> = {
   genesis: 12,

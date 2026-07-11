@@ -12,13 +12,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #9ca3af;
+  color: var(--faint);
   cursor: help;
   transition: color 0.15s ease;
 }
 
 .help-tooltip-icon:hover {
-  color: #6b7280;
+  color: var(--muted);
 }
 
 .help-tooltip-icon svg {

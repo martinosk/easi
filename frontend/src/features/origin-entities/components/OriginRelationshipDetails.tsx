@@ -1,4 +1,5 @@
-import { Button, Group, Stack, Text, Title } from '@mantine/core';
+import { Box, Button, Group, Stack, Text, Title } from '@mantine/core';
+import { IconBuildingSkyscraper, IconBuildingStore, IconUsers } from '@tabler/icons-react';
 import React from 'react';
 import type {
   AcquiredEntityId,
@@ -80,10 +81,10 @@ const handleUnlink = async (relationship: OriginRelationship, unlinkFunctions: U
   }
 };
 
-const TYPE_ICON_MAP: Record<OriginRelationshipType, string> = {
-  AcquiredVia: '🏢',
-  PurchasedFrom: '🏪',
-  BuiltBy: '👥',
+const TYPE_ICON_MAP: Record<OriginRelationshipType, React.ReactNode> = {
+  AcquiredVia: <IconBuildingSkyscraper size={16} stroke={1.75} />,
+  PurchasedFrom: <IconBuildingStore size={16} stroke={1.75} />,
+  BuiltBy: <IconUsers size={16} stroke={1.75} />,
 };
 
 export const OriginRelationshipDetails: React.FC = () => {
@@ -123,9 +124,9 @@ export const OriginRelationshipDetails: React.FC = () => {
 
       <DetailField label="Relationship Type">
         <Group gap="xs">
-          <Text component="span" aria-hidden>
+          <Box component="span" aria-hidden>
             {icon}
-          </Text>
+          </Box>
           <Text component="span">{typeLabel}</Text>
         </Group>
       </DetailField>

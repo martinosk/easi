@@ -1,5 +1,6 @@
+import { NativeSelect, Tooltip } from '@mantine/core';
+import { IconPalette } from '@tabler/icons-react';
 import React from 'react';
-import { NativeSelect } from '@mantine/core';
 import { useCurrentView } from '../hooks/useCurrentView';
 import { useUpdateViewColorScheme } from '../hooks/useViews';
 
@@ -25,15 +26,17 @@ export const ColorSchemeSelector: React.FC = () => {
   };
 
   return (
-    <NativeSelect
-      id="color-scheme-select"
-      label="Color Scheme"
-      data={COLOR_SCHEME_OPTIONS}
-      value={colorScheme}
-      onChange={handleChange}
-      aria-label="Select color scheme for canvas elements"
-      disabled={updateColorSchemeMutation.isPending}
-      size="xs"
-    />
+    <Tooltip label="Colour scheme">
+      <NativeSelect
+        id="color-scheme-select"
+        leftSection={<IconPalette size={14} stroke={1.75} />}
+        data={COLOR_SCHEME_OPTIONS}
+        value={colorScheme}
+        onChange={handleChange}
+        aria-label="Select color scheme for canvas elements"
+        disabled={updateColorSchemeMutation.isPending}
+        size="xs"
+      />
+    </Tooltip>
   );
 };

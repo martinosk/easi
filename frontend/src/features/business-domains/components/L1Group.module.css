@@ -1,0 +1,52 @@
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 4px;
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--ink);
+  text-align: left;
+}
+
+.chevron {
+  color: var(--faint);
+  transition: transform 0.15s ease;
+  flex: none;
+}
+
+.chevronOpen {
+  transform: rotate(90deg);
+}
+
+.subTag {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: 400;
+  color: var(--faint);
+}
+
+.appCount {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: 400;
+  color: var(--faint);
+}
+
+.appCountMulti {
+  color: var(--status-progress);
+  font-weight: 500;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 4px 10px 20px;
+}
+
+.ownApps {
+  padding: 2px 0 4px;
+}

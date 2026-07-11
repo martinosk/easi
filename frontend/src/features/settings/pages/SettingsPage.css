@@ -2,7 +2,7 @@
   width: 100%;
   height: 100%;
   overflow-y: auto;
-  background-color: var(--color-gray-50);
+  background-color: var(--bg);
 }
 
 .settings-container {
@@ -30,10 +30,10 @@
 
 .error-message {
   padding: 1rem;
-  background-color: var(--red-50);
-  border: 1px solid var(--red-200);
-  border-radius: 0.5rem;
-  color: var(--red-800);
+  background-color: var(--status-danger-bg);
+  border: 1px solid var(--status-danger-line);
+  border-radius: var(--radius-md);
+  color: var(--status-danger);
   text-align: center;
 }
 
@@ -62,6 +62,6 @@
 }
 
 .settings-tab-active {
-  color: var(--blue-600);
-  border-bottom-color: var(--blue-600);
+  color: var(--skin-accent-8);
+  border-bottom-color: var(--skin-accent-8);
 }

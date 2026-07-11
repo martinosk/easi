@@ -42,12 +42,7 @@ export function CapabilityExplorer({
   const renderRight = useCallback(
     (node: CapabilityTreeNode) =>
       assignedCapabilityIds.has(node.capability.id) ? (
-        <Badge
-          color="blue"
-          variant="light"
-          size="xs"
-          data-testid={`assigned-indicator-${node.capability.id}`}
-        >
+        <Badge color="blue" variant="light" size="xs" data-testid={`assigned-indicator-${node.capability.id}`}>
           Assigned
         </Badge>
       ) : null,

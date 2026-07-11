@@ -1,10 +1,11 @@
 import { TextInput, UnstyledButton } from '@mantine/core';
+import { IconBox } from '@tabler/icons-react';
 import React, { useMemo, useState } from 'react';
 import type { Component, View } from '../../../../api/types';
-import type { EditingState, TreeMultiSelectProps } from '../../types';
-import { hasCustomColor } from '../../utils/treeUtils';
 import { TreeSearchInput } from '../../../../components/shared';
 import { OnePagerIncompleteIndicator } from '../../../one-pagers/components/OnePagerIncompleteIndicator';
+import type { EditingState, TreeMultiSelectProps } from '../../types';
+import { hasCustomColor } from '../../utils/treeUtils';
 import { TreeSection } from '../TreeSection';
 
 interface ColorIndicatorProps {
@@ -30,9 +31,7 @@ function filterComponents(components: Component[], search: string): Component[] 
   if (!search.trim()) return components;
   const searchLower = search.toLowerCase();
   return components.filter(
-    (c) =>
-      c.name.toLowerCase().includes(searchLower) ||
-      (c.description?.toLowerCase().includes(searchLower)),
+    (c) => c.name.toLowerCase().includes(searchLower) || c.description?.toLowerCase().includes(searchLower),
   );
 }
 
@@ -52,7 +51,9 @@ const EditingItem: React.FC<EditingItemProps> = ({
   editInputRef,
 }) => (
   <div key={component.id} className="tree-item-edit">
-    <span className="tree-item-icon">📦</span>
+    <span className="tree-item-icon">
+      <IconBox size={16} stroke={1.75} />
+    </span>
     <TextInput
       ref={editInputRef}
       className="tree-item-input"
@@ -100,7 +101,9 @@ const ComponentItem: React.FC<ComponentItemProps> = ({
     draggable
     onDragStart={onDragStart}
   >
-    <span className="tree-item-icon">📦</span>
+    <span className="tree-item-icon">
+      <IconBox size={16} stroke={1.75} />
+    </span>
     <span className="tree-item-label">{component.name}</span>
     <OnePagerIncompleteIndicator id={component.id} onePagerComplete={component.onePagerComplete} />
     {showColorIndicator && <ColorIndicator customColor={customColor} />}

@@ -1,0 +1,109 @@
+.workspace {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.explorerPane {
+  width: 280px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--line);
+  background: var(--surface);
+  overflow-y: auto;
+}
+
+.detailsPane {
+  width: 350px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--line);
+  background: var(--surface);
+  overflow-y: auto;
+}
+
+.paneHeader {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--faint);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-bottom: 1px solid var(--line);
+}
+
+.canvasHeader {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  padding-right: var(--spacing-sm);
+}
+
+.viewSelectorSlot {
+  flex: 1;
+  min-width: 0;
+}
+
+.viewSelectorSlot :global(.view-selector) {
+  border-bottom: none;
+  box-shadow: none;
+}
+
+.canvasCommandsSlot {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.canvasCommandsSlot:not(:empty) {
+  margin-right: var(--spacing-sm);
+}
+
+.headerLeading {
+  margin-left: var(--spacing-xs);
+}
+
+.detailsContent {
+  padding: var(--spacing-md);
+}
+
+.canvasPane {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.canvasFlowWrapper {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.explorerPane :global(.navigation-tree-header),
+.explorerPane :global(.tree-toggle-btn-collapsed) {
+  display: none;
+}
+
+.explorerPane :global(.navigation-tree),
+.explorerPane :global(.navigation-tree.closed) {
+  width: 100% !important;
+}

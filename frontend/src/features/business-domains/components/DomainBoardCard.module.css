@@ -1,0 +1,50 @@
+.card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  transition: box-shadow 0.15s ease;
+}
+
+.dropTarget {
+  outline: 2px dashed var(--skin-focus);
+  outline-offset: -2px;
+}
+
+.highlighted {
+  box-shadow: 0 0 0 2px var(--skin-focus);
+}
+
+.headerRow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.domainName {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.stats {
+  margin-left: auto;
+  font-size: var(--font-size-xs);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.statCount {
+  font-family: var(--font-mono);
+}
+
+.groupsList > * + * {
+  border-top: 1px solid var(--line);
+}
+
+.emptyState {
+  font-size: var(--font-size-sm);
+  color: var(--faint);
+  font-style: italic;
+  padding: var(--spacing-sm) 0;
+}

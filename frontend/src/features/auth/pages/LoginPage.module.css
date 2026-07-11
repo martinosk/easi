@@ -1,4 +1,36 @@
-.background {
+.page {
   min-height: 100vh;
-  background: linear-gradient(135deg, var(--color-blue-7) 0%, var(--color-blue-5) 50%, var(--color-blue-4) 100%);
+  background: var(--bg);
+}
+
+.column {
+  width: 100%;
+  max-width: 400px;
+}
+
+.wordmark {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 40px;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+.tick {
+  width: 4px;
+  height: 28px;
+  border-radius: var(--radius-xs);
+  background: var(--skin-accent-8);
+}
+
+.tagline {
+  color: var(--muted);
+}
+
+.card {
+  border-color: var(--line);
+}
+
+.footer {
+  color: var(--faint);
 }

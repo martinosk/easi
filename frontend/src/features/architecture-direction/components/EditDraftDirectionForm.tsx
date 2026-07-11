@@ -13,6 +13,7 @@ import {
   Text,
   Textarea,
 } from '@mantine/core';
+import { IconBan } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -196,7 +197,9 @@ export function EditDraftDirectionForm({
           <Group gap="xs" align="flex-start" wrap="nowrap">
             <Box flex={1}>
               <MultiSelect
-                placeholder={candidatesQuery.isLoading ? 'Loading capabilities…' : 'Search or scroll to add capabilities…'}
+                placeholder={
+                  candidatesQuery.isLoading ? 'Loading capabilities…' : 'Search or scroll to add capabilities…'
+                }
                 data={allOptions}
                 value={selectedIds}
                 onChange={onSelectionChange}
@@ -288,7 +291,7 @@ function CandidateOptionContent({
         </Text>
       ) : (
         <Text size="xs" c="red">
-          ⛔ {c.ineligibilityReason}
+          <IconBan size={16} stroke={1.75} /> {c.ineligibilityReason}
         </Text>
       )}
     </Stack>

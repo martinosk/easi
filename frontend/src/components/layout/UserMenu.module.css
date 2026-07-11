@@ -1,3 +1,16 @@
 .dropdown {
   width: 16.25rem;
 }
+
+.trigger {
+  color: var(--skin-on-brand-muted);
+  border-radius: var(--radius-sm);
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.trigger:hover {
+  color: var(--skin-on-brand);
+  background: color-mix(in srgb, var(--skin-on-brand) 10%, transparent);
+}

@@ -1,4 +1,5 @@
 import { ActionIcon, Checkbox, Group, NativeSelect, TextInput } from '@mantine/core';
+import { IconTrash } from '@tabler/icons-react';
 import type { FitType, StrategyPillar } from '../../../api/types';
 import { HelpTooltip } from '../../../components/shared/HelpTooltip';
 import type { EditablePillar, ValidationErrors } from './pillarChanges';
@@ -244,7 +245,7 @@ function PillarRowActions({ pillar, index, canDelete, onDelete, onRestore }: Pil
           aria-label={`Delete ${pillar.name}`}
           data-testid={`delete-pillar-btn-${index}`}
         >
-          🗑
+          <IconTrash size={16} stroke={1.75} />
         </ActionIcon>
       )}
     </div>

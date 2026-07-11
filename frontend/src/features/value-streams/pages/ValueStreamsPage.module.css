@@ -2,7 +2,7 @@
   width: 100%;
   flex: 1;
   min-height: 0;
-  background: var(--color-gray-50);
+  background: var(--bg);
   overflow: auto;
 }
 

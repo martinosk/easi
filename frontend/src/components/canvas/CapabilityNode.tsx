@@ -1,15 +1,10 @@
 import { Handle, Position } from '@xyflow/react';
 import React from 'react';
-import {
-  CLASSIC_COLOR,
-  DEFAULT_CUSTOM_COLOR,
-  deriveMaturityValue,
-  SELECTED_BORDER_COLOR,
-} from '../../constants/maturityColors';
+import { DEFAULT_CUSTOM_COLOR, deriveMaturityValue } from '../../constants/maturityColors';
 import { useCurrentView } from '../../features/views/hooks/useCurrentView';
 import { useMaturityColorScale } from '../../hooks/useMaturityColorScale';
+import { getContrastTextColor } from './contrastText';
 
-type HexColor = string;
 type ColorScheme = 'maturity' | 'classic' | 'custom';
 
 export interface CapabilityNodeData {
@@ -22,45 +17,18 @@ export interface CapabilityNodeData {
   customColor?: string;
 }
 
-const getColorByScheme = (
-  colorScheme: ColorScheme,
-  maturityValue: number | undefined,
-  maturityLevel: string | undefined,
-  getColorForValue: (value: number) => string,
-): HexColor => {
-  if (colorScheme === 'classic') {
-    return CLASSIC_COLOR;
-  }
-
-  const effectiveValue = maturityValue ?? deriveMaturityValue(maturityLevel);
-  return getColorForValue(effectiveValue);
+const SCHEME_CLASS_NAMES: Record<ColorScheme, string> = {
+  maturity: 'capability-node--maturity',
+  classic: 'capability-node--classic classic-text',
+  custom: 'capability-node--custom',
 };
 
-const getBackgroundGradient = (baseColor: HexColor): string => {
-  return `linear-gradient(135deg, ${baseColor} 0%, ${baseColor}dd 100%)`;
-};
-
-const hasValidCustomColor = (customColor: HexColor | undefined): boolean => {
+const hasValidCustomColor = (customColor: string | undefined): boolean => {
   return customColor !== undefined && customColor.trim() !== '';
 };
 
-interface ColorConfig {
-  colorScheme: ColorScheme;
-  customColor: HexColor | undefined;
-  maturityLevel: string | undefined;
-  maturityValue: number | undefined;
-  getColorForValue: (value: number) => string;
-}
-
-const resolveBaseColor = (config: ColorConfig): HexColor => {
-  if (config.colorScheme === 'custom') {
-    return hasValidCustomColor(config.customColor) ? config.customColor! : DEFAULT_CUSTOM_COLOR;
-  }
-  return getColorByScheme(config.colorScheme, config.maturityValue, config.maturityLevel, config.getColorForValue);
-};
-
-const resolveBorderColor = (isSelected: boolean, baseColor: HexColor): HexColor => {
-  return isSelected ? SELECTED_BORDER_COLOR : baseColor;
+const resolveCustomFill = (customColor: string | undefined): string => {
+  return hasValidCustomColor(customColor) ? (customColor as string) : DEFAULT_CUSTOM_COLOR;
 };
 
 export const CapabilityNode: React.FC<{ data: CapabilityNodeData; id: string; selected?: boolean }> = ({
@@ -76,24 +44,27 @@ export const CapabilityNode: React.FC<{ data: CapabilityNodeData; id: string; se
   const effectiveMaturityValue = data.maturityValue ?? deriveMaturityValue(data.maturityLevel);
   const sectionName = getSectionNameForValue(effectiveMaturityValue);
 
-  const baseColor = resolveBaseColor({
-    colorScheme,
-    customColor: data.customColor,
-    maturityLevel: data.maturityLevel,
-    maturityValue: data.maturityValue,
-    getColorForValue,
-  });
-  const borderColor = resolveBorderColor(isSelected, baseColor);
+  const dataDrivenFill =
+    colorScheme === 'custom'
+      ? resolveCustomFill(data.customColor)
+      : colorScheme === 'maturity'
+        ? getColorForValue(effectiveMaturityValue)
+        : undefined;
 
-  const nodeClassName = `capability-node ${isSelected ? 'capability-node-selected' : ''} ${colorScheme === 'classic' ? 'classic-text' : ''}`;
+  const nodeClassName = [
+    'capability-node',
+    SCHEME_CLASS_NAMES[colorScheme],
+    isSelected ? 'capability-node-selected' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <div
       className={nodeClassName}
-      style={{
-        background: getBackgroundGradient(baseColor),
-        borderColor: borderColor,
-      }}
+      style={
+        dataDrivenFill ? { backgroundColor: dataDrivenFill, color: getContrastTextColor(dataDrivenFill) } : undefined
+      }
       data-capability-id={id}
     >
       <Handle type="source" position={Position.Top} id="top" className="capability-handle capability-handle-top" />

@@ -4,21 +4,21 @@ import { HelpTooltip } from '../../../components/shared/HelpTooltip';
 import { useMaturityColorScale } from '../../../hooks/useMaturityColorScale';
 import { useMaturityGapDetailHook, useSetTargetMaturity } from '../hooks/useMaturityAnalysis';
 import type { EnterpriseCapabilityId, ImplementationDetail, MaturityGapDetail } from '../types';
-import { SetTargetMaturityModal } from './SetTargetMaturityModal';
 import classes from './MaturityGapDetailPanel.module.css';
+import { SetTargetMaturityModal } from './SetTargetMaturityModal';
 
 type Priority = 'High' | 'Medium' | 'Low' | 'None';
 
 function getPriorityColor(priority: Priority): string {
   switch (priority) {
     case 'High':
-      return 'var(--color-error, #ef4444)';
+      return 'var(--status-danger)';
     case 'Medium':
-      return 'var(--color-warning, #f59e0b)';
+      return 'var(--status-progress)';
     case 'Low':
-      return 'var(--color-blue-500, #3b82f6)';
+      return 'var(--color-blue-5)';
     default:
-      return 'var(--color-green-500, #22c55e)';
+      return 'var(--status-positive)';
   }
 }
 

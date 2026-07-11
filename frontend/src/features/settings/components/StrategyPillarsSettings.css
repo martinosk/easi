@@ -1,10 +1,8 @@
 .strategy-pillars-settings {
-  background-color: white;
-  border-radius: 0.5rem;
+  background-color: var(--surface);
+  border-radius: var(--radius-md);
   padding: 2rem;
-  box-shadow:
-    0 1px 3px 0 rgba(0, 0, 0, 0.1),
-    0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-sm);
 }
 
 .strategy-pillars-header {
@@ -47,7 +45,7 @@
   width: 2rem;
   height: 2rem;
   border: 3px solid var(--color-gray-200);
-  border-top-color: var(--blue-600);
+  border-top-color: var(--skin-accent-6);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -60,18 +58,18 @@
 
 .error-message {
   padding: 1rem;
-  background-color: var(--red-50);
-  border: 1px solid var(--red-200);
-  border-radius: 0.5rem;
-  color: var(--red-800);
+  background-color: var(--status-danger-bg);
+  border: 1px solid var(--status-danger-line);
+  border-radius: var(--radius-md);
+  color: var(--status-danger);
 }
 
 .conflict-message {
   padding: 0.75rem 1rem;
-  background-color: var(--yellow-50);
-  border: 1px solid var(--yellow-200);
-  border-radius: 0.375rem;
-  color: var(--yellow-800);
+  background-color: var(--status-progress-bg);
+  border: 1px solid var(--status-progress-line);
+  border-radius: var(--radius-sm);
+  color: var(--status-progress);
   font-size: 0.875rem;
   margin-bottom: 1.5rem;
 }
@@ -89,7 +87,7 @@
   color: var(--color-gray-500);
   font-size: 0.875rem;
   background-color: var(--color-gray-50);
-  border-radius: 0.5rem;
+  border-radius: var(--radius-md);
   border: 1px dashed var(--color-gray-300);
 }
 
@@ -98,7 +96,7 @@
   align-items: flex-start;
   padding: 1rem;
   background-color: var(--color-gray-50);
-  border-radius: 0.5rem;
+  border-radius: var(--radius-md);
   border: 1px solid var(--color-gray-200);
   gap: 1rem;
   transition:
@@ -108,8 +106,8 @@
 
 .pillar-row.pillar-marked-for-deletion {
   opacity: 0.5;
-  background-color: var(--red-50);
-  border-color: var(--red-200);
+  background-color: var(--status-danger-bg);
+  border-color: var(--status-danger-line);
 }
 
 .pillar-order {
@@ -168,9 +166,9 @@
   padding: 0.25rem 0.5rem;
   font-size: 0.75rem;
   font-weight: 500;
-  color: var(--blue-700);
-  background-color: var(--blue-50);
-  border-radius: 0.25rem;
+  color: var(--color-blue-7);
+  background-color: var(--color-blue-0);
+  border-radius: var(--radius-xs);
   width: fit-content;
 }
 
@@ -190,9 +188,9 @@
   padding: 0.25rem 0.5rem;
   font-size: 0.75rem;
   font-weight: 500;
-  color: var(--purple-700);
-  background-color: var(--purple-50);
-  border-radius: 0.25rem;
+  color: var(--status-future);
+  background-color: var(--status-future-bg);
+  border-radius: var(--radius-xs);
   width: fit-content;
 }
 
@@ -202,10 +200,9 @@
   padding-top: 0.25rem;
 }
 
-
 .validation-error {
   font-size: 0.75rem;
-  color: var(--red-700);
+  color: var(--status-danger);
   margin-top: 0.25rem;
 }
 
@@ -215,7 +212,6 @@
   gap: 0.5rem;
   margin-bottom: 1.5rem;
 }
-
 
 .max-pillars-notice {
   font-size: 0.75rem;

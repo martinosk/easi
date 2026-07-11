@@ -9,13 +9,7 @@ interface DynamicModeToolbarProps {
   onDiscard: () => void;
 }
 
-export function DynamicModeToolbar({
-  dirty,
-  isSaving,
-  saveLabel,
-  onSave,
-  onDiscard,
-}: DynamicModeToolbarProps) {
+export function DynamicModeToolbar({ dirty, isSaving, saveLabel, onSave, onDiscard }: DynamicModeToolbarProps) {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const handleCancelClick = () => {
@@ -30,11 +24,11 @@ export function DynamicModeToolbar({
 
   return (
     <>
-      <Group gap="xs">
-        <Button color="green" disabled={isSaving || !dirty} onClick={onSave}>
+      <Group gap="xs" wrap="nowrap">
+        <Button size="xs" disabled={isSaving || !dirty} onClick={onSave}>
           {saveLabel}
         </Button>
-        <Button variant="default" disabled={isSaving || !dirty} onClick={handleCancelClick}>
+        <Button size="xs" variant="subtle" color="gray" disabled={isSaving || !dirty} onClick={handleCancelClick}>
           Cancel
         </Button>
       </Group>

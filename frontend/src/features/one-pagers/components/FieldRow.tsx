@@ -1,4 +1,5 @@
 import { ActionIcon, Badge, Checkbox, Group, Stack, Text } from '@mantine/core';
+import { IconPencil } from '@tabler/icons-react';
 import { hasLink } from '../../../utils/hateoas';
 import type { BuiltInField, CustomField, SelectionOption } from '../types';
 import { SelectionOptionsEditor } from './SelectionOptionsEditor';
@@ -111,7 +112,7 @@ function CustomRow({ field, actions }: { field: CustomField; actions: FieldRowAc
               onClick={() => actions.onRename(field)}
               data-testid={`one-pager-rename-${field.id}`}
             >
-              ✎
+              <IconPencil size={16} stroke={1.75} />
             </ActionIcon>
           )}
           {hasLink(field, 'x-retire') && (

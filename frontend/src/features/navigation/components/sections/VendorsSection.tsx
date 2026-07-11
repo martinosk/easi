@@ -1,8 +1,9 @@
+import { IconBuildingStore } from '@tabler/icons-react';
 import React, { useMemo, useState } from 'react';
 import type { Vendor, View } from '../../../../api/types';
+import { TreeSearchInput } from '../../../../components/shared';
 import type { TreeMultiSelectProps } from '../../types';
 import { TreeItemList } from '../shared/TreeItemList';
-import { TreeSearchInput } from '../../../../components/shared';
 import { TreeSection } from '../TreeSection';
 
 interface VendorsSectionProps {
@@ -28,8 +29,8 @@ function filterVendors(vendors: Vendor[], search: string): Vendor[] {
   return vendors.filter(
     (v) =>
       v.name.toLowerCase().includes(searchLower) ||
-      (v.implementationPartner?.toLowerCase().includes(searchLower)) ||
-      (v.notes?.toLowerCase().includes(searchLower)),
+      v.implementationPartner?.toLowerCase().includes(searchLower) ||
+      v.notes?.toLowerCase().includes(searchLower),
   );
 }
 
@@ -109,7 +110,7 @@ export const VendorsSection: React.FC<VendorsSectionProps> = ({
         <TreeItemList
           items={filteredVendors}
           emptyMessage={emptyMessage}
-          icon="🏪"
+          icon={<IconBuildingStore size={16} stroke={1.75} />}
           dragDataKey="vendorId"
           isSelected={(vendor) => selectedVendorId === vendor.id || multiSelect.isMultiSelected(vendor.id)}
           isInView={(vendor) => !currentView || vendorIdsOnCanvas.has(vendor.id)}
