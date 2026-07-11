@@ -212,7 +212,10 @@ func (r *Runner) executeAlwaysScript(scriptsPath, filename string) error {
 		return fmt.Errorf("failed to read script file: %w", err)
 	}
 
-	sqlContent := substituteEnvVars(string(content))
+	sqlContent, err := substituteEnvVars(string(content))
+	if err != nil {
+		return fmt.Errorf("failed to substitute environment variables: %w", err)
+	}
 
 	tx, err := r.db.Begin()
 	if err != nil {
@@ -233,12 +236,25 @@ func (r *Runner) executeAlwaysScript(scriptsPath, filename string) error {
 
 var envVarPattern = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)\}`)
 
-func substituteEnvVars(content string) string {
-	return envVarPattern.ReplaceAllStringFunc(content, func(match string) string {
+func substituteEnvVars(content string) (string, error) {
+	var missingVars []string
+	seen := make(map[string]bool)
+
+	result := envVarPattern.ReplaceAllStringFunc(content, func(match string) string {
 		varName := envVarPattern.FindStringSubmatch(match)[1]
 		if value := os.Getenv(varName); value != "" {
 			return value
 		}
+		if !seen[varName] {
+			seen[varName] = true
+			missingVars = append(missingVars, varName)
+		}
 		return match
 	})
+
+	if len(missingVars) > 0 {
+		return "", fmt.Errorf("required environment variable(s) not set: %s", strings.Join(missingVars, ", "))
+	}
+
+	return result, nil
 }

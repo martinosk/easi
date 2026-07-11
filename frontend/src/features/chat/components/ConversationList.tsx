@@ -1,4 +1,4 @@
-import { ActionIcon, Group } from '@mantine/core';
+import { ActionIcon, Group, UnstyledButton } from '@mantine/core';
 import type { Conversation } from '../api/types';
 
 interface ConversationListProps {
@@ -51,17 +51,16 @@ export function ConversationList({
             <div
               key={conv.id}
               className={`conversation-item${activeConversationId === conv.id ? ' conversation-item-active' : ''}`}
-              onClick={() => onSelect(conv.id)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') onSelect(conv.id);
-              }}
             >
-              <div className="conversation-item-content">
+              <UnstyledButton
+                component="button"
+                type="button"
+                className="conversation-item-content"
+                onClick={() => onSelect(conv.id)}
+              >
                 <span className="conversation-item-title">{conv.title}</span>
                 <span className="conversation-item-time">{formatRelativeTime(conv.createdAt)}</span>
-              </div>
+              </UnstyledButton>
               <ActionIcon
                 variant="subtle"
                 color="gray"

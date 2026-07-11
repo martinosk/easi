@@ -1,5 +1,6 @@
-import { ActionIcon, Paper, Table } from '@mantine/core';
+import { ActionIcon, Group, Paper, Table } from '@mantine/core';
 import React from 'react';
+import { OnePagerIncompleteIndicator } from '../../one-pagers/components/OnePagerIncompleteIndicator';
 import type { EnterpriseCapability } from '../types';
 import classes from './EnterpriseCapabilitiesTable.module.css';
 
@@ -60,7 +61,12 @@ export const EnterpriseCapabilitiesTable = React.memo<EnterpriseCapabilitiesTabl
                 role="button"
                 aria-label={`Select enterprise capability ${capability.name}`}
               >
-                <Table.Td fw={500}>{capability.name}</Table.Td>
+                <Table.Td fw={500}>
+                  <Group gap="xs" wrap="nowrap">
+                    {capability.name}
+                    <OnePagerIncompleteIndicator id={capability.id} onePagerComplete={capability.onePagerComplete} />
+                  </Group>
+                </Table.Td>
                 <Table.Td c="dimmed">{capability.category || '-'}</Table.Td>
                 <Table.Td fw={600} c="blue.6">
                   {capability.includedCapabilityCount}

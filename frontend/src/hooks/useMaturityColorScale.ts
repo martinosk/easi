@@ -63,7 +63,9 @@ export const useMaturityColorScale = (): MaturityColorScale => {
 
   const sectionByOrder = useMemo(() => {
     const map = new Map<number, ColoredSection>();
-    sections.forEach((section) => map.set(section.order, section));
+    for (const section of sections) {
+      map.set(section.order, section);
+    }
     return map;
   }, [sections]);
 

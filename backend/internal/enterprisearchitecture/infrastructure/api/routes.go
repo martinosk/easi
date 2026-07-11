@@ -53,15 +53,16 @@ type routeHTTPHandlers struct {
 }
 
 type EnterpriseArchRoutesDeps struct {
-	Router              chi.Router
-	CommandBus          *cqrs.InMemoryCommandBus
-	EventStore          eventstore.EventStore
-	EventBus            events.EventBus
-	DB                  *database.TenantAwareDB
-	AuthMiddleware      AuthMiddleware
-	SessionProvider     authPL.SessionProvider
-	DirectionSources    appservices.DirectionSourcesProvider
-	BusinessDomainNames projectors.BusinessDomainNameLookup
+	Router               chi.Router
+	CommandBus           *cqrs.InMemoryCommandBus
+	EventStore           eventstore.EventStore
+	EventBus             events.EventBus
+	DB                   *database.TenantAwareDB
+	AuthMiddleware       AuthMiddleware
+	SessionProvider      authPL.SessionProvider
+	DirectionSources     appservices.DirectionSourcesProvider
+	BusinessDomainNames  projectors.BusinessDomainNameLookup
+	OnePagerCompleteness OnePagerCompletenessSource
 }
 
 func SetupEnterpriseArchitectureRoutes(deps EnterpriseArchRoutesDeps) (*appservices.CompositionService, error) {
@@ -71,7 +72,7 @@ func SetupEnterpriseArchitectureRoutes(deps EnterpriseArchRoutesDeps) (*appservi
 	setupEventSubscriptions(deps.EventBus, rm, deps.BusinessDomainNames)
 	setupCommandHandlers(deps.CommandBus, repos, rm)
 
-	httpHandlers := initializeHTTPHandlers(deps.CommandBus, rm, deps.SessionProvider)
+	httpHandlers := initializeHTTPHandlers(deps.CommandBus, rm, deps.SessionProvider, deps.OnePagerCompleteness)
 	rateLimiter := middleware.NewRateLimiter(100, 60)
 	registerRoutes(deps.Router, httpHandlers, deps.AuthMiddleware, rateLimiter)
 
@@ -213,12 +214,13 @@ func setupCommandHandlers(commandBus *cqrs.InMemoryCommandBus, repos *routeRepos
 	commandBus.Register("RemoveEnterpriseStrategicImportance", handlers.NewRemoveEnterpriseStrategicImportanceHandler(repos.importance))
 }
 
-func initializeHTTPHandlers(commandBus *cqrs.InMemoryCommandBus, rm *routeReadModels, sessionProvider authPL.SessionProvider) *routeHTTPHandlers {
+func initializeHTTPHandlers(commandBus *cqrs.InMemoryCommandBus, rm *routeReadModels, sessionProvider authPL.SessionProvider, onePagerCompleteness OnePagerCompletenessSource) *routeHTTPHandlers {
 	readModels := &EnterpriseCapabilityReadModels{
-		Capability:       rm.capability,
-		Composition:      rm.composition,
-		Importance:       rm.importance,
-		MaturityAnalysis: rm.maturityAnalysis,
+		Capability:           rm.capability,
+		Composition:          rm.composition,
+		Importance:           rm.importance,
+		MaturityAnalysis:     rm.maturityAnalysis,
+		OnePagerCompleteness: onePagerCompleteness,
 	}
 	links := NewEnterpriseArchLinks(sharedAPI.NewHATEOASLinks(""))
 	return &routeHTTPHandlers{

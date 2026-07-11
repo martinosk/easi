@@ -97,6 +97,7 @@ function renderApp() {
                       <Route path={ROUTES.USERS} element={<App view="users" />} />
                       <Route path="/settings/*" element={<App view="settings" />} />
                       <Route path={ROUTES.MY_EDIT_ACCESS} element={<App view="my-edit-access" />} />
+                      <Route path={`${ROUTES.ONE_PAGERS}/*`} element={<App view="one-pagers" />} />
                     </Route>
                     <Route path="*" element={<Navigate to={ROUTES.HOME} replace />} />
                   </Routes>

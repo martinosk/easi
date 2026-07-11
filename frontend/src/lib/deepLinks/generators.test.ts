@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { generateDomainShareUrl, generateViewShareUrl } from './generators';
+import { generateDomainShareUrl, generateOnePagerShareUrl, generateViewShareUrl } from './generators';
 
 function setLocationOrigin(origin: string) {
   Object.defineProperty(window, 'location', {
@@ -45,6 +45,16 @@ describe('deepLinks generators', () => {
       const url = generateDomainShareUrl('domain-456');
 
       expect(url).toBe('https://app.example.com/business-domains?domain=domain-456');
+    });
+  });
+
+  describe('generateOnePagerShareUrl', () => {
+    it('should generate a URL with the subject type and subject id in the path', () => {
+      setLocationOrigin('https://app.example.com');
+
+      const url = generateOnePagerShareUrl('vendor', 'vendor-1');
+
+      expect(url).toBe('https://app.example.com/one-pagers/vendor/vendor-1');
     });
   });
 });

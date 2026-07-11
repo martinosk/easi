@@ -23,13 +23,14 @@ type AuthMiddleware interface {
 }
 
 type RouteConfig struct {
-	Router         chi.Router
-	CommandBus     *cqrs.InMemoryCommandBus
-	EventStore     eventstore.EventStore
-	EventBus       events.EventBus
-	DB             *database.TenantAwareDB
-	HATEOAS        *sharedAPI.HATEOASLinks
-	AuthMiddleware AuthMiddleware
+	Router               chi.Router
+	CommandBus           *cqrs.InMemoryCommandBus
+	EventStore           eventstore.EventStore
+	EventBus             events.EventBus
+	DB                   *database.TenantAwareDB
+	HATEOAS              *sharedAPI.HATEOASLinks
+	AuthMiddleware       AuthMiddleware
+	OnePagerCompleteness OnePagerCompletenessSources
 }
 
 type repositorySet struct {
@@ -164,15 +165,15 @@ func registerOriginRelationshipCommandHandlers(bus *cqrs.InMemoryCommandBus, rep
 	bus.Register("ClearOriginLink", handlers.NewClearOriginLinkHandler(repos.componentOriginLink))
 }
 
-func newHTTPHandlerSet(bus *cqrs.InMemoryCommandBus, rm *readModelSet, hateoas *sharedAPI.HATEOASLinks) *httpHandlerSet {
+func newHTTPHandlerSet(bus *cqrs.InMemoryCommandBus, rm *readModelSet, hateoas *sharedAPI.HATEOASLinks, completeness OnePagerCompletenessSources) *httpHandlerSet {
 	links := NewArchitectureModelingLinks(hateoas)
 	return &httpHandlerSet{
-		component:      NewComponentHandlers(bus, rm.component, links),
+		component:      NewComponentHandlers(bus, rm.component, links, completeness.Components),
 		expert:         NewComponentExpertHandlers(bus, rm.component),
 		relation:       NewRelationHandlers(bus, rm.relation, links),
-		acquiredEntity: NewAcquiredEntityHandlers(bus, rm.acquiredEntity, links),
-		vendor:         NewVendorHandlers(bus, rm.vendor, links),
-		internalTeam:   NewInternalTeamHandlers(bus, rm.internalTeam, links),
+		acquiredEntity: NewAcquiredEntityHandlers(bus, rm.acquiredEntity, links, completeness.AcquiredEntities),
+		vendor:         NewVendorHandlers(bus, rm.vendor, links, completeness.Vendors),
+		internalTeam:   NewInternalTeamHandlers(bus, rm.internalTeam, links, completeness.InternalTeams),
 		originRelationship: NewOriginRelationshipHandlersFromConfig(OriginRelationshipHandlersConfig{
 			CommandBus: bus,
 			ReadModels: OriginReadModels{
@@ -326,7 +327,7 @@ func SetupArchitectureModelingRoutes(cfg RouteConfig) error {
 	subscribeProjectors(cfg.EventBus, rm)
 	registerCommandHandlers(cfg.CommandBus, repos, rm)
 
-	handlers := newHTTPHandlerSet(cfg.CommandBus, rm, cfg.HATEOAS)
+	handlers := newHTTPHandlerSet(cfg.CommandBus, rm, cfg.HATEOAS, cfg.OnePagerCompleteness)
 	registerRoutes(cfg.Router, handlers, cfg.AuthMiddleware)
 
 	return nil

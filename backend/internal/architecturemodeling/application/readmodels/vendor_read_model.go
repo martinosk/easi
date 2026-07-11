@@ -18,6 +18,7 @@ type VendorDTO struct {
 	Notes                 string              `json:"notes,omitempty"`
 	CreatedAt             time.Time           `json:"createdAt"`
 	UpdatedAt             *time.Time          `json:"updatedAt,omitempty"`
+	OnePagerComplete      *bool               `json:"onePagerComplete,omitempty"`
 	Links                 types.Links         `json:"_links,omitempty"`
 	XRelated              []types.RelatedLink `json:"-"`
 }
@@ -156,6 +157,23 @@ func (rm *VendorReadModel) GetAll(ctx context.Context) ([]VendorDTO, error) {
 	})
 
 	return vendors, err
+}
+
+func (rm *VendorReadModel) Count(ctx context.Context) (int, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	var count int
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		return tx.QueryRowContext(ctx,
+			"SELECT COUNT(*) FROM architecturemodeling.vendors WHERE tenant_id = $1 AND is_deleted = FALSE",
+			tenantID.Value(),
+		).Scan(&count)
+	})
+
+	return count, err
 }
 
 func (rm *VendorReadModel) GetAllPaginated(ctx context.Context, limit int, afterCursor string, afterName string) ([]VendorDTO, bool, error) {

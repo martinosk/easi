@@ -1,3 +1,14 @@
+export type AppView =
+  | 'canvas'
+  | 'business-domains'
+  | 'value-streams'
+  | 'invitations'
+  | 'users'
+  | 'settings'
+  | 'enterprise-architecture'
+  | 'my-edit-access'
+  | 'one-pagers';
+
 export const ROUTES = {
   HOME: '/',
   CANVAS: '/canvas',
@@ -11,5 +22,7 @@ export const ROUTES = {
   SETTINGS: '/settings',
   SETTINGS_MATURITY_SCALE: '/settings/maturity-scale',
   MY_EDIT_ACCESS: '/my-edit-access',
+  ONE_PAGERS: '/one-pagers',
+  ONE_PAGER_DETAIL: '/one-pagers/:subjectType/:subjectId',
   LOGIN: '/login',
 } as const;

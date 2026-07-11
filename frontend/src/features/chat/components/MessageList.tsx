@@ -47,6 +47,7 @@ export function MessageList({ messages, toolCalls, isStreaming, error, onSuggest
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (messages.length === 0) return;
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
@@ -57,7 +58,7 @@ export function MessageList({ messages, toolCalls, isStreaming, error, onSuggest
       {messages.map((msg, index) => (
         <ChatMessage
           key={msg.id}
-          role={msg.role}
+          sender={msg.role}
           content={msg.content}
           isStreaming={isStreaming && isLastAssistantMessage(index, msg.role, messages.length)}
         />

@@ -1,6 +1,7 @@
 import { UnstyledButton } from '@mantine/core';
 import { useNavigate } from 'react-router-dom';
 import logo from '../../assets/logo.svg';
+import type { AppView } from '../../routes/routePaths';
 import { ROUTES } from '../../routes/routePaths';
 import { useUserStore } from '../../store/userStore';
 import {
@@ -14,16 +15,6 @@ import {
   ValueStreamsIcon,
 } from './AppNavigation.icons';
 import { UserMenu } from './UserMenu';
-
-type AppView =
-  | 'canvas'
-  | 'business-domains'
-  | 'value-streams'
-  | 'invitations'
-  | 'users'
-  | 'settings'
-  | 'enterprise-architecture'
-  | 'my-edit-access';
 
 interface AppNavigationProps {
   currentView: AppView;
@@ -40,6 +31,7 @@ const viewRouteMap: Record<AppView, string> = {
   users: ROUTES.USERS,
   settings: ROUTES.SETTINGS,
   'my-edit-access': ROUTES.MY_EDIT_ACCESS,
+  'one-pagers': ROUTES.ONE_PAGERS,
 };
 
 interface NavEntry {

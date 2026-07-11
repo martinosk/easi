@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { HttpResponse, http } from 'msw';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Capability, CapabilityId, View, ViewId } from '../../../api/types';
 import type { AppStore } from '../../../store/appStore';
@@ -66,7 +67,13 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
       error: null,
     });
     const { Wrapper } = createMantineTestWrapper();
-    return render(<CapabilityDetails onRemoveFromView={vi.fn()} />, { wrapper: Wrapper });
+    return render(<CapabilityDetails onRemoveFromView={vi.fn()} />, {
+      wrapper: ({ children }) => (
+        <MemoryRouter>
+          <Wrapper>{children}</Wrapper>
+        </MemoryRouter>
+      ),
+    });
   };
 
   describe('Color picker visibility', () => {

@@ -13,22 +13,25 @@ vi.mock('../../../store/appStore', () => ({
   useAppStore: vi.fn(),
 }));
 
+const { createDialogStub } = vi.hoisted(() => ({
+  createDialogStub:
+    (testId: string) =>
+    ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) =>
+      isOpen ? (
+        <div data-testid={testId}>
+          <button type="button" onClick={onClose}>
+            Close Dialog
+          </button>
+        </div>
+      ) : null,
+}));
+
 vi.mock('../../components/components/EditComponentDialog', () => ({
-  EditComponentDialog: ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) =>
-    isOpen ? (
-      <div data-testid="edit-dialog">
-        <button onClick={onClose}>Close Dialog</button>
-      </div>
-    ) : null,
+  EditComponentDialog: createDialogStub('edit-dialog'),
 }));
 
 vi.mock('../../capabilities/components/EditCapabilityDialog', () => ({
-  EditCapabilityDialog: ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) =>
-    isOpen ? (
-      <div data-testid="edit-capability-dialog">
-        <button onClick={onClose}>Close Dialog</button>
-      </div>
-    ) : null,
+  EditCapabilityDialog: createDialogStub('edit-capability-dialog'),
 }));
 
 const mockCapability: Capability = {
@@ -81,7 +84,7 @@ describe('DetailsSidebar', () => {
       visualizedDomain: null;
     } = defaultProps,
   ) => {
-    return renderWithProviders(<DetailsSidebar {...props} />, { withRouter: false });
+    return renderWithProviders(<DetailsSidebar {...props} />);
   };
 
   describe('empty state', () => {

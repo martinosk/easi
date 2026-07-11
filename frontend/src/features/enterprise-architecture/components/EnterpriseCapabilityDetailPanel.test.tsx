@@ -83,9 +83,7 @@ function seedComposed() {
 describe('EnterpriseCapabilityDetailPanel', () => {
   it('renders the EC name and the included-capabilities composition', async () => {
     seedComposed();
-    renderWithProviders(<EnterpriseCapabilityDetailPanel capability={ec()} onClose={vi.fn()} />, {
-      withRouter: false,
-    });
+    renderWithProviders(<EnterpriseCapabilityDetailPanel capability={ec()} onClose={vi.fn()} />);
 
     expect(screen.getByRole('heading', { name: 'CRM' })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText('Customer Identity Mgmt')).toBeInTheDocument());
@@ -99,9 +97,6 @@ describe('EnterpriseCapabilityDetailPanel', () => {
     });
     renderWithProviders(
       <EnterpriseCapabilityDetailPanel capability={ec({ includedCapabilityCount: 0 })} onClose={vi.fn()} />,
-      {
-        withRouter: false,
-      },
     );
 
     await waitFor(() => expect(screen.getByTestId('included-empty-state')).toBeInTheDocument());
@@ -109,9 +104,7 @@ describe('EnterpriseCapabilityDetailPanel', () => {
 
   it('does not render any "Linked Capabilities" linking section', async () => {
     seedComposed();
-    renderWithProviders(<EnterpriseCapabilityDetailPanel capability={ec()} onClose={vi.fn()} />, {
-      withRouter: false,
-    });
+    renderWithProviders(<EnterpriseCapabilityDetailPanel capability={ec()} onClose={vi.fn()} />);
     await waitFor(() => expect(screen.getByText('Customer Identity Mgmt')).toBeInTheDocument());
     expect(screen.queryByText(/Linked Capabilities/i)).not.toBeInTheDocument();
   });

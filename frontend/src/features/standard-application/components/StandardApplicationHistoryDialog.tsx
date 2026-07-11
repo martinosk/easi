@@ -47,8 +47,8 @@ function HistoryDialogBody({ enterpriseCapabilityId }: { enterpriseCapabilityId:
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
-          {history.entries.map((entry, idx) => (
-            <Table.Tr key={`${entry.setAt}-${idx}`}>
+          {history.entries.map((entry) => (
+            <Table.Tr key={`${entry.setAt}-${entry.applicationId}`}>
               <Table.Td>{new Date(entry.setAt).toLocaleString()}</Table.Td>
               <Table.Td>{entry.applicationName ?? '—'}</Table.Td>
               <Table.Td>{entry.previousApplicationName ?? '—'}</Table.Td>

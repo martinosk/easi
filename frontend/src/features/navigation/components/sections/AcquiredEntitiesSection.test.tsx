@@ -281,6 +281,29 @@ describe('AcquiredEntitiesSection', () => {
     });
   });
 
+  describe('one-pager completeness indicator', () => {
+    it('should show the indicator when onePagerComplete is false', () => {
+      const entity = createMockEntity({ id: 'ae-123' as AcquiredEntityId, onePagerComplete: false });
+      render(<AcquiredEntitiesSection {...defaultProps} acquiredEntities={[entity]} />);
+
+      expect(screen.getByTestId('one-pager-incomplete-ae-123')).toBeInTheDocument();
+    });
+
+    it('should not show the indicator when onePagerComplete is true', () => {
+      const entity = createMockEntity({ id: 'ae-123' as AcquiredEntityId, onePagerComplete: true });
+      render(<AcquiredEntitiesSection {...defaultProps} acquiredEntities={[entity]} />);
+
+      expect(screen.queryByTestId('one-pager-incomplete-ae-123')).not.toBeInTheDocument();
+    });
+
+    it('should not show the indicator when onePagerComplete is absent', () => {
+      const entity = createMockEntity({ id: 'ae-123' as AcquiredEntityId });
+      render(<AcquiredEntitiesSection {...defaultProps} acquiredEntities={[entity]} />);
+
+      expect(screen.queryByTestId('one-pager-incomplete-ae-123')).not.toBeInTheDocument();
+    });
+  });
+
   describe('on-canvas status', () => {
     const createMockView = (id: string, componentIds: string[], originEntityIds: string[] = []) => ({
       id: id as ViewId,

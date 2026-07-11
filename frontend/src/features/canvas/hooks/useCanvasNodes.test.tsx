@@ -104,7 +104,9 @@ function renderAndGetAcquiredEntityNodes() {
 
 describe('useCanvasNodes', () => {
   beforeEach(() => {
-    Object.keys(mockLayoutPositions).forEach((key) => delete mockLayoutPositions[key]);
+    for (const key of Object.keys(mockLayoutPositions)) {
+      delete mockLayoutPositions[key];
+    }
     mockOriginRelationships = [];
     mockCurrentView.originEntities = [];
   });

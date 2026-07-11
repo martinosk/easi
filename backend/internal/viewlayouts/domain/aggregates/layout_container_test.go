@@ -22,11 +22,11 @@ func newTestLayoutContainer(t *testing.T) *LayoutContainer {
 	return container
 }
 
-func newTestElementPosition(t *testing.T, x, y float64) (valueobjects.ElementID, valueobjects.ElementPosition) {
+func newTestElementPosition(t *testing.T) (valueobjects.ElementID, valueobjects.ElementPosition) {
 	t.Helper()
 	elementID, err := valueobjects.NewElementID("cap-123")
 	require.NoError(t, err)
-	pos, err := valueobjects.NewElementPosition(elementID, x, y)
+	pos, err := valueobjects.NewElementPosition(elementID, 100, 200)
 	require.NoError(t, err)
 	return elementID, pos
 }
@@ -67,7 +67,7 @@ func TestLayoutContainer_WithID(t *testing.T) {
 
 func TestLayoutContainer_UpsertElement(t *testing.T) {
 	container := newTestLayoutContainer(t)
-	_, pos := newTestElementPosition(t, 100, 200)
+	_, pos := newTestElementPosition(t)
 
 	err := container.UpsertElement(pos)
 	require.NoError(t, err)
@@ -80,7 +80,7 @@ func TestLayoutContainer_UpsertElement(t *testing.T) {
 
 func TestLayoutContainer_UpsertElement_Update(t *testing.T) {
 	container := newTestLayoutContainer(t)
-	elementID, pos1 := newTestElementPosition(t, 100, 200)
+	elementID, pos1 := newTestElementPosition(t)
 	pos2, _ := valueobjects.NewElementPosition(elementID, 300, 400)
 
 	_ = container.UpsertElement(pos1)
@@ -94,7 +94,7 @@ func TestLayoutContainer_UpsertElement_Update(t *testing.T) {
 
 func TestLayoutContainer_RemoveElement(t *testing.T) {
 	container := newTestLayoutContainer(t)
-	elementID, pos := newTestElementPosition(t, 100, 200)
+	elementID, pos := newTestElementPosition(t)
 	_ = container.UpsertElement(pos)
 
 	err := container.RemoveElement(elementID)
@@ -131,7 +131,7 @@ func TestLayoutContainer_UpdatePreferences(t *testing.T) {
 
 func TestLayoutContainer_GetElement(t *testing.T) {
 	container := newTestLayoutContainer(t)
-	elementID, pos := newTestElementPosition(t, 100, 200)
+	elementID, pos := newTestElementPosition(t)
 	_ = container.UpsertElement(pos)
 
 	found := container.GetElement(elementID)

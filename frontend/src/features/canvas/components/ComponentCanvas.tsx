@@ -156,7 +156,13 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
     );
 
     return (
-      <div className="canvas-container" onDragOver={onDragOver} onDrop={onDrop} data-testid="canvas-loaded">
+      <section
+        className="canvas-container"
+        aria-label="Architecture canvas"
+        onDragOver={onDragOver}
+        onDrop={onDrop}
+        data-testid="canvas-loaded"
+      >
         <ReactFlow
           nodes={internalNodes}
           edges={edges}
@@ -244,7 +250,7 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
             artifactId={inviteTarget.id}
           />
         )}
-      </div>
+      </section>
     );
   },
 );

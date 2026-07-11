@@ -1,3 +1,4 @@
+import { UnstyledButton } from '@mantine/core';
 import { useState } from 'react';
 
 const toolDisplayNames: Record<string, string> = {
@@ -94,11 +95,17 @@ export function ToolCallIndicator({ status, name, resultPreview, errorMessage }:
   const icon = categoryIcons[categorize(name)];
 
   return (
-    <div className={`tool-call-indicator tool-call-${status}`} onClick={() => setExpanded((prev) => !prev)}>
+    <UnstyledButton
+      component="button"
+      type="button"
+      className={`tool-call-indicator tool-call-${status}`}
+      aria-expanded={expanded}
+      onClick={() => setExpanded((prev) => !prev)}
+    >
       <span className="tool-call-category-icon">{icon}</span>
       <StatusIndicator status={status} />
       <span className="tool-call-label">{label}</span>
       <StatusDetail status={status} errorMessage={errorMessage} expanded={expanded} resultPreview={resultPreview} />
-    </div>
+    </UnstyledButton>
   );
 }

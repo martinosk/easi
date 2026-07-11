@@ -381,11 +381,6 @@ func maturityScaleConfigToEventData(config valueobjects.MaturityScaleConfig) []e
 	return data
 }
 
-func eventDataToMaturityScaleConfig(data []events.MaturitySectionData) valueobjects.MaturityScaleConfig {
-	config, _ := eventDataToMaturityScaleConfigSafe(data)
-	return config
-}
-
 func eventDataToMaturityScaleConfigSafe(data []events.MaturitySectionData) (valueobjects.MaturityScaleConfig, error) {
 	var sections [4]valueobjects.MaturitySection
 	for i, d := range data {
@@ -432,11 +427,6 @@ func strategyPillarsConfigToEventData(config valueobjects.StrategyPillarsConfig)
 		}
 	}
 	return data
-}
-
-func eventDataToStrategyPillarsConfig(data []events.StrategyPillarData) valueobjects.StrategyPillarsConfig {
-	config, _ := eventDataToStrategyPillarsConfigSafe(data)
-	return config
 }
 
 func eventDataToStrategyPillarsConfigSafe(data []events.StrategyPillarData) (valueobjects.StrategyPillarsConfig, error) {

@@ -19,7 +19,6 @@ import {
   useCapabilities,
   useCascadeDeleteCapability,
   useChangeCapabilityParent,
-  useDeleteCapability,
   useDeleteRealization,
 } from '../../capabilities/hooks/useCapabilities';
 import { useComponents, useDeleteComponent } from '../../components/hooks/useComponents';
@@ -119,7 +118,6 @@ function hasOriginRelationshipData(target: DeleteTarget): boolean {
 function useDeleteHandlers() {
   const deleteComponentMutation = useDeleteComponent();
   const deleteRelationMutation = useDeleteRelation();
-  const deleteCapabilityMutation = useDeleteCapability();
   const cascadeDeleteCapabilityMutation = useCascadeDeleteCapability();
   const changeCapabilityParentMutation = useChangeCapabilityParent();
   const deleteRealizationMutation = useDeleteRealization();
@@ -206,7 +204,6 @@ function useDeleteHandlers() {
     [
       deleteComponentMutation,
       deleteRelationMutation,
-      deleteCapabilityMutation,
       cascadeDeleteCapabilityMutation,
       changeCapabilityParentMutation,
       deleteRealizationMutation,

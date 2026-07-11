@@ -33,7 +33,7 @@ export const CapabilityExpertsList: React.FC<CapabilityExpertsListProps> = ({
       {experts?.length ? (
         <Stack gap="xs">
           {experts.map((expert, i) => (
-            <Group key={i} justify="space-between" wrap="nowrap">
+            <Group key={`${expert.name}-${expert.addedAt}`} justify="space-between" wrap="nowrap">
               <Text size="sm" c="dimmed">
                 {expert.name} ({expert.role}) - {expert.contact}
               </Text>

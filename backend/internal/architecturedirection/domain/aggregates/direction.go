@@ -357,17 +357,6 @@ func refsToStrings(refs []valueobjects.PhysicalCapabilityRef) []string {
 	return out
 }
 
-func placementsToData(placements []valueobjects.Placement) []events.PlacementData {
-	out := make([]events.PlacementData, len(placements))
-	for i, p := range placements {
-		out[i] = events.PlacementData{
-			TargetBusinessDomainID: p.TargetBusinessDomainID(),
-			ResultingName:          p.ResultingName(),
-		}
-	}
-	return out
-}
-
 func decodePhysicalRefs(values []string) ([]valueobjects.PhysicalCapabilityRef, error) {
 	out := make([]valueobjects.PhysicalCapabilityRef, len(values))
 	for i, v := range values {

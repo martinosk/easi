@@ -238,4 +238,27 @@ describe('VendorsSection', () => {
       expect(onToggle).toHaveBeenCalled();
     });
   });
+
+  describe('one-pager completeness indicator', () => {
+    it('should show the indicator when onePagerComplete is false', () => {
+      const vendor = createMockVendor({ id: 'v-123' as VendorId, onePagerComplete: false });
+      render(<VendorsSection {...defaultProps} vendors={[vendor]} />);
+
+      expect(screen.getByTestId('one-pager-incomplete-v-123')).toBeInTheDocument();
+    });
+
+    it('should not show the indicator when onePagerComplete is true', () => {
+      const vendor = createMockVendor({ id: 'v-123' as VendorId, onePagerComplete: true });
+      render(<VendorsSection {...defaultProps} vendors={[vendor]} />);
+
+      expect(screen.queryByTestId('one-pager-incomplete-v-123')).not.toBeInTheDocument();
+    });
+
+    it('should not show the indicator when onePagerComplete is absent', () => {
+      const vendor = createMockVendor({ id: 'v-123' as VendorId });
+      render(<VendorsSection {...defaultProps} vendors={[vendor]} />);
+
+      expect(screen.queryByTestId('one-pager-incomplete-v-123')).not.toBeInTheDocument();
+    });
+  });
 });

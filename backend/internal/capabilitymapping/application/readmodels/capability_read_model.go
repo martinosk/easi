@@ -25,22 +25,23 @@ type MaturityRange struct {
 }
 
 type CapabilityDTO struct {
-	ID              string              `json:"id"`
-	Name            string              `json:"name"`
-	Description     string              `json:"description,omitempty"`
-	ParentID        string              `json:"parentId,omitempty"`
-	Level           string              `json:"level"`
-	MaturityValue   int                 `json:"maturityValue"`
-	MaturitySection *MaturitySectionDTO `json:"maturitySection,omitempty"`
-	OwnershipModel  string              `json:"ownershipModel,omitempty"`
-	PrimaryOwner    string              `json:"primaryOwner,omitempty"`
-	EAOwner         string              `json:"eaOwner,omitempty"`
-	Status          string              `json:"status,omitempty"`
-	Experts         []ExpertDTO         `json:"experts,omitempty"`
-	Tags            []string            `json:"tags,omitempty"`
-	CreatedAt       time.Time           `json:"createdAt"`
-	Links           types.Links         `json:"_links,omitempty"`
-	XRelated        []types.RelatedLink `json:"-"`
+	ID               string              `json:"id"`
+	Name             string              `json:"name"`
+	Description      string              `json:"description,omitempty"`
+	ParentID         string              `json:"parentId,omitempty"`
+	Level            string              `json:"level"`
+	MaturityValue    int                 `json:"maturityValue"`
+	MaturitySection  *MaturitySectionDTO `json:"maturitySection,omitempty"`
+	OwnershipModel   string              `json:"ownershipModel,omitempty"`
+	PrimaryOwner     string              `json:"primaryOwner,omitempty"`
+	EAOwner          string              `json:"eaOwner,omitempty"`
+	Status           string              `json:"status,omitempty"`
+	Experts          []ExpertDTO         `json:"experts,omitempty"`
+	Tags             []string            `json:"tags,omitempty"`
+	CreatedAt        time.Time           `json:"createdAt"`
+	OnePagerComplete *bool               `json:"onePagerComplete,omitempty"`
+	Links            types.Links         `json:"_links,omitempty"`
+	XRelated         []types.RelatedLink `json:"-"`
 }
 
 func (d CapabilityDTO) MarshalJSON() ([]byte, error) {
@@ -404,6 +405,22 @@ func calculateMaturitySection(value int) *MaturitySectionDTO {
 			Range: MaturityRange{Min: 75, Max: 99},
 		}
 	}
+}
+
+func (rm *CapabilityReadModel) Count(ctx context.Context) (int, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	var count int
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		return tx.QueryRowContext(ctx,
+			"SELECT COUNT(*) FROM capabilitymapping.capabilities WHERE tenant_id = $1",
+			tenantID.Value(),
+		).Scan(&count)
+	})
+	return count, err
 }
 
 func (rm *CapabilityReadModel) queryForTenant(ctx context.Context, query string, extraArgs ...any) ([]CapabilityDTO, error) {

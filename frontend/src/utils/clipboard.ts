@@ -1,6 +1,6 @@
 import toast from 'react-hot-toast';
 
-export { generateDomainShareUrl, generateViewShareUrl } from '../lib/deepLinks';
+export { generateDomainShareUrl, generateOnePagerShareUrl, generateViewShareUrl } from '../lib/deepLinks';
 
 export async function copyToClipboard(text: string, successMessage = 'Link copied to clipboard'): Promise<boolean> {
   try {

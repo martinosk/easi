@@ -13,6 +13,7 @@ import { ChatButton, useChatStore } from './features/chat';
 import { useAppInitialization } from './hooks/useAppInitialization';
 import { useUnloadGuard } from './hooks/useUnloadGuard';
 import { useReleaseNotes } from './contexts/releases/store/useReleaseNotes';
+import type { AppView } from './routes/routePaths';
 import { useUserStore } from './store/userStore';
 
 const CanvasContainer = lazy(() => import('./features/canvas/CanvasContainer'));
@@ -47,15 +48,9 @@ const EnterpriseArchRouter = lazy(() =>
 
 const MyEditAccessPage = lazy(() => import('./features/edit-grants/pages/MyEditAccessPage'));
 
-type AppView =
-  | 'canvas'
-  | 'business-domains'
-  | 'value-streams'
-  | 'invitations'
-  | 'users'
-  | 'settings'
-  | 'enterprise-architecture'
-  | 'my-edit-access';
+const OnePagersRouter = lazy(() =>
+  import('./features/one-pagers').then((module) => ({ default: module.OnePagersRouter })),
+);
 
 function useAuthErrorHandler() {
   const [authError, setAuthError] = useState<string | null>(null);
@@ -148,6 +143,13 @@ function MainContent({ view }: { view: AppView }) {
     return (
       <LazyFeatureView featureName="My Edit Access">
         <MyEditAccessPage />
+      </LazyFeatureView>
+    );
+  }
+  if (view === 'one-pagers') {
+    return (
+      <LazyFeatureView featureName="One-Pagers">
+        <OnePagersRouter />
       </LazyFeatureView>
     );
   }
