@@ -7,6 +7,7 @@ import {
   factEnvelope,
   factFormDefaults,
   isFactValueEmpty,
+  type FactFormValue,
   type OnePagerFactsFormValues,
 } from '../../../lib/schemas/onePagerFacts';
 import { envelopesByField } from '../factFields';
@@ -74,7 +75,9 @@ export function OnePagerFactsForm({ fields, facts }: OnePagerFactsFormProps) {
             key={field.id}
             field={field}
             control={form.control}
-            showRequiredHint={field.required && isFactValueEmpty(field.type, watched[field.id] ?? defaults[field.id])}
+            showRequiredHint={
+              field.required && isFactValueEmpty(field.type, (watched[field.id] ?? defaults[field.id]) as FactFormValue)
+            }
           />
         ))}
         <Group justify="flex-end">
