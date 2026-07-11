@@ -150,3 +150,74 @@ export interface OnePagerFacts {
 export interface RecordFieldValueRequest {
   value: ValueEnvelope;
 }
+
+export interface OnePagerViewLinks extends HATEOASLinks {
+  'x-subject'?: HATEOASLink;
+}
+
+export interface BuiltInTextValue {
+  type: 'text';
+  text: string;
+}
+
+export interface BuiltInDateValue {
+  type: 'date';
+  date: string;
+}
+
+export interface BuiltInMaturityValue {
+  type: 'maturity';
+  maturity: {
+    value: number;
+    section?: string;
+  };
+}
+
+export interface BuiltInExpertView {
+  name: string;
+  role: string;
+  contact: string;
+}
+
+export interface BuiltInExpertsValue {
+  type: 'experts';
+  experts: BuiltInExpertView[];
+}
+
+export type BuiltInValue = BuiltInTextValue | BuiltInDateValue | BuiltInMaturityValue | BuiltInExpertsValue;
+
+export interface BuiltInFieldView {
+  id: string;
+  label: string;
+  value: BuiltInValue | null;
+}
+
+export interface CustomFieldView {
+  fieldId: string;
+  name: string;
+  type: OnePagerFieldType;
+  helpText?: string;
+  value: ValueEnvelope | null;
+  displayText: string;
+  retiredOption?: boolean;
+}
+
+export interface OnePagerViewBuiltInField {
+  kind: 'builtIn';
+  builtIn: BuiltInFieldView;
+}
+
+export interface OnePagerViewCustomField {
+  kind: 'custom';
+  custom: CustomFieldView;
+}
+
+export type OnePagerViewField = OnePagerViewBuiltInField | OnePagerViewCustomField;
+
+export interface OnePagerView {
+  subjectType: OnePagerSubjectType;
+  subjectId: string;
+  subjectName: string;
+  fields: OnePagerViewField[];
+  _links: OnePagerViewLinks;
+}

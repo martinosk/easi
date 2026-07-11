@@ -8775,6 +8775,79 @@ const docTemplate = `{
                 }
             }
         },
+        "/one-pagers/{subjectType}/{subjectID}": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Assembles the tenant's one-pager configuration, the subject's recorded field values, and built-in field data sourced from the owning context into a single field list in the configured interleaved display order.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "one-pagers"
+                ],
+                "summary": "Get the composed one-pager for a subject",
+                "parameters": [
+                    {
+                        "enum": [
+                            "capability",
+                            "enterprise-capability",
+                            "application",
+                            "acquired-entity",
+                            "vendor",
+                            "internal-team"
+                        ],
+                        "type": "string",
+                        "description": "Subject type",
+                        "name": "subjectType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Subject ID",
+                        "name": "subjectID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_onepagers_infrastructure_api.OnePagerDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/one-pagers/{subjectType}/{subjectID}/facts": {
             "get": {
                 "security": [
@@ -15767,6 +15840,43 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_onepagers_infrastructure_api.BuiltInFieldViewDTO": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "value": {
+                    "$ref": "#/definitions/internal_onepagers_infrastructure_api.BuiltInValueDTO"
+                }
+            }
+        },
+        "internal_onepagers_infrastructure_api.BuiltInValueDTO": {
+            "type": "object",
+            "properties": {
+                "date": {
+                    "type": "string"
+                },
+                "experts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_onepagers_infrastructure_api.ExpertViewDTO"
+                    }
+                },
+                "maturity": {
+                    "$ref": "#/definitions/internal_onepagers_infrastructure_api.MaturityValueDTO"
+                },
+                "text": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_onepagers_infrastructure_api.ChangeRequirementRequest": {
             "type": "object",
             "properties": {
@@ -15810,6 +15920,32 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_onepagers_infrastructure_api.CustomFieldViewDTO": {
+            "type": "object",
+            "properties": {
+                "displayText": {
+                    "type": "string"
+                },
+                "fieldId": {
+                    "type": "string"
+                },
+                "helpText": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "retiredOption": {
+                    "type": "boolean"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "value": {
+                    "$ref": "#/definitions/internal_onepagers_infrastructure_api.ValueEnvelopeDTO"
+                }
+            }
+        },
         "internal_onepagers_infrastructure_api.DefineCustomFieldRequest": {
             "type": "object",
             "properties": {
@@ -15833,6 +15969,20 @@ const docTemplate = `{
                 },
                 "version": {
                     "type": "integer"
+                }
+            }
+        },
+        "internal_onepagers_infrastructure_api.ExpertViewDTO": {
+            "type": "object",
+            "properties": {
+                "contact": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
                 }
             }
         },
@@ -15870,6 +16020,17 @@ const docTemplate = `{
                 },
                 "value": {
                     "$ref": "#/definitions/internal_onepagers_infrastructure_api.ValueEnvelopeDTO"
+                }
+            }
+        },
+        "internal_onepagers_infrastructure_api.MaturityValueDTO": {
+            "type": "object",
+            "properties": {
+                "section": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "integer"
                 }
             }
         },
@@ -15917,6 +16078,29 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_onepagers_infrastructure_api.OnePagerDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "fields": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_onepagers_infrastructure_api.OnePagerFieldDTO"
+                    }
+                },
+                "subjectId": {
+                    "type": "string"
+                },
+                "subjectName": {
+                    "type": "string"
+                },
+                "subjectType": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_onepagers_infrastructure_api.OnePagerFactsDTO": {
             "type": "object",
             "properties": {
@@ -15934,6 +16118,20 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/internal_onepagers_infrastructure_api.FieldValueDTO"
                     }
+                }
+            }
+        },
+        "internal_onepagers_infrastructure_api.OnePagerFieldDTO": {
+            "type": "object",
+            "properties": {
+                "builtIn": {
+                    "$ref": "#/definitions/internal_onepagers_infrastructure_api.BuiltInFieldViewDTO"
+                },
+                "custom": {
+                    "$ref": "#/definitions/internal_onepagers_infrastructure_api.CustomFieldViewDTO"
+                },
+                "kind": {
+                    "type": "string"
                 }
             }
         },

@@ -10,6 +10,7 @@ import type {
   OnePagerConfiguration,
   OnePagerFacts,
   OnePagerSubjectType,
+  OnePagerView,
   RecordFieldValueRequest,
   RenameCustomFieldRequest,
   ReorderFieldsRequest,
@@ -64,6 +65,11 @@ export const onePagersApi = {
 
   async getFacts(subjectType: OnePagerSubjectType, subjectId: string): Promise<OnePagerFacts> {
     const response = await httpClient.get<OnePagerFacts>(`/api/v1/one-pagers/${subjectType}/${subjectId}/facts`);
+    return response.data;
+  },
+
+  async getOnePager(subjectType: OnePagerSubjectType, subjectId: string): Promise<OnePagerView> {
+    const response = await httpClient.get<OnePagerView>(`/api/v1/one-pagers/${subjectType}/${subjectId}`);
     return response.data;
   },
 

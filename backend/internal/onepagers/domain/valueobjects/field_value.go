@@ -17,7 +17,7 @@ const (
 	MaxContactNameLength    = 200
 	MaxContactCompanyLength = 200
 
-	isoDateLayout = "2006-01-02"
+	ISODateLayout = "2006-01-02"
 )
 
 var (
@@ -117,11 +117,11 @@ type DateValue struct {
 }
 
 func NewDateValue(value string) (DateValue, error) {
-	parsed, err := time.Parse(isoDateLayout, value)
+	parsed, err := time.Parse(ISODateLayout, value)
 	if err != nil {
 		return DateValue{}, ErrDateValueInvalid
 	}
-	return DateValue{value: parsed.Format(isoDateLayout)}, nil
+	return DateValue{value: parsed.Format(ISODateLayout)}, nil
 }
 
 func (v DateValue) Value() string {

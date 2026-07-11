@@ -78,43 +78,9 @@ func isRetiredOptionValue(record readmodels.FactRecord, config *readmodels.Confi
 	if config == nil {
 		return false
 	}
-	selection, ok := decodeSelectionValue(record)
-	if !ok {
-		return false
-	}
-	field, found := findFieldRecord(config, record.FieldID)
+	field, found := config.Document.CustomField(record.FieldID)
 	if !found {
 		return false
 	}
-	return hasRetiredOption(field, selection.OptionID().Value())
-}
-
-func decodeSelectionValue(record readmodels.FactRecord) (valueobjects.SelectionValue, bool) {
-	if record.Value == nil {
-		return valueobjects.SelectionValue{}, false
-	}
-	value, err := valueobjects.FieldValueFromEnvelope(*record.Value)
-	if err != nil {
-		return valueobjects.SelectionValue{}, false
-	}
-	selection, ok := value.(valueobjects.SelectionValue)
-	return selection, ok
-}
-
-func findFieldRecord(config *readmodels.ConfigurationRecord, fieldID string) (readmodels.CustomFieldRecord, bool) {
-	for _, field := range config.Document.CustomFields {
-		if field.ID == fieldID {
-			return field, true
-		}
-	}
-	return readmodels.CustomFieldRecord{}, false
-}
-
-func hasRetiredOption(field readmodels.CustomFieldRecord, optionID string) bool {
-	for _, option := range field.Options {
-		if option.ID == optionID {
-			return !option.Active
-		}
-	}
-	return false
+	return field.RetiredOptionReferenced(record.Value)
 }

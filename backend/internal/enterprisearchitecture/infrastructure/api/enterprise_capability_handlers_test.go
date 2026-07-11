@@ -245,6 +245,11 @@ func TestGetEnterpriseCapabilityByID_Exists_ReturnsWithHATEOASLinks(t *testing.T
 	assert.Equal(t, "Payroll", response.Name)
 	require.NotNil(t, response.Links)
 	assert.Contains(t, response.Links, "self")
+
+	onePager, ok := response.Links["x-one-pager"]
+	require.True(t, ok, "expected x-one-pager link")
+	assert.Equal(t, "GET", onePager.Method)
+	assert.Equal(t, "/api/v1/one-pagers/enterprise-capability/"+capID, onePager.Href)
 }
 
 func TestDeleteEnterpriseCapability_Success_Returns204(t *testing.T) {

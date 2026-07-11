@@ -325,6 +325,8 @@ func setupDomainRoutes(r chi.Router, deps routerDependencies) {
 		AuthMiddleware:  deps.authDeps.AuthMiddleware,
 		SessionProvider: deps.authDeps.SessionManager,
 		Subjects:        newOnePagerSubjectExistenceAdapter(deps.db),
+		BuiltInFields:   newOnePagerBuiltInFieldSources(deps.db),
+		MaturityScale:   newOnePagerMaturityScaleAdapter(deps.db),
 	}), "one-pagers routes")
 }
 

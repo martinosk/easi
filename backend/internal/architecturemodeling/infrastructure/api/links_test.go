@@ -178,6 +178,53 @@ func TestOriginXRelatedForActor_StakeholderGetsNothing(t *testing.T) {
 		"stakeholder must see no x-related entries on internal-team")
 }
 
+func TestSubjectLinksForActor_IncludesOnePagerLink(t *testing.T) {
+	cases := []struct {
+		name        string
+		invoke      func(*ArchitectureModelingLinks, string, sharedctx.Actor) sharedAPI.Links
+		subjectType string
+	}{
+		{
+			name: "Component",
+			invoke: func(l *ArchitectureModelingLinks, id string, a sharedctx.Actor) sharedAPI.Links {
+				return l.ComponentLinksForActor(id, a)
+			},
+			subjectType: "application",
+		},
+		{
+			name: "AcquiredEntity",
+			invoke: func(l *ArchitectureModelingLinks, id string, a sharedctx.Actor) sharedAPI.Links {
+				return l.AcquiredEntityLinksForActor(id, a)
+			},
+			subjectType: "acquired-entity",
+		},
+		{
+			name: "Vendor",
+			invoke: func(l *ArchitectureModelingLinks, id string, a sharedctx.Actor) sharedAPI.Links {
+				return l.VendorLinksForActor(id, a)
+			},
+			subjectType: "vendor",
+		},
+		{
+			name: "InternalTeam",
+			invoke: func(l *ArchitectureModelingLinks, id string, a sharedctx.Actor) sharedAPI.Links {
+				return l.InternalTeamLinksForActor(id, a)
+			},
+			subjectType: "internal-team",
+		},
+	}
+	stakeholder := sharedctx.NewActor("u1", "u@example.com", sharedctx.RoleStakeholder)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := tc.invoke(originLinks(t), "subj1", stakeholder)
+			onePager, ok := result["x-one-pager"]
+			require.True(t, ok, "expected x-one-pager link")
+			assert.Equal(t, "GET", onePager.Method)
+			assert.Equal(t, "/api/v1/one-pagers/"+tc.subjectType+"/subj1", onePager.Href)
+		})
+	}
+}
+
 func architectRequest() *http.Request {
 	architect := sharedctx.NewActor("u1", "u@example.com", sharedctx.RoleArchitect)
 	req := httptest.NewRequest("GET", "/api/v1/foo", nil)

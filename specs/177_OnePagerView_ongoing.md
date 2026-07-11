@@ -1,7 +1,7 @@
 # 177 — OnePagerView
 
-> **Status:** pending
-> **Depends on:** [175 — OnePagerConfiguration](175_OnePagerConfiguration_pending.md), [176 — OnePagerFacts capture](176_OnePagerFacts_pending.md)
+> **Status:** ongoing
+> **Depends on:** [175 — OnePagerConfiguration](175_OnePagerConfiguration_done.md), [176 — OnePagerFacts capture](176_OnePagerFacts_done.md)
 
 ---
 
@@ -157,33 +157,34 @@ Feature: One-Pager view
 
 ## Acceptance Criteria
 
-- [ ] `GET /api/v1/one-pagers/{subjectType}/{subjectID}` returns the subject header,
+- [x] `GET /api/v1/one-pagers/{subjectType}/{subjectID}` returns the subject header,
       and the configured fields — built-in values and custom Field Values interleaved in
       the configured display order — for all six subject types.
-- [ ] An integration test asserts the endpoint's constant query count (rule 1).
-- [ ] `onepagers` contains no imports of supplier application packages and no SQL against
+- [x] An integration test asserts the endpoint's constant query count (rule 1).
+- [x] `onepagers` contains no imports of supplier application packages and no SQL against
       supplier tables; all Built-in Field data flows through `BuiltInFieldSource` ports
       with adapters at the composition root — enforced by the architecture boundary test
       introduced in spec 175, which this slice's port/adapter split must keep green.
-- [ ] The bounded-context canvas `docs/architecture/OnePagers.md` is updated with the
+- [x] The bounded-context canvas `docs/architecture/OnePagers.md` is updated with the
       consumed supplier read contracts and the metamodel upstream relationship.
-- [ ] One catalog-contract integration test exists per subject type and fails when a
+- [x] One catalog-contract integration test exists per subject type and fails when a
       catalog entry no longer resolves against the supplier read model.
-- [ ] Retired custom fields are absent from the response and the page; retired Selection
+- [x] Retired custom fields are absent from the response and the page; retired Selection
       options render flagged.
-- [ ] Maturity and strategy-pillar built-in fields render with the tenant's configured
-      semantics.
-- [ ] All six Subject detail responses include the one-pager HATEOAS link; the one-pager
+- [x] Maturity and strategy-pillar built-in fields render with the tenant's configured
+      semantics (strategy pillars vacuously — no catalog entry exists; see
+      Implementation Notes 1).
+- [x] All six Subject detail responses include the one-pager HATEOAS link; the one-pager
       response links back to the Subject; the endpoint enforces the Subject's read
       permission and returns 404 for unknown Subjects.
-- [ ] A routed one-pager page renders the sheet with per-field-type presentation (anchor,
+- [x] A routed one-pager page renders the sheet with per-field-type presentation (anchor,
       contact block, formatted date, selection label), em-dash for empty fields, Mantine
       components only, suitable for screen-sharing.
-- [ ] The page is deep-linkable: its share-URL generator is registered in
+- [x] The page is deep-linkable: its share-URL generator is registered in
       `frontend/src/lib/deepLinks`, and "Share (copy URL)" copies a working absolute URL
       with the spec-113 toast behavior.
-- [ ] Each of the six detail panels shows a "One-Pager" action gated on the HATEOAS link.
-- [ ] Every BDD scenario above has a corresponding automated test.
+- [x] Each of the six detail panels shows a "One-Pager" action gated on the HATEOAS link.
+- [x] Every BDD scenario above has a corresponding automated test.
 
 ---
 
@@ -284,11 +285,58 @@ contracts exclusively through its own ports; adapters at the composition root wr
 
 ---
 
+## Implementation Notes
+
+Decisions made at implementation start (2026-07-11), within the approved architecture:
+
+1. **Strategy pillars are inapplicable in this slice** — the spec-175 catalog defines no
+   strategy-pillar built-in entry on any subject type, so there is nothing to bind or
+   render. The metamodel semantics port (`ports.MaturityScaleSource`) covers maturity
+   sections only; a pillar catalog entry is a future spec that adds a sibling port
+   method, adapter binding, and catalog-contract coverage. The pillar half of rule 8 and
+   its acceptance criterion are therefore vacuous here — flagged for user sign-off.
+2. **Port contract** (`onepagers/application/ports/builtin_fields.go`): one
+   `BuiltInFieldSource` instance per subject type, selected via a map keyed by subject
+   type. `FetchSubject(ctx, subjectID)` returns `nil, nil` for unknown subjects
+   (mirrors supplier `GetByID` semantics). `SubjectSnapshot.Fields` is keyed by catalog
+   entry ID; adapters populate **every** catalog entry key, storing `nil` for empty
+   values — key presence is what the catalog-contract tests assert, and `nil` renders
+   as the em-dash. Values are a sealed union: Text, Date, Maturity, Experts.
+3. **Missing configuration falls back to the synthesized default** (every catalog
+   built-in field in catalog order, no custom fields) without persisting anything — the
+   composed read never issues commands; lazy creation remains the configuration GET's
+   concern.
+4. **Maturity semantics resolve in the query service**, not the adapter: the service
+   requests tenant sections through the port only when a configured field carries a
+   maturity value, then matches `MinValue <= value <= MaxValue`. The hardcoded section
+   names on the capabilitymapping DTO are deliberately unused (rule 8). A tenant without
+   metamodel configuration renders the bare maturity value.
+5. **HATEOAS rels**: subject detail responses gain `x-one-pager` (GET); the one-pager
+   response carries `self` and `x-subject` pointing at the subject's detail endpoint.
+6. **Constant-query-count test** counts data statements through a wrapping SQL driver
+   (new test-only helper; no precedent existed). The binding contract is asserted as:
+   query count is identical for a minimal and a many-field configuration, with a fixed
+   documented ceiling — note the capability subject read issues three statements
+   (row, experts, tags) inside one port call, which is constant and allowed.
+7. **Retired-option detection is consolidated** in
+   `readmodels/custom_field_rules.go` (`CustomFieldRecord.RetiredOptionReferenced`);
+   the facts DTO mapper and the composed query both delegate to it.
+8. **Selection labels resolve server-side** (review finding): the facts read model's
+   `display_text` column stores the option ID, so the composed query resolves the
+   option label through `CustomFieldRecord.SelectionOptionLabel` at read time (D4:
+   server-composed rendering). The write path and projector are unchanged.
+9. **Date-only values render as local calendar dates** (review finding): the frontend
+   parses `YYYY-MM-DD` with local-date components (`frontend/src/utils/date.ts`);
+   parsing via `new Date(iso)` would shift the date a day back in negative-UTC-offset
+   timezones.
+
+---
+
 ## Checklist
 
 - [x] Specification ready
-- [ ] Implementation done
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
-- [ ] API documentation updated
+- [x] Implementation done
+- [x] Unit tests implemented and passing
+- [x] Integration tests implemented if relevant
+- [x] API documentation updated
 - [ ] User sign-off

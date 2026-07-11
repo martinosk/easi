@@ -1,0 +1,133 @@
+package api
+
+import (
+	"easi/backend/internal/onepagers/application/ports"
+	"easi/backend/internal/onepagers/application/queries"
+	"easi/backend/internal/onepagers/domain/valueobjects"
+	"easi/backend/internal/shared/types"
+)
+
+type OnePagerDTO struct {
+	SubjectType string             `json:"subjectType"`
+	SubjectID   string             `json:"subjectId"`
+	SubjectName string             `json:"subjectName"`
+	Fields      []OnePagerFieldDTO `json:"fields"`
+	Links       types.Links        `json:"_links,omitempty"`
+}
+
+type OnePagerFieldDTO struct {
+	Kind    string               `json:"kind"`
+	BuiltIn *BuiltInFieldViewDTO `json:"builtIn,omitempty"`
+	Custom  *CustomFieldViewDTO  `json:"custom,omitempty"`
+}
+
+type BuiltInFieldViewDTO struct {
+	ID    string           `json:"id"`
+	Label string           `json:"label"`
+	Value *BuiltInValueDTO `json:"value"`
+}
+
+type BuiltInValueDTO struct {
+	Type     string            `json:"type"`
+	Text     *string           `json:"text,omitempty"`
+	Date     *string           `json:"date,omitempty"`
+	Maturity *MaturityValueDTO `json:"maturity,omitempty"`
+	Experts  []ExpertViewDTO   `json:"experts,omitempty"`
+}
+
+type MaturityValueDTO struct {
+	Value   int    `json:"value"`
+	Section string `json:"section,omitempty"`
+}
+
+type ExpertViewDTO struct {
+	Name    string `json:"name"`
+	Role    string `json:"role"`
+	Contact string `json:"contact"`
+}
+
+type CustomFieldViewDTO struct {
+	FieldID       string            `json:"fieldId"`
+	Name          string            `json:"name"`
+	Type          string            `json:"type"`
+	HelpText      string            `json:"helpText,omitempty"`
+	Value         *ValueEnvelopeDTO `json:"value"`
+	DisplayText   string            `json:"displayText,omitempty"`
+	RetiredOption bool              `json:"retiredOption,omitempty"`
+}
+
+func BuildOnePagerDTO(onePager *queries.OnePager, links *OnePagerLinks) OnePagerDTO {
+	fields := make([]OnePagerFieldDTO, 0, len(onePager.Fields))
+	for _, field := range onePager.Fields {
+		if dto, ok := onePagerFieldDTOFrom(field); ok {
+			fields = append(fields, dto)
+		}
+	}
+	return OnePagerDTO{
+		SubjectType: onePager.SubjectType,
+		SubjectID:   onePager.SubjectID,
+		SubjectName: onePager.SubjectName,
+		Fields:      fields,
+		Links:       links.viewLinks(onePager.SubjectType, onePager.SubjectID),
+	}
+}
+
+func onePagerFieldDTOFrom(field queries.Field) (OnePagerFieldDTO, bool) {
+	switch {
+	case field.BuiltIn != nil:
+		return OnePagerFieldDTO{Kind: "builtIn", BuiltIn: builtInFieldViewDTOFrom(field.BuiltIn)}, true
+	case field.Custom != nil:
+		return OnePagerFieldDTO{Kind: "custom", Custom: customFieldViewDTOFrom(field.Custom)}, true
+	default:
+		return OnePagerFieldDTO{}, false
+	}
+}
+
+func builtInFieldViewDTOFrom(field *queries.BuiltInField) *BuiltInFieldViewDTO {
+	return &BuiltInFieldViewDTO{
+		ID:    field.ID,
+		Label: field.Label,
+		Value: builtInValueDTOFrom(field),
+	}
+}
+
+func builtInValueDTOFrom(field *queries.BuiltInField) *BuiltInValueDTO {
+	switch value := field.Value.(type) {
+	case ports.TextValue:
+		text := value.Text
+		return &BuiltInValueDTO{Type: "text", Text: &text}
+	case ports.DateValue:
+		date := value.Date.Format(valueobjects.ISODateLayout)
+		return &BuiltInValueDTO{Type: "date", Date: &date}
+	case ports.MaturityValue:
+		return &BuiltInValueDTO{Type: "maturity", Maturity: &MaturityValueDTO{Value: value.Value, Section: field.MaturitySection}}
+	case ports.ExpertsValue:
+		return &BuiltInValueDTO{Type: "experts", Experts: expertViewDTOsFrom(value.Experts)}
+	default:
+		return nil
+	}
+}
+
+func expertViewDTOsFrom(experts []ports.Expert) []ExpertViewDTO {
+	dtos := make([]ExpertViewDTO, len(experts))
+	for i, expert := range experts {
+		dtos[i] = ExpertViewDTO{Name: expert.Name, Role: expert.Role, Contact: expert.Contact}
+	}
+	return dtos
+}
+
+func customFieldViewDTOFrom(field *queries.CustomField) *CustomFieldViewDTO {
+	dto := &CustomFieldViewDTO{
+		FieldID:       field.FieldID,
+		Name:          field.Name,
+		Type:          field.FieldType,
+		HelpText:      field.HelpText,
+		DisplayText:   field.DisplayText,
+		RetiredOption: field.RetiredOption,
+	}
+	if field.Value != nil {
+		envelope := envelopeDTOFrom(*field.Value)
+		dto.Value = &envelope
+	}
+	return dto
+}

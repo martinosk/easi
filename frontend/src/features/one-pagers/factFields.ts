@@ -1,5 +1,5 @@
 import type { FactEnvelopesByField } from '../../lib/schemas/onePagerFacts';
-import type { CustomField, OnePagerConfiguration, OnePagerFacts } from './types';
+import type { CustomField, CustomFieldView, FieldValue, OnePagerConfiguration, OnePagerFacts } from './types';
 
 export function activeCustomFieldsInOrder(configuration: OnePagerConfiguration): CustomField[] {
   const fieldsById = new Map(configuration.customFields.map((field) => [field.id, field]));
@@ -33,4 +33,30 @@ export function selectionItems(field: CustomField, currentOptionId: string): Sel
     if (current) items.push({ value: current.id, label: `${current.label} (retired)` });
   }
   return items;
+}
+
+export interface CustomFieldViewDisplayProps {
+  field: CustomField;
+  fieldValue?: FieldValue;
+}
+
+export function customFieldViewDisplayProps(view: CustomFieldView): CustomFieldViewDisplayProps {
+  const field: CustomField = {
+    id: view.fieldId,
+    name: view.name,
+    type: view.type,
+    required: false,
+    helpText: view.helpText ?? '',
+    active: true,
+  };
+  if (!view.value) return { field };
+  const fieldValue: FieldValue = {
+    fieldId: view.fieldId,
+    value: view.value,
+    displayText: view.displayText,
+    retiredOption: view.retiredOption,
+    modifiedAt: '',
+    modifiedBy: '',
+  };
+  return { field, fieldValue };
 }

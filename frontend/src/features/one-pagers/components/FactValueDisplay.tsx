@@ -4,6 +4,7 @@ import {
   type ContactPersonFactValue,
   type LinkFactValue,
 } from '../../../lib/schemas/onePagerFacts';
+import { formatIsoDate } from '../../../utils/date';
 import type { CustomField, FieldValue } from '../types';
 
 function contactText(contact: ContactPersonFactValue): string {
@@ -42,6 +43,8 @@ export function FactValueDisplay({ field, fieldValue }: FactValueDisplayProps) {
     }
     case 'selection':
       return <Text size="sm">{selectionText(field, fieldValue, formValue as string)}</Text>;
+    case 'date':
+      return <Text size="sm">{formatIsoDate(formValue as string)}</Text>;
     case 'contact-person':
       return <Text size="sm">{contactText(formValue as ContactPersonFactValue)}</Text>;
     default:

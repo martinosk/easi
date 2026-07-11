@@ -18,3 +18,7 @@ export const ONE_PAGER_SUBJECT_TYPE_TABS: SubjectTypeTab[] = ONE_PAGER_SUBJECT_T
   value,
   label: SUBJECT_TYPE_LABELS[value],
 }));
+
+export function subjectTypeLabel(subjectType: OnePagerSubjectType): string {
+  return SUBJECT_TYPE_LABELS[subjectType];
+}

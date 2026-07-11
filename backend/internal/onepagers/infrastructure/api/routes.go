@@ -9,6 +9,7 @@ import (
 	"easi/backend/internal/onepagers/application/handlers"
 	"easi/backend/internal/onepagers/application/ports"
 	"easi/backend/internal/onepagers/application/projectors"
+	"easi/backend/internal/onepagers/application/queries"
 	"easi/backend/internal/onepagers/application/readmodels"
 	opevents "easi/backend/internal/onepagers/domain/events"
 	"easi/backend/internal/onepagers/domain/valueobjects"
@@ -34,6 +35,8 @@ type OnePagersRoutesDeps struct {
 	AuthMiddleware  AuthMiddleware
 	SessionProvider authPL.SessionProvider
 	Subjects        ports.SubjectExistenceChecker
+	BuiltInFields   map[string]ports.BuiltInFieldSource
+	MaturityScale   ports.MaturityScaleSource
 }
 
 func SetupOnePagersRoutes(deps OnePagersRoutesDeps) error {
@@ -73,7 +76,14 @@ func SetupOnePagersRoutes(deps OnePagersRoutesDeps) error {
 		Links:           links,
 		SessionProvider: deps.SessionProvider,
 	})
-	registerFactsRoutes(deps.Router, factsHandlers, deps.AuthMiddleware)
+	onePagerQuery := queries.NewOnePagerQuery(queries.OnePagerQueryDeps{
+		Configurations: readModel,
+		Facts:          factsReadModel,
+		Subjects:       deps.BuiltInFields,
+		MaturityScale:  deps.MaturityScale,
+	})
+	viewHandlers := NewOnePagerViewHandlers(onePagerQuery, links)
+	registerSubjectRoutes(deps.Router, viewHandlers, factsHandlers, deps.AuthMiddleware)
 
 	return nil
 }
@@ -94,7 +104,7 @@ type subjectRoutePermissions struct {
 	write authPL.Permission
 }
 
-var factsPermissionsBySubjectType = map[string]subjectRoutePermissions{
+var subjectPermissionsByType = map[string]subjectRoutePermissions{
 	"capability":            {read: authPL.PermCapabilitiesRead, write: authPL.PermCapabilitiesWrite},
 	"enterprise-capability": {read: authPL.PermEnterpriseArchRead, write: authPL.PermEnterpriseArchWrite},
 	"application":           {read: authPL.PermComponentsRead, write: authPL.PermComponentsWrite},
@@ -103,19 +113,26 @@ var factsPermissionsBySubjectType = map[string]subjectRoutePermissions{
 	"internal-team":         {read: authPL.PermComponentsRead, write: authPL.PermComponentsWrite},
 }
 
-func registerFactsRoutes(router chi.Router, h *OnePagerFactsHandlers, authMiddleware AuthMiddleware) {
+func registerSubjectRoutes(router chi.Router, viewHandlers *OnePagerViewHandlers, factsHandlers *OnePagerFactsHandlers, authMiddleware AuthMiddleware) {
 	for _, subjectType := range valueobjects.AllSubjectTypes() {
-		permissions := factsPermissionsBySubjectType[subjectType.Value()]
-		router.Route("/one-pagers/"+subjectType.Value()+"/{subjectID}/facts", func(r chi.Router) {
+		permissions := subjectPermissionsByType[subjectType.Value()]
+		router.Route("/one-pagers/"+subjectType.Value()+"/{subjectID}", func(r chi.Router) {
 			r.Group(func(r chi.Router) {
 				r.Use(authMiddleware.RequirePermission(permissions.read))
-				r.Get("/", h.GetFacts(subjectType))
+				r.Get("/", viewHandlers.GetOnePager(subjectType))
 			})
 
-			r.Group(func(r chi.Router) {
-				r.Use(authMiddleware.RequirePermission(permissions.write))
-				r.Put("/{fieldID}", h.RecordValue(subjectType))
-				r.Delete("/{fieldID}", h.ClearValue(subjectType))
+			r.Route("/facts", func(r chi.Router) {
+				r.Group(func(r chi.Router) {
+					r.Use(authMiddleware.RequirePermission(permissions.read))
+					r.Get("/", factsHandlers.GetFacts(subjectType))
+				})
+
+				r.Group(func(r chi.Router) {
+					r.Use(authMiddleware.RequirePermission(permissions.write))
+					r.Put("/{fieldID}", factsHandlers.RecordValue(subjectType))
+					r.Delete("/{fieldID}", factsHandlers.ClearValue(subjectType))
+				})
 			})
 		})
 	}

@@ -33,6 +33,7 @@ func (h *CapabilityMappingLinks) capabilityBaseForActor(id string, actor sharedc
 		"x-incoming-dependencies": h.Get(p + "/dependencies/incoming"),
 		"collection":              h.Get("/capabilities"),
 		"x-expert-roles":          h.Get("/capabilities/expert-roles"),
+		"x-one-pager":             h.Get("/one-pagers/capability/" + id),
 	}
 	h.AddEditOrGrantLink(links, actor, sharedAPI.EditGrantParams{
 		Permission:   "capabilities",

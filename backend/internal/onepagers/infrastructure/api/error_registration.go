@@ -2,6 +2,7 @@ package api
 
 import (
 	"easi/backend/internal/onepagers/application/handlers"
+	"easi/backend/internal/onepagers/application/queries"
 	"easi/backend/internal/onepagers/domain/aggregates"
 	"easi/backend/internal/onepagers/domain/valueobjects"
 	"easi/backend/internal/onepagers/infrastructure/repositories"
@@ -18,6 +19,7 @@ func init() {
 	registry.RegisterNotFound(valueobjects.ErrOptionNotFound, "Selection option not found")
 	registry.RegisterNotFound(handlers.ErrFieldNotDefined, "Field is not defined on the subject type's one-pager configuration")
 	registry.RegisterNotFound(handlers.ErrSubjectNotFound, "Subject does not exist")
+	registry.RegisterNotFound(queries.ErrSubjectNotFound, "Subject does not exist")
 
 	registry.RegisterConflict(handlers.ErrConfigurationAlreadyExists, "A configuration already exists for this subject type")
 	registry.RegisterConflict(aggregates.ErrDuplicateFieldName, "A field with this display name already exists")

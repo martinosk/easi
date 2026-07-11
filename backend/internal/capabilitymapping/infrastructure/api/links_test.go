@@ -90,6 +90,19 @@ func TestCapabilityXRelatedForActor_StakeholderHasNoPOSTAffordances(t *testing.T
 		"stakeholder must see no x-related entries (none advertise POST and no GET-only entries are emitted today)")
 }
 
+func TestCapabilityLinksForActor_IncludesOnePagerLink(t *testing.T) {
+	h := sharedAPI.NewHATEOASLinks("/api/v1")
+	links := NewCapabilityMappingLinks(h)
+	actor := sharedctx.NewActor("u1", "u@example.com", sharedctx.RoleStakeholder)
+
+	result := links.CapabilityLinksForActor("cap1", "", actor)
+
+	onePager, ok := result["x-one-pager"]
+	require.True(t, ok, "expected x-one-pager link")
+	assert.Equal(t, "GET", onePager.Method)
+	assert.Equal(t, "/api/v1/one-pagers/capability/cap1", onePager.Href)
+}
+
 func TestAddLinksToCapability_EnrichToMarshaledJSON_AdvertisesXRelated(t *testing.T) {
 	h := &CapabilityHandlers{
 		hateoas: NewCapabilityMappingLinks(sharedAPI.NewHATEOASLinks("/api/v1")),

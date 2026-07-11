@@ -17,13 +17,14 @@ func NewArchitectureModelingLinks(h *sharedAPI.HATEOASLinks) *ArchitectureModeli
 
 type originResourceConfig struct {
 	sharedAPI.ResourceConfig
-	ArtifactType sharedctx.ResourceName
+	ArtifactType    sharedctx.ResourceName
+	OnePagerSubject string
 }
 
 var (
-	acquiredEntityConfig = originResourceConfig{sharedAPI.ResourceConfig{Path: "/acquired-entities", Collection: "/acquired-entities", Permission: "components"}, "acquired_entities"}
-	vendorConfig         = originResourceConfig{sharedAPI.ResourceConfig{Path: "/vendors", Collection: "/vendors", Permission: "components"}, "vendors"}
-	internalTeamConfig   = originResourceConfig{sharedAPI.ResourceConfig{Path: "/internal-teams", Collection: "/internal-teams", Permission: "components"}, "internal_teams"}
+	acquiredEntityConfig = originResourceConfig{sharedAPI.ResourceConfig{Path: "/acquired-entities", Collection: "/acquired-entities", Permission: "components"}, "acquired_entities", "acquired-entity"}
+	vendorConfig         = originResourceConfig{sharedAPI.ResourceConfig{Path: "/vendors", Collection: "/vendors", Permission: "components"}, "vendors", "vendor"}
+	internalTeamConfig   = originResourceConfig{sharedAPI.ResourceConfig{Path: "/internal-teams", Collection: "/internal-teams", Permission: "components"}, "internal_teams", "internal-team"}
 )
 
 func (h *ArchitectureModelingLinks) ComponentLinksForActor(id string, actor sharedctx.Actor) sharedAPI.Links {
@@ -33,6 +34,7 @@ func (h *ArchitectureModelingLinks) ComponentLinksForActor(id string, actor shar
 		"describedby":    h.Get("/reference/components"),
 		"collection":     h.Get("/components"),
 		"x-expert-roles": h.Get("/components/expert-roles"),
+		"x-one-pager":    h.Get("/one-pagers/application/" + id),
 	}
 	h.AddEditOrGrantLink(links, actor, sharedAPI.EditGrantParams{
 		Permission:   "components",
@@ -138,8 +140,9 @@ func (h *ArchitectureModelingLinks) RelationTypeLinks(relationType valueobjects.
 func (h *ArchitectureModelingLinks) originEntityLinksForActor(cfg originResourceConfig, id string, actor sharedctx.Actor) sharedAPI.Links {
 	p := cfg.Path + "/" + id
 	links := sharedAPI.Links{
-		"self":       h.Get(p),
-		"collection": h.Get(cfg.Collection),
+		"self":        h.Get(p),
+		"collection":  h.Get(cfg.Collection),
+		"x-one-pager": h.Get("/one-pagers/" + cfg.OnePagerSubject + "/" + id),
 	}
 	h.AddEditOrGrantLink(links, actor, sharedAPI.EditGrantParams{
 		Permission:   cfg.Permission,
