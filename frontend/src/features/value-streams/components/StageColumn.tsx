@@ -27,9 +27,10 @@ export function StageColumn({
   onDrop,
 }: StageColumnProps) {
   return (
-    <div
+    <section
       className="stage-column"
       data-testid={`stage-${stage.id}`}
+      aria-label={stage.name}
       draggable={canWrite}
       onDragStart={(e) => onDragStart(e, stage.id)}
       onDragOver={onDragOver}
@@ -91,6 +92,6 @@ export function StageColumn({
           <span className="stage-no-caps">No capabilities mapped</span>
         )}
       </div>
-    </div>
+    </section>
   );
 }

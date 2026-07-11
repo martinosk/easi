@@ -93,7 +93,9 @@ function seedDraft(state: Partial<ReturnType<typeof useAppStore.getState>>) {
 
 describe('Canvas in dynamic mode', () => {
   beforeEach(() => {
-    Object.keys(mockLayoutPositions).forEach((key) => delete mockLayoutPositions[key]);
+    for (const key of Object.keys(mockLayoutPositions)) {
+      delete mockLayoutPositions[key];
+    }
     seedDraft({
       dynamicViewId: 'view-1',
       dynamicEntities: [

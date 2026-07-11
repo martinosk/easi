@@ -106,7 +106,9 @@ function mergeShiftSelection(params: ShiftSelectionParams, item: TreeSelectedIte
   const sectionSelection = selectRange(visibleItems, fromId, item.id);
 
   const merged = new Map(otherSections);
-  sectionSelection.forEach((val, key) => merged.set(key, val));
+  for (const [key, val] of sectionSelection) {
+    merged.set(key, val);
+  }
   return merged;
 }
 

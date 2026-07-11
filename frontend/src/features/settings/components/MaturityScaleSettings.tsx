@@ -204,7 +204,7 @@ export function MaturityScaleSettings() {
           {sections.map((section, index) => {
             const width = ((section.maxValue - section.minValue + 1) / totalRange) * 100;
             return (
-              <div key={index} className="scale-section" style={{ width: `${width}%` }}>
+              <div key={section.order} className="scale-section" style={{ width: `${width}%` }}>
                 {isEditing ? (
                   <div className="scale-section-edit">
                     <TextInput
@@ -238,7 +238,7 @@ export function MaturityScaleSettings() {
             {sections.map((section, index) => {
               const isLastSection = index === sections.length - 1;
               return (
-                <div key={index} className="boundary-control-slot">
+                <div key={section.order} className="boundary-control-slot">
                   {!isLastSection && (
                     <div className="boundary-control">
                       <NumberInput

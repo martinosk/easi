@@ -75,8 +75,7 @@ function useLayoutInitializer(contextType: LayoutContextType, contextRef: string
 
   useEffect(() => {
     initializeLayout();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contextType, contextRef]);
+  }, [initializeLayout]);
 
   return { layout, setLayout, positions, setPositions, isLoading, error, initializeLayout };
 }

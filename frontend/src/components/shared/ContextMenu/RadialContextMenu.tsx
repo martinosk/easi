@@ -151,7 +151,7 @@ export const RadialContextMenu = ({ x, y, items, title, onClose }: RadialContext
       <Hub focused={focused} title={title} itemCount={items.length} />
       {items.map((item, i) => (
         <Petal
-          key={i}
+          key={item.label}
           item={item}
           index={i}
           position={petals[i]}

@@ -80,7 +80,7 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="chat-panel" role="complementary" aria-label="Chat panel">
+    <aside className="chat-panel" aria-label="Chat panel">
       <ChatPanelHeader onToggleHistory={() => setShowConversationList(!showConversationList)} onClose={onClose} />
 
       {showConversationList && (
@@ -107,6 +107,6 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
         yoloEnabled={yoloEnabled}
         onToggleYolo={() => setYoloEnabled(!yoloEnabled)}
       />
-    </div>
+    </aside>
   );
 }

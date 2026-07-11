@@ -158,8 +158,8 @@ export const ExpertsList: React.FC<ExpertsListProps> = ({ experts, onAddClick, d
     </Text>
     {experts?.length ? (
       <Stack gap="xs">
-        {experts.map((expert, i) => (
-          <Text key={i} size="sm" c="dimmed">
+        {experts.map((expert) => (
+          <Text key={`${expert.name}-${expert.addedAt}`} size="sm" c="dimmed">
             {expert.name} ({expert.role}) - {expert.contact}
           </Text>
         ))}
@@ -195,8 +195,8 @@ export const TagsList: React.FC<TagsListProps> = ({ tags, onAddClick, disabled }
     </Text>
     {tags?.length ? (
       <Group gap="xs">
-        {tags.map((tag, i) => (
-          <Badge key={i} variant="light">
+        {tags.map((tag) => (
+          <Badge key={tag} variant="light">
             {tag}
           </Badge>
         ))}

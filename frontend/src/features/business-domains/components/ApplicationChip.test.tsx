@@ -67,16 +67,25 @@ describe('ApplicationChip', () => {
       const parentClick = vi.fn();
       const realization = createRealization();
 
-      render(
-        <div onClick={parentClick}>
-          <ApplicationChip realization={realization} onClick={onClick} />
-        </div>,
-      );
+      const ancestor = document.createElement('div');
+      const reactContainer = document.createElement('div');
+      ancestor.appendChild(reactContainer);
+      document.body.appendChild(ancestor);
+      ancestor.addEventListener('click', parentClick);
 
-      fireEvent.click(screen.getByRole('button'));
+      try {
+        renderWithProviders(<ApplicationChip realization={realization} onClick={onClick} />, {
+          withRouter: false,
+          container: reactContainer,
+        });
 
-      expect(onClick).toHaveBeenCalledTimes(1);
-      expect(parentClick).not.toHaveBeenCalled();
+        fireEvent.click(screen.getByRole('button'));
+
+        expect(onClick).toHaveBeenCalledTimes(1);
+        expect(parentClick).not.toHaveBeenCalled();
+      } finally {
+        ancestor.remove();
+      }
     });
   });
 

@@ -142,7 +142,6 @@
 }
 
 .tree-item.selected {
-  background: var(--color-primary-light);
   background: linear-gradient(to right, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05));
   color: var(--color-primary);
   border-left-color: var(--color-primary);
@@ -186,7 +185,6 @@
   align-items: center;
   gap: var(--spacing-sm);
   padding: var(--spacing-sm) var(--spacing-lg) var(--spacing-sm) calc(var(--spacing-lg) + var(--spacing-md));
-  background: var(--color-primary-light);
   background: linear-gradient(to right, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05));
   border-left: 2px solid var(--color-primary);
 }
