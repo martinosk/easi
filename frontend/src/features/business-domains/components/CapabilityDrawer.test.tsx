@@ -1,9 +1,10 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { toComponentId } from '../../../api/types';
 import { buildBusinessDomain, buildCapabilityRealization, renderWithProviders } from '../../../test/helpers';
 import { buildCapabilityAt as cap } from '../../../test/helpers/entityBuilders';
+import type { TimeAssessment, TimeAssessmentGradeCounts, TimeGrade } from '../../architecture-direction/types';
 import { CapabilityDrawer } from './CapabilityDrawer';
 
 vi.mock('../../../hooks/useStrategyPillarsSettings', () => ({
@@ -17,9 +18,70 @@ vi.mock('../hooks/useStrategyImportance', () => ({
   useRemoveStrategyImportance: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
+const mockGetAssessment = vi.fn<(componentId: string) => TimeAssessment | undefined>();
+const mockGetRollup = vi.fn<(componentId: string) => TimeAssessmentGradeCounts | undefined>();
+let mockCanAssess = false;
+
+vi.mock('../hooks/useCapabilityAssessments', () => ({
+  useCapabilityAssessments: () => ({
+    getAssessment: mockGetAssessment,
+    getRollup: mockGetRollup,
+    canAssess: mockCanAssess,
+  }),
+}));
+
+let mockSuggestions: { capabilityId: string; componentId: string; suggestedTime: string | null }[] = [];
+
+vi.mock('../../enterprise-architecture/hooks/useTimeSuggestions', () => ({
+  useTimeSuggestions: () => ({
+    suggestions: mockSuggestions.map((s) => ({
+      capabilityId: s.capabilityId,
+      capabilityName: '',
+      componentId: s.componentId,
+      componentName: '',
+      suggestedTime: s.suggestedTime,
+      technicalGap: null,
+      functionalGap: null,
+    })),
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
+}));
+
+vi.mock('../../architecture-direction/hooks/useTimeAssessments', () => ({
+  useAssessRealization: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useRemoveTimeAssessment: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+
+function buildAssessment(overrides: Partial<TimeAssessment> = {}): TimeAssessment {
+  return {
+    id: 'ta-1',
+    capabilityId: 'l2-a',
+    capabilityName: 'Booking Management',
+    componentId: 'comp-1',
+    componentName: 'Phoenix',
+    grade: 'Migrate' as TimeGrade,
+    rationale: '',
+    assessedBy: 'user-1',
+    assessedByName: 'Domain Architect',
+    assessedAt: '2026-02-01T00:00:00Z',
+    stale: false,
+    _links: { self: { href: '', method: 'GET' } },
+    ...overrides,
+  };
+}
+
 const domain = buildBusinessDomain({ name: 'Ferry Freight' });
 
 describe('CapabilityDrawer', () => {
+  beforeEach(() => {
+    mockGetAssessment.mockReset().mockReturnValue(undefined);
+    mockGetRollup.mockReset().mockReturnValue(undefined);
+    mockCanAssess = false;
+    mockSuggestions = [];
+  });
+
   it('renders no capability content when no capability is selected', () => {
     renderWithProviders(
       <CapabilityDrawer
@@ -136,5 +198,89 @@ describe('CapabilityDrawer', () => {
     expect(screen.getByText('Jane Doe')).toBeInTheDocument();
     expect(screen.getByText('core')).toBeInTheDocument();
     expect(screen.getByText('freight')).toBeInTheDocument();
+  });
+
+  describe('TIME assessment on a Direct realising application', () => {
+    function renderAssessmentDrawer(realizationOverrides: Partial<Parameters<typeof buildCapabilityRealization>[0]> = {}) {
+      const capability = cap('l2-a', 'Booking Management', 'L2');
+      const realizations = [
+        buildCapabilityRealization({
+          componentId: toComponentId('comp-1'),
+          componentName: 'Phoenix',
+          origin: 'Direct',
+          ...realizationOverrides,
+        }),
+      ];
+
+      renderWithProviders(
+        <CapabilityDrawer
+          capability={capability}
+          domain={domain}
+          l1Name="Ferry Booking"
+          getRealizationsForCapability={() => realizations}
+          onClose={vi.fn()}
+          onChipClick={vi.fn()}
+        />,
+      );
+    }
+
+    it('shows the current grade, assessor, and date for an assessed realization', () => {
+      mockGetAssessment.mockReturnValue(buildAssessment());
+
+      renderAssessmentDrawer();
+
+      expect(screen.getByTestId('assessment-comp-1')).toHaveTextContent('Migrate — for this capability');
+      expect(screen.getByTestId('assessment-comp-1')).toHaveTextContent('Domain Architect');
+    });
+
+    it('shows an explicit unassessed state for a Direct realization with no assessment', () => {
+      renderAssessmentDrawer();
+
+      expect(screen.getByTestId('assessment-comp-1')).toHaveTextContent('unassessed');
+    });
+
+    it('shows the stale marker and landscape rollup line for an assessed realization', () => {
+      mockGetAssessment.mockReturnValue(buildAssessment({ stale: true }));
+      mockGetRollup.mockReturnValue({ Invest: 1, Tolerate: 1, Migrate: 1, Eliminate: 1 });
+
+      renderAssessmentDrawer();
+
+      expect(screen.getByTestId('assessment-stale-comp-1')).toHaveTextContent('stale');
+      expect(screen.getByTestId('assessment-rollup-comp-1')).toHaveTextContent(
+        'Across landscape: I×1 · T×1 · M×1 · E×1',
+      );
+    });
+
+    it('shows no assess/remove control for a read-only caller with no write links', () => {
+      mockGetAssessment.mockReturnValue(buildAssessment({ _links: { self: { href: '', method: 'GET' } } }));
+      mockCanAssess = false;
+
+      renderAssessmentDrawer();
+
+      expect(screen.getByTestId('assessment-comp-1')).toBeInTheDocument();
+      expect(screen.queryByTestId('reassess-btn-comp-1')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('remove-assessment-btn-comp-1')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('assess-btn-comp-1')).not.toBeInTheDocument();
+    });
+
+    it('shows no assessment UI at all for an Inherited realization', () => {
+      mockGetAssessment.mockReturnValue(buildAssessment());
+
+      renderAssessmentDrawer({ origin: 'Inherited', sourceCapabilityName: 'Ferry Booking' });
+
+      expect(screen.queryByTestId('assessment-comp-1')).not.toBeInTheDocument();
+    });
+
+    it('normalises the computed suggestion for the realized component and pre-fills it as reference when opening the assess control', async () => {
+      mockCanAssess = true;
+      mockSuggestions = [{ capabilityId: 'l2-a', componentId: 'comp-1', suggestedTime: 'ELIMINATE' }];
+
+      renderAssessmentDrawer();
+
+      await userEvent.click(screen.getByTestId('assess-btn-comp-1'));
+
+      expect(screen.getByTestId('assessment-suggestion-comp-1')).toHaveTextContent('Eliminate');
+      expect(screen.getByRole('radio', { name: 'Eliminate' })).toBeChecked();
+    });
   });
 });

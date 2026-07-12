@@ -3,6 +3,9 @@ import { useQueries } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
 import type { BusinessDomain, BusinessDomainId, Capability, CapabilityRealizationsGroup } from '../../../api/types';
 import { canCreate } from '../../../utils/hateoas';
+import { timeAssessmentApi } from '../../architecture-direction/api/timeAssessmentApi';
+import { timeAssessmentQueryKeys } from '../../architecture-direction/queryKeys';
+import type { TimeAssessmentsResponse } from '../../architecture-direction/types';
 import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
 import type { CapabilityTreeNode } from '../../capabilities/hooks/useCapabilityTree';
 import { useCapabilityTree } from '../../capabilities/hooks/useCapabilityTree';
@@ -31,11 +34,25 @@ function useRealizationQueries(domains: BusinessDomain[]) {
   });
 }
 
+function useAssessmentQueries(realizationQueries: UseQueryResult<CapabilityRealizationsGroup[]>[]) {
+  return useQueries({
+    queries: realizationQueries.map((realizationQuery) => {
+      const capabilityIds = (realizationQuery.data ?? []).map((g) => g.capabilityId);
+      return {
+        queryKey: timeAssessmentQueryKeys.byCapabilityIds(capabilityIds),
+        queryFn: () => timeAssessmentApi.getByCapabilityIds(capabilityIds),
+        enabled: capabilityIds.length > 0,
+      };
+    }),
+  });
+}
+
 function assembleBoardDomains(
   domains: BusinessDomain[],
   tree: CapabilityTreeNode[],
   capabilityQueries: UseQueryResult<Capability[]>[],
   realizationQueries: UseQueryResult<CapabilityRealizationsGroup[]>[],
+  assessmentQueries: UseQueryResult<TimeAssessmentsResponse>[],
 ): DomainBoardViewModel[] {
   return domains.map((domain, index) =>
     buildDomainBoardViewModel({
@@ -44,6 +61,7 @@ function assembleBoardDomains(
       tree,
       realizationGroups: realizationQueries[index]?.data ?? [],
       isLoading: Boolean(capabilityQueries[index]?.isLoading || realizationQueries[index]?.isLoading),
+      assessments: assessmentQueries[index]?.data?.data ?? [],
     }),
   );
 }
@@ -63,19 +81,24 @@ export function useDomainBoardData() {
 
   const capabilityQueries = useCapabilityQueries(domains);
   const realizationQueries = useRealizationQueries(domains);
+  const assessmentQueries = useAssessmentQueries(realizationQueries);
 
   const boardDomains = useMemo(
-    () => assembleBoardDomains(domains, tree, capabilityQueries, realizationQueries),
-    [domains, tree, capabilityQueries, realizationQueries],
+    () => assembleBoardDomains(domains, tree, capabilityQueries, realizationQueries, assessmentQueries),
+    [domains, tree, capabilityQueries, realizationQueries, assessmentQueries],
   );
 
   const refetchDomain = useCallback(
     async (domainId: BusinessDomainId) => {
       const index = domains.findIndex((domain) => domain.id === domainId);
       if (index === -1) return;
-      await Promise.all([capabilityQueries[index]?.refetch(), realizationQueries[index]?.refetch()]);
+      await Promise.all([
+        capabilityQueries[index]?.refetch(),
+        realizationQueries[index]?.refetch(),
+        assessmentQueries[index]?.refetch(),
+      ]);
     },
-    [domains, capabilityQueries, realizationQueries],
+    [domains, capabilityQueries, realizationQueries, assessmentQueries],
   );
 
   return {

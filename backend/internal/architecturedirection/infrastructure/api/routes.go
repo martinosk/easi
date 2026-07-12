@@ -37,6 +37,7 @@ type RoutesDeps struct {
 	ReferenceChecker   *services.ReferenceChecker
 	SourceEligibility  services.SourceEligibility
 	CompositionPreview CompositionPreviewProvider
+	DirectRealization  services.DirectRealizationLookup
 }
 
 func SetupRoutes(deps RoutesDeps) error {
@@ -61,6 +62,7 @@ func SetupRoutes(deps RoutesDeps) error {
 	registerRoutes(deps.Router, httpHandlers, previewHandlers, deps.AuthMiddleware)
 
 	setupStandardApplicationRoutes(deps)
+	setupTimeAssessmentRoutes(deps)
 	return nil
 }
 
@@ -96,6 +98,58 @@ func registerStandardApplicationRoutes(r chi.Router, h *StandardApplicationHandl
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequirePermission(authPL.PermArchitectureDirectionWrite))
 			r.Put("/", h.SetStandardApplication)
+		})
+	})
+}
+
+func setupTimeAssessmentRoutes(deps RoutesDeps) {
+	readModel := readmodels.NewTimeAssessmentReadModel(deps.DB)
+	repo := repositories.NewTimeAssessmentRepository(deps.EventStore)
+
+	subscribeTimeAssessmentEvents(deps.EventBus, readModel)
+	deps.CommandBus.Register("AssessRealization", handlers.NewAssessRealizationHandler(repo, readModel, deps.DirectRealization))
+	deps.CommandBus.Register("RemoveTimeAssessment", handlers.NewRemoveTimeAssessmentHandler(repo, readModel))
+
+	links := NewTimeAssessmentLinks(deps.HATEOAS)
+	httpHandlers := NewTimeAssessmentHandlers(deps.CommandBus, readModel, links)
+
+	registerTimeAssessmentRoutes(deps.Router, httpHandlers, deps.AuthMiddleware)
+}
+
+func subscribeTimeAssessmentEvents(eventBus events.EventBus, rm *readmodels.TimeAssessmentReadModel) {
+	projector := projectors.NewTimeAssessmentProjector(rm)
+	referenceProjector := projectors.NewTimeAssessmentReferenceProjector(rm)
+
+	eventBus.Subscribe(pl.TimeAssessmentRecorded, projector)
+	eventBus.Subscribe(pl.TimeAssessmentRemoved, projector)
+
+	eventBus.Subscribe(cmPL.SystemRealizationDeleted, referenceProjector)
+	eventBus.Subscribe(cmPL.CapabilityDeleted, referenceProjector)
+	eventBus.Subscribe(cmPL.CapabilityCreated, referenceProjector)
+	eventBus.Subscribe(cmPL.CapabilityUpdated, referenceProjector)
+	eventBus.Subscribe(amPL.ApplicationComponentDeleted, referenceProjector)
+	eventBus.Subscribe(amPL.ApplicationComponentCreated, referenceProjector)
+	eventBus.Subscribe(amPL.ApplicationComponentUpdated, referenceProjector)
+	eventBus.Subscribe(authPL.UserCreated, referenceProjector)
+}
+
+func registerTimeAssessmentRoutes(r chi.Router, h *TimeAssessmentHandlers, authMiddleware AuthMiddleware) {
+	r.Route("/time-assessments", func(r chi.Router) {
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authPL.PermDomainsRead))
+			r.Get("/", h.GetTimeAssessments)
+			r.Get("/rollups", h.GetTimeAssessmentRollups)
+		})
+	})
+	r.Route("/capabilities/{id}/components/{componentId}/time-assessment", func(r chi.Router) {
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authPL.PermDomainsRead))
+			r.Get("/", h.GetTimeAssessment)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authPL.PermArchitectureDirectionWrite))
+			r.Put("/", h.PutTimeAssessment)
+			r.Delete("/", h.DeleteTimeAssessment)
 		})
 	})
 }

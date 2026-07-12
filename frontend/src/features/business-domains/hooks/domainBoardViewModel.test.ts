@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { CapabilityRealization } from '../../../api/types';
 import { toCapabilityId, toComponentId } from '../../../api/types';
 import { buildBusinessDomain, buildCapabilityRealization } from '../../../test/helpers';
 import { buildCapabilityAt as cap } from '../../../test/helpers/entityBuilders';
@@ -102,6 +103,57 @@ describe('buildDomainBoardViewModel', () => {
     expect(vm.l1Groups).toEqual([]);
     expect(vm.totalCapabilityCount).toBe(0);
     expect(vm.totalAppCount).toBe(0);
+  });
+
+  function buildAssessedRealizationViewModel(realizationOverrides: Partial<CapabilityRealization> = {}) {
+    const tree = buildCapabilityTree([cap('l1-a', 'Alpha', 'L1')]);
+    const groups = [
+      {
+        capabilityId: toCapabilityId('l1-a'),
+        capabilityName: 'Alpha',
+        level: 'L1' as const,
+        realizations: [
+          buildCapabilityRealization({
+            capabilityId: toCapabilityId('l1-a'),
+            componentId: toComponentId('comp-1'),
+            ...realizationOverrides,
+          }),
+        ],
+      },
+    ];
+
+    return buildViewModel({
+      assignedCapabilities: [cap('l1-a', 'Alpha', 'L1')],
+      tree,
+      realizationGroups: groups,
+      assessments: [
+        {
+          id: 'ta-1',
+          capabilityId: 'l1-a',
+          capabilityName: 'Alpha',
+          componentId: 'comp-1',
+          componentName: 'Component 1',
+          grade: 'Migrate',
+          rationale: '',
+          assessedBy: 'user-1',
+          assessedAt: '2026-01-01T00:00:00Z',
+          stale: false,
+          _links: {},
+        },
+      ],
+    });
+  }
+
+  it('attaches the current assessed grade to a Direct realization matching the assessment pair', () => {
+    const vm = buildAssessedRealizationViewModel({ origin: 'Direct' });
+
+    expect(vm.getRealizationsForCapability(toCapabilityId('l1-a'))[0].timeGrade).toBe('Migrate');
+  });
+
+  it('does not attach a grade to an Inherited realization even when the app is assessed on its source pair', () => {
+    const vm = buildAssessedRealizationViewModel({ origin: 'Inherited', sourceCapabilityId: toCapabilityId('l1-source') });
+
+    expect(vm.getRealizationsForCapability(toCapabilityId('l1-a'))[0].timeGrade).toBeUndefined();
   });
 });
 

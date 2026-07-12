@@ -24,5 +24,39 @@ func AgentTools() []pl.AgentToolSpec {
 			Path:        "/enterprise-capabilities/{id}/standard-application",
 			PathParams:  []pl.ParamSpec{pl.UUIDParam("id", "Enterprise capability ID (UUID)")},
 		},
+		{
+			Name:        "get_time_assessment_for_realization",
+			Description: "Get the current TIME grade (Invest / Tolerate / Migrate / Eliminate) an architect has recorded for a direct realisation — the pairing of a domain capability and the application component that realises it. Returns 404 if the pair has never been assessed.",
+			Access:      pl.AccessRead,
+			Permission:  "domains:read",
+			Method:      "GET",
+			Path:        "/capabilities/{id}/components/{componentId}/time-assessment",
+			PathParams: []pl.ParamSpec{
+				pl.UUIDParam("id", "Domain capability ID (UUID)"),
+				pl.UUIDParam("componentId", "Application component ID (UUID)"),
+			},
+		},
+		{
+			Name:        "list_time_assessments",
+			Description: "Bulk-fetch the current TIME assessment for every realisation among a set of domain capabilities — one entry per assessed (capability, component) pair.",
+			Access:      pl.AccessRead,
+			Permission:  "domains:read",
+			Method:      "GET",
+			Path:        "/time-assessments",
+			QueryParams: []pl.ParamSpec{
+				pl.StringParam("capabilityIds", "Comma-separated domain capability IDs (UUIDs)", true),
+			},
+		},
+		{
+			Name:        "get_time_assessment_rollups",
+			Description: "Get, for each given application component, the count of current TIME assessments per grade across the landscape — how many capabilities grade this application Invest / Tolerate / Migrate / Eliminate. Useful for spotting carve-out and rationalisation candidates.",
+			Access:      pl.AccessRead,
+			Permission:  "domains:read",
+			Method:      "GET",
+			Path:        "/time-assessments/rollups",
+			QueryParams: []pl.ParamSpec{
+				pl.StringParam("componentIds", "Comma-separated application component IDs (UUIDs)", true),
+			},
+		},
 	}
 }

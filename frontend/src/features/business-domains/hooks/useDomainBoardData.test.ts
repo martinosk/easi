@@ -2,8 +2,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { toBusinessDomainId } from '../../../api/types';
-import { buildBusinessDomain, buildCapabilityAt as cap } from '../../../test/helpers/entityBuilders';
+import { toBusinessDomainId, toCapabilityId, toComponentId } from '../../../api/types';
+import {
+  buildBusinessDomain,
+  buildCapabilityRealization,
+  buildCapabilityAt as cap,
+} from '../../../test/helpers/entityBuilders';
+import { timeAssessmentApi } from '../../architecture-direction/api/timeAssessmentApi';
 import { capabilitiesApi } from '../../capabilities/api';
 import { businessDomainsApi } from '../api';
 import { businessDomainsQueryKeys } from '../queryKeys';
@@ -20,6 +25,12 @@ vi.mock('../api', () => ({
 vi.mock('../../capabilities/api', () => ({
   capabilitiesApi: {
     getAll: vi.fn(),
+  },
+}));
+
+vi.mock('../../architecture-direction/api/timeAssessmentApi', () => ({
+  timeAssessmentApi: {
+    getByCapabilityIds: vi.fn(),
   },
 }));
 
@@ -86,6 +97,56 @@ describe('useDomainBoardData', () => {
 
     await result.current.refetchDomain(toBusinessDomainId('unknown-domain'));
     expect(businessDomainsApi.getCapabilitiesByDomainId).toHaveBeenCalledTimes(1);
+  });
+
+  it("fans out one assessments query per domain scoped to that domain's realized capability ids, enriching the returned realizations with their current grade", async () => {
+    const domainA = buildBusinessDomain({ id: toBusinessDomainId('domain-a') });
+
+    vi.mocked(businessDomainsApi.getAll).mockResolvedValue({ data: [domainA], _links: {} });
+    vi.mocked(capabilitiesApi.getAll).mockResolvedValue([cap('l1-a', 'Alpha', 'L1')]);
+    vi.mocked(businessDomainsApi.getCapabilitiesByDomainId).mockResolvedValue([cap('l1-a', 'Alpha', 'L1')]);
+    vi.mocked(businessDomainsApi.getCapabilityRealizations).mockResolvedValue([
+      {
+        capabilityId: toCapabilityId('l1-a'),
+        capabilityName: 'Alpha',
+        level: 'L1',
+        realizations: [
+          buildCapabilityRealization({
+            capabilityId: toCapabilityId('l1-a'),
+            componentId: toComponentId('comp-1'),
+            origin: 'Direct',
+          }),
+        ],
+      },
+    ]);
+    vi.mocked(timeAssessmentApi.getByCapabilityIds).mockResolvedValue({
+      data: [
+        {
+          id: 'ta-1',
+          capabilityId: 'l1-a',
+          capabilityName: 'Alpha',
+          componentId: 'comp-1',
+          componentName: 'Component 1',
+          grade: 'Migrate',
+          rationale: '',
+          assessedBy: 'user-1',
+          assessedAt: '2026-01-01T00:00:00Z',
+          stale: false,
+          _links: {},
+        },
+      ],
+      _links: {},
+    });
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { result } = renderHook(() => useDomainBoardData(), { wrapper: createWrapper(queryClient) });
+
+    await waitFor(() => expect(timeAssessmentApi.getByCapabilityIds).toHaveBeenCalledWith(['l1-a']));
+
+    await waitFor(() => {
+      const boardA = result.current.boardDomains.find((d) => d.domain.id === domainA.id);
+      expect(boardA?.getRealizationsForCapability(toCapabilityId('l1-a'))[0]?.timeGrade).toBe('Migrate');
+    });
   });
 
   it('surfaces canCreateDomain from the collection HATEOAS links', async () => {

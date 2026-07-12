@@ -1,9 +1,10 @@
 import { UnstyledButton } from '@mantine/core';
-import type { CapabilityRealization, ComponentId } from '../../../api/types';
+import type { CapabilityRealization, ComponentId, TimeGrade } from '../../../api/types';
+import type { AssessedRealization } from '../hooks/domainBoardViewModel';
 import classes from './AppChip.module.css';
 
 export interface AppChipProps {
-  realization: CapabilityRealization;
+  realization: AssessedRealization;
   onClick: (componentId: ComponentId) => void;
 }
 
@@ -13,9 +14,36 @@ const LEVEL_CLASS: Record<CapabilityRealization['realizationLevel'], string> = {
   Planned: classes.planned,
 };
 
+const GRADE_CLASS: Record<TimeGrade, string> = {
+  Invest: classes.gradeInvest,
+  Tolerate: classes.gradeTolerate,
+  Migrate: classes.gradeMigrate,
+  Eliminate: classes.gradeEliminate,
+};
+
+const GRADE_LETTER: Record<TimeGrade, string> = {
+  Invest: 'I',
+  Tolerate: 'T',
+  Migrate: 'M',
+  Eliminate: 'E',
+};
+
+function GradeBadge({ componentId, grade }: { componentId: ComponentId; grade: TimeGrade }) {
+  return (
+    <span
+      className={[classes.gradeBadge, GRADE_CLASS[grade]].join(' ')}
+      title={`${grade} — for this capability`}
+      data-testid={`app-chip-grade-${componentId}`}
+    >
+      {GRADE_LETTER[grade]}
+    </span>
+  );
+}
+
 export function AppChip({ realization, onClick }: AppChipProps) {
   const componentName = realization.componentName || realization.componentId;
   const isInherited = realization.origin === 'Inherited';
+  const assessedGrade = isInherited ? undefined : realization.timeGrade;
 
   const title =
     isInherited && realization.sourceCapabilityName
@@ -38,6 +66,7 @@ export function AppChip({ realization, onClick }: AppChipProps) {
       data-testid={`app-chip-${realization.componentId}`}
     >
       <span className={classes.chipName}>{componentName}</span>
+      {assessedGrade && <GradeBadge componentId={realization.componentId} grade={assessedGrade} />}
     </UnstyledButton>
   );
 }

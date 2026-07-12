@@ -17,6 +17,7 @@ import {
   updateView,
 } from './db';
 import { spec172Handlers } from './spec172/handlers';
+import { spec180Handlers } from './spec180/handlers';
 
 const BASE_URL = '*';
 
@@ -53,6 +54,7 @@ const inheritanceAuditMockEntries = [
 
 export const handlers = [
   ...spec172Handlers,
+  ...spec180Handlers,
 
   http.get(`${BASE_URL}/api/v1/components`, () => {
     return HttpResponse.json({
@@ -437,6 +439,13 @@ export const handlers = [
     return HttpResponse.json({
       data: [],
       _links: { self: '/api/v1/business-domains' },
+    });
+  }),
+
+  http.get(`${BASE_URL}/api/v1/time-suggestions`, () => {
+    return HttpResponse.json({
+      data: [],
+      _links: { self: { href: '/api/v1/time-suggestions', method: 'GET' } },
     });
   }),
 

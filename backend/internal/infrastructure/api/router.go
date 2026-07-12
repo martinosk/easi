@@ -308,6 +308,7 @@ func setupDomainRoutes(r chi.Router, deps routerDependencies) {
 		ReferenceChecker:   directionRefChecker,
 		SourceEligibility:  directionEligibilityAdapter{service: compositionService},
 		CompositionPreview: compositionPreviewAdapter{service: compositionService, capabilities: ecReadModel},
+		DirectRealization:  directionServices.DirectRealizationLookup(capReadModels.NewRealizationReadModel(deps.db).GetDirectByCapabilityAndComponent),
 	}), "architecture direction routes")
 
 	viewlayoutsAPI.SubscribeEvents(deps.eventBus, deps.db)

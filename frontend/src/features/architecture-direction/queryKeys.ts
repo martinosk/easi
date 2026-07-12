@@ -6,3 +6,10 @@ export const directionQueryKeys = {
   compositionPreview: (id: string, sourceCapabilityIds: string[]) =>
     [...directionQueryKeys.all, 'compositionPreview', id, [...sourceCapabilityIds].sort()] as const,
 };
+
+export const timeAssessmentQueryKeys = {
+  all: ['timeAssessments'] as const,
+  byCapabilityIds: (capabilityIds: string[]) =>
+    [...timeAssessmentQueryKeys.all, 'byCapabilityIds', [...capabilityIds].sort()] as const,
+  rollups: (componentIds: string[]) => [...timeAssessmentQueryKeys.all, 'rollups', [...componentIds].sort()] as const,
+};

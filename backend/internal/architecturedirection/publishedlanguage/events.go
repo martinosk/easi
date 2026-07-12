@@ -11,4 +11,7 @@ const (
 	DirectionSourceCapabilitiesChanged = "DirectionSourceCapabilitiesChanged"
 
 	StandardApplicationSet = "StandardApplicationSet"
+
+	TimeAssessmentRecorded = "TimeAssessmentRecorded"
+	TimeAssessmentRemoved  = "TimeAssessmentRemoved"
 )

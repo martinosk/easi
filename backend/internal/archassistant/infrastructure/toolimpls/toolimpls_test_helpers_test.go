@@ -1,6 +1,6 @@
 package toolimpls_test
 
-var allExpectedSpecToolNames = []string{
+var coreContextExpectedSpecToolNames = []string{
 	"list_applications", "get_application_details",
 	"create_application", "update_application", "delete_application",
 	"create_application_relation", "delete_application_relation",
@@ -46,7 +46,16 @@ var allExpectedSpecToolNames = []string{
 	"get_strategy_pillars", "get_maturity_scale",
 }
 
+var architectureDirectionSpecToolNames = []string{
+	"get_time_assessment_for_realization", "list_time_assessments", "get_time_assessment_rollups",
+}
+
+var allExpectedSpecToolNames = append(
+	append([]string{}, coreContextExpectedSpecToolNames...),
+	architectureDirectionSpecToolNames...,
+)
+
 var allExpectedToolNames = append(
-	allExpectedSpecToolNames,
+	append([]string{}, allExpectedSpecToolNames...),
 	"list_application_relations", "search_architecture", "get_portfolio_summary", "query_domain_model",
 )

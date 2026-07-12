@@ -280,6 +280,7 @@ export class ApiError extends Error {
 export type CapabilityLevel = 'L1' | 'L2' | 'L3' | 'L4';
 export type DependencyType = 'Requires' | 'Enables' | 'Supports';
 export type RealizationLevel = 'Full' | 'Partial' | 'Planned';
+export type TimeGrade = 'Invest' | 'Tolerate' | 'Migrate' | 'Eliminate';
 
 export interface Expert {
   name: string;

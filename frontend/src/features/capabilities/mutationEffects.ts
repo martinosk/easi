@@ -1,3 +1,4 @@
+import { timeAssessmentQueryKeys } from '../architecture-direction/queryKeys';
 import { auditQueryKeys } from '../audit/queryKeys';
 import { businessDomainsQueryKeys } from '../business-domains/queryKeys';
 import { componentsQueryKeys } from '../components/queryKeys';
@@ -109,6 +110,7 @@ export const capabilitiesMutationEffects = {
     capabilitiesQueryKeys.byComponent(context.componentId),
     capabilitiesQueryKeys.realizationsByComponents(),
     businessDomainsQueryKeys.details(),
+    timeAssessmentQueryKeys.all,
   ],
 
   addExpert: (capabilityId: string) => [

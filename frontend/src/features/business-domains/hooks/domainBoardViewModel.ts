@@ -5,8 +5,12 @@ import type {
   CapabilityRealization,
   CapabilityRealizationsGroup,
   ComponentId,
+  TimeGrade,
 } from '../../../api/types';
+import type { TimeAssessment } from '../../architecture-direction/types';
 import type { CapabilityTreeNode } from '../../capabilities/hooks/useCapabilityTree';
+
+export type AssessedRealization = CapabilityRealization & { timeGrade?: TimeGrade };
 
 export interface DomainBoardL1Group {
   node: CapabilityTreeNode;
@@ -20,7 +24,7 @@ export interface DomainBoardViewModel {
   totalCapabilityCount: number;
   totalAppCount: number;
   isLoading: boolean;
-  getRealizationsForCapability: (capabilityId: CapabilityId) => CapabilityRealization[];
+  getRealizationsForCapability: (capabilityId: CapabilityId) => AssessedRealization[];
 }
 
 function countNode(node: CapabilityTreeNode): number {
@@ -29,7 +33,7 @@ function countNode(node: CapabilityTreeNode): number {
 
 function collectComponentIds(
   node: CapabilityTreeNode,
-  realizationsByCapabilityId: Map<CapabilityId, CapabilityRealization[]>,
+  realizationsByCapabilityId: Map<CapabilityId, AssessedRealization[]>,
   acc: Set<ComponentId>,
 ): void {
   for (const realization of realizationsByCapabilityId.get(node.capability.id) ?? []) {
@@ -40,12 +44,34 @@ function collectComponentIds(
   }
 }
 
+function buildGradeByPair(assessments: TimeAssessment[]): Map<string, TimeAssessment['grade']> {
+  const map = new Map<string, TimeAssessment['grade']>();
+  for (const assessment of assessments) {
+    map.set(`${assessment.capabilityId}:${assessment.componentId}`, assessment.grade);
+  }
+  return map;
+}
+
+function withAssessedGrade(
+  realization: CapabilityRealization,
+  gradeByPair: Map<string, TimeAssessment['grade']>,
+): AssessedRealization {
+  if (realization.origin !== 'Direct') return realization;
+  const grade = gradeByPair.get(`${realization.capabilityId}:${realization.componentId}`);
+  return grade ? { ...realization, timeGrade: grade } : realization;
+}
+
 export function buildRealizationsByCapabilityId(
   groups: CapabilityRealizationsGroup[],
-): Map<CapabilityId, CapabilityRealization[]> {
-  const map = new Map<CapabilityId, CapabilityRealization[]>();
+  assessments: TimeAssessment[] = [],
+): Map<CapabilityId, AssessedRealization[]> {
+  const gradeByPair = buildGradeByPair(assessments);
+  const map = new Map<CapabilityId, AssessedRealization[]>();
   for (const group of groups) {
-    map.set(group.capabilityId, group.realizations);
+    map.set(
+      group.capabilityId,
+      group.realizations.map((realization) => withAssessedGrade(realization, gradeByPair)),
+    );
   }
   return map;
 }
@@ -68,12 +94,13 @@ export interface BuildDomainBoardViewModelParams {
   tree: CapabilityTreeNode[];
   realizationGroups: CapabilityRealizationsGroup[];
   isLoading: boolean;
+  assessments?: TimeAssessment[];
 }
 
 export function buildDomainBoardViewModel(params: BuildDomainBoardViewModelParams): DomainBoardViewModel {
-  const { domain, assignedCapabilities, tree, realizationGroups, isLoading } = params;
+  const { domain, assignedCapabilities, tree, realizationGroups, isLoading, assessments = [] } = params;
   const assignedL1Ids = new Set(assignedCapabilities.filter((c) => c.level === 'L1').map((c) => c.id));
-  const realizationsByCapabilityId = buildRealizationsByCapabilityId(realizationGroups);
+  const realizationsByCapabilityId = buildRealizationsByCapabilityId(realizationGroups, assessments);
   const l1Nodes = tree.filter((node) => assignedL1Ids.has(node.capability.id));
 
   const domainAppIds = new Set<ComponentId>();
@@ -86,7 +113,7 @@ export function buildDomainBoardViewModel(params: BuildDomainBoardViewModelParam
 
   const totalCapabilityCount = l1Nodes.reduce((sum, node) => sum + countNode(node), 0);
 
-  const getRealizationsForCapability = (capabilityId: CapabilityId): CapabilityRealization[] =>
+  const getRealizationsForCapability = (capabilityId: CapabilityId): AssessedRealization[] =>
     realizationsByCapabilityId.get(capabilityId) ?? [];
 
   return {

@@ -2349,6 +2349,221 @@ const docTemplate = `{
                 }
             }
         },
+        "/capabilities/{id}/components/{componentId}/time-assessment": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Returns the current assessment for the given (capability, component) pair, or 404 when unassessed.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "time-assessments"
+                ],
+                "summary": "Get the current TIME assessment for a realisation",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Application component ID",
+                        "name": "componentId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.TimeAssessmentDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Records the architect's grade for the (capability, component) pair. Requires a direct realisation. 201 on first assessment, 200 on re-assessment.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "time-assessments"
+                ],
+                "summary": "Assess or re-assess a realisation's TIME grade",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Application component ID",
+                        "name": "componentId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Assessment data",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.AssessRealizationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.TimeAssessmentDTO"
+                        }
+                    },
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.TimeAssessmentDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Removes the current assessment for the pair; the realisation presents as unassessed. Recorded as a discrete TimeAssessmentRemoved event.",
+                "tags": [
+                    "time-assessments"
+                ],
+                "summary": "Remove a TIME assessment",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Application component ID",
+                        "name": "componentId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/capabilities/{id}/delete-impact": {
             "get": {
                 "description": "Returns all capabilities and realizations that would be affected by deleting this capability and all descendants.",
@@ -10111,6 +10326,110 @@ const docTemplate = `{
                 }
             }
         },
+        "/time-assessments": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Returns the current assessment for every (capability, component) pair among the given capabilities.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "time-assessments"
+                ],
+                "summary": "Bulk-fetch current TIME assessments for a capability set",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Comma-separated capability IDs",
+                        "name": "capabilityIds",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/time-assessments/rollups": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Returns, for each given application component, the count of current assessments per grade.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "time-assessments"
+                ],
+                "summary": "Per-application TIME grade rollups across the landscape",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Comma-separated application component IDs",
+                        "name": "componentIds",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/time-suggestions": {
             "get": {
                 "description": "Retrieves TIME (Tolerate, Invest, Migrate, Eliminate) suggestions based on strategic importance and application fit gaps",
@@ -12612,6 +12931,47 @@ const docTemplate = `{
                 }
             }
         },
+        "easi_backend_internal_architecturedirection_application_readmodels.TimeAssessmentDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "assessedAt": {
+                    "type": "string"
+                },
+                "assessedBy": {
+                    "type": "string"
+                },
+                "assessedByName": {
+                    "type": "string"
+                },
+                "capabilityId": {
+                    "type": "string"
+                },
+                "capabilityName": {
+                    "type": "string"
+                },
+                "componentId": {
+                    "type": "string"
+                },
+                "componentName": {
+                    "type": "string"
+                },
+                "grade": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "rationale": {
+                    "type": "string"
+                },
+                "stale": {
+                    "type": "boolean"
+                }
+            }
+        },
         "easi_backend_internal_architecturemodeling_application_readmodels.AcquiredEntityDTO": {
             "type": "object",
             "properties": {
@@ -14163,6 +14523,17 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "capabilityId": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_architecturedirection_infrastructure_api.AssessRealizationRequest": {
+            "type": "object",
+            "properties": {
+                "grade": {
+                    "type": "string"
+                },
+                "rationale": {
                     "type": "string"
                 }
             }

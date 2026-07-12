@@ -54,3 +54,21 @@ type SetStandardApplication struct {
 }
 
 func (c SetStandardApplication) CommandName() string { return "SetStandardApplication" }
+
+type AssessRealization struct {
+	CapabilityID string
+	ComponentID  string
+	Grade        string
+	Rationale    string
+	AssessedBy   string
+}
+
+func (c AssessRealization) CommandName() string { return "AssessRealization" }
+
+type RemoveTimeAssessment struct {
+	CapabilityID string
+	ComponentID  string
+	RemovedBy    string
+}
+
+func (c RemoveTimeAssessment) CommandName() string { return "RemoveTimeAssessment" }

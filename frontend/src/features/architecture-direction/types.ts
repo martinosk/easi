@@ -2,12 +2,16 @@ import type {
   BusinessDomainId,
   CapabilityId,
   CapabilityLevel,
+  ComponentId,
   EnterpriseCapabilityId,
   HATEOASLink,
   HATEOASLinks,
   PaginationInfo,
+  TimeGrade,
 } from '../../api/types';
 import type { CarvedOutBy, IncludedCapabilityRole } from '../enterprise-architecture/types';
+
+export type { TimeGrade };
 
 export type DirectionId = string;
 
@@ -137,4 +141,53 @@ export interface CompositionPreviewResponse {
     carvedOutCount: number;
   };
   _links: HATEOASLinks;
+}
+
+export interface TimeAssessment {
+  id: string;
+  capabilityId: CapabilityId | string;
+  capabilityName: string;
+  componentId: ComponentId | string;
+  componentName: string;
+  grade: TimeGrade;
+  rationale: string;
+  assessedBy: string;
+  assessedByName?: string;
+  assessedAt: string;
+  stale: boolean;
+  _links: HATEOASLinks & {
+    self?: HATEOASLink;
+    edit?: HATEOASLink;
+    delete?: HATEOASLink;
+  };
+}
+
+export interface TimeAssessmentsResponse {
+  data: TimeAssessment[];
+  _links: HATEOASLinks & {
+    self?: HATEOASLink;
+    'x-assess'?: HATEOASLink;
+  };
+}
+
+export interface TimeAssessmentGradeCounts {
+  Invest: number;
+  Tolerate: number;
+  Migrate: number;
+  Eliminate: number;
+}
+
+export interface TimeAssessmentRollup {
+  componentId: ComponentId | string;
+  counts: TimeAssessmentGradeCounts;
+}
+
+export interface TimeAssessmentRollupsResponse {
+  data: TimeAssessmentRollup[];
+  _links: HATEOASLinks;
+}
+
+export interface AssessRealizationRequest {
+  grade: TimeGrade;
+  rationale?: string;
 }

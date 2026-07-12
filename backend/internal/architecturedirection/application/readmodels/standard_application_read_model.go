@@ -9,7 +9,6 @@ import (
 	"github.com/lib/pq"
 
 	"easi/backend/internal/infrastructure/database"
-	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/types"
 )
 
@@ -70,7 +69,7 @@ func NewStandardApplicationReadModel(db *database.TenantAwareDB) *StandardApplic
 }
 
 func (rm *StandardApplicationReadModel) UpsertCurrent(ctx context.Context, p UpsertStandardApplicationParams) error {
-	tenantID, err := standardTenantOf(ctx)
+	tenantID, err := tenantOf(ctx)
 	if err != nil {
 		return err
 	}
@@ -109,7 +108,7 @@ func isStandardApplicationPerECUniqueViolation(err error) bool {
 }
 
 func (rm *StandardApplicationReadModel) AppendHistory(ctx context.Context, p AppendStandardApplicationHistoryParams) error {
-	tenantID, err := standardTenantOf(ctx)
+	tenantID, err := tenantOf(ctx)
 	if err != nil {
 		return err
 	}
@@ -150,7 +149,7 @@ func (rm *StandardApplicationReadModel) AppendHistory(ctx context.Context, p App
 }
 
 func (rm *StandardApplicationReadModel) tenantExec(ctx context.Context, query string, argsFn func(tenantID string) []any) error {
-	tenantID, err := standardTenantOf(ctx)
+	tenantID, err := tenantOf(ctx)
 	if err != nil {
 		return err
 	}
@@ -184,7 +183,7 @@ func (rm *StandardApplicationReadModel) MarkApplicationStale(ctx context.Context
 }
 
 func (rm *StandardApplicationReadModel) FindAggregateIDForEnterpriseCapability(ctx context.Context, ecID string) (string, bool, error) {
-	tenantID, err := standardTenantOf(ctx)
+	tenantID, err := tenantOf(ctx)
 	if err != nil {
 		return "", false, err
 	}
@@ -206,7 +205,7 @@ func (rm *StandardApplicationReadModel) FindAggregateIDForEnterpriseCapability(c
 }
 
 func (rm *StandardApplicationReadModel) GetCurrentByEnterpriseCapability(ctx context.Context, ecID string) (*StandardApplicationDTO, error) {
-	tenantID, err := standardTenantOf(ctx)
+	tenantID, err := tenantOf(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +231,7 @@ func (rm *StandardApplicationReadModel) GetCurrentByEnterpriseCapability(ctx con
 }
 
 func (rm *StandardApplicationReadModel) GetHistoryByAggregateID(ctx context.Context, id string) (*StandardApplicationHistoryDTO, error) {
-	tenantID, err := standardTenantOf(ctx)
+	tenantID, err := tenantOf(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -317,12 +316,4 @@ func scanHistoryEntry(row standardApplicationRowScanner) (StandardApplicationHis
 		entry.PreviousApplicationID = previous.String
 	}
 	return entry, nil
-}
-
-func standardTenantOf(ctx context.Context) (string, error) {
-	t, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return "", err
-	}
-	return t.Value(), nil
 }

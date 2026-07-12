@@ -259,6 +259,8 @@ var excludedRoutes = map[string]string{
 	"POST /enterprise-capabilities/*/direction/composition-preview": "stateless capture-modal preview — UI helper; composition is available via get_enterprise_capability_composition",
 	"PUT /enterprise-capabilities/*/standard-application":           "standard application set/change — architect-only deliberation, reserved for human via UI",
 	"GET /enterprise-capabilities/*/standard-application/history":   "standard history — UI helper; main get_standard_application_for_enterprise_capability tool returns the current state",
+	"PUT /capabilities/*/components/*/time-assessment":              "TIME assessment set/change — architect-only deliberation, reserved for human via UI",
+	"DELETE /capabilities/*/components/*/time-assessment":           "TIME assessment removal — architect-only deliberation, reserved for human via UI",
 	"DELETE /value-streams/*":                                       "value stream delete — high-impact, reserved for UI",
 	"DELETE /value-streams/*/stages/*":                              "stage delete — reserved for UI",
 	"DELETE /value-streams/*/stages/*/capabilities/*":               "stage-capability unmapping — reserved for UI",

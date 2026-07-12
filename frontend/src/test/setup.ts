@@ -4,6 +4,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, expect } from 'vitest';
 import { resetDb } from './mocks/db';
 import { server } from './mocks/server';
 import { resetSpec172Db } from './mocks/spec172/store';
+import { resetSpec180Db } from './mocks/spec180/store';
 
 const originalConsoleError = console.error;
 let actWarnings: string[] = [];
@@ -64,6 +65,7 @@ beforeAll(() => {
 beforeEach(() => {
   resetDb();
   resetSpec172Db();
+  resetSpec180Db();
   actWarnings = [];
 });
 

@@ -336,6 +336,30 @@ func (rm *RealizationReadModel) UpdateSourceCapabilityName(ctx context.Context, 
 	return err
 }
 
+func (rm *RealizationReadModel) GetDirectByCapabilityAndComponent(ctx context.Context, capabilityID, componentID string) (string, bool, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return "", false, err
+	}
+
+	var realizationID string
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		return tx.QueryRowContext(ctx,
+			`SELECT id FROM capabilitymapping.capability_realizations
+			 WHERE tenant_id = $1 AND capability_id = $2 AND component_id = $3 AND origin = 'Direct'`,
+			tenantID.Value(), capabilityID, componentID,
+		).Scan(&realizationID)
+	})
+
+	if err == sql.ErrNoRows {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	return realizationID, true, nil
+}
+
 func (rm *RealizationReadModel) GetSourceCapabilityID(ctx context.Context, sourceRealizationID string) (string, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {

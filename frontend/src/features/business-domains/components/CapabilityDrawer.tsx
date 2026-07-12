@@ -1,14 +1,25 @@
 import { Badge, Button, Drawer, Group, Stack, Text, Title } from '@mantine/core';
 import { useState } from 'react';
-import type { BusinessDomain, Capability, CapabilityId, CapabilityRealization, ComponentId } from '../../../api/types';
+import type {
+  BusinessDomain,
+  Capability,
+  CapabilityId,
+  CapabilityRealization,
+  ComponentId,
+  TimeGrade,
+} from '../../../api/types';
 import { DetailField } from '../../../components/shared/DetailField';
 import { canEdit as canEditResource, hasLink } from '../../../utils/hateoas';
+import { normalizeTimeGrade } from '../../architecture-direction/utils/timeGrade';
 import { AddExpertDialog } from '../../capabilities/components/AddExpertDialog';
 import { CapabilityExpertsList } from '../../capabilities/components/CapabilityExpertsList';
 import { EditCapabilityDialog } from '../../capabilities/components/EditCapabilityDialog';
+import { useTimeSuggestions } from '../../enterprise-architecture/hooks/useTimeSuggestions';
 import { OnePagerActionButton } from '../../one-pagers';
+import { type CapabilityAssessments, useCapabilityAssessments } from '../hooks/useCapabilityAssessments';
 import { AppChip } from './AppChip';
 import classes from './CapabilityDrawer.module.css';
+import { RealizationAssessment } from './RealizationAssessment';
 import { StrategicImportanceSection } from './StrategicImportanceSection';
 
 export interface CapabilityDrawerProps {
@@ -27,9 +38,11 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
 interface RealizationRowProps {
   realization: CapabilityRealization;
   onChipClick: (componentId: ComponentId) => void;
+  assessments: CapabilityAssessments;
+  getSuggestion: (componentId: ComponentId) => TimeGrade | null;
 }
 
-function RealizationRow({ realization, onChipClick }: RealizationRowProps) {
+function RealizationRow({ realization, onChipClick, assessments, getSuggestion }: RealizationRowProps) {
   return (
     <div className={classes.realizationRow} data-testid={`drawer-realization-${realization.id}`}>
       <Group gap="xs" wrap="wrap">
@@ -42,16 +55,35 @@ function RealizationRow({ realization, onChipClick }: RealizationRowProps) {
         </Text>
       )}
       {realization.notes && <Text className={classes.realizationMeta}>{realization.notes}</Text>}
+      {realization.origin === 'Direct' && (
+        <RealizationAssessment
+          capabilityId={realization.capabilityId}
+          componentId={realization.componentId}
+          assessment={assessments.getAssessment(realization.componentId)}
+          rollup={assessments.getRollup(realization.componentId)}
+          canAssess={assessments.canAssess}
+          suggestion={getSuggestion(realization.componentId)}
+        />
+      )}
     </div>
   );
 }
 
 interface RealisingApplicationsSectionProps {
+  capability: Capability;
   realizations: CapabilityRealization[];
   onChipClick: (componentId: ComponentId) => void;
 }
 
-function RealisingApplicationsSection({ realizations, onChipClick }: RealisingApplicationsSectionProps) {
+function RealisingApplicationsSection({ capability, realizations, onChipClick }: RealisingApplicationsSectionProps) {
+  const assessments = useCapabilityAssessments(capability, realizations);
+  const { suggestions } = useTimeSuggestions({ capabilityId: capability.id });
+
+  const getSuggestion = (componentId: ComponentId): TimeGrade | null => {
+    const match = suggestions.find((s) => s.componentId === componentId);
+    return normalizeTimeGrade(match?.suggestedTime ?? null);
+  };
+
   return (
     <Stack gap="xs">
       <SectionHeader>Realising applications</SectionHeader>
@@ -60,7 +92,13 @@ function RealisingApplicationsSection({ realizations, onChipClick }: RealisingAp
       ) : (
         <Stack gap="xs">
           {realizations.map((realization) => (
-            <RealizationRow key={realization.id} realization={realization} onChipClick={onChipClick} />
+            <RealizationRow
+              key={realization.id}
+              realization={realization}
+              onChipClick={onChipClick}
+              assessments={assessments}
+              getSuggestion={getSuggestion}
+            />
           ))}
         </Stack>
       )}
@@ -139,6 +177,7 @@ export function CapabilityDrawer({
           </Group>
 
           <RealisingApplicationsSection
+            capability={capability}
             realizations={getRealizationsForCapability(capability.id)}
             onChipClick={onChipClick}
           />
