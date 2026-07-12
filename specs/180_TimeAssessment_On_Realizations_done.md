@@ -1,6 +1,6 @@
 # 180 — TIME Assessment on Capability Realisations
 
-> **Status:** ongoing
+> **Status:** done
 > **Depends on:** 118 (TIME suggestions — read-only reference), 179 (Domain Board surfaces)
 > **Supersedes:** 119 (TIME Classification & Application Landscape — assessed TIME moves from enterprise-capability level to realisation level)
 > **Design doc:** [`docs/specs/capability-journeys.md`](../docs/specs/capability-journeys.md)
@@ -182,4 +182,4 @@ Subscribes to `capabilitymapping` realisation-deleted, capability-deleted, and c
 - [x] Unit tests implemented and passing
 - [x] Integration tests implemented if relevant
 - [x] API documentation updated
-- [ ] User sign-off
+- [x] User sign-off
