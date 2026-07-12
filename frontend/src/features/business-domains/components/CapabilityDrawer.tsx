@@ -17,9 +17,11 @@ import { EditCapabilityDialog } from '../../capabilities/components/EditCapabili
 import { useTimeSuggestions } from '../../enterprise-architecture/hooks/useTimeSuggestions';
 import { OnePagerActionButton } from '../../one-pagers';
 import { type CapabilityAssessments, useCapabilityAssessments } from '../hooks/useCapabilityAssessments';
+import { type CapabilityRoles, useCapabilityRoles } from '../hooks/useCapabilityRoles';
 import { AppChip } from './AppChip';
 import classes from './CapabilityDrawer.module.css';
 import { RealizationAssessment } from './RealizationAssessment';
+import { RealizationRoleControl } from './RealizationRoleControl';
 import { StrategicImportanceSection } from './StrategicImportanceSection';
 
 export interface CapabilityDrawerProps {
@@ -39,10 +41,11 @@ interface RealizationRowProps {
   realization: CapabilityRealization;
   onChipClick: (componentId: ComponentId) => void;
   assessments: CapabilityAssessments;
+  roles: CapabilityRoles;
   getSuggestion: (componentId: ComponentId) => TimeGrade | null;
 }
 
-function RealizationRow({ realization, onChipClick, assessments, getSuggestion }: RealizationRowProps) {
+function RealizationRow({ realization, onChipClick, assessments, roles, getSuggestion }: RealizationRowProps) {
   return (
     <div className={classes.realizationRow} data-testid={`drawer-realization-${realization.id}`}>
       <Group gap="xs" wrap="wrap">
@@ -65,6 +68,14 @@ function RealizationRow({ realization, onChipClick, assessments, getSuggestion }
           suggestion={getSuggestion(realization.componentId)}
         />
       )}
+      {realization.origin === 'Direct' && (
+        <RealizationRoleControl
+          capabilityId={realization.capabilityId}
+          componentId={realization.componentId}
+          role={roles.getRole(realization.componentId)}
+          canAssign={roles.canAssign}
+        />
+      )}
     </div>
   );
 }
@@ -77,6 +88,7 @@ interface RealisingApplicationsSectionProps {
 
 function RealisingApplicationsSection({ capability, realizations, onChipClick }: RealisingApplicationsSectionProps) {
   const assessments = useCapabilityAssessments(capability, realizations);
+  const roles = useCapabilityRoles(capability);
   const { suggestions } = useTimeSuggestions({ capabilityId: capability.id });
 
   const getSuggestion = (componentId: ComponentId): TimeGrade | null => {
@@ -97,6 +109,7 @@ function RealisingApplicationsSection({ capability, realizations, onChipClick }:
               realization={realization}
               onChipClick={onChipClick}
               assessments={assessments}
+              roles={roles}
               getSuggestion={getSuggestion}
             />
           ))}

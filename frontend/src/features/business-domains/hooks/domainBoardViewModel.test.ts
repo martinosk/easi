@@ -155,6 +155,54 @@ describe('buildDomainBoardViewModel', () => {
 
     expect(vm.getRealizationsForCapability(toCapabilityId('l1-a'))[0].timeGrade).toBeUndefined();
   });
+
+  function buildRoleEnrichedViewModel(realizationOverrides: Partial<CapabilityRealization> = {}) {
+    const tree = buildCapabilityTree([cap('l1-a', 'Alpha', 'L1')]);
+    const groups = [
+      {
+        capabilityId: toCapabilityId('l1-a'),
+        capabilityName: 'Alpha',
+        level: 'L1' as const,
+        realizations: [
+          buildCapabilityRealization({
+            capabilityId: toCapabilityId('l1-a'),
+            componentId: toComponentId('comp-1'),
+            ...realizationOverrides,
+          }),
+        ],
+      },
+    ];
+
+    return buildViewModel({
+      assignedCapabilities: [cap('l1-a', 'Alpha', 'L1')],
+      tree,
+      realizationGroups: groups,
+      roles: [
+        {
+          capabilityId: 'l1-a',
+          capabilityName: 'Alpha',
+          componentId: 'comp-1',
+          componentName: 'Component 1',
+          role: 'standard',
+          assignedBy: 'user-1',
+          assignedAt: '2026-01-01T00:00:00Z',
+          _links: {},
+        },
+      ],
+    });
+  }
+
+  it('attaches the current role to a Direct realization matching the role pair', () => {
+    const vm = buildRoleEnrichedViewModel({ origin: 'Direct' });
+
+    expect(vm.getRealizationsForCapability(toCapabilityId('l1-a'))[0].role).toBe('standard');
+  });
+
+  it('does not attach a role to an Inherited realization even when the app holds a role on its source pair', () => {
+    const vm = buildRoleEnrichedViewModel({ origin: 'Inherited', sourceCapabilityId: toCapabilityId('l1-source') });
+
+    expect(vm.getRealizationsForCapability(toCapabilityId('l1-a'))[0].role).toBeUndefined();
+  });
 });
 
 describe('flattenViewModelCapabilities', () => {

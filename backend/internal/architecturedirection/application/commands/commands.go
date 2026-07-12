@@ -72,3 +72,20 @@ type RemoveTimeAssessment struct {
 }
 
 func (c RemoveTimeAssessment) CommandName() string { return "RemoveTimeAssessment" }
+
+type AssignRealizationRole struct {
+	CapabilityID string
+	ComponentID  string
+	Role         string
+	AssignedBy   string
+}
+
+func (c AssignRealizationRole) CommandName() string { return "AssignRealizationRole" }
+
+type ClearRealizationRole struct {
+	CapabilityID string
+	ComponentID  string
+	ClearedBy    string
+}
+
+func (c ClearRealizationRole) CommandName() string { return "ClearRealizationRole" }

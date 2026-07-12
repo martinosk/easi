@@ -21,6 +21,9 @@ func init() {
 	registry.RegisterNotFound(services.ErrReferencedEntityNotFound, "A referenced entity does not exist or is not accessible")
 	registry.RegisterNotFound(aggregates.ErrSourceCapabilityNotInDirection, "Capability is not a source of this direction")
 	registry.RegisterNotFound(aggregates.ErrInvalidStatusTransition, "No active direction in a status that allows this transition")
+	registry.RegisterNotFound(repositories.ErrRealizationRolesNotFound, "Realization roles not found")
+	registry.RegisterNotFound(handlers.ErrRealizationRoleNotFoundForPair, "No realization role exists for this capability and component pair")
+	registry.RegisterNotFound(aggregates.ErrNoRoleToClear, "No realization role exists for this capability and component pair")
 
 	registry.RegisterConflict(readmodels.ErrTimeAssessmentAlreadyExists, "A time assessment already exists for this capability and component pair")
 	registry.RegisterConflict(aggregates.ErrTimeAssessmentAlreadyRemoved, "This time assessment has already been removed")
@@ -28,8 +31,10 @@ func init() {
 	registry.RegisterConflict(services.ErrEnterpriseCapabilityInactive, "Directions can only be captured on active enterprise capabilities.")
 	registry.RegisterConflict(aggregates.ErrDirectionAgreedImmutable, "Agreed directions are immutable; reject and replace to change")
 	registry.RegisterConflict(readmodels.ErrStandardApplicationAlreadyExists, "A standard application already exists for this enterprise capability")
+	registry.RegisterConflict(readmodels.ErrRealizationRolesAggregateConflict, "A different realization roles aggregate is already registered for this capability")
 
 	registry.RegisterValidation(valueobjects.ErrInvalidTimeGrade, "Grade must be one of Invest, Tolerate, Migrate, Eliminate")
+	registry.RegisterValidation(valueobjects.ErrInvalidRealizationRole, "Role must be one of standard, legacy")
 	registry.RegisterValidation(aggregates.ErrNarrativeRequiredForStandardApplication, "A narrative is required when setting or changing the standard application")
 	registry.RegisterValidation(aggregates.ErrInvalidSourceCardinality, "Source capability count does not match the direction type")
 	registry.RegisterValidation(aggregates.ErrDuplicateSourceCapabilities, "Source capabilities must be unique")

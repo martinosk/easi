@@ -13,3 +13,9 @@ export const timeAssessmentQueryKeys = {
     [...timeAssessmentQueryKeys.all, 'byCapabilityIds', [...capabilityIds].sort()] as const,
   rollups: (componentIds: string[]) => [...timeAssessmentQueryKeys.all, 'rollups', [...componentIds].sort()] as const,
 };
+
+export const realizationRoleQueryKeys = {
+  all: ['realizationRoles'] as const,
+  byCapabilityIds: (capabilityIds: string[]) =>
+    [...realizationRoleQueryKeys.all, 'byCapabilityIds', [...capabilityIds].sort()] as const,
+};

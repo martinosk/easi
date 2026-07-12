@@ -14,4 +14,7 @@ const (
 
 	TimeAssessmentRecorded = "TimeAssessmentRecorded"
 	TimeAssessmentRemoved  = "TimeAssessmentRemoved"
+
+	RealizationRoleAssigned = "RealizationRoleAssigned"
+	RealizationRoleCleared  = "RealizationRoleCleared"
 )

@@ -48,8 +48,11 @@ describe('AppChip', () => {
     expect(screen.getByTestId('app-chip-comp-42')).toHaveTextContent('comp-42');
   });
 
-  function renderChip(overrides: Parameters<typeof buildCapabilityRealization>[0] = {}) {
-    const realization = buildCapabilityRealization({ componentId: toComponentId('comp-1'), ...overrides });
+  function renderChip(overrides: Partial<AssessedRealization> = {}) {
+    const realization: AssessedRealization = {
+      ...buildCapabilityRealization({ componentId: toComponentId('comp-1') }),
+      ...overrides,
+    };
     renderWithProviders(<AppChip realization={realization} onClick={vi.fn()} />, { withRouter: false });
     return screen.getByTestId('app-chip-comp-1');
   }
@@ -100,5 +103,40 @@ describe('AppChip', () => {
     renderWithProviders(<AppChip realization={realization} onClick={vi.fn()} />, { withRouter: false });
 
     expect(screen.queryByTestId('app-chip-grade-comp-1')).not.toBeInTheDocument();
+  });
+
+  it('tints a standard-role Direct chip with the standard class instead of the level class', () => {
+    const chip = renderChip({ origin: 'Direct', realizationLevel: 'Partial', role: 'standard' });
+
+    expect(chip.className).toContain(classes.roleStandard);
+    expect(chip.className).not.toContain(classes.partial);
+  });
+
+  it('tints a legacy-role Direct chip with the legacy class instead of the level class', () => {
+    const chip = renderChip({ origin: 'Direct', realizationLevel: 'Full', role: 'legacy' });
+
+    expect(chip.className).toContain(classes.roleLegacy);
+    expect(chip.className).not.toContain(classes.full);
+  });
+
+  it('falls back to the level tint for an unclassified Direct chip', () => {
+    const chip = renderChip({ origin: 'Direct', realizationLevel: 'Full' });
+
+    expect(chip.className).toContain(classes.full);
+    expect(chip.className).not.toContain(classes.roleStandard);
+    expect(chip.className).not.toContain(classes.roleLegacy);
+  });
+
+  it('never applies role tinting to an Inherited chip even when a role is present', () => {
+    const realization: AssessedRealization = {
+      ...buildCapabilityRealization({ componentId: toComponentId('comp-1'), origin: 'Inherited', realizationLevel: 'Full' }),
+      role: 'standard',
+    };
+
+    renderWithProviders(<AppChip realization={realization} onClick={vi.fn()} />, { withRouter: false });
+
+    const chip = screen.getByTestId('app-chip-comp-1');
+    expect(chip.className).not.toContain(classes.roleStandard);
+    expect(chip.className).toContain(classes.full);
   });
 });

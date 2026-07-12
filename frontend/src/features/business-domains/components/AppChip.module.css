@@ -35,6 +35,18 @@
   border-style: dashed;
 }
 
+.roleStandard {
+  border-color: var(--status-positive-line);
+  background: var(--status-positive-bg);
+  color: var(--status-positive);
+}
+
+.roleLegacy {
+  border-color: var(--status-progress-line);
+  background: var(--status-progress-bg);
+  color: var(--status-progress);
+}
+
 .inherited {
   opacity: 0.55;
   border-style: dashed;

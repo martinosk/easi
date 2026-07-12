@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -190,14 +191,7 @@ func TestToolCatalog_MethodMatchesAccessClass(t *testing.T) {
 
 	for _, spec := range toolimpls.AllContextToolSpecs() {
 		allowed := expectedAccess[spec.Method]
-		found := false
-		for _, a := range allowed {
-			if spec.Access == a {
-				found = true
-				break
-			}
-		}
-		if !found {
+		if !slices.Contains(allowed, spec.Access) {
 			t.Errorf("tool %q: method %s should have access %v, got %q",
 				spec.Name, spec.Method, allowed, spec.Access)
 		}
@@ -261,6 +255,8 @@ var excludedRoutes = map[string]string{
 	"GET /enterprise-capabilities/*/standard-application/history":   "standard history — UI helper; main get_standard_application_for_enterprise_capability tool returns the current state",
 	"PUT /capabilities/*/components/*/time-assessment":              "TIME assessment set/change — architect-only deliberation, reserved for human via UI",
 	"DELETE /capabilities/*/components/*/time-assessment":           "TIME assessment removal — architect-only deliberation, reserved for human via UI",
+	"PUT /capabilities/*/components/*/realization-role":             "realization role assign/change — architect-only deliberation, reserved for human via UI",
+	"DELETE /capabilities/*/components/*/realization-role":          "realization role clear — architect-only deliberation, reserved for human via UI",
 	"DELETE /value-streams/*":                                       "value stream delete — high-impact, reserved for UI",
 	"DELETE /value-streams/*/stages/*":                              "stage delete — reserved for UI",
 	"DELETE /value-streams/*/stages/*/capabilities/*":               "stage-capability unmapping — reserved for UI",

@@ -18,6 +18,7 @@ import {
 } from './db';
 import { spec172Handlers } from './spec172/handlers';
 import { spec180Handlers } from './spec180/handlers';
+import { spec181Handlers } from './spec181/handlers';
 
 const BASE_URL = '*';
 
@@ -55,6 +56,7 @@ const inheritanceAuditMockEntries = [
 export const handlers = [
   ...spec172Handlers,
   ...spec180Handlers,
+  ...spec181Handlers,
 
   http.get(`${BASE_URL}/api/v1/components`, () => {
     return HttpResponse.json({

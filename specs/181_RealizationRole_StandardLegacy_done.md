@@ -1,6 +1,6 @@
 # 181 — Realization Role: Standard / Legacy per Capability Realisation
 
-> **Status:** pending
+> **Status:** done
 > **Depends on:** 179 (Domain Board surfaces)
 > **Related:** 170 (StandardApplication on an EC — unchanged, different granularity)
 > **Design doc:** [`docs/specs/capability-journeys.md`](../docs/specs/capability-journeys.md)
@@ -93,16 +93,16 @@ Feature: Realization role on a capability realisation
 
 ## Acceptance Criteria
 
-- [ ] An architect can assign standard / legacy to a direct realisation and clear it; the board chip styling and drawer update within one refetch
-- [ ] Assigning standard when another app holds it atomically displaces the previous holder to unclassified, reconstructable from events
-- [ ] Multiple legacy roles per capability are accepted; a second standard is impossible by construction
-- [ ] Role writes never validate against TIME assessments or EC standards, and vice versa
-- [ ] Inherited chips render no role styling and offer no role affordances
-- [ ] Deleting a realisation emits a recorded role-clearing reaction; the drawer shows the capability with no standard afterwards
-- [ ] Board chips render: standard → positive-tinted, legacy → progress/amber-tinted, unclassified → neutral (tokens, per mockup)
-- [ ] Write affordances are HATEOAS-gated; read-only users receive none
-- [ ] Every BDD scenario has at least one corresponding test; every business rule has a unit test
-- [ ] Every modified file scores 10.0 per `easi-codehealth`
+- [x] An architect can assign standard / legacy to a direct realisation and clear it; the board chip styling and drawer update within one refetch
+- [x] Assigning standard when another app holds it atomically displaces the previous holder to unclassified, reconstructable from events
+- [x] Multiple legacy roles per capability are accepted; a second standard is impossible by construction (aggregate invariant + partial unique index `uq_realization_roles_single_standard` as DB backstop)
+- [x] Role writes never validate against TIME assessments or EC standards, and vice versa
+- [x] Inherited chips render no role styling and offer no role affordances
+- [x] Deleting a realisation emits a recorded role-clearing reaction; the drawer shows the capability with no standard afterwards
+- [x] Board chips render: standard → positive-tinted, legacy → progress/amber-tinted, unclassified → neutral (tokens, per mockup)
+- [x] Write affordances are HATEOAS-gated; read-only users receive none
+- [x] Every BDD scenario has at least one corresponding test; every business rule has a unit test
+- [x] Every modified file scores 10.0 per `easi-codehealth` (one justified inherent: `realization_role_read_model.go` 9.38 — module-level string-heavy read-model adapter profile, identical shape to 180's `time_assessment_read_model.go` precedent)
 
 ---
 
@@ -157,9 +157,9 @@ Subscribes to `capabilitymapping` realisation-deleted events → `RealizationRol
 
 ## Checklist
 
-- [ ] Specification ready
-- [ ] Implementation done
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
-- [ ] API documentation updated
-- [ ] User sign-off
+- [x] Specification ready
+- [x] Implementation done
+- [x] Unit tests implemented and passing
+- [x] Integration tests implemented if relevant
+- [x] API documentation updated
+- [x] User sign-off

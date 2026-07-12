@@ -4,7 +4,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { toComponentId } from '../../../api/types';
 import { buildBusinessDomain, buildCapabilityRealization, renderWithProviders } from '../../../test/helpers';
 import { buildCapabilityAt as cap } from '../../../test/helpers/entityBuilders';
-import type { TimeAssessment, TimeAssessmentGradeCounts, TimeGrade } from '../../architecture-direction/types';
+import type {
+  RealizationRoleAssignment,
+  TimeAssessment,
+  TimeAssessmentGradeCounts,
+  TimeGrade,
+} from '../../architecture-direction/types';
 import { CapabilityDrawer } from './CapabilityDrawer';
 
 vi.mock('../../../hooks/useStrategyPillarsSettings', () => ({
@@ -54,6 +59,35 @@ vi.mock('../../architecture-direction/hooks/useTimeAssessments', () => ({
   useRemoveTimeAssessment: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
+const mockGetRole = vi.fn<(componentId: string) => RealizationRoleAssignment | undefined>();
+let mockCanAssign = false;
+
+vi.mock('../hooks/useCapabilityRoles', () => ({
+  useCapabilityRoles: () => ({
+    getRole: mockGetRole,
+    canAssign: mockCanAssign,
+  }),
+}));
+
+vi.mock('../../architecture-direction/hooks/useRealizationRoles', () => ({
+  useAssignRealizationRole: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useClearRealizationRole: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+
+function buildRole(overrides: Partial<RealizationRoleAssignment> = {}): RealizationRoleAssignment {
+  return {
+    capabilityId: 'l2-a',
+    capabilityName: 'Booking Management',
+    componentId: 'comp-1',
+    componentName: 'Phoenix',
+    role: 'standard',
+    assignedBy: 'user-1',
+    assignedAt: '2026-02-01T00:00:00Z',
+    _links: { self: { href: '', method: 'GET' } },
+    ...overrides,
+  };
+}
+
 function buildAssessment(overrides: Partial<TimeAssessment> = {}): TimeAssessment {
   return {
     id: 'ta-1',
@@ -80,6 +114,8 @@ describe('CapabilityDrawer', () => {
     mockGetRollup.mockReset().mockReturnValue(undefined);
     mockCanAssess = false;
     mockSuggestions = [];
+    mockGetRole.mockReset().mockReturnValue(undefined);
+    mockCanAssign = false;
   });
 
   it('renders no capability content when no capability is selected', () => {
@@ -281,6 +317,65 @@ describe('CapabilityDrawer', () => {
 
       expect(screen.getByTestId('assessment-suggestion-comp-1')).toHaveTextContent('Eliminate');
       expect(screen.getByRole('radio', { name: 'Eliminate' })).toBeChecked();
+    });
+  });
+
+  describe('Realization role on a Direct realising application', () => {
+    function renderRoleDrawer(realizationOverrides: Partial<Parameters<typeof buildCapabilityRealization>[0]> = {}) {
+      const capability = cap('l2-a', 'Booking Management', 'L2');
+      const realizations = [
+        buildCapabilityRealization({
+          componentId: toComponentId('comp-1'),
+          componentName: 'Phoenix',
+          origin: 'Direct',
+          ...realizationOverrides,
+        }),
+      ];
+
+      renderWithProviders(
+        <CapabilityDrawer
+          capability={capability}
+          domain={domain}
+          l1Name="Ferry Booking"
+          getRealizationsForCapability={() => realizations}
+          onClose={vi.fn()}
+          onChipClick={vi.fn()}
+        />,
+      );
+    }
+
+    it('shows the current role badge for a classified Direct realization', () => {
+      mockGetRole.mockReturnValue(buildRole({ role: 'standard' }));
+
+      renderRoleDrawer();
+
+      expect(screen.getByTestId('role-badge-comp-1')).toHaveTextContent('standard');
+    });
+
+    it('shows no role UI for an unclassified realization when the caller cannot assign', () => {
+      mockCanAssign = false;
+
+      renderRoleDrawer();
+
+      expect(screen.queryByTestId('role-comp-1')).not.toBeInTheDocument();
+    });
+
+    it('shows assign controls for an unclassified realization when the caller can assign', () => {
+      mockCanAssign = true;
+
+      renderRoleDrawer();
+
+      expect(screen.getByTestId('assign-standard-btn-comp-1')).toBeInTheDocument();
+      expect(screen.getByTestId('assign-legacy-btn-comp-1')).toBeInTheDocument();
+    });
+
+    it('shows no role UI at all for an Inherited realization', () => {
+      mockGetRole.mockReturnValue(buildRole({ role: 'standard' }));
+
+      renderRoleDrawer({ origin: 'Inherited', sourceCapabilityName: 'Ferry Booking' });
+
+      expect(screen.queryByTestId('role-comp-1')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('role-badge-comp-1')).not.toBeInTheDocument();
     });
   });
 });

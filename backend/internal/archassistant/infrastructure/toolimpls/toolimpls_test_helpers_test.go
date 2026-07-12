@@ -48,6 +48,7 @@ var coreContextExpectedSpecToolNames = []string{
 
 var architectureDirectionSpecToolNames = []string{
 	"get_time_assessment_for_realization", "list_time_assessments", "get_time_assessment_rollups",
+	"get_realization_role_for_capability_component", "list_realization_roles",
 }
 
 var allExpectedSpecToolNames = append(

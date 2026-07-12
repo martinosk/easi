@@ -63,6 +63,7 @@ func SetupRoutes(deps RoutesDeps) error {
 
 	setupStandardApplicationRoutes(deps)
 	setupTimeAssessmentRoutes(deps)
+	setupRealizationRoleRoutes(deps)
 	return nil
 }
 
@@ -80,12 +81,15 @@ func setupStandardApplicationRoutes(deps RoutesDeps) {
 }
 
 func subscribeStandardApplicationEvents(eventBus events.EventBus, rm *readmodels.StandardApplicationReadModel) {
-	projector := projectors.NewStandardApplicationProjector(rm)
-	staleProjector := projectors.NewStaleApplicationProjector(rm)
-	eventBus.Subscribe(pl.StandardApplicationSet, projector)
-	eventBus.Subscribe(amPL.ApplicationComponentDeleted, staleProjector)
-	eventBus.Subscribe(amPL.ApplicationComponentCreated, staleProjector)
-	eventBus.Subscribe(amPL.ApplicationComponentUpdated, staleProjector)
+	eventBus.Subscribe(pl.StandardApplicationSet, projectors.NewStandardApplicationProjector(rm))
+	subscribeMany(eventBus, projectors.NewStaleApplicationProjector(rm),
+		amPL.ApplicationComponentDeleted, amPL.ApplicationComponentCreated, amPL.ApplicationComponentUpdated)
+}
+
+func subscribeMany(eventBus events.EventBus, handler events.EventHandler, eventTypes ...string) {
+	for _, eventType := range eventTypes {
+		eventBus.Subscribe(eventType, handler)
+	}
 }
 
 func registerStandardApplicationRoutes(r chi.Router, h *StandardApplicationHandlers, authMiddleware AuthMiddleware) {
@@ -117,68 +121,92 @@ func setupTimeAssessmentRoutes(deps RoutesDeps) {
 }
 
 func subscribeTimeAssessmentEvents(eventBus events.EventBus, rm *readmodels.TimeAssessmentReadModel) {
-	projector := projectors.NewTimeAssessmentProjector(rm)
-	referenceProjector := projectors.NewTimeAssessmentReferenceProjector(rm)
-
-	eventBus.Subscribe(pl.TimeAssessmentRecorded, projector)
-	eventBus.Subscribe(pl.TimeAssessmentRemoved, projector)
-
-	eventBus.Subscribe(cmPL.SystemRealizationDeleted, referenceProjector)
-	eventBus.Subscribe(cmPL.CapabilityDeleted, referenceProjector)
-	eventBus.Subscribe(cmPL.CapabilityCreated, referenceProjector)
-	eventBus.Subscribe(cmPL.CapabilityUpdated, referenceProjector)
-	eventBus.Subscribe(amPL.ApplicationComponentDeleted, referenceProjector)
-	eventBus.Subscribe(amPL.ApplicationComponentCreated, referenceProjector)
-	eventBus.Subscribe(amPL.ApplicationComponentUpdated, referenceProjector)
-	eventBus.Subscribe(authPL.UserCreated, referenceProjector)
+	subscribeMany(eventBus, projectors.NewTimeAssessmentProjector(rm),
+		pl.TimeAssessmentRecorded, pl.TimeAssessmentRemoved)
+	subscribeMany(eventBus, projectors.NewTimeAssessmentReferenceProjector(rm),
+		cmPL.SystemRealizationDeleted, cmPL.CapabilityDeleted, cmPL.CapabilityCreated, cmPL.CapabilityUpdated,
+		amPL.ApplicationComponentDeleted, amPL.ApplicationComponentCreated, amPL.ApplicationComponentUpdated,
+		authPL.UserCreated)
 }
 
 func registerTimeAssessmentRoutes(r chi.Router, h *TimeAssessmentHandlers, authMiddleware AuthMiddleware) {
-	r.Route("/time-assessments", func(r chi.Router) {
-		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authPL.PermDomainsRead))
-			r.Get("/", h.GetTimeAssessments)
-			r.Get("/rollups", h.GetTimeAssessmentRollups)
-		})
+	registerDomainReadCollection(r, "/time-assessments", authMiddleware, func(r chi.Router) {
+		r.Get("/", h.GetTimeAssessments)
+		r.Get("/rollups", h.GetTimeAssessmentRollups)
 	})
-	r.Route("/capabilities/{id}/components/{componentId}/time-assessment", func(r chi.Router) {
+	registerPairResourceRoutes(r, "/capabilities/{id}/components/{componentId}/time-assessment", authMiddleware,
+		pairResourceHandlers{get: h.GetTimeAssessment, put: h.PutTimeAssessment, delete: h.DeleteTimeAssessment})
+}
+
+func registerDomainReadCollection(r chi.Router, pattern string, authMiddleware AuthMiddleware, register func(chi.Router)) {
+	r.Route(pattern, func(r chi.Router) {
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequirePermission(authPL.PermDomainsRead))
-			r.Get("/", h.GetTimeAssessment)
-		})
-		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authPL.PermArchitectureDirectionWrite))
-			r.Put("/", h.PutTimeAssessment)
-			r.Delete("/", h.DeleteTimeAssessment)
+			register(r)
 		})
 	})
 }
 
+type pairResourceHandlers struct {
+	get    http.HandlerFunc
+	put    http.HandlerFunc
+	delete http.HandlerFunc
+}
+
+func registerPairResourceRoutes(r chi.Router, pattern string, authMiddleware AuthMiddleware, h pairResourceHandlers) {
+	r.Route(pattern, func(r chi.Router) {
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authPL.PermDomainsRead))
+			r.Get("/", h.get)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authPL.PermArchitectureDirectionWrite))
+			r.Put("/", h.put)
+			r.Delete("/", h.delete)
+		})
+	})
+}
+
+func setupRealizationRoleRoutes(deps RoutesDeps) {
+	readModel := readmodels.NewRealizationRoleReadModel(deps.DB)
+	repo := repositories.NewRealizationRolesRepository(deps.EventStore)
+
+	subscribeRealizationRoleEvents(deps.EventBus, readModel)
+	deps.CommandBus.Register("AssignRealizationRole", handlers.NewAssignRealizationRoleHandler(repo, readModel, deps.DirectRealization))
+	deps.CommandBus.Register("ClearRealizationRole", handlers.NewClearRealizationRoleHandler(repo, readModel))
+	deps.EventBus.Subscribe(cmPL.SystemRealizationDeleted, projectors.NewRealizationRoleDeletionReactor(readModel, deps.CommandBus))
+
+	links := NewRealizationRoleLinks(deps.HATEOAS)
+	httpHandlers := NewRealizationRoleHandlers(deps.CommandBus, readModel, links)
+
+	registerRealizationRoleRoutes(deps.Router, httpHandlers, deps.AuthMiddleware)
+}
+
+func subscribeRealizationRoleEvents(eventBus events.EventBus, rm *readmodels.RealizationRoleReadModel) {
+	subscribeMany(eventBus, projectors.NewRealizationRoleProjector(rm),
+		pl.RealizationRoleAssigned, pl.RealizationRoleCleared)
+	subscribeMany(eventBus, projectors.NewRealizationRoleReferenceProjector(rm),
+		cmPL.CapabilityDeleted, cmPL.CapabilityCreated, cmPL.CapabilityUpdated,
+		amPL.ApplicationComponentDeleted, amPL.ApplicationComponentCreated, amPL.ApplicationComponentUpdated)
+}
+
+func registerRealizationRoleRoutes(r chi.Router, h *RealizationRoleHandlers, authMiddleware AuthMiddleware) {
+	registerDomainReadCollection(r, "/realization-roles", authMiddleware, func(r chi.Router) {
+		r.Get("/", h.GetRealizationRoles)
+	})
+	registerPairResourceRoutes(r, "/capabilities/{id}/components/{componentId}/realization-role", authMiddleware,
+		pairResourceHandlers{get: h.GetRealizationRole, put: h.PutRealizationRole, delete: h.DeleteRealizationRole})
+}
+
 func subscribeEvents(eventBus events.EventBus, rm *readmodels.DirectionReadModel) {
-	directionProjector := projectors.NewDirectionProjector(rm)
-	staleProjector := projectors.NewStaleReferenceProjector(rm)
-
-	directionEvents := []string{
-		pl.DirectionDrafted,
-		pl.DirectionProposed,
-		pl.DirectionAgreed,
-		pl.DirectionRejected,
-		pl.DirectionNarrativeUpdated,
-		pl.DirectionHorizonChanged,
-		pl.DirectionPlacementsChanged,
-		pl.DirectionSourceCapabilitiesChanged,
-	}
-	for _, eventType := range directionEvents {
-		eventBus.Subscribe(eventType, directionProjector)
-	}
-
-	eventBus.Subscribe(cmPL.CapabilityDeleted, staleProjector)
-	eventBus.Subscribe(cmPL.CapabilityCreated, staleProjector)
-	eventBus.Subscribe(cmPL.CapabilityUpdated, staleProjector)
-	eventBus.Subscribe(cmPL.BusinessDomainCreated, staleProjector)
-	eventBus.Subscribe(cmPL.BusinessDomainUpdated, staleProjector)
-	eventBus.Subscribe(cmPL.CapabilityAssignedToDomain, staleProjector)
-	eventBus.Subscribe(cmPL.CapabilityUnassignedFromDomain, staleProjector)
+	subscribeMany(eventBus, projectors.NewDirectionProjector(rm),
+		pl.DirectionDrafted, pl.DirectionProposed, pl.DirectionAgreed, pl.DirectionRejected,
+		pl.DirectionNarrativeUpdated, pl.DirectionHorizonChanged, pl.DirectionPlacementsChanged,
+		pl.DirectionSourceCapabilitiesChanged)
+	subscribeMany(eventBus, projectors.NewStaleReferenceProjector(rm),
+		cmPL.CapabilityDeleted, cmPL.CapabilityCreated, cmPL.CapabilityUpdated,
+		cmPL.BusinessDomainCreated, cmPL.BusinessDomainUpdated,
+		cmPL.CapabilityAssignedToDomain, cmPL.CapabilityUnassignedFromDomain)
 }
 
 type commandHandlerDeps struct {

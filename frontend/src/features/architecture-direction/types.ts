@@ -191,3 +191,32 @@ export interface AssessRealizationRequest {
   grade: TimeGrade;
   rationale?: string;
 }
+
+export type RealizationRole = 'standard' | 'legacy';
+
+export interface RealizationRoleAssignment {
+  capabilityId: CapabilityId | string;
+  capabilityName: string;
+  componentId: ComponentId | string;
+  componentName: string;
+  role: RealizationRole;
+  assignedBy: string;
+  assignedAt: string;
+  _links: HATEOASLinks & {
+    self?: HATEOASLink;
+    edit?: HATEOASLink;
+    delete?: HATEOASLink;
+  };
+}
+
+export interface RealizationRolesResponse {
+  data: RealizationRoleAssignment[];
+  _links: HATEOASLinks & {
+    self?: HATEOASLink;
+    'x-assign'?: HATEOASLink;
+  };
+}
+
+export interface AssignRealizationRoleRequest {
+  role: RealizationRole;
+}

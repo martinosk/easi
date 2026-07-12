@@ -5,6 +5,7 @@ import { resetDb } from './mocks/db';
 import { server } from './mocks/server';
 import { resetSpec172Db } from './mocks/spec172/store';
 import { resetSpec180Db } from './mocks/spec180/store';
+import { resetSpec181Db } from './mocks/spec181/store';
 
 const originalConsoleError = console.error;
 let actWarnings: string[] = [];
@@ -66,6 +67,7 @@ beforeEach(() => {
   resetDb();
   resetSpec172Db();
   resetSpec180Db();
+  resetSpec181Db();
   actWarnings = [];
 });
 

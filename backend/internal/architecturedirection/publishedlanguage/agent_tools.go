@@ -58,5 +58,28 @@ func AgentTools() []pl.AgentToolSpec {
 				pl.StringParam("componentIds", "Comma-separated application component IDs (UUIDs)", true),
 			},
 		},
+		{
+			Name:        "get_realization_role_for_capability_component",
+			Description: "Get the current realization role (standard / legacy) an architect has assigned to a direct realisation — the pairing of a domain capability and the application component that realises it. Absence of a role means unclassified. Returns 404 if the pair has never been assigned a role.",
+			Access:      pl.AccessRead,
+			Permission:  "domains:read",
+			Method:      "GET",
+			Path:        "/capabilities/{id}/components/{componentId}/realization-role",
+			PathParams: []pl.ParamSpec{
+				pl.UUIDParam("id", "Domain capability ID (UUID)"),
+				pl.UUIDParam("componentId", "Application component ID (UUID)"),
+			},
+		},
+		{
+			Name:        "list_realization_roles",
+			Description: "Bulk-fetch the current realization role for every realisation among a set of domain capabilities — one entry per (capability, component) pair that has been assigned standard or legacy.",
+			Access:      pl.AccessRead,
+			Permission:  "domains:read",
+			Method:      "GET",
+			Path:        "/realization-roles",
+			QueryParams: []pl.ParamSpec{
+				pl.StringParam("capabilityIds", "Comma-separated domain capability IDs (UUIDs)", true),
+			},
+		},
 	}
 }

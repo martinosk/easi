@@ -1,5 +1,6 @@
 import { UnstyledButton } from '@mantine/core';
 import type { CapabilityRealization, ComponentId, TimeGrade } from '../../../api/types';
+import type { RealizationRole } from '../../architecture-direction/types';
 import type { AssessedRealization } from '../hooks/domainBoardViewModel';
 import classes from './AppChip.module.css';
 
@@ -12,6 +13,11 @@ const LEVEL_CLASS: Record<CapabilityRealization['realizationLevel'], string> = {
   Full: classes.full,
   Partial: classes.partial,
   Planned: classes.planned,
+};
+
+const ROLE_CLASS: Record<RealizationRole, string> = {
+  standard: classes.roleStandard,
+  legacy: classes.roleLegacy,
 };
 
 const GRADE_CLASS: Record<TimeGrade, string> = {
@@ -44,15 +50,15 @@ export function AppChip({ realization, onClick }: AppChipProps) {
   const componentName = realization.componentName || realization.componentId;
   const isInherited = realization.origin === 'Inherited';
   const assessedGrade = isInherited ? undefined : realization.timeGrade;
+  const role = isInherited ? undefined : realization.role;
 
   const title =
     isInherited && realization.sourceCapabilityName
       ? `${componentName} (inherited from ${realization.sourceCapabilityName})`
       : componentName;
 
-  const chipClassName = [classes.chip, LEVEL_CLASS[realization.realizationLevel], isInherited ? classes.inherited : '']
-    .filter(Boolean)
-    .join(' ');
+  const tintClass = role ? ROLE_CLASS[role] : LEVEL_CLASS[realization.realizationLevel];
+  const chipClassName = [classes.chip, tintClass, isInherited ? classes.inherited : ''].filter(Boolean).join(' ');
 
   return (
     <UnstyledButton
