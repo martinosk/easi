@@ -1,5 +1,7 @@
 package services
 
+import "easi/backend/internal/enterprisearchitecture/domain/valueobjects"
+
 const DefaultGapThreshold = 1.5
 
 type TimeSuggestionResult struct {
@@ -46,25 +48,25 @@ func (c *TimeSuggestionCalculator) determineTimeClassification(technicalGap, fun
 	highFunctionalGap := functionalGap >= c.threshold
 
 	if !highTechnicalGap && !highFunctionalGap {
-		return "INVEST"
+		return valueobjects.TimeClassificationInvest
 	}
 	if !highTechnicalGap && highFunctionalGap {
-		return "TOLERATE"
+		return valueobjects.TimeClassificationTolerate
 	}
 	if highTechnicalGap && !highFunctionalGap {
-		return "MIGRATE"
+		return valueobjects.TimeClassificationMigrate
 	}
-	return "ELIMINATE"
+	return valueobjects.TimeClassificationEliminate
 }
 
 func (c *TimeSuggestionCalculator) determineConfidence(hasTechnicalData, hasFunctionalData bool, technicalCount, functionalCount int) string {
 	if !hasTechnicalData || !hasFunctionalData {
-		return "LOW"
+		return valueobjects.TimeSuggestionConfidenceLow
 	}
 	if technicalCount >= 2 && functionalCount >= 2 {
-		return "HIGH"
+		return valueobjects.TimeSuggestionConfidenceHigh
 	}
-	return "MEDIUM"
+	return valueobjects.TimeSuggestionConfidenceMedium
 }
 
 func averageGaps(gaps []float64) float64 {

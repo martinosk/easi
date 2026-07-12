@@ -55,7 +55,7 @@ func createTestTimeSuggestionsHandler(mock *mockTimeSuggestionReadModel) *TimeSu
 }
 
 func TestGetTimeSuggestions_ReturnsAllSuggestions(t *testing.T) {
-	suggestedTime := "INVEST"
+	suggestedTime := "Invest"
 	techGap := 1.2
 	funcGap := 0.8
 
@@ -128,7 +128,7 @@ func TestGetTimeSuggestions_FilterByDimension(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mock := createTwoSuggestionMock("MIGRATE", 2.0, 0.5)
+			mock := createTwoSuggestionMock("Migrate", 2.0, 0.5)
 			handler := createTestTimeSuggestionsHandler(mock)
 
 			req := httptest.NewRequest(http.MethodGet, tt.query, nil)
