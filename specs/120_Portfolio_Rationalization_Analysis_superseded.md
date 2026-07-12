@@ -1,6 +1,6 @@
 # Portfolio Rationalization Analysis
 
-**Status**: pending
+**Status**: superseded — built on [spec 119](119_TIME_Classification_Application_Landscape_superseded.md) (superseded by 180) and on EC linking events removed by spec 172. Standardization-gap and consolidation questions are covered at realisation level by [spec 184 — Landscape Signals](184_Landscape_Signals_pending.md).
 
 **Series**: Application Landscape & TIME (4 of 4)
 - Spec 117: Portfolio Metadata Foundation

@@ -1,6 +1,6 @@
 # TIME Classification & Application Landscape
 
-**Status**: pending
+**Status**: superseded by [spec 180](180_TimeAssessment_On_Realizations_ongoing.md) — assessed TIME is recorded per capability realisation (domain capability + application), not per enterprise capability. This spec also depended on EC linking, which spec 172 removed.
 
 **Series**: Application Landscape & TIME (3 of 4)
 - Spec 117: Portfolio Metadata Foundation
