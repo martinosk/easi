@@ -36,10 +36,17 @@ const KIND_OPTIONS = [
   { value: 'move', label: 'Move' },
 ] as const satisfies ReadonlyArray<{ value: JourneyKind; label: string }>;
 
-function defaultValues(capability: Capability): CaptureJourneyFormData {
+const KIND_DESCRIPTIONS = {
+  migration: 'The realisation moves from the current application(s) to another. At least one source application.',
+  consolidation: 'Several applications merge onto one. At least two source applications.',
+  'carve-out': 'Functionality is extracted from one application into another. Exactly one source application.',
+  move: 'The capability relocates to another business domain or parent, under a new name. Its current realisations are the implicit sources.',
+} as const satisfies Record<JourneyKind, string>;
+
+function defaultValues(capability: Capability, realizations: CapabilityRealization[]): CaptureJourneyFormData {
   return {
     kind: 'migration',
-    fromComponentIds: [],
+    fromComponentIds: realizations.map((r) => String(r.componentId)),
     toComponentId: '',
     note: '',
     targetYear: undefined,
@@ -110,7 +117,7 @@ function useCaptureJourneyController(
   const captureMutation = useCaptureJourney();
   const form = useForm<CaptureJourneyFormData>({
     resolver: zodResolver(captureJourneySchema),
-    defaultValues: defaultValues(capability),
+    defaultValues: defaultValues(capability, realizations),
     mode: 'onChange',
   });
   const { watch, setValue } = form;
@@ -336,7 +343,12 @@ export function CaptureJourneyForm({ capability, realizations, onCaptured, onCan
   return (
     <form onSubmit={submit} data-testid="capture-journey-form">
       <Stack gap="md">
-        <KindField control={control} />
+        <Stack gap={4}>
+          <KindField control={control} />
+          <Text size="sm" c="dimmed" data-testid="journey-kind-description">
+            {KIND_DESCRIPTIONS[kind]}
+          </Text>
+        </Stack>
 
         {kind !== 'move' && <FromAppsField control={control} options={options.fromAppOptions} />}
 

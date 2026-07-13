@@ -38,18 +38,31 @@ describe('L1Group', () => {
     expect(group).toHaveTextContent('2 apps');
   });
 
-  it('is collapsed by default and expands the L2 cards on header click', async () => {
+  it('is collapsed by default and expands the L2 cards via the chevron toggle', async () => {
     const [node] = buildL1Tree();
     renderWithProviders(<L1Group node={node} {...defaultProps} />, { withRouter: false });
 
     expect(screen.queryByTestId('capability-card-l2-a1')).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: /Ferry Booking/ }));
+    await userEvent.click(screen.getByTestId('l1-toggle-l1-a'));
 
     expect(screen.getByTestId('capability-card-l2-a1')).toBeInTheDocument();
     expect(screen.getByTestId('capability-card-l2-a2')).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: /Ferry Booking/ }));
+    await userEvent.click(screen.getByTestId('l1-toggle-l1-a'));
+    expect(screen.queryByTestId('capability-card-l2-a1')).not.toBeInTheDocument();
+  });
+
+  it('opens the drawer via onCapabilityClick when the L1 label is clicked, without expanding', async () => {
+    const [node] = buildL1Tree();
+    const onCapabilityClick = vi.fn();
+    renderWithProviders(<L1Group node={node} {...defaultProps} onCapabilityClick={onCapabilityClick} />, {
+      withRouter: false,
+    });
+
+    await userEvent.click(screen.getByTestId('l1-open-l1-a'));
+
+    expect(onCapabilityClick).toHaveBeenCalledWith(node.capability, expect.anything());
     expect(screen.queryByTestId('capability-card-l2-a1')).not.toBeInTheDocument();
   });
 
@@ -75,13 +88,25 @@ describe('L1Group', () => {
     expect(screen.queryByTestId('capability-card-l2-a1')).not.toBeInTheDocument();
   });
 
-  it('renders the L1 itself as a capability card when it has no L2 children', async () => {
+  it('renders the L1 itself as a capability card (no expander) when it has no L2 children', () => {
     const [node] = buildCapabilityTree([cap('l1-leaf', 'Invoicing', 'L1')]);
     renderWithProviders(<L1Group node={node} {...defaultProps} distinctAppCount={0} />, { withRouter: false });
 
-    await userEvent.click(screen.getByRole('button', { name: /Invoicing/ }));
-
     expect(screen.getByTestId('capability-card-l1-leaf')).toBeInTheDocument();
+    expect(screen.queryByTestId('l1-toggle-l1-leaf')).not.toBeInTheDocument();
+  });
+
+  it('opens the drawer when a leaf L1 card is clicked', async () => {
+    const [node] = buildCapabilityTree([cap('l1-leaf', 'Invoicing', 'L1')]);
+    const onCapabilityClick = vi.fn();
+    renderWithProviders(
+      <L1Group node={node} {...defaultProps} distinctAppCount={0} onCapabilityClick={onCapabilityClick} />,
+      { withRouter: false },
+    );
+
+    await userEvent.click(screen.getByTestId('capability-card-l1-leaf'));
+
+    expect(onCapabilityClick).toHaveBeenCalledWith(node.capability, expect.anything());
   });
 
   it('shows the L1 own realising applications as chips above the L2 cards when expanded', () => {

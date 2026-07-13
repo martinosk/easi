@@ -79,6 +79,33 @@ describe('CaptureJourneyForm — kind-driven fields', () => {
     expect(screen.getByTestId('journey-target-parent')).toBeInTheDocument();
     expect(screen.getByTestId('journey-resulting-name')).toHaveValue(capability.name);
   });
+
+  it('explains the selected kind and updates the description when the kind changes', async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    expect(screen.getByTestId('journey-kind-description')).toHaveTextContent(/at least one source/i);
+
+    await user.click(screen.getByRole('radio', { name: 'Consolidation' }));
+    expect(screen.getByTestId('journey-kind-description')).toHaveTextContent(/at least two source/i);
+
+    await user.click(screen.getByRole('radio', { name: 'Carve-out' }));
+    expect(screen.getByTestId('journey-kind-description')).toHaveTextContent(/exactly one source/i);
+
+    await user.click(screen.getByRole('radio', { name: 'Move' }));
+    expect(screen.getByTestId('journey-kind-description')).toHaveTextContent(/relocates/i);
+  });
+
+  it('prefills From applications with the current realisations from the start (not only after a Move round-trip)', () => {
+    const seabook = addComponent({ name: 'Seabook' });
+    const phoenix = addComponent({ name: 'Phoenix' });
+    renderForm({ realizations: [realizationOf(seabook), realizationOf(phoenix)] });
+
+    const isSelectedPill = (name: string) =>
+      screen.getAllByText(name).some((el) => el.closest('[class*="Pill"]') !== null);
+    expect(isSelectedPill('Seabook')).toBe(true);
+    expect(isSelectedPill('Phoenix')).toBe(true);
+  });
 });
 
 describe('CaptureJourneyForm — cardinality validation (rule 3)', () => {
@@ -94,13 +121,24 @@ describe('CaptureJourneyForm — cardinality validation (rule 3)', () => {
     const user = userEvent.setup();
     renderForm({ realizations: [realizationOf(seabook)] });
     await user.click(screen.getByRole('radio', { name: kindLabel }));
-    await user.click(screen.getByTestId('journey-from-apps'));
-    await pickFromAppOption('Seabook');
     return user;
   }
 
-  it('disables submit for a consolidation with only one source selected', async () => {
+  it('disables submit for a consolidation with too few prefilled sources', async () => {
     await renderWithSeabookSource('Consolidation');
+
+    expect(screen.getByTestId('capture-journey-submit')).toBeDisabled();
+  });
+
+  it('surfaces the cardinality error once the sources are edited below the minimum', async () => {
+    const seabook = addComponent({ name: 'Seabook' });
+    const phoenix = addComponent({ name: 'Phoenix' });
+    const user = userEvent.setup();
+    renderForm({ realizations: [realizationOf(seabook), realizationOf(phoenix)] });
+
+    await user.click(screen.getByRole('radio', { name: 'Consolidation' }));
+    await user.click(screen.getByTestId('journey-from-apps'));
+    await pickFromAppOption('Seabook');
 
     await waitFor(() => expect(screen.getByTestId('capture-submit-error')).toHaveTextContent(/at least two/i));
     expect(screen.getByTestId('capture-journey-submit')).toBeDisabled();
@@ -124,8 +162,6 @@ describe('CaptureJourneyForm — capture', () => {
     const onCaptured = vi.fn();
     const { capability } = renderForm({ onCaptured, realizations: [realizationOf(seabook)] });
 
-    await user.click(screen.getByTestId('journey-from-apps'));
-    await pickFromAppOption('Seabook');
     await user.click(screen.getByTestId('journey-to-app'));
     await pickToAppOption('Phoenix');
 

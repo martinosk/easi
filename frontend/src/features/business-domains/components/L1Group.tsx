@@ -26,6 +26,46 @@ function OwnAppsRow({ capabilityId, realizations, onChipClick }: OwnAppsRowProps
   );
 }
 
+interface L1HeaderProps {
+  capability: Capability;
+  subCount: number;
+  distinctAppCount: number;
+  isOpen: boolean;
+  isSelected: boolean;
+  onToggle: () => void;
+  onOpen: (capability: Capability, event: React.MouseEvent) => void;
+}
+
+function L1Header({ capability, subCount, distinctAppCount, isOpen, isSelected, onToggle, onOpen }: L1HeaderProps) {
+  return (
+    <div className={classes.header}>
+      <UnstyledButton
+        component="button"
+        className={classes.toggle}
+        aria-expanded={isOpen}
+        aria-label={`${isOpen ? 'Collapse' : 'Expand'} sub-capabilities`}
+        onClick={onToggle}
+        data-testid={`l1-toggle-${capability.id}`}
+      >
+        <IconChevronRight size={12} className={[classes.chevron, isOpen ? classes.chevronOpen : ''].join(' ')} />
+      </UnstyledButton>
+      <UnstyledButton
+        component="button"
+        className={[classes.label, isSelected ? classes.selected : ''].filter(Boolean).join(' ')}
+        onClick={(e) => onOpen(capability, e)}
+        data-testid={`l1-open-${capability.id}`}
+        data-selected={isSelected || undefined}
+      >
+        <span className={classes.name}>{capability.name}</span>
+        <span className={classes.subTag}>L1 · {subCount} sub</span>
+        <span className={[classes.appCount, distinctAppCount > 3 ? classes.appCountMulti : ''].join(' ')}>
+          {distinctAppCount} apps
+        </span>
+      </UnstyledButton>
+    </div>
+  );
+}
+
 interface L1GroupBodyProps {
   node: CapabilityTreeNode;
   ownRealizations: CapabilityRealization[];
@@ -49,26 +89,21 @@ function L1GroupBody({
   onCapabilityContextMenu,
   onChipClick,
 }: L1GroupBodyProps) {
-  const cardProps = (child: CapabilityTreeNode) => ({
-    node: child,
-    isSelected: selectedCapabilities.has(child.capability.id),
-    getColorForValue,
-    getRealizationsForCapability,
-    onClick: onCapabilityClick,
-    onContextMenu: onCapabilityContextMenu,
-    onChipClick,
-  });
-
   return (
     <div className={classes.body}>
-      {node.children.length > 0 && (
-        <OwnAppsRow capabilityId={node.capability.id} realizations={ownRealizations} onChipClick={onChipClick} />
-      )}
-      {node.children.length === 0 ? (
-        <BoardCapabilityCard {...cardProps(node)} />
-      ) : (
-        visibleChildren.map((child) => <BoardCapabilityCard key={child.capability.id} {...cardProps(child)} />)
-      )}
+      <OwnAppsRow capabilityId={node.capability.id} realizations={ownRealizations} onChipClick={onChipClick} />
+      {visibleChildren.map((child) => (
+        <BoardCapabilityCard
+          key={child.capability.id}
+          node={child}
+          isSelected={selectedCapabilities.has(child.capability.id)}
+          getColorForValue={getColorForValue}
+          getRealizationsForCapability={getRealizationsForCapability}
+          onClick={onCapabilityClick}
+          onContextMenu={onCapabilityContextMenu}
+          onChipClick={onChipClick}
+        />
+      ))}
     </div>
   );
 }
@@ -100,7 +135,22 @@ export function L1Group({
 }: L1GroupProps) {
   const [manualOpen, setManualOpen] = useState(false);
   const isOpen = manualOpen || Boolean(searchQuery) || forceOpen;
-  const ownRealizations = getRealizationsForCapability(node.capability.id);
+
+  if (node.children.length === 0) {
+    return (
+      <div data-testid={`l1-group-${node.capability.id}`}>
+        <BoardCapabilityCard
+          node={node}
+          isSelected={selectedCapabilities.has(node.capability.id)}
+          getColorForValue={getColorForValue}
+          getRealizationsForCapability={getRealizationsForCapability}
+          onClick={onCapabilityClick}
+          onContextMenu={onCapabilityContextMenu}
+          onChipClick={onChipClick}
+        />
+      </div>
+    );
+  }
 
   const visibleChildren = searchQuery
     ? node.children.filter((child) => nodeMatchesSearch(child, searchQuery, getRealizationsForCapability))
@@ -108,23 +158,19 @@ export function L1Group({
 
   return (
     <div data-testid={`l1-group-${node.capability.id}`}>
-      <UnstyledButton
-        component="button"
-        className={classes.header}
-        aria-expanded={isOpen}
-        onClick={() => setManualOpen((open) => !open)}
-      >
-        <IconChevronRight size={12} className={[classes.chevron, isOpen ? classes.chevronOpen : ''].join(' ')} />
-        {node.capability.name}
-        <span className={classes.subTag}>L1 · {node.children.length} sub</span>
-        <span className={[classes.appCount, distinctAppCount > 3 ? classes.appCountMulti : ''].join(' ')}>
-          {distinctAppCount} apps
-        </span>
-      </UnstyledButton>
+      <L1Header
+        capability={node.capability}
+        subCount={node.children.length}
+        distinctAppCount={distinctAppCount}
+        isOpen={isOpen}
+        isSelected={selectedCapabilities.has(node.capability.id)}
+        onToggle={() => setManualOpen((open) => !open)}
+        onOpen={onCapabilityClick}
+      />
       {isOpen && (
         <L1GroupBody
           node={node}
-          ownRealizations={ownRealizations}
+          ownRealizations={getRealizationsForCapability(node.capability.id)}
           visibleChildren={visibleChildren}
           selectedCapabilities={selectedCapabilities}
           getColorForValue={getColorForValue}
