@@ -1,0 +1,21 @@
+.bar {
+  height: 3px;
+  background: var(--status-neutral-bg);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.fillFlight,
+.fillDone {
+  height: 100%;
+  border-radius: 2px;
+  width: var(--journey-progress);
+}
+
+.fillFlight {
+  background: var(--status-progress);
+}
+
+.fillDone {
+  background: var(--status-positive);
+}

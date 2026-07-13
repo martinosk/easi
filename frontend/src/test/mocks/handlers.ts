@@ -19,6 +19,7 @@ import {
 import { spec172Handlers } from './spec172/handlers';
 import { spec180Handlers } from './spec180/handlers';
 import { spec181Handlers } from './spec181/handlers';
+import { spec182Handlers } from './spec182/handlers';
 
 const BASE_URL = '*';
 
@@ -57,6 +58,7 @@ export const handlers = [
   ...spec172Handlers,
   ...spec180Handlers,
   ...spec181Handlers,
+  ...spec182Handlers,
 
   http.get(`${BASE_URL}/api/v1/components`, () => {
     return HttpResponse.json({

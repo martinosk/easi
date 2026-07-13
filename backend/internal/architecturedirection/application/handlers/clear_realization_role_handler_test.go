@@ -40,6 +40,31 @@ func TestClearRealizationRoleHandler_ExistingRole_ClearsAndSaves(t *testing.T) {
 	assert.Equal(t, existing.ID(), result.CreatedID)
 }
 
+func TestClearRealizationRoleHandler_InvalidInputs_FailWithoutSaving(t *testing.T) {
+	cases := []struct {
+		name   string
+		mutate func(*commands.ClearRealizationRole)
+	}{
+		{"invalid capability id", func(c *commands.ClearRealizationRole) { c.CapabilityID = "not-a-uuid" }},
+		{"invalid component id", func(c *commands.ClearRealizationRole) { c.ComponentID = "not-a-uuid" }},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := &mockRealizationRolesRepository{}
+			lookup := &mockExistingRealizationRolesLookup{id: uuid.New().String(), exists: true}
+			handler := NewClearRealizationRoleHandler(repo, lookup)
+			cmd := validClearRoleCmd(uuid.New().String(), uuid.New().String())
+			tc.mutate(cmd)
+
+			_, err := handler.Handle(context.Background(), cmd)
+
+			assert.Error(t, err)
+			assert.Empty(t, repo.saved)
+			assert.False(t, repo.getCalled)
+		})
+	}
+}
+
 func TestClearRealizationRoleHandler_NoAggregateForCapability_Fails(t *testing.T) {
 	repo := &mockRealizationRolesRepository{}
 	lookup := &mockExistingRealizationRolesLookup{exists: false}

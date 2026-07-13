@@ -4,6 +4,7 @@ import (
 	"easi/backend/internal/architecturedirection/application/handlers"
 	"easi/backend/internal/architecturedirection/application/readmodels"
 	"easi/backend/internal/architecturedirection/domain/aggregates"
+	"easi/backend/internal/architecturedirection/domain/entities"
 	"easi/backend/internal/architecturedirection/domain/services"
 	"easi/backend/internal/architecturedirection/domain/valueobjects"
 	"easi/backend/internal/architecturedirection/infrastructure/repositories"
@@ -24,6 +25,9 @@ func init() {
 	registry.RegisterNotFound(repositories.ErrRealizationRolesNotFound, "Realization roles not found")
 	registry.RegisterNotFound(handlers.ErrRealizationRoleNotFoundForPair, "No realization role exists for this capability and component pair")
 	registry.RegisterNotFound(aggregates.ErrNoRoleToClear, "No realization role exists for this capability and component pair")
+	registry.RegisterNotFound(repositories.ErrCapabilityJourneyNotFound, "Capability journey not found")
+	registry.RegisterNotFound(aggregates.ErrInvalidJourneyTransition, "No journey in a status that allows this transition")
+	registry.RegisterNotFound(aggregates.ErrJourneyMilestoneNotFound, "Milestone not found on this journey")
 
 	registry.RegisterConflict(readmodels.ErrTimeAssessmentAlreadyExists, "A time assessment already exists for this capability and component pair")
 	registry.RegisterConflict(aggregates.ErrTimeAssessmentAlreadyRemoved, "This time assessment has already been removed")
@@ -32,6 +36,8 @@ func init() {
 	registry.RegisterConflict(aggregates.ErrDirectionAgreedImmutable, "Agreed directions are immutable; reject and replace to change")
 	registry.RegisterConflict(readmodels.ErrStandardApplicationAlreadyExists, "A standard application already exists for this enterprise capability")
 	registry.RegisterConflict(readmodels.ErrRealizationRolesAggregateConflict, "A different realization roles aggregate is already registered for this capability")
+	registry.RegisterConflict(aggregates.ErrJourneyFrozen, "This journey is terminal and can no longer be edited")
+	registry.RegisterConflict(readmodels.ErrActiveCapabilityJourneyExists, "An active journey already exists for this capability")
 
 	registry.RegisterValidation(valueobjects.ErrInvalidTimeGrade, "Grade must be one of Invest, Tolerate, Migrate, Eliminate")
 	registry.RegisterValidation(valueobjects.ErrInvalidRealizationRole, "Role must be one of standard, legacy")
@@ -45,4 +51,20 @@ func init() {
 	registry.RegisterValidation(sharedvo.ErrDescriptionTooLong, "Narrative cannot exceed 1000 characters")
 	registry.RegisterValidation(valueobjects.ErrResultingNameTooLong, "Resulting name cannot exceed 200 characters")
 	registry.RegisterValidation(handlers.ErrUnknownAdvanceTarget, "Advance target must be 'proposed' or 'agreed'")
+
+	registry.RegisterValidation(aggregates.ErrJourneyTargetAmongSources, "The target application must not be among the from-applications")
+	registry.RegisterValidation(aggregates.ErrJourneyMoveRequiresTargetDomain, "A move journey requires a target business domain")
+	registry.RegisterValidation(aggregates.ErrJourneyMoveFieldsOnNonMove, "Move fields are only valid for move journeys")
+	registry.RegisterValidation(valueobjects.ErrInvalidJourneyKind, "Kind must be one of migration, consolidation, carve-out, move")
+	registry.RegisterValidation(valueobjects.ErrInvalidSourceApplicationCount, "Source application count does not match the journey kind")
+	registry.RegisterValidation(valueobjects.ErrInvalidJourneyStatus, "Journey status must be one of planned, in-flight, done, abandoned")
+	registry.RegisterValidation(valueobjects.ErrInvalidMilestoneStatus, "Milestone status must be one of planned, in-flight, done")
+	registry.RegisterValidation(valueobjects.ErrInvalidTargetPeriodYear, "Target period year must be between 2000 and 2100")
+	registry.RegisterValidation(valueobjects.ErrInvalidTargetPeriodQuarter, "Target period quarter must be between 1 and 4")
+	registry.RegisterValidation(valueobjects.ErrInvalidJourneyProgress, "Progress must be between 0 and 100")
+	registry.RegisterValidation(valueobjects.ErrResultingCapabilityNameRequired, "Resulting name is required for move journeys")
+	registry.RegisterValidation(valueobjects.ErrResultingCapabilityNameTooLong, "Resulting name cannot exceed 200 characters")
+	registry.RegisterValidation(entities.ErrMilestoneLabelRequired, "Milestone label is required")
+	registry.RegisterValidation(entities.ErrMilestoneLabelTooLong, "Milestone label cannot exceed 200 characters")
+	registry.RegisterValidation(handlers.ErrTargetPeriodRequiresBoth, "Target period requires both year and quarter, or neither")
 }

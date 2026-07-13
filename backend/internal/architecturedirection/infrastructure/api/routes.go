@@ -38,6 +38,11 @@ type RoutesDeps struct {
 	SourceEligibility  services.SourceEligibility
 	CompositionPreview CompositionPreviewProvider
 	DirectRealization  services.DirectRealizationLookup
+
+	CapabilityExists              services.CapabilityExists
+	ComponentExists               services.ComponentExists
+	DomainExists                  services.DomainExists
+	CapabilityEffectivelyInDomain services.CapabilityEffectivelyInDomain
 }
 
 func SetupRoutes(deps RoutesDeps) error {
@@ -64,6 +69,7 @@ func SetupRoutes(deps RoutesDeps) error {
 	setupStandardApplicationRoutes(deps)
 	setupTimeAssessmentRoutes(deps)
 	setupRealizationRoleRoutes(deps)
+	setupCapabilityJourneyRoutes(deps)
 	return nil
 }
 
@@ -113,6 +119,7 @@ func setupTimeAssessmentRoutes(deps RoutesDeps) {
 	subscribeTimeAssessmentEvents(deps.EventBus, readModel)
 	deps.CommandBus.Register("AssessRealization", handlers.NewAssessRealizationHandler(repo, readModel, deps.DirectRealization))
 	deps.CommandBus.Register("RemoveTimeAssessment", handlers.NewRemoveTimeAssessmentHandler(repo, readModel))
+	deps.EventBus.Subscribe(cmPL.SystemRealizationDeleted, projectors.NewTimeAssessmentDeletionReactor(readModel, deps.CommandBus))
 
 	links := NewTimeAssessmentLinks(deps.HATEOAS)
 	httpHandlers := NewTimeAssessmentHandlers(deps.CommandBus, readModel, links)
@@ -124,7 +131,7 @@ func subscribeTimeAssessmentEvents(eventBus events.EventBus, rm *readmodels.Time
 	subscribeMany(eventBus, projectors.NewTimeAssessmentProjector(rm),
 		pl.TimeAssessmentRecorded, pl.TimeAssessmentRemoved)
 	subscribeMany(eventBus, projectors.NewTimeAssessmentReferenceProjector(rm),
-		cmPL.SystemRealizationDeleted, cmPL.CapabilityDeleted, cmPL.CapabilityCreated, cmPL.CapabilityUpdated,
+		cmPL.CapabilityDeleted, cmPL.CapabilityCreated, cmPL.CapabilityUpdated,
 		amPL.ApplicationComponentDeleted, amPL.ApplicationComponentCreated, amPL.ApplicationComponentUpdated,
 		authPL.UserCreated)
 }
@@ -188,6 +195,78 @@ func subscribeRealizationRoleEvents(eventBus events.EventBus, rm *readmodels.Rea
 	subscribeMany(eventBus, projectors.NewRealizationRoleReferenceProjector(rm),
 		cmPL.CapabilityDeleted, cmPL.CapabilityCreated, cmPL.CapabilityUpdated,
 		amPL.ApplicationComponentDeleted, amPL.ApplicationComponentCreated, amPL.ApplicationComponentUpdated)
+}
+
+func setupCapabilityJourneyRoutes(deps RoutesDeps) {
+	readModel := readmodels.NewCapabilityJourneyReadModel(deps.DB)
+	repo := repositories.NewCapabilityJourneyRepository(deps.EventStore)
+
+	subscribeCapabilityJourneyEvents(deps.EventBus, readModel)
+
+	refs := handlers.JourneyReferenceChecks{
+		CapabilityExists:              deps.CapabilityExists,
+		ComponentExists:               deps.ComponentExists,
+		DomainExists:                  deps.DomainExists,
+		CapabilityEffectivelyInDomain: deps.CapabilityEffectivelyInDomain,
+	}
+	deps.CommandBus.Register("PlanJourney", handlers.NewPlanJourneyHandler(repo, readModel, refs))
+	deps.CommandBus.Register("StartJourney", handlers.NewStartJourneyHandler(repo))
+	deps.CommandBus.Register("CompleteJourney", handlers.NewCompleteJourneyHandler(repo))
+	deps.CommandBus.Register("AbandonJourney", handlers.NewAbandonJourneyHandler(repo))
+	deps.CommandBus.Register("UpdateJourneyProgress", handlers.NewUpdateJourneyProgressHandler(repo))
+	deps.CommandBus.Register("UpdateJourneyDetails", handlers.NewUpdateJourneyDetailsHandler(repo))
+	deps.CommandBus.Register("ChangeJourneySourceApplications", handlers.NewChangeJourneySourceApplicationsHandler(repo, deps.ComponentExists))
+	deps.CommandBus.Register("AddJourneyMilestone", handlers.NewAddJourneyMilestoneHandler(repo))
+	deps.CommandBus.Register("UpdateJourneyMilestone", handlers.NewUpdateJourneyMilestoneHandler(repo))
+	deps.CommandBus.Register("RemoveJourneyMilestone", handlers.NewRemoveJourneyMilestoneHandler(repo))
+
+	links := NewCapabilityJourneyLinks(deps.HATEOAS)
+	httpHandlers := NewCapabilityJourneyHandlers(deps.CommandBus, readModel, links)
+
+	registerCapabilityJourneyRoutes(deps.Router, httpHandlers, deps.AuthMiddleware)
+}
+
+func subscribeCapabilityJourneyEvents(eventBus events.EventBus, rm *readmodels.CapabilityJourneyReadModel) {
+	subscribeMany(eventBus, projectors.NewCapabilityJourneyProjector(rm),
+		pl.JourneyPlanned, pl.JourneyStarted, pl.JourneyCompleted, pl.JourneyAbandoned,
+		pl.JourneyProgressUpdated, pl.JourneyDetailsUpdated, pl.JourneySourceApplicationsChanged,
+		pl.JourneyMilestoneAdded, pl.JourneyMilestoneUpdated, pl.JourneyMilestoneRemoved)
+	subscribeMany(eventBus, projectors.NewCapabilityJourneyReferenceProjector(rm),
+		cmPL.CapabilityCreated, cmPL.CapabilityUpdated, cmPL.CapabilityDeleted,
+		cmPL.BusinessDomainCreated, cmPL.BusinessDomainUpdated, cmPL.BusinessDomainDeleted,
+		amPL.ApplicationComponentCreated, amPL.ApplicationComponentUpdated, amPL.ApplicationComponentDeleted,
+		authPL.UserCreated)
+}
+
+func registerCapabilityJourneyRoutes(r chi.Router, h *CapabilityJourneyHandlers, authMiddleware AuthMiddleware) {
+	r.Route("/capabilities/{id}/journey", func(r chi.Router) {
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authPL.PermDomainsRead))
+			r.Get("/", h.GetJourneyForCapability)
+			r.Get("/history", h.GetJourneyHistory)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authPL.PermArchitectureDirectionWrite))
+			r.Post("/", h.CaptureJourney)
+		})
+	})
+
+	registerDomainReadCollection(r, "/capability-journeys", authMiddleware, func(r chi.Router) {
+		r.Get("/", h.GetCapabilityJourneys)
+	})
+
+	r.Route("/capability-journeys/{journeyId}", func(r chi.Router) {
+		r.Use(authMiddleware.RequirePermission(authPL.PermArchitectureDirectionWrite))
+		r.Post("/start", h.StartJourney)
+		r.Post("/complete", h.CompleteJourney)
+		r.Post("/abandon", h.AbandonJourney)
+		r.Put("/details", h.PutJourneyDetails)
+		r.Put("/progress", h.PutJourneyProgress)
+		r.Put("/source-applications", h.PutJourneySourceApplications)
+		r.Post("/milestones", h.PostJourneyMilestone)
+		r.Put("/milestones/{milestoneId}", h.PutJourneyMilestone)
+		r.Delete("/milestones/{milestoneId}", h.DeleteJourneyMilestone)
+	})
 }
 
 func registerRealizationRoleRoutes(r chi.Router, h *RealizationRoleHandlers, authMiddleware AuthMiddleware) {

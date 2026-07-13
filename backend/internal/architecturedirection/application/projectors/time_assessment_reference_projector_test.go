@@ -21,7 +21,6 @@ type timeAssessmentNameUpdate struct {
 }
 
 type mockTimeAssessmentReferenceStore struct {
-	deletedByRealizationID []string
 	deletedByCapabilityID  []string
 	deletedByComponentID   []string
 	cachedCapabilityNames  []timeAssessmentNameUpdate
@@ -30,14 +29,6 @@ type mockTimeAssessmentReferenceStore struct {
 	updatedComponentNames  []timeAssessmentNameUpdate
 	cachedUserNames        []timeAssessmentNameUpdate
 	err                    error
-}
-
-func (m *mockTimeAssessmentReferenceStore) DeleteByRealizationID(_ context.Context, realizationID string) error {
-	if m.err != nil {
-		return m.err
-	}
-	m.deletedByRealizationID = append(m.deletedByRealizationID, realizationID)
-	return nil
 }
 
 func (m *mockTimeAssessmentReferenceStore) DeleteByCapabilityID(_ context.Context, capabilityID string) error {
@@ -96,7 +87,7 @@ func (m *mockTimeAssessmentReferenceStore) CacheUserName(_ context.Context, emai
 	return nil
 }
 
-func TestTimeAssessmentReferenceProjector_SystemRealizationDeleted_DeletesByRealizationID(t *testing.T) {
+func TestTimeAssessmentReferenceProjector_DoesNotSubscribeToSystemRealizationDeleted(t *testing.T) {
 	store := &mockTimeAssessmentReferenceStore{}
 	projector := NewTimeAssessmentReferenceProjector(store)
 
@@ -105,7 +96,8 @@ func TestTimeAssessmentReferenceProjector_SystemRealizationDeleted_DeletesByReal
 
 	require.NoError(t, projector.ProjectEvent(context.Background(), cmPL.SystemRealizationDeleted, payload))
 
-	assert.Equal(t, []string{id}, store.deletedByRealizationID)
+	assert.Empty(t, store.deletedByCapabilityID, "the deletion reactor owns SystemRealizationDeleted; a read-side delete here would race its pair lookup")
+	assert.Empty(t, store.deletedByComponentID)
 }
 
 func TestTimeAssessmentReferenceProjector_CapabilityDeleted_DeletesByCapabilityID(t *testing.T) {
@@ -195,7 +187,6 @@ func TestTimeAssessmentReferenceProjector_UnknownEvent_NoOp(t *testing.T) {
 	err := projector.ProjectEvent(context.Background(), "SomeUnrelatedEvent", []byte(`{}`))
 
 	require.NoError(t, err)
-	assert.Empty(t, store.deletedByRealizationID)
 	assert.Empty(t, store.deletedByCapabilityID)
 	assert.Empty(t, store.deletedByComponentID)
 }
@@ -206,9 +197,9 @@ func TestTimeAssessmentReferenceProjector_EmptyID_NoOp(t *testing.T) {
 
 	payload, _ := json.Marshal(map[string]string{"id": ""})
 
-	require.NoError(t, projector.ProjectEvent(context.Background(), cmPL.SystemRealizationDeleted, payload))
+	require.NoError(t, projector.ProjectEvent(context.Background(), cmPL.CapabilityDeleted, payload))
 
-	assert.Empty(t, store.deletedByRealizationID)
+	assert.Empty(t, store.deletedByCapabilityID)
 }
 
 func TestTimeAssessmentReferenceProjector_ErrorPropagation(t *testing.T) {
@@ -216,7 +207,7 @@ func TestTimeAssessmentReferenceProjector_ErrorPropagation(t *testing.T) {
 	projector := NewTimeAssessmentReferenceProjector(store)
 
 	payload, _ := json.Marshal(map[string]string{"id": uuid.New().String()})
-	err := projector.ProjectEvent(context.Background(), cmPL.SystemRealizationDeleted, payload)
+	err := projector.ProjectEvent(context.Background(), cmPL.CapabilityDeleted, payload)
 
 	assert.Error(t, err)
 }
@@ -225,6 +216,6 @@ func TestTimeAssessmentReferenceProjector_InvalidJSON_ReturnsError(t *testing.T)
 	store := &mockTimeAssessmentReferenceStore{}
 	projector := NewTimeAssessmentReferenceProjector(store)
 
-	err := projector.ProjectEvent(context.Background(), cmPL.SystemRealizationDeleted, []byte("invalid"))
+	err := projector.ProjectEvent(context.Background(), cmPL.CapabilityDeleted, []byte("invalid"))
 	assert.Error(t, err)
 }

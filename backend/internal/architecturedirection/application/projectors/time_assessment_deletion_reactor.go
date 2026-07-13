@@ -1,0 +1,66 @@
+package projectors
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"log"
+
+	"easi/backend/internal/architecturedirection/application/commands"
+	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
+	domain "easi/backend/internal/shared/eventsourcing"
+)
+
+type TimeAssessmentPairFinder interface {
+	FindPairByRealizationID(ctx context.Context, realizationID string) (string, string, bool, error)
+}
+
+type TimeAssessmentDeletionReactor struct {
+	pairs    TimeAssessmentPairFinder
+	commands CommandDispatcher
+}
+
+func NewTimeAssessmentDeletionReactor(pairs TimeAssessmentPairFinder, commandDispatcher CommandDispatcher) *TimeAssessmentDeletionReactor {
+	return &TimeAssessmentDeletionReactor{pairs: pairs, commands: commandDispatcher}
+}
+
+func (r *TimeAssessmentDeletionReactor) Handle(ctx context.Context, event domain.DomainEvent) error {
+	eventData, err := json.Marshal(event.EventData())
+	if err != nil {
+		wrappedErr := fmt.Errorf("marshal %s event for aggregate %s: %w", event.EventType(), event.AggregateID(), err)
+		log.Printf("failed to marshal event data: %v", wrappedErr)
+		return wrappedErr
+	}
+	return r.ProjectEvent(ctx, event.EventType(), eventData)
+}
+
+func (r *TimeAssessmentDeletionReactor) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
+	if eventType != cmPL.SystemRealizationDeleted {
+		return nil
+	}
+	var payload struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(eventData, &payload); err != nil {
+		return fmt.Errorf("unmarshal SystemRealizationDeleted payload: %w", err)
+	}
+	return r.removeAssessmentForRealization(ctx, payload.ID)
+}
+
+func (r *TimeAssessmentDeletionReactor) removeAssessmentForRealization(ctx context.Context, realizationID string) error {
+	capabilityID, componentID, found, err := r.pairs.FindPairByRealizationID(ctx, realizationID)
+	if err != nil {
+		return fmt.Errorf("find time assessment pair for deleted realization %s: %w", realizationID, err)
+	}
+	if !found {
+		return nil
+	}
+	if _, err := r.commands.Dispatch(ctx, &commands.RemoveTimeAssessment{
+		CapabilityID: capabilityID,
+		ComponentID:  componentID,
+		RemovedBy:    clearedBySystemRealizationDeleted,
+	}); err != nil {
+		return fmt.Errorf("remove time assessment for deleted realization %s: %w", realizationID, err)
+	}
+	return nil
+}

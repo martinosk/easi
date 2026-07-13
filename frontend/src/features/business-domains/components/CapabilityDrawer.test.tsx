@@ -74,6 +74,21 @@ vi.mock('../../architecture-direction/hooks/useRealizationRoles', () => ({
   useClearRealizationRole: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
+vi.mock('../../journeys/hooks/useJourneys', () => ({
+  useJourneyForCapability: () => ({ data: { journey: null, _links: {} } }),
+  useJourneyHistory: () => ({ data: undefined }),
+  useCaptureJourney: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useStartJourney: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useCompleteJourney: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useAbandonJourney: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useUpdateJourneyDetails: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useUpdateJourneyProgress: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useChangeJourneySourceApplications: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useAddJourneyMilestone: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useUpdateJourneyMilestone: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useRemoveJourneyMilestone: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+
 function buildRole(overrides: Partial<RealizationRoleAssignment> = {}): RealizationRoleAssignment {
   return {
     capabilityId: 'l2-a',
@@ -209,6 +224,24 @@ describe('CapabilityDrawer', () => {
     await userEvent.click(screen.getByTestId('app-chip-comp-1'));
 
     expect(onChipClick).toHaveBeenCalledWith('comp-1');
+  });
+
+  it('renders the journey section after the realising applications', () => {
+    const capability = cap('l2-a', 'Booking Management', 'L2');
+    renderWithProviders(
+      <CapabilityDrawer
+        capability={capability}
+        domain={domain}
+        l1Name="Ferry Booking"
+        getRealizationsForCapability={() => []}
+        onClose={vi.fn()}
+        onChipClick={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('journey-section')).toBeInTheDocument();
+    expect(screen.getByText('Transition')).toBeInTheDocument();
+    expect(screen.getByText('No change planned.')).toBeInTheDocument();
   });
 
   it('renders description, tags and owners under Details', () => {

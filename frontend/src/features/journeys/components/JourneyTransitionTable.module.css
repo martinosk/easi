@@ -1,0 +1,8 @@
+.table {
+  font-size: var(--font-size-sm);
+}
+
+.label {
+  color: var(--muted);
+  width: 38%;
+}

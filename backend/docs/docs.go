@@ -3092,6 +3092,190 @@ const docTemplate = `{
                 }
             }
         },
+        "/capabilities/{id}/journey": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Returns the capability's active (planned or in-flight) journey, or null if none.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capability-journeys"
+                ],
+                "summary": "Get the active journey for a capability",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.CapabilityJourneyResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Creates a new journey in status \"planned\"; rejected if an active journey already exists on the capability.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capability-journeys"
+                ],
+                "summary": "Capture a journey on a capability",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Journey data",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.CaptureJourneyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.CapabilityJourneyDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/capabilities/{id}/journey/history": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Returns every journey ever captured on the capability, newest first.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capability-journeys"
+                ],
+                "summary": "Get the full journey history for a capability",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/capabilities/{id}/metadata": {
             "put": {
                 "description": "Updates metadata fields like maturity level, ownership, and strategy alignment",
@@ -3474,6 +3658,723 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/capability-journeys": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Returns, for each given capability, its active journey plus the most recent terminal journey.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capability-journeys"
+                ],
+                "summary": "Bulk-fetch current journeys for a capability set",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Comma-separated capability IDs",
+                        "name": "capabilityIds",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/capability-journeys/{journeyId}/abandon": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capability-journeys"
+                ],
+                "summary": "Abandon a planned or in-flight journey",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Journey ID",
+                        "name": "journeyId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.CapabilityJourneyDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/capability-journeys/{journeyId}/complete": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Freezes the journey in status \"done\". Plan-only: no other context is mutated.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capability-journeys"
+                ],
+                "summary": "Complete an in-flight journey",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Journey ID",
+                        "name": "journeyId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.CapabilityJourneyDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/capability-journeys/{journeyId}/details": {
+            "put": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capability-journeys"
+                ],
+                "summary": "Replace a journey's note, target period, and resulting name",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Journey ID",
+                        "name": "journeyId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Journey details",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.UpdateJourneyDetailsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.CapabilityJourneyDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/capability-journeys/{journeyId}/milestones": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capability-journeys"
+                ],
+                "summary": "Add a milestone to an active journey",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Journey ID",
+                        "name": "journeyId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Milestone data",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.AddJourneyMilestoneRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.CapabilityJourneyDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/capability-journeys/{journeyId}/milestones/{milestoneId}": {
+            "put": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capability-journeys"
+                ],
+                "summary": "Update a journey milestone",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Journey ID",
+                        "name": "journeyId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Milestone ID",
+                        "name": "milestoneId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Milestone data",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.UpdateJourneyMilestoneRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.CapabilityJourneyDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "tags": [
+                    "capability-journeys"
+                ],
+                "summary": "Remove a journey milestone",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Journey ID",
+                        "name": "journeyId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Milestone ID",
+                        "name": "milestoneId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/capability-journeys/{journeyId}/progress": {
+            "put": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capability-journeys"
+                ],
+                "summary": "Update a journey's progress",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Journey ID",
+                        "name": "journeyId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Progress",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.UpdateJourneyProgressRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.CapabilityJourneyDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/capability-journeys/{journeyId}/source-applications": {
+            "put": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Re-validates kind cardinality, that the target is not among the sources, and that every source references an existing application component.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capability-journeys"
+                ],
+                "summary": "Replace a journey's source applications",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Journey ID",
+                        "name": "journeyId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Source component IDs",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.ChangeJourneySourceApplicationsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.CapabilityJourneyDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/capability-journeys/{journeyId}/start": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capability-journeys"
+                ],
+                "summary": "Start a planned journey",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Journey ID",
+                        "name": "journeyId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.CapabilityJourneyDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
@@ -13042,6 +13943,100 @@ const docTemplate = `{
                 }
             }
         },
+        "easi_backend_internal_architecturedirection_application_readmodels.CapabilityJourneyDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "abandonedAt": {
+                    "type": "string"
+                },
+                "capabilityId": {
+                    "type": "string"
+                },
+                "capabilityName": {
+                    "type": "string"
+                },
+                "capabilityStale": {
+                    "type": "boolean"
+                },
+                "completedAt": {
+                    "type": "string"
+                },
+                "fromApplications": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.JourneyApplicationRefDTO"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "milestones": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.CapabilityJourneyMilestoneDTO"
+                    }
+                },
+                "move": {
+                    "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.JourneyMoveDTO"
+                },
+                "note": {
+                    "type": "string"
+                },
+                "plannedAt": {
+                    "type": "string"
+                },
+                "plannedBy": {
+                    "type": "string"
+                },
+                "plannedByName": {
+                    "type": "string"
+                },
+                "progress": {
+                    "type": "integer"
+                },
+                "startedAt": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "targetPeriod": {
+                    "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.TargetPeriodDTO"
+                },
+                "toApplication": {
+                    "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.JourneyApplicationRefDTO"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "easi_backend_internal_architecturedirection_application_readmodels.CapabilityJourneyMilestoneDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "targetPeriod": {
+                    "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.TargetPeriodDTO"
+                }
+            }
+        },
         "easi_backend_internal_architecturedirection_application_readmodels.DirectionDTO": {
             "type": "object",
             "properties": {
@@ -13113,6 +14108,46 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "stale": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "easi_backend_internal_architecturedirection_application_readmodels.JourneyApplicationRefDTO": {
+            "type": "object",
+            "properties": {
+                "componentId": {
+                    "type": "string"
+                },
+                "componentName": {
+                    "type": "string"
+                },
+                "stale": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "easi_backend_internal_architecturedirection_application_readmodels.JourneyMoveDTO": {
+            "type": "object",
+            "properties": {
+                "resultingName": {
+                    "type": "string"
+                },
+                "targetDomainId": {
+                    "type": "string"
+                },
+                "targetDomainName": {
+                    "type": "string"
+                },
+                "targetDomainStale": {
+                    "type": "boolean"
+                },
+                "targetParentId": {
+                    "type": "string"
+                },
+                "targetParentName": {
+                    "type": "string"
+                },
+                "targetParentStale": {
                     "type": "boolean"
                 }
             }
@@ -13218,6 +14253,17 @@ const docTemplate = `{
                 },
                 "setAt": {
                     "type": "string"
+                }
+            }
+        },
+        "easi_backend_internal_architecturedirection_application_readmodels.TargetPeriodDTO": {
+            "type": "object",
+            "properties": {
+                "quarter": {
+                    "type": "integer"
+                },
+                "year": {
+                    "type": "integer"
                 }
             }
         },
@@ -14817,6 +15863,20 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_architecturedirection_infrastructure_api.AddJourneyMilestoneRequest": {
+            "type": "object",
+            "properties": {
+                "label": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "targetPeriod": {
+                    "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.TargetPeriodRequest"
+                }
+            }
+        },
         "internal_architecturedirection_infrastructure_api.AssessRealizationRequest": {
             "type": "object",
             "properties": {
@@ -14833,6 +15893,17 @@ const docTemplate = `{
             "properties": {
                 "role": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_architecturedirection_infrastructure_api.CapabilityJourneyResponse": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_api.Links"
+                },
+                "journey": {
+                    "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.CapabilityJourneyDTO"
                 }
             }
         },
@@ -14856,6 +15927,38 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_architecturedirection_infrastructure_api.CaptureJourneyRequest": {
+            "type": "object",
+            "properties": {
+                "fromComponentIds": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "note": {
+                    "type": "string"
+                },
+                "resultingName": {
+                    "type": "string"
+                },
+                "targetDomainId": {
+                    "type": "string"
+                },
+                "targetParentId": {
+                    "type": "string"
+                },
+                "targetPeriod": {
+                    "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.TargetPeriodRequest"
+                },
+                "toComponentId": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_architecturedirection_infrastructure_api.CarvedOutByDTO": {
             "type": "object",
             "properties": {
@@ -14864,6 +15967,17 @@ const docTemplate = `{
                 },
                 "enterpriseCapabilityName": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_architecturedirection_infrastructure_api.ChangeJourneySourceApplicationsRequest": {
+            "type": "object",
+            "properties": {
+                "componentIds": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -15002,6 +16116,17 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_architecturedirection_infrastructure_api.TargetPeriodRequest": {
+            "type": "object",
+            "properties": {
+                "quarter": {
+                    "type": "integer"
+                },
+                "year": {
+                    "type": "integer"
+                }
+            }
+        },
         "internal_architecturedirection_infrastructure_api.UpdateDirectionRequest": {
             "type": "object",
             "properties": {
@@ -15010,6 +16135,42 @@ const docTemplate = `{
                 },
                 "narrative": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_architecturedirection_infrastructure_api.UpdateJourneyDetailsRequest": {
+            "type": "object",
+            "properties": {
+                "note": {
+                    "type": "string"
+                },
+                "resultingName": {
+                    "type": "string"
+                },
+                "targetPeriod": {
+                    "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.TargetPeriodRequest"
+                }
+            }
+        },
+        "internal_architecturedirection_infrastructure_api.UpdateJourneyMilestoneRequest": {
+            "type": "object",
+            "properties": {
+                "label": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "targetPeriod": {
+                    "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.TargetPeriodRequest"
+                }
+            }
+        },
+        "internal_architecturedirection_infrastructure_api.UpdateJourneyProgressRequest": {
+            "type": "object",
+            "properties": {
+                "progress": {
+                    "type": "integer"
                 }
             }
         },

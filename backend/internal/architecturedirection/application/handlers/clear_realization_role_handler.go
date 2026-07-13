@@ -20,16 +20,22 @@ func NewClearRealizationRoleHandler(repo RealizationRolesRepository, lookup Exis
 	return &ClearRealizationRoleHandler{repo: repo, lookup: lookup}
 }
 
+type clearRealizationRoleInputs struct {
+	capability valueobjects.PhysicalCapabilityRef
+	component  valueobjects.ApplicationRef
+	clearedBy  string
+}
+
 func (h *ClearRealizationRoleHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.ClearRealizationRole)
 	if !ok {
 		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
-	component, err := valueobjects.NewApplicationRef(command.ComponentID)
+	inputs, err := parseClearRealizationRoleInputs(command)
 	if err != nil {
 		return cqrs.EmptyResult(), err
 	}
-	aggregateID, exists, err := h.lookup.FindAggregateIDForCapability(ctx, command.CapabilityID)
+	aggregateID, exists, err := h.lookup.FindAggregateIDForCapability(ctx, inputs.capability.Value())
 	if err != nil {
 		return cqrs.EmptyResult(), err
 	}
@@ -40,11 +46,23 @@ func (h *ClearRealizationRoleHandler) Handle(ctx context.Context, cmd cqrs.Comma
 	if err != nil {
 		return cqrs.EmptyResult(), err
 	}
-	if err := rr.Clear(component, command.ClearedBy); err != nil {
+	if err := rr.Clear(inputs.component, inputs.clearedBy); err != nil {
 		return cqrs.EmptyResult(), err
 	}
 	if err := h.repo.Save(ctx, rr); err != nil {
 		return cqrs.EmptyResult(), err
 	}
 	return cqrs.NewResult(rr.ID()), nil
+}
+
+func parseClearRealizationRoleInputs(command *commands.ClearRealizationRole) (clearRealizationRoleInputs, error) {
+	capability, err := valueobjects.NewPhysicalCapabilityRef(command.CapabilityID)
+	if err != nil {
+		return clearRealizationRoleInputs{}, err
+	}
+	component, err := valueobjects.NewApplicationRef(command.ComponentID)
+	if err != nil {
+		return clearRealizationRoleInputs{}, err
+	}
+	return clearRealizationRoleInputs{capability: capability, component: component, clearedBy: command.ClearedBy}, nil
 }

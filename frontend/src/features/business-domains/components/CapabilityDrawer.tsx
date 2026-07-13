@@ -20,6 +20,8 @@ import { type CapabilityAssessments, useCapabilityAssessments } from '../hooks/u
 import { type CapabilityRoles, useCapabilityRoles } from '../hooks/useCapabilityRoles';
 import { AppChip } from './AppChip';
 import classes from './CapabilityDrawer.module.css';
+import { DrawerSectionHeader } from './DrawerSectionHeader';
+import { JourneySection } from './JourneySection';
 import { RealizationAssessment } from './RealizationAssessment';
 import { RealizationRoleControl } from './RealizationRoleControl';
 import { StrategicImportanceSection } from './StrategicImportanceSection';
@@ -31,10 +33,6 @@ export interface CapabilityDrawerProps {
   getRealizationsForCapability: (capabilityId: CapabilityId) => CapabilityRealization[];
   onClose: () => void;
   onChipClick: (componentId: ComponentId) => void;
-}
-
-function SectionHeader({ children }: { children: React.ReactNode }) {
-  return <Text className={classes.sectionHeader}>{children}</Text>;
 }
 
 interface RealizationRowProps {
@@ -98,7 +96,7 @@ function RealisingApplicationsSection({ capability, realizations, onChipClick }:
 
   return (
     <Stack gap="xs">
-      <SectionHeader>Realising applications</SectionHeader>
+      <DrawerSectionHeader>Realising applications</DrawerSectionHeader>
       {realizations.length === 0 ? (
         <Text className={classes.emptyRealizations}>no realising application mapped</Text>
       ) : (
@@ -127,7 +125,7 @@ interface DetailsSectionProps {
 function DetailsSection({ capability, onAddExpertClick }: DetailsSectionProps) {
   return (
     <Stack gap="sm">
-      <SectionHeader>Details</SectionHeader>
+      <DrawerSectionHeader>Details</DrawerSectionHeader>
       {capability.description && <DetailField label="Description">{capability.description}</DetailField>}
       {capability.ownershipModel && <DetailField label="Ownership Model">{capability.ownershipModel}</DetailField>}
       {capability.primaryOwner && <DetailField label="Primary Owner">{capability.primaryOwner}</DetailField>}
@@ -194,6 +192,8 @@ export function CapabilityDrawer({
             realizations={getRealizationsForCapability(capability.id)}
             onChipClick={onChipClick}
           />
+
+          <JourneySection capability={capability} realizations={getRealizationsForCapability(capability.id)} />
 
           {domain && <StrategicImportanceSection domain={domain} capabilityId={capability.id} />}
 

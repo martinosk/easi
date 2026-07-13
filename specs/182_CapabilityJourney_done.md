@@ -161,6 +161,9 @@ Subscribes to `capabilitymapping` capability/domain deletion events and `archite
 6. **Structured target periods** — periods must sort and compare (design doc D8); a free-text "Q2 2027" cannot. Quarter granularity matches how architects actually plan (mockup throughout).
 7. **One active journey per capability** — the five-second answer degenerates if two stories compete (167 decision 3). Parallel workstreams are milestones within one journey; genuinely independent successive changes are successive journeys.
 8. **Terminal journeys retained forever** — they are the "how we got here" record (design doc D8); the mockup renders done journeys as first-class content ("Consolidated from three tracking tools, completed 2025").
+9. **`resultingName` edits ride on `JourneyDetailsUpdated`** (decided during implementation) — rule 5 makes the resulting name editable while the journey is editable, but the event list names no dedicated event; a separate event rejected as ceremony for one field. The move destination (target domain, target parent) is immutable after capture, like kind — to change destination, abandon and capture anew (167 decision 5 posture).
+10. **Milestone order is insertion order** (decided during implementation) — the spec defines no reorder operation, so positions are implicit in the sequence of `JourneyMilestoneAdded` events and compact on removal. A reorder event can be added by a later spec if architects ask for it.
+11. **One-active enforcement mirrors `Direction` (167), not `RealizationRoles` (181)** (decided during implementation) — handler-level `FindActiveJourneyIDForCapability` lookup with the `uq_capability_journeys_single_active` partial unique index as DB backstop. No aggregate registry table: the registry pattern guards one-aggregate-per-capability-forever; journeys are many-per-capability with one *active*, exactly Direction's shape.
 
 ---
 
@@ -177,9 +180,9 @@ Subscribes to `capabilitymapping` capability/domain deletion events and `archite
 
 ## Checklist
 
-- [ ] Specification ready
-- [ ] Implementation done
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
-- [ ] API documentation updated
-- [ ] User sign-off
+- [x] Specification ready
+- [x] Implementation done
+- [x] Unit tests implemented and passing
+- [x] Integration tests implemented if relevant
+- [x] API documentation updated
+- [x] User sign-off

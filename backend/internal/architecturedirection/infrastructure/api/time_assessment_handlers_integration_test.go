@@ -28,8 +28,9 @@ import (
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedcontext "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
-	"easi/backend/internal/shared/events"
+	domain "easi/backend/internal/shared/eventsourcing"
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
+	"easi/backend/internal/shared/events"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -88,11 +89,12 @@ func setupTimeAssessmentTestDB(t *testing.T) (*timeAssessmentTestContext, func()
 
 	projector := projectors.NewTimeAssessmentProjector(readModel)
 	referenceProjector := projectors.NewTimeAssessmentReferenceProjector(readModel)
+	reactor := projectors.NewTimeAssessmentDeletionReactor(readModel, commandBus)
 	eventBus.Subscribe(pl.TimeAssessmentRecorded, projector)
 	eventBus.Subscribe(pl.TimeAssessmentRemoved, projector)
-	eventBus.Subscribe(cmPL.SystemRealizationDeleted, referenceProjector)
 	eventBus.Subscribe(cmPL.CapabilityDeleted, referenceProjector)
 	eventBus.Subscribe(amPL.ApplicationComponentDeleted, referenceProjector)
+	eventBus.Subscribe(cmPL.SystemRealizationDeleted, reactor)
 
 	directExists := map[string]string{}
 	directLookup := services.DirectRealizationLookup(func(_ context.Context, capID, compID string) (string, bool, error) {
@@ -239,7 +241,7 @@ func TestTimeAssessmentIntegration_HidesAssessment(t *testing.T) {
 			name: "system realization deleted",
 			hide: func(t *testing.T, tc *timeAssessmentTestContext, _ timeAssessmentPairID, realizationID string) {
 				ctx := sharedcontext.WithTenant(context.Background(), sharedvo.DefaultTenantID())
-				require.NoError(t, tc.readModel.DeleteByRealizationID(ctx, realizationID))
+				require.NoError(t, tc.eventBus.Publish(ctx, []domain.DomainEvent{systemRealizationDeletedTestEvent{realizationID: realizationID}}))
 			},
 		},
 		{
@@ -276,6 +278,41 @@ func TestTimeAssessmentIntegration_HidesAssessment(t *testing.T) {
 			assert.Equal(t, http.StatusNotFound, get.Code)
 		})
 	}
+}
+
+func TestTimeAssessmentIntegration_SystemRealizationDeleted_RemovesViaReactorWithAudit(t *testing.T) {
+	tc, cleanup := setupTimeAssessmentTestDB(t)
+	defer cleanup()
+
+	capID, compID := uuid.New().String(), uuid.New().String()
+	pair := timeAssessmentPairID{CapabilityID: capID, ComponentID: compID}
+	realizationID := uuid.New().String()
+	tc.trackAssessment(pair)
+	tc.allowDirect(pair, realizationID)
+	require.Equal(t, http.StatusCreated, putTimeAssessmentRequest{handlers: tc.handlers, capID: capID, compID: compID, grade: "Migrate"}.execute(t).Code)
+
+	get := getTimeAssessmentReq(t, tc.handlers, pair)
+	require.Equal(t, http.StatusOK, get.Code)
+	var dto readmodels.TimeAssessmentDTO
+	require.NoError(t, json.NewDecoder(get.Body).Decode(&dto))
+	assessmentID := dto.ID
+
+	ctx := sharedcontext.WithTenant(context.Background(), sharedvo.DefaultTenantID())
+	require.NoError(t, tc.eventBus.Publish(ctx, []domain.DomainEvent{systemRealizationDeletedTestEvent{realizationID: realizationID}}))
+
+	afterGet := getTimeAssessmentReq(t, tc.handlers, pair)
+	assert.Equal(t, http.StatusNotFound, afterGet.Code, "the read-model row must be gone after the reactor removes the assessment")
+
+	_, _ = tc.db.Exec(fmt.Sprintf("SET app.current_tenant = '%s'", sharedvo.DefaultTenantID().Value()))
+	var eventType, removedBy string
+	err := tc.db.QueryRow(
+		`SELECT event_type, event_data->>'removedBy' FROM infrastructure.events
+		 WHERE aggregate_id = $1 AND event_type = $2`,
+		assessmentID, pl.TimeAssessmentRemoved,
+	).Scan(&eventType, &removedBy)
+	require.NoError(t, err, "a TimeAssessmentRemoved event must be recorded for the audit trail")
+	assert.Equal(t, pl.TimeAssessmentRemoved, eventType)
+	assert.Equal(t, "system:realization-deleted", removedBy)
 }
 
 func TestTimeAssessmentIntegration_StaleWhenOlderThanTwelveMonths(t *testing.T) {

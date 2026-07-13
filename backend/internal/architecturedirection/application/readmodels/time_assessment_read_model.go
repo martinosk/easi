@@ -119,13 +119,6 @@ func (rm *TimeAssessmentReadModel) Delete(ctx context.Context, id string) error 
 	)
 }
 
-func (rm *TimeAssessmentReadModel) DeleteByRealizationID(ctx context.Context, realizationID string) error {
-	return rm.tenantExec(ctx,
-		`DELETE FROM architecturedirection.time_assessments WHERE tenant_id = $1 AND realization_id = $2`,
-		func(t string) []any { return []any{t, realizationID} },
-	)
-}
-
 func (rm *TimeAssessmentReadModel) DeleteByCapabilityID(ctx context.Context, capabilityID string) error {
 	return rm.tenantExec(ctx,
 		`DELETE FROM architecturedirection.time_assessments WHERE tenant_id = $1 AND capability_id = $2`,
@@ -186,26 +179,39 @@ func (rm *TimeAssessmentReadModel) tenantExec(ctx context.Context, query string,
 	return err
 }
 
+func (rm *TimeAssessmentReadModel) FindPairByRealizationID(ctx context.Context, realizationID string) (string, string, bool, error) {
+	var capabilityID, componentID string
+	found, err := rm.findSingleRow(ctx,
+		`SELECT capability_id, component_id FROM architecturedirection.time_assessments
+		 WHERE tenant_id = $1 AND realization_id = $2`,
+		[]any{realizationID}, &capabilityID, &componentID)
+	return capabilityID, componentID, found, err
+}
+
 func (rm *TimeAssessmentReadModel) FindAggregateIDForPair(ctx context.Context, capabilityID, componentID string) (string, bool, error) {
+	var id string
+	found, err := rm.findSingleRow(ctx,
+		`SELECT id FROM architecturedirection.time_assessments
+		 WHERE tenant_id = $1 AND capability_id = $2 AND component_id = $3`,
+		[]any{capabilityID, componentID}, &id)
+	return id, found, err
+}
+
+func (rm *TimeAssessmentReadModel) findSingleRow(ctx context.Context, query string, args []any, dest ...any) (bool, error) {
 	tenantID, err := tenantOf(ctx)
 	if err != nil {
-		return "", false, err
+		return false, err
 	}
-	var id string
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		return tx.QueryRowContext(ctx,
-			`SELECT id FROM architecturedirection.time_assessments
-			 WHERE tenant_id = $1 AND capability_id = $2 AND component_id = $3`,
-			tenantID, capabilityID, componentID,
-		).Scan(&id)
+		return tx.QueryRowContext(ctx, query, append([]any{tenantID}, args...)...).Scan(dest...)
 	})
 	if errors.Is(err, sql.ErrNoRows) {
-		return "", false, nil
+		return false, nil
 	}
 	if err != nil {
-		return "", false, err
+		return false, err
 	}
-	return id, true, nil
+	return true, nil
 }
 
 const timeAssessmentSelectColumns = `id, capability_id, COALESCE(capability_name, ''), component_id, COALESCE(component_name, ''),
