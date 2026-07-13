@@ -4,8 +4,9 @@
  * Test Data Seeding Script
  *
  * Populates the test database with realistic enterprise architecture data
- * by calling the backend API: 1300 capabilities (L1/L2/L3), 300 applications,
- * business domains, enterprise capabilities, views, fit scores, and origin entities.
+ * by calling the backend API: a full L1–L4 capability tree, 300 applications
+ * each realizing a mix of capability levels, business domains, enterprise
+ * capabilities, views, fit scores, and origin entities.
  *
  * AUTHENTICATION MODES:
  *
@@ -98,7 +99,7 @@ async function main(): Promise<void> {
     console.log("\n✅ Seeding complete!");
     console.log("\nSummary:");
     console.log(`  ${components.size} applications created`);
-    console.log(`  ${capabilities.size} capabilities created (L1/L2/L3)`);
+    console.log(`  ${capabilities.size} capabilities created (L1–L4)`);
     console.log(`  Business domains, enterprise capabilities, and views created`);
     console.log(`  System realizations and capability dependencies linked`);
     console.log(`  Fit scores set for strategic pillars`);
