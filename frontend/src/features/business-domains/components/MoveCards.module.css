@@ -1,0 +1,102 @@
+.card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease;
+}
+
+.card:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+.leaving {
+  border: 1px dashed var(--faint);
+  border-left: 3px dashed var(--faint);
+  opacity: 0.72;
+  background: transparent;
+}
+
+.incoming {
+  border: 1px dashed var(--status-future);
+  border-left-width: 3px;
+  background: var(--status-future-bg);
+}
+
+.done {
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--status-positive);
+}
+
+.traced {
+  box-shadow:
+    0 0 0 3px var(--status-future-bg),
+    0 0 0 4px var(--status-future);
+}
+
+.row1 {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.name {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.level {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--faint);
+}
+
+.pill {
+  margin-left: auto;
+  font-size: 10.5px;
+  font-weight: 500;
+  padding: 1px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.pillIdle {
+  background: var(--status-neutral-bg);
+  color: var(--status-neutral);
+}
+
+.pillIncoming {
+  background: var(--status-future-bg);
+  color: var(--status-future);
+}
+
+.row2 {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-top: 5px;
+}
+
+.traceLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 11px;
+  color: var(--status-future);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.movedFlag {
+  font-size: 10.5px;
+  color: var(--status-future);
+  margin-left: auto;
+}

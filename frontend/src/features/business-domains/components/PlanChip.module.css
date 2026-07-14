@@ -1,0 +1,35 @@
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  padding: 1px 7px;
+  border-radius: 4px;
+  border: 1px solid var(--line-strong);
+  background: var(--well);
+  color: var(--ink);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.legacy {
+  border-color: var(--status-progress-line);
+  background: var(--status-progress-bg);
+  color: var(--status-progress);
+}
+
+.future {
+  border-style: dashed;
+  border-color: var(--status-future-line);
+  background: var(--status-future-bg);
+  color: var(--status-future);
+}
+
+.standard {
+  border-color: var(--status-positive-line);
+  background: var(--status-positive-bg);
+  color: var(--status-positive);
+}

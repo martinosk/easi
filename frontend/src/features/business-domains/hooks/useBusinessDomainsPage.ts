@@ -7,6 +7,7 @@ import { clearParams, deepLinkParams, getParamValue } from '../../../lib/deepLin
 import { useUserStore } from '../../../store/userStore';
 import type { DomainBoardViewModel } from './domainBoardViewModel';
 import { flattenViewModelCapabilities } from './domainBoardViewModel';
+import { useBoardLensState } from './useBoardLensState';
 import { useCapabilityContextMenu } from './useCapabilityContextMenu';
 import { useCapabilitySelection } from './useCapabilitySelection';
 import { useDomainBoardData } from './useDomainBoardData';
@@ -419,6 +420,19 @@ function useDomainBoardInteractions({
     allCapabilities,
   );
 
+  const openCapabilityById = useCallback(
+    (capabilityId: string) => {
+      const capability = allCapabilities.find((c) => c.id === capabilityId);
+      if (!capability) return;
+      const l1Ancestor = findL1Ancestor(capability, allCapabilities);
+      const owningDomain = boardDomains.find((vm) => vm.assignedCapabilities.some((c) => c.id === l1Ancestor.id));
+      if (!owningDomain) return;
+      activeDomain.switchActiveDomain(owningDomain.domain.id);
+      drawer.openCapabilityDrawer(owningDomain.domain.id, capability);
+    },
+    [allCapabilities, boardDomains, activeDomain, drawer],
+  );
+
   return {
     activeDomain,
     globalAssignedCapabilityIds,
@@ -429,6 +443,7 @@ function useDomainBoardInteractions({
     selectedDomain,
     selectedL1Name,
     getRealizationsForSelectedCapability,
+    openCapabilityById,
   };
 }
 
@@ -437,6 +452,7 @@ export function useBusinessDomainsPage() {
   const {
     domains,
     boardDomains,
+    journeyIndex,
     canCreateDomain,
     isLoading,
     error,
@@ -448,6 +464,7 @@ export function useBusinessDomainsPage() {
   } = board;
 
   const filters = useBoardFilters();
+  const lensState = useBoardLensState();
   const drawer = useCapabilityDrawerState();
 
   const {
@@ -460,6 +477,7 @@ export function useBusinessDomainsPage() {
     selectedDomain,
     selectedL1Name,
     getRealizationsForSelectedCapability,
+    openCapabilityById,
   } = useDomainBoardInteractions({ boardDomains, domains, isLoading, allCapabilities, refetchDomain, drawer });
 
   const { dialogManager, domainContextMenu } = useDomainDialogAndMenu({
@@ -474,12 +492,15 @@ export function useBusinessDomainsPage() {
 
   return {
     boardDomains,
+    journeyIndex,
     canCreateDomain,
     isLoading,
     error,
     allCapabilities,
     globalAssignedCapabilityIds,
     ...filters,
+    ...lensState,
+    openCapabilityById,
     selectedCapability: drawer.selectedCapability,
     selectedDomain,
     selectedL1Name,

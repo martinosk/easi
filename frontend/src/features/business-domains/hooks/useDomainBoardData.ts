@@ -13,6 +13,7 @@ import { useCapabilityTree } from '../../capabilities/hooks/useCapabilityTree';
 import { businessDomainsApi } from '../api';
 import { businessDomainsQueryKeys } from '../queryKeys';
 import { buildDomainBoardViewModel, type DomainBoardViewModel } from './domainBoardViewModel';
+import { useBoardJourneyIndex, useJourneyQueries } from './useBoardJourneys';
 import { useBusinessDomains } from './useBusinessDomains';
 
 export const REALIZATION_DEPTH = 4;
@@ -99,11 +100,14 @@ export function useDomainBoardData() {
   const realizationQueries = useRealizationQueries(domains);
   const assessmentQueries = useAssessmentQueries(realizationQueries);
   const roleQueries = useRoleQueries(realizationQueries);
+  const journeyQueries = useJourneyQueries(realizationQueries);
 
   const boardDomains = useMemo(
     () => assembleBoardDomains(domains, tree, capabilityQueries, realizationQueries, assessmentQueries, roleQueries),
     [domains, tree, capabilityQueries, realizationQueries, assessmentQueries, roleQueries],
   );
+
+  const journeyIndex = useBoardJourneyIndex(boardDomains, journeyQueries);
 
   const refetchDomain = useCallback(
     async (domainId: BusinessDomainId) => {
@@ -114,14 +118,16 @@ export function useDomainBoardData() {
         realizationQueries[index]?.refetch(),
         assessmentQueries[index]?.refetch(),
         roleQueries[index]?.refetch(),
+        journeyQueries[index]?.refetch(),
       ]);
     },
-    [domains, capabilityQueries, realizationQueries, assessmentQueries, roleQueries],
+    [domains, capabilityQueries, realizationQueries, assessmentQueries, roleQueries, journeyQueries],
   );
 
   return {
     domains,
     boardDomains,
+    journeyIndex,
     canCreateDomain: canCreate({ _links: collectionLinks }),
     isLoading: domainsLoading || treeLoading,
     error,

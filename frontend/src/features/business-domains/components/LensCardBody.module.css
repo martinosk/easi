@@ -1,0 +1,40 @@
+.row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-top: 5px;
+}
+
+.arrow {
+  color: var(--faint);
+  font-size: 11px;
+}
+
+.fromLabel {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.kind {
+  font-size: 10.5px;
+  color: var(--faint);
+}
+
+.noChange {
+  font-size: 10.5px;
+  color: var(--faint);
+  margin-left: auto;
+}
+
+.consolidatedFlag {
+  font-size: 10.5px;
+  color: var(--status-positive);
+  margin-left: auto;
+}
+
+.empty {
+  font-size: var(--font-size-xs);
+  color: var(--faint);
+  font-style: italic;
+}

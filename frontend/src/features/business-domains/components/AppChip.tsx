@@ -7,6 +7,7 @@ import classes from './AppChip.module.css';
 export interface AppChipProps {
   realization: AssessedRealization;
   onClick: (componentId: ComponentId) => void;
+  showGrade?: boolean;
 }
 
 const LEVEL_CLASS: Record<CapabilityRealization['realizationLevel'], string> = {
@@ -46,19 +47,32 @@ function GradeBadge({ componentId, grade }: { componentId: ComponentId; grade: T
   );
 }
 
-export function AppChip({ realization, onClick }: AppChipProps) {
+interface AppChipView {
+  componentName: string;
+  title: string;
+  chipClassName: string;
+  assessedGrade?: TimeGrade;
+}
+
+function resolveAppChipView(realization: AssessedRealization, showGrade: boolean): AppChipView {
   const componentName = realization.componentName || realization.componentId;
   const isInherited = realization.origin === 'Inherited';
-  const assessedGrade = isInherited ? undefined : realization.timeGrade;
   const role = isInherited ? undefined : realization.role;
-
-  const title =
-    isInherited && realization.sourceCapabilityName
-      ? `${componentName} (inherited from ${realization.sourceCapabilityName})`
-      : componentName;
-
   const tintClass = role ? ROLE_CLASS[role] : LEVEL_CLASS[realization.realizationLevel];
-  const chipClassName = [classes.chip, tintClass, isInherited ? classes.inherited : ''].filter(Boolean).join(' ');
+
+  return {
+    componentName,
+    assessedGrade: isInherited || !showGrade ? undefined : realization.timeGrade,
+    title:
+      isInherited && realization.sourceCapabilityName
+        ? `${componentName} (inherited from ${realization.sourceCapabilityName})`
+        : componentName,
+    chipClassName: [classes.chip, tintClass, isInherited ? classes.inherited : ''].filter(Boolean).join(' '),
+  };
+}
+
+export function AppChip({ realization, onClick, showGrade = true }: AppChipProps) {
+  const { componentName, title, chipClassName, assessedGrade } = resolveAppChipView(realization, showGrade);
 
   return (
     <UnstyledButton

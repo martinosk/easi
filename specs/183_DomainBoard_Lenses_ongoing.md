@@ -1,6 +1,6 @@
 # 183 — Domain Board Lenses: Now / Journey / Target
 
-> **Status:** pending
+> **Status:** ongoing
 > **Depends on:** 180 (TIME assessments), 181 (realization roles), 182 (journeys)
 > **Design doc:** [`docs/specs/capability-journeys.md`](../docs/specs/capability-journeys.md)
 
@@ -120,17 +120,17 @@ Feature: Time lenses on the Domain Board
 
 ## Acceptance Criteria
 
-- [ ] Lens switcher with Now default, per-lens description line, and per-lens legend; lens round-trips through the URL
-- [ ] Journey lens renders the four card states (active with progress bar, done, steady, move ghost/arriving) per the scenarios
-- [ ] Sub-capability breakdown derives statuses per rule 3 with no persisted journey-child state anywhere
-- [ ] Trace links highlight both ends of a move and scroll the counterpart into view
-- [ ] Summary counts and the changes-only toggle behave per rules 5–6, dimming and force-expanding as in the mockup
-- [ ] Target lens renders per scenario, including consolidated tags and moved-from cards, with moves absent at the source
-- [ ] Search, deep links, drawer, role visibility, and assign-rail behaviour verified in all lenses (rail Now-only)
-- [ ] All new styling uses design tokens (`--status-*`, `--skin-*`); zero hard-coded hex values (spec 179 rules)
-- [ ] Board data loads via the 180–182 bulk queries with no per-capability request fan-out beyond the existing per-domain pattern
-- [ ] Every BDD scenario has at least one corresponding test
-- [ ] Every modified file scores 10.0 per `easi-codehealth`
+- [x] Lens switcher with Now default, per-lens description line, and per-lens legend; lens round-trips through the URL
+- [x] Journey lens renders the four card states (active with progress bar, done, steady, move ghost/arriving) per the scenarios
+- [x] Sub-capability breakdown derives statuses per rule 3 with no persisted journey-child state anywhere
+- [x] Trace links highlight both ends of a move and scroll the counterpart into view
+- [x] Summary counts and the changes-only toggle behave per rules 5–6, dimming and force-expanding as in the mockup
+- [x] Target lens renders per scenario, including consolidated tags and moved-from cards, with moves absent at the source
+- [x] Search, deep links, drawer, role visibility, and assign-rail behaviour verified in all lenses (rail Now-only)
+- [x] All new styling uses design tokens (`--status-*`, `--skin-*`); zero hard-coded hex values (spec 179 rules)
+- [x] Board data loads via the 180–182 bulk queries with no per-capability request fan-out beyond the existing per-domain pattern
+- [x] Every BDD scenario has at least one corresponding test
+- [x] Every modified file scores 10.0 per `easi-codehealth` (one exception: `useBoardJourneys.ts` — CodeScene MCP cannot emit a numeric score, but its review reports zero code smells)
 
 ---
 
@@ -185,9 +185,9 @@ None beyond read-model queries.
 
 ## Checklist
 
-- [ ] Specification ready
-- [ ] Implementation done
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
-- [ ] API documentation updated
+- [x] Specification ready
+- [x] Implementation done
+- [x] Unit tests implemented and passing
+- [x] Integration tests implemented if relevant (component-integration tests over the lens provider; no backend changes, so no server integration tests)
+- [x] API documentation updated (none — read-side frontend slice, no new endpoints)
 - [ ] User sign-off

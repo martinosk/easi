@@ -1,136 +1,38 @@
-import { Box, Group, Text, UnstyledButton } from '@mantine/core';
-import { IconChevronRight } from '@tabler/icons-react';
-import { useState } from 'react';
-import type { Capability, CapabilityId, CapabilityRealization, ComponentId } from '../../../api/types';
+import { Box, Text } from '@mantine/core';
+import type { CSSProperties } from 'react';
+import type { Capability, CapabilityId, ComponentId } from '../../../api/types';
 import type { CapabilityTreeNode } from '../../capabilities/hooks/useCapabilityTree';
-import { AppChip } from './AppChip';
+import type { AssessedRealization } from '../hooks/domainBoardViewModel';
+import { type BoardJourneyStatus, type BoardLens, capabilityJourneyStatus, isMoveJourney } from '../lens/boardLens';
+import { capabilityHasChange } from '../lens/journeyIndex';
 import classes from './BoardCapabilityCard.module.css';
+import { useBoardLens } from './BoardLensContext';
+import { activationKeyHandler } from './boardCardKeyboard';
+import { JourneyLensBody } from './JourneyCardBody';
+import { ArrivingMoves, GhostCard } from './MoveCards';
+import { NowCardContent } from './NowCardContent';
+import { TargetCardBody } from './TargetCardBody';
 
-function flattenDescendants(node: CapabilityTreeNode): CapabilityTreeNode[] {
-  return node.children.flatMap((child) => [child, ...flattenDescendants(child)]);
-}
+const PILL_CONFIG: Record<BoardJourneyStatus, { className: string; label: string } | null> = {
+  steady: null,
+  'not-started': { className: classes.pillIdle, label: 'not started' },
+  'in-flight': { className: classes.pillFlight, label: 'in flight' },
+  done: { className: classes.pillDone, label: 'done' },
+  'planned-move': { className: classes.pillIncoming, label: 'move planned' },
+};
 
-function activationKeyHandler(
-  capability: Capability,
-  onClick: (capability: Capability, event: React.MouseEvent) => void,
-) {
-  return (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      onClick(capability, e as unknown as React.MouseEvent);
-    }
-  };
-}
+const STATUS_BORDER: Partial<Record<BoardJourneyStatus, string>> = {
+  done: classes.statusDone,
+  'in-flight': classes.statusFlight,
+};
 
-interface CardRealizationsProps {
-  realizations: CapabilityRealization[];
-  onChipClick: (componentId: ComponentId) => void;
-}
-
-function CardRealizations({ realizations, onChipClick }: CardRealizationsProps) {
-  if (realizations.length === 0) {
-    return (
-      <Text className={classes.empty} data-testid="capability-card-empty-realizations">
-        no realising application mapped
-      </Text>
-    );
-  }
-
+function StatusPill({ status }: { status: BoardJourneyStatus }) {
+  const config = PILL_CONFIG[status];
+  if (!config) return null;
   return (
-    <Group gap="xs" wrap="wrap" className={classes.row2}>
-      {realizations.map((realization) => (
-        <AppChip key={realization.id} realization={realization} onClick={onChipClick} />
-      ))}
-      {realizations.length > 1 && <Text className={classes.multiFlag}>{realizations.length} apps</Text>}
-    </Group>
-  );
-}
-
-interface ChildRowProps {
-  node: CapabilityTreeNode;
-  getRealizationsForCapability: (capabilityId: CapabilityId) => CapabilityRealization[];
-  onClick: (capability: Capability, event: React.MouseEvent) => void;
-  onContextMenu: (capability: Capability, event: React.MouseEvent) => void;
-  onChipClick: (componentId: ComponentId) => void;
-}
-
-function ChildRow({ node, getRealizationsForCapability, onClick, onContextMenu, onChipClick }: ChildRowProps) {
-  const realizations = getRealizationsForCapability(node.capability.id);
-
-  return (
-    <Box
-      className={classes.childRow}
-      role="button"
-      tabIndex={0}
-      onClick={(e) => onClick(node.capability, e)}
-      onKeyDown={activationKeyHandler(node.capability, onClick)}
-      onContextMenu={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        onContextMenu(node.capability, e);
-      }}
-      data-testid={`capability-card-${node.capability.id}`}
-    >
-      <span className={classes.childDot} />
-      <Text fw={500}>{node.capability.name}</Text>
-      <span className={classes.childLevel}>{node.capability.level}</span>
-      <div className={classes.childApps}>
-        {realizations.map((realization) => (
-          <AppChip key={realization.id} realization={realization} onClick={onChipClick} />
-        ))}
-      </div>
-    </Box>
-  );
-}
-
-interface ChildrenExpanderProps {
-  descendants: CapabilityTreeNode[];
-  isOpen: boolean;
-  onToggle: () => void;
-  getRealizationsForCapability: (capabilityId: CapabilityId) => CapabilityRealization[];
-  onClick: (capability: Capability, event: React.MouseEvent) => void;
-  onContextMenu: (capability: Capability, event: React.MouseEvent) => void;
-  onChipClick: (componentId: ComponentId) => void;
-}
-
-function ChildrenExpander({
-  descendants,
-  isOpen,
-  onToggle,
-  getRealizationsForCapability,
-  onClick,
-  onContextMenu,
-  onChipClick,
-}: ChildrenExpanderProps) {
-  return (
-    <>
-      <UnstyledButton
-        component="button"
-        className={classes.expander}
-        aria-expanded={isOpen}
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggle();
-        }}
-      >
-        <IconChevronRight size={12} className={[classes.chevron, isOpen ? classes.chevronOpen : ''].join(' ')} />
-        {descendants.length} sub-capabilit{descendants.length === 1 ? 'y' : 'ies'}
-      </UnstyledButton>
-      {isOpen && (
-        <Box className={classes.children}>
-          {descendants.map((child) => (
-            <ChildRow
-              key={child.capability.id}
-              node={child}
-              getRealizationsForCapability={getRealizationsForCapability}
-              onClick={onClick}
-              onContextMenu={onContextMenu}
-              onChipClick={onChipClick}
-            />
-          ))}
-        </Box>
-      )}
-    </>
+    <span className={[classes.pill, config.className].join(' ')} data-testid={`status-pill-${status}`}>
+      {config.label}
+    </span>
   );
 }
 
@@ -138,32 +40,61 @@ export interface BoardCapabilityCardProps {
   node: CapabilityTreeNode;
   isSelected: boolean;
   getColorForValue: (maturityValue: number) => string;
-  getRealizationsForCapability: (capabilityId: CapabilityId) => CapabilityRealization[];
+  getRealizationsForCapability: (capabilityId: CapabilityId) => AssessedRealization[];
   onClick: (capability: Capability, event: React.MouseEvent) => void;
   onContextMenu: (capability: Capability, event: React.MouseEvent) => void;
   onChipClick: (componentId: ComponentId) => void;
 }
 
-export function BoardCapabilityCard({
-  node,
+interface ShellProps extends BoardCapabilityCardProps {
+  lens: BoardLens;
+  status: BoardJourneyStatus;
+  dimmed: boolean;
+  children: React.ReactNode;
+}
+
+function shellChrome({
+  capability,
+  lens,
+  status,
   isSelected,
+  dimmed,
   getColorForValue,
-  getRealizationsForCapability,
+}: {
+  capability: Capability;
+  lens: BoardLens;
+  status: BoardJourneyStatus;
+  isSelected: boolean;
+  dimmed: boolean;
+  getColorForValue: (maturityValue: number) => string;
+}): { className: string; style?: CSSProperties } {
+  const maturityBorder =
+    lens === 'now' && capability.maturityValue !== undefined ? getColorForValue(capability.maturityValue) : undefined;
+  const statusBorderClass = lens === 'now' ? '' : (STATUS_BORDER[status] ?? '');
+  const className = [classes.card, statusBorderClass, isSelected ? classes.selected : '', dimmed ? classes.dimmed : '']
+    .filter(Boolean)
+    .join(' ');
+  return { className, style: maturityBorder ? { borderLeftColor: maturityBorder } : undefined };
+}
+
+function CapabilityCardShell({
+  node,
+  lens,
+  status,
+  isSelected,
+  dimmed,
+  getColorForValue,
   onClick,
   onContextMenu,
-  onChipClick,
-}: BoardCapabilityCardProps) {
-  const [childrenOpen, setChildrenOpen] = useState(false);
+  children,
+}: ShellProps) {
   const { capability } = node;
-  const descendants = flattenDescendants(node);
-  const realizations = getRealizationsForCapability(capability.id);
-  const borderLeftColor =
-    capability.maturityValue !== undefined ? getColorForValue(capability.maturityValue) : undefined;
+  const { className, style } = shellChrome({ capability, lens, status, isSelected, dimmed, getColorForValue });
 
   return (
     <Box
-      className={[classes.card, isSelected ? classes.selected : ''].filter(Boolean).join(' ')}
-      style={borderLeftColor ? { borderLeftColor } : undefined}
+      className={className}
+      style={style}
       role="button"
       tabIndex={0}
       onClick={(e) => onClick(capability, e)}
@@ -174,23 +105,69 @@ export function BoardCapabilityCard({
       }}
       data-testid={`capability-card-${capability.id}`}
       data-selected={isSelected || undefined}
+      data-dimmed={dimmed || undefined}
     >
       <div className={classes.row1}>
         <Text className={classes.name}>{capability.name}</Text>
         <span className={classes.levelTag}>{capability.level}</span>
+        {lens === 'journey' && <StatusPill status={status} />}
       </div>
-      <CardRealizations realizations={realizations} onChipClick={onChipClick} />
-      {descendants.length > 0 && (
-        <ChildrenExpander
-          descendants={descendants}
-          isOpen={childrenOpen}
-          onToggle={() => setChildrenOpen((open) => !open)}
-          getRealizationsForCapability={getRealizationsForCapability}
-          onClick={onClick}
-          onContextMenu={onContextMenu}
-          onChipClick={onChipClick}
-        />
-      )}
+      {children}
     </Box>
+  );
+}
+
+export function BoardCapabilityCard(props: BoardCapabilityCardProps) {
+  const { node, getRealizationsForCapability, onChipClick } = props;
+  const { lens, changesOnly, index } = useBoardLens();
+  const { capability } = node;
+  const journey = index.getJourney(capability.id);
+  const arriving = index.getArrivingMovesForParent(capability.id);
+  const realizations = getRealizationsForCapability(capability.id);
+
+  if (isMoveJourney(journey)) {
+    if (lens === 'journey') {
+      return (
+        <>
+          <GhostCard journey={journey} realizations={realizations} onChipClick={onChipClick} />
+          <ArrivingMoves journeys={arriving} />
+        </>
+      );
+    }
+    if (lens === 'target') return <ArrivingMoves journeys={arriving} />;
+  }
+
+  const status = capabilityJourneyStatus(journey);
+  const dimmed = changesOnly && lens !== 'now' && !capabilityHasChange(capability.id, index);
+
+  const body =
+    lens === 'now' ? (
+      <NowCardContent
+        node={node}
+        realizations={realizations}
+        getRealizationsForCapability={getRealizationsForCapability}
+        onClick={props.onClick}
+        onContextMenu={props.onContextMenu}
+        onChipClick={onChipClick}
+      />
+    ) : lens === 'target' ? (
+      <TargetCardBody journey={journey} realizations={realizations} onChipClick={onChipClick} />
+    ) : (
+      <JourneyLensBody
+        node={node}
+        journey={journey}
+        realizations={realizations}
+        getRealizationsForCapability={getRealizationsForCapability}
+        onChipClick={onChipClick}
+      />
+    );
+
+  return (
+    <>
+      <CapabilityCardShell {...props} lens={lens} status={status} dimmed={dimmed}>
+        {body}
+      </CapabilityCardShell>
+      <ArrivingMoves journeys={arriving} />
+    </>
   );
 }
