@@ -17,6 +17,46 @@
   border-color: var(--skin-focus);
 }
 
+.statusDone {
+  border-left-color: var(--status-positive);
+}
+
+.statusFlight {
+  border-left-color: var(--status-progress);
+}
+
+.dimmed {
+  opacity: 0.25;
+}
+
+.pill {
+  font-size: 10.5px;
+  font-weight: 500;
+  padding: 1px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.pillDone {
+  background: var(--status-positive-bg);
+  color: var(--status-positive);
+}
+
+.pillFlight {
+  background: var(--status-progress-bg);
+  color: var(--status-progress);
+}
+
+.pillIdle {
+  background: var(--status-neutral-bg);
+  color: var(--status-neutral);
+}
+
+.pillIncoming {
+  background: var(--status-future-bg);
+  color: var(--status-future);
+}
+
 .row1 {
   display: flex;
   align-items: baseline;

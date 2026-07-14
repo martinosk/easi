@@ -7,6 +7,7 @@ import { toBusinessDomainId, toComponentId } from '../../../api/types';
 import { buildBusinessDomain } from '../../../test/helpers';
 import { buildCapabilityAt as cap } from '../../../test/helpers/entityBuilders';
 import { buildCapabilityTree } from '../../capabilities/hooks/useCapabilityTree';
+import { buildJourneyIndex } from '../lens/journeyIndex';
 import { buildDomainBoardViewModel } from './domainBoardViewModel';
 import { useBusinessDomainsPage } from './useBusinessDomainsPage';
 import { useDomainBoardData } from './useDomainBoardData';
@@ -45,6 +46,7 @@ function buildBoardData() {
   return {
     domains: [domain],
     boardDomains: [viewModel],
+    journeyIndex: buildJourneyIndex({ journeys: [], capabilityDomainNames: new Map() }),
     canCreateDomain: true,
     isLoading: false,
     error: null,

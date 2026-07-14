@@ -2,45 +2,35 @@
   width: 17.5rem;
 }
 
-.legend {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
+.summary {
   flex-wrap: wrap;
 }
 
-.legendItem {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: var(--font-size-xs);
-  color: var(--muted);
+.stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 6px 14px;
+  font-size: var(--font-size-sm);
 }
 
-.swatch {
-  width: 11px;
-  height: 11px;
-  border-radius: 3px;
-  flex: none;
+.stat b {
+  font-family: var(--font-display);
+  font-size: var(--font-size-lg);
+  font-weight: 600;
 }
 
-.swatchFull {
-  background: var(--status-positive-bg);
-  border: 1px solid var(--status-positive);
+.statSettled b {
+  color: var(--status-positive);
 }
 
-.swatchPartial {
-  background: var(--status-progress-bg);
-  border: 1px solid var(--status-progress);
+.statFlight b {
+  color: var(--status-progress);
 }
 
-.swatchPlanned {
-  background: var(--status-future-bg);
-  border: 1px dashed var(--status-future);
-}
-
-.swatchInherited {
-  background: transparent;
-  border: 1px dashed var(--faint);
-  opacity: 0.55;
+.statIdle b {
+  color: var(--status-neutral);
 }

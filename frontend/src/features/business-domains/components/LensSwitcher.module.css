@@ -1,0 +1,11 @@
+.wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.description {
+  font-size: var(--font-size-sm);
+  color: var(--muted);
+}

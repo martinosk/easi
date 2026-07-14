@@ -27,6 +27,7 @@ import { seedBusinessDomains, seedEnterpriseCapabilities } from "./seed/domains.
 import { seedViews } from "./seed/views.ts";
 import { seedApplicationFitScores } from "./seed/fit-scores.ts";
 import { seedOriginEntities } from "./seed/origins.ts";
+import { seedArchitectureDirection } from "./seed/architecture-direction.ts";
 
 if (!SESSION_COOKIE && !BYPASS_MODE) {
   console.log(`
@@ -87,10 +88,11 @@ async function main(): Promise<void> {
 
     const capabilities = await seedCapabilities();
 
-    await seedBusinessDomains(capabilities);
+    const domains = await seedBusinessDomains(capabilities);
     await seedEnterpriseCapabilities();
     await seedCapabilityDependencies(capabilities);
     await seedSystemRealizations(capabilities, components);
+    await seedArchitectureDirection({ capabilities, components, domains });
 
     await seedViews(components);
     await seedApplicationFitScores(components);
@@ -102,6 +104,7 @@ async function main(): Promise<void> {
     console.log(`  ${capabilities.size} capabilities created (L1–L4)`);
     console.log(`  Business domains, enterprise capabilities, and views created`);
     console.log(`  System realizations and capability dependencies linked`);
+    console.log(`  TIME assessments, realization roles, and capability journeys created (specs 180–183)`);
     console.log(`  Fit scores set for strategic pillars`);
     console.log(`  Origin entities (acquired entities, vendors, internal teams) created`);
   } catch (error) {

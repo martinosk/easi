@@ -6,6 +6,7 @@ import { buildCapabilityAt as cap } from '../../../test/helpers/entityBuilders';
 import { buildCapabilityTree } from '../../capabilities/hooks/useCapabilityTree';
 import { buildDomainBoardViewModel } from '../hooks/domainBoardViewModel';
 import type { useBusinessDomainsPage } from '../hooks/useBusinessDomainsPage';
+import { buildJourneyIndex } from '../lens/journeyIndex';
 import { DomainBoard } from './DomainBoard';
 
 type HookData = ReturnType<typeof useBusinessDomainsPage>;
@@ -25,6 +26,12 @@ function buildViewModel(name: string, id: string) {
 function buildHookData(overrides: Partial<HookData> = {}): HookData {
   return {
     boardDomains: [buildViewModel('Ferry Freight', 'domain-1'), buildViewModel('Logistics', 'domain-2')],
+    journeyIndex: buildJourneyIndex({ journeys: [], capabilityDomainNames: new Map() }),
+    lens: 'now',
+    setLens: vi.fn(),
+    changesOnly: false,
+    setChangesOnly: vi.fn(),
+    openCapabilityById: vi.fn(),
     canCreateDomain: true,
     isLoading: false,
     error: null,

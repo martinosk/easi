@@ -3,8 +3,10 @@ import { IconDotsVertical } from '@tabler/icons-react';
 import type { BusinessDomain, Capability, CapabilityId, ComponentId } from '../../../api/types';
 import { nodeMatchesSearch } from '../hooks/boardSearch';
 import type { DomainBoardViewModel } from '../hooks/domainBoardViewModel';
+import { useBoardLens } from './BoardLensContext';
 import classes from './DomainBoardCard.module.css';
 import { L1Group } from './L1Group';
+import { ArrivingMoves } from './MoveCards';
 
 export interface DomainBoardCardProps {
   viewModel: DomainBoardViewModel;
@@ -40,10 +42,12 @@ export function DomainBoardCard({
   onDrop,
 }: DomainBoardCardProps) {
   const { domain, l1Groups, totalCapabilityCount, totalAppCount } = viewModel;
+  const { index } = useBoardLens();
 
   const visibleGroups = searchQuery
     ? l1Groups.filter((group) => nodeMatchesSearch(group.node, searchQuery, viewModel.getRealizationsForCapability))
     : l1Groups;
+  const arrivingAtTopLevel = index.getArrivingMovesForDomain(domain.id);
 
   return (
     <Paper
@@ -78,7 +82,7 @@ export function DomainBoardCard({
         </ActionIcon>
       </Group>
 
-      {visibleGroups.length === 0 ? (
+      {visibleGroups.length === 0 && arrivingAtTopLevel.length === 0 ? (
         <Text className={classes.emptyState}>
           {l1Groups.length === 0 ? 'No capabilities assigned to this domain yet.' : 'No matches in this domain.'}
         </Text>
@@ -99,6 +103,7 @@ export function DomainBoardCard({
               onChipClick={onChipClick}
             />
           ))}
+          <ArrivingMoves journeys={arrivingAtTopLevel} />
         </div>
       )}
     </Paper>

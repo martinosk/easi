@@ -1,0 +1,105 @@
+.legend {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--font-size-xs);
+  color: var(--muted);
+}
+
+.swatch {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  flex: none;
+}
+
+.swatchFull {
+  background: var(--status-positive-bg);
+  border: 1px solid var(--status-positive);
+}
+
+.swatchPartial {
+  background: var(--status-progress-bg);
+  border: 1px solid var(--status-progress);
+}
+
+.swatchPlanned {
+  background: var(--status-future-bg);
+  border: 1px dashed var(--status-future);
+}
+
+.swatchInherited {
+  background: transparent;
+  border: 1px dashed var(--faint);
+  opacity: 0.55;
+}
+
+.swatchDone {
+  background: var(--status-positive-bg);
+  border: 1px solid var(--status-positive);
+}
+
+.swatchFlight {
+  background: var(--status-progress-bg);
+  border: 1px solid var(--status-progress);
+}
+
+.swatchIdle {
+  background: var(--status-neutral-bg);
+  border: 1px solid var(--status-neutral-line);
+}
+
+.swatchIncoming {
+  background: var(--status-future-bg);
+  border: 1px dashed var(--status-future);
+}
+
+.swatchLeaving {
+  background: transparent;
+  border: 1px dashed var(--faint);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.gradeInvest {
+  background: var(--status-positive-bg);
+  color: var(--status-positive);
+}
+
+.gradeTolerate {
+  background: var(--status-neutral-bg);
+  color: var(--status-neutral);
+}
+
+.gradeMigrate {
+  background: var(--status-progress-bg);
+  color: var(--status-progress);
+}
+
+.gradeEliminate {
+  background: var(--status-danger-bg);
+  color: var(--status-danger);
+}
+
+.disclaimer {
+  font-size: var(--font-size-xs);
+  color: var(--faint);
+  font-style: italic;
+}

@@ -15,6 +15,7 @@ export {
   buildBusinessDomain,
   buildCapability,
   buildCapabilityDependency,
+  buildCapabilityJourney,
   buildCapabilityRealization,
   buildComponent,
   buildExpert,

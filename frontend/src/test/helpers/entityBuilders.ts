@@ -34,6 +34,7 @@ import {
   toVendorId,
   toViewId,
 } from '../../api/types';
+import type { CapabilityJourney } from '../../features/journeys/types';
 
 let idCounter = 0;
 function nextId(prefix: string): string {
@@ -143,12 +144,7 @@ export function buildCapability(overrides: Partial<Capability> = {}): Capability
   };
 }
 
-export function buildCapabilityAt(
-  id: string,
-  name: string,
-  level: CapabilityLevel,
-  parentId?: string,
-): Capability {
+export function buildCapabilityAt(id: string, name: string, level: CapabilityLevel, parentId?: string): Capability {
   return buildCapability({
     id: toCapabilityId(id),
     name,
@@ -182,6 +178,34 @@ export function buildCapabilityRealization(overrides: Partial<CapabilityRealizat
     origin: 'Direct',
     linkedAt: '2024-01-01T00:00:00Z',
     _links: buildLinks(`/api/v1/capability-realizations/${id}`),
+    ...overrides,
+  };
+}
+
+export function buildCapabilityJourney(overrides: Partial<CapabilityJourney> = {}): CapabilityJourney {
+  const id = overrides.id ?? nextId('journey');
+  const base = `/api/v1/capability-journeys/${id}`;
+  return {
+    id,
+    capabilityId: 'cap-1',
+    capabilityName: 'Test Capability',
+    capabilityStale: false,
+    kind: 'migration',
+    status: 'in-flight',
+    progress: 60,
+    targetPeriod: { year: 2027, quarter: 2 },
+    note: '',
+    fromApplications: [{ componentId: 'comp-from', componentName: 'Seabook', stale: false }],
+    toApplication: { componentId: 'comp-to', componentName: 'Phoenix', stale: false },
+    milestones: [],
+    plannedBy: 'user-1',
+    plannedByName: 'Test Architect',
+    plannedAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
+    startedAt: '2026-01-02T00:00:00Z',
+    completedAt: null,
+    abandonedAt: null,
+    _links: { self: buildLink(base, 'GET') },
     ...overrides,
   };
 }
