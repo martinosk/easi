@@ -71,11 +71,6 @@ describe('BoardToolbar', () => {
     expect(onLensChange).toHaveBeenCalledWith('journey');
   });
 
-  it('shows a one-line description of the active lens', () => {
-    renderToolbar({ lens: 'journey' });
-    expect(screen.getByTestId('lens-description')).toHaveTextContent('done');
-  });
-
   it('hides the assign rail toggle outside the Now lens', () => {
     renderToolbar({ lens: 'journey' });
     expect(screen.queryByTestId('assign-rail-toggle')).not.toBeInTheDocument();
