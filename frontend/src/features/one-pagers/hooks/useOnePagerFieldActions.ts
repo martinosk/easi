@@ -4,6 +4,7 @@ import type { FieldRowActions } from '../components/FieldRow';
 import type { BuiltInField, CustomField, FieldRef, OnePagerConfiguration, OnePagerSubjectType } from '../types';
 import {
   useAddSelectionOption,
+  useChangeBuiltInFieldRequirement,
   useChangeFieldRequirement,
   useExcludeBuiltInField,
   useIncludeBuiltInField,
@@ -12,6 +13,7 @@ import {
   useReorderFields,
   useRetireCustomField,
   useRetireSelectionOption,
+  useSetNumberFieldBounds,
 } from './useOnePagerMutations';
 
 function swapAdjacent(order: FieldRef[], index: number, direction: -1 | 1): FieldRef[] | null {
@@ -27,16 +29,19 @@ export function useOnePagerFieldActions(
   configuration: OnePagerConfiguration | undefined,
   onRename: (field: CustomField) => void,
   onRequireConfirmationNeeded: (field: CustomField) => void,
+  onRequireBuiltInConfirmationNeeded: (field: BuiltInField) => void,
 ) {
   const reorder = useReorderFields(subjectType);
   const includeBuiltIn = useIncludeBuiltInField(subjectType);
   const excludeBuiltIn = useExcludeBuiltInField(subjectType);
   const rename = useRenameCustomField(subjectType);
   const changeRequirement = useChangeFieldRequirement(subjectType);
+  const changeBuiltInRequirement = useChangeBuiltInFieldRequirement(subjectType);
   const retireCustom = useRetireCustomField(subjectType);
   const reactivateCustom = useReactivateCustomField(subjectType);
   const addOption = useAddSelectionOption(subjectType);
   const retireOption = useRetireSelectionOption(subjectType);
+  const setBounds = useSetNumberFieldBounds(subjectType);
 
   const version = configuration?.version;
 
@@ -66,6 +71,14 @@ export function useOnePagerFieldActions(
       if (version === undefined) return;
       excludeBuiltIn.mutate({ field, request: { version } });
     },
+    onToggleBuiltInRequired: (field, required) => {
+      if (version === undefined) return;
+      if (required && hasLink(configuration, 'x-impact-preview')) {
+        onRequireBuiltInConfirmationNeeded(field);
+        return;
+      }
+      changeBuiltInRequirement.mutate({ field, request: { required, version } });
+    },
     onAddOption: (field, label) => {
       if (version === undefined) return;
       addOption.mutate({ field, request: { label, version } });
@@ -73,6 +86,10 @@ export function useOnePagerFieldActions(
     onRetireOption: (option) => {
       if (version === undefined) return;
       retireOption.mutate({ option, request: { version } });
+    },
+    onSetBounds: (field, min, max) => {
+      if (version === undefined) return;
+      setBounds.mutate({ field, request: { min, max, version } });
     },
   };
 
@@ -99,6 +116,11 @@ export function useOnePagerFieldActions(
     changeRequirement.mutate({ field, request: { required: true, version } }, { onSuccess: onDone });
   };
 
+  const confirmRequireBuiltIn = (field: BuiltInField, onDone: () => void) => {
+    if (version === undefined) return;
+    changeBuiltInRequirement.mutate({ field, request: { required: true, version } }, { onSuccess: onDone });
+  };
+
   return {
     fieldActions,
     includeField,
@@ -107,5 +129,7 @@ export function useOnePagerFieldActions(
     isRenaming: rename.isPending,
     confirmRequireField,
     isConfirmingRequired: changeRequirement.isPending,
+    confirmRequireBuiltIn,
+    isConfirmingBuiltInRequired: changeBuiltInRequirement.isPending,
   };
 }

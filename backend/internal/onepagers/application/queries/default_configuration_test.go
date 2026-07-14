@@ -24,7 +24,7 @@ func TestGet_SynthesizesDefaultConfigurationForEverySubjectType(t *testing.T) {
 			result, err := query.Get(context.Background(), subjectType, "subject-1")
 
 			require.NoError(t, err)
-			wantEntries := catalog.EntriesFor(subjectType)
+			wantEntries := catalog.DefaultEntriesFor(subjectType)
 			require.Len(t, result.Fields, len(wantEntries))
 			for i, entry := range wantEntries {
 				require.NotNil(t, result.Fields[i].BuiltIn, "entry %d (%s) should be built-in", i, entry.ID)

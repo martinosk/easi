@@ -50,7 +50,7 @@ func mustLabel(t *testing.T, v string) valueobjects.OptionLabel {
 	return label
 }
 
-func TestOnePagerConfigurationDeserializers_AllElevenEventsRoundTrip(t *testing.T) {
+func TestOnePagerConfigurationDeserializers_AllTwelveEventsRoundTrip(t *testing.T) {
 	config, userEmail := newTestConfig(t)
 
 	textID, err := config.DefineCustomField(aggregates.DefineCustomFieldParams{
@@ -58,6 +58,15 @@ func TestOnePagerConfigurationDeserializers_AllElevenEventsRoundTrip(t *testing.
 		Type: mustType(t, "text"),
 	}, userEmail)
 	require.NoError(t, err)
+
+	maturityID, err := config.DefineCustomField(aggregates.DefineCustomFieldParams{
+		Name: mustName(t, "Maturity score"),
+		Type: mustType(t, "number"),
+	}, userEmail)
+	require.NoError(t, err)
+	minBound := 0.0
+	maxBound := 5.0
+	require.NoError(t, config.SetNumberFieldBounds(maturityID, &minBound, &maxBound, userEmail))
 
 	selectionID, err := config.DefineCustomField(aggregates.DefineCustomFieldParams{
 		Name:         mustName(t, "Hosting model"),
@@ -100,6 +109,7 @@ func TestOnePagerConfigurationDeserializers_AllElevenEventsRoundTrip(t *testing.
 		"OnePagerFieldsReordered",
 		"SelectionOptionAdded",
 		"SelectionOptionRetired",
+		"NumberFieldBoundsChanged",
 	)
 
 	loaded := roundTripAndLoad(t, config, len(events))

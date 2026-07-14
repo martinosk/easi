@@ -50,9 +50,10 @@ describe('useImpactPreview', () => {
   });
 
   it.each([
-    { label: 'an existing field', fieldId: 'contract-link' as string | undefined, affectedSubjectCount: 37 },
-    { label: 'a new field with no fieldId', fieldId: undefined, affectedSubjectCount: 120 },
-  ])('fetches the preview for $label', async ({ fieldId, affectedSubjectCount }) => {
+    { label: 'an existing field', fieldId: 'contract-link' as string | undefined, fieldKind: 'custom' as const, affectedSubjectCount: 37 },
+    { label: 'a new field with no fieldId', fieldId: undefined, fieldKind: 'custom' as const, affectedSubjectCount: 120 },
+    { label: 'a built-in field through the builtIn field kind', fieldId: 'experts' as string | undefined, fieldKind: 'builtIn' as const, affectedSubjectCount: 40 },
+  ])('fetches the preview for $label', async ({ fieldId, fieldKind, affectedSubjectCount }) => {
     const configuration = buildConfiguration();
     vi.mocked(onePagersApi.getImpactPreview).mockResolvedValue({
       subjectType: 'application',
@@ -60,13 +61,13 @@ describe('useImpactPreview', () => {
       affectedSubjectCount,
     });
 
-    const { result } = renderHook(() => useImpactPreview(configuration, fieldId, true), {
+    const { result } = renderHook(() => useImpactPreview(configuration, fieldId, true, fieldKind), {
       wrapper: createWrapper(queryClient),
     });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    expect(onePagersApi.getImpactPreview).toHaveBeenCalledWith(configuration, fieldId);
+    expect(onePagersApi.getImpactPreview).toHaveBeenCalledWith(configuration, fieldId, fieldKind);
     expect(result.current.data?.affectedSubjectCount).toBe(affectedSubjectCount);
   });
 

@@ -11,32 +11,6 @@ import (
 	sharedctx "easi/backend/internal/shared/context"
 )
 
-type OptionRecord struct {
-	ID     string `json:"id"`
-	Label  string `json:"label"`
-	Active bool   `json:"active"`
-}
-
-type CustomFieldRecord struct {
-	ID       string         `json:"id"`
-	Name     string         `json:"name"`
-	Type     string         `json:"type"`
-	Required bool           `json:"required"`
-	HelpText string         `json:"helpText"`
-	Active   bool           `json:"active"`
-	Options  []OptionRecord `json:"options,omitempty"`
-}
-
-type FieldRefRecord struct {
-	Kind string `json:"kind"`
-	ID   string `json:"id"`
-}
-
-type ConfigurationDocument struct {
-	CustomFields []CustomFieldRecord `json:"customFields"`
-	DisplayOrder []FieldRefRecord    `json:"displayOrder"`
-}
-
 type ConfigurationRecord struct {
 	ID          string
 	TenantID    string

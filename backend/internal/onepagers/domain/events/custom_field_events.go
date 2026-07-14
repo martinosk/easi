@@ -148,3 +148,31 @@ func (e CustomFieldReactivated) EventData() map[string]interface{} {
 	data["fieldId"] = e.FieldID
 	return data
 }
+
+type NumberFieldBoundsChanged struct {
+	ConfigurationEventBase
+	FieldID string   `json:"fieldId"`
+	Min     *float64 `json:"min,omitempty"`
+	Max     *float64 `json:"max,omitempty"`
+}
+
+func NewNumberFieldBoundsChanged(params ModifyConfigurationParams, fieldID string, min, max *float64) NumberFieldBoundsChanged {
+	return NumberFieldBoundsChanged{
+		ConfigurationEventBase: newConfigurationEventBase(params),
+		FieldID:                fieldID,
+		Min:                    min,
+		Max:                    max,
+	}
+}
+
+func (e NumberFieldBoundsChanged) EventType() string {
+	return "NumberFieldBoundsChanged"
+}
+
+func (e NumberFieldBoundsChanged) EventData() map[string]interface{} {
+	data := e.baseEventData()
+	data["fieldId"] = e.FieldID
+	data["min"] = e.Min
+	data["max"] = e.Max
+	return data
+}

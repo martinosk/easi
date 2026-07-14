@@ -31,6 +31,8 @@ export interface SessionLinks {
   user: string;
   tenant: string;
   'x-assistant'?: string;
+  'x-one-pager-quality'?: string;
+  [key: string]: string | undefined;
 }
 
 export interface CurrentSessionResponse {

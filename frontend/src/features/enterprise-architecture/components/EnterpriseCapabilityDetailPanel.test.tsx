@@ -108,4 +108,26 @@ describe('EnterpriseCapabilityDetailPanel', () => {
     await waitFor(() => expect(screen.getByText('Customer Identity Mgmt')).toBeInTheDocument());
     expect(screen.queryByText(/Linked Capabilities/i)).not.toBeInTheDocument();
   });
+
+  it('shows the One-Pager action and no inline edit form', async () => {
+    seedComposed();
+    renderWithProviders(
+      <EnterpriseCapabilityDetailPanel
+        capability={ec({ _links: { self: { href: '/api/v1/enterprise-capabilities/ec-crm', method: 'GET' }, 'x-one-pager': { href: '/api/v1/one-pagers/enterprise-capability/ec-crm', method: 'GET' } } })}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(await screen.findByRole('button', { name: 'One-Pager' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Save one-pager' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  });
+
+  it('shows no One-Pager action when the EC lacks the link', async () => {
+    seedComposed();
+    renderWithProviders(<EnterpriseCapabilityDetailPanel capability={ec()} onClose={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByText('Customer Identity Mgmt')).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: 'One-Pager' })).not.toBeInTheDocument();
+  });
 });

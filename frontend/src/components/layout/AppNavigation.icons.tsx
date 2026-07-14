@@ -1,5 +1,6 @@
 import {
   IconBuildingBank,
+  IconClipboardCheck,
   IconMailPlus,
   IconMap2,
   IconRoute,
@@ -25,5 +26,7 @@ export const UsersIcon = <IconUsers size={ICON_SIZE} stroke={ICON_STROKE} />;
 export const InvitationsIcon = <IconMailPlus size={ICON_SIZE} stroke={ICON_STROKE} />;
 
 export const SettingsIcon = <IconSettings2 size={ICON_SIZE} stroke={ICON_STROKE} />;
+
+export const OnePagerQualityIcon = <IconClipboardCheck size={ICON_SIZE} stroke={ICON_STROKE} />;
 
 export const ReleaseNotesIcon = <IconSparkles size={ICON_SIZE} stroke={ICON_STROKE} />;

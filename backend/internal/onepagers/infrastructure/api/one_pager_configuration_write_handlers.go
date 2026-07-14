@@ -43,12 +43,19 @@ type AddSelectionOptionRequest struct {
 	Version int    `json:"version"`
 }
 
-func (r DefineCustomFieldRequest) expectedVersion() int  { return r.Version }
-func (r RenameCustomFieldRequest) expectedVersion() int  { return r.Version }
-func (r ChangeRequirementRequest) expectedVersion() int  { return r.Version }
-func (r VersionRequest) expectedVersion() int            { return r.Version }
-func (r ReorderFieldsRequest) expectedVersion() int      { return r.Version }
-func (r AddSelectionOptionRequest) expectedVersion() int { return r.Version }
+type SetNumberFieldBoundsRequest struct {
+	Min     *float64 `json:"min,omitempty"`
+	Max     *float64 `json:"max,omitempty"`
+	Version int      `json:"version"`
+}
+
+func (r DefineCustomFieldRequest) expectedVersion() int    { return r.Version }
+func (r RenameCustomFieldRequest) expectedVersion() int    { return r.Version }
+func (r ChangeRequirementRequest) expectedVersion() int    { return r.Version }
+func (r VersionRequest) expectedVersion() int              { return r.Version }
+func (r ReorderFieldsRequest) expectedVersion() int        { return r.Version }
+func (r AddSelectionOptionRequest) expectedVersion() int   { return r.Version }
+func (r SetNumberFieldBoundsRequest) expectedVersion() int { return r.Version }
 
 type versionedRequest interface {
 	expectedVersion() int
@@ -331,6 +338,41 @@ func (h *OnePagerConfigurationHandlers) ExcludeBuiltInField(w http.ResponseWrite
 	handleConfigurationWrite(h, w, r, excludeBuiltInFieldWrite)
 }
 
+var changeBuiltInRequirementWrite = configurationWrite[ChangeRequirementRequest]{
+	successStatus:  http.StatusOK,
+	failureMessage: "Failed to change built-in field requirement",
+	command: func(req ChangeRequirementRequest, wc writeContext) cqrs.Command {
+		return &commands.ChangeBuiltInFieldRequirement{
+			ConfigID:   wc.configID,
+			EntryID:    wc.entryID,
+			Required:   req.Required,
+			ModifiedBy: wc.email,
+		}
+	},
+}
+
+// ChangeBuiltInFieldRequirement godoc
+// @Summary Change the required flag of a built-in field
+// @Description Marks an included built-in field as required or optional. Only included built-in fields can be required; targeting an excluded or unknown built-in is rejected. The change only affects the configuration; no recorded data is validated or blocked.
+// @Tags one-pagers
+// @Accept json
+// @Produce json
+// @Param subjectType path string true "Subject type"
+// @Param entryID path string true "Catalog entry ID"
+// @Param requirement body ChangeRequirementRequest true "Required flag"
+// @Success 200 {object} OnePagerConfigurationDTO
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 401 {object} sharedAPI.ErrorResponse
+// @Failure 403 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 409 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Security CookieAuth
+// @Router /one-pagers/configurations/{subjectType}/built-in-fields/{entryID}/requirement [put]
+func (h *OnePagerConfigurationHandlers) ChangeBuiltInFieldRequirement(w http.ResponseWriter, r *http.Request) {
+	handleConfigurationWrite(h, w, r, changeBuiltInRequirementWrite)
+}
+
 var reorderFieldsWrite = configurationWrite[ReorderFieldsRequest]{
 	successStatus:  http.StatusOK,
 	failureMessage: "Failed to reorder fields",
@@ -437,4 +479,40 @@ var retireSelectionOptionWrite = configurationWrite[VersionRequest]{
 // @Router /one-pagers/configurations/{subjectType}/custom-fields/{fieldID}/options/{optionID}/retire [post]
 func (h *OnePagerConfigurationHandlers) RetireSelectionOption(w http.ResponseWriter, r *http.Request) {
 	handleConfigurationWrite(h, w, r, retireSelectionOptionWrite)
+}
+
+var setNumberFieldBoundsWrite = configurationWrite[SetNumberFieldBoundsRequest]{
+	successStatus:  http.StatusOK,
+	failureMessage: "Failed to set number field bounds",
+	command: func(req SetNumberFieldBoundsRequest, wc writeContext) cqrs.Command {
+		return &commands.SetNumberFieldBounds{
+			ConfigID:   wc.configID,
+			FieldID:    wc.fieldID,
+			Min:        req.Min,
+			Max:        req.Max,
+			ModifiedBy: wc.email,
+		}
+	},
+}
+
+// SetNumberFieldBounds godoc
+// @Summary Set a Number field's bounds
+// @Description Sets, tightens, loosens, or clears an active Number custom field's minimum and/or maximum bounds. Bounds only gate new facts writes; already-recorded values are never altered or hidden. Setting bounds on a non-Number field is rejected.
+// @Tags one-pagers
+// @Accept json
+// @Produce json
+// @Param subjectType path string true "Subject type"
+// @Param fieldID path string true "Field ID"
+// @Param bounds body SetNumberFieldBoundsRequest true "New bounds"
+// @Success 200 {object} OnePagerConfigurationDTO
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 401 {object} sharedAPI.ErrorResponse
+// @Failure 403 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 409 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Security CookieAuth
+// @Router /one-pagers/configurations/{subjectType}/custom-fields/{fieldID}/bounds [put]
+func (h *OnePagerConfigurationHandlers) SetNumberFieldBounds(w http.ResponseWriter, r *http.Request) {
+	handleConfigurationWrite(h, w, r, setNumberFieldBoundsWrite)
 }

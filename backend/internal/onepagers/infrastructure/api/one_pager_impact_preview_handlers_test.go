@@ -19,12 +19,12 @@ type fakeImpactPreviewReader struct {
 	preview        *queries.ImpactPreview
 	err            error
 	gotSubjectType valueobjects.SubjectType
-	gotFieldID     string
+	gotField       queries.PreviewField
 }
 
-func (f *fakeImpactPreviewReader) Preview(_ context.Context, subjectType valueobjects.SubjectType, fieldID string) (*queries.ImpactPreview, error) {
+func (f *fakeImpactPreviewReader) Preview(_ context.Context, subjectType valueobjects.SubjectType, field queries.PreviewField) (*queries.ImpactPreview, error) {
 	f.gotSubjectType = subjectType
-	f.gotFieldID = fieldID
+	f.gotField = field
 	return f.preview, f.err
 }
 
@@ -55,12 +55,22 @@ func TestGetImpactPreview_ExistingFieldReturns200(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	assert.Equal(t, "application", reader.gotSubjectType.Value())
-	assert.Equal(t, "contract-link", reader.gotFieldID)
+	assert.Equal(t, queries.PreviewField{Kind: "custom", ID: "contract-link"}, reader.gotField)
 
 	dto := decodeImpactPreviewDTO(t, rec)
 	assert.Equal(t, "application", dto.SubjectType)
 	assert.Equal(t, "contract-link", dto.FieldID)
 	assert.Equal(t, 37, dto.AffectedSubjectCount)
+}
+
+func TestGetImpactPreview_BuiltInFieldRoutesThroughKind(t *testing.T) {
+	reader := &fakeImpactPreviewReader{preview: &queries.ImpactPreview{SubjectType: "application", FieldID: "experts", AffectedSubjectCount: 40}}
+
+	rec := performImpactPreview(t, reader, "application", "?fieldId=experts&fieldKind=builtIn")
+
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	assert.Equal(t, queries.PreviewField{Kind: "builtIn", ID: "experts"}, reader.gotField)
+	assert.Equal(t, 40, decodeImpactPreviewDTO(t, rec).AffectedSubjectCount)
 }
 
 func TestGetImpactPreview_NewFieldOmitsFieldIDParam(t *testing.T) {
@@ -69,7 +79,7 @@ func TestGetImpactPreview_NewFieldOmitsFieldIDParam(t *testing.T) {
 	rec := performImpactPreview(t, reader, "vendor", "")
 
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	assert.Equal(t, "", reader.gotFieldID)
+	assert.Equal(t, queries.PreviewField{Kind: "custom", ID: ""}, reader.gotField)
 	assert.Equal(t, 120, decodeImpactPreviewDTO(t, rec).AffectedSubjectCount)
 }
 

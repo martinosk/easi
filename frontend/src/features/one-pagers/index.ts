@@ -1,5 +1,4 @@
 export { OnePagerActionButton } from './components/OnePagerActionButton';
-export { OnePagerFactsSection } from './components/OnePagerFactsSection';
 export { OnePagerIncompleteIndicator } from './components/OnePagerIncompleteIndicator';
 export { OnePagersSettings } from './components/OnePagersSettings';
 export { OnePagersRouter } from './OnePagersRouter';

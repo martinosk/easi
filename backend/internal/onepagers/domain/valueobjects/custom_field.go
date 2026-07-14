@@ -10,6 +10,8 @@ var (
 	ErrOptionNotFound          = errors.New("option not found on this field")
 	ErrOptionAlreadyRetired    = errors.New("option is already retired")
 	ErrLastActiveOption        = errors.New("cannot retire the last active option of a selection field")
+	ErrBoundsNotAllowed        = errors.New("only number fields can define bounds")
+	ErrMinExceedsMax           = errors.New("minimum bound must not exceed maximum bound")
 )
 
 type CustomField struct {
@@ -20,6 +22,8 @@ type CustomField struct {
 	helpText HelpText
 	options  []SelectionOption
 	active   bool
+	min      *float64
+	max      *float64
 }
 
 type CustomFieldParams struct {
@@ -29,10 +33,15 @@ type CustomFieldParams struct {
 	Required bool
 	HelpText HelpText
 	Options  []SelectionOption
+	Min      *float64
+	Max      *float64
 }
 
 func NewCustomField(params CustomFieldParams) (CustomField, error) {
 	if err := validateOptions(params.Type, params.Options); err != nil {
+		return CustomField{}, err
+	}
+	if err := validateBounds(params.Type, params.Min, params.Max); err != nil {
 		return CustomField{}, err
 	}
 	return CustomField{
@@ -43,7 +52,41 @@ func NewCustomField(params CustomFieldParams) (CustomField, error) {
 		helpText: params.HelpText,
 		options:  copyOptions(params.Options),
 		active:   true,
+		min:      copyFloatPtr(params.Min),
+		max:      copyFloatPtr(params.Max),
 	}, nil
+}
+
+func validateBounds(fieldType FieldType, min, max *float64) error {
+	if !fieldType.IsNumber() {
+		if hasAnyBound(min, max) {
+			return ErrBoundsNotAllowed
+		}
+		return nil
+	}
+	if minExceedsMax(min, max) {
+		return ErrMinExceedsMax
+	}
+	return nil
+}
+
+func hasAnyBound(min, max *float64) bool {
+	return min != nil || max != nil
+}
+
+func minExceedsMax(min, max *float64) bool {
+	if min == nil || max == nil {
+		return false
+	}
+	return *min > *max
+}
+
+func copyFloatPtr(v *float64) *float64 {
+	if v == nil {
+		return nil
+	}
+	copied := *v
+	return &copied
 }
 
 func validateOptions(fieldType FieldType, options []SelectionOption) error {
@@ -115,6 +158,14 @@ func (c CustomField) IsActive() bool {
 	return c.active
 }
 
+func (c CustomField) Min() *float64 {
+	return copyFloatPtr(c.min)
+}
+
+func (c CustomField) Max() *float64 {
+	return copyFloatPtr(c.max)
+}
+
 func (c CustomField) Renamed(name FieldName, helpText HelpText) CustomField {
 	c.name = name
 	c.helpText = helpText
@@ -124,6 +175,15 @@ func (c CustomField) Renamed(name FieldName, helpText HelpText) CustomField {
 func (c CustomField) WithRequirement(required bool) CustomField {
 	c.required = required
 	return c.withCopiedOptions()
+}
+
+func (c CustomField) WithBounds(min, max *float64) (CustomField, error) {
+	if err := validateBounds(c.dataType, min, max); err != nil {
+		return CustomField{}, err
+	}
+	c.min = copyFloatPtr(min)
+	c.max = copyFloatPtr(max)
+	return c.withCopiedOptions(), nil
 }
 
 func (c CustomField) Retired() CustomField {

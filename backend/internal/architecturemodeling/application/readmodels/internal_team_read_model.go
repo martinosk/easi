@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/lib/pq"
+
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/types"
@@ -98,6 +100,12 @@ func (rm *InternalTeamReadModel) MarkAsDeleted(ctx context.Context, id string, d
 	return err
 }
 
+const (
+	internalTeamColumns = "id, name, department, contact_person, notes, created_at, updated_at"
+	internalTeamSelect  = "SELECT " + internalTeamColumns + " FROM architecturemodeling.internal_teams WHERE tenant_id = $1 AND is_deleted = FALSE"
+	internalTeamOrder   = " ORDER BY LOWER(name) ASC"
+)
+
 func (rm *InternalTeamReadModel) GetByID(ctx context.Context, id string) (*InternalTeamDTO, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
@@ -109,7 +117,7 @@ func (rm *InternalTeamReadModel) GetByID(ctx context.Context, id string) (*Inter
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		err := tx.QueryRowContext(ctx,
-			"SELECT id, name, department, contact_person, notes, created_at, updated_at FROM architecturemodeling.internal_teams WHERE tenant_id = $1 AND id = $2 AND is_deleted = FALSE",
+			internalTeamSelect+" AND id = $2",
 			tenantID.Value(), id,
 		).Scan(&dto.ID, &dto.Name, &dto.Department, &dto.ContactPerson, &dto.Notes, &dto.CreatedAt, &dto.UpdatedAt)
 
@@ -152,13 +160,46 @@ func (rm *InternalTeamReadModel) GetAll(ctx context.Context) ([]InternalTeamDTO,
 	if err != nil {
 		return nil, err
 	}
+	return rm.queryInternalTeams(ctx, internalTeamSelect+internalTeamOrder, tenantID.Value())
+}
 
+func (rm *InternalTeamReadModel) GetByIDs(ctx context.Context, ids []string) ([]InternalTeamDTO, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return rm.queryInternalTeams(ctx, internalTeamSelect+" AND id = ANY($2)"+internalTeamOrder, tenantID.Value(), pq.Array(ids))
+}
+
+func (rm *InternalTeamReadModel) GetAllPaginated(ctx context.Context, limit int, afterCursor string, afterName string) ([]InternalTeamDTO, bool, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+
+	queryLimit := limit + 1
+	query, args := internalTeamPageQuery(tenantID.Value(), queryLimit, afterCursor, afterName)
+
+	teams, err := rm.queryInternalTeams(ctx, query, args...)
+	if err != nil {
+		return nil, false, err
+	}
+
+	hasMore := len(teams) > limit
+	if hasMore {
+		teams = teams[:limit]
+	}
+
+	return teams, hasMore, nil
+}
+
+func (rm *InternalTeamReadModel) queryInternalTeams(ctx context.Context, query string, args ...any) ([]InternalTeamDTO, error) {
 	teams := make([]InternalTeamDTO, 0)
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		rows, err := tx.QueryContext(ctx,
-			"SELECT id, name, department, contact_person, notes, created_at, updated_at FROM architecturemodeling.internal_teams WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC",
-			tenantID.Value(),
-		)
+	err := rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx, query, args...)
 		if err != nil {
 			return err
 		}
@@ -178,53 +219,11 @@ func (rm *InternalTeamReadModel) GetAll(ctx context.Context) ([]InternalTeamDTO,
 	return teams, err
 }
 
-func (rm *InternalTeamReadModel) GetAllPaginated(ctx context.Context, limit int, afterCursor string, afterName string) ([]InternalTeamDTO, bool, error) {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return nil, false, err
-	}
-
-	queryLimit := limit + 1
-	teams := make([]InternalTeamDTO, 0)
-	query, args := internalTeamPageQuery(tenantID.Value(), queryLimit, afterCursor, afterName)
-
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		rows, err := tx.QueryContext(ctx, query, args...)
-		if err != nil {
-			return err
-		}
-		defer func() { _ = rows.Close() }()
-
-		for rows.Next() {
-			var dto InternalTeamDTO
-			if err := rows.Scan(&dto.ID, &dto.Name, &dto.Department, &dto.ContactPerson, &dto.Notes, &dto.CreatedAt, &dto.UpdatedAt); err != nil {
-				return err
-			}
-			teams = append(teams, dto)
-		}
-
-		return rows.Err()
-	})
-
-	if err != nil {
-		return nil, false, err
-	}
-
-	hasMore := len(teams) > limit
-	if hasMore {
-		teams = teams[:limit]
-	}
-
-	return teams, hasMore, nil
-}
-
 func internalTeamPageQuery(tenantID string, queryLimit int, afterCursor, afterName string) (string, []any) {
-	const selectCols = "id, name, department, contact_person, notes, created_at, updated_at"
-	const base = "SELECT " + selectCols + " FROM architecturemodeling.internal_teams WHERE tenant_id = $1 AND is_deleted = FALSE"
-	const order = " ORDER BY LOWER(name) ASC, id ASC"
+	const order = internalTeamOrder + ", id ASC"
 	if afterCursor == "" {
-		return base + order + " LIMIT $2", []any{tenantID, queryLimit}
+		return internalTeamSelect + order + " LIMIT $2", []any{tenantID, queryLimit}
 	}
-	return base + " AND (LOWER(name) > LOWER($2) OR (LOWER(name) = LOWER($2) AND id > $3))" + order + " LIMIT $4",
+	return internalTeamSelect + " AND (LOWER(name) > LOWER($2) OR (LOWER(name) = LOWER($2) AND id > $3))" + order + " LIMIT $4",
 		[]any{tenantID, afterName, afterCursor, queryLimit}
 }

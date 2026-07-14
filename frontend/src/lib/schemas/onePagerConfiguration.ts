@@ -37,6 +37,14 @@ function validateSelectionOptions(options: string[], ctx: z.RefinementCtx): void
   }
 }
 
+const numberFieldBoundSchema = z.union([z.literal(''), z.number()]);
+
+function validateNumberBounds(min: number | '', max: number | '', ctx: z.RefinementCtx): void {
+  if (typeof min === 'number' && typeof max === 'number' && min > max) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Minimum must not exceed maximum', path: ['max'] });
+  }
+}
+
 export const defineCustomFieldSchema = z
   .object({
     name: onePagerFieldNameSchema,
@@ -44,12 +52,24 @@ export const defineCustomFieldSchema = z
     required: z.boolean(),
     helpText: onePagerHelpTextSchema,
     options: z.array(onePagerOptionLabelSchema),
+    min: numberFieldBoundSchema,
+    max: numberFieldBoundSchema,
   })
   .superRefine((data, ctx) => {
     if (data.fieldType === 'selection') validateSelectionOptions(data.options, ctx);
+    if (data.fieldType === 'number') validateNumberBounds(data.min, data.max, ctx);
   });
 
 export type DefineCustomFieldFormData = z.infer<typeof defineCustomFieldSchema>;
+
+export const numberFieldBoundsSchema = z
+  .object({
+    min: numberFieldBoundSchema,
+    max: numberFieldBoundSchema,
+  })
+  .superRefine((data, ctx) => validateNumberBounds(data.min, data.max, ctx));
+
+export type NumberFieldBoundsFormData = z.infer<typeof numberFieldBoundsSchema>;
 
 export const renameCustomFieldSchema = z.object({
   name: onePagerFieldNameSchema,

@@ -14,6 +14,7 @@ import (
 	"easi/backend/internal/onepagers/application/handlers"
 	"easi/backend/internal/onepagers/application/readmodels"
 	"easi/backend/internal/onepagers/domain/aggregates"
+	"easi/backend/internal/onepagers/domain/valueobjects"
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
@@ -436,6 +437,20 @@ func TestWriteEndpoints_DispatchBuiltInFieldCommands(t *testing.T) {
 			},
 			status: http.StatusOK,
 		},
+		{
+			name:   "change built-in requirement",
+			invoke: (*OnePagerConfigurationHandlers).ChangeBuiltInFieldRequirement,
+			method: http.MethodPut, path: "/built-in-fields/experts/requirement",
+			params: map[string]string{"entryID": "experts"},
+			body:   map[string]any{"required": true, "version": 4},
+			expected: func(t *testing.T, cmd cqrs.Command) {
+				c, ok := cmd.(*commands.ChangeBuiltInFieldRequirement)
+				require.True(t, ok)
+				assert.Equal(t, "experts", c.EntryID)
+				assert.True(t, c.Required)
+			},
+			status: http.StatusOK,
+		},
 	})
 }
 
@@ -468,6 +483,78 @@ func TestWriteEndpoints_DispatchSelectionOptionCommands(t *testing.T) {
 			status: http.StatusOK,
 		},
 	})
+}
+
+func TestSetNumberFieldBounds_DispatchesCommandAndReturns200(t *testing.T) {
+	reader := newFakeReader(applicationRecord())
+	bus := &fakeCommandBus{}
+	h := newHandlers(reader, bus)
+
+	numberFieldID := "9f0d5e69-0000-0000-0000-000000000004"
+	rec, req := requestFor(t, requestSpec{
+		method:      http.MethodPut,
+		path:        "/one-pagers/configurations/application/custom-fields/" + numberFieldID + "/bounds",
+		body:        map[string]any{"min": float64(0), "max": float64(5), "version": 4},
+		subjectType: "application",
+		params:      map[string]string{"fieldID": numberFieldID},
+		actor:       adminActor(),
+	})
+	h.SetNumberFieldBounds(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Len(t, bus.dispatched, 1)
+	cmd, ok := bus.dispatched[0].(*commands.SetNumberFieldBounds)
+	require.True(t, ok)
+	assert.Equal(t, numberFieldID, cmd.FieldID)
+	require.NotNil(t, cmd.Min)
+	assert.Equal(t, 0.0, *cmd.Min)
+	require.NotNil(t, cmd.Max)
+	assert.Equal(t, 5.0, *cmd.Max)
+}
+
+func TestSetNumberFieldBounds_OmittedBoundsAreNil(t *testing.T) {
+	reader := newFakeReader(applicationRecord())
+	bus := &fakeCommandBus{}
+	h := newHandlers(reader, bus)
+
+	numberFieldID := "9f0d5e69-0000-0000-0000-000000000004"
+	rec, req := requestFor(t, requestSpec{
+		method:      http.MethodPut,
+		path:        "/one-pagers/configurations/application/custom-fields/" + numberFieldID + "/bounds",
+		body:        map[string]any{"version": 4},
+		subjectType: "application",
+		params:      map[string]string{"fieldID": numberFieldID},
+		actor:       adminActor(),
+	})
+	h.SetNumberFieldBounds(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Len(t, bus.dispatched, 1)
+	cmd, ok := bus.dispatched[0].(*commands.SetNumberFieldBounds)
+	require.True(t, ok)
+	assert.Nil(t, cmd.Min)
+	assert.Nil(t, cmd.Max)
+}
+
+func TestSetNumberFieldBounds_DomainConflictMapsTo409(t *testing.T) {
+	reader := newFakeReader(applicationRecord())
+	bus := &fakeCommandBus{onDispatch: func(cqrs.Command) (cqrs.CommandResult, error) {
+		return cqrs.EmptyResult(), valueobjects.ErrMinExceedsMax
+	}}
+	h := newHandlers(reader, bus)
+
+	numberFieldID := "9f0d5e69-0000-0000-0000-000000000004"
+	rec, req := requestFor(t, requestSpec{
+		method:      http.MethodPut,
+		path:        "/one-pagers/configurations/application/custom-fields/" + numberFieldID + "/bounds",
+		body:        map[string]any{"min": float64(10), "max": float64(5), "version": 4},
+		subjectType: "application",
+		params:      map[string]string{"fieldID": numberFieldID},
+		actor:       adminActor(),
+	})
+	h.SetNumberFieldBounds(rec, req)
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
 }
 
 func TestWriteEndpoint_UnauthenticatedIs401(t *testing.T) {

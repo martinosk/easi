@@ -108,6 +108,10 @@ func orderRefIDs(config *OnePagerConfiguration) []string {
 	return ids
 }
 
+func floatPtr(v float64) *float64 {
+	return &v
+}
+
 func lastEvent(t *testing.T, config *OnePagerConfiguration) domain.DomainEvent {
 	t.Helper()
 	changes := config.GetUncommittedChanges()
@@ -472,6 +476,69 @@ func TestIncludeBuiltInField_RejectsLabelCollisionWithActiveCustomField(t *testi
 	assert.ErrorIs(t, err, ErrDuplicateFieldName)
 }
 
+func TestChangeBuiltInFieldRequirement_RecordsFlagOnIncludedBuiltIn(t *testing.T) {
+	config := newCommittedApplicationConfig(t)
+	config.MarkChangesAsCommitted()
+
+	err := config.ChangeBuiltInFieldRequirement("experts", true, adminEmail(t))
+
+	require.NoError(t, err)
+	assert.True(t, config.IsBuiltInRequired("experts"))
+
+	changed, ok := lastEvent(t, config).(events.BuiltInFieldRequirementChanged)
+	require.True(t, ok)
+	assert.Equal(t, "experts", changed.EntryID)
+	assert.True(t, changed.Required)
+}
+
+func TestChangeBuiltInFieldRequirement_RejectsExcludedBuiltIn(t *testing.T) {
+	config := newCommittedApplicationConfig(t)
+	require.NoError(t, config.ExcludeBuiltInField("experts", adminEmail(t)))
+
+	err := config.ChangeBuiltInFieldRequirement("experts", true, adminEmail(t))
+
+	assert.ErrorIs(t, err, ErrBuiltInFieldNotIncluded)
+}
+
+func TestChangeBuiltInFieldRequirement_RejectsUnknownCatalogEntry(t *testing.T) {
+	config := newCommittedApplicationConfig(t)
+
+	err := config.ChangeBuiltInFieldRequirement("maturity", true, adminEmail(t))
+
+	assert.ErrorIs(t, err, ErrUnknownBuiltInField)
+}
+
+func TestChangeBuiltInFieldRequirement_ReplaysFromHistory(t *testing.T) {
+	config := newCommittedApplicationConfig(t)
+	require.NoError(t, config.ChangeBuiltInFieldRequirement("experts", true, adminEmail(t)))
+
+	created := events.NewOnePagerConfigurationCreated(events.CreateConfigurationParams{
+		ID:          config.ID(),
+		TenantID:    "tenant-123",
+		SubjectType: "application",
+		BuiltIns:    []string{"name", "description", "experts"},
+		CreatedBy:   "admin@example.com",
+	})
+	history := append([]domain.DomainEvent{created}, config.GetUncommittedChanges()...)
+
+	replayed, err := LoadOnePagerConfigurationFromHistory(history)
+
+	require.NoError(t, err)
+	assert.True(t, replayed.IsBuiltInRequired("experts"))
+	assert.False(t, replayed.IsBuiltInRequired("description"))
+}
+
+func TestChangeBuiltInFieldRequirement_ExcludeRetainsFlagDormantAndReincludeRestores(t *testing.T) {
+	config := newCommittedApplicationConfig(t)
+	require.NoError(t, config.ChangeBuiltInFieldRequirement("experts", true, adminEmail(t)))
+
+	require.NoError(t, config.ExcludeBuiltInField("experts", adminEmail(t)))
+	assert.True(t, config.IsBuiltInRequired("experts"), "excluding retains the required flag dormant")
+
+	require.NoError(t, config.IncludeBuiltInField("experts", adminEmail(t)))
+	assert.True(t, config.IsBuiltInRequired("experts"), "re-including restores the prior required flag")
+}
+
 func TestReorderFields_InterleavesBuiltInAndCustomFields(t *testing.T) {
 	config := newCommittedApplicationConfig(t)
 	fieldID := defineField(t, config, "Contract link", "link")
@@ -585,6 +652,91 @@ func TestRetireSelectionOption_RejectsLastActiveOption(t *testing.T) {
 	assert.ErrorIs(t, err, valueobjects.ErrLastActiveOption)
 }
 
+func TestSetNumberFieldBounds_UpdatesBoundsAndPreservesIdentity(t *testing.T) {
+	config := newCommittedApplicationConfig(t)
+	fieldID := defineField(t, config, "Maturity score", "number")
+	config.MarkChangesAsCommitted()
+
+	err := config.SetNumberFieldBounds(fieldID, floatPtr(0), floatPtr(5), adminEmail(t))
+
+	require.NoError(t, err)
+	field := customFieldByID(t, config, fieldID)
+	assert.Equal(t, floatPtr(0), field.Min())
+	assert.Equal(t, floatPtr(5), field.Max())
+	assert.Equal(t, "number", field.Type().Value())
+	assert.False(t, field.IsRequired())
+
+	changed, ok := lastEvent(t, config).(events.NumberFieldBoundsChanged)
+	require.True(t, ok)
+	assert.Equal(t, fieldID.Value(), changed.FieldID)
+	assert.Equal(t, floatPtr(0), changed.Min)
+	assert.Equal(t, floatPtr(5), changed.Max)
+}
+
+func TestSetNumberFieldBounds_CanClearABound(t *testing.T) {
+	config := newCommittedApplicationConfig(t)
+	fieldID := defineField(t, config, "Headcount", "number")
+	require.NoError(t, config.SetNumberFieldBounds(fieldID, floatPtr(0), floatPtr(500), adminEmail(t)))
+
+	err := config.SetNumberFieldBounds(fieldID, floatPtr(0), nil, adminEmail(t))
+
+	require.NoError(t, err)
+	field := customFieldByID(t, config, fieldID)
+	assert.Equal(t, floatPtr(0), field.Min())
+	assert.Nil(t, field.Max())
+}
+
+func TestSetNumberFieldBounds_DoesNotAppendFactsEvent(t *testing.T) {
+	config := newCommittedApplicationConfig(t)
+	fieldID := defineField(t, config, "Maturity score", "number")
+	config.MarkChangesAsCommitted()
+
+	require.NoError(t, config.SetNumberFieldBounds(fieldID, floatPtr(0), floatPtr(3), adminEmail(t)))
+
+	changes := config.GetUncommittedChanges()
+	require.Len(t, changes, 1)
+	assert.Equal(t, "NumberFieldBoundsChanged", changes[0].EventType())
+}
+
+func TestSetNumberFieldBounds_RejectsMinimumGreaterThanMaximum(t *testing.T) {
+	config := newCommittedApplicationConfig(t)
+	fieldID := defineField(t, config, "Maturity score", "number")
+	config.MarkChangesAsCommitted()
+
+	err := config.SetNumberFieldBounds(fieldID, floatPtr(10), floatPtr(5), adminEmail(t))
+
+	assert.ErrorIs(t, err, valueobjects.ErrMinExceedsMax)
+	assert.Empty(t, config.GetUncommittedChanges())
+	assert.Nil(t, customFieldByID(t, config, fieldID).Min())
+}
+
+func TestSetNumberFieldBounds_RejectsNonNumberField(t *testing.T) {
+	config := newCommittedApplicationConfig(t)
+	fieldID := defineField(t, config, "Business summary", "text")
+
+	err := config.SetNumberFieldBounds(fieldID, floatPtr(0), floatPtr(5), adminEmail(t))
+
+	assert.ErrorIs(t, err, valueobjects.ErrBoundsNotAllowed)
+}
+
+func TestSetNumberFieldBounds_RejectsRetiredField(t *testing.T) {
+	config := newCommittedApplicationConfig(t)
+	fieldID := defineField(t, config, "Maturity score", "number")
+	require.NoError(t, config.RetireCustomField(fieldID, adminEmail(t)))
+
+	err := config.SetNumberFieldBounds(fieldID, floatPtr(0), floatPtr(5), adminEmail(t))
+
+	assert.ErrorIs(t, err, ErrFieldRetired)
+}
+
+func TestSetNumberFieldBounds_RejectsUnknownField(t *testing.T) {
+	config := newCommittedApplicationConfig(t)
+
+	err := config.SetNumberFieldBounds(valueobjects.NewFieldID(), floatPtr(0), floatPtr(5), adminEmail(t))
+
+	assert.ErrorIs(t, err, ErrFieldNotFound)
+}
+
 func TestCommandsOnUnknownField_ReturnFieldNotFound(t *testing.T) {
 	config := newCommittedApplicationConfig(t)
 	unknown := valueobjects.NewFieldID()
@@ -612,6 +764,8 @@ func TestReplay_ReconstructsFullConfiguration(t *testing.T) {
 		HelpText: helpText(t, "Signed contract"),
 	}, adminEmail(t)))
 	require.NoError(t, config.ChangeCustomFieldRequirement(contractID, true, adminEmail(t)))
+	maturityID := defineField(t, config, "Maturity score", "number")
+	require.NoError(t, config.SetNumberFieldBounds(maturityID, floatPtr(0), floatPtr(5), adminEmail(t)))
 	require.NoError(t, config.ExcludeBuiltInField("experts", adminEmail(t)))
 	require.NoError(t, config.IncludeBuiltInField("experts", adminEmail(t)))
 	_, err := config.AddSelectionOption(hostingID, optionLabels(t, "Hybrid")[0], adminEmail(t))
@@ -629,6 +783,7 @@ func TestReplay_ReconstructsFullConfiguration(t *testing.T) {
 		nameRef,
 		valueobjects.NewCustomFieldRef(contractID),
 		descriptionRef,
+		valueobjects.NewCustomFieldRef(maturityID),
 		expertsRef,
 	}, adminEmail(t)))
 
@@ -660,5 +815,7 @@ func TestReplay_ReconstructsFullConfiguration(t *testing.T) {
 		assert.Equal(t, originalFields[i].IsActive(), replayedFields[i].IsActive())
 		assert.Equal(t, originalFields[i].HelpText().Value(), replayedFields[i].HelpText().Value())
 		assert.Equal(t, originalFields[i].Options(), replayedFields[i].Options())
+		assert.Equal(t, originalFields[i].Min(), replayedFields[i].Min())
+		assert.Equal(t, originalFields[i].Max(), replayedFields[i].Max())
 	}
 }

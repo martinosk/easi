@@ -8,7 +8,10 @@ import (
 
 var ErrInvalidFieldType = errors.New("invalid field type")
 
-const fieldTypeSelection = "selection"
+const (
+	fieldTypeSelection = "selection"
+	fieldTypeNumber    = "number"
+)
 
 type FieldType struct {
 	value string
@@ -38,6 +41,10 @@ func (f FieldType) Value() string {
 
 func (f FieldType) IsSelection() bool {
 	return f.value == fieldTypeSelection
+}
+
+func (f FieldType) IsNumber() bool {
+	return f.value == fieldTypeNumber
 }
 
 func (f FieldType) Equals(other domain.ValueObject) bool {

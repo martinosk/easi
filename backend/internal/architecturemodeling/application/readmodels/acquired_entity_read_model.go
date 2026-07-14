@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/lib/pq"
+
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/types"
@@ -98,6 +100,12 @@ func (rm *AcquiredEntityReadModel) MarkAsDeleted(ctx context.Context, id string,
 	return err
 }
 
+const (
+	acquiredEntityColumns = "id, name, acquisition_date, integration_status, notes, created_at, updated_at"
+	acquiredEntitySelect  = "SELECT " + acquiredEntityColumns + " FROM architecturemodeling.acquired_entities WHERE tenant_id = $1 AND is_deleted = FALSE"
+	acquiredEntityOrder   = " ORDER BY LOWER(name) ASC"
+)
+
 func (rm *AcquiredEntityReadModel) GetByID(ctx context.Context, id string) (*AcquiredEntityDTO, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
@@ -109,7 +117,7 @@ func (rm *AcquiredEntityReadModel) GetByID(ctx context.Context, id string) (*Acq
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		err := tx.QueryRowContext(ctx,
-			"SELECT id, name, acquisition_date, integration_status, notes, created_at, updated_at FROM architecturemodeling.acquired_entities WHERE tenant_id = $1 AND id = $2 AND is_deleted = FALSE",
+			acquiredEntitySelect+" AND id = $2",
 			tenantID.Value(), id,
 		).Scan(&dto.ID, &dto.Name, &dto.AcquisitionDate, &dto.IntegrationStatus, &dto.Notes, &dto.CreatedAt, &dto.UpdatedAt)
 
@@ -152,13 +160,46 @@ func (rm *AcquiredEntityReadModel) GetAll(ctx context.Context) ([]AcquiredEntity
 	if err != nil {
 		return nil, err
 	}
+	return rm.queryAcquiredEntities(ctx, acquiredEntitySelect+acquiredEntityOrder, tenantID.Value())
+}
 
+func (rm *AcquiredEntityReadModel) GetByIDs(ctx context.Context, ids []string) ([]AcquiredEntityDTO, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return rm.queryAcquiredEntities(ctx, acquiredEntitySelect+" AND id = ANY($2)"+acquiredEntityOrder, tenantID.Value(), pq.Array(ids))
+}
+
+func (rm *AcquiredEntityReadModel) GetAllPaginated(ctx context.Context, limit int, afterCursor string, afterName string) ([]AcquiredEntityDTO, bool, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+
+	queryLimit := limit + 1
+	query, args := acquiredEntityPageQuery(tenantID.Value(), queryLimit, afterCursor, afterName)
+
+	entities, err := rm.queryAcquiredEntities(ctx, query, args...)
+	if err != nil {
+		return nil, false, err
+	}
+
+	hasMore := len(entities) > limit
+	if hasMore {
+		entities = entities[:limit]
+	}
+
+	return entities, hasMore, nil
+}
+
+func (rm *AcquiredEntityReadModel) queryAcquiredEntities(ctx context.Context, query string, args ...any) ([]AcquiredEntityDTO, error) {
 	entities := make([]AcquiredEntityDTO, 0)
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		rows, err := tx.QueryContext(ctx,
-			"SELECT id, name, acquisition_date, integration_status, notes, created_at, updated_at FROM architecturemodeling.acquired_entities WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC",
-			tenantID.Value(),
-		)
+	err := rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx, query, args...)
 		if err != nil {
 			return err
 		}
@@ -178,53 +219,11 @@ func (rm *AcquiredEntityReadModel) GetAll(ctx context.Context) ([]AcquiredEntity
 	return entities, err
 }
 
-func (rm *AcquiredEntityReadModel) GetAllPaginated(ctx context.Context, limit int, afterCursor string, afterName string) ([]AcquiredEntityDTO, bool, error) {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return nil, false, err
-	}
-
-	queryLimit := limit + 1
-	entities := make([]AcquiredEntityDTO, 0)
-	query, args := acquiredEntityPageQuery(tenantID.Value(), queryLimit, afterCursor, afterName)
-
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		rows, err := tx.QueryContext(ctx, query, args...)
-		if err != nil {
-			return err
-		}
-		defer func() { _ = rows.Close() }()
-
-		for rows.Next() {
-			var dto AcquiredEntityDTO
-			if err := rows.Scan(&dto.ID, &dto.Name, &dto.AcquisitionDate, &dto.IntegrationStatus, &dto.Notes, &dto.CreatedAt, &dto.UpdatedAt); err != nil {
-				return err
-			}
-			entities = append(entities, dto)
-		}
-
-		return rows.Err()
-	})
-
-	if err != nil {
-		return nil, false, err
-	}
-
-	hasMore := len(entities) > limit
-	if hasMore {
-		entities = entities[:limit]
-	}
-
-	return entities, hasMore, nil
-}
-
 func acquiredEntityPageQuery(tenantID string, queryLimit int, afterCursor, afterName string) (string, []any) {
-	const selectCols = "id, name, acquisition_date, integration_status, notes, created_at, updated_at"
-	const base = "SELECT " + selectCols + " FROM architecturemodeling.acquired_entities WHERE tenant_id = $1 AND is_deleted = FALSE"
-	const order = " ORDER BY LOWER(name) ASC, id ASC"
+	const order = acquiredEntityOrder + ", id ASC"
 	if afterCursor == "" {
-		return base + order + " LIMIT $2", []any{tenantID, queryLimit}
+		return acquiredEntitySelect + order + " LIMIT $2", []any{tenantID, queryLimit}
 	}
-	return base + " AND (LOWER(name) > LOWER($2) OR (LOWER(name) = LOWER($2) AND id > $3))" + order + " LIMIT $4",
+	return acquiredEntitySelect + " AND (LOWER(name) > LOWER($2) OR (LOWER(name) = LOWER($2) AND id > $3))" + order + " LIMIT $4",
 		[]any{tenantID, afterName, afterCursor, queryLimit}
 }

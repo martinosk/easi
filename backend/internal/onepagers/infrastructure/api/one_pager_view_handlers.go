@@ -7,6 +7,7 @@ import (
 	"easi/backend/internal/onepagers/application/queries"
 	"easi/backend/internal/onepagers/domain/valueobjects"
 	sharedAPI "easi/backend/internal/shared/api"
+	sharedctx "easi/backend/internal/shared/context"
 )
 
 type onePagerReader interface {
@@ -24,7 +25,7 @@ func NewOnePagerViewHandlers(query onePagerReader, links *OnePagerLinks) *OnePag
 
 // GetOnePager godoc
 // @Summary Get the composed one-pager for a subject
-// @Description Assembles the tenant's one-pager configuration, the subject's recorded field values, and built-in field data sourced from the owning context into a single field list in the configured interleaved display order, alongside a completeness summary of the active required custom fields.
+// @Description Assembles the tenant's one-pager configuration, the subject's recorded field values, and built-in field data sourced from the owning context into a single field list in the configured interleaved display order, alongside a completeness summary of the active required custom fields. Carries an x-record link precisely when the requesting actor holds the subject's write permission.
 // @Tags one-pagers
 // @Produce json
 // @Param subjectType path string true "Subject type" Enums(capability, enterprise-capability, application, acquired-entity, vendor, internal-team)
@@ -47,6 +48,7 @@ func (h *OnePagerViewHandlers) GetOnePager(subjectType valueobjects.SubjectType)
 			sharedAPI.HandleError(w, err)
 			return
 		}
-		sharedAPI.RespondJSON(w, http.StatusOK, BuildOnePagerDTO(onePager, h.links))
+		actor, _ := sharedctx.GetActor(r.Context())
+		sharedAPI.RespondJSON(w, http.StatusOK, BuildOnePagerDTO(onePager, h.links, actor))
 	}
 }

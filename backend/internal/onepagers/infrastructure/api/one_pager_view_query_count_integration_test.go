@@ -124,16 +124,14 @@ func (s countingStmt) Query(args []driver.Value) (driver.Rows, error) {
 }
 
 type capabilityBuiltInSource struct {
-	readModel *capReadModels.CapabilityReadModel
+	readModel    *capReadModels.CapabilityReadModel
+	realizations *capReadModels.RealizationReadModel
+	dependencies *capReadModels.DependencyReadModel
 }
 
-func (s capabilityBuiltInSource) FetchSubject(ctx context.Context, subjectID string) (*ports.SubjectSnapshot, error) {
-	dto, err := s.readModel.GetByID(ctx, subjectID)
-	if err != nil {
-		return nil, err
-	}
+func capabilityBuiltInSnapshot(dto *capReadModels.CapabilityDTO) *ports.SubjectSnapshot {
 	if dto == nil {
-		return nil, nil
+		return nil
 	}
 	fields := map[string]ports.BuiltInFieldValue{
 		"name":     ports.TextValue{Text: dto.Name},
@@ -142,11 +140,123 @@ func (s capabilityBuiltInSource) FetchSubject(ctx context.Context, subjectID str
 	if dto.Description != "" {
 		fields["description"] = ports.TextValue{Text: dto.Description}
 	}
-	return &ports.SubjectSnapshot{Name: dto.Name, Fields: fields}, nil
+	return &ports.SubjectSnapshot{Name: dto.Name, Fields: fields}
+}
+
+func (s capabilityBuiltInSource) FetchSubject(ctx context.Context, subjectID string, includedEntryIDs []string) (*ports.SubjectSnapshot, error) {
+	dto, err := s.readModel.GetByID(ctx, subjectID)
+	if err != nil {
+		return nil, err
+	}
+	snapshot := capabilityBuiltInSnapshot(dto)
+	if snapshot == nil {
+		return nil, nil
+	}
+	for _, entryID := range includedEntryIDs {
+		value, resolved, err := s.resolveRelation(ctx, subjectID, entryID)
+		if err != nil {
+			return nil, err
+		}
+		if resolved {
+			snapshot.Fields[entryID] = value
+		}
+	}
+	return snapshot, nil
+}
+
+func (s capabilityBuiltInSource) resolveRelation(ctx context.Context, capabilityID, entryID string) (ports.ReferenceListValue, bool, error) {
+	switch entryID {
+	case "realizing-applications":
+		edges, err := s.realizations.GetByCapabilityID(ctx, capabilityID)
+		if err != nil {
+			return ports.ReferenceListValue{}, false, err
+		}
+		return referencesFrom(edges, func(e capReadModels.RealizationDTO) ports.Reference {
+			return ports.Reference{ID: e.ComponentID, Label: e.ComponentName, SubjectType: "application"}
+		}), true, nil
+	case "child-capabilities":
+		children, err := s.readModel.GetChildren(ctx, capabilityID)
+		if err != nil {
+			return ports.ReferenceListValue{}, false, err
+		}
+		return referencesFrom(children, func(c capReadModels.CapabilityDTO) ports.Reference {
+			return ports.Reference{ID: c.ID, Label: c.Name, SubjectType: "capability"}
+		}), true, nil
+	case "depends-on":
+		return s.dependencyReferences(ctx, capabilityID)
+	default:
+		return ports.ReferenceListValue{}, false, nil
+	}
+}
+
+func (s capabilityBuiltInSource) dependencyReferences(ctx context.Context, capabilityID string) (ports.ReferenceListValue, bool, error) {
+	edges, err := s.dependencies.GetOutgoing(ctx, capabilityID)
+	if err != nil {
+		return ports.ReferenceListValue{}, false, err
+	}
+	if len(edges) == 0 {
+		return ports.ReferenceListValue{}, true, nil
+	}
+	ids := make([]string, len(edges))
+	for i, edge := range edges {
+		ids[i] = edge.TargetCapabilityID
+	}
+	targets, err := s.readModel.GetByIDs(ctx, ids)
+	if err != nil {
+		return ports.ReferenceListValue{}, false, err
+	}
+	names := make(map[string]string, len(targets))
+	for i := range targets {
+		names[targets[i].ID] = targets[i].Name
+	}
+	references := make([]ports.Reference, len(ids))
+	for i, id := range ids {
+		references[i] = ports.Reference{ID: id, Label: names[id], SubjectType: "capability"}
+	}
+	return ports.ReferenceListValue{References: references}, true, nil
+}
+
+func referencesFrom[E any](edges []E, toReference func(E) ports.Reference) ports.ReferenceListValue {
+	references := make([]ports.Reference, len(edges))
+	for i, edge := range edges {
+		references[i] = toReference(edge)
+	}
+	return ports.ReferenceListValue{References: references}
 }
 
 func (s capabilityBuiltInSource) CountSubjects(ctx context.Context) (int, error) {
 	return s.readModel.Count(ctx)
+}
+
+func (s capabilityBuiltInSource) FilledBuiltInFields(ctx context.Context, subjectIDs, entryIDs []string) (map[string]map[string]bool, error) {
+	dtos, err := s.readModel.GetByIDs(ctx, subjectIDs)
+	if err != nil {
+		return nil, err
+	}
+	filled := make(map[string]map[string]bool, len(dtos))
+	for i := range dtos {
+		snapshot := capabilityBuiltInSnapshot(&dtos[i])
+		entries := make(map[string]bool, len(entryIDs))
+		for _, entryID := range entryIDs {
+			entries[entryID] = ports.ValueFilled(snapshot.Fields[entryID])
+		}
+		filled[dtos[i].ID] = entries
+	}
+	return filled, nil
+}
+
+func (s capabilityBuiltInSource) CountSubjectsWithBuiltInValue(ctx context.Context, entryID string) (int, error) {
+	dtos, err := s.readModel.GetAll(ctx)
+	if err != nil {
+		return 0, err
+	}
+	count := 0
+	for i := range dtos {
+		if ports.ValueFilled(capabilityBuiltInSnapshot(&dtos[i]).Fields[entryID]) {
+			count++
+		}
+	}
+	return count, nil
 }
 
 type queryCountMaturityScaleAdapter struct {
@@ -229,7 +339,11 @@ func setupQueryCountRouter(t *testing.T, tenantID string) *queryCountContext {
 		SessionProvider: &fakeSessionProvider{email: "actor@example.com"},
 		Subjects:        stubSubjectExistenceChecker{},
 		BuiltInFields: map[string]ports.BuiltInFieldSource{
-			"capability": capabilityBuiltInSource{readModel: capReadModels.NewCapabilityReadModel(tenantDB)},
+			"capability": capabilityBuiltInSource{
+				readModel:    capReadModels.NewCapabilityReadModel(tenantDB),
+				realizations: capReadModels.NewRealizationReadModel(tenantDB),
+				dependencies: capReadModels.NewDependencyReadModel(tenantDB),
+			},
 		},
 		MaturityScale: queryCountMaturityScaleAdapter{configurations: metaReadModels.NewMetaModelConfigurationReadModel(tenantDB)},
 	}))
@@ -237,6 +351,8 @@ func setupQueryCountRouter(t *testing.T, tenantID string) *queryCountContext {
 	t.Cleanup(func() {
 		_, _ = db.Exec("DELETE FROM onepagers.one_pager_facts WHERE tenant_id = $1", tenantID)
 		_, _ = db.Exec("DELETE FROM onepagers.one_pager_configurations WHERE tenant_id = $1", tenantID)
+		_, _ = db.Exec("DELETE FROM capabilitymapping.capability_dependencies WHERE tenant_id = $1", tenantID)
+		_, _ = db.Exec("DELETE FROM capabilitymapping.capability_realizations WHERE tenant_id = $1", tenantID)
 		_, _ = db.Exec("DELETE FROM capabilitymapping.capabilities WHERE tenant_id = $1", tenantID)
 		_ = db.Close()
 	})
@@ -334,4 +450,94 @@ func TestOnePagerView_ConstantQueryCount_Integration(t *testing.T) {
 
 	assert.Equal(t, minimalCount, manyFieldsCount, "query count must not grow with the number of configured fields")
 	assert.LessOrEqual(t, minimalCount, int64(15), "query count must stay within the documented sanity ceiling")
+}
+
+var relationBuiltInEntryIDs = []string{"maturity", "realizing-applications", "child-capabilities", "depends-on"}
+
+func (qc *queryCountContext) tenantContext(t *testing.T) context.Context {
+	t.Helper()
+	tid, err := sharedvo.NewTenantID(qc.tenantID)
+	require.NoError(t, err)
+	return sharedctx.WithTenant(context.Background(), tid)
+}
+
+func seedOnePagerRelationScenario(t *testing.T, qc *queryCountContext, relatedCount int) string {
+	t.Helper()
+	ctx := qc.tenantContext(t)
+
+	capabilityID := uuid.New().String()
+	require.NoError(t, capReadModels.NewCapabilityReadModel(qc.tenantDB).Insert(ctx, capReadModels.CapabilityDTO{
+		ID: capabilityID, Name: "Relation Capability", Level: "L1", CreatedAt: time.Now().UTC(),
+	}))
+
+	seedCapabilityRelations(t, qc, capabilityID, relatedCount)
+	seedRelationConfiguration(t, qc)
+	return capabilityID
+}
+
+func seedCapabilityRelations(t *testing.T, qc *queryCountContext, capabilityID string, relatedCount int) {
+	t.Helper()
+	ctx := qc.tenantContext(t)
+	capModel := capReadModels.NewCapabilityReadModel(qc.tenantDB)
+	realizationModel := capReadModels.NewRealizationReadModel(qc.tenantDB)
+	dependencyModel := capReadModels.NewDependencyReadModel(qc.tenantDB)
+	now := time.Now().UTC()
+
+	for i := 0; i < relatedCount; i++ {
+		require.NoError(t, capModel.Insert(ctx, capReadModels.CapabilityDTO{
+			ID: uuid.New().String(), Name: fmt.Sprintf("Child %d", i), ParentID: capabilityID, Level: "L2", CreatedAt: now,
+		}))
+		require.NoError(t, realizationModel.Insert(ctx, capReadModels.RealizationDTO{
+			ID: uuid.New().String(), CapabilityID: capabilityID, ComponentID: uuid.New().String(),
+			ComponentName: fmt.Sprintf("App %d", i), RealizationLevel: "Full", Origin: "Direct", LinkedAt: now,
+		}))
+		targetID := uuid.New().String()
+		require.NoError(t, capModel.Insert(ctx, capReadModels.CapabilityDTO{
+			ID: targetID, Name: fmt.Sprintf("Target %d", i), Level: "L1", CreatedAt: now,
+		}))
+		require.NoError(t, dependencyModel.Insert(ctx, capReadModels.DependencyDTO{
+			ID: uuid.New().String(), SourceCapabilityID: capabilityID, TargetCapabilityID: targetID,
+			DependencyType: "Requires", CreatedAt: now,
+		}))
+	}
+}
+
+func seedRelationConfiguration(t *testing.T, qc *queryCountContext) {
+	t.Helper()
+	displayOrder := make([]readmodels.FieldRefRecord, len(relationBuiltInEntryIDs))
+	for i, entryID := range relationBuiltInEntryIDs {
+		displayOrder[i] = readmodels.FieldRefRecord{Kind: "builtIn", ID: entryID}
+	}
+	now := time.Now().UTC()
+	require.NoError(t, readmodels.NewOnePagerConfigurationReadModel(qc.tenantDB).Insert(qc.tenantContext(t), readmodels.ConfigurationRecord{
+		ID:          uuid.New().String(),
+		TenantID:    qc.tenantID,
+		SubjectType: "capability",
+		Document:    readmodels.ConfigurationDocument{DisplayOrder: displayOrder},
+		Version:     1,
+		CreatedAt:   now,
+		ModifiedAt:  now,
+		ModifiedBy:  "test@example.com",
+	}))
+}
+
+func runOnePagerRelationQueryCountScenario(t *testing.T, relatedCount int) int64 {
+	t.Helper()
+	tenantID := "test-qc-" + uuid.New().String()
+	qc := setupQueryCountRouter(t, tenantID)
+	capabilityID := seedOnePagerRelationScenario(t, qc, relatedCount)
+
+	testQueryCounter.reset()
+	rec := qc.get("/one-pagers/capability/" + capabilityID)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	return testQueryCounter.value()
+}
+
+func TestOnePagerView_ConstantQueryCount_WithManyRelations_Integration(t *testing.T) {
+	fewRelatedCount := runOnePagerRelationQueryCountScenario(t, 1)
+	manyRelatedCount := runOnePagerRelationQueryCountScenario(t, 6)
+
+	assert.Equal(t, fewRelatedCount, manyRelatedCount, "query count must not grow with the number of related entities per relation")
+	assert.LessOrEqual(t, fewRelatedCount, int64(24), "relation query count must stay within the documented ceiling")
 }

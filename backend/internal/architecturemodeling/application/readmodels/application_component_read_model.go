@@ -181,27 +181,40 @@ func (rm *ApplicationComponentReadModel) GetAll(ctx context.Context) ([]Applicat
 	if err != nil {
 		return nil, err
 	}
+	return rm.queryComponents(ctx, tenantID.Value(),
+		"SELECT id, name, description, created_at FROM architecturemodeling.application_components WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC, id ASC",
+		tenantID.Value(),
+	)
+}
 
+func (rm *ApplicationComponentReadModel) GetByIDs(ctx context.Context, ids []string) ([]ApplicationComponentDTO, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return rm.queryComponents(ctx, tenantID.Value(),
+		"SELECT id, name, description, created_at FROM architecturemodeling.application_components WHERE tenant_id = $1 AND id = ANY($2) AND is_deleted = FALSE ORDER BY LOWER(name) ASC, id ASC",
+		tenantID.Value(), pq.Array(ids),
+	)
+}
+
+func (rm *ApplicationComponentReadModel) queryComponents(ctx context.Context, tenantID, query string, args ...any) ([]ApplicationComponentDTO, error) {
 	var components []ApplicationComponentDTO
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		rows, err := tx.QueryContext(ctx,
-			"SELECT id, name, description, created_at FROM architecturemodeling.application_components WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC, id ASC",
-			tenantID.Value(),
-		)
+	err := rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx, query, args...)
 		if err != nil {
 			return err
 		}
 		defer func() { _ = rows.Close() }()
 
-		for rows.Next() {
-			var dto ApplicationComponentDTO
-			if err := rows.Scan(&dto.ID, &dto.Name, &dto.Description, &dto.CreatedAt); err != nil {
-				return err
-			}
-			components = append(components, dto)
+		components, err = rm.scanComponents(rows)
+		if err != nil {
+			return err
 		}
-
-		return rows.Err()
+		return rm.loadExpertsForComponents(ctx, tx, tenantID, components)
 	})
 
 	return components, err

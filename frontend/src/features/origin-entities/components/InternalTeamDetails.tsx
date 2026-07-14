@@ -4,7 +4,7 @@ import type { InternalTeam, OriginRelationship } from '../../../api/types';
 import { DetailField } from '../../../components/shared/DetailField';
 import { hasLink } from '../../../utils/hateoas';
 import { AuditHistorySection } from '../../audit';
-import { OnePagerActionButton, OnePagerFactsSection } from '../../one-pagers';
+import { OnePagerActionButton } from '../../one-pagers';
 import { OriginEntityActions, OriginEntityRelationshipsList } from './OriginEntityPanelChrome';
 
 interface InternalTeamDetailsProps {
@@ -55,7 +55,6 @@ export const InternalTeamDetails: React.FC<InternalTeamDetailsProps> = ({
       <OriginEntityRelationshipsList relationships={relationships} relationshipLabel="Built by" />
 
       <OnePagerActionButton subject={team} subjectType="internal-team" subjectId={team.id} />
-      <OnePagerFactsSection subjectType="internal-team" subjectId={team.id} />
 
       <AuditHistorySection aggregateId={team.id} />
     </Stack>

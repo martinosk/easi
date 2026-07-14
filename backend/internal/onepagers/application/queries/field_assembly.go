@@ -66,6 +66,7 @@ func buildCustomField(fieldID string, document readmodels.ConfigurationDocument,
 			custom.DisplayText = label
 		}
 		custom.RetiredOption = record.RetiredOptionReferenced(fact.Value)
+		custom.OutOfBounds = record.NumberValueOutOfBounds(fact.Value)
 	}
 	return Field{Custom: custom}, true
 }

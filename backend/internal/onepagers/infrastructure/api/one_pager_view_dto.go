@@ -4,6 +4,7 @@ import (
 	"easi/backend/internal/onepagers/application/ports"
 	"easi/backend/internal/onepagers/application/queries"
 	"easi/backend/internal/onepagers/domain/valueobjects"
+	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/types"
 )
 
@@ -40,11 +41,18 @@ type BuiltInFieldViewDTO struct {
 }
 
 type BuiltInValueDTO struct {
-	Type     string            `json:"type"`
-	Text     *string           `json:"text,omitempty"`
-	Date     *string           `json:"date,omitempty"`
-	Maturity *MaturityValueDTO `json:"maturity,omitempty"`
-	Experts  []ExpertViewDTO   `json:"experts,omitempty"`
+	Type       string            `json:"type"`
+	Text       *string           `json:"text,omitempty"`
+	Date       *string           `json:"date,omitempty"`
+	Maturity   *MaturityValueDTO `json:"maturity,omitempty"`
+	Experts    []ExpertViewDTO   `json:"experts,omitempty"`
+	References []ReferenceDTO    `json:"references,omitempty"`
+}
+
+type ReferenceDTO struct {
+	ID          string `json:"id"`
+	Label       string `json:"label"`
+	SubjectType string `json:"subjectType,omitempty"`
 }
 
 type MaturityValueDTO struct {
@@ -66,9 +74,10 @@ type CustomFieldViewDTO struct {
 	Value         *ValueEnvelopeDTO `json:"value"`
 	DisplayText   string            `json:"displayText,omitempty"`
 	RetiredOption bool              `json:"retiredOption,omitempty"`
+	OutOfBounds   bool              `json:"outOfBounds,omitempty"`
 }
 
-func BuildOnePagerDTO(onePager *queries.OnePager, links *OnePagerLinks) OnePagerDTO {
+func BuildOnePagerDTO(onePager *queries.OnePager, links *OnePagerLinks, actor sharedctx.Actor) OnePagerDTO {
 	fields := make([]OnePagerFieldDTO, 0, len(onePager.Fields))
 	for _, field := range onePager.Fields {
 		if dto, ok := onePagerFieldDTOFrom(field); ok {
@@ -81,7 +90,7 @@ func BuildOnePagerDTO(onePager *queries.OnePager, links *OnePagerLinks) OnePager
 		SubjectName:  onePager.SubjectName,
 		Fields:       fields,
 		Completeness: completenessDTOFrom(onePager.Completeness),
-		Links:        links.viewLinks(onePager.SubjectType, onePager.SubjectID),
+		Links:        links.viewLinks(onePager.SubjectType, onePager.SubjectID, actor),
 	}
 }
 
@@ -128,9 +137,22 @@ func builtInValueDTOFrom(field *queries.BuiltInField) *BuiltInValueDTO {
 		return &BuiltInValueDTO{Type: "maturity", Maturity: &MaturityValueDTO{Value: value.Value, Section: field.MaturitySection}}
 	case ports.ExpertsValue:
 		return &BuiltInValueDTO{Type: "experts", Experts: expertViewDTOsFrom(value.Experts)}
+	case ports.ReferenceListValue:
+		if len(value.References) == 0 {
+			return nil
+		}
+		return &BuiltInValueDTO{Type: "references", References: referenceDTOsFrom(value.References)}
 	default:
 		return nil
 	}
+}
+
+func referenceDTOsFrom(references []ports.Reference) []ReferenceDTO {
+	dtos := make([]ReferenceDTO, len(references))
+	for i, reference := range references {
+		dtos[i] = ReferenceDTO{ID: reference.ID, Label: reference.Label, SubjectType: reference.SubjectType}
+	}
+	return dtos
 }
 
 func expertViewDTOsFrom(experts []ports.Expert) []ExpertViewDTO {
@@ -149,6 +171,7 @@ func customFieldViewDTOFrom(field *queries.CustomField) *CustomFieldViewDTO {
 		HelpText:      field.HelpText,
 		DisplayText:   field.DisplayText,
 		RetiredOption: field.RetiredOption,
+		OutOfBounds:   field.OutOfBounds,
 	}
 	if field.Value != nil {
 		envelope := envelopeDTOFrom(*field.Value)

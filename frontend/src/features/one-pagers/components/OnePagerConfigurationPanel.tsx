@@ -4,7 +4,7 @@ import { hasLink } from '../../../utils/hateoas';
 import { useDefineCustomFieldFlow } from '../hooks/useDefineCustomFieldFlow';
 import { useOnePagerConfiguration } from '../hooks/useOnePagerConfiguration';
 import { useOnePagerFieldActions } from '../hooks/useOnePagerFieldActions';
-import type { CustomField, OnePagerConfiguration, OnePagerSubjectType } from '../types';
+import type { BuiltInField, CustomField, OnePagerConfiguration, OnePagerSubjectType } from '../types';
 import { AddCustomFieldForm } from './AddCustomFieldForm';
 import { BuiltInFieldsCatalog } from './BuiltInFieldsCatalog';
 import { FieldList } from './FieldList';
@@ -22,6 +22,10 @@ interface RequireFieldDialogsProps {
   isConfirmingRequired: boolean;
   onConfirmField: (field: CustomField) => void;
   onCancelField: () => void;
+  requireConfirmationBuiltIn: BuiltInField | null;
+  isConfirmingBuiltInRequired: boolean;
+  onConfirmBuiltIn: (field: BuiltInField) => void;
+  onCancelBuiltIn: () => void;
   pendingNewFieldName: string | undefined;
   isSavingNewField: boolean;
   onConfirmNewField: () => void;
@@ -34,6 +38,10 @@ function RequireFieldDialogs({
   isConfirmingRequired,
   onConfirmField,
   onCancelField,
+  requireConfirmationBuiltIn,
+  isConfirmingBuiltInRequired,
+  onConfirmBuiltIn,
+  onCancelBuiltIn,
   pendingNewFieldName,
   isSavingNewField,
   onConfirmNewField,
@@ -50,6 +58,19 @@ function RequireFieldDialogs({
           isConfirming={isConfirmingRequired}
           onConfirm={() => onConfirmField(requireConfirmationField)}
           onCancel={onCancelField}
+        />
+      )}
+
+      {requireConfirmationBuiltIn && (
+        <ImpactPreviewDialog
+          key={requireConfirmationBuiltIn.id}
+          configuration={configuration}
+          fieldName={requireConfirmationBuiltIn.label}
+          fieldId={requireConfirmationBuiltIn.id}
+          fieldKind="builtIn"
+          isConfirming={isConfirmingBuiltInRequired}
+          onConfirm={() => onConfirmBuiltIn(requireConfirmationBuiltIn)}
+          onCancel={onCancelBuiltIn}
         />
       )}
 
@@ -70,8 +91,24 @@ export function OnePagerConfigurationPanel({ subjectType }: OnePagerConfiguratio
   const { data: configuration, isLoading, error } = useOnePagerConfiguration(subjectType);
   const [renamingField, setRenamingField] = useState<CustomField | null>(null);
   const [requireConfirmationField, setRequireConfirmationField] = useState<CustomField | null>(null);
-  const { fieldActions, includeField, reactivateField, saveRename, isRenaming, confirmRequireField, isConfirmingRequired } =
-    useOnePagerFieldActions(subjectType, configuration, setRenamingField, setRequireConfirmationField);
+  const [requireConfirmationBuiltIn, setRequireConfirmationBuiltIn] = useState<BuiltInField | null>(null);
+  const {
+    fieldActions,
+    includeField,
+    reactivateField,
+    saveRename,
+    isRenaming,
+    confirmRequireField,
+    isConfirmingRequired,
+    confirmRequireBuiltIn,
+    isConfirmingBuiltInRequired,
+  } = useOnePagerFieldActions(
+    subjectType,
+    configuration,
+    setRenamingField,
+    setRequireConfirmationField,
+    setRequireConfirmationBuiltIn,
+  );
   const defineFieldFlow = useDefineCustomFieldFlow(subjectType, configuration);
 
   if (isLoading) return <Loader data-testid="one-pager-loading" />;
@@ -117,6 +154,10 @@ export function OnePagerConfigurationPanel({ subjectType }: OnePagerConfiguratio
         isConfirmingRequired={isConfirmingRequired}
         onConfirmField={(field) => confirmRequireField(field, () => setRequireConfirmationField(null))}
         onCancelField={() => setRequireConfirmationField(null)}
+        requireConfirmationBuiltIn={requireConfirmationBuiltIn}
+        isConfirmingBuiltInRequired={isConfirmingBuiltInRequired}
+        onConfirmBuiltIn={(field) => confirmRequireBuiltIn(field, () => setRequireConfirmationBuiltIn(null))}
+        onCancelBuiltIn={() => setRequireConfirmationBuiltIn(null)}
         pendingNewFieldName={defineFieldFlow.pendingNewField?.name}
         isSavingNewField={defineFieldFlow.isSaving}
         onConfirmNewField={defineFieldFlow.confirmPendingField}

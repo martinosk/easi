@@ -9,6 +9,7 @@ import (
 
 	"easi/backend/internal/onepagers/application/commands"
 	"easi/backend/internal/onepagers/domain/aggregates"
+	"easi/backend/internal/onepagers/domain/valueobjects"
 	"easi/backend/internal/onepagers/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 	domain "easi/backend/internal/shared/eventsourcing"
@@ -325,6 +326,58 @@ func TestSelectionOptionHandlers_AddAndRetire(t *testing.T) {
 
 	config = loadConfig(t, repo, configID)
 	assert.False(t, config.CustomFields()[0].Options()[0].IsActive())
+}
+
+func floatPtr(v float64) *float64 {
+	return &v
+}
+
+func defineNumberField(t *testing.T, repo *repositories.OnePagerConfigurationRepository, configID, name string) string {
+	t.Helper()
+	handler := NewDefineCustomFieldHandler(repo)
+	result, err := handler.Handle(context.Background(), &commands.DefineCustomField{
+		ConfigID:   configID,
+		Name:       name,
+		FieldType:  "number",
+		ModifiedBy: "admin@example.com",
+	})
+	require.NoError(t, err)
+	return result.CreatedID
+}
+
+func TestSetNumberFieldBoundsHandler_SetsBounds(t *testing.T) {
+	repo := newTestRepo()
+	configID := createConfiguration(t, repo)
+	fieldID := defineNumberField(t, repo, configID, "Maturity score")
+
+	handler := NewSetNumberFieldBoundsHandler(repo)
+	_, err := handler.Handle(context.Background(), &commands.SetNumberFieldBounds{
+		ConfigID: configID, FieldID: fieldID, Min: floatPtr(0), Max: floatPtr(5), ModifiedBy: "admin@example.com",
+	})
+
+	require.NoError(t, err)
+	field := loadConfig(t, repo, configID).CustomFields()[0]
+	assert.Equal(t, floatPtr(0), field.Min())
+	assert.Equal(t, floatPtr(5), field.Max())
+}
+
+func TestSetNumberFieldBoundsHandler_RejectsMinimumGreaterThanMaximum(t *testing.T) {
+	repo := newTestRepo()
+	configID := createConfiguration(t, repo)
+	fieldID := defineNumberField(t, repo, configID, "Maturity score")
+
+	handler := NewSetNumberFieldBoundsHandler(repo)
+	_, err := handler.Handle(context.Background(), &commands.SetNumberFieldBounds{
+		ConfigID: configID, FieldID: fieldID, Min: floatPtr(10), Max: floatPtr(5), ModifiedBy: "admin@example.com",
+	})
+
+	assert.ErrorIs(t, err, valueobjects.ErrMinExceedsMax)
+}
+
+func TestSetNumberFieldBoundsHandler_RejectsWrongCommandType(t *testing.T) {
+	repo := newTestRepo()
+	_, err := NewSetNumberFieldBoundsHandler(repo).Handle(context.Background(), &commands.CreateOnePagerConfiguration{})
+	assert.ErrorIs(t, err, cqrs.ErrInvalidCommand)
 }
 
 func TestModifyHandlers_RejectWrongCommandType(t *testing.T) {

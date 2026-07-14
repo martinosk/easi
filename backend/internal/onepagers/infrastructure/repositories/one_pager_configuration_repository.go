@@ -39,5 +39,6 @@ var onePagerEventDeserializers = repository.NewEventDeserializers(
 		"OnePagerFieldsReordered":       repository.JSONDeserializer[events.OnePagerFieldsReordered],
 		"SelectionOptionAdded":          repository.JSONDeserializer[events.SelectionOptionAdded],
 		"SelectionOptionRetired":        repository.JSONDeserializer[events.SelectionOptionRetired],
+		"NumberFieldBoundsChanged":      repository.JSONDeserializer[events.NumberFieldBoundsChanged],
 	},
 )

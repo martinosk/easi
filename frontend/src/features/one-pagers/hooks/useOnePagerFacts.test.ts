@@ -83,4 +83,10 @@ describe('useOnePagerFacts', () => {
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.error).toEqual(error);
   });
+
+  it('does not fetch while disabled, even with a subject id', () => {
+    renderHook(() => useOnePagerFacts('vendor', 'vendor-1', false), { wrapper: createWrapper(queryClient) });
+
+    expect(onePagersApi.getFacts).not.toHaveBeenCalled();
+  });
 });

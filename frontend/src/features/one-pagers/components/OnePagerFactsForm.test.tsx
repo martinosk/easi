@@ -2,13 +2,11 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../test/helpers';
-import type { CustomField, OnePagerConfiguration, OnePagerFacts } from '../types';
-import { OnePagerFactsSection } from './OnePagerFactsSection';
+import type { CustomField, OnePagerFacts } from '../types';
+import { OnePagerFactsForm } from './OnePagerFactsForm';
 
 vi.mock('../api/onePagersApi', () => ({
   onePagersApi: {
-    getConfiguration: vi.fn(),
-    getFacts: vi.fn(),
     recordFieldValue: vi.fn(),
     clearFieldValue: vi.fn(),
   },
@@ -29,6 +27,15 @@ const textField: CustomField = {
   active: true,
 };
 
+const secondTextField: CustomField = {
+  id: 'f-text-2',
+  name: 'Contract notes',
+  type: 'text',
+  required: false,
+  helpText: '',
+  active: true,
+};
+
 const selectionField: CustomField = {
   id: 'f-select',
   name: 'Tier',
@@ -42,29 +49,34 @@ const selectionField: CustomField = {
   ],
 };
 
-const retiredField: CustomField = {
-  id: 'f-retired',
-  name: 'Legacy field',
-  type: 'text',
+const boundedNumberField: CustomField = {
+  id: 'f-number',
+  name: 'Maturity score',
+  type: 'number',
   required: false,
   helpText: '',
-  active: false,
+  active: true,
+  min: 0,
+  max: 5,
 };
 
-function buildConfiguration(customFields: CustomField[]): OnePagerConfiguration {
-  return {
-    id: 'config-1',
-    subjectType: 'vendor',
-    builtInFields: [],
-    customFields,
-    displayOrder: customFields.map((field) => ({ kind: 'custom', id: field.id })),
-    version: 1,
-    createdAt: '2026-01-01T00:00:00Z',
-    modifiedAt: '2026-01-01T00:00:00Z',
-    modifiedBy: 'admin@example.com',
-    _links: { self: { href: '/api/v1/one-pagers/configurations/vendor', method: 'GET' } },
-  };
-}
+const linkField: CustomField = {
+  id: 'f-link',
+  name: 'Contract link',
+  type: 'link',
+  required: false,
+  helpText: '',
+  active: true,
+};
+
+const contactPersonField: CustomField = {
+  id: 'f-contact',
+  name: 'Primary contact',
+  type: 'contact-person',
+  required: false,
+  helpText: '',
+  active: true,
+};
 
 function buildFacts(overrides: Partial<OnePagerFacts> = {}): OnePagerFacts {
   return {
@@ -77,13 +89,6 @@ function buildFacts(overrides: Partial<OnePagerFacts> = {}): OnePagerFacts {
     },
     ...overrides,
   };
-}
-
-function readOnlyFacts(overrides: Partial<OnePagerFacts> = {}): OnePagerFacts {
-  return buildFacts({
-    _links: { self: { href: '/api/v1/one-pagers/vendor/vendor-1/facts', method: 'GET' } },
-    ...overrides,
-  });
 }
 
 function recordedTextValue() {
@@ -111,13 +116,11 @@ function recordedRetiredSelection() {
   };
 }
 
-function renderSection() {
-  return renderWithProviders(<OnePagerFactsSection subjectType="vendor" subjectId="vendor-1" />, {
-    withRouter: false,
-  });
+function renderForm(fields: CustomField[], facts: OnePagerFacts) {
+  return renderWithProviders(<OnePagerFactsForm fields={fields} facts={facts} />, { withRouter: false });
 }
 
-describe('OnePagerFactsSection', () => {
+describe('OnePagerFactsForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -126,68 +129,30 @@ describe('OnePagerFactsSection', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders nothing when the configuration has no active custom fields', async () => {
-    vi.mocked(onePagersApi.getConfiguration).mockResolvedValue(buildConfiguration([retiredField]));
-    vi.mocked(onePagersApi.getFacts).mockResolvedValue(buildFacts());
-
-    renderSection();
-
-    await waitFor(() => expect(onePagersApi.getFacts).toHaveBeenCalled());
-    expect(screen.queryByTestId('one-pager-facts-section')).not.toBeInTheDocument();
-  });
-
-  it('renders inputs for active fields and never renders retired fields', async () => {
-    vi.mocked(onePagersApi.getConfiguration).mockResolvedValue(
-      buildConfiguration([textField, selectionField, retiredField]),
-    );
-    vi.mocked(onePagersApi.getFacts).mockResolvedValue(buildFacts());
-
-    renderSection();
+  it('renders an input per field and highlights an empty required field', async () => {
+    renderForm([textField, selectionField], buildFacts());
 
     expect(await screen.findByLabelText('Business summary')).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: 'Tier' })).toBeInTheDocument();
-    expect(screen.queryByText('Legacy field')).not.toBeInTheDocument();
+    expect(screen.getByText('Required')).toBeInTheDocument();
   });
 
-  it('highlights empty required fields without blocking anything', async () => {
-    vi.mocked(onePagersApi.getConfiguration).mockResolvedValue(buildConfiguration([textField]));
-    vi.mocked(onePagersApi.getFacts).mockResolvedValue(buildFacts());
-
-    renderSection();
-
-    expect(await screen.findByText('Required')).toBeInTheDocument();
-  });
-
-  it('renders values read-only when the facts carry no x-record link', async () => {
-    vi.mocked(onePagersApi.getConfiguration).mockResolvedValue(buildConfiguration([textField, selectionField]));
-    vi.mocked(onePagersApi.getFacts).mockResolvedValue(
-      readOnlyFacts({ values: [recordedTextValue(), recordedRetiredSelection()] }),
-    );
-
-    renderSection();
-
-    expect(await screen.findByText('hello')).toBeInTheDocument();
-    expect(screen.getByText('Tier 2 (retired)')).toBeInTheDocument();
-    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Save one-pager' })).not.toBeInTheDocument();
-  });
-
-  it('flags a retired selection option in the edit form until changed', async () => {
-    vi.mocked(onePagersApi.getConfiguration).mockResolvedValue(buildConfiguration([selectionField]));
-    vi.mocked(onePagersApi.getFacts).mockResolvedValue(buildFacts({ values: [recordedRetiredSelection()] }));
-
-    renderSection();
+  it('flags a retired selection option until changed', async () => {
+    renderForm([selectionField], buildFacts({ values: [recordedRetiredSelection()] }));
 
     expect(await screen.findByRole('textbox', { name: 'Tier' })).toHaveValue('Tier 2 (retired)');
   });
 
+  it('disables save while the form is pristine', async () => {
+    renderForm([textField], buildFacts());
+
+    expect(await screen.findByRole('button', { name: 'Save one-pager' })).toBeDisabled();
+  });
+
   it('submits only dirty fields on save', async () => {
     const user = userEvent.setup();
-    vi.mocked(onePagersApi.getConfiguration).mockResolvedValue(buildConfiguration([textField, selectionField]));
-    vi.mocked(onePagersApi.getFacts).mockResolvedValue(buildFacts());
     vi.mocked(onePagersApi.recordFieldValue).mockResolvedValue(buildFacts());
-
-    renderSection();
+    renderForm([textField, selectionField], buildFacts());
 
     const input = await screen.findByLabelText('Business summary');
     await user.type(input, 'Runs on shared Kubernetes cluster');
@@ -202,21 +167,8 @@ describe('OnePagerFactsSection', () => {
 
   it('records every dirty field when several fields are edited before one save', async () => {
     const user = userEvent.setup();
-    const secondTextField: CustomField = {
-      id: 'f-text-2',
-      name: 'Contract notes',
-      type: 'text',
-      required: false,
-      helpText: '',
-      active: true,
-    };
-    vi.mocked(onePagersApi.getConfiguration).mockResolvedValue(
-      buildConfiguration([textField, secondTextField]),
-    );
-    vi.mocked(onePagersApi.getFacts).mockResolvedValue(buildFacts());
     vi.mocked(onePagersApi.recordFieldValue).mockResolvedValue(buildFacts());
-
-    renderSection();
+    renderForm([textField, secondTextField], buildFacts());
 
     await user.type(await screen.findByLabelText('Business summary'), 'hello');
     await user.type(screen.getByLabelText('Contract notes'), 'world');
@@ -234,11 +186,8 @@ describe('OnePagerFactsSection', () => {
   it('clears a field whose value was removed', async () => {
     const user = userEvent.setup();
     const recorded = recordedTextValue();
-    vi.mocked(onePagersApi.getConfiguration).mockResolvedValue(buildConfiguration([textField]));
-    vi.mocked(onePagersApi.getFacts).mockResolvedValue(buildFacts({ values: [recorded] }));
     vi.mocked(onePagersApi.clearFieldValue).mockResolvedValue(buildFacts());
-
-    renderSection();
+    renderForm([textField], buildFacts({ values: [recorded] }));
 
     const input = await screen.findByLabelText('Business summary');
     await user.clear(input);
@@ -249,12 +198,29 @@ describe('OnePagerFactsSection', () => {
     expect(onePagersApi.recordFieldValue).not.toHaveBeenCalled();
   });
 
-  it('disables save while the form is pristine', async () => {
-    vi.mocked(onePagersApi.getConfiguration).mockResolvedValue(buildConfiguration([textField]));
-    vi.mocked(onePagersApi.getFacts).mockResolvedValue(buildFacts());
+  it('clamps a number input to the field bounds on blur, using them as soft hints', async () => {
+    const user = userEvent.setup();
+    renderForm([boundedNumberField], buildFacts());
 
-    renderSection();
+    const input = await screen.findByLabelText('Maturity score');
+    await user.type(input, '9');
+    await user.tab();
 
-    expect(await screen.findByRole('button', { name: 'Save one-pager' })).toBeDisabled();
+    expect(input).toHaveValue('5');
+  });
+
+  it('renders a link field with empty label and url inputs, not crashing on first paint', async () => {
+    renderForm([linkField], buildFacts());
+
+    expect(await screen.findByLabelText('Contract link label')).toHaveValue('');
+    expect(screen.getByLabelText('Contract link URL')).toHaveValue('');
+  });
+
+  it('renders a contact-person field with empty name, email, and company inputs', async () => {
+    renderForm([contactPersonField], buildFacts());
+
+    expect(await screen.findByLabelText('Primary contact name')).toHaveValue('');
+    expect(screen.getByLabelText('Primary contact email')).toHaveValue('');
+    expect(screen.getByLabelText('Primary contact company')).toHaveValue('');
   });
 });

@@ -14,7 +14,7 @@ func documentFor(config *readmodels.ConfigurationRecord, subjectType valueobject
 }
 
 func defaultDocument(subjectType valueobjects.SubjectType) readmodels.ConfigurationDocument {
-	entries := catalog.EntriesFor(subjectType)
+	entries := catalog.DefaultEntriesFor(subjectType)
 	order := make([]readmodels.FieldRefRecord, len(entries))
 	for i, entry := range entries {
 		order[i] = readmodels.FieldRefRecord{Kind: string(valueobjects.FieldRefKindBuiltIn), ID: entry.ID}

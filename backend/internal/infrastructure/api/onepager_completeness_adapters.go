@@ -21,6 +21,7 @@ func newOnePagerCompletenessIndicators(db *database.TenantAwareDB) *queries.Comp
 	return queries.NewCompletenessIndicators(
 		readmodels.NewOnePagerConfigurationReadModel(db),
 		readmodels.NewOnePagerFactsReadModel(db),
+		newOnePagerBuiltInFieldSources(db),
 	)
 }
 

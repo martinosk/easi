@@ -35,6 +35,10 @@ func buildImpactPreviewDeps(subjectType string, subjects *countingSubjectSource,
 	}
 }
 
+func customField() queries.PreviewField {
+	return queries.PreviewField{Kind: "custom", ID: "contract-link"}
+}
+
 func TestPreview_ExistingFieldAffectedCountIsPopulationMinusFilled(t *testing.T) {
 	subjects := &countingSubjectSource{count: 100}
 	configs := &countingConfigSource{record: singleCustomFieldConfig(readmodels.CustomFieldRecord{ID: "contract-link", Name: "Contract link", Active: true})}
@@ -42,7 +46,7 @@ func TestPreview_ExistingFieldAffectedCountIsPopulationMinusFilled(t *testing.T)
 
 	query := queries.NewImpactPreviewQuery(buildImpactPreviewDeps("application", subjects, configs, facts))
 
-	result, err := query.Preview(context.Background(), mustSubjectType(t, "application"), "contract-link")
+	result, err := query.Preview(context.Background(), mustSubjectType(t, "application"), customField())
 
 	require.NoError(t, err)
 	assert.Equal(t, 37, result.AffectedSubjectCount)
@@ -59,7 +63,7 @@ func TestPreview_NewFieldAffectedCountIsFullPopulation(t *testing.T) {
 
 	query := queries.NewImpactPreviewQuery(buildImpactPreviewDeps("vendor", subjects, configs, facts))
 
-	result, err := query.Preview(context.Background(), mustSubjectType(t, "vendor"), "")
+	result, err := query.Preview(context.Background(), mustSubjectType(t, "vendor"), queries.PreviewField{})
 
 	require.NoError(t, err)
 	assert.Equal(t, 120, result.AffectedSubjectCount)
@@ -75,7 +79,7 @@ func TestPreview_AffectedCountClampsToZero(t *testing.T) {
 
 	query := queries.NewImpactPreviewQuery(buildImpactPreviewDeps("application", subjects, configs, facts))
 
-	result, err := query.Preview(context.Background(), mustSubjectType(t, "application"), "contract-link")
+	result, err := query.Preview(context.Background(), mustSubjectType(t, "application"), customField())
 
 	require.NoError(t, err)
 	assert.Equal(t, 0, result.AffectedSubjectCount)
@@ -88,7 +92,7 @@ func TestPreview_UnknownFieldIDReturnsFieldNotConfigured(t *testing.T) {
 
 	query := queries.NewImpactPreviewQuery(buildImpactPreviewDeps("application", subjects, configs, facts))
 
-	_, err := query.Preview(context.Background(), mustSubjectType(t, "application"), "contract-link")
+	_, err := query.Preview(context.Background(), mustSubjectType(t, "application"), customField())
 
 	assert.ErrorIs(t, err, queries.ErrFieldNotConfigured)
 	assert.Equal(t, 0, facts.calls)
@@ -101,7 +105,7 @@ func TestPreview_NilConfigurationWithFieldIDReturnsFieldNotConfigured(t *testing
 
 	query := queries.NewImpactPreviewQuery(buildImpactPreviewDeps("application", subjects, configs, facts))
 
-	_, err := query.Preview(context.Background(), mustSubjectType(t, "application"), "contract-link")
+	_, err := query.Preview(context.Background(), mustSubjectType(t, "application"), customField())
 
 	assert.ErrorIs(t, err, queries.ErrFieldNotConfigured)
 	assert.Equal(t, 0, facts.calls)
@@ -114,7 +118,7 @@ func TestPreview_RetiredFieldIsStillConfigured(t *testing.T) {
 
 	query := queries.NewImpactPreviewQuery(buildImpactPreviewDeps("application", subjects, configs, facts))
 
-	result, err := query.Preview(context.Background(), mustSubjectType(t, "application"), "contract-link")
+	result, err := query.Preview(context.Background(), mustSubjectType(t, "application"), customField())
 
 	require.NoError(t, err)
 	assert.Equal(t, 6, result.AffectedSubjectCount)
@@ -130,8 +134,50 @@ func TestPreview_MissingSubjectSourceReturnsError(t *testing.T) {
 		Subjects:       map[string]ports.BuiltInFieldSource{},
 	})
 
-	_, err := query.Preview(context.Background(), mustSubjectType(t, "vendor"), "")
+	_, err := query.Preview(context.Background(), mustSubjectType(t, "vendor"), queries.PreviewField{})
 
 	require.Error(t, err)
 	assert.NotErrorIs(t, err, queries.ErrFieldNotConfigured)
+}
+
+func builtInField(id string) queries.PreviewField {
+	return queries.PreviewField{Kind: "builtIn", ID: id}
+}
+
+func TestPreview_BuiltInFieldCountIsPopulationMinusWithValue(t *testing.T) {
+	subjects := &countingSubjectSource{count: 120, withValueCount: 80}
+	configs := &countingConfigSource{}
+	facts := &countingValueCounter{}
+
+	query := queries.NewImpactPreviewQuery(buildImpactPreviewDeps("application", subjects, configs, facts))
+
+	result, err := query.Preview(context.Background(), mustSubjectType(t, "application"), builtInField("experts"))
+
+	require.NoError(t, err)
+	assert.Equal(t, 40, result.AffectedSubjectCount)
+	assert.Equal(t, "experts", result.FieldID)
+	assert.Equal(t, "experts", subjects.gotEntryID)
+	assert.Equal(t, 1, subjects.withValueCalls)
+	assert.Equal(t, 0, facts.calls, "built-in preview must not query facts")
+	assert.Equal(t, 0, configs.calls, "built-in preview routes through the catalog, not a facts configuration lookup")
+}
+
+func TestPreview_BuiltInFieldCountClampsToZero(t *testing.T) {
+	subjects := &countingSubjectSource{count: 5, withValueCount: 9}
+	query := queries.NewImpactPreviewQuery(buildImpactPreviewDeps("application", subjects, &countingConfigSource{}, &countingValueCounter{}))
+
+	result, err := query.Preview(context.Background(), mustSubjectType(t, "application"), builtInField("experts"))
+
+	require.NoError(t, err)
+	assert.Equal(t, 0, result.AffectedSubjectCount)
+}
+
+func TestPreview_UnknownBuiltInEntryReturnsFieldNotConfigured(t *testing.T) {
+	subjects := &countingSubjectSource{count: 100, withValueCount: 10}
+	query := queries.NewImpactPreviewQuery(buildImpactPreviewDeps("application", subjects, &countingConfigSource{}, &countingValueCounter{}))
+
+	_, err := query.Preview(context.Background(), mustSubjectType(t, "application"), builtInField("maturity"))
+
+	assert.ErrorIs(t, err, queries.ErrFieldNotConfigured)
+	assert.Equal(t, 0, subjects.withValueCalls)
 }

@@ -52,6 +52,10 @@ const OnePagersRouter = lazy(() =>
   import('./features/one-pagers').then((module) => ({ default: module.OnePagersRouter })),
 );
 
+const OnePagerQualityPage = lazy(() =>
+  import('./features/one-pager-quality').then((module) => ({ default: module.OnePagerQualityPage })),
+);
+
 function useAuthErrorHandler() {
   const [authError, setAuthError] = useState<string | null>(null);
 
@@ -150,6 +154,13 @@ function MainContent({ view }: { view: AppView }) {
     return (
       <LazyFeatureView featureName="One-Pagers">
         <OnePagersRouter />
+      </LazyFeatureView>
+    );
+  }
+  if (view === 'one-pager-quality') {
+    return (
+      <LazyFeatureView featureName="One-Pager Quality">
+        <OnePagerQualityPage />
       </LazyFeatureView>
     );
   }

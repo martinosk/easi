@@ -36,6 +36,35 @@ func (f CustomFieldRecord) selectedOption(value *valueobjects.ValueEnvelope) (Op
 	return OptionRecord{}, false
 }
 
+func (f CustomFieldRecord) NumberValueOutOfBounds(value *valueobjects.ValueEnvelope) bool {
+	number, found := f.numberValue(value)
+	if !found {
+		return false
+	}
+	if f.Min != nil && number < *f.Min {
+		return true
+	}
+	if f.Max != nil && number > *f.Max {
+		return true
+	}
+	return false
+}
+
+func (f CustomFieldRecord) numberValue(value *valueobjects.ValueEnvelope) (float64, bool) {
+	if value == nil {
+		return 0, false
+	}
+	decoded, err := valueobjects.FieldValueFromEnvelope(*value)
+	if err != nil {
+		return 0, false
+	}
+	number, ok := decoded.(valueobjects.NumberValue)
+	if !ok {
+		return 0, false
+	}
+	return number.Value(), true
+}
+
 func (d ConfigurationDocument) CustomField(fieldID string) (CustomFieldRecord, bool) {
 	for _, field := range d.CustomFields {
 		if field.ID == fieldID {

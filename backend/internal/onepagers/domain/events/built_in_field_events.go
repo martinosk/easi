@@ -22,6 +22,31 @@ func (e BuiltInFieldIncluded) EventData() map[string]interface{} {
 	return data
 }
 
+type BuiltInFieldRequirementChanged struct {
+	ConfigurationEventBase
+	EntryID  string `json:"entryId"`
+	Required bool   `json:"required"`
+}
+
+func NewBuiltInFieldRequirementChanged(params ModifyConfigurationParams, entryID string, required bool) BuiltInFieldRequirementChanged {
+	return BuiltInFieldRequirementChanged{
+		ConfigurationEventBase: newConfigurationEventBase(params),
+		EntryID:                entryID,
+		Required:               required,
+	}
+}
+
+func (e BuiltInFieldRequirementChanged) EventType() string {
+	return "BuiltInFieldRequirementChanged"
+}
+
+func (e BuiltInFieldRequirementChanged) EventData() map[string]interface{} {
+	data := e.baseEventData()
+	data["entryId"] = e.EntryID
+	data["required"] = e.Required
+	return data
+}
+
 type BuiltInFieldExcluded struct {
 	ConfigurationEventBase
 	EntryID string `json:"entryId"`

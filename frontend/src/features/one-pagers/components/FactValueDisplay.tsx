@@ -18,6 +18,10 @@ function selectionText(field: CustomField, fieldValue: FieldValue, optionId: str
   return fieldValue.retiredOption ? `${label} (retired)` : label;
 }
 
+function numberText(fieldValue: FieldValue, value: string): string {
+  return fieldValue.outOfBounds ? `${value} (outside range)` : value;
+}
+
 interface FactValueDisplayProps {
   field: CustomField;
   fieldValue?: FieldValue;
@@ -47,6 +51,8 @@ export function FactValueDisplay({ field, fieldValue }: FactValueDisplayProps) {
       return <Text size="sm">{formatIsoDate(formValue as string)}</Text>;
     case 'contact-person':
       return <Text size="sm">{contactText(formValue as ContactPersonFactValue)}</Text>;
+    case 'number':
+      return <Text size="sm">{numberText(fieldValue, String(formValue))}</Text>;
     default:
       return <Text size="sm">{String(formValue)}</Text>;
   }

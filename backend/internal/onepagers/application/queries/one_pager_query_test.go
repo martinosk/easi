@@ -43,8 +43,30 @@ func TestGet_ReturnsErrSubjectNotFoundWhenFetchSubjectReturnsNil(t *testing.T) {
 
 	assert.ErrorIs(t, err, queries.ErrSubjectNotFound)
 	assert.Equal(t, 1, subjects.calls)
-	assert.Equal(t, 0, configs.calls)
+	assert.Equal(t, 1, configs.calls, "configuration is resolved before the subject fetch to gate included relations")
 	assert.Equal(t, 0, facts.calls)
+}
+
+func TestGet_PassesIncludedBuiltInEntryIDsToFetchSubject(t *testing.T) {
+	subjects := &countingSubjectSource{snapshot: snapshotNamed("Payments", nil)}
+	configs := &countingConfigSource{record: &readmodels.ConfigurationRecord{
+		SubjectType: "capability",
+		Document: readmodels.ConfigurationDocument{
+			DisplayOrder: []readmodels.FieldRefRecord{
+				{Kind: "builtIn", ID: "name"},
+				{Kind: "custom", ID: "field-1"},
+				{Kind: "builtIn", ID: "realizing-applications"},
+			},
+		},
+	}}
+	facts := &countingFactsSource{}
+
+	query := queries.NewOnePagerQuery(buildDeps(depsParams{subjectType: "capability", subjects: subjects, configs: configs, facts: facts}))
+
+	_, err := query.Get(context.Background(), mustSubjectType(t, "capability"), "cap-1")
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{"name", "realizing-applications"}, subjects.gotIncludedIDs)
 }
 
 func TestGet_ReturnsErrSubjectNotFoundWhenSubjectTypeMissingFromMap(t *testing.T) {

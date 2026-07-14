@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lib/pq"
+
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/types"
@@ -88,17 +90,31 @@ func (rm *EnterpriseCapabilityReadModel) Delete(ctx context.Context, id string) 
 }
 
 func (rm *EnterpriseCapabilityReadModel) GetAll(ctx context.Context) ([]EnterpriseCapabilityDTO, error) {
+	return rm.listActive(ctx, nil)
+}
+
+func (rm *EnterpriseCapabilityReadModel) GetByIDs(ctx context.Context, ids []string) ([]EnterpriseCapabilityDTO, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	return rm.listActive(ctx, ids)
+}
+
+func (rm *EnterpriseCapabilityReadModel) listActive(ctx context.Context, ids []string) ([]EnterpriseCapabilityDTO, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return nil, err
 	}
+	if ids == nil {
+		return rm.queryEnterpriseCapabilities(ctx, ecActiveSelect+" ORDER BY name", tenantID.Value())
+	}
+	return rm.queryEnterpriseCapabilities(ctx, ecActiveSelect+" AND id = ANY($2) ORDER BY name", tenantID.Value(), pq.Array(ids))
+}
 
+func (rm *EnterpriseCapabilityReadModel) queryEnterpriseCapabilities(ctx context.Context, query string, args ...any) ([]EnterpriseCapabilityDTO, error) {
 	var capabilities []EnterpriseCapabilityDTO
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		rows, err := tx.QueryContext(ctx,
-			"SELECT "+ecSelectColumns+" FROM enterprisearchitecture.enterprise_capabilities WHERE tenant_id = $1 AND active = true ORDER BY name",
-			tenantID.Value(),
-		)
+	err := rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx, query, args...)
 		if err != nil {
 			return err
 		}
@@ -189,6 +205,8 @@ func (rm *EnterpriseCapabilityReadModel) GetByID(ctx context.Context, id string)
 }
 
 const ecSelectColumns = "id, name, description, category, active, target_maturity, created_at, updated_at"
+
+const ecActiveSelect = "SELECT " + ecSelectColumns + " FROM enterprisearchitecture.enterprise_capabilities WHERE tenant_id = $1 AND active = true"
 
 type ecRowScanner interface {
 	Scan(dest ...any) error

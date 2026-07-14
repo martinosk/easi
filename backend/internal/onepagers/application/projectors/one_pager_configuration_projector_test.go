@@ -182,6 +182,44 @@ func TestProjector_ProjectsFullCustomFieldLifecycle(t *testing.T) {
 	assert.Equal(t, config.Version(), record.Version)
 }
 
+func floatPtr(v float64) *float64 {
+	return &v
+}
+
+func TestProjector_ProjectsNumberFieldBoundsChanged(t *testing.T) {
+	store := newInMemoryStore()
+	config := newAggregate(t)
+	email := adminEmail(t)
+
+	fieldID, err := config.DefineCustomField(aggregates.DefineCustomFieldParams{
+		Name: mustName(t, "Maturity score"),
+		Type: mustType(t, "number"),
+	}, email)
+	require.NoError(t, err)
+	project(t, store, config)
+
+	require.NoError(t, config.SetNumberFieldBounds(fieldID, floatPtr(0), floatPtr(5), email))
+	project(t, store, config)
+
+	record, err := store.GetByID(context.Background(), config.ID())
+	require.NoError(t, err)
+	field := record.Document.CustomFields[0]
+	require.NotNil(t, field.Min)
+	require.NotNil(t, field.Max)
+	assert.Equal(t, 0.0, *field.Min)
+	assert.Equal(t, 5.0, *field.Max)
+
+	require.NoError(t, config.SetNumberFieldBounds(fieldID, floatPtr(0), nil, email))
+	project(t, store, config)
+
+	record, err = store.GetByID(context.Background(), config.ID())
+	require.NoError(t, err)
+	field = record.Document.CustomFields[0]
+	require.NotNil(t, field.Min)
+	assert.Equal(t, 0.0, *field.Min)
+	assert.Nil(t, field.Max)
+}
+
 func TestProjector_ProjectsBuiltInInclusionAndReorder(t *testing.T) {
 	store := newInMemoryStore()
 	config := newAggregate(t)
@@ -210,6 +248,48 @@ func TestProjector_ProjectsBuiltInInclusionAndReorder(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, readmodels.FieldRefRecord{Kind: "builtIn", ID: "experts"}, record.Document.DisplayOrder[0])
 	assert.Equal(t, config.Version(), record.Version)
+}
+
+func requiredBuiltIn(record *readmodels.ConfigurationRecord, entryID string) bool {
+	for _, builtIn := range record.Document.BuiltInFields {
+		if builtIn.ID == entryID {
+			return builtIn.Required
+		}
+	}
+	return false
+}
+
+func TestProjector_ProjectsBuiltInFieldRequirementChanged(t *testing.T) {
+	store := newInMemoryStore()
+	config := newAggregate(t)
+	email := adminEmail(t)
+
+	require.NoError(t, config.ChangeBuiltInFieldRequirement("experts", true, email))
+	project(t, store, config)
+	record, err := store.GetByID(context.Background(), config.ID())
+	require.NoError(t, err)
+	assert.True(t, requiredBuiltIn(record, "experts"))
+
+	require.NoError(t, config.ChangeBuiltInFieldRequirement("experts", false, email))
+	project(t, store, config)
+	record, err = store.GetByID(context.Background(), config.ID())
+	require.NoError(t, err)
+	assert.False(t, requiredBuiltIn(record, "experts"))
+}
+
+func TestProjector_BuiltInRequirementSurvivesExcludeAndReinclude(t *testing.T) {
+	store := newInMemoryStore()
+	config := newAggregate(t)
+	email := adminEmail(t)
+
+	require.NoError(t, config.ChangeBuiltInFieldRequirement("experts", true, email))
+	require.NoError(t, config.ExcludeBuiltInField("experts", email))
+	require.NoError(t, config.IncludeBuiltInField("experts", email))
+	project(t, store, config)
+
+	record, err := store.GetByID(context.Background(), config.ID())
+	require.NoError(t, err)
+	assert.True(t, requiredBuiltIn(record, "experts"), "required flag survives exclude and re-include in the projection")
 }
 
 func TestProjector_UnknownEventTypeIsIgnored(t *testing.T) {

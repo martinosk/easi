@@ -9,6 +9,7 @@ import {
   CanvasIcon,
   EnterpriseArchIcon,
   InvitationsIcon,
+  OnePagerQualityIcon,
   ReleaseNotesIcon,
   SettingsIcon,
   UsersIcon,
@@ -33,6 +34,7 @@ const viewRouteMap: Record<AppView, string> = {
   settings: ROUTES.SETTINGS,
   'my-edit-access': ROUTES.MY_EDIT_ACCESS,
   'one-pagers': ROUTES.ONE_PAGERS,
+  'one-pager-quality': ROUTES.ONE_PAGER_QUALITY,
 };
 
 interface NavEntry {
@@ -41,6 +43,7 @@ interface NavEntry {
   testId: string;
   icon: React.ReactNode;
   permission?: string;
+  sessionLink?: string;
 }
 
 const NAV_ENTRIES: readonly NavEntry[] = [
@@ -68,14 +71,25 @@ const NAV_ENTRIES: readonly NavEntry[] = [
     icon: InvitationsIcon,
     permission: 'invitations:manage',
   },
+  {
+    view: 'one-pager-quality',
+    label: 'One-Pager Quality',
+    testId: 'nav-one-pager-quality',
+    icon: OnePagerQualityIcon,
+    sessionLink: 'x-one-pager-quality',
+  },
   { view: 'settings', label: 'Settings', testId: 'nav-settings', icon: SettingsIcon, permission: 'metamodel:write' },
 ];
 
 function NavItems({ currentView, onNavigate }: { currentView: AppView; onNavigate: (view: AppView) => void }) {
   const hasPermission = useUserStore((state) => state.hasPermission);
+  const sessionLinks = useUserStore((state) => state.sessionLinks);
+  const visibleEntries = NAV_ENTRIES.filter(
+    (e) => (!e.permission || hasPermission(e.permission)) && (!e.sessionLink || Boolean(sessionLinks?.[e.sessionLink])),
+  );
   return (
     <nav className={classes.nav}>
-      {NAV_ENTRIES.filter((e) => !e.permission || hasPermission(e.permission)).map((entry) => (
+      {visibleEntries.map((entry) => (
         <UnstyledButton
           key={entry.view}
           component="button"

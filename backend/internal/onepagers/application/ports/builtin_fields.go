@@ -31,19 +31,47 @@ type Expert struct {
 	Contact string
 }
 
-func (TextValue) isBuiltInFieldValue()     {}
-func (DateValue) isBuiltInFieldValue()     {}
-func (MaturityValue) isBuiltInFieldValue() {}
-func (ExpertsValue) isBuiltInFieldValue()  {}
+type ReferenceListValue struct {
+	References []Reference
+}
+
+type Reference struct {
+	ID          string
+	Label       string
+	SubjectType string
+}
+
+func (TextValue) isBuiltInFieldValue()          {}
+func (DateValue) isBuiltInFieldValue()          {}
+func (MaturityValue) isBuiltInFieldValue()      {}
+func (ExpertsValue) isBuiltInFieldValue()       {}
+func (ReferenceListValue) isBuiltInFieldValue() {}
 
 type SubjectSnapshot struct {
 	Name   string
 	Fields map[string]BuiltInFieldValue
 }
 
+func ValueFilled(value BuiltInFieldValue) bool {
+	switch v := value.(type) {
+	case nil:
+		return false
+	case ExpertsValue:
+		return len(v.Experts) > 0
+	case ReferenceListValue:
+		return len(v.References) > 0
+	case TextValue, DateValue, MaturityValue:
+		return true
+	default:
+		return value != nil
+	}
+}
+
 type BuiltInFieldSource interface {
-	FetchSubject(ctx context.Context, subjectID string) (*SubjectSnapshot, error)
+	FetchSubject(ctx context.Context, subjectID string, includedEntryIDs []string) (*SubjectSnapshot, error)
 	CountSubjects(ctx context.Context) (int, error)
+	FilledBuiltInFields(ctx context.Context, subjectIDs, entryIDs []string) (map[string]map[string]bool, error)
+	CountSubjectsWithBuiltInValue(ctx context.Context, entryID string) (int, error)
 }
 
 type MaturitySection struct {

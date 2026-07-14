@@ -18,7 +18,7 @@ import { hasLink } from '../../../utils/hateoas';
 import { deriveLegacyMaturityValue, getDefaultSections } from '../../../utils/maturity';
 import { AuditHistorySection } from '../../audit';
 import { useStrategyImportanceByCapability } from '../../business-domains/hooks/useStrategyImportance';
-import { OnePagerActionButton, OnePagerFactsSection } from '../../one-pagers';
+import { OnePagerActionButton } from '../../one-pagers';
 import { useComponents } from '../../components/hooks/useComponents';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { useUpdateCapabilityColor } from '../../views/hooks/useViews';
@@ -323,7 +323,6 @@ const CapabilityContent: React.FC<CapabilityContentProps> = ({
       />
 
       <OnePagerActionButton subject={capability} subjectType="capability" subjectId={capability.id} />
-      <OnePagerFactsSection subjectType="capability" subjectId={capability.id} />
 
       <AuditHistorySection aggregateId={capability.id} />
     </Stack>

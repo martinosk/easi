@@ -43,6 +43,7 @@ export interface CustomFieldLinks extends HATEOASLinks {
   'x-retire'?: HATEOASLink;
   'x-reactivate'?: HATEOASLink;
   'x-add-option'?: HATEOASLink;
+  'x-set-bounds'?: HATEOASLink;
 }
 
 export interface CustomField {
@@ -53,20 +54,26 @@ export interface CustomField {
   helpText: string;
   active: boolean;
   options?: SelectionOption[];
+  min?: number;
+  max?: number;
   _links?: CustomFieldLinks;
 }
 
 export interface BuiltInFieldLinks extends HATEOASLinks {
   'x-include'?: HATEOASLink;
   'x-exclude'?: HATEOASLink;
+  'x-set-requirement'?: HATEOASLink;
 }
 
 export interface BuiltInField {
   id: string;
   label: string;
   included: boolean;
+  required: boolean;
   _links?: BuiltInFieldLinks;
 }
+
+export type ImpactPreviewFieldKind = 'custom' | 'builtIn';
 
 export interface OnePagerConfigurationLinks extends HATEOASLinks {
   'x-define-custom-field'?: HATEOASLink;
@@ -117,6 +124,12 @@ export interface AddSelectionOptionRequest {
   version: number;
 }
 
+export interface SetNumberFieldBoundsRequest {
+  min?: number;
+  max?: number;
+  version: number;
+}
+
 export interface ReorderFieldsRequest {
   order: FieldRef[];
   version: number;
@@ -138,6 +151,7 @@ export interface FieldValue {
   value: ValueEnvelope;
   displayText: string;
   retiredOption?: boolean;
+  outOfBounds?: boolean;
   modifiedAt: string;
   modifiedBy: string;
   _links?: FieldValueLinks;
@@ -160,6 +174,7 @@ export interface RecordFieldValueRequest {
 
 export interface OnePagerViewLinks extends HATEOASLinks {
   'x-subject'?: HATEOASLink;
+  'x-record'?: HATEOASLink;
 }
 
 export interface BuiltInTextValue {
@@ -191,7 +206,23 @@ export interface BuiltInExpertsValue {
   experts: BuiltInExpertView[];
 }
 
-export type BuiltInValue = BuiltInTextValue | BuiltInDateValue | BuiltInMaturityValue | BuiltInExpertsValue;
+export interface BuiltInReference {
+  id: string;
+  label: string;
+  subjectType?: OnePagerSubjectType;
+}
+
+export interface BuiltInReferencesValue {
+  type: 'references';
+  references: BuiltInReference[];
+}
+
+export type BuiltInValue =
+  | BuiltInTextValue
+  | BuiltInDateValue
+  | BuiltInMaturityValue
+  | BuiltInExpertsValue
+  | BuiltInReferencesValue;
 
 export interface BuiltInFieldView {
   id: string;
@@ -207,6 +238,7 @@ export interface CustomFieldView {
   value: ValueEnvelope | null;
   displayText: string;
   retiredOption?: boolean;
+  outOfBounds?: boolean;
 }
 
 export interface OnePagerViewBuiltInField {
