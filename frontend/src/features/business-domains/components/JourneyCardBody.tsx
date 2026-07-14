@@ -80,6 +80,7 @@ export interface JourneyLensBodyProps {
   node: CapabilityTreeNode;
   journey: CapabilityJourney | undefined;
   realizations: AssessedRealization[];
+  hideSubCapabilities?: boolean;
   getRealizationsForCapability: (capabilityId: CapabilityId) => AssessedRealization[];
   onChipClick: (componentId: ComponentId) => void;
 }
@@ -88,6 +89,7 @@ export function JourneyLensBody({
   node,
   journey,
   realizations,
+  hideSubCapabilities,
   getRealizationsForCapability,
   onChipClick,
 }: JourneyLensBodyProps) {
@@ -100,11 +102,13 @@ export function JourneyLensBody({
       ) : (
         <ActiveBody journey={journey} />
       )}
-      <SubCapabilityBreakdown
-        node={node}
-        journey={journey}
-        getRealizationsForCapability={getRealizationsForCapability}
-      />
+      {!hideSubCapabilities && (
+        <SubCapabilityBreakdown
+          node={node}
+          journey={journey}
+          getRealizationsForCapability={getRealizationsForCapability}
+        />
+      )}
     </>
   );
 }

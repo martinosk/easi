@@ -1,5 +1,5 @@
 import { Box, Text } from '@mantine/core';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import type { Capability, CapabilityId, ComponentId } from '../../../api/types';
 import type { CapabilityTreeNode } from '../../capabilities/hooks/useCapabilityTree';
 import type { AssessedRealization } from '../hooks/domainBoardViewModel';
@@ -39,6 +39,7 @@ function StatusPill({ status }: { status: BoardJourneyStatus }) {
 export interface BoardCapabilityCardProps {
   node: CapabilityTreeNode;
   isSelected: boolean;
+  subCapabilities?: ReactNode;
   getColorForValue: (maturityValue: number) => string;
   getRealizationsForCapability: (capabilityId: CapabilityId) => AssessedRealization[];
   onClick: (capability: Capability, event: React.MouseEvent) => void;
@@ -118,7 +119,8 @@ function CapabilityCardShell({
 }
 
 export function BoardCapabilityCard(props: BoardCapabilityCardProps) {
-  const { node, getRealizationsForCapability, onChipClick } = props;
+  const { node, subCapabilities, getRealizationsForCapability, onChipClick } = props;
+  const hideSubCapabilities = subCapabilities !== undefined;
   const { lens, changesOnly, index } = useBoardLens();
   const { capability } = node;
   const journey = index.getJourney(capability.id);
@@ -145,6 +147,7 @@ export function BoardCapabilityCard(props: BoardCapabilityCardProps) {
       <NowCardContent
         node={node}
         realizations={realizations}
+        hideSubCapabilities={hideSubCapabilities}
         getRealizationsForCapability={getRealizationsForCapability}
         onClick={props.onClick}
         onContextMenu={props.onContextMenu}
@@ -157,6 +160,7 @@ export function BoardCapabilityCard(props: BoardCapabilityCardProps) {
         node={node}
         journey={journey}
         realizations={realizations}
+        hideSubCapabilities={hideSubCapabilities}
         getRealizationsForCapability={getRealizationsForCapability}
         onChipClick={onChipClick}
       />
@@ -166,6 +170,7 @@ export function BoardCapabilityCard(props: BoardCapabilityCardProps) {
     <>
       <CapabilityCardShell {...props} lens={lens} status={status} dimmed={dimmed}>
         {body}
+        {subCapabilities}
       </CapabilityCardShell>
       <ArrivingMoves journeys={arriving} />
     </>

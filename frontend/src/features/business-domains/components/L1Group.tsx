@@ -1,4 +1,4 @@
-import { Group, UnstyledButton } from '@mantine/core';
+import { UnstyledButton } from '@mantine/core';
 import { IconChevronRight } from '@tabler/icons-react';
 import { useState } from 'react';
 import type { Capability, CapabilityId, ComponentId } from '../../../api/types';
@@ -7,116 +7,77 @@ import { nodeMatchesSearch } from '../hooks/boardSearch';
 import type { AssessedRealization } from '../hooks/domainBoardViewModel';
 import { isMoveJourney } from '../lens/boardLens';
 import { l1HasChange } from '../lens/journeyIndex';
-import { AppChip } from './AppChip';
 import { BoardCapabilityCard } from './BoardCapabilityCard';
 import { useBoardLens } from './BoardLensContext';
 import classes from './L1Group.module.css';
 
-interface OwnAppsRowProps {
-  capabilityId: CapabilityId;
-  realizations: AssessedRealization[];
-  showGrade: boolean;
-  onChipClick: (componentId: ComponentId) => void;
+interface AppCountProps {
+  distinctAppCount: number;
 }
 
-function OwnAppsRow({ capabilityId, realizations, showGrade, onChipClick }: OwnAppsRowProps) {
-  if (realizations.length === 0) return null;
-
+function AppCount({ distinctAppCount }: AppCountProps) {
   return (
-    <Group gap="xs" wrap="wrap" className={classes.ownApps} data-testid={`l1-own-apps-${capabilityId}`}>
-      {realizations.map((realization) => (
-        <AppChip key={realization.id} realization={realization} onClick={onChipClick} showGrade={showGrade} />
-      ))}
-    </Group>
+    <span className={[classes.appCount, distinctAppCount > 3 ? classes.appCountMulti : ''].join(' ')}>
+      {distinctAppCount} apps
+    </span>
   );
 }
 
-interface L1HeaderProps {
+interface L1CompactHeaderProps {
   capability: Capability;
   subCount: number;
   distinctAppCount: number;
-  isOpen: boolean;
   isSelected: boolean;
   onToggle: () => void;
-  onOpen: (capability: Capability, event: React.MouseEvent) => void;
 }
 
-function L1Header({ capability, subCount, distinctAppCount, isOpen, isSelected, onToggle, onOpen }: L1HeaderProps) {
+function L1CompactHeader({ capability, subCount, distinctAppCount, isSelected, onToggle }: L1CompactHeaderProps) {
   return (
-    <div className={classes.header}>
-      <UnstyledButton
-        component="button"
-        className={classes.toggle}
-        aria-expanded={isOpen}
-        aria-label={`${isOpen ? 'Collapse' : 'Expand'} sub-capabilities`}
-        onClick={onToggle}
-        data-testid={`l1-toggle-${capability.id}`}
-      >
-        <IconChevronRight size={12} className={[classes.chevron, isOpen ? classes.chevronOpen : ''].join(' ')} />
-      </UnstyledButton>
-      <UnstyledButton
-        component="button"
-        className={[classes.label, isSelected ? classes.selected : ''].filter(Boolean).join(' ')}
-        onClick={(e) => onOpen(capability, e)}
-        data-testid={`l1-open-${capability.id}`}
-        data-selected={isSelected || undefined}
-      >
-        <span className={classes.name}>{capability.name}</span>
-        <span className={classes.subTag}>L1 · {subCount} sub</span>
-        <span className={[classes.appCount, distinctAppCount > 3 ? classes.appCountMulti : ''].join(' ')}>
-          {distinctAppCount} apps
-        </span>
-      </UnstyledButton>
-    </div>
+    <UnstyledButton
+      component="button"
+      className={[classes.header, isSelected ? classes.selected : ''].filter(Boolean).join(' ')}
+      aria-expanded={false}
+      aria-label={`Expand ${capability.name}`}
+      onClick={onToggle}
+      data-testid={`l1-toggle-${capability.id}`}
+      data-selected={isSelected || undefined}
+    >
+      <IconChevronRight size={12} className={classes.chevron} />
+      <span className={classes.name}>{capability.name}</span>
+      <span className={classes.subTag}>{subCount > 0 ? `L1 · ${subCount} sub` : 'L1'}</span>
+      <AppCount distinctAppCount={distinctAppCount} />
+    </UnstyledButton>
   );
 }
 
-interface L1GroupBodyProps {
-  node: CapabilityTreeNode;
-  ownRealizations: AssessedRealization[];
-  visibleChildren: CapabilityTreeNode[];
-  showGrade: boolean;
-  selectedCapabilities: Set<CapabilityId>;
-  getColorForValue: (maturityValue: number) => string;
-  getRealizationsForCapability: (capabilityId: CapabilityId) => AssessedRealization[];
-  onCapabilityClick: (capability: Capability, event: React.MouseEvent) => void;
-  onCapabilityContextMenu: (capability: Capability, event: React.MouseEvent) => void;
-  onChipClick: (componentId: ComponentId) => void;
+interface L1CollapseToggleProps {
+  capabilityId: CapabilityId;
+  subCount: number;
+  distinctAppCount: number;
+  onToggle: () => void;
 }
 
-function L1GroupBody({
-  node,
-  ownRealizations,
-  visibleChildren,
-  showGrade,
-  selectedCapabilities,
-  getColorForValue,
-  getRealizationsForCapability,
-  onCapabilityClick,
-  onCapabilityContextMenu,
-  onChipClick,
-}: L1GroupBodyProps) {
+function L1CollapseToggle({ capabilityId, subCount, distinctAppCount, onToggle }: L1CollapseToggleProps) {
   return (
-    <div className={classes.body}>
-      <OwnAppsRow
-        capabilityId={node.capability.id}
-        realizations={ownRealizations}
-        showGrade={showGrade}
-        onChipClick={onChipClick}
-      />
-      {visibleChildren.map((child) => (
-        <BoardCapabilityCard
-          key={child.capability.id}
-          node={child}
-          isSelected={selectedCapabilities.has(child.capability.id)}
-          getColorForValue={getColorForValue}
-          getRealizationsForCapability={getRealizationsForCapability}
-          onClick={onCapabilityClick}
-          onContextMenu={onCapabilityContextMenu}
-          onChipClick={onChipClick}
-        />
-      ))}
-    </div>
+    <UnstyledButton
+      component="button"
+      className={classes.childToggle}
+      aria-expanded
+      aria-label="Collapse capability"
+      onClick={(event) => {
+        event.stopPropagation();
+        onToggle();
+      }}
+      data-testid={`l1-toggle-${capabilityId}`}
+    >
+      <IconChevronRight size={12} className={[classes.chevron, classes.chevronOpen].join(' ')} />
+      {subCount > 0 && (
+        <span>
+          {subCount} sub-capabilit{subCount === 1 ? 'y' : 'ies'}
+        </span>
+      )}
+      <AppCount distinctAppCount={distinctAppCount} />
+    </UnstyledButton>
   );
 }
 
@@ -154,48 +115,71 @@ function computeL1GroupState({ node, lensContext, searchQuery, forceOpen, manual
   return { isOpen, dimmedGroup };
 }
 
-function ChildlessL1Group(props: L1GroupProps) {
-  const { lens, index } = useBoardLens();
-  const { node } = props;
-  if (lens === 'target' && isMoveJourney(index.getJourney(node.capability.id))) return null;
+interface ExpandedL1GroupProps extends L1GroupProps {
+  isMove: boolean;
+  onToggle: () => void;
+}
+
+function ExpandedL1Group({ isMove, onToggle, ...props }: ExpandedL1GroupProps) {
+  const { node, distinctAppCount, searchQuery, selectedCapabilities, getRealizationsForCapability } = props;
+  const hasChildren = node.children.length > 0;
+  const visibleChildren =
+    hasChildren && searchQuery
+      ? node.children.filter((child) => nodeMatchesSearch(child, searchQuery, getRealizationsForCapability))
+      : node.children;
 
   return (
-    <div data-testid={`l1-group-${node.capability.id}`}>
+    <>
       <BoardCapabilityCard
         node={node}
-        isSelected={props.selectedCapabilities.has(node.capability.id)}
+        isSelected={selectedCapabilities.has(node.capability.id)}
+        subCapabilities={
+          isMove ? undefined : (
+            <L1CollapseToggle
+              capabilityId={node.capability.id}
+              subCount={node.children.length}
+              distinctAppCount={distinctAppCount}
+              onToggle={onToggle}
+            />
+          )
+        }
         getColorForValue={props.getColorForValue}
-        getRealizationsForCapability={props.getRealizationsForCapability}
+        getRealizationsForCapability={getRealizationsForCapability}
         onClick={props.onCapabilityClick}
         onContextMenu={props.onCapabilityContextMenu}
         onChipClick={props.onChipClick}
       />
-    </div>
+      {hasChildren && (
+        <div className={classes.childCards}>
+          {visibleChildren.map((child) => (
+            <BoardCapabilityCard
+              key={child.capability.id}
+              node={child}
+              isSelected={selectedCapabilities.has(child.capability.id)}
+              getColorForValue={props.getColorForValue}
+              getRealizationsForCapability={getRealizationsForCapability}
+              onClick={props.onCapabilityClick}
+              onContextMenu={props.onCapabilityContextMenu}
+              onChipClick={props.onChipClick}
+            />
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 
 export function L1Group(props: L1GroupProps) {
-  const {
-    node,
-    distinctAppCount,
-    searchQuery,
-    forceOpen = false,
-    selectedCapabilities,
-    getColorForValue,
-    getRealizationsForCapability,
-    onCapabilityClick,
-    onCapabilityContextMenu,
-    onChipClick,
-  } = props;
+  const { node, distinctAppCount, searchQuery, forceOpen = false, selectedCapabilities } = props;
   const [manualOpen, setManualOpen] = useState(false);
   const lensContext = useBoardLens();
+  const { lens, index } = lensContext;
+  const isMove = isMoveJourney(index.getJourney(node.capability.id));
 
-  if (node.children.length === 0) return <ChildlessL1Group {...props} />;
+  if (lens === 'target' && isMove) return null;
 
   const { isOpen, dimmedGroup } = computeL1GroupState({ node, lensContext, searchQuery, forceOpen, manualOpen });
-  const visibleChildren = searchQuery
-    ? node.children.filter((child) => nodeMatchesSearch(child, searchQuery, getRealizationsForCapability))
-    : node.children;
+  const toggle = () => setManualOpen((open) => !open);
 
   return (
     <div
@@ -203,27 +187,15 @@ export function L1Group(props: L1GroupProps) {
       data-testid={`l1-group-${node.capability.id}`}
       data-dimmed={dimmedGroup || undefined}
     >
-      <L1Header
-        capability={node.capability}
-        subCount={node.children.length}
-        distinctAppCount={distinctAppCount}
-        isOpen={isOpen}
-        isSelected={selectedCapabilities.has(node.capability.id)}
-        onToggle={() => setManualOpen((open) => !open)}
-        onOpen={onCapabilityClick}
-      />
-      {isOpen && (
-        <L1GroupBody
-          node={node}
-          ownRealizations={getRealizationsForCapability(node.capability.id)}
-          visibleChildren={visibleChildren}
-          showGrade={lensContext.lens === 'now'}
-          selectedCapabilities={selectedCapabilities}
-          getColorForValue={getColorForValue}
-          getRealizationsForCapability={getRealizationsForCapability}
-          onCapabilityClick={onCapabilityClick}
-          onCapabilityContextMenu={onCapabilityContextMenu}
-          onChipClick={onChipClick}
+      {isOpen || isMove ? (
+        <ExpandedL1Group {...props} isMove={isMove} onToggle={toggle} />
+      ) : (
+        <L1CompactHeader
+          capability={node.capability}
+          subCount={node.children.length}
+          distinctAppCount={distinctAppCount}
+          isSelected={selectedCapabilities.has(node.capability.id)}
+          onToggle={toggle}
         />
       )}
     </div>

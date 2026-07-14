@@ -114,6 +114,40 @@ describe('BoardCapabilityCard', () => {
     expect(screen.getByTestId('app-chip-comp-9')).toBeInTheDocument();
   });
 
+  it('opens the clicked descendant, not the parent card, when a sub-capability row is clicked', async () => {
+    const [node] = buildCapabilityTree(
+      [cap('l2-a', 'Booking Management', 'L2'), cap('l3-a1', 'Quotation', 'L3', 'l2-a')],
+      { orphanRoots: 'any-level' },
+    );
+    const onClick = vi.fn();
+
+    renderCard({ node, onClick });
+    await userEvent.click(screen.getByText('1 sub-capability'));
+    await userEvent.click(screen.getByTestId('capability-card-l3-a1'));
+
+    expect(onClick).toHaveBeenCalledTimes(1);
+    expect(onClick).toHaveBeenCalledWith(expect.objectContaining({ id: toCapabilityId('l3-a1') }), expect.anything());
+  });
+
+  it('renders a custom sub-capability slot inside the card in place of the built-in expander', () => {
+    const [node] = buildCapabilityTree(
+      [cap('l2-a', 'Booking Management', 'L2'), cap('l3-a1', 'Quotation', 'L3', 'l2-a')],
+      { orphanRoots: 'any-level' },
+    );
+
+    renderCard({
+      node,
+      subCapabilities: (
+        <button type="button" data-testid="custom-slot">
+          custom
+        </button>
+      ),
+    });
+
+    expect(screen.getByTestId('capability-card-l2-a')).toContainElement(screen.getByTestId('custom-slot'));
+    expect(screen.queryByText('1 sub-capability')).not.toBeInTheDocument();
+  });
+
   it('applies a maturity-derived left border colour when maturityValue is present', () => {
     const [node] = buildCapabilityTree([{ ...cap('l2-a', 'Booking Management', 'L2'), maturityValue: 42 }], {
       orphanRoots: 'any-level',

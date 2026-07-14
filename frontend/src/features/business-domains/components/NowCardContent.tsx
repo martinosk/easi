@@ -52,8 +52,14 @@ function ChildRow({ node, getRealizationsForCapability, onClick, onContextMenu, 
       className={classes.childRow}
       role="button"
       tabIndex={0}
-      onClick={(e) => onClick(node.capability, e)}
-      onKeyDown={activationKeyHandler(node.capability, onClick)}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick(node.capability, e);
+      }}
+      onKeyDown={(e) => {
+        e.stopPropagation();
+        activationKeyHandler(node.capability, onClick)(e);
+      }}
       onContextMenu={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -76,6 +82,7 @@ function ChildRow({ node, getRealizationsForCapability, onClick, onContextMenu, 
 export interface NowCardContentProps {
   node: CapabilityTreeNode;
   realizations: AssessedRealization[];
+  hideSubCapabilities?: boolean;
   getRealizationsForCapability: (capabilityId: CapabilityId) => AssessedRealization[];
   onClick: (capability: Capability, event: React.MouseEvent) => void;
   onContextMenu: (capability: Capability, event: React.MouseEvent) => void;
@@ -85,13 +92,14 @@ export interface NowCardContentProps {
 export function NowCardContent({
   node,
   realizations,
+  hideSubCapabilities,
   getRealizationsForCapability,
   onClick,
   onContextMenu,
   onChipClick,
 }: NowCardContentProps) {
   const [childrenOpen, setChildrenOpen] = useState(false);
-  const descendants = flattenDescendants(node);
+  const descendants = hideSubCapabilities ? [] : flattenDescendants(node);
 
   return (
     <>
