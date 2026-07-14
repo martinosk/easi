@@ -5,28 +5,11 @@ import { MantineTestWrapper } from '../../../test/helpers/mantineTestWrapper';
 import { CreateComponentDialog } from './CreateComponentDialog';
 
 const mockMutateAsync = vi.fn();
-const mockAddToViewMutateAsync = vi.fn();
 
 vi.mock('../hooks/useComponents', () => ({
   useCreateComponent: () => ({
     mutateAsync: mockMutateAsync,
     isPending: false,
-  }),
-}));
-
-vi.mock('../../views/hooks/useViews', () => ({
-  useAddComponentToView: () => ({
-    mutateAsync: mockAddToViewMutateAsync,
-    isPending: false,
-  }),
-}));
-
-vi.mock('../../views/hooks/useCurrentView', () => ({
-  useCurrentView: () => ({
-    currentView: null,
-    currentViewId: null,
-    isLoading: false,
-    error: null,
   }),
 }));
 
@@ -37,7 +20,6 @@ describe('CreateComponentDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockMutateAsync.mockReset();
-    mockAddToViewMutateAsync.mockReset();
     queryClient = new QueryClient({
       defaultOptions: {
         queries: { retry: false },
@@ -153,7 +135,7 @@ describe('CreateComponentDialog', () => {
   });
 
   describe('onCreated handoff', () => {
-    it('calls onCreated with the new entity instead of running default add-to-view', async () => {
+    it('calls onCreated with the new entity', async () => {
       mockMutateAsync.mockResolvedValueOnce({ id: 'new-id', name: 'X' });
       const onCreated = vi.fn();
 
@@ -163,7 +145,6 @@ describe('CreateComponentDialog', () => {
       await waitFor(() => {
         expect(onCreated).toHaveBeenCalledWith(expect.objectContaining({ id: 'new-id' }));
       });
-      expect(mockAddToViewMutateAsync).not.toHaveBeenCalled();
       await waitFor(() => expect(mockOnClose).toHaveBeenCalled());
     });
   });
