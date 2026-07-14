@@ -1,4 +1,4 @@
-import { type UseQueryResult, useQueries } from '@tanstack/react-query';
+import type { UseQueryResult } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import type { CapabilityRealizationsGroup } from '../../../api/types';
 import { journeyApi } from '../../journeys/api/journeyApi';
@@ -6,18 +6,14 @@ import { journeyQueryKeys } from '../../journeys/queryKeys';
 import type { CapabilityJourneysBulkResponse } from '../../journeys/types';
 import { buildJourneyIndex, type JourneyIndex } from '../lens/journeyIndex';
 import { type DomainBoardViewModel, flattenViewModelCapabilities } from './domainBoardViewModel';
+import { useCapabilityIdQueries } from './useCapabilityIdQueries';
 
 export function useJourneyQueries(realizationQueries: UseQueryResult<CapabilityRealizationsGroup[]>[]) {
-  return useQueries({
-    queries: realizationQueries.map((realizationQuery) => {
-      const capabilityIds = (realizationQuery.data ?? []).map((group) => group.capabilityId);
-      return {
-        queryKey: journeyQueryKeys.byCapabilityIds(capabilityIds),
-        queryFn: () => journeyApi.getByCapabilityIds(capabilityIds),
-        enabled: capabilityIds.length > 0,
-      };
-    }),
-  });
+  return useCapabilityIdQueries<CapabilityJourneysBulkResponse>(
+    realizationQueries,
+    journeyQueryKeys.byCapabilityIds,
+    (capabilityIds) => journeyApi.getByCapabilityIds(capabilityIds),
+  );
 }
 
 export function useBoardJourneyIndex(

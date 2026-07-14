@@ -15,6 +15,7 @@ import { businessDomainsQueryKeys } from '../queryKeys';
 import { buildDomainBoardViewModel, type DomainBoardViewModel } from './domainBoardViewModel';
 import { useBoardJourneyIndex, useJourneyQueries } from './useBoardJourneys';
 import { useBusinessDomains } from './useBusinessDomains';
+import { useCapabilityIdQueries } from './useCapabilityIdQueries';
 
 export const REALIZATION_DEPTH = 4;
 
@@ -33,32 +34,6 @@ function useRealizationQueries(domains: BusinessDomain[]) {
       queryKey: businessDomainsQueryKeys.realizations(domain.id, REALIZATION_DEPTH),
       queryFn: () => businessDomainsApi.getCapabilityRealizations(domain.id, REALIZATION_DEPTH),
     })),
-  });
-}
-
-function useAssessmentQueries(realizationQueries: UseQueryResult<CapabilityRealizationsGroup[]>[]) {
-  return useQueries({
-    queries: realizationQueries.map((realizationQuery) => {
-      const capabilityIds = (realizationQuery.data ?? []).map((g) => g.capabilityId);
-      return {
-        queryKey: timeAssessmentQueryKeys.byCapabilityIds(capabilityIds),
-        queryFn: () => timeAssessmentApi.getByCapabilityIds(capabilityIds),
-        enabled: capabilityIds.length > 0,
-      };
-    }),
-  });
-}
-
-function useRoleQueries(realizationQueries: UseQueryResult<CapabilityRealizationsGroup[]>[]) {
-  return useQueries({
-    queries: realizationQueries.map((realizationQuery) => {
-      const capabilityIds = (realizationQuery.data ?? []).map((g) => g.capabilityId);
-      return {
-        queryKey: realizationRoleQueryKeys.byCapabilityIds(capabilityIds),
-        queryFn: () => realizationRoleApi.getByCapabilityIds(capabilityIds),
-        enabled: capabilityIds.length > 0,
-      };
-    }),
   });
 }
 
@@ -98,8 +73,16 @@ export function useDomainBoardData() {
 
   const capabilityQueries = useCapabilityQueries(domains);
   const realizationQueries = useRealizationQueries(domains);
-  const assessmentQueries = useAssessmentQueries(realizationQueries);
-  const roleQueries = useRoleQueries(realizationQueries);
+  const assessmentQueries = useCapabilityIdQueries<TimeAssessmentsResponse>(
+    realizationQueries,
+    timeAssessmentQueryKeys.byCapabilityIds,
+    (capabilityIds) => timeAssessmentApi.getByCapabilityIds(capabilityIds),
+  );
+  const roleQueries = useCapabilityIdQueries<RealizationRolesResponse>(
+    realizationQueries,
+    realizationRoleQueryKeys.byCapabilityIds,
+    (capabilityIds) => realizationRoleApi.getByCapabilityIds(capabilityIds),
+  );
   const journeyQueries = useJourneyQueries(realizationQueries);
 
   const boardDomains = useMemo(
