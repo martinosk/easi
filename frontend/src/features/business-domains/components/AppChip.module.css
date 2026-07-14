@@ -35,6 +35,18 @@
   border-style: dashed;
 }
 
+.roleStandard {
+  border-color: var(--status-positive-line);
+  background: var(--status-positive-bg);
+  color: var(--status-positive);
+}
+
+.roleLegacy {
+  border-color: var(--status-progress-line);
+  background: var(--status-progress-bg);
+  color: var(--status-progress);
+}
+
 .inherited {
   opacity: 0.55;
   border-style: dashed;
@@ -43,4 +55,37 @@
 .chipName {
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.gradeBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.gradeInvest {
+  background: var(--status-positive-bg);
+  color: var(--status-positive);
+}
+
+.gradeTolerate {
+  background: var(--status-neutral-bg);
+  color: var(--status-neutral);
+}
+
+.gradeMigrate {
+  background: var(--status-progress-bg);
+  color: var(--status-progress);
+}
+
+.gradeEliminate {
+  background: var(--status-danger-bg);
+  color: var(--status-danger);
 }

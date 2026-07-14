@@ -298,16 +298,21 @@ func setupDomainRoutes(r chi.Router, deps routerDependencies) {
 	}
 
 	mustSetup(directionAPI.SetupRoutes(directionAPI.RoutesDeps{
-		Router:             r,
-		CommandBus:         deps.commandBus,
-		EventStore:         deps.eventStore,
-		EventBus:           deps.eventBus,
-		DB:                 deps.db,
-		HATEOAS:            deps.hateoas,
-		AuthMiddleware:     deps.authDeps.AuthMiddleware,
-		ReferenceChecker:   directionRefChecker,
-		SourceEligibility:  directionEligibilityAdapter{service: compositionService},
-		CompositionPreview: compositionPreviewAdapter{service: compositionService, capabilities: ecReadModel},
+		Router:                        r,
+		CommandBus:                    deps.commandBus,
+		EventStore:                    deps.eventStore,
+		EventBus:                      deps.eventBus,
+		DB:                            deps.db,
+		HATEOAS:                       deps.hateoas,
+		AuthMiddleware:                deps.authDeps.AuthMiddleware,
+		ReferenceChecker:              directionRefChecker,
+		SourceEligibility:             directionEligibilityAdapter{service: compositionService},
+		CompositionPreview:            compositionPreviewAdapter{service: compositionService, capabilities: ecReadModel},
+		DirectRealization:             directionServices.DirectRealizationLookup(capReadModels.NewRealizationReadModel(deps.db).GetDirectByCapabilityAndComponent),
+		CapabilityExists:              directionServices.CapabilityExists(existsByID(capReadModels.NewCapabilityReadModel(deps.db).GetByID)),
+		ComponentExists:               directionServices.ComponentExists(existsByID(archReadModels.NewApplicationComponentReadModel(deps.db).GetByID)),
+		DomainExists:                  directionServices.DomainExists(existsByID(capReadModels.NewBusinessDomainReadModel(deps.db).GetByID)),
+		CapabilityEffectivelyInDomain: capabilityEffectivelyInDomain(capReadModels.NewCMEffectiveBusinessDomainReadModel(deps.db)),
 	}), "architecture direction routes")
 
 	viewlayoutsAPI.SubscribeEvents(deps.eventBus, deps.db)

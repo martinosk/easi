@@ -1,14 +1,29 @@
 import { Badge, Button, Drawer, Group, Stack, Text, Title } from '@mantine/core';
 import { useState } from 'react';
-import type { BusinessDomain, Capability, CapabilityId, CapabilityRealization, ComponentId } from '../../../api/types';
+import type {
+  BusinessDomain,
+  Capability,
+  CapabilityId,
+  CapabilityRealization,
+  ComponentId,
+  TimeGrade,
+} from '../../../api/types';
 import { DetailField } from '../../../components/shared/DetailField';
 import { canEdit as canEditResource, hasLink } from '../../../utils/hateoas';
+import { normalizeTimeGrade } from '../../architecture-direction/utils/timeGrade';
 import { AddExpertDialog } from '../../capabilities/components/AddExpertDialog';
 import { CapabilityExpertsList } from '../../capabilities/components/CapabilityExpertsList';
 import { EditCapabilityDialog } from '../../capabilities/components/EditCapabilityDialog';
+import { useTimeSuggestions } from '../../enterprise-architecture/hooks/useTimeSuggestions';
 import { OnePagerActionButton } from '../../one-pagers';
+import { type CapabilityAssessments, useCapabilityAssessments } from '../hooks/useCapabilityAssessments';
+import { type CapabilityRoles, useCapabilityRoles } from '../hooks/useCapabilityRoles';
 import { AppChip } from './AppChip';
 import classes from './CapabilityDrawer.module.css';
+import { DrawerSectionHeader } from './DrawerSectionHeader';
+import { JourneySection } from './JourneySection';
+import { RealizationAssessment } from './RealizationAssessment';
+import { RealizationRoleControl } from './RealizationRoleControl';
 import { StrategicImportanceSection } from './StrategicImportanceSection';
 
 export interface CapabilityDrawerProps {
@@ -20,16 +35,15 @@ export interface CapabilityDrawerProps {
   onChipClick: (componentId: ComponentId) => void;
 }
 
-function SectionHeader({ children }: { children: React.ReactNode }) {
-  return <Text className={classes.sectionHeader}>{children}</Text>;
-}
-
 interface RealizationRowProps {
   realization: CapabilityRealization;
   onChipClick: (componentId: ComponentId) => void;
+  assessments: CapabilityAssessments;
+  roles: CapabilityRoles;
+  getSuggestion: (componentId: ComponentId) => TimeGrade | null;
 }
 
-function RealizationRow({ realization, onChipClick }: RealizationRowProps) {
+function RealizationRow({ realization, onChipClick, assessments, roles, getSuggestion }: RealizationRowProps) {
   return (
     <div className={classes.realizationRow} data-testid={`drawer-realization-${realization.id}`}>
       <Group gap="xs" wrap="wrap">
@@ -42,25 +56,60 @@ function RealizationRow({ realization, onChipClick }: RealizationRowProps) {
         </Text>
       )}
       {realization.notes && <Text className={classes.realizationMeta}>{realization.notes}</Text>}
+      {realization.origin === 'Direct' && (
+        <RealizationAssessment
+          capabilityId={realization.capabilityId}
+          componentId={realization.componentId}
+          assessment={assessments.getAssessment(realization.componentId)}
+          rollup={assessments.getRollup(realization.componentId)}
+          canAssess={assessments.canAssess}
+          suggestion={getSuggestion(realization.componentId)}
+        />
+      )}
+      {realization.origin === 'Direct' && (
+        <RealizationRoleControl
+          capabilityId={realization.capabilityId}
+          componentId={realization.componentId}
+          role={roles.getRole(realization.componentId)}
+          canAssign={roles.canAssign}
+        />
+      )}
     </div>
   );
 }
 
 interface RealisingApplicationsSectionProps {
+  capability: Capability;
   realizations: CapabilityRealization[];
   onChipClick: (componentId: ComponentId) => void;
 }
 
-function RealisingApplicationsSection({ realizations, onChipClick }: RealisingApplicationsSectionProps) {
+function RealisingApplicationsSection({ capability, realizations, onChipClick }: RealisingApplicationsSectionProps) {
+  const assessments = useCapabilityAssessments(capability, realizations);
+  const roles = useCapabilityRoles(capability);
+  const { suggestions } = useTimeSuggestions({ capabilityId: capability.id });
+
+  const getSuggestion = (componentId: ComponentId): TimeGrade | null => {
+    const match = suggestions.find((s) => s.componentId === componentId);
+    return normalizeTimeGrade(match?.suggestedTime ?? null);
+  };
+
   return (
     <Stack gap="xs">
-      <SectionHeader>Realising applications</SectionHeader>
+      <DrawerSectionHeader>Realising applications</DrawerSectionHeader>
       {realizations.length === 0 ? (
         <Text className={classes.emptyRealizations}>no realising application mapped</Text>
       ) : (
         <Stack gap="xs">
           {realizations.map((realization) => (
-            <RealizationRow key={realization.id} realization={realization} onChipClick={onChipClick} />
+            <RealizationRow
+              key={realization.id}
+              realization={realization}
+              onChipClick={onChipClick}
+              assessments={assessments}
+              roles={roles}
+              getSuggestion={getSuggestion}
+            />
           ))}
         </Stack>
       )}
@@ -76,7 +125,7 @@ interface DetailsSectionProps {
 function DetailsSection({ capability, onAddExpertClick }: DetailsSectionProps) {
   return (
     <Stack gap="sm">
-      <SectionHeader>Details</SectionHeader>
+      <DrawerSectionHeader>Details</DrawerSectionHeader>
       {capability.description && <DetailField label="Description">{capability.description}</DetailField>}
       {capability.ownershipModel && <DetailField label="Ownership Model">{capability.ownershipModel}</DetailField>}
       {capability.primaryOwner && <DetailField label="Primary Owner">{capability.primaryOwner}</DetailField>}
@@ -139,9 +188,12 @@ export function CapabilityDrawer({
           </Group>
 
           <RealisingApplicationsSection
+            capability={capability}
             realizations={getRealizationsForCapability(capability.id)}
             onChipClick={onChipClick}
           />
+
+          <JourneySection capability={capability} realizations={getRealizationsForCapability(capability.id)} />
 
           {domain && <StrategicImportanceSection domain={domain} capabilityId={capability.id} />}
 

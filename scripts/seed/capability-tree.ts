@@ -1,5 +1,18 @@
 import type { CapNode } from "./types.ts";
 
+export const CAPABILITY_DOMAIN_NAMES = [
+  "Customer",
+  "Digital Commerce",
+  "Supply Chain",
+  "Finance",
+  "Human Resources",
+  "Marketing",
+  "Sales",
+  "Technology Platform",
+  "Risk and Compliance",
+  "Analytics and Intelligence",
+];
+
 const L1_DEFS: [string, string][] = [
   // Customer (10)
   ["Customer Acquisition", "Attract and convert prospects into paying customers"],
@@ -139,6 +152,18 @@ const L3_BY_L2: Record<string, [string, string][]> = {
   ],
 };
 
+const L4_TEMPLATES: [string, string][] = [
+  ["Automation", "Automated execution, orchestration, and self-service tooling"],
+];
+
+function buildL4(l3Name: string, l3Suffix: string): CapNode[] {
+  return L4_TEMPLATES.map(([l4Suffix, l4Desc]) => ({
+    name: `${l3Name} - ${l4Suffix}`,
+    description: `${l4Desc} for ${l3Suffix.toLowerCase()}`,
+    level: "L4",
+  }));
+}
+
 export function generateCapabilityTree(): CapNode[] {
   return L1_DEFS.map(([l1Name, l1Desc]) => ({
     name: l1Name,
@@ -150,11 +175,15 @@ export function generateCapabilityTree(): CapNode[] {
         name: l2Name,
         description: `${l2Desc} for ${l1Name.toLowerCase()}`,
         level: "L2",
-        children: (L3_BY_L2[l2Suffix] ?? []).map(([l3Suffix, l3Desc]) => ({
-          name: `${l2Name} - ${l3Suffix}`,
-          description: `${l3Desc} within the ${l1Name.toLowerCase()} domain`,
-          level: "L3",
-        })),
+        children: (L3_BY_L2[l2Suffix] ?? []).map(([l3Suffix, l3Desc]) => {
+          const l3Name = `${l2Name} - ${l3Suffix}`;
+          return {
+            name: l3Name,
+            description: `${l3Desc} within the ${l1Name.toLowerCase()} domain`,
+            level: "L3",
+            children: buildL4(l3Name, l3Suffix),
+          };
+        }),
       };
     }),
   }));

@@ -20,7 +20,7 @@
   flex-direction: column;
   border-right: 1px solid var(--line);
   background: var(--surface);
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .detailsPane {
@@ -106,4 +106,10 @@
 .explorerPane :global(.navigation-tree),
 .explorerPane :global(.navigation-tree.closed) {
   width: 100% !important;
+}
+
+.explorerPane :global(.navigation-tree) {
+  flex: 1;
+  min-height: 0;
+  height: auto;
 }

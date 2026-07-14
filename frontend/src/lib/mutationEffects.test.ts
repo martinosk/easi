@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { realizationRoleQueryKeys, timeAssessmentQueryKeys } from '../features/architecture-direction/queryKeys';
 import { auditQueryKeys } from '../features/audit/queryKeys';
 import { businessDomainsQueryKeys } from '../features/business-domains/queryKeys';
 import { layoutsQueryKeys } from '../features/canvas/queryKeys';
@@ -65,6 +66,18 @@ describe('mutationEffects', () => {
 
       expect(effects).toContainEqual(capabilitiesQueryKeys.details());
       expect(effects).toContainEqual(businessDomainsQueryKeys.details());
+    });
+
+    it('should invalidate time assessment and rollup queries so a deleted realization hides its assessment', () => {
+      const effects = capabilitiesMutationEffects.deleteRealization({ capabilityId: 'cap-1', componentId: 'comp-1' });
+
+      expect(effects).toContainEqual(timeAssessmentQueryKeys.all);
+    });
+
+    it('should invalidate realization role queries so a deleted realization drops its standard/legacy tint', () => {
+      const effects = capabilitiesMutationEffects.deleteRealization({ capabilityId: 'cap-1', componentId: 'comp-1' });
+
+      expect(effects).toContainEqual(realizationRoleQueryKeys.all);
     });
   });
 

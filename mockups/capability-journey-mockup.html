@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Landscape — Capability journeys (mockup v3)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   Design tokens
+   ============================================================ */
+:root {
+  --navy: #03304C;
+  --ink: #16262F;
+  --muted: #5D7381;
+  --faint: #8CA0AC;
+  --bg: #F2F6F7;
+  --surface: #FFFFFF;
+  --well: #F7FAFB;
+  --line: #DDE6EA;
+  --line-strong: #B9C9D1;
+
+  --done: #0E7A5F;   --done-bg: #E3F2EC;   --done-line: #9CCDBD;
+  --flight: #A96605; --flight-bg: #FBEFD8; --flight-line: #E4C285;
+  --idle: #5D7381;   --idle-bg: #EEF2F4;   --idle-line: #C6D3DA;
+  --incoming: #5A4FBF; --incoming-bg: #ECEAFB; --incoming-line: #BDB6EA;
+  --leaving: #8CA0AC;
+
+  --time-i: #0E7A5F; --time-i-fg: #E3F2EC;
+  --time-t: #5D7381; --time-t-fg: #EEF2F4;
+  --time-m: #A96605; --time-m-fg: #FBEFD8;
+  --time-e: #A32D2D; --time-e-fg: #FCEBEB;
+
+  --radius: 10px;
+  --font-ui: "Inter", system-ui, sans-serif;
+  --font-display: "Archivo", var(--font-ui);
+  --font-mono: "IBM Plex Mono", monospace;
+}
+
+* { box-sizing: border-box; margin: 0; }
+body { font-family: var(--font-ui); font-size: 14px; line-height: 1.5; color: var(--ink); background: var(--bg); }
+button { font: inherit; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+
+/* App bar */
+.appbar { background: var(--navy); color: #fff; padding: 14px 24px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.appbar h1 { font-family: var(--font-display); font-size: 17px; font-weight: 600; }
+.appbar h1 span { color: #9FC3DA; font-weight: 500; }
+.appbar .asof { margin-left: auto; font-size: 12px; color: #9FC3DA; }
+.lens { display: flex; background: rgba(255,255,255,0.12); border-radius: 999px; padding: 3px; }
+.lens button { border: none; background: transparent; color: #C8DCE9; font-weight: 500; font-size: 13px; padding: 6px 18px; border-radius: 999px; }
+.lens button[aria-pressed="true"] { background: #fff; color: var(--navy); }
+
+/* Toolbar */
+.toolbar { padding: 16px 24px 0; max-width: 1200px; margin: 0 auto; }
+.toolbar .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.lens-desc { color: var(--muted); font-size: 13px; }
+.search-box {
+  display: flex; align-items: center; gap: 6px;
+  border: 1px solid var(--line-strong); background: var(--surface);
+  border-radius: 999px; padding: 5px 14px; font-size: 13px;
+}
+.search-box input { border: none; background: none; outline: none; font: inherit; width: 160px; color: var(--ink); }
+.search-box input::placeholder { color: var(--faint); }
+.signals-btn {
+  margin-left: auto;
+  display: inline-flex; align-items: center; gap: 7px;
+  border: 1px solid var(--line-strong); background: var(--surface);
+  border-radius: 999px; padding: 5px 14px; font-size: 13px; font-weight: 500; color: var(--ink);
+}
+.signals-btn .count { background: var(--incoming-bg); color: var(--incoming); border-radius: 999px; font-size: 12px; padding: 0 8px; font-weight: 600; }
+
+/* Changes-only toggle */
+.changes-toggle { display: none; align-items: center; gap: 8px; margin-top: 10px; font-size: 13px; color: var(--ink); }
+.changes-toggle.visible { display: flex; }
+.changes-toggle .track { position: relative; width: 34px; height: 18px; background: var(--line-strong); border-radius: 9px; transition: background 0.2s; cursor: pointer; display: inline-block; }
+.changes-toggle input { position: absolute; opacity: 0; width: 100%; height: 100%; cursor: pointer; margin: 0; }
+.changes-toggle .thumb { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; background: #fff; border-radius: 50%; transition: transform 0.2s; pointer-events: none; }
+.changes-toggle input:checked ~ .thumb { transform: translateX(16px); }
+.changes-toggle:has(input:checked) .track { background: var(--navy); }
+
+.summary { display: none; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+.summary.visible { display: flex; }
+.summary .stat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 14px; font-size: 13px; display: flex; align-items: baseline; gap: 6px; }
+.summary .stat b { font-family: var(--font-display); font-size: 17px; font-weight: 600; }
+.summary .stat.s-done b { color: var(--done); }
+.summary .stat.s-flight b { color: var(--flight); }
+.summary .stat.s-idle b { color: var(--idle); }
+
+.legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 12px; font-size: 12px; color: var(--muted); }
+.legend .key { display: flex; align-items: center; gap: 5px; }
+.legend .swatch { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+.sw-done { background: var(--done-bg); border: 1px solid var(--done); }
+.sw-flight { background: var(--flight-bg); border: 1px solid var(--flight); }
+.sw-idle { background: var(--idle-bg); border: 1px solid var(--idle-line); }
+.sw-incoming { background: var(--incoming-bg); border: 1px dashed var(--incoming); }
+.sw-leaving { background: transparent; border: 1px dashed var(--leaving); }
+.legend .disclaimer { color: var(--faint); font-style: italic; }
+.tb { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; border-radius: 50%; font-size: 10px; font-weight: 600; flex: none; }
+.tb-I { background: var(--time-i); color: var(--time-i-fg); }
+.tb-T { background: var(--time-t); color: var(--time-t-fg); }
+.tb-M { background: var(--time-m); color: var(--time-m-fg); }
+.tb-E { background: var(--time-e); color: var(--time-e-fg); }
+.legend .tb { width: 13px; height: 13px; font-size: 9px; }
+
+/* Domain grid */
+.board { display: grid; grid-template-columns: repeat(auto-fill, minmax(440px, 1fr)); gap: 16px; padding: 16px 24px 48px; max-width: 1200px; margin: 0 auto; }
+@media (max-width: 500px) { .board { grid-template-columns: 1fr; padding: 16px 12px 48px; } }
+
+.domain { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+.domain > header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+.domain > header h2 { font-family: var(--font-display); font-size: 15px; font-weight: 600; }
+.domain > header .stats { margin-left: auto; font-size: 12px; color: var(--muted); }
+
+/* L1 group — collapsible */
+.l1-group { border-top: 1px solid var(--line); }
+.l1-group:first-child { border-top: none; }
+.l1-header {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; text-align: left;
+  border: none; background: none;
+  padding: 10px 4px; font-weight: 600; font-size: 13.5px; color: var(--ink);
+}
+.l1-header .chev { font-size: 11px; color: var(--faint); transition: transform 0.15s; display: inline-block; }
+.l1-header[aria-expanded="true"] .chev { transform: rotate(90deg); }
+.l1-header .app-count { margin-left: auto; font-weight: 400; font-size: 12px; color: var(--faint); }
+.l1-header .app-count.multi { color: var(--flight); font-weight: 500; }
+.l1-body { display: none; padding: 0 0 8px; }
+.l1-body.open { display: block; }
+
+/* Dimming for changes-only */
+.cap.dimmed { opacity: 0.25; }
+.l1-group.dimmed-group { opacity: 0.25; }
+/* When the toggle is active, override leaving-card's reduced opacity so it pops */
+.changes-active .cap.leaving-card { opacity: 1; border-style: dashed; }
+.changes-active .cap.incoming-card { opacity: 1; }
+
+/* Capability card (L2) */
+.cap {
+  border: 1px solid var(--line); border-left: 3px solid var(--idle-line);
+  border-radius: 8px; background: var(--surface);
+  padding: 8px 10px; margin: 0 0 6px 8px;
+  text-align: left; width: calc(100% - 8px);
+  transition: box-shadow 0.15s;
+}
+.cap:hover { box-shadow: 0 1px 4px rgba(3, 48, 76, 0.10); }
+.cap.st-done { border-left-color: var(--done); }
+.cap.st-flight { border-left-color: var(--flight); }
+.cap.hidden { display: none; }
+.cap.incoming-card { border: 1px dashed var(--incoming); border-left-width: 3px; background: var(--incoming-bg); }
+.cap.leaving-card { border: 1px dashed var(--leaving); border-left: 3px dashed var(--leaving); opacity: 0.72; background: transparent; }
+.cap.traced { box-shadow: 0 0 0 3px var(--incoming-bg), 0 0 0 4px var(--incoming); }
+
+.cap .row1 { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.cap .name { font-weight: 600; font-size: 13px; }
+.cap .lvl { font-size: 10.5px; color: var(--faint); }
+.cap .pill { margin-left: auto; font-size: 10.5px; font-weight: 500; padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
+.pill.p-done { background: var(--done-bg); color: var(--done); }
+.pill.p-flight { background: var(--flight-bg); color: var(--flight); }
+.pill.p-idle { background: var(--idle-bg); color: var(--idle); }
+.pill.p-incoming { background: var(--incoming-bg); color: var(--incoming); }
+
+.cap .row2 { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 5px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--font-mono); font-size: 10.5px;
+  padding: 1px 7px; border-radius: 4px;
+  border: 1px solid var(--line-strong); background: var(--well); color: var(--ink);
+  white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis;
+}
+.chip.standard { border-color: var(--done); background: var(--done-bg); color: var(--done); }
+.chip.legacy { border-color: var(--flight-line); background: var(--flight-bg); color: var(--flight); }
+.chip.future { border-style: dashed; border-color: var(--incoming); background: var(--incoming-bg); color: var(--incoming); }
+.arrow { color: var(--faint); font-size: 11px; }
+.multi-flag { font-size: 10.5px; color: var(--flight); margin-left: auto; flex: none; }
+.moved-flag { font-size: 10.5px; color: var(--incoming); margin-left: auto; }
+.consolidated-flag { font-size: 10.5px; color: var(--done); margin-left: auto; }
+
+.bar { height: 3px; background: var(--idle-bg); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+.bar > div { height: 100%; border-radius: 2px; }
+.bar .f-done { background: var(--done); }
+.bar .f-flight { background: var(--flight); }
+
+.move-link { display: inline-flex; align-items: center; gap: 4px; border: none; background: none; padding: 0; font-size: 11px; color: var(--incoming); font-weight: 500; text-decoration: underline; text-underline-offset: 2px; }
+
+.expander { border: none; background: none; color: var(--muted); font-size: 11.5px; padding: 3px 0 0; display: inline-flex; align-items: center; gap: 4px; }
+.expander .chev { transition: transform 0.15s; display: inline-block; font-size: 10px; }
+.expander[aria-expanded="true"] .chev { transform: rotate(90deg); }
+.children { margin-top: 6px; border-top: 1px dashed var(--line); padding-top: 6px; display: none; flex-direction: column; gap: 4px; }
+.children.open { display: flex; }
+.child { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 3px 6px; border-radius: 5px; background: var(--well); }
+.child .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.dot.d-done { background: var(--done); }
+.dot.d-flight { background: var(--flight); }
+.dot.d-idle { background: var(--idle-line); }
+.child .cname { font-weight: 500; }
+.child .capp { margin-left: auto; font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); }
+
+.empty-cap { font-size: 12px; color: var(--faint); font-style: italic; padding: 2px 0 0; }
+
+/* Drawer */
+.drawer-backdrop { position: fixed; inset: 0; background: rgba(3, 48, 76, 0.28); opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 40; }
+.drawer-backdrop.open { opacity: 1; pointer-events: auto; }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(440px, 100vw); background: var(--surface); border-left: 1px solid var(--line); box-shadow: -8px 0 24px rgba(3, 48, 76, 0.14); transform: translateX(100%); transition: transform 0.22s ease-out; z-index: 50; overflow-y: auto; padding: 20px 22px 32px; }
+.drawer.open { transform: translateX(0); }
+@media (prefers-reduced-motion: reduce) { .drawer, .drawer-backdrop, .expander .chev, .l1-header .chev, .cap { transition: none; } }
+.drawer .crumb { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.drawer h3 { font-family: var(--font-display); font-size: 18px; font-weight: 600; }
+.drawer .close { position: absolute; top: 14px; right: 14px; border: 1px solid var(--line); background: var(--surface); border-radius: 6px; width: 28px; height: 28px; color: var(--muted); line-height: 1; }
+.drawer section { margin-top: 16px; }
+.drawer section h4 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--faint); margin-bottom: 6px; }
+.drawer table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.drawer td { padding: 4px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.drawer td:first-child { color: var(--muted); width: 38%; }
+.drawer .note { font-size: 13px; background: var(--well); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.drawer .app-row { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; }
+.drawer .app-row .top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+.drawer .app-row .meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.drawer .app-row .profile { font-size: 12px; color: var(--muted); margin-top: 2px; font-family: var(--font-mono); }
+.stale { font-size: 10px; font-weight: 600; color: var(--time-m); border: 1px solid var(--time-m); border-radius: 999px; padding: 0 6px; }
+.milestones { list-style: none; }
+.milestones li { display: flex; gap: 10px; align-items: baseline; padding: 4px 0; font-size: 13px; }
+.milestones .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.milestones .when { color: var(--muted); margin-left: auto; font-size: 12px; white-space: nowrap; }
+
+/* Signal rows in drawer */
+.signal { display: flex; gap: 10px; align-items: baseline; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; background: var(--surface); width: 100%; text-align: left; }
+.signal:hover { box-shadow: 0 1px 4px rgba(3, 48, 76, 0.12); }
+.signal .stype { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; border-radius: 999px; padding: 1px 9px; flex: none; }
+.stype.gap { background: var(--flight-bg); color: var(--flight); }
+.stype.tension { background: var(--incoming-bg); color: var(--incoming); }
+.stype.contradiction { background: var(--time-e-fg); color: var(--time-e); }
+.stype.carve-out { background: var(--done-bg); color: var(--done); }
+.stype.priority { background: var(--idle-bg); color: var(--idle); }
+.signal .stext { font-size: 13px; }
+.signal .swhere { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+.mock-note { max-width: 1200px; margin: 0 auto; padding: 0 24px 32px; font-size: 12px; color: var(--faint); }
+</style>
+</head>
+<body>
+
+<header class="appbar">
+  <h1>Landscape <span>/ Capability journeys</span></h1>
+  <div class="lens" role="group" aria-label="Time lens">
+    <button type="button" data-lens="now" aria-pressed="true">Now</button>
+    <button type="button" data-lens="journey" aria-pressed="false">Journey</button>
+    <button type="button" data-lens="target" aria-pressed="false">Target</button>
+  </div>
+  <span class="asof">Model as of July 2026</span>
+</header>
+
+<div class="toolbar">
+  <div class="row">
+    <p class="lens-desc" id="lensDesc"></p>
+    <div class="search-box">
+      <span style="color:var(--faint)">⌕</span>
+      <input type="text" id="search" placeholder="Filter capabilities or apps…" autocomplete="off">
+    </div>
+    <button type="button" class="signals-btn" id="signalsBtn" aria-haspopup="dialog">
+      Signals <span class="count" id="signalCount">0</span>
+    </button>
+  </div>
+  <label class="changes-toggle" id="changesToggle">
+    <span class="track">
+      <input type="checkbox" id="changesOnly">
+      <span class="thumb"></span>
+    </span>
+    Highlight only what changed
+  </label>
+  <div class="summary" id="summary" aria-live="polite"></div>
+  <div class="legend" id="legend"></div>
+</div>
+
+<main class="board" id="board" aria-live="polite"></main>
+
+<p class="mock-note">Mockup v3 with sample data — application and capability names are illustrative. TIME grades are assessed per application <em>per capability</em> (on the realisation). Stress-tested against production-scale data (159 capabilities, 70 apps) — see companion real-data file.</p>
+
+<div class="drawer-backdrop" id="backdrop"></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle"></aside>
+
+<script>
+/* ============================================================
+   Sample model — mirrors the data contract in specification.md.
+   TIME on each realisation (per app PER capability).
+   Structure: Domain → L1[] → L2[] → L3[].
+   ============================================================ */
+const TIME_LABELS = { I: "Invest", T: "Tolerate", M: "Migrate", E: "Eliminate" };
+
+const MODEL = [
+  {
+    id: "ff", name: "Ferry freight",
+    l1s: [
+      { id: "ff-ar", name: "Accounts receivable", level: "L1",
+        apps: [],
+        children: [
+          { id: "ff-ar-bp", name: "Bill processing", level: "L2",
+            apps: [
+              { code: "Phoenix Invoice Job", role: "standard", time: { grade: "I", by: "Domain architect FF", at: "2026-02" } },
+              { code: "Seabook", role: "legacy", time: { grade: "M", by: "Domain architect FF", at: "2026-02" } }
+            ], transition: null, children: [] },
+          { id: "ff-ar-ip", name: "Invoice processing", level: "L2",
+            apps: [
+              { code: "Phoenix Invoice Job", role: "standard", time: { grade: "I", by: "Domain architect FF", at: "2026-02" } },
+              { code: "D365", role: "legacy", time: { grade: "T", by: "Domain architect FF", at: "2026-02" } }
+            ], transition: null, children: [] },
+          { id: "ff-ar-pe", name: "Payment execution", level: "L2",
+            apps: [
+              { code: "Phoenix", role: "standard", time: { grade: "I", by: "Domain architect FF", at: "2026-02" } },
+              { code: "Alta Pay", role: "unclassified", time: { grade: "T", by: "Domain architect FF", at: "2026-02" } }
+            ], transition: null, children: [] }
+        ] },
+      { id: "ff-fb", name: "Ferry booking", level: "L1",
+        apps: [],
+        children: [
+          { id: "ff-fb-bm", name: "Booking management", level: "L2",
+            apps: [
+              { code: "Seabook", role: "legacy", time: { grade: "M", by: "Domain architect FF", at: "2026-02" } },
+              { code: "Phoenix", role: "standard", time: { grade: "I", by: "Domain architect FF", at: "2026-02" } }
+            ],
+            transition: { type: "migration", from: "Seabook", to: "Phoenix", fromApps: ["Seabook"], status: "in-flight", pct: 60, eta: "Q2 2027", note: "Route-by-route migration. 14 of 23 routes live on Phoenix; North Sea corridor next." },
+            children: [
+              { id: "ff-fb-bm-q", name: "Quotation", status: "done", app: "Phoenix" },
+              { id: "ff-fb-bm-bc", name: "Booking capture", status: "in-flight", app: "Seabook → Phoenix" },
+              { id: "ff-fb-bm-ac", name: "Amendments & cancellation", status: "not-started", app: "Seabook" }
+            ],
+            milestones: [
+              { label: "Phoenix booking API live", when: "Done · Q4 2025", status: "done" },
+              { label: "Channel & Baltic routes migrated", when: "Done · Q1 2026", status: "done" },
+              { label: "North Sea routes", when: "Q4 2026", status: "in-flight" },
+              { label: "Seabook booking module decommissioned", when: "Q2 2027", status: "not-started" }
+            ] },
+          { id: "ff-fb-bc", name: "Booked capacity", level: "L2",
+            apps: [
+              { code: "Phoenix", role: "standard", time: { grade: "I", by: "Domain architect FF", at: "2026-02" } },
+              { code: "Capacity Management", role: "unclassified", time: { grade: "T", by: "Domain architect FF", at: "2026-02" } }
+            ], transition: null, children: [] },
+          { id: "ff-fb-hm", name: "Hazardous management", level: "L2",
+            apps: [
+              { code: "Hazcheck", role: "standard", time: { grade: "I", by: "Domain architect FF", at: "2026-02" } },
+              { code: "Control Tower Hazardous", role: "unclassified", time: { grade: "T", by: "Domain architect FF", at: "2026-02" } }
+            ], transition: null, children: [] }
+        ] },
+      { id: "ff-cc", name: "Customs compliance", level: "L1",
+        apps: [],
+        children: [
+          { id: "ff-cc-cl", name: "Customs clearance", level: "L2",
+            apps: [
+              { code: "Phoenix", role: "unclassified", time: { grade: "I", by: "Domain architect FF", at: "2026-02" } },
+              { code: "DESTIN8", role: "unclassified", time: { grade: "T", by: "Domain architect FF", at: "2026-02" } },
+              { code: "GVMS", role: "unclassified", time: { grade: "T", by: "Domain architect FF", at: "2026-02" } },
+              { code: "CDS", role: "unclassified", time: { grade: "T", by: "Domain architect FF", at: "2026-02" } },
+              { code: "Portbase", role: "unclassified", time: { grade: "T", by: "Domain architect FF", at: "2026-02" } },
+              { code: "Sinfoma", role: "unclassified", time: { grade: "T", by: "Domain architect FF", at: "2026-02" } }
+            ], transition: null, children: [] },
+          { id: "ff-cc-cd", name: "Customs declaration", level: "L2",
+            apps: [
+              { code: "Phoenix", role: "unclassified", time: { grade: "I", by: "Domain architect FF", at: "2026-02" } },
+              { code: "ENS", role: "unclassified", time: { grade: "T", by: "Domain architect FF", at: "2026-02" } },
+              { code: "ICS2", role: "unclassified", time: { grade: "T", by: "Domain architect FF", at: "2026-02" } }
+            ], transition: null, children: [] }
+        ] },
+      { id: "ff-sp", name: "Service pricing", level: "L1",
+        apps: [],
+        children: [
+          { id: "ff-sp-fp", name: "Freight pricing", level: "L2",
+            apps: [ { code: "Seabook", role: "legacy", time: { grade: "E", by: "Domain architect FF", at: "2026-02" } } ],
+            transition: { type: "carve-out", from: "Seabook", to: "Pricing Engine", fromApps: ["Seabook"], status: "in-flight", pct: 35, eta: "Q4 2026", note: "Pricing logic carved out of Seabook into a dedicated pricing engine." },
+            milestones: [
+              { label: "Pricing engine MVP (spot)", when: "Done · Q1 2026", status: "done" },
+              { label: "Contract pricing", when: "Q3 2026", status: "in-flight" },
+              { label: "Seabook pricing switched off", when: "Q4 2026", status: "not-started" }
+            ], children: [] },
+          { id: "ff-sp-am", name: "Agreement management", level: "L2",
+            apps: [ { code: "Seabook", role: "legacy", time: { grade: "T", by: "Domain architect FF", at: "2026-02" } } ],
+            transition: null, children: [] }
+        ] },
+      { id: "ff-inv", name: "Invoicing", level: "L1",
+        apps: [ { code: "Seabook", role: "legacy", time: { grade: "T", by: "Domain architect FF", at: "2026-02" } } ],
+        move: { id: "mv-inv", toDomain: "gf", toParent: "gf-ap", asName: "Freight invoicing", toApp: "SAP S/4", status: "planned", pct: 0, eta: "2027", note: "Capability consolidates into Accounts payable under Group functions." },
+        children: [] }
+    ]
+  },
+  {
+    id: "lg", name: "Logistics",
+    l1s: [
+      { id: "lg-te", name: "Transport execution", level: "L1",
+        apps: [],
+        children: [
+          { id: "lg-te-tp", name: "Transport planning", level: "L2",
+            apps: [
+              { code: "CargoFlow", role: "standard", time: { grade: "I", by: "Domain architect LG", at: "2026-04" } },
+              { code: "LogiPlan", role: "legacy", time: { grade: "E", by: "Domain architect LG", at: "2026-04" } }
+            ],
+            transition: { type: "consolidation", from: "LogiPlan", to: "CargoFlow", fromApps: ["LogiPlan"], status: "not-started", pct: 0, eta: "2027", note: "Two TMS platforms in parallel. Consolidation onto CargoFlow awaiting contract-network readiness." },
+            children: [] },
+          { id: "lg-te-tt", name: "Track & trace", level: "L2",
+            apps: [ { code: "CargoFlow", role: "standard", time: { grade: "I", by: "Domain architect LG", at: "2026-04" } } ],
+            transition: { type: "consolidation", from: "3 tracking tools", to: "CargoFlow", fromApps: [], status: "done", pct: 100, eta: "Done · 2025", note: "Consolidated from three tracking tools onto CargoFlow, completed 2025." },
+            children: [] },
+          { id: "lg-te-em", name: "Execution monitoring", level: "L2",
+            apps: [
+              { code: "OnTrack", role: "standard", time: { grade: "I", by: "Domain architect LG", at: "2026-04" } },
+              { code: "Transics", role: "legacy", time: { grade: "T", by: "Domain architect LG", at: "2026-04" } },
+              { code: "Trimble", role: "unclassified", time: { grade: "T", by: "Domain architect LG", at: "2026-04" } }
+            ], transition: null, children: [] }
+        ] },
+      { id: "lg-wh", name: "Warehousing", level: "L1",
+        apps: [],
+        children: [
+          { id: "lg-wh-wm", name: "Warehouse management", level: "L2",
+            apps: [
+              { code: "Lea Reply WMS", role: "standard", time: { grade: "I", by: "Domain architect LG", at: "2026-04" } },
+              { code: "CargoFlow", role: "legacy", time: { grade: "E", by: "Domain architect LG", at: "2025-05" } }
+            ],
+            transition: null, children: [] },
+          { id: "lg-wh-ic", name: "Inventory control", level: "L2",
+            apps: [ { code: "Lea Reply WMS", role: "standard", time: { grade: "I", by: "Domain architect LG", at: "2026-04" } } ],
+            transition: null, children: [] }
+        ] },
+      { id: "lg-fm", name: "Fleet management", level: "L1",
+        apps: [],
+        children: [
+          { id: "lg-fm-ec", name: "Equipment control", level: "L2",
+            apps: [ { code: "Velocity", role: "standard", time: { grade: "I", by: "Domain architect LG", at: "2026-04" } } ],
+            transition: null, children: [] },
+          { id: "lg-fm-ms", name: "Maintenance scheduling", level: "L2",
+            apps: [ { code: "Tachomaster", role: "unclassified", time: { grade: "T", by: "Domain architect LG", at: "2026-04" } } ],
+            transition: null, children: [] }
+        ] }
+    ]
+  },
+  {
+    id: "gf", name: "Group functions",
+    l1s: [
+      { id: "gf-hr", name: "HR & payroll", level: "L1",
+        apps: [],
+        children: [
+          { id: "gf-hr-core", name: "HR core", level: "L2",
+            apps: [ { code: "Workday", role: "standard", time: { grade: "I", by: "Group IT architecture", at: "2026-01" } } ],
+            transition: null, children: [] },
+          { id: "gf-hr-pay", name: "Payroll", level: "L2",
+            apps: [ { code: "Workday", role: "standard", time: { grade: "I", by: "Group IT architecture", at: "2026-01" } } ],
+            transition: { type: "migration", from: "PayLine", to: "Workday", fromApps: [], status: "done", pct: 100, eta: "Done · Q1 2026", note: "Migrated off legacy PayLine; completed Q1 2026." },
+            children: [] }
+        ] },
+      { id: "gf-fin", name: "Finance", level: "L1",
+        apps: [],
+        children: [
+          { id: "gf-ap", name: "Accounts payable", level: "L2",
+            apps: [ { code: "SAP S/4", role: "standard", time: { grade: "I", by: "Group Finance systems", at: "2026-01" } } ],
+            transition: null,
+            children: [
+              { id: "gf-ap-si", name: "Supplier invoicing", status: "done", app: "SAP S/4" }
+            ] }
+        ] }
+    ]
+  },
+  {
+    id: "ce", name: "Customer engagement",
+    l1s: [
+      { id: "ce-dig", name: "Digital channels", level: "L1",
+        apps: [],
+        children: [
+          { id: "ce-portal", name: "Customer portal", level: "L2",
+            apps: [ { code: "MyDFDS", role: "standard", time: { grade: "I", by: "Domain architect CE", at: "2026-05" } } ],
+            transition: null, children: [] },
+          { id: "ce-crm", name: "CRM", level: "L2",
+            apps: [ { code: "Salesforce", role: "standard", time: { grade: "T", by: "Domain architect CE", at: "2025-03" } } ],
+            transition: null, children: [] }
+        ] },
+      { id: "ce-msg", name: "Messaging", level: "L1",
+        apps: [],
+        children: [
+          { id: "ce-not", name: "Customer notifications", level: "L2",
+            apps: [
+              { code: "MailBlast", role: "legacy", time: { grade: "E", by: "Domain architect CE", at: "2026-05" } },
+              { code: "SMS-GW", role: "legacy", time: { grade: "E", by: "Domain architect CE", at: "2026-05" } }
+            ],
+            transition: { type: "consolidation", from: "MailBlast + SMS-GW", to: "Notify Hub", fromApps: ["MailBlast", "SMS-GW"], status: "in-flight", pct: 20, eta: "Q3 2027", note: "All customer messaging consolidates onto a single notification hub." },
+            children: [] }
+        ] }
+    ]
+  }
+];
+
+/* ============================================================
+   Helpers
+   ============================================================ */
+const LENS_DESC = {
+  now: "Where we are today — every application realising each capability, with its TIME suggestion.",
+  journey: "What is done, what is in flight, and what has not started. Moves show in both domains.",
+  target: "Where we are going — one standard application per capability."
+};
+
+const state = { lens: "now", expanded: new Set(), l1Open: new Set(), filter: "", changesOnly: false };
+const byId = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+
+const domainById = id => MODEL.find(d => d.id === id);
+function capById(id) {
+  for (const d of MODEL) for (const l1 of d.l1s) {
+    if (l1.id === id) return { cap: l1, domain: d, l1Name: l1.name };
+    for (const l2 of l1.children) if (l2.id === id) return { cap: l2, domain: d, l1Name: l1.name };
+  }
+  return null;
+}
+function isStale(at) {
+  const [ay, am] = "2026-07".split("-").map(Number);
+  const [y, m] = at.split("-").map(Number);
+  return (ay * 12 + am) - (y * 12 + m) > 12;
+}
+
+function capStatus(c) {
+  if (c.move) return c.move.status === "done" ? "done" : c.move.status === "in-flight" ? "in-flight" : "planned-move";
+  if (!c.transition) return "steady";
+  return c.transition.status === "done" ? "done" : c.transition.status;
+}
+
+function hasChange(c) {
+  return !!c.transition || !!c.move;
+}
+function l1HasChange(l1) {
+  if (hasChange(l1)) return true;
+  for (const l2 of (l1.children || [])) if (hasChange(l2)) return true;
+  /* Also check whether any move in the model targets a child of this L1 */
+  for (const d of MODEL) for (const ol1 of d.l1s)
+    if (ol1.move && l1.children.some(l2 => l2.id === ol1.move.toParent)) return true;
+  return false;
+}
+
+function statusPill(c) {
+  const s = capStatus(c);
+  /* Now lens = pure snapshot: no journey-layer pills */
+  if (state.lens === "now") return '';
+  if (s === "done") return '<span class="pill p-done">done</span>';
+  if (s === "in-flight") return '<span class="pill p-flight">in flight</span>';
+  if (s === "steady") return '';
+  if (s === "planned-move") return '<span class="pill p-incoming">move planned</span>';
+  return '<span class="pill p-idle">not started</span>';
+}
+
+function timeBadge(t) { return t ? '<span class="tb tb-' + t.grade + '" title="' + TIME_LABELS[t.grade] + ' — for this capability">' + t.grade + '</span>' : ""; }
+
+function chipHtml(a, showTime) {
+  const cls = a.role === "standard" ? "standard" : a.role === "legacy" ? "legacy" : "";
+  return '<span class="chip ' + cls + '" title="' + esc(a.code) + '">' + esc(a.code) + (showTime ? timeBadge(a.time) : "") + '</span>';
+}
+
+function matchesFilter(c, f) {
+  if (!f) return true;
+  const fl = f.toLowerCase();
+  if (c.name.toLowerCase().includes(fl)) return true;
+  for (const a of (c.apps || [])) if (a.code.toLowerCase().includes(fl)) return true;
+  if (c.children) for (const ch of c.children) { if (ch.name && ch.name.toLowerCase().includes(fl)) return true; }
+  return false;
+}
+function l1MatchesFilter(l1, f) {
+  if (!f) return true;
+  if (l1.name.toLowerCase().includes(f.toLowerCase())) return true;
+  for (const a of (l1.apps || [])) if (a.code.toLowerCase().includes(f.toLowerCase())) return true;
+  for (const l2 of l1.children) if (matchesFilter(l2, f)) return true;
+  return false;
+}
+
+function appRollup(code) {
+  const counts = { I: 0, T: 0, M: 0, E: 0 };
+  for (const d of MODEL) for (const l1 of d.l1s) {
+    for (const a of (l1.apps || [])) if (a.code === code && a.time) counts[a.time.grade]++;
+    for (const l2 of l1.children) for (const a of l2.apps) if (a.code === code && a.time) counts[a.time.grade]++;
+  }
+  return counts;
+}
+
+/* ============================================================
+   Signals engine
+   ============================================================ */
+function computeSignals() {
+  const out = [];
+  const appProfile = {};
+  for (const d of MODEL) for (const l1 of d.l1s) {
+    const caps = l1.children.length ? l1.children : [l1];
+    for (const c of caps) {
+      for (const a of (c.apps || [])) {
+        if (!a.time) continue;
+        const g = a.time.grade;
+        const p = appProfile[a.code] || (appProfile[a.code] = { I: [], T: [], M: [], E: [], eNoJourney: [] });
+        p[g].push(c.name);
+        if (g === "E" && !c.transition && !c.move) p.eNoJourney.push(c.id);
+        if (g === "E" && !c.transition && !c.move)
+          out.push({ type: "gap", capId: c.id, text: c.name + " is realised by " + a.code + ", assessed Eliminate, but no journey is planned.", where: d.name + " · " + c.name });
+        if (g === "E" && c.transition && c.transition.status === "not-started" && c.transition.fromApps.includes(a.code))
+          out.push({ type: "priority", capId: c.id, text: "The assessment (" + a.code + " = Eliminate) supports starting the planned " + c.transition.type + ".", where: d.name + " · " + c.name });
+        if (g === "I" && c.transition && c.transition.status !== "done" && c.transition.fromApps.includes(a.code))
+          out.push({ type: "contradiction", capId: c.id, text: "A " + c.transition.type + " moves " + c.name + " away from " + a.code + " (Invest). Assessment or journey needs updating.", where: d.name + " · " + c.name });
+        if ((g === "T" || g === "E") && a.role === "standard")
+          out.push({ type: "tension", capId: c.id, text: a.code + " is the standard for " + c.name + " but assessed " + TIME_LABELS[g] + ".", where: d.name + " · " + c.name });
+      }
+    }
+  }
+  for (const [code, p] of Object.entries(appProfile))
+    if (p.I.length && p.eNoJourney.length)
+      out.push({ type: "carve-out", capId: p.eNoJourney[0], text: code + " is Invest for " + p.I.length + " cap(s) but Eliminate for " + capById(p.eNoJourney[0]).cap.name + ". Carve-out candidate?", where: code + " — mixed profile" });
+  return out;
+}
+
+/* ============================================================
+   Card renderers
+   ============================================================ */
+function renderNowCard(c) {
+  const chips = (c.apps || []).map(a => chipHtml(a, state.lens === "now")).join(" ");
+  const multi = c.apps.length > 1 ? '<span class="multi-flag">' + c.apps.length + ' apps</span>' : "";
+  const empty = c.apps.length === 0 ? '<span class="empty-cap">no realising application mapped</span>' : '';
+  return capCard(c, '<div class="row2">' + chips + empty + multi + '</div>');
+}
+
+function renderJourneyCard(c) {
+  const s = capStatus(c);
+  let body = "";
+  if (c.transition && s !== "done") {
+    body = '<div class="row2"><span class="chip legacy">' + esc(c.transition.from) + '</span><span class="arrow">→</span><span class="chip future">' + esc(c.transition.to) + '</span><span style="font-size:10.5px;color:var(--faint)">' + esc(c.transition.type) + '</span></div><div class="bar"><div class="' + (s === "in-flight" ? "f-flight" : "") + '" style="width:' + c.transition.pct + '%"></div></div>';
+  } else if (c.transition && s === "done") {
+    body = '<div class="row2"><span style="font-size:11px;color:var(--muted)">' + esc(c.transition.from) + ' → </span>' + c.apps.filter(a => a.role === "standard").map(a => chipHtml(a, false)).join("") + '</div><div class="bar"><div class="f-done" style="width:100%"></div></div>';
+  } else {
+    const chips = c.apps.map(a => chipHtml(a, false)).join(" ");
+    const empty = c.apps.length === 0 ? '<span class="empty-cap">unmapped</span>' : '';
+    body = '<div class="row2">' + chips + empty + '<span style="font-size:10.5px;color:var(--faint);margin-left:auto">no change planned</span></div>';
+  }
+  return capCard(c, body + renderL3(c), true);
+}
+
+function renderTargetCard(c) {
+  if (c.transition && c.transition.status !== "done") {
+    const tag = c.transition.type === "consolidation" ? '<span class="consolidated-flag">consolidated</span>' : '';
+    return capCard(c, '<div class="row2"><span class="chip standard">' + esc(c.transition.to) + '</span>' + tag + '</div>');
+  }
+  const std = c.apps.filter(a => a.role === "standard");
+  const chips = std.length ? std.map(a => chipHtml(a, false)).join(" ") : (c.apps.length === 0 ? '<span class="empty-cap">no standard defined</span>' : c.apps.map(a => chipHtml(a, false)).join(" "));
+  return capCard(c, '<div class="row2">' + chips + '</div>');
+}
+
+function renderGhostCard(c) {
+  const dest = domainById(c.move.toDomain).name;
+  return '<div class="cap leaving-card" role="button" tabindex="0" data-cap="' + c.id + '">' +
+    '<div class="row1"><span class="name">' + esc(c.name) + '</span><span class="lvl">L1</span><span class="pill p-idle">moving out</span></div>' +
+    '<div class="row2">' + c.apps.map(a => chipHtml(a, false)).join(" ") +
+    '<button class="move-link" data-trace="' + c.move.id + '">to ' + esc(dest) + ' ↗</button></div></div>';
+}
+
+function renderArrivingCard(srcCap) {
+  const m = srcCap.move;
+  const src = capById(srcCap.id).domain.name;
+  return '<div class="cap incoming-card" role="button" tabindex="0" data-cap="' + srcCap.id + '" data-arriving="' + m.id + '">' +
+    '<div class="row1"><span class="name">' + esc(m.asName) + '</span><span class="lvl">L3</span><span class="pill p-incoming">arriving ' + esc(m.eta) + '</span></div>' +
+    '<div class="row2"><span class="chip future">' + esc(m.toApp) + '</span><button class="move-link" data-trace="' + m.id + '">from ' + esc(src) + ' ↗</button></div></div>';
+}
+
+function renderL3(c) {
+  if (!c.children || !c.children.length || !c.children[0].status) return "";
+  const open = state.expanded.has(c.id);
+  const rows = c.children.map(ch => {
+    const d = ch.status === "done" ? "d-done" : ch.status === "in-flight" ? "d-flight" : "d-idle";
+    return '<div class="child"><span class="dot ' + d + '"></span><span class="cname">' + esc(ch.name) + '</span> <span style="font-size:10px;color:var(--faint)">L3</span><span class="capp">' + esc(ch.app) + '</span></div>';
+  }).join("");
+  return '<button class="expander" data-expand="' + c.id + '" aria-expanded="' + open + '"><span class="chev">▸</span> ' + c.children.length + ' sub-capabilit' + (c.children.length === 1 ? 'y' : 'ies') + '</button><div class="children ' + (open ? 'open' : '') + '">' + rows + '</div>';
+}
+
+function capCard(c, body, journey) {
+  const s = capStatus(c);
+  const cls = s === "done" ? "st-done" : s === "in-flight" ? "st-flight" : "";
+  const vis = matchesFilter(c, state.filter) ? "" : " hidden";
+  const dim = (state.changesOnly && state.lens !== "now" && !hasChange(c)) ? " dimmed" : "";
+  return '<div class="cap ' + cls + vis + dim + '" role="button" tabindex="0" data-cap="' + c.id + '">' +
+    '<div class="row1"><span class="name">' + esc(c.name) + '</span><span class="lvl">' + esc(c.level) + '</span>' +
+    ((journey || state.lens === "now") ? statusPill(c) : "") + '</div>' + body + '</div>';
+}
+
+/* ============================================================
+   Collect cross-domain moves arriving into a capability
+   ============================================================ */
+function collectMovesInto(domainId, capId) {
+  const out = [];
+  for (const d of MODEL) for (const l1 of d.l1s)
+    if (l1.move && l1.move.toDomain === domainId && l1.move.toParent === capId) out.push(l1);
+  return out;
+}
+
+/* ============================================================
+   Board render
+   ============================================================ */
+function render() {
+  byId("lensDesc").textContent = LENS_DESC[state.lens];
+  renderLegend();
+  renderSummary();
+  byId("signalCount").textContent = computeSignals().length;
+  byId("changesToggle").classList.toggle("visible", state.lens !== "now");
+  byId("board").classList.toggle("changes-active", state.changesOnly && state.lens !== "now");
+
+  byId("board").innerHTML = MODEL.map(d => {
+    const l1Blocks = d.l1s.map(l1 => {
+      if (!l1MatchesFilter(l1, state.filter)) return "";
+
+      const l1Changed = l1HasChange(l1);
+      const dimGroup = (state.changesOnly && state.lens !== "now" && !l1Changed) ? " dimmed-group" : "";
+      const isOpen = state.l1Open.has(l1.id) || !!state.filter;
+      const forceOpen = state.changesOnly && state.lens !== "now" && l1Changed;
+
+      /* Move source: render ghost in journey, hide in target, normal in now */
+      if (l1.move) {
+        if (state.lens === "target") return "";
+        if (state.lens === "journey") {
+          return '<div class="l1-group' + dimGroup + '"><div style="padding:6px 4px">' + renderGhostCard(l1) + '</div></div>';
+        }
+        return '<div class="l1-group' + dimGroup + '"><div style="padding:6px 4px">' + renderNowCard(l1) + '</div></div>';
+      }
+
+      if (l1.children.length === 0) {
+        const card = state.lens === "now" ? renderNowCard(l1) : state.lens === "journey" ? renderJourneyCard(l1) : renderTargetCard(l1);
+        if (!matchesFilter(l1, state.filter)) return "";
+        return '<div class="l1-group' + dimGroup + '"><div style="padding:6px 4px">' + card + '</div></div>';
+      }
+
+      const allApps = new Set();
+      l1.children.forEach(l2 => l2.apps.forEach(a => allApps.add(a.code)));
+      const countCls = allApps.size > 3 ? "multi" : "";
+
+      let l2Cards = l1.children.map(l2 => {
+        let html = state.lens === "now" ? renderNowCard(l2) : state.lens === "journey" ? renderJourneyCard(l2) : renderTargetCard(l2);
+        /* Arriving cards under their new parent */
+        const incoming = collectMovesInto(d.id, l2.id);
+        if (incoming.length && state.lens !== "now") {
+          if (state.lens === "journey")
+            html += incoming.map(src => renderArrivingCard(src)).join("");
+          else
+            html += incoming.map(src =>
+              '<div class="cap st-done" role="button" tabindex="0" data-cap="' + src.id + '">' +
+              '<div class="row1"><span class="name">' + esc(src.move.asName) + '</span><span class="lvl">L3</span></div>' +
+              '<div class="row2"><span class="chip standard">' + esc(src.move.toApp) + '</span><span class="moved-flag">moved from ' + esc(capById(src.id).domain.name) + '</span></div></div>').join("");
+        }
+        return html;
+      }).join("");
+
+      return '<div class="l1-group' + dimGroup + '">' +
+        '<button class="l1-header" data-l1="' + l1.id + '" aria-expanded="' + (isOpen || forceOpen) + '">' +
+        '<span class="chev">▸</span> ' + esc(l1.name) +
+        ' <span style="font-size:11px;color:var(--faint);font-weight:400">L1 · ' + l1.children.length + ' sub</span>' +
+        '<span class="app-count ' + countCls + '">' + allApps.size + ' apps</span></button>' +
+        '<div class="l1-body ' + ((isOpen || forceOpen) ? 'open' : '') + '">' + l2Cards + '</div></div>';
+    }).join("");
+
+    return '<section class="domain" aria-label="' + esc(d.name) + '"><header><h2>' + esc(d.name) + '</h2></header>' + l1Blocks + '</section>';
+  }).join("");
+}
+
+function renderLegend() {
+  const common = '<span class="key"><span class="swatch sw-done"></span> standard / done</span>' +
+    '<span class="key"><span class="swatch sw-flight"></span> in transition</span>' +
+    '<span class="key"><span class="swatch sw-idle"></span> unchanged</span>';
+  const moves = '<span class="key"><span class="swatch sw-leaving"></span> moving out</span>' +
+    '<span class="key"><span class="swatch sw-incoming"></span> arriving</span>';
+  const time = '<span class="key"><span class="tb tb-I">I</span> invest</span>' +
+    '<span class="key"><span class="tb tb-T">T</span> tolerate</span>' +
+    '<span class="key"><span class="tb tb-M">M</span> migrate</span>' +
+    '<span class="key"><span class="tb tb-E">E</span> eliminate</span>' +
+    '<span class="disclaimer">TIME = per-capability assessment, not commitment</span>';
+  byId("legend").innerHTML = state.lens === "now" ? common + time : state.lens === "journey" ? common + moves : common;
+}
+
+function renderSummary() {
+  const el = byId("summary");
+  if (state.lens !== "journey") { el.classList.remove("visible"); return; }
+  let done = 0, flight = 0, idle = 0;
+  for (const d of MODEL) for (const l1 of d.l1s) {
+    const caps = l1.children.length ? l1.children : [l1];
+    for (const c of caps) { const s = capStatus(c); if (s === "done" || s === "steady") done++; else if (s === "in-flight") flight++; else idle++; }
+  }
+  el.innerHTML = '<div class="stat s-done"><b>' + done + '</b> settled</div><div class="stat s-flight"><b>' + flight + '</b> in flight</div><div class="stat s-idle"><b>' + idle + '</b> not started</div>';
+  el.classList.add("visible");
+}
+
+/* ============================================================
+   Drawers
+   ============================================================ */
+let lastFocus = null;
+function openDrawerShell(html) {
+  lastFocus = document.activeElement;
+  byId("drawer").innerHTML = '<button class="close" id="drawerClose" aria-label="Close">✕</button>' + html;
+  byId("drawer").classList.add("open");
+  byId("backdrop").classList.add("open");
+  byId("drawerClose").focus();
+  byId("drawerClose").addEventListener("click", closeDrawer);
+}
+function closeDrawer() {
+  byId("drawer").classList.remove("open");
+  byId("backdrop").classList.remove("open");
+  if (lastFocus && lastFocus.focus) lastFocus.focus();
+}
+
+function openCapDrawer(capId) {
+  const found = capById(capId);
+  if (!found) return;
+  const { cap: c, domain: d, l1Name } = found;
+  const t = c.transition || c.move;
+  const crumb = c.move
+    ? esc(d.name) + ' → ' + esc(domainById(c.move.toDomain).name)
+    : esc(d.name) + ' · ' + esc(l1Name);
+
+  let tRows = "";
+  if (c.transition) tRows = '<tr><td>Type</td><td>' + esc(c.transition.type) + '</td></tr><tr><td>From → to</td><td>' + esc(c.transition.from) + ' → ' + esc(c.transition.to) + '</td></tr><tr><td>Status</td><td>' + esc(c.transition.status) + ' (' + c.transition.pct + '%)</td></tr><tr><td>Target date</td><td>' + esc(c.transition.eta) + '</td></tr>';
+  if (c.move) tRows = '<tr><td>Type</td><td>capability move</td></tr><tr><td>New home</td><td>' + esc(domainById(c.move.toDomain).name) + ' → ' + esc(c.move.asName) + '</td></tr><tr><td>Target app</td><td>' + esc(c.move.toApp) + '</td></tr><tr><td>Status</td><td>' + esc(c.move.status) + '</td></tr><tr><td>Target date</td><td>' + esc(c.move.eta) + '</td></tr>';
+
+  const appRows = (c.apps || []).map(a => {
+    const g = a.time ? a.time.grade : null;
+    const r = g ? appRollup(a.code) : null;
+    const stale = a.time && isStale(a.time.at) ? ' <span class="stale">stale</span>' : '';
+    return '<div class="app-row"><div class="top">' + chipHtml(a, true) +
+      (g ? ' <span>' + TIME_LABELS[g] + ' <span style="color:var(--muted)">for this capability</span></span>' + stale : ' <span style="color:var(--faint)">unassessed</span>') +
+      '</div>' +
+      (a.time ? '<div class="meta">Assessed ' + esc(a.time.at) + ' by ' + esc(a.time.by) + '</div>' : '') +
+      (r ? '<div class="profile">Across landscape: I×' + r.I + ' · T×' + r.T + ' · M×' + r.M + ' · E×' + r.E + '</div>' : '') +
+      '</div>';
+  }).join("");
+
+  const ms = (c.milestones || []).map(m => {
+    const d2 = m.status === "done" ? "d-done" : m.status === "in-flight" ? "d-flight" : "d-idle";
+    return '<li><span class="dot ' + d2 + '"></span>' + esc(m.label) + '<span class="when">' + esc(m.when) + '</span></li>';
+  }).join("");
+
+  openDrawerShell(
+    '<p class="crumb">' + crumb + '</p><h3 id="drawerTitle">' + esc(c.name) + '</h3>' +
+    '<section><h4>Realising applications (' + (c.apps || []).length + ')</h4>' + (appRows || '<p class="note">No application mapped.</p>') + '</section>' +
+    (t ? '<section><h4>Transition</h4><table>' + tRows + '</table></section>' + (t.note ? '<section><h4>Plan summary</h4><p class="note">' + esc(t.note) + '</p></section>' : '') : '<section><h4>Transition</h4><p class="note">No change planned.</p></section>') +
+    (ms ? '<section><h4>Milestones</h4><ul class="milestones">' + ms + '</ul></section>' : '')
+  );
+}
+
+function openSignalsDrawer() {
+  const signals = computeSignals();
+  const rows = signals.map(s =>
+    '<button type="button" class="signal" data-signal-cap="' + s.capId + '">' +
+    '<span class="stype ' + s.type + '">' + s.type + '</span><span><span class="stext">' + esc(s.text) + '</span><div class="swhere">' + esc(s.where) + '</div></span></button>').join("");
+  openDrawerShell(
+    '<h3 id="drawerTitle">Signals</h3>' +
+    '<p style="font-size:13px;color:var(--muted);margin-top:4px">Where TIME assessments and planned journeys disagree. Questions for governance, not errors.</p>' +
+    '<section>' + (rows || '<p class="note">No signals.</p>') + '</section>'
+  );
+}
+
+/* ============================================================
+   Trace a move (highlight both ends)
+   ============================================================ */
+function traceMove(moveId) {
+  document.querySelectorAll(".cap.traced").forEach(el => el.classList.remove("traced"));
+  const ends = [];
+  document.querySelectorAll('.move-link[data-trace="' + moveId + '"]').forEach(btn => {
+    const card = btn.closest(".cap");
+    if (card) ends.push(card);
+  });
+  ends.forEach(c => c.classList.add("traced"));
+  if (ends.length === 2) {
+    const active = document.activeElement.closest(".cap");
+    const other = ends.find(e => e !== active) || ends[1];
+    other.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+  setTimeout(() => ends.forEach(c => c.classList.remove("traced")), 2600);
+}
+
+/* ============================================================
+   Events
+   ============================================================ */
+document.querySelector(".lens").addEventListener("click", e => {
+  const btn = e.target.closest("[data-lens]");
+  if (!btn) return;
+  state.lens = btn.dataset.lens;
+  document.querySelectorAll(".lens button").forEach(b => b.setAttribute("aria-pressed", String(b === btn)));
+  render();
+});
+
+byId("signalsBtn").addEventListener("click", openSignalsDrawer);
+
+byId("changesOnly").addEventListener("change", e => {
+  state.changesOnly = e.target.checked;
+  render();
+});
+
+byId("board").addEventListener("click", e => {
+  const trace = e.target.closest("[data-trace]");
+  if (trace) { e.stopPropagation(); traceMove(trace.dataset.trace); return; }
+  const expand = e.target.closest("[data-expand]");
+  if (expand) { e.stopPropagation(); const id = expand.dataset.expand; state.expanded.has(id) ? state.expanded.delete(id) : state.expanded.add(id); render(); return; }
+  const l1h = e.target.closest("[data-l1]");
+  if (l1h) { const id = l1h.dataset.l1; state.l1Open.has(id) ? state.l1Open.delete(id) : state.l1Open.add(id); render(); return; }
+  const card = e.target.closest("[data-cap]");
+  if (card) openCapDrawer(card.dataset.cap);
+});
+
+byId("board").addEventListener("keydown", e => {
+  if (e.key !== "Enter" && e.key !== " ") return;
+  const card = e.target.closest("[data-cap]");
+  if (card) { e.preventDefault(); openCapDrawer(card.dataset.cap); }
+});
+
+byId("drawer").addEventListener("click", e => {
+  const sig = e.target.closest("[data-signal-cap]");
+  if (sig) openCapDrawer(sig.dataset.signalCap);
+});
+
+byId("backdrop").addEventListener("click", closeDrawer);
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeDrawer(); });
+
+let searchTimeout;
+byId("search").addEventListener("input", e => {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => { state.filter = e.target.value.trim(); render(); }, 150);
+});
+
+render();
+</script>
+</body>
+</html>

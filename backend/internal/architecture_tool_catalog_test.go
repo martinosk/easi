@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -190,14 +191,7 @@ func TestToolCatalog_MethodMatchesAccessClass(t *testing.T) {
 
 	for _, spec := range toolimpls.AllContextToolSpecs() {
 		allowed := expectedAccess[spec.Method]
-		found := false
-		for _, a := range allowed {
-			if spec.Access == a {
-				found = true
-				break
-			}
-		}
-		if !found {
+		if !slices.Contains(allowed, spec.Access) {
 			t.Errorf("tool %q: method %s should have access %v, got %q",
 				spec.Name, spec.Method, allowed, spec.Access)
 		}
@@ -259,6 +253,20 @@ var excludedRoutes = map[string]string{
 	"POST /enterprise-capabilities/*/direction/composition-preview": "stateless capture-modal preview — UI helper; composition is available via get_enterprise_capability_composition",
 	"PUT /enterprise-capabilities/*/standard-application":           "standard application set/change — architect-only deliberation, reserved for human via UI",
 	"GET /enterprise-capabilities/*/standard-application/history":   "standard history — UI helper; main get_standard_application_for_enterprise_capability tool returns the current state",
+	"PUT /capabilities/*/components/*/time-assessment":              "TIME assessment set/change — architect-only deliberation, reserved for human via UI",
+	"DELETE /capabilities/*/components/*/time-assessment":           "TIME assessment removal — architect-only deliberation, reserved for human via UI",
+	"PUT /capabilities/*/components/*/realization-role":             "realization role assign/change — architect-only deliberation, reserved for human via UI",
+	"DELETE /capabilities/*/components/*/realization-role":          "realization role clear — architect-only deliberation, reserved for human via UI",
+	"POST /capabilities/*/journey":                                  "journey capture — architect-only deliberation, reserved for human via UI",
+	"POST /capability-journeys/*/start":                             "journey transition — architect-only deliberation, reserved for human via UI",
+	"POST /capability-journeys/*/complete":                          "journey transition — architect-only deliberation, reserved for human via UI",
+	"POST /capability-journeys/*/abandon":                           "journey transition — architect-only deliberation, reserved for human via UI",
+	"PUT /capability-journeys/*/details":                            "journey edit — architect-only deliberation, reserved for human via UI",
+	"PUT /capability-journeys/*/progress":                           "journey edit — architect-only deliberation, reserved for human via UI",
+	"PUT /capability-journeys/*/source-applications":                "journey edit — architect-only deliberation, reserved for human via UI",
+	"POST /capability-journeys/*/milestones":                        "journey milestone add — architect-only deliberation, reserved for human via UI",
+	"PUT /capability-journeys/*/milestones/*":                       "journey milestone edit — architect-only deliberation, reserved for human via UI",
+	"DELETE /capability-journeys/*/milestones/*":                    "journey milestone removal — architect-only deliberation, reserved for human via UI",
 	"DELETE /value-streams/*":                                       "value stream delete — high-impact, reserved for UI",
 	"DELETE /value-streams/*/stages/*":                              "stage delete — reserved for UI",
 	"DELETE /value-streams/*/stages/*/capabilities/*":               "stage-capability unmapping — reserved for UI",

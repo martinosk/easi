@@ -8,31 +8,30 @@ import (
 )
 
 const (
-	TimeClassificationTolerate  = "TOLERATE"
-	TimeClassificationInvest    = "INVEST"
-	TimeClassificationMigrate   = "MIGRATE"
-	TimeClassificationEliminate = "ELIMINATE"
+	TimeClassificationTolerate  = "Tolerate"
+	TimeClassificationInvest    = "Invest"
+	TimeClassificationMigrate   = "Migrate"
+	TimeClassificationEliminate = "Eliminate"
 )
 
-var ErrInvalidTimeClassification = errors.New("time classification must be TOLERATE, INVEST, MIGRATE, or ELIMINATE")
+var ErrInvalidTimeClassification = errors.New("time classification must be Tolerate, Invest, Migrate, or Eliminate")
 
 type TimeClassification struct {
 	value string
 }
 
 func NewTimeClassification(value string) (TimeClassification, error) {
-	normalized := strings.ToUpper(strings.TrimSpace(value))
-	if !isValidTimeClassification(normalized) {
-		return TimeClassification{}, ErrInvalidTimeClassification
+	switch strings.ToUpper(strings.TrimSpace(value)) {
+	case "TOLERATE":
+		return TimeClassification{value: TimeClassificationTolerate}, nil
+	case "INVEST":
+		return TimeClassification{value: TimeClassificationInvest}, nil
+	case "MIGRATE":
+		return TimeClassification{value: TimeClassificationMigrate}, nil
+	case "ELIMINATE":
+		return TimeClassification{value: TimeClassificationEliminate}, nil
 	}
-	return TimeClassification{value: normalized}, nil
-}
-
-func isValidTimeClassification(value string) bool {
-	return value == TimeClassificationTolerate ||
-		value == TimeClassificationInvest ||
-		value == TimeClassificationMigrate ||
-		value == TimeClassificationEliminate
+	return TimeClassification{}, ErrInvalidTimeClassification
 }
 
 func (t TimeClassification) Value() string {

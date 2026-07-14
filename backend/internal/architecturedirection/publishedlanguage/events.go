@@ -11,4 +11,21 @@ const (
 	DirectionSourceCapabilitiesChanged = "DirectionSourceCapabilitiesChanged"
 
 	StandardApplicationSet = "StandardApplicationSet"
+
+	TimeAssessmentRecorded = "TimeAssessmentRecorded"
+	TimeAssessmentRemoved  = "TimeAssessmentRemoved"
+
+	RealizationRoleAssigned = "RealizationRoleAssigned"
+	RealizationRoleCleared  = "RealizationRoleCleared"
+
+	JourneyPlanned                   = "JourneyPlanned"
+	JourneyStarted                   = "JourneyStarted"
+	JourneyCompleted                 = "JourneyCompleted"
+	JourneyAbandoned                 = "JourneyAbandoned"
+	JourneyProgressUpdated           = "JourneyProgressUpdated"
+	JourneyDetailsUpdated            = "JourneyDetailsUpdated"
+	JourneyMilestoneAdded            = "JourneyMilestoneAdded"
+	JourneyMilestoneUpdated          = "JourneyMilestoneUpdated"
+	JourneyMilestoneRemoved          = "JourneyMilestoneRemoved"
+	JourneySourceApplicationsChanged = "JourneySourceApplicationsChanged"
 )

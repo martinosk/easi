@@ -143,6 +143,19 @@ func enterpriseCapabilityIsActive(readModel *eaReadModels.EnterpriseCapabilityRe
 	}
 }
 
+func capabilityEffectivelyInDomain(readModel *capReadModels.CMEffectiveBusinessDomainReadModel) directionServices.CapabilityEffectivelyInDomain {
+	return func(ctx context.Context, capabilityID, domainID string) (bool, error) {
+		effective, err := readModel.GetByCapabilityID(ctx, capabilityID)
+		if err != nil {
+			return false, err
+		}
+		if effective == nil {
+			return false, nil
+		}
+		return effective.BusinessDomainID == domainID, nil
+	}
+}
+
 func optionalString(value string) *string {
 	if value == "" {
 		return nil

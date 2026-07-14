@@ -1,11 +1,19 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
-import { toBusinessDomainId } from '../../../api/types';
-import { buildBusinessDomain, buildCapabilityAt as cap } from '../../../test/helpers/entityBuilders';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { BusinessDomain } from '../../../api/types';
+import { toBusinessDomainId, toCapabilityId, toComponentId } from '../../../api/types';
+import {
+  buildBusinessDomain,
+  buildCapabilityRealization,
+  buildCapabilityAt as cap,
+} from '../../../test/helpers/entityBuilders';
+import { realizationRoleApi } from '../../architecture-direction/api/realizationRoleApi';
+import { timeAssessmentApi } from '../../architecture-direction/api/timeAssessmentApi';
 import { capabilitiesApi } from '../../capabilities/api';
 import { businessDomainsApi } from '../api';
+import type { AssessedRealization } from './domainBoardViewModel';
 import { businessDomainsQueryKeys } from '../queryKeys';
 import { useDomainBoardData } from './useDomainBoardData';
 
@@ -23,12 +31,48 @@ vi.mock('../../capabilities/api', () => ({
   },
 }));
 
+vi.mock('../../architecture-direction/api/timeAssessmentApi', () => ({
+  timeAssessmentApi: {
+    getByCapabilityIds: vi.fn(),
+  },
+}));
+
+vi.mock('../../architecture-direction/api/realizationRoleApi', () => ({
+  realizationRoleApi: {
+    getByCapabilityIds: vi.fn(),
+  },
+}));
+
 function createWrapper(queryClient: QueryClient) {
   return ({ children }: { children: React.ReactNode }) =>
     React.createElement(QueryClientProvider, { client: queryClient }, children);
 }
 
+function mockSingleCapabilityDomain(domainA: BusinessDomain) {
+  vi.mocked(businessDomainsApi.getAll).mockResolvedValue({ data: [domainA], _links: {} });
+  vi.mocked(capabilitiesApi.getAll).mockResolvedValue([cap('l1-a', 'Alpha', 'L1')]);
+  vi.mocked(businessDomainsApi.getCapabilitiesByDomainId).mockResolvedValue([cap('l1-a', 'Alpha', 'L1')]);
+  vi.mocked(businessDomainsApi.getCapabilityRealizations).mockResolvedValue([
+    {
+      capabilityId: toCapabilityId('l1-a'),
+      capabilityName: 'Alpha',
+      level: 'L1',
+      realizations: [
+        buildCapabilityRealization({
+          capabilityId: toCapabilityId('l1-a'),
+          componentId: toComponentId('comp-1'),
+          origin: 'Direct',
+        }),
+      ],
+    },
+  ]);
+}
+
 describe('useDomainBoardData', () => {
+  beforeEach(() => {
+    vi.mocked(realizationRoleApi.getByCapabilityIds).mockResolvedValue({ data: [], _links: {} });
+  });
+
   it('fans out one capabilities query and one realizations query per domain, keyed for mutation invalidation', async () => {
     const domainA = buildBusinessDomain({ id: toBusinessDomainId('domain-a'), name: 'Ferry Freight' });
     const domainB = buildBusinessDomain({ id: toBusinessDomainId('domain-b'), name: 'Logistics' });
@@ -87,6 +131,76 @@ describe('useDomainBoardData', () => {
     await result.current.refetchDomain(toBusinessDomainId('unknown-domain'));
     expect(businessDomainsApi.getCapabilitiesByDomainId).toHaveBeenCalledTimes(1);
   });
+
+  const fanOutCases = [
+    {
+      name: 'assessments query, enriching the returned realizations with their current grade',
+      setupMock: () =>
+        vi.mocked(timeAssessmentApi.getByCapabilityIds).mockResolvedValue({
+          data: [
+            {
+              id: 'ta-1',
+              capabilityId: 'l1-a',
+              capabilityName: 'Alpha',
+              componentId: 'comp-1',
+              componentName: 'Component 1',
+              grade: 'Migrate',
+              rationale: '',
+              assessedBy: 'user-1',
+              assessedAt: '2026-01-01T00:00:00Z',
+              stale: false,
+              _links: {},
+            },
+          ],
+          _links: {},
+        }),
+      waitForCalled: () => waitFor(() => expect(timeAssessmentApi.getByCapabilityIds).toHaveBeenCalledWith(['l1-a'])),
+      readEnrichedValue: (realization: AssessedRealization) => realization.timeGrade,
+      expectedValue: 'Migrate',
+    },
+    {
+      name: 'realization role query, enriching the returned realizations with their current role',
+      setupMock: () =>
+        vi.mocked(realizationRoleApi.getByCapabilityIds).mockResolvedValue({
+          data: [
+            {
+              capabilityId: 'l1-a',
+              capabilityName: 'Alpha',
+              componentId: 'comp-1',
+              componentName: 'Component 1',
+              role: 'standard',
+              assignedBy: 'user-1',
+              assignedAt: '2026-01-01T00:00:00Z',
+              _links: {},
+            },
+          ],
+          _links: {},
+        }),
+      waitForCalled: () => waitFor(() => expect(realizationRoleApi.getByCapabilityIds).toHaveBeenCalledWith(['l1-a'])),
+      readEnrichedValue: (realization: AssessedRealization) => realization.role,
+      expectedValue: 'standard',
+    },
+  ];
+
+  it.each(fanOutCases)(
+    "fans out one $name per domain scoped to that domain's realized capability ids",
+    async ({ setupMock, waitForCalled, readEnrichedValue, expectedValue }) => {
+      const domainA = buildBusinessDomain({ id: toBusinessDomainId('domain-a') });
+      mockSingleCapabilityDomain(domainA);
+      setupMock();
+
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      const { result } = renderHook(() => useDomainBoardData(), { wrapper: createWrapper(queryClient) });
+
+      await waitForCalled();
+
+      await waitFor(() => {
+        const boardA = result.current.boardDomains.find((d) => d.domain.id === domainA.id);
+        const realization = boardA?.getRealizationsForCapability(toCapabilityId('l1-a'))[0];
+        expect(realization && readEnrichedValue(realization)).toBe(expectedValue);
+      });
+    },
+  );
 
   it('surfaces canCreateDomain from the collection HATEOAS links', async () => {
     vi.mocked(businessDomainsApi.getAll).mockResolvedValue({

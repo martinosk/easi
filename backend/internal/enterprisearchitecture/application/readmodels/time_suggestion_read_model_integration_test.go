@@ -190,7 +190,7 @@ func TestTimeSuggestionReadModel_GetAllSuggestions_WithData(t *testing.T) {
 	assert.Equal(t, 20.0, *suggestion.TechnicalGap)
 	assert.Equal(t, 20.0, *suggestion.FunctionalGap)
 	assert.NotNil(t, suggestion.SuggestedTime)
-	assert.Equal(t, "ELIMINATE", *suggestion.SuggestedTime)
+	assert.Equal(t, "Eliminate", *suggestion.SuggestedTime)
 	assert.Equal(t, "MEDIUM", suggestion.Confidence)
 }
 

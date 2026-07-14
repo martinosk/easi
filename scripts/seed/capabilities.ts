@@ -1,14 +1,19 @@
 import { apiCall, parallelBatch } from "./config.ts";
 import { generateCapabilityTree } from "./capability-tree.ts";
+import { buildRealizationPlan, type PlannedRealization } from "./realization-plan.ts";
 import type { Capability, CapNode } from "./types.ts";
 
-async function createCapability(
-  name: string,
-  description: string,
-  level: string,
-  parentId?: string
-): Promise<Capability> {
-  return apiCall<Capability>("POST", "/capabilities", { name, description, level, parentId });
+type CapabilityLevel = "L1" | "L2" | "L3" | "L4";
+
+interface CapabilitySpec {
+  name: string;
+  description: string;
+  level: CapabilityLevel;
+  parentId?: string;
+}
+
+async function createCapability(spec: CapabilitySpec): Promise<Capability> {
+  return apiCall<Capability>("POST", "/capabilities", spec);
 }
 
 async function updateCapabilityMetadata(
@@ -18,58 +23,33 @@ async function updateCapabilityMetadata(
   await apiCall("PUT", `/capabilities/${capabilityId}/metadata`, metadata);
 }
 
-async function seedL1(tree: CapNode[]): Promise<Map<string, Capability>> {
-  const map = new Map<string, Capability>();
-  const results = await parallelBatch(tree, 10, (node) =>
-    createCapability(node.name, node.description, "L1")
-  );
-  results.forEach((cap, i) => map.set(tree[i].name, cap));
-  return map;
+interface LevelEntry {
+  node: CapNode;
+  parentId?: string;
 }
 
-async function seedL2(
-  tree: CapNode[],
-  l1Map: Map<string, Capability>
-): Promise<Map<string, Capability>> {
-  const map = new Map<string, Capability>();
-  const allL2: { node: CapNode; parentId: string }[] = [];
-
-  for (const l1Node of tree) {
-    const parent = l1Map.get(l1Node.name);
-    if (!parent) continue;
-    for (const l2Node of l1Node.children ?? []) {
-      allL2.push({ node: l2Node, parentId: parent.id });
-    }
-  }
-
-  const results = await parallelBatch(allL2, 10, ({ node, parentId }) =>
-    createCapability(node.name, node.description, "L2", parentId)
-  );
-  results.forEach((cap, i) => map.set(allL2[i].node.name, cap));
-  return map;
+function childrenOf(nodes: CapNode[]): CapNode[] {
+  return nodes.flatMap((node) => node.children ?? []);
 }
 
-async function seedL3(
-  tree: CapNode[],
-  l2Map: Map<string, Capability>
-): Promise<Map<string, Capability>> {
-  const map = new Map<string, Capability>();
-  const allL3: { node: CapNode; parentId: string }[] = [];
-
-  for (const l1Node of tree) {
-    for (const l2Node of l1Node.children ?? []) {
-      const parent = l2Map.get(l2Node.name);
-      if (!parent) continue;
-      for (const l3Node of l2Node.children ?? []) {
-        allL3.push({ node: l3Node, parentId: parent.id });
-      }
+function childEntries(parents: CapNode[], parentMap: Map<string, Capability>): LevelEntry[] {
+  const entries: LevelEntry[] = [];
+  for (const parent of parents) {
+    const created = parentMap.get(parent.name);
+    if (!created) continue;
+    for (const child of parent.children ?? []) {
+      entries.push({ node: child, parentId: created.id });
     }
   }
+  return entries;
+}
 
-  const results = await parallelBatch(allL3, 10, ({ node, parentId }) =>
-    createCapability(node.name, node.description, "L3", parentId)
+async function seedLevel(entries: LevelEntry[], level: CapabilityLevel): Promise<Map<string, Capability>> {
+  const map = new Map<string, Capability>();
+  const results = await parallelBatch(entries, 10, ({ node, parentId }) =>
+    createCapability({ name: node.name, description: node.description, level, parentId })
   );
-  results.forEach((cap, i) => map.set(allL3[i].node.name, cap));
+  results.forEach((cap, i) => map.set(entries[i].node.name, cap));
   return map;
 }
 
@@ -94,22 +74,28 @@ const METADATA_UPDATES: MetadataUpdate[] = [
 ];
 
 export async function seedCapabilities(): Promise<Map<string, Capability>> {
-  console.log("\n🎯 Seeding Business Capabilities (1300 total)...");
+  console.log("\n🎯 Seeding Business Capabilities (L1–L4)...");
   const tree = generateCapabilityTree();
+  const l2Nodes = childrenOf(tree);
+  const l3Nodes = childrenOf(l2Nodes);
 
-  console.log("  Creating L1 capabilities (100)...");
-  const l1Map = await seedL1(tree);
+  console.log("  Creating L1 capabilities...");
+  const l1Map = await seedLevel(tree.map((node) => ({ node })), "L1");
   console.log(`  ✓ ${l1Map.size} L1 capabilities created`);
 
-  console.log("  Creating L2 capabilities (400)...");
-  const l2Map = await seedL2(tree, l1Map);
+  console.log("  Creating L2 capabilities...");
+  const l2Map = await seedLevel(childEntries(tree, l1Map), "L2");
   console.log(`  ✓ ${l2Map.size} L2 capabilities created`);
 
-  console.log("  Creating L3 capabilities (800)...");
-  const l3Map = await seedL3(tree, l2Map);
+  console.log("  Creating L3 capabilities...");
+  const l3Map = await seedLevel(childEntries(l2Nodes, l2Map), "L3");
   console.log(`  ✓ ${l3Map.size} L3 capabilities created`);
 
-  const allCapabilities = new Map<string, Capability>([...l1Map, ...l2Map, ...l3Map]);
+  console.log("  Creating L4 capabilities...");
+  const l4Map = await seedLevel(childEntries(l3Nodes, l3Map), "L4");
+  console.log(`  ✓ ${l4Map.size} L4 capabilities created`);
+
+  const allCapabilities = new Map<string, Capability>([...l1Map, ...l2Map, ...l3Map, ...l4Map]);
   console.log(`  Total: ${allCapabilities.size} capabilities`);
 
   console.log("  Applying metadata updates...");
@@ -159,46 +145,43 @@ export async function seedCapabilityDependencies(capabilities: Map<string, Capab
   }
 }
 
+async function linkRealization(capabilityId: string, componentId: string, item: PlannedRealization): Promise<boolean> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await apiCall("POST", `/capabilities/${capabilityId}/systems`, {
+        componentId,
+        realizationLevel: item.realizationLevel,
+        notes: item.notes,
+      });
+      return true;
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 40 * (attempt + 1)));
+    }
+  }
+  return false;
+}
+
 export async function seedSystemRealizations(
   capabilities: Map<string, Capability>,
   components: Map<string, string>
 ): Promise<void> {
-  console.log("\n⚙️  Seeding System Realizations...");
+  console.log("\n⚙️  Seeding System Realizations (all applications, L1–L4)...");
 
-  const realizations = [
-    { capability: "Customer Identity Management", component: "User Service", level: "Full", notes: "Primary customer identity system" },
-    { capability: "Customer Acquisition", component: "Customer Portal", level: "Partial", notes: "Digital acquisition entry point" },
-    { capability: "Order Management", component: "Order Service", level: "Full", notes: "Core order processing" },
-    { capability: "Checkout and Payment", component: "Shopping Cart", level: "Partial", notes: "Cart to order conversion" },
-    { capability: "Checkout and Payment", component: "Order Service", level: "Full", notes: "Checkout orchestration" },
-    { capability: "Payment Operations", component: "Payment Gateway", level: "Full", notes: "Payment processing hub" },
-    { capability: "Fraud Detection and Prevention", component: "Fraud Detection", level: "Full", notes: "Real-time fraud decisioning" },
-    { capability: "Product Catalog Management", component: "Product Catalog", level: "Full", notes: "Central product repository" },
-    { capability: "Product Catalog Management", component: "Search Engine", level: "Partial", notes: "Searchable product index" },
-    { capability: "Inventory Management", component: "Inventory Service", level: "Full", notes: "Inventory tracking and reservation" },
-    { capability: "Transportation Management", component: "Shipping Service", level: "Full", notes: "Shipping calculation and carrier integration" },
-    { capability: "Business Intelligence", component: "Reporting Service", level: "Full", notes: "Report generation and delivery" },
-    { capability: "Business Intelligence", component: "Analytics Platform", level: "Partial", notes: "Analytics data source" },
-    { capability: "Customer Analytics", component: "Analytics Platform", level: "Full", notes: "Customer behavior analytics" },
-    { capability: "Predictive Analytics", component: "Recommendation Engine", level: "Partial", notes: "ML-based prediction engine" },
-    { capability: "API and Integration Management", component: "API Gateway", level: "Full", notes: "API routing, rate limiting, and security" },
-    { capability: "Observability and Monitoring", component: "Analytics Platform", level: "Partial", notes: "System metrics aggregation" },
-    { capability: "Content Marketing", component: "Content Management", level: "Full", notes: "Content authoring and publishing" },
-    { capability: "Pricing and Promotions", component: "Pricing Service", level: "Full", notes: "Pricing rules and discount engine" },
-  ];
+  const plan = buildRealizationPlan([...components.keys()]);
+  let created = 0;
+  let skipped = 0;
 
-  for (const r of realizations) {
-    const capability = capabilities.get(r.capability);
-    const componentId = components.get(r.component);
-    if (!capability || !componentId) continue;
-    try {
-      await apiCall("POST", `/capabilities/${capability.id}/systems`, {
-        componentId,
-        realizationLevel: r.level,
-        notes: r.notes,
-      });
-    } catch {
-      console.log(`    (Skipping realization — may already exist)`);
+  await parallelBatch(plan, 6, async (item) => {
+    const capability = capabilities.get(item.capabilityName);
+    const componentId = components.get(item.componentName);
+    if (!capability || !componentId) {
+      skipped++;
+      return;
     }
-  }
+    if (await linkRealization(capability.id, componentId, item)) created++;
+    else skipped++;
+  });
+
+  const appsLinked = new Set(plan.map((p) => p.componentName)).size;
+  console.log(`  ✓ ${created} direct realizations across L1–L4 for ${appsLinked} applications (${skipped} skipped)`);
 }

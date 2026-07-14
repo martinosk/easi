@@ -1,6 +1,6 @@
 import { auditQueryKeys } from '../audit/queryKeys';
 import { enterpriseCapabilitiesQueryKeys } from '../enterprise-architecture/queryKeys';
-import { directionQueryKeys } from './queryKeys';
+import { directionQueryKeys, realizationRoleQueryKeys, timeAssessmentQueryKeys } from './queryKeys';
 
 function compositionEffects(enterpriseCapabilityId: string) {
   return [
@@ -21,4 +21,22 @@ export const directionMutationEffects = {
   agree: compositionEffects,
   reject: compositionEffects,
   revert: compositionEffects,
+};
+
+function timeAssessmentEffects() {
+  return [timeAssessmentQueryKeys.all];
+}
+
+export const timeAssessmentMutationEffects = {
+  assess: timeAssessmentEffects,
+  remove: timeAssessmentEffects,
+};
+
+function realizationRoleEffects() {
+  return [realizationRoleQueryKeys.all];
+}
+
+export const realizationRoleMutationEffects = {
+  assign: realizationRoleEffects,
+  clear: realizationRoleEffects,
 };

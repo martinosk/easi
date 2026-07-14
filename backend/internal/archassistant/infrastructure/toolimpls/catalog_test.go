@@ -61,7 +61,7 @@ func TestContextOwnedCatalogs_ContainAllTools(t *testing.T) {
 		names[i] = s.Name
 	}
 
-	assert.ElementsMatch(t, allExpectedSpecToolNames, names)
+	assert.ElementsMatch(t, coreContextExpectedSpecToolNames, names)
 }
 
 func TestContextOwnedCatalogs_ToolCounts(t *testing.T) {

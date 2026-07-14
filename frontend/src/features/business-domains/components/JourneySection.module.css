@@ -1,0 +1,13 @@
+.empty {
+  font-size: var(--font-size-sm);
+  color: var(--faint);
+  font-style: italic;
+}
+
+.note {
+  font-size: var(--font-size-sm);
+  background: var(--well);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}

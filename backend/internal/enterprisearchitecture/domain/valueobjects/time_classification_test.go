@@ -13,13 +13,13 @@ func TestNewTimeClassification_ValidValues(t *testing.T) {
 		input    string
 		expected string
 	}{
-		{"tolerate", "TOLERATE", "TOLERATE"},
-		{"invest", "INVEST", "INVEST"},
-		{"migrate", "MIGRATE", "MIGRATE"},
-		{"eliminate", "ELIMINATE", "ELIMINATE"},
-		{"lowercase", "invest", "INVEST"},
-		{"mixed case", "Migrate", "MIGRATE"},
-		{"with whitespace", "  TOLERATE  ", "TOLERATE"},
+		{"tolerate", "Tolerate", "Tolerate"},
+		{"invest", "Invest", "Invest"},
+		{"migrate", "Migrate", "Migrate"},
+		{"eliminate", "Eliminate", "Eliminate"},
+		{"lowercase", "invest", "Invest"},
+		{"uppercase", "MIGRATE", "Migrate"},
+		{"with whitespace", "  Tolerate  ", "Tolerate"},
 	}
 
 	for _, tc := range testCases {
@@ -83,5 +83,5 @@ func TestTimeClassification_Equals(t *testing.T) {
 
 func TestTimeClassification_String(t *testing.T) {
 	invest, _ := NewTimeClassification("INVEST")
-	assert.Equal(t, "INVEST", invest.String())
+	assert.Equal(t, "Invest", invest.String())
 }

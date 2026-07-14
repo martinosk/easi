@@ -18,28 +18,28 @@ func TestCalculateTimeSuggestion_AllQuadrants(t *testing.T) {
 			name:               "INVEST - low tech gap, low func gap",
 			technicalGaps:      []float64{0.5, 1.0, 0.8},
 			functionalGaps:     []float64{0.3, 0.7, 1.2},
-			expectedTime:       "INVEST",
+			expectedTime:       "Invest",
 			expectedConfidence: "HIGH",
 		},
 		{
 			name:               "TOLERATE - low tech gap, high func gap",
 			technicalGaps:      []float64{0.5, 1.0},
 			functionalGaps:     []float64{2.0, 1.8},
-			expectedTime:       "TOLERATE",
+			expectedTime:       "Tolerate",
 			expectedConfidence: "HIGH",
 		},
 		{
 			name:               "MIGRATE - high tech gap, low func gap",
 			technicalGaps:      []float64{2.5, 1.8},
 			functionalGaps:     []float64{0.5, 0.8},
-			expectedTime:       "MIGRATE",
+			expectedTime:       "Migrate",
 			expectedConfidence: "HIGH",
 		},
 		{
 			name:               "ELIMINATE - high tech gap, high func gap",
 			technicalGaps:      []float64{2.0, 2.5},
 			functionalGaps:     []float64{1.8, 2.2},
-			expectedTime:       "ELIMINATE",
+			expectedTime:       "Eliminate",
 			expectedConfidence: "HIGH",
 		},
 	}
@@ -123,7 +123,7 @@ func TestCalculateTimeSuggestion_ThresholdBoundary(t *testing.T) {
 			[]float64{1.5},
 			[]float64{1.0},
 		)
-		assert.Equal(t, "MIGRATE", result.SuggestedTime)
+		assert.Equal(t, "Migrate", result.SuggestedTime)
 	})
 
 	t.Run("just below threshold is LOW gap", func(t *testing.T) {
@@ -131,7 +131,7 @@ func TestCalculateTimeSuggestion_ThresholdBoundary(t *testing.T) {
 			[]float64{1.49},
 			[]float64{1.0},
 		)
-		assert.Equal(t, "INVEST", result.SuggestedTime)
+		assert.Equal(t, "Invest", result.SuggestedTime)
 	})
 }
 
@@ -143,7 +143,7 @@ func TestCalculateTimeSuggestion_NegativeGaps(t *testing.T) {
 		[]float64{-0.5, 0.3},
 	)
 
-	assert.Equal(t, "INVEST", result.SuggestedTime)
+	assert.Equal(t, "Invest", result.SuggestedTime)
 	assert.InDelta(t, -0.25, result.TechnicalGap, 0.01)
 	assert.InDelta(t, -0.1, result.FunctionalGap, 0.01)
 }
