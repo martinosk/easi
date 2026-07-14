@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { dragTreeItemToCanvas } from './helpers';
 
 test.describe('Spec 165 — handle-click create related component', () => {
   test.beforeEach(async ({ page }) => {
@@ -13,6 +14,8 @@ test.describe('Spec 165 — handle-click create related component', () => {
     await page.fill('[data-testid="component-name-input"]', 'Order Service');
     await page.click('[data-testid="create-component-submit"]');
     await expect(page.locator('[data-testid="create-component-dialog"]')).not.toBeVisible();
+
+    await dragTreeItemToCanvas(page, 'Order Service');
 
     const sourceNode = page.locator('[data-component-id]').first();
     await expect(sourceNode).toBeVisible();
@@ -50,6 +53,9 @@ test.describe('Spec 165 — handle-click create related component', () => {
     await page.fill('[data-testid="component-name-input"]', 'Beta');
     await page.click('[data-testid="create-component-submit"]');
     await expect(page.locator('[data-testid="create-component-dialog"]')).not.toBeVisible();
+
+    await dragTreeItemToCanvas(page, 'Alpha', { x: 250, y: 200 });
+    await dragTreeItemToCanvas(page, 'Beta', { x: 600, y: 220 });
 
     const alpha = page.locator('[data-component-id]').filter({ hasText: 'Alpha' }).first();
     const beta = page.locator('[data-component-id]').filter({ hasText: 'Beta' }).first();

@@ -3,9 +3,6 @@ import { Alert, Button, Group, Modal, Stack, Textarea, TextInput } from '@mantin
 import React, { useLayoutEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { type CreateComponentFormData, createComponentSchema } from '../../../lib/schemas';
-import { canEdit } from '../../../utils/hateoas';
-import { useCurrentView } from '../../views/hooks/useCurrentView';
-import { useAddComponentToView } from '../../views/hooks/useViews';
 import { useCreateComponent } from '../hooks/useComponents';
 
 interface CreatedComponent {
@@ -25,12 +22,9 @@ export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({ is
   const [backendError, setBackendError] = useState<string | null>(null);
   const [isHandoffPending, setHandoffPending] = useState(false);
 
-  const { currentView } = useCurrentView();
   const createComponentMutation = useCreateComponent();
-  const addComponentToViewMutation = useAddComponentToView();
 
-  const isCreating =
-    createComponentMutation.isPending || addComponentToViewMutation.isPending || isHandoffPending;
+  const isCreating = createComponentMutation.isPending || isHandoffPending;
 
   const {
     register,
@@ -70,15 +64,6 @@ export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({ is
         } finally {
           setHandoffPending(false);
         }
-      } else if (currentView && canEdit(currentView)) {
-        const defaultPosition = { x: 400, y: 300 };
-        await addComponentToViewMutation.mutateAsync({
-          viewId: currentView.id,
-          request: {
-            componentId: newComponent.id,
-            ...defaultPosition,
-          },
-        });
       }
 
       handleClose();
