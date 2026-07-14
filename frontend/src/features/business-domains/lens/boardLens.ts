@@ -16,12 +16,6 @@ export const LENS_LABELS: Record<BoardLens, string> = {
   target: 'Target',
 };
 
-export const LENS_DESCRIPTIONS: Record<BoardLens, string> = {
-  now: '',
-  journey: '',
-  target: '',
-};
-
 export type BoardJourneyStatus = 'steady' | 'not-started' | 'in-flight' | 'done' | 'planned-move';
 
 export function selectBoardJourney(journeys: CapabilityJourney[]): CapabilityJourney | undefined {
