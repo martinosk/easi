@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -216,6 +217,11 @@ func getJourneyForCapabilityReq(h *CapabilityJourneyHandlers, capID string, acto
 	return runCapabilityJourneyRequest(httpReq, journeyItemPattern, h.GetJourneyForCapability, actor)
 }
 
+func bulkJourneysReq(h *CapabilityJourneyHandlers, capIDs []string, actor sharedcontext.Actor) *httptest.ResponseRecorder {
+	httpReq := httptest.NewRequest(http.MethodGet, "/api/v1/capability-journeys?capabilityIds="+strings.Join(capIDs, ","), nil)
+	return runCapabilityJourneyRequest(httpReq, "/api/v1/capability-journeys", h.GetCapabilityJourneys, actor)
+}
+
 func decodeJourneyEnvelope(t *testing.T, rec *httptest.ResponseRecorder) CapabilityJourneyResponse {
 	t.Helper()
 	var envelope CapabilityJourneyResponse
@@ -277,6 +283,45 @@ func TestCapabilityJourneyIntegration_FullLifecycle_CaptureStartProgressMileston
 	assert.Equal(t, "Cut over region A", final.Milestones[0].Label)
 	assert.Equal(t, valueobjects.MilestoneStatusDone, final.Milestones[0].Status)
 	assert.NotContains(t, final.Links, "edit", "terminal journeys must not carry write affordances")
+}
+
+func TestCapabilityJourneyIntegration_BulkCurrent_HydratesSourcesAndMilestones(t *testing.T) {
+	tc, cleanup := setupCapabilityJourneyTestDB(t)
+	defer cleanup()
+
+	capID := uuid.New().String()
+	tc.trackCapability(capID)
+	fromApp := uuid.New().String()
+
+	captureRec := captureJourneyReq(tc.handlers, capID, CaptureJourneyRequest{
+		Kind:             valueobjects.JourneyKindMigration,
+		FromComponentIDs: []string{fromApp},
+		ToComponentID:    uuid.New().String(),
+	}, architectActor())
+	require.Equal(t, http.StatusCreated, captureRec.Code, captureRec.Body.String())
+	var captured readmodels.CapabilityJourneyDTO
+	require.NoError(t, json.NewDecoder(captureRec.Body).Decode(&captured))
+
+	milestoneBody, _ := json.Marshal(AddJourneyMilestoneRequest{Label: "Phase 1"})
+	milestoneRec := runCapabilityJourneyRequest(
+		httptest.NewRequest(http.MethodPost, "/api/v1/capability-journeys/"+captured.ID+"/milestones", bytes.NewReader(milestoneBody)),
+		journeyMilestonesPattern, tc.handlers.PostJourneyMilestone, architectActor())
+	require.Equal(t, http.StatusCreated, milestoneRec.Code, milestoneRec.Body.String())
+
+	bulkRec := bulkJourneysReq(tc.handlers, []string{capID}, architectActor())
+	require.Equal(t, http.StatusOK, bulkRec.Code, bulkRec.Body.String())
+
+	var collection struct {
+		Data []readmodels.CapabilityJourneyDTO `json:"data"`
+	}
+	require.NoError(t, json.NewDecoder(bulkRec.Body).Decode(&collection))
+	require.Len(t, collection.Data, 1)
+	got := collection.Data[0]
+	assert.Equal(t, capID, got.CapabilityID)
+	require.Len(t, got.FromApplications, 1, "bulk fetch must hydrate journey sources")
+	assert.Equal(t, fromApp, got.FromApplications[0].ComponentID)
+	require.Len(t, got.Milestones, 1, "bulk fetch must hydrate journey milestones")
+	assert.Equal(t, "Phase 1", got.Milestones[0].Label)
 }
 
 func TestCapabilityJourneyIntegration_OneActivePerCapability_RejectedWithExistingID(t *testing.T) {

@@ -52,26 +52,13 @@ func (rm *CapabilityJourneyReadModel) GetHistoryByCapabilityID(ctx context.Conte
 	}
 	journeys := []CapabilityJourneyDTO{}
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		rows, err := tx.QueryContext(ctx,
+		loaded, err := rm.queryJourneys(ctx, tx,
 			`SELECT `+journeyColumns+` FROM architecturedirection.capability_journeys
 			 WHERE tenant_id = $1 AND capability_id = $2 ORDER BY planned_at DESC`,
 			tenantID, capabilityID,
 		)
-		if err != nil {
-			return err
-		}
-		defer func() { _ = rows.Close() }()
-		for rows.Next() {
-			dto, scanErr := scanJourney(rows)
-			if scanErr != nil {
-				return scanErr
-			}
-			if err := rm.hydrateJourney(ctx, tx, tenantID, &dto); err != nil {
-				return err
-			}
-			journeys = append(journeys, dto)
-		}
-		return rows.Err()
+		journeys = loaded
+		return err
 	})
 	return journeys, err
 }
@@ -86,7 +73,7 @@ func (rm *CapabilityJourneyReadModel) GetCurrentByCapabilityIDs(ctx context.Cont
 	}
 	journeys := []CapabilityJourneyDTO{}
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		rows, err := tx.QueryContext(ctx,
+		loaded, err := rm.queryJourneys(ctx, tx,
 			`SELECT `+journeyColumns+` FROM (
 			   SELECT cj.*, ROW_NUMBER() OVER (
 			     PARTITION BY capability_id, (CASE WHEN status IN ('planned', 'in-flight') THEN 1 ELSE 0 END)
@@ -99,23 +86,44 @@ func (rm *CapabilityJourneyReadModel) GetCurrentByCapabilityIDs(ctx context.Cont
 			 ORDER BY capability_id, planned_at DESC`,
 			tenantID, pq.Array(capabilityIDs),
 		)
-		if err != nil {
-			return err
-		}
-		defer func() { _ = rows.Close() }()
-		for rows.Next() {
-			dto, scanErr := scanJourney(rows)
-			if scanErr != nil {
-				return scanErr
-			}
-			if err := rm.hydrateJourney(ctx, tx, tenantID, &dto); err != nil {
-				return err
-			}
-			journeys = append(journeys, dto)
-		}
-		return rows.Err()
+		journeys = loaded
+		return err
 	})
 	return journeys, err
+}
+
+func (rm *CapabilityJourneyReadModel) queryJourneys(ctx context.Context, tx *sql.Tx, query string, args ...any) ([]CapabilityJourneyDTO, error) {
+	tenantID, err := tenantOf(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := tx.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	journeys, err := scanAllJourneys(rows)
+	if err != nil {
+		return nil, err
+	}
+	for i := range journeys {
+		if err := rm.hydrateJourney(ctx, tx, tenantID, &journeys[i]); err != nil {
+			return nil, err
+		}
+	}
+	return journeys, nil
+}
+
+func scanAllJourneys(rows *sql.Rows) ([]CapabilityJourneyDTO, error) {
+	defer func() { _ = rows.Close() }()
+	journeys := []CapabilityJourneyDTO{}
+	for rows.Next() {
+		dto, err := scanJourney(rows)
+		if err != nil {
+			return nil, err
+		}
+		journeys = append(journeys, dto)
+	}
+	return journeys, rows.Err()
 }
 
 const journeyColumns = `id, capability_id, COALESCE(capability_name, ''), capability_stale, kind, status,
