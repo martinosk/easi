@@ -192,7 +192,7 @@ export function useTreeContextMenus({
   };
 
   const handleRenameSubmit = async () => {
-    if (!editingState || !editingState.name.trim()) {
+    if (!editingState?.name.trim()) {
       setEditingState(null);
       return;
     }
