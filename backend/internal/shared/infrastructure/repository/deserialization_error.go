@@ -44,6 +44,27 @@ func NewFieldDeserializationError(aggregateID, eventType string, sequenceNumber 
 	}
 }
 
+type UnknownEventTypeError struct {
+	AggregateID    string
+	EventType      string
+	SequenceNumber int
+}
+
+func (e *UnknownEventTypeError) Error() string {
+	return fmt.Sprintf(
+		"unknown event type %s for aggregate %s at position %d: no deserializer is registered, "+
+			"so the aggregate cannot be rebuilt from its history",
+		e.EventType, e.AggregateID, e.SequenceNumber)
+}
+
+func NewUnknownEventTypeError(aggregateID, eventType string, sequenceNumber int) *UnknownEventTypeError {
+	return &UnknownEventTypeError{
+		AggregateID:    aggregateID,
+		EventType:      eventType,
+		SequenceNumber: sequenceNumber,
+	}
+}
+
 type FieldError struct {
 	FieldName    string
 	ExpectedType string

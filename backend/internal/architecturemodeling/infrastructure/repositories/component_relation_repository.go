@@ -30,5 +30,6 @@ var relationEventDeserializers = repository.NewEventDeserializers(
 	map[string]repository.EventDeserializerFunc{
 		"ComponentRelationCreated": repository.JSONDeserializer[events.ComponentRelationCreated],
 		"ComponentRelationUpdated": repository.JSONDeserializer[events.ComponentRelationUpdated],
+		"ComponentRelationDeleted": repository.JSONDeserializer[events.ComponentRelationDeleted],
 	},
 )
