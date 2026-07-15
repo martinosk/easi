@@ -24,6 +24,7 @@ import { CompletenessBadge } from '../components/CompletenessBadge';
 import { useOnePagerQualityList } from '../hooks/useOnePagerQualityList';
 import { subjectArtifactType } from '../subjectArtifactType';
 import type { OnePagerQualityOrder, OnePagerQualityRow, OnePagerQualitySort } from '../types';
+import classes from './OnePagerQualityPage.module.css';
 
 const DEFAULT_SORT: OnePagerQualitySort = 'completeness';
 const DEFAULT_ORDER: OnePagerQualityOrder = 'asc';
@@ -52,9 +53,11 @@ function onePagerDetailPath(subjectType: string, subjectId: string): string {
 
 function PageShell({ children }: { children: React.ReactNode }) {
   return (
-    <Container size="xl" py="xl">
-      {children}
-    </Container>
+    <div className={classes.page}>
+      <Container size="xl" py="xl">
+        {children}
+      </Container>
+    </div>
   );
 }
 
