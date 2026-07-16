@@ -24,6 +24,7 @@ Collect commits since the last git tag, categorise them, write a SQL migration, 
      - Tooling, CI, developer workflow, or agent/skill configuration changes.
      - Dependency upgrades that carry no user-visible change.
      - Documentation updates that are not end-user docs.
+     - Fixes or tweaks to features introduced within this same release — users upgrading never saw the broken behaviour, so fold them silently into the feature item instead of listing them.
    - Categorise qualifying commits into one of three buckets:
      - **Major** — significant new user-facing capability or breaking API change.
      - **Minor** — smaller user-facing improvement, new API field, or UI/UX enhancement.
