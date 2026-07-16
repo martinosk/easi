@@ -1,6 +1,6 @@
 # 187 — Edit One-Pager Facts on the One-Pager Page
 
-> **Status:** pending
+> **Status:** done
 > **Depends on:** [176 — OnePagerFacts capture](176_OnePagerFacts_done.md) (the facts aggregate, per-type inputs, and save flow being relocated), [177 — OnePagerView](177_OnePagerView_done.md) (the page and composed read gaining the Edit action), [178 — One-Pager Completeness](178_OnePagerCompleteness_done.md) (the completeness block already carried by the composed response, re-rendered after save)
 
 ---
@@ -275,4 +275,4 @@ published-language contracts.
 - [x] Unit tests implemented and passing
 - [x] Integration tests implemented if relevant
 - [x] API documentation updated
-- [ ] User sign-off
+- [x] User sign-off

@@ -1,6 +1,6 @@
 # 188 — Relations As Built-In Fields
 
-> **Status:** pending
+> **Status:** done
 > **Depends on:** [175 — OnePagerConfiguration](175_OnePagerConfiguration_done.md), [176 — OnePagerFacts capture](176_OnePagerFacts_done.md), [177 — OnePagerView](177_OnePagerView_done.md)
 > **Relates to:** 186 — Mandatory built-in fields (this spec defines the "filled" predicate 186's built-in completeness consumes)
 > **Design:** extends slice 3 of [Configurable One-Pagers](../docs/specs/configurable-one-pagers.md); conforms to decisions D6, D8, D10
@@ -343,4 +343,4 @@ existing read-model wiring). `onepagers` sees only resolved `Reference` values.
 - [x] Unit tests implemented and passing
 - [x] Integration tests implemented if relevant
 - [x] API documentation updated
-- [ ] User sign-off
+- [x] User sign-off

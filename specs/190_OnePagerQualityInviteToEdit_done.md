@@ -1,6 +1,6 @@
 # 190 — One-Pager Quality: Invite to edit
 
-> **Status:** pending
+> **Status:** done
 > **Depends on:** [189 — One-Pager Quality master list](189_OnePagerQualityList_pending.md), [126 — EditGrants / AccessDelegation](126_EditGrants_AccessDelegation_done.md)
 
 ---
@@ -185,4 +185,4 @@ unchanged.
 - [x] Unit tests implemented and passing
 - [x] Integration tests implemented if relevant
 - [x] API documentation updated
-- [ ] User sign-off
+- [x] User sign-off

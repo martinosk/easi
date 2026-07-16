@@ -1,6 +1,6 @@
 # 189 — One-Pager Quality master list
 
-> **Status:** pending
+> **Status:** done
 > **Depends on:** [177 — OnePagerView](177_OnePagerView_done.md), [178 — One-Pager Completeness](178_OnePagerCompleteness_done.md), [186 — Mandatory Built-In One-Pager Fields](186_MandatoryBuiltInFields_pending.md) (which depend on 175, 176)
 
 ---
@@ -298,4 +298,4 @@ never through cross-schema SQL or supplier imports.
 - [x] Unit tests implemented and passing
 - [x] Integration tests implemented if relevant
 - [x] API documentation updated
-- [ ] User sign-off
+- [x] User sign-off

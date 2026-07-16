@@ -1,6 +1,6 @@
 # 185 — One-Pager Number Field Bounds
 
-> **Status:** pending
+> **Status:** done
 > **Depends on:** 175 — OnePagerConfiguration (Number custom fields must exist), 176 — OnePagerFacts (NumberValue recording must exist)
 > **Design:** extends [Configurable One-Pagers](../docs/specs/configurable-one-pagers.md); conforms to decisions D1–D10, in particular D2 (config changes never invalidate recorded facts)
 
@@ -312,4 +312,4 @@ new inbound or outbound event flows are introduced.
 - [x] Unit tests implemented and passing
 - [x] Integration tests implemented if relevant
 - [x] API documentation updated
-- [ ] User sign-off
+- [x] User sign-off

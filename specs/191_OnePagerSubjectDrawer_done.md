@@ -1,6 +1,6 @@
 # 191 — One-Pager: Open Subject Drawer
 
-> **Status:** ongoing
+> **Status:** done
 > **Depends on:** 177 (one-pager view), 187 (edit one-pager on page), 188 (relations as built-ins)
 
 ---
@@ -135,4 +135,4 @@ None server-side. Client-side, the one-pagers feature imports detail panel compo
 - [x] Unit tests implemented and passing
 - [x] Integration tests implemented if relevant (none relevant — frontend-only; no API or persistence changes)
 - [x] API documentation updated (no API surface changes)
-- [ ] User sign-off
+- [x] User sign-off

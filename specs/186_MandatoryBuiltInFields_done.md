@@ -1,6 +1,6 @@
 # 186 — Mandatory Built-In One-Pager Fields
 
-> **Status:** pending
+> **Status:** done
 > **Depends on:** 175 (OnePagerConfiguration), 176 (OnePagerFacts capture), 177 (OnePagerView), 178 (Completeness & impact preview)
 > **Supersedes:** design decision **D7** of [Configurable One-Pagers](../docs/specs/configurable-one-pagers.md)
 
@@ -341,4 +341,4 @@ composition root).
 - [x] Unit tests implemented and passing
 - [x] Integration tests implemented if relevant
 - [x] API documentation updated
-- [ ] User sign-off
+- [x] User sign-off
