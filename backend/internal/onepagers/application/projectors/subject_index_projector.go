@@ -121,6 +121,23 @@ type subjectIdentity struct {
 	Name string `json:"name"`
 }
 
+type subjectChangeIdentity struct {
+	ID           string `json:"id"`
+	CapabilityID string `json:"capabilityId"`
+	ComponentID  string `json:"componentId"`
+	Name         string `json:"name"`
+}
+
+func (e subjectChangeIdentity) subjectID() string {
+	if e.ID != "" {
+		return e.ID
+	}
+	if e.CapabilityID != "" {
+		return e.CapabilityID
+	}
+	return e.ComponentID
+}
+
 type factsIdentity struct {
 	SubjectType string `json:"subjectType"`
 	SubjectID   string `json:"subjectId"`
@@ -168,19 +185,24 @@ func (p *SubjectIndexProjector) onDeleted(ctx context.Context, subjectType strin
 }
 
 func (p *SubjectIndexProjector) onSubjectChanged(ctx context.Context, subjectType string, occurredAt time.Time, eventData []byte) error {
-	var event subjectIdentity
+	var event subjectChangeIdentity
 	if err := json.Unmarshal(eventData, &event); err != nil {
 		return fmt.Errorf("unmarshal %s update event: %w", subjectType, err)
 	}
 
-	required, filled, err := p.counter.CountsForSubjects(ctx, subjectType, []string{event.ID})
+	subjectID := event.subjectID()
+	if subjectID == "" {
+		return fmt.Errorf("%s update event carries no subject id", subjectType)
+	}
+
+	required, filled, err := p.counter.CountsForSubjects(ctx, subjectType, []string{subjectID})
 	if err != nil {
-		return fmt.Errorf("compute completeness for updated %s %s: %w", subjectType, event.ID, err)
+		return fmt.Errorf("compute completeness for updated %s %s: %w", subjectType, subjectID, err)
 	}
 	return p.store.ApplySubjectChange(ctx, readmodels.SubjectChange{
-		Subject:    readmodels.SubjectKey{SubjectType: subjectType, SubjectID: event.ID},
+		Subject:    readmodels.SubjectKey{SubjectType: subjectType, SubjectID: subjectID},
 		Name:       event.Name,
-		Counts:     readmodels.CompletenessCounts{Required: required, Filled: filled[event.ID]},
+		Counts:     readmodels.CompletenessCounts{Required: required, Filled: filled[subjectID]},
 		OccurredAt: occurredAt,
 	})
 }

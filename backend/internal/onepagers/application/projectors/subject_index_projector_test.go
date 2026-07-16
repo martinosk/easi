@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	amPL "easi/backend/internal/architecturemodeling/publishedlanguage"
 	capPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/onepagers/application/ports"
 	"easi/backend/internal/onepagers/application/projectors"
@@ -158,15 +159,63 @@ func TestSubjectIndexProjector_Updated_RefreshesNameAndCompleteness(t *testing.T
 	}, store.changes[0])
 }
 
-func TestSubjectIndexProjector_ExpertUpdate_RecomputesWithoutName(t *testing.T) {
+func TestSubjectIndexProjector_ExpertEvents_ResolveSubjectFromContextIdKey(t *testing.T) {
+	cases := []struct {
+		name        string
+		eventType   string
+		payload     map[string]any
+		wantSubject readmodels.SubjectKey
+	}{
+		{
+			name:        "capability expert added",
+			eventType:   capPL.CapabilityExpertAdded,
+			payload:     map[string]any{"capabilityId": "cap-1", "expertName": "Jane"},
+			wantSubject: subjectKey("capability", "cap-1"),
+		},
+		{
+			name:        "capability expert removed",
+			eventType:   capPL.CapabilityExpertRemoved,
+			payload:     map[string]any{"capabilityId": "cap-1", "expertName": "Jane"},
+			wantSubject: subjectKey("capability", "cap-1"),
+		},
+		{
+			name:        "application expert added",
+			eventType:   amPL.ApplicationComponentExpertAdded,
+			payload:     map[string]any{"componentId": "app-9", "expertName": "Jane"},
+			wantSubject: subjectKey("application", "app-9"),
+		},
+		{
+			name:        "application expert removed",
+			eventType:   amPL.ApplicationComponentExpertRemoved,
+			payload:     map[string]any{"componentId": "app-9", "expertName": "Jane"},
+			wantSubject: subjectKey("application", "app-9"),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			store := &fakeIndexStore{}
+			counter := fakeCounter{required: 1, filled: map[string]int{tc.wantSubject.SubjectID: 1}}
+			h := newHarness(t, projectorFakes{store: store, counter: counter})
+
+			h.project(tc.eventType, time.Now().UTC(), tc.payload)
+
+			require.Len(t, store.changes, 1)
+			assert.Equal(t, tc.wantSubject, store.changes[0].Subject)
+			assert.Equal(t, "", store.changes[0].Name)
+			assert.Equal(t, 1, store.changes[0].Counts.Filled)
+		})
+	}
+}
+
+func TestSubjectIndexProjector_SubjectUpdateWithoutSubjectId_Errors(t *testing.T) {
 	store := &fakeIndexStore{}
-	h := newHarness(t, projectorFakes{store: store, counter: fakeCounter{required: 1, filled: map[string]int{"cap-1": 1}}})
+	projector := projectors.NewSubjectIndexProjector(store, fakeCounter{}, fakeAuditReader{}, fakeConfigLookup{})
 
-	h.project(capPL.CapabilityExpertAdded, time.Now().UTC(), map[string]any{"id": "cap-1"})
+	err := projector.ProjectEvent(context.Background(), capPL.CapabilityExpertAdded, time.Now(), []byte(`{"expertName":"Jane"}`))
 
-	require.Len(t, store.changes, 1)
-	assert.Equal(t, "", store.changes[0].Name)
-	assert.Equal(t, 1, store.changes[0].Counts.Filled)
+	require.Error(t, err)
+	assert.Empty(t, store.changes)
 }
 
 func TestSubjectIndexProjector_FactsRecorded_RecomputesSubjectOnly(t *testing.T) {
