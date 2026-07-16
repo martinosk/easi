@@ -66,14 +66,7 @@ func (cfg builtInSourceConfig[T]) fetchSubject(ctx context.Context, subjectID st
 	if err != nil {
 		return nil, fmt.Errorf("fetch %s %s for one-pager: %w", cfg.subjectType, subjectID, err)
 	}
-	snapshot := cfg.toSnapshot(dto)
-	if snapshot == nil {
-		return nil, nil
-	}
-	if err := cfg.resolveRelations(ctx, dto, snapshot, includedEntryIDs); err != nil {
-		return nil, err
-	}
-	return snapshot, nil
+	return cfg.resolvedSnapshot(ctx, dto, includedEntryIDs)
 }
 
 func (cfg builtInSourceConfig[T]) resolveRelations(ctx context.Context, dto *T, snapshot *ports.SubjectSnapshot, includedEntryIDs []string) error {
@@ -115,10 +108,24 @@ func (cfg builtInSourceConfig[T]) filledBuiltInFields(ctx context.Context, subje
 	}
 	filled := make(map[string]map[string]bool, len(dtos))
 	for i := range dtos {
-		snapshot := cfg.toSnapshot(&dtos[i])
+		snapshot, err := cfg.resolvedSnapshot(ctx, &dtos[i], entryIDs)
+		if err != nil {
+			return nil, err
+		}
 		filled[cfg.idOf(&dtos[i])] = filledEntries(snapshot, entryIDs)
 	}
 	return filled, nil
+}
+
+func (cfg builtInSourceConfig[T]) resolvedSnapshot(ctx context.Context, dto *T, entryIDs []string) (*ports.SubjectSnapshot, error) {
+	snapshot := cfg.toSnapshot(dto)
+	if snapshot == nil {
+		return nil, nil
+	}
+	if err := cfg.resolveRelations(ctx, dto, snapshot, entryIDs); err != nil {
+		return nil, err
+	}
+	return snapshot, nil
 }
 
 func (cfg builtInSourceConfig[T]) countSubjectsWithValue(ctx context.Context, entryID string) (int, error) {
@@ -128,7 +135,11 @@ func (cfg builtInSourceConfig[T]) countSubjectsWithValue(ctx context.Context, en
 	}
 	count := 0
 	for i := range dtos {
-		if ports.ValueFilled(snapshotField(cfg.toSnapshot(&dtos[i]), entryID)) {
+		snapshot, err := cfg.resolvedSnapshot(ctx, &dtos[i], []string{entryID})
+		if err != nil {
+			return 0, err
+		}
+		if ports.ValueFilled(snapshotField(snapshot, entryID)) {
 			count++
 		}
 	}

@@ -17,7 +17,7 @@ export function NumberFieldBoundsEditor({ field, onSave }: NumberFieldBoundsEdit
     formState: { errors, isValid, isDirty },
   } = useForm<NumberFieldBoundsFormData>({
     resolver: zodResolver(numberFieldBoundsSchema),
-    defaultValues: { min: field.min ?? '', max: field.max ?? '' },
+    values: { min: field.min ?? '', max: field.max ?? '' },
     mode: 'onChange',
   });
 
