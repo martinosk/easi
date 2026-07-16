@@ -52,6 +52,11 @@ function emptyCounts(): TimeAssessmentGradeCounts {
   return { Invest: 0, Tolerate: 0, Migrate: 0, Eliminate: 0 };
 }
 
+function capabilityIdFilter(url: URL): string[] | null {
+  const raw = url.searchParams.get('capabilityIds');
+  return raw === null ? null : splitIds(raw);
+}
+
 function splitIds(raw: string | null): string[] {
   return (raw ?? '').split(',').filter(Boolean);
 }
@@ -75,8 +80,7 @@ export const spec180Handlers = [
 
   http.get(`${BASE_URL}/api/v1/time-assessments`, ({ request }) => {
     const url = new URL(request.url);
-    const capabilityIds = splitIds(url.searchParams.get('capabilityIds'));
-    const data = assessmentsForCapabilities(capabilityIds).map(toDto);
+    const data = assessmentsForCapabilities(capabilityIdFilter(url)).map(toDto);
 
     return HttpResponse.json({
       data,

@@ -15,6 +15,7 @@ import (
 type RealizationRoleQueries interface {
 	GetByPair(ctx context.Context, capabilityID, componentID string) (*readmodels.RealizationRoleDTO, error)
 	GetByCapabilityIDs(ctx context.Context, capabilityIDs []string) ([]readmodels.RealizationRoleDTO, error)
+	GetAll(ctx context.Context) ([]readmodels.RealizationRoleDTO, error)
 }
 
 type RealizationRoleHandlers struct {
@@ -37,15 +38,14 @@ type AssignRealizationRoleRequest struct {
 // @Tags realization-roles
 // @Produce json
 // @Security CookieAuth
-// @Param capabilityIds query string true "Comma-separated capability IDs"
+// @Param capabilityIds query string false "Comma-separated capability IDs; omit to return the whole collection"
 // @Success 200 {object} sharedAPI.CollectionResponse
 // @Failure 401 {object} sharedAPI.ErrorResponse
 // @Failure 403 {object} sharedAPI.ErrorResponse
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /realization-roles [get]
 func (h *RealizationRoleHandlers) GetRealizationRoles(w http.ResponseWriter, r *http.Request) {
-	capabilityIDs := parseIDList(r.URL.Query().Get("capabilityIds"))
-	roles, err := h.queries.GetByCapabilityIDs(r.Context(), capabilityIDs)
+	roles, err := h.fetchRoles(r)
 	if err != nil {
 		sharedAPI.HandleError(w, err)
 		return
@@ -56,6 +56,13 @@ func (h *RealizationRoleHandlers) GetRealizationRoles(w http.ResponseWriter, r *
 	}
 	links := h.hateoas.CollectionLinks(string(realizationRolesPath), actor)
 	sharedAPI.RespondCollection(w, http.StatusOK, roles, links)
+}
+
+func (h *RealizationRoleHandlers) fetchRoles(r *http.Request) ([]readmodels.RealizationRoleDTO, error) {
+	if capabilityIDs, filtered := capabilityIDFilter(r); filtered {
+		return h.queries.GetByCapabilityIDs(r.Context(), capabilityIDs)
+	}
+	return h.queries.GetAll(r.Context())
 }
 
 // GetRealizationRole godoc

@@ -29,6 +29,11 @@ import {
 const BASE_URL = '*';
 const link = (href: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE') => ({ href, method });
 
+function capabilityIdFilter(url: URL): string[] | null {
+  const raw = url.searchParams.get('capabilityIds');
+  return raw === null ? null : splitIds(raw);
+}
+
 function splitIds(raw: string | null): string[] {
   return (raw ?? '').split(',').filter(Boolean);
 }
@@ -184,8 +189,7 @@ export const spec182Handlers = [
 
   http.get(`${BASE_URL}/api/v1/capability-journeys`, ({ request }) => {
     const url = new URL(request.url);
-    const capabilityIds = splitIds(url.searchParams.get('capabilityIds'));
-    const data = getCurrentByCapabilityIds(capabilityIds).map(journeyDto);
+    const data = getCurrentByCapabilityIds(capabilityIdFilter(url)).map(journeyDto);
     const links: { self: ReturnType<typeof link>; 'x-capture'?: ReturnType<typeof link> } = {
       self: link(url.pathname + url.search, 'GET'),
     };

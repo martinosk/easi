@@ -34,6 +34,11 @@ function toDto(r: StubRealizationRole): RealizationRoleAssignment {
   };
 }
 
+function capabilityIdFilter(url: URL): string[] | null {
+  const raw = url.searchParams.get('capabilityIds');
+  return raw === null ? null : splitIds(raw);
+}
+
 function splitIds(raw: string | null): string[] {
   return (raw ?? '').split(',').filter(Boolean);
 }
@@ -41,8 +46,7 @@ function splitIds(raw: string | null): string[] {
 export const spec181Handlers = [
   http.get(`${BASE_URL}/api/v1/realization-roles`, ({ request }) => {
     const url = new URL(request.url);
-    const capabilityIds = splitIds(url.searchParams.get('capabilityIds'));
-    const data = rolesForCapabilities(capabilityIds).map(toDto);
+    const data = rolesForCapabilities(capabilityIdFilter(url)).map(toDto);
 
     return HttpResponse.json({
       data,

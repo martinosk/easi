@@ -252,14 +252,26 @@ func (rm *TimeAssessmentReadModel) GetByCapabilityIDs(ctx context.Context, capab
 	if err != nil {
 		return nil, err
 	}
+	return rm.assessments(ctx, "tenant_id = $1 AND capability_id = ANY($2)", tenantID, pq.Array(capabilityIDs))
+}
+
+func (rm *TimeAssessmentReadModel) GetAll(ctx context.Context) ([]TimeAssessmentDTO, error) {
+	tenantID, err := tenantOf(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return rm.assessments(ctx, "tenant_id = $1", tenantID)
+}
+
+func (rm *TimeAssessmentReadModel) assessments(ctx context.Context, where string, args ...any) ([]TimeAssessmentDTO, error) {
 	assessments := []TimeAssessmentDTO{}
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+	err := rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
 			`SELECT `+timeAssessmentSelectColumns+`
 			 FROM architecturedirection.time_assessments
-			 WHERE tenant_id = $1 AND capability_id = ANY($2)
+			 WHERE `+where+`
 			 ORDER BY assessed_at DESC`,
-			tenantID, pq.Array(capabilityIDs),
+			args...,
 		)
 		if err != nil {
 			return err

@@ -16,6 +16,7 @@ import (
 type TimeAssessmentQueries interface {
 	GetByPair(ctx context.Context, capabilityID, componentID string) (*readmodels.TimeAssessmentDTO, error)
 	GetByCapabilityIDs(ctx context.Context, capabilityIDs []string) ([]readmodels.TimeAssessmentDTO, error)
+	GetAll(ctx context.Context) ([]readmodels.TimeAssessmentDTO, error)
 	GetRollupsByComponentIDs(ctx context.Context, componentIDs []string) ([]readmodels.TimeAssessmentRollupDTO, error)
 }
 
@@ -40,15 +41,14 @@ type AssessRealizationRequest struct {
 // @Tags time-assessments
 // @Produce json
 // @Security CookieAuth
-// @Param capabilityIds query string true "Comma-separated capability IDs"
+// @Param capabilityIds query string false "Comma-separated capability IDs; omit to return the whole collection"
 // @Success 200 {object} sharedAPI.CollectionResponse
 // @Failure 401 {object} sharedAPI.ErrorResponse
 // @Failure 403 {object} sharedAPI.ErrorResponse
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /time-assessments [get]
 func (h *TimeAssessmentHandlers) GetTimeAssessments(w http.ResponseWriter, r *http.Request) {
-	capabilityIDs := parseIDList(r.URL.Query().Get("capabilityIds"))
-	assessments, err := h.queries.GetByCapabilityIDs(r.Context(), capabilityIDs)
+	assessments, err := h.fetchAssessments(r)
 	if err != nil {
 		sharedAPI.HandleError(w, err)
 		return
@@ -59,6 +59,13 @@ func (h *TimeAssessmentHandlers) GetTimeAssessments(w http.ResponseWriter, r *ht
 	}
 	links := h.hateoas.CollectionLinks(string(timeAssessmentsPath), actor)
 	sharedAPI.RespondCollection(w, http.StatusOK, assessments, links)
+}
+
+func (h *TimeAssessmentHandlers) fetchAssessments(r *http.Request) ([]readmodels.TimeAssessmentDTO, error) {
+	if capabilityIDs, filtered := capabilityIDFilter(r); filtered {
+		return h.queries.GetByCapabilityIDs(r.Context(), capabilityIDs)
+	}
+	return h.queries.GetAll(r.Context())
 }
 
 // GetTimeAssessmentRollups godoc
@@ -217,6 +224,13 @@ func (h *TimeAssessmentHandlers) respondWithCurrentAssessment(w http.ResponseWri
 		return
 	}
 	sharedAPI.RespondJSON(w, statusCode, dto)
+}
+
+func capabilityIDFilter(r *http.Request) ([]string, bool) {
+	if !r.URL.Query().Has("capabilityIds") {
+		return nil, false
+	}
+	return parseIDList(r.URL.Query().Get("capabilityIds")), true
 }
 
 func parseIDList(raw string) []string {

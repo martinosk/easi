@@ -35,11 +35,10 @@ export function useJourneyHistory(capabilityId: string | undefined) {
   });
 }
 
-export function useJourneysByCapabilityIds(capabilityIds: string[]) {
+export function useAllJourneys() {
   return useQuery({
-    queryKey: journeyQueryKeys.byCapabilityIds(capabilityIds),
-    queryFn: () => journeyApi.getByCapabilityIds(capabilityIds),
-    enabled: capabilityIds.length > 0,
+    queryKey: journeyQueryKeys.collection(),
+    queryFn: () => journeyApi.getAll(),
   });
 }
 

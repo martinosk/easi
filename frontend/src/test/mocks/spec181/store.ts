@@ -38,7 +38,8 @@ export function findRole(capabilityId: string, componentId: string): StubRealiza
   return db.roles.find((r) => r.capabilityId === capabilityId && r.componentId === componentId);
 }
 
-export function rolesForCapabilities(capabilityIds: string[]): StubRealizationRole[] {
+export function rolesForCapabilities(capabilityIds: string[] | null): StubRealizationRole[] {
+  if (capabilityIds === null) return [...db.roles];
   return db.roles.filter((r) => capabilityIds.includes(r.capabilityId));
 }
 

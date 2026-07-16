@@ -11,6 +11,7 @@ import {
 } from '../../../test/helpers/entityBuilders';
 import { realizationRoleApi } from '../../architecture-direction/api/realizationRoleApi';
 import { timeAssessmentApi } from '../../architecture-direction/api/timeAssessmentApi';
+import { journeyApi } from '../../journeys/api/journeyApi';
 import { capabilitiesApi } from '../../capabilities/api';
 import { businessDomainsApi } from '../api';
 import type { AssessedRealization } from './domainBoardViewModel';
@@ -33,13 +34,19 @@ vi.mock('../../capabilities/api', () => ({
 
 vi.mock('../../architecture-direction/api/timeAssessmentApi', () => ({
   timeAssessmentApi: {
-    getByCapabilityIds: vi.fn(),
+    getAll: vi.fn(),
   },
 }));
 
 vi.mock('../../architecture-direction/api/realizationRoleApi', () => ({
   realizationRoleApi: {
-    getByCapabilityIds: vi.fn(),
+    getAll: vi.fn(),
+  },
+}));
+
+vi.mock('../../journeys/api/journeyApi', () => ({
+  journeyApi: {
+    getAll: vi.fn(),
   },
 }));
 
@@ -70,7 +77,10 @@ function mockSingleCapabilityDomain(domainA: BusinessDomain) {
 
 describe('useDomainBoardData', () => {
   beforeEach(() => {
-    vi.mocked(realizationRoleApi.getByCapabilityIds).mockResolvedValue({ data: [], _links: {} });
+    vi.clearAllMocks();
+    vi.mocked(realizationRoleApi.getAll).mockResolvedValue({ data: [], _links: {} });
+    vi.mocked(timeAssessmentApi.getAll).mockResolvedValue({ data: [], _links: {} });
+    vi.mocked(journeyApi.getAll).mockResolvedValue({ data: [], _links: {} });
   });
 
   it('fans out one capabilities query and one realizations query per domain, keyed for mutation invalidation', async () => {
@@ -136,7 +146,7 @@ describe('useDomainBoardData', () => {
     {
       name: 'assessments query, enriching the returned realizations with their current grade',
       setupMock: () =>
-        vi.mocked(timeAssessmentApi.getByCapabilityIds).mockResolvedValue({
+        vi.mocked(timeAssessmentApi.getAll).mockResolvedValue({
           data: [
             {
               id: 'ta-1',
@@ -154,14 +164,14 @@ describe('useDomainBoardData', () => {
           ],
           _links: {},
         }),
-      waitForCalled: () => waitFor(() => expect(timeAssessmentApi.getByCapabilityIds).toHaveBeenCalledWith(['l1-a'])),
+      waitForCalled: () => waitFor(() => expect(timeAssessmentApi.getAll).toHaveBeenCalled()),
       readEnrichedValue: (realization: AssessedRealization) => realization.timeGrade,
       expectedValue: 'Migrate',
     },
     {
       name: 'realization role query, enriching the returned realizations with their current role',
       setupMock: () =>
-        vi.mocked(realizationRoleApi.getByCapabilityIds).mockResolvedValue({
+        vi.mocked(realizationRoleApi.getAll).mockResolvedValue({
           data: [
             {
               capabilityId: 'l1-a',
@@ -176,14 +186,14 @@ describe('useDomainBoardData', () => {
           ],
           _links: {},
         }),
-      waitForCalled: () => waitFor(() => expect(realizationRoleApi.getByCapabilityIds).toHaveBeenCalledWith(['l1-a'])),
+      waitForCalled: () => waitFor(() => expect(realizationRoleApi.getAll).toHaveBeenCalled()),
       readEnrichedValue: (realization: AssessedRealization) => realization.role,
       expectedValue: 'standard',
     },
   ];
 
   it.each(fanOutCases)(
-    "fans out one $name per domain scoped to that domain's realized capability ids",
+    'fetches the $name once for the whole board',
     async ({ setupMock, waitForCalled, readEnrichedValue, expectedValue }) => {
       const domainA = buildBusinessDomain({ id: toBusinessDomainId('domain-a') });
       mockSingleCapabilityDomain(domainA);
@@ -201,6 +211,36 @@ describe('useDomainBoardData', () => {
       });
     },
   );
+
+  it('fetches each realization collection exactly once for the whole board, unfiltered', async () => {
+    const domainA = buildBusinessDomain({ id: toBusinessDomainId('domain-a') });
+    const domainB = buildBusinessDomain({ id: toBusinessDomainId('domain-b') });
+
+    vi.mocked(businessDomainsApi.getAll).mockResolvedValue({ data: [domainA, domainB], _links: {} });
+    vi.mocked(capabilitiesApi.getAll).mockResolvedValue([cap('l1-a', 'Alpha', 'L1'), cap('l1-b', 'Bravo', 'L1')]);
+    vi.mocked(businessDomainsApi.getCapabilitiesByDomainId).mockImplementation(async (domainId) =>
+      domainId === domainA.id ? [cap('l1-a', 'Alpha', 'L1')] : [cap('l1-b', 'Bravo', 'L1')],
+    );
+    vi.mocked(businessDomainsApi.getCapabilityRealizations).mockImplementation(async (domainId) => [
+      {
+        capabilityId: toCapabilityId(domainId === domainA.id ? 'l1-a' : 'l1-b'),
+        capabilityName: 'Alpha',
+        level: 'L1',
+        realizations: [],
+      },
+    ]);
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { result } = renderHook(() => useDomainBoardData(), { wrapper: createWrapper(queryClient) });
+
+    await waitFor(() => expect(result.current.boardDomains).toHaveLength(2));
+    await waitFor(() => expect(journeyApi.getAll).toHaveBeenCalled());
+
+    for (const fetchCollection of [timeAssessmentApi.getAll, realizationRoleApi.getAll, journeyApi.getAll]) {
+      expect(fetchCollection).toHaveBeenCalledTimes(1);
+      expect(fetchCollection).toHaveBeenCalledWith();
+    }
+  });
 
   it('surfaces canCreateDomain from the collection HATEOAS links', async () => {
     vi.mocked(businessDomainsApi.getAll).mockResolvedValue({

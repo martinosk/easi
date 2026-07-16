@@ -14,6 +14,11 @@ export const realizationRoleApi = {
     return response.data;
   },
 
+  async getAll(): Promise<RealizationRolesResponse> {
+    const response = await httpClient.get<RealizationRolesResponse>('/api/v1/realization-roles');
+    return response.data;
+  },
+
   async getOne(
     capabilityId: CapabilityId | string,
     componentId: ComponentId | string,

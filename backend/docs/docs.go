@@ -3678,21 +3678,20 @@ const docTemplate = `{
                         "CookieAuth": []
                     }
                 ],
-                "description": "Returns, for each given capability, its active journey plus the most recent terminal journey.",
+                "description": "Returns, for each capability, its active journey plus the most recent terminal journey. Without capabilityIds the whole collection is returned.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "capability-journeys"
                 ],
-                "summary": "Bulk-fetch current journeys for a capability set",
+                "summary": "Bulk-fetch current journeys",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Comma-separated capability IDs",
+                        "description": "Comma-separated capability IDs; omit to return the whole collection",
                         "name": "capabilityIds",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -11074,10 +11073,9 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Comma-separated capability IDs",
+                        "description": "Comma-separated capability IDs; omit to return the whole collection",
                         "name": "capabilityIds",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -11798,10 +11796,9 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Comma-separated capability IDs",
+                        "description": "Comma-separated capability IDs; omit to return the whole collection",
                         "name": "capabilityIds",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     }
                 ],
                 "responses": {

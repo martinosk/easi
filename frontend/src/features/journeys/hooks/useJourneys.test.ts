@@ -10,12 +10,12 @@ import type { CapabilityJourney } from '../types';
 import {
   useAbandonJourney,
   useAddJourneyMilestone,
+  useAllJourneys,
   useCaptureJourney,
   useChangeJourneySourceApplications,
   useCompleteJourney,
   useJourneyForCapability,
   useJourneyHistory,
-  useJourneysByCapabilityIds,
   useRemoveJourneyMilestone,
   useStartJourney,
   useUpdateJourneyDetails,
@@ -90,27 +90,21 @@ describe('useJourneyHistory', () => {
   });
 });
 
-describe('useJourneysByCapabilityIds', () => {
-  it('returns the current journey for each requested capability', async () => {
+describe('useAllJourneys', () => {
+  it('returns the current journey for every capability in the tenant', async () => {
     seedSpec182Db({
       journeys: [
         buildStubJourney({ capabilityId: 'cap-1' }),
         buildStubJourney({ id: 'journey-2', capabilityId: 'cap-2' }),
       ],
     });
-    const { result } = renderHook(() => useJourneysByCapabilityIds(['cap-1', 'cap-2']), {
+    const { result } = renderHook(() => useAllJourneys(), {
       wrapper: createWrapper(newQueryClient()),
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(result.current.data?.data).toHaveLength(2);
-  });
-
-  it('does not fetch when no capability ids are given', () => {
-    const { result } = renderHook(() => useJourneysByCapabilityIds([]), { wrapper: createWrapper(newQueryClient()) });
-
-    expect(result.current.fetchStatus).toBe('idle');
   });
 });
 

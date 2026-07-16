@@ -71,8 +71,20 @@ func (rm *CapabilityJourneyReadModel) GetCurrentByCapabilityIDs(ctx context.Cont
 	if err != nil {
 		return nil, err
 	}
+	return rm.currentJourneys(ctx, "tenant_id = $1 AND capability_id = ANY($2)", tenantID, pq.Array(capabilityIDs))
+}
+
+func (rm *CapabilityJourneyReadModel) GetAllCurrent(ctx context.Context) ([]CapabilityJourneyDTO, error) {
+	tenantID, err := tenantOf(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return rm.currentJourneys(ctx, "tenant_id = $1", tenantID)
+}
+
+func (rm *CapabilityJourneyReadModel) currentJourneys(ctx context.Context, where string, args ...any) ([]CapabilityJourneyDTO, error) {
 	journeys := []CapabilityJourneyDTO{}
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+	err := rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		loaded, err := rm.queryJourneys(ctx, tx,
 			`SELECT `+journeyColumns+` FROM (
 			   SELECT cj.*, ROW_NUMBER() OVER (
@@ -80,11 +92,11 @@ func (rm *CapabilityJourneyReadModel) GetCurrentByCapabilityIDs(ctx context.Cont
 			     ORDER BY planned_at DESC
 			   ) AS rn
 			   FROM architecturedirection.capability_journeys cj
-			   WHERE tenant_id = $1 AND capability_id = ANY($2)
+			   WHERE `+where+`
 			 ) ranked
 			 WHERE rn = 1
 			 ORDER BY capability_id, planned_at DESC`,
-			tenantID, pq.Array(capabilityIDs),
+			args...,
 		)
 		journeys = loaded
 		return err

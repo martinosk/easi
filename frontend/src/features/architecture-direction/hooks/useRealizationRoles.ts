@@ -10,6 +10,13 @@ function getErrorMessage(err: unknown, fallback: string): string {
   return err instanceof Error ? err.message : fallback;
 }
 
+export function useAllRealizationRoles() {
+  return useQuery({
+    queryKey: realizationRoleQueryKeys.collection(),
+    queryFn: () => realizationRoleApi.getAll(),
+  });
+}
+
 export function useRealizationRolesByCapabilityIds(capabilityIds: string[]) {
   return useQuery({
     queryKey: realizationRoleQueryKeys.byCapabilityIds(capabilityIds),

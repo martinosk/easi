@@ -28,10 +28,8 @@ export const journeyApi = {
     return response.data;
   },
 
-  async getByCapabilityIds(capabilityIds: (CapabilityId | string)[]): Promise<CapabilityJourneysBulkResponse> {
-    const response = await httpClient.get<CapabilityJourneysBulkResponse>(
-      `/api/v1/capability-journeys?capabilityIds=${capabilityIds.join(',')}`,
-    );
+  async getAll(): Promise<CapabilityJourneysBulkResponse> {
+    const response = await httpClient.get<CapabilityJourneysBulkResponse>('/api/v1/capability-journeys');
     return response.data;
   },
 

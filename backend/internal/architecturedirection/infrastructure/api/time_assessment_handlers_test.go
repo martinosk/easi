@@ -26,6 +26,13 @@ type mockTimeAssessmentQueries struct {
 	rollups         []readmodels.TimeAssessmentRollupDTO
 	receivedCapIDs  []string
 	receivedCompIDs []string
+	all             []readmodels.TimeAssessmentDTO
+	allCalled       bool
+}
+
+func (m *mockTimeAssessmentQueries) GetAll(_ context.Context) ([]readmodels.TimeAssessmentDTO, error) {
+	m.allCalled = true
+	return m.all, nil
 }
 
 func (m *mockTimeAssessmentQueries) GetByPair(_ context.Context, _, _ string) (*readmodels.TimeAssessmentDTO, error) {
@@ -174,19 +181,36 @@ func TestDeleteTimeAssessment_DispatchesCommand_Returns204(t *testing.T) {
 	assert.Equal(t, "user@example.com", cmd.RemovedBy)
 }
 
-func TestGetTimeAssessments_ParsesCommaSeparatedCapabilityIDs(t *testing.T) {
+func TestGetTimeAssessments_CapabilityIDFiltering(t *testing.T) {
 	capA, capB := uuid.New().String(), uuid.New().String()
-	queries := &mockTimeAssessmentQueries{}
-	h := setupTimeAssessmentHandlers(&mockCommandBus{}, queries)
-	r := timeAssessmentRouter(h)
+	cases := []struct {
+		name          string
+		query         string
+		wantAll       bool
+		wantForwarded []string
+	}{
+		{"no capabilityIds param fetches the whole collection", "", true, nil},
+		{"empty capabilityIds param forwards an empty filter", "?capabilityIds=", false, []string{}},
+		{"populated capabilityIds param forwards the parsed ids", "?capabilityIds=" + capA + "," + capB, false, []string{capA, capB}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			queries := &mockTimeAssessmentQueries{all: []readmodels.TimeAssessmentDTO{{CapabilityID: capA}}}
+			h := setupTimeAssessmentHandlers(&mockCommandBus{}, queries)
+			r := timeAssessmentRouter(h)
 
-	req := httptest.NewRequest(http.MethodGet, "/time-assessments?capabilityIds="+capA+","+capB, nil)
-	req = req.WithContext(sharedctx.WithActor(req.Context(), architectActor()))
-	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, req)
+			req := httptest.NewRequest(http.MethodGet, "/time-assessments"+tc.query, nil)
+			req = req.WithContext(sharedctx.WithActor(req.Context(), architectActor()))
+			rec := httptest.NewRecorder()
+			r.ServeHTTP(rec, req)
 
-	require.Equal(t, http.StatusOK, rec.Code)
-	assert.Equal(t, []string{capA, capB}, queries.receivedCapIDs)
+			require.Equal(t, http.StatusOK, rec.Code)
+			assert.Equal(t, tc.wantAll, queries.allCalled)
+			if !tc.wantAll {
+				assert.Equal(t, tc.wantForwarded, queries.receivedCapIDs)
+			}
+		})
+	}
 }
 
 func TestGetTimeAssessments_XAssessLinkVisibilityByActor(t *testing.T) {
