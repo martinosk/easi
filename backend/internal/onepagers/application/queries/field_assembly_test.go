@@ -220,6 +220,47 @@ func TestGet_SelectionFieldDisplayText(t *testing.T) {
 	}
 }
 
+func floatPtr(v float64) *float64 {
+	return &v
+}
+
+func TestGet_NumberFieldDisplayAndBoundsFlag(t *testing.T) {
+	cases := []struct {
+		name            string
+		min             *float64
+		max             *float64
+		recordedValue   string
+		wantOutOfBounds bool
+	}{
+		{"within bounds is not flagged", floatPtr(0), floatPtr(5), `3`, false},
+		{"outside tightened bounds is flagged", floatPtr(0), floatPtr(3), `5`, true},
+		{"unbounded field is never flagged", nil, nil, `-1000`, false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			envelope := envelopeOf(t, "number", tc.recordedValue)
+			config := &readmodels.ConfigurationRecord{
+				Document: readmodels.ConfigurationDocument{
+					CustomFields: []readmodels.CustomFieldRecord{{
+						ID: "maturity", Name: "Maturity score", Type: "number", Active: true,
+						Min: tc.min, Max: tc.max,
+					}},
+					DisplayOrder: []readmodels.FieldRefRecord{{Kind: "custom", ID: "maturity"}},
+				},
+			}
+
+			result, err := getApplicationOnePager(t, config, nil, []readmodels.FactRecord{
+				{FieldID: "maturity", Value: &envelope, DisplayText: tc.recordedValue},
+			})
+
+			require.NoError(t, err)
+			require.Len(t, result.Fields, 1)
+			assert.Equal(t, tc.wantOutOfBounds, result.Fields[0].Custom.OutOfBounds)
+		})
+	}
+}
+
 func TestGet_FactsForFieldsOutsideDisplayOrderDoNotAppear(t *testing.T) {
 	config := &readmodels.ConfigurationRecord{
 		Document: readmodels.ConfigurationDocument{

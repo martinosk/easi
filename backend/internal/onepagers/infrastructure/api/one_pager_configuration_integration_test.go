@@ -193,10 +193,13 @@ func TestGetConfiguration_LazilyCreatesDefault_Integration(t *testing.T) {
 
 	assert.Equal(t, "application", dto.SubjectType)
 	assert.Equal(t, 1, dto.Version)
-	require.Len(t, dto.BuiltInFields, 3)
+	included := make([]string, 0)
 	for _, field := range dto.BuiltInFields {
-		assert.True(t, field.Included, field.ID)
+		if field.Included {
+			included = append(included, field.ID)
+		}
 	}
+	assert.ElementsMatch(t, []string{"name", "description", "experts"}, included)
 	assert.Empty(t, dto.CustomFields)
 	assert.Contains(t, dto.Links, "self")
 	assert.Contains(t, dto.Links, "x-define-custom-field")
@@ -236,6 +239,115 @@ func TestDefineCustomField_Integration(t *testing.T) {
 		"version":   dto.Version,
 	})
 	assert.Equal(t, http.StatusConflict, stale.Code)
+}
+
+func TestSetNumberFieldBounds_Integration(t *testing.T) {
+	ic := setupIntegration(t)
+	dto := ic.getConfiguration(t)
+
+	defineRec := ic.do(t, http.MethodPost, "/one-pagers/configurations/application/custom-fields", map[string]any{
+		"name":      "Maturity score",
+		"fieldType": "number",
+		"version":   dto.Version,
+	})
+	require.Equal(t, http.StatusCreated, defineRec.Code, defineRec.Body.String())
+	var defined OnePagerConfigurationDTO
+	require.NoError(t, json.Unmarshal(defineRec.Body.Bytes(), &defined))
+	fieldID := defined.CustomFields[0].ID
+
+	boundsRec := ic.do(t, http.MethodPut, fmt.Sprintf("/one-pagers/configurations/application/custom-fields/%s/bounds", fieldID), map[string]any{
+		"min":     0,
+		"max":     5,
+		"version": defined.Version,
+	})
+	require.Equal(t, http.StatusOK, boundsRec.Code, boundsRec.Body.String())
+
+	var bounded OnePagerConfigurationDTO
+	require.NoError(t, json.Unmarshal(boundsRec.Body.Bytes(), &bounded))
+	require.NotNil(t, bounded.CustomFields[0].Min)
+	require.NotNil(t, bounded.CustomFields[0].Max)
+	assert.Equal(t, 0.0, *bounded.CustomFields[0].Min)
+	assert.Equal(t, 5.0, *bounded.CustomFields[0].Max)
+
+	stale := ic.do(t, http.MethodPut, fmt.Sprintf("/one-pagers/configurations/application/custom-fields/%s/bounds", fieldID), map[string]any{
+		"min":     0,
+		"max":     3,
+		"version": defined.Version,
+	})
+	assert.Equal(t, http.StatusConflict, stale.Code)
+
+	invalid := ic.do(t, http.MethodPut, fmt.Sprintf("/one-pagers/configurations/application/custom-fields/%s/bounds", fieldID), map[string]any{
+		"min":     10,
+		"max":     5,
+		"version": bounded.Version,
+	})
+	assert.Equal(t, http.StatusBadRequest, invalid.Code)
+}
+
+func findBuiltInField(dto OnePagerConfigurationDTO, id string) (BuiltInFieldDTO, bool) {
+	for _, field := range dto.BuiltInFields {
+		if field.ID == id {
+			return field, true
+		}
+	}
+	return BuiltInFieldDTO{}, false
+}
+
+func TestChangeBuiltInFieldRequirement_Integration(t *testing.T) {
+	ic := setupIntegration(t)
+	dto := ic.getConfiguration(t)
+
+	experts, ok := findBuiltInField(dto, "experts")
+	require.True(t, ok)
+	assert.False(t, experts.Required)
+	require.Contains(t, experts.Links, "x-set-requirement")
+
+	rec := ic.do(t, http.MethodPut, "/one-pagers/configurations/application/built-in-fields/experts/requirement", map[string]any{
+		"required": true,
+		"version":  dto.Version,
+	})
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	var updated OnePagerConfigurationDTO
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &updated))
+	requiredExperts, ok := findBuiltInField(updated, "experts")
+	require.True(t, ok)
+	assert.True(t, requiredExperts.Required)
+	assert.Equal(t, dto.Version+1, updated.Version)
+
+	reread := ic.getConfiguration(t)
+	rereadExperts, ok := findBuiltInField(reread, "experts")
+	require.True(t, ok)
+	assert.True(t, rereadExperts.Required, "required flag persists across reads")
+
+	stale := ic.do(t, http.MethodPut, "/one-pagers/configurations/application/built-in-fields/experts/requirement", map[string]any{
+		"required": false,
+		"version":  dto.Version,
+	})
+	assert.Equal(t, http.StatusConflict, stale.Code)
+}
+
+func TestChangeBuiltInFieldRequirement_RejectsExcludedBuiltIn_Integration(t *testing.T) {
+	ic := setupIntegration(t)
+	dto := ic.getConfiguration(t)
+
+	excludeRec := ic.do(t, http.MethodPost, "/one-pagers/configurations/application/built-in-fields/experts/exclude", map[string]any{
+		"version": dto.Version,
+	})
+	require.Equal(t, http.StatusOK, excludeRec.Code, excludeRec.Body.String())
+	var excluded OnePagerConfigurationDTO
+	require.NoError(t, json.Unmarshal(excludeRec.Body.Bytes(), &excluded))
+
+	excludedExperts, ok := findBuiltInField(excluded, "experts")
+	require.True(t, ok)
+	assert.False(t, excludedExperts.Included)
+	assert.NotContains(t, excludedExperts.Links, "x-set-requirement", "excluded built-in offers no set-requirement affordance")
+
+	rejected := ic.do(t, http.MethodPut, "/one-pagers/configurations/application/built-in-fields/experts/requirement", map[string]any{
+		"required": true,
+		"version":  excluded.Version,
+	})
+	assert.Equal(t, http.StatusConflict, rejected.Code, rejected.Body.String())
 }
 
 func TestUniqueConstraint_Backstop_Integration(t *testing.T) {

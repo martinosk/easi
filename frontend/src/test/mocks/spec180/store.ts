@@ -41,7 +41,8 @@ export function findAssessment(capabilityId: string, componentId: string): StubT
   return db.assessments.find((a) => a.capabilityId === capabilityId && a.componentId === componentId);
 }
 
-export function assessmentsForCapabilities(capabilityIds: string[]): StubTimeAssessment[] {
+export function assessmentsForCapabilities(capabilityIds: string[] | null): StubTimeAssessment[] {
+  if (capabilityIds === null) return [...db.assessments];
   return db.assessments.filter((a) => capabilityIds.includes(a.capabilityId));
 }
 

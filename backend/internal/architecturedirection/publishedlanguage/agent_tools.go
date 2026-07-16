@@ -5,6 +5,14 @@ import (
 )
 
 func AgentTools() []pl.AgentToolSpec {
+	tools := directionTools()
+	tools = append(tools, timeAssessmentTools()...)
+	tools = append(tools, realizationRoleTools()...)
+	tools = append(tools, capabilityJourneyTools()...)
+	return tools
+}
+
+func directionTools() []pl.AgentToolSpec {
 	return []pl.AgentToolSpec{
 		{
 			Name:        "get_direction_for_enterprise_capability",
@@ -24,6 +32,11 @@ func AgentTools() []pl.AgentToolSpec {
 			Path:        "/enterprise-capabilities/{id}/standard-application",
 			PathParams:  []pl.ParamSpec{pl.UUIDParam("id", "Enterprise capability ID (UUID)")},
 		},
+	}
+}
+
+func timeAssessmentTools() []pl.AgentToolSpec {
+	return []pl.AgentToolSpec{
 		{
 			Name:        "get_time_assessment_for_realization",
 			Description: "Get the current TIME grade (Invest / Tolerate / Migrate / Eliminate) an architect has recorded for a direct realisation — the pairing of a domain capability and the application component that realises it. Returns 404 if the pair has never been assessed.",
@@ -38,13 +51,13 @@ func AgentTools() []pl.AgentToolSpec {
 		},
 		{
 			Name:        "list_time_assessments",
-			Description: "Bulk-fetch the current TIME assessment for every realisation among a set of domain capabilities — one entry per assessed (capability, component) pair.",
+			Description: "Bulk-fetch the current TIME assessment for every realisation — one entry per assessed (capability, component) pair. Narrow to a set of domain capabilities with capabilityIds, or omit it for the whole collection.",
 			Access:      pl.AccessRead,
 			Permission:  "domains:read",
 			Method:      "GET",
 			Path:        "/time-assessments",
 			QueryParams: []pl.ParamSpec{
-				pl.StringParam("capabilityIds", "Comma-separated domain capability IDs (UUIDs)", true),
+				pl.StringParam("capabilityIds", "Comma-separated domain capability IDs (UUIDs); omit to fetch the whole collection", false),
 			},
 		},
 		{
@@ -58,6 +71,11 @@ func AgentTools() []pl.AgentToolSpec {
 				pl.StringParam("componentIds", "Comma-separated application component IDs (UUIDs)", true),
 			},
 		},
+	}
+}
+
+func realizationRoleTools() []pl.AgentToolSpec {
+	return []pl.AgentToolSpec{
 		{
 			Name:        "get_realization_role_for_capability_component",
 			Description: "Get the current realization role (standard / legacy) an architect has assigned to a direct realisation — the pairing of a domain capability and the application component that realises it. Absence of a role means unclassified. Returns 404 if the pair has never been assigned a role.",
@@ -72,15 +90,20 @@ func AgentTools() []pl.AgentToolSpec {
 		},
 		{
 			Name:        "list_realization_roles",
-			Description: "Bulk-fetch the current realization role for every realisation among a set of domain capabilities — one entry per (capability, component) pair that has been assigned standard or legacy.",
+			Description: "Bulk-fetch the current realization role for every realisation — one entry per (capability, component) pair that has been assigned standard or legacy. Narrow to a set of domain capabilities with capabilityIds, or omit it for the whole collection.",
 			Access:      pl.AccessRead,
 			Permission:  "domains:read",
 			Method:      "GET",
 			Path:        "/realization-roles",
 			QueryParams: []pl.ParamSpec{
-				pl.StringParam("capabilityIds", "Comma-separated domain capability IDs (UUIDs)", true),
+				pl.StringParam("capabilityIds", "Comma-separated domain capability IDs (UUIDs); omit to fetch the whole collection", false),
 			},
 		},
+	}
+}
+
+func capabilityJourneyTools() []pl.AgentToolSpec {
+	return []pl.AgentToolSpec{
 		{
 			Name:        "get_capability_journey",
 			Description: "Get the active journey on a domain capability — the recorded change story (migration / consolidation / carve-out / move), its status, progress, target period, note, and milestones. Returns null in the journey envelope if no journey is active.",
@@ -101,13 +124,13 @@ func AgentTools() []pl.AgentToolSpec {
 		},
 		{
 			Name:        "list_capability_journeys",
-			Description: "Bulk-fetch the current journeys (active plus most recent terminal) for a set of domain capabilities — one entry per journey found.",
+			Description: "Bulk-fetch the current journeys (active plus most recent terminal) — one entry per journey found. Narrow to a set of domain capabilities with capabilityIds, or omit it for the whole collection.",
 			Access:      pl.AccessRead,
 			Permission:  "domains:read",
 			Method:      "GET",
 			Path:        "/capability-journeys",
 			QueryParams: []pl.ParamSpec{
-				pl.StringParam("capabilityIds", "Comma-separated domain capability IDs (UUIDs)", true),
+				pl.StringParam("capabilityIds", "Comma-separated domain capability IDs (UUIDs); omit to fetch the whole collection", false),
 			},
 		},
 	}

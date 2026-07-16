@@ -7,7 +7,7 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["**", "!**/dist", "!**/node_modules", "!**/coverage", "!**/test-results"]
+    "includes": ["**", "!**/dist", "!**/node_modules", "!**/coverage", "!**/test-results", "!**/*.svg", "!public/mockServiceWorker.js"]
   },
   "formatter": {
     "enabled": true,

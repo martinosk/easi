@@ -1,6 +1,8 @@
-import { Badge, Group, Stack, Text } from '@mantine/core';
+import { Anchor, Badge, Group, Stack, Text } from '@mantine/core';
+import { generatePath, Link } from 'react-router-dom';
+import { ROUTES } from '../../../routes/routePaths';
 import { formatIsoDate } from '../../../utils/date';
-import type { BuiltInExpertView, BuiltInValue } from '../types';
+import type { BuiltInExpertView, BuiltInReference, BuiltInValue } from '../types';
 
 function MaturityValueDisplay({ value, section }: { value: number; section?: string }) {
   return (
@@ -27,6 +29,32 @@ function ExpertsValueDisplay({ experts }: { experts: BuiltInExpertView[] }) {
   );
 }
 
+function ReferencesValueDisplay({ references }: { references: BuiltInReference[] }) {
+  return (
+    <Stack gap={2}>
+      {references.map((reference) =>
+        reference.subjectType ? (
+          <Anchor
+            component={Link}
+            size="sm"
+            key={reference.id}
+            to={generatePath(ROUTES.ONE_PAGER_DETAIL, {
+              subjectType: reference.subjectType,
+              subjectId: reference.id,
+            })}
+          >
+            {reference.label}
+          </Anchor>
+        ) : (
+          <Text size="sm" key={reference.id}>
+            {reference.label}
+          </Text>
+        ),
+      )}
+    </Stack>
+  );
+}
+
 interface BuiltInValueDisplayProps {
   value: BuiltInValue | null;
 }
@@ -48,5 +76,7 @@ export function BuiltInValueDisplay({ value }: BuiltInValueDisplayProps) {
       return <MaturityValueDisplay value={value.maturity.value} section={value.maturity.section} />;
     case 'experts':
       return <ExpertsValueDisplay experts={value.experts} />;
+    case 'references':
+      return <ReferencesValueDisplay references={value.references} />;
   }
 }

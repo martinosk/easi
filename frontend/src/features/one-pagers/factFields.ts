@@ -55,6 +55,7 @@ export function customFieldViewDisplayProps(view: CustomFieldView): CustomFieldV
     value: view.value,
     displayText: view.displayText,
     retiredOption: view.retiredOption,
+    outOfBounds: view.outOfBounds,
     modifiedAt: '',
     modifiedBy: '',
   };

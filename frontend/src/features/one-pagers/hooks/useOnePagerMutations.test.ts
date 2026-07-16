@@ -6,10 +6,12 @@ import { ApiError } from '../../../api/types';
 import { onePagersQueryKeys } from '../queryKeys';
 import type { CustomField, OnePagerConfiguration } from '../types';
 import {
+  useChangeBuiltInFieldRequirement,
   useDefineCustomField,
   useIncludeBuiltInField,
   useReorderFields,
   useRetireCustomField,
+  useSetNumberFieldBounds,
 } from './useOnePagerMutations';
 
 vi.mock('../api/onePagersApi', () => ({
@@ -17,7 +19,9 @@ vi.mock('../api/onePagersApi', () => ({
     defineCustomField: vi.fn(),
     reorderFields: vi.fn(),
     includeBuiltInField: vi.fn(),
+    changeBuiltInFieldRequirement: vi.fn(),
     retireCustomField: vi.fn(),
+    setNumberFieldBounds: vi.fn(),
   },
 }));
 
@@ -132,7 +136,7 @@ describe('useOnePagerMutations', () => {
   });
 
   it('includes a built-in field', async () => {
-    const field = { id: 'name', label: 'Name', included: false, _links: { 'x-include': { href: '/x', method: 'POST' as const } } };
+    const field = { id: 'name', label: 'Name', included: false, required: false, _links: { 'x-include': { href: '/x', method: 'POST' as const } } };
     vi.mocked(onePagersApi.includeBuiltInField).mockResolvedValue(buildConfiguration());
 
     const { result } = renderHook(() => useIncludeBuiltInField('vendor'), { wrapper: createWrapper(queryClient) });
@@ -142,6 +146,50 @@ describe('useOnePagerMutations', () => {
     });
 
     expect(onePagersApi.includeBuiltInField).toHaveBeenCalledWith(field, { version: 1 });
+  });
+
+  it('changes a built-in field requirement', async () => {
+    const field = {
+      id: 'experts',
+      label: 'Experts',
+      included: true,
+      required: false,
+      _links: {
+        'x-set-requirement': {
+          href: '/api/v1/one-pagers/configurations/vendor/built-in-fields/experts/requirement',
+          method: 'PUT' as const,
+        },
+      },
+    };
+    vi.mocked(onePagersApi.changeBuiltInFieldRequirement).mockResolvedValue(buildConfiguration({ version: 2 }));
+
+    const { result } = renderHook(() => useChangeBuiltInFieldRequirement('vendor'), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync({ field, request: { required: true, version: 1 } });
+    });
+
+    expect(onePagersApi.changeBuiltInFieldRequirement).toHaveBeenCalledWith(field, { required: true, version: 1 });
+    expect(toast.success).toHaveBeenCalledWith('Requirement updated');
+  });
+
+  it('sets number field bounds', async () => {
+    const field = buildCustomField({
+      type: 'number',
+      _links: { 'x-set-bounds': { href: '/api/v1/one-pagers/configurations/vendor/custom-fields/field-1/bounds', method: 'PUT' } },
+    });
+    vi.mocked(onePagersApi.setNumberFieldBounds).mockResolvedValue(buildConfiguration({ version: 2 }));
+
+    const { result } = renderHook(() => useSetNumberFieldBounds('vendor'), { wrapper: createWrapper(queryClient) });
+
+    await act(async () => {
+      await result.current.mutateAsync({ field, request: { min: 0, max: 5, version: 1 } });
+    });
+
+    expect(onePagersApi.setNumberFieldBounds).toHaveBeenCalledWith(field, { min: 0, max: 5, version: 1 });
+    expect(toast.success).toHaveBeenCalledWith('Bounds updated');
   });
 
   it('surfaces a conflict message and refetches on 409', async () => {

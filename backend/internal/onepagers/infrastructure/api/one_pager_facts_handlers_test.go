@@ -22,6 +22,7 @@ const (
 	testSubjectID     = "app-1"
 	testTextFieldID   = "9f0d5e69-0000-0000-0000-000000000003"
 	testSelectFieldID = "9f0d5e69-0000-0000-0000-000000000001"
+	testNumberFieldID = "9f0d5e69-0000-0000-0000-000000000004"
 	retiredOptionID   = "9f0d5e69-0000-0000-0000-00000000000a"
 )
 
@@ -54,18 +55,30 @@ func textFactRecord(t *testing.T) readmodels.FactRecord {
 	}
 }
 
+func factRecordWithValue(t *testing.T, fieldID string, value valueobjects.FieldValue, displayText string) readmodels.FactRecord {
+	t.Helper()
+	envelope, err := valueobjects.NewValueEnvelope(value)
+	require.NoError(t, err)
+	record := textFactRecord(t)
+	record.FieldID = fieldID
+	record.Value = &envelope
+	record.ValueType = value.FieldTypeValue()
+	record.DisplayText = displayText
+	return record
+}
+
 func retiredOptionFactRecord(t *testing.T) readmodels.FactRecord {
 	t.Helper()
 	value, err := valueobjects.NewSelectionValue(retiredOptionID)
 	require.NoError(t, err)
-	envelope, err := valueobjects.NewValueEnvelope(value)
+	return factRecordWithValue(t, testSelectFieldID, value, retiredOptionID)
+}
+
+func outOfBoundsNumberFactRecord(t *testing.T) readmodels.FactRecord {
+	t.Helper()
+	value, err := valueobjects.NewNumberValue(8)
 	require.NoError(t, err)
-	record := textFactRecord(t)
-	record.FieldID = testSelectFieldID
-	record.Value = &envelope
-	record.ValueType = "selection"
-	record.DisplayText = retiredOptionID
-	return record
+	return factRecordWithValue(t, testNumberFieldID, value, "8")
 }
 
 func newFactsHandlers(reader *fakeFactsReader, configs *fakeReader, bus *fakeCommandBus) *OnePagerFactsHandlers {
@@ -121,21 +134,42 @@ func TestGetFacts_ReturnsRecordedValuesWithSelfLink(t *testing.T) {
 	assert.Empty(t, dto.Values[0].Links)
 }
 
-func TestGetFacts_FlagsRetiredSelectionOption(t *testing.T) {
-	h := newFactsHandlers(&fakeFactsReader{records: []readmodels.FactRecord{retiredOptionFactRecord(t)}}, newFakeReader(applicationRecord()), &fakeCommandBus{})
+func TestGetFacts_FlagsValuesInvalidatedByConfigChanges(t *testing.T) {
+	cases := []struct {
+		name   string
+		record func(t *testing.T) readmodels.FactRecord
+		check  func(t *testing.T, value FieldValueDTO)
+	}{
+		{
+			name:   "retired selection option",
+			record: retiredOptionFactRecord,
+			check:  func(t *testing.T, value FieldValueDTO) { assert.True(t, value.RetiredOption) },
+		},
+		{
+			name:   "out-of-bounds number value",
+			record: outOfBoundsNumberFactRecord,
+			check:  func(t *testing.T, value FieldValueDTO) { assert.True(t, value.OutOfBounds) },
+		},
+	}
 
-	rec, req := requestFor(t, requestSpec{
-		method: http.MethodGet,
-		path:   "/one-pagers/application/" + testSubjectID + "/facts",
-		params: map[string]string{"subjectID": testSubjectID},
-		actor:  stakeholderActor(),
-	})
-	h.GetFacts(applicationSubjectType(t))(rec, req)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newFactsHandlers(&fakeFactsReader{records: []readmodels.FactRecord{tc.record(t)}}, newFakeReader(applicationRecord()), &fakeCommandBus{})
 
-	require.Equal(t, http.StatusOK, rec.Code)
-	dto := decodeFactsDTO(t, rec.Body.Bytes())
-	require.Len(t, dto.Values, 1)
-	assert.True(t, dto.Values[0].RetiredOption)
+			rec, req := requestFor(t, requestSpec{
+				method: http.MethodGet,
+				path:   "/one-pagers/application/" + testSubjectID + "/facts",
+				params: map[string]string{"subjectID": testSubjectID},
+				actor:  stakeholderActor(),
+			})
+			h.GetFacts(applicationSubjectType(t))(rec, req)
+
+			require.Equal(t, http.StatusOK, rec.Code)
+			dto := decodeFactsDTO(t, rec.Body.Bytes())
+			require.Len(t, dto.Values, 1)
+			tc.check(t, dto.Values[0])
+		})
+	}
 }
 
 func TestGetFacts_WriteAffordancesForAdmin(t *testing.T) {

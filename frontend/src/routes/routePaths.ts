@@ -7,7 +7,8 @@ export type AppView =
   | 'settings'
   | 'enterprise-architecture'
   | 'my-edit-access'
-  | 'one-pagers';
+  | 'one-pagers'
+  | 'one-pager-quality';
 
 export const ROUTES = {
   HOME: '/',
@@ -24,5 +25,6 @@ export const ROUTES = {
   MY_EDIT_ACCESS: '/my-edit-access',
   ONE_PAGERS: '/one-pagers',
   ONE_PAGER_DETAIL: '/one-pagers/:subjectType/:subjectId',
+  ONE_PAGER_QUALITY: '/one-pager-quality',
   LOGIN: '/login',
 } as const;

@@ -55,6 +55,7 @@ type CustomField struct {
 	Value         *valueobjects.ValueEnvelope
 	DisplayText   string
 	RetiredOption bool
+	OutOfBounds   bool
 }
 
 type OnePagerQuery struct {
@@ -66,17 +67,22 @@ func NewOnePagerQuery(deps OnePagerQueryDeps) *OnePagerQuery {
 }
 
 func (q *OnePagerQuery) Get(ctx context.Context, subjectType valueobjects.SubjectType, subjectID string) (*OnePager, error) {
-	snapshot, err := q.fetchSubjectSnapshot(ctx, subjectType, subjectID)
-	if err != nil {
-		return nil, err
-	}
-	if snapshot == nil {
+	source, found := q.deps.Subjects[subjectType.Value()]
+	if !found {
 		return nil, ErrSubjectNotFound
 	}
 
 	document, err := q.resolveDocument(ctx, subjectType)
 	if err != nil {
 		return nil, err
+	}
+
+	snapshot, err := source.FetchSubject(ctx, subjectID, document.IncludedBuiltInEntryIDs())
+	if err != nil {
+		return nil, fmt.Errorf("fetch subject %s %s: %w", subjectType.Value(), subjectID, err)
+	}
+	if snapshot == nil {
+		return nil, ErrSubjectNotFound
 	}
 
 	facts, err := q.deps.Facts.GetForSubject(ctx, readmodels.SubjectKey{SubjectType: subjectType.Value(), SubjectID: subjectID})
@@ -86,7 +92,7 @@ func (q *OnePagerQuery) Get(ctx context.Context, subjectType valueobjects.Subjec
 
 	factsByFieldID := indexFactsByFieldID(facts)
 	fields := assembleFields(document, subjectType, snapshot, factsByFieldID)
-	completeness := computeCompleteness(document, factsByFieldID)
+	completeness := computeCompleteness(document, subjectType, snapshot, factsByFieldID)
 
 	if err := q.applyMaturitySections(ctx, fields); err != nil {
 		return nil, err
@@ -99,18 +105,6 @@ func (q *OnePagerQuery) Get(ctx context.Context, subjectType valueobjects.Subjec
 		Fields:       fields,
 		Completeness: completeness,
 	}, nil
-}
-
-func (q *OnePagerQuery) fetchSubjectSnapshot(ctx context.Context, subjectType valueobjects.SubjectType, subjectID string) (*ports.SubjectSnapshot, error) {
-	source, found := q.deps.Subjects[subjectType.Value()]
-	if !found {
-		return nil, ErrSubjectNotFound
-	}
-	snapshot, err := source.FetchSubject(ctx, subjectID)
-	if err != nil {
-		return nil, fmt.Errorf("fetch subject %s %s: %w", subjectType.Value(), subjectID, err)
-	}
-	return snapshot, nil
 }
 
 func (q *OnePagerQuery) resolveDocument(ctx context.Context, subjectType valueobjects.SubjectType) (readmodels.ConfigurationDocument, error) {

@@ -19,13 +19,122 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type widget struct {
+	id     string
+	fields map[string]ports.BuiltInFieldValue
+}
+
+func widgetSnapshot(w *widget) *ports.SubjectSnapshot {
+	if w == nil {
+		return nil
+	}
+	return &ports.SubjectSnapshot{Name: w.id, Fields: w.fields}
+}
+
+func widgetSourceConfig() builtInSourceConfig[widget] {
+	return builtInSourceConfig[widget]{
+		subjectType:   "widget",
+		getByID:       func(context.Context, string) (*widget, error) { return nil, nil },
+		toSnapshot:    widgetSnapshot,
+		idOf:          func(w *widget) string { return w.id },
+		countSubjects: func(context.Context) (int, error) { return 0, nil },
+	}
+}
+
+func TestBuiltInFieldSource_FetchSubject_ResolvesOnlyIncludedRelations(t *testing.T) {
+	resolved := map[string]int{}
+	cfg := widgetSourceConfig()
+	cfg.getByID = func(_ context.Context, id string) (*widget, error) {
+		return &widget{id: id, fields: map[string]ports.BuiltInFieldValue{"name": ports.TextValue{Text: id}}}, nil
+	}
+	cfg.relations = []relationBinding[widget]{
+		{entryID: "rel-a", resolve: func(_ context.Context, _ *widget) (ports.ReferenceListValue, error) {
+			resolved["rel-a"]++
+			return ports.ReferenceListValue{References: []ports.Reference{{ID: "x", Label: "X", SubjectType: "application"}}}, nil
+		}},
+		{entryID: "rel-b", resolve: func(_ context.Context, _ *widget) (ports.ReferenceListValue, error) {
+			resolved["rel-b"]++
+			return ports.ReferenceListValue{}, nil
+		}},
+	}
+	source := builtInFieldSource(cfg)
+
+	snapshot, err := source.FetchSubject(context.Background(), "w-1", []string{"name", "rel-a"})
+
+	require.NoError(t, err)
+	assert.Equal(t, 1, resolved["rel-a"], "included relation is resolved")
+	assert.Equal(t, 0, resolved["rel-b"], "excluded relation is never resolved")
+	assert.Equal(t, ports.ReferenceListValue{References: []ports.Reference{{ID: "x", Label: "X", SubjectType: "application"}}}, snapshot.Fields["rel-a"])
+	_, hasB := snapshot.Fields["rel-b"]
+	assert.False(t, hasB)
+}
+
+func TestBuiltInFieldSource_RelationResolveErrorsAreWrapped(t *testing.T) {
+	wantErr := errors.New("boom")
+	tests := []struct {
+		name string
+		call func(ports.BuiltInFieldSource) error
+	}{
+		{"FetchSubject", func(s ports.BuiltInFieldSource) error {
+			_, err := s.FetchSubject(context.Background(), "w-1", []string{"rel-a"})
+			return err
+		}},
+		{"FilledBuiltInFields", func(s ports.BuiltInFieldSource) error {
+			_, err := s.FilledBuiltInFields(context.Background(), []string{"w-1"}, []string{"rel-a"})
+			return err
+		}},
+		{"CountSubjectsWithBuiltInValue", func(s ports.BuiltInFieldSource) error {
+			_, err := s.CountSubjectsWithBuiltInValue(context.Background(), "rel-a")
+			return err
+		}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := widgetSourceConfig()
+			cfg.getByID = func(_ context.Context, id string) (*widget, error) {
+				return &widget{id: id, fields: map[string]ports.BuiltInFieldValue{}}, nil
+			}
+			cfg.getByIDs = func(context.Context, []string) ([]widget, error) {
+				return []widget{{id: "w-1", fields: map[string]ports.BuiltInFieldValue{}}}, nil
+			}
+			cfg.getAll = func(context.Context) ([]widget, error) {
+				return []widget{{id: "w-1", fields: map[string]ports.BuiltInFieldValue{}}}, nil
+			}
+			cfg.relations = []relationBinding[widget]{
+				{entryID: "rel-a", resolve: func(context.Context, *widget) (ports.ReferenceListValue, error) {
+					return ports.ReferenceListValue{}, wantErr
+				}},
+			}
+
+			assert.ErrorIs(t, tc.call(builtInFieldSource(cfg)), wantErr)
+		})
+	}
+}
+
+func TestBuiltInFieldSource_FetchSubject_MissingSubjectSkipsRelations(t *testing.T) {
+	cfg := widgetSourceConfig()
+	cfg.getByID = func(context.Context, string) (*widget, error) { return nil, nil }
+	called := false
+	cfg.relations = []relationBinding[widget]{
+		{entryID: "rel-a", resolve: func(_ context.Context, _ *widget) (ports.ReferenceListValue, error) {
+			called = true
+			return ports.ReferenceListValue{}, nil
+		}},
+	}
+	source := builtInFieldSource(cfg)
+
+	snapshot, err := source.FetchSubject(context.Background(), "missing", []string{"rel-a"})
+
+	require.NoError(t, err)
+	assert.Nil(t, snapshot)
+	assert.False(t, called)
+}
+
 func TestBuiltInFieldSource_CountSubjects(t *testing.T) {
 	t.Run("delegates to the count function", func(t *testing.T) {
-		source := builtInFieldSource("widget",
-			func(context.Context, string) (*string, error) { return nil, nil },
-			func(*string) *ports.SubjectSnapshot { return nil },
-			func(context.Context) (int, error) { return 42, nil },
-		)
+		cfg := widgetSourceConfig()
+		cfg.countSubjects = func(context.Context) (int, error) { return 42, nil }
+		source := builtInFieldSource(cfg)
 
 		count, err := source.CountSubjects(context.Background())
 
@@ -35,11 +144,9 @@ func TestBuiltInFieldSource_CountSubjects(t *testing.T) {
 
 	t.Run("wraps the count function error", func(t *testing.T) {
 		wantErr := errors.New("boom")
-		source := builtInFieldSource("widget",
-			func(context.Context, string) (*string, error) { return nil, nil },
-			func(*string) *ports.SubjectSnapshot { return nil },
-			func(context.Context) (int, error) { return 0, wantErr },
-		)
+		cfg := widgetSourceConfig()
+		cfg.countSubjects = func(context.Context) (int, error) { return 0, wantErr }
+		source := builtInFieldSource(cfg)
 
 		_, err := source.CountSubjects(context.Background())
 
@@ -47,12 +154,147 @@ func TestBuiltInFieldSource_CountSubjects(t *testing.T) {
 	})
 }
 
+func TestBuiltInFieldSource_FilledBuiltInFields(t *testing.T) {
+	widgets := []widget{
+		{id: "w-1", fields: map[string]ports.BuiltInFieldValue{"description": ports.TextValue{Text: "has value"}, "experts": ports.ExpertsValue{Experts: nil}}},
+		{id: "w-2", fields: map[string]ports.BuiltInFieldValue{"experts": ports.ExpertsValue{Experts: []ports.Expert{{Name: "Alice"}}}}},
+	}
+	cfg := widgetSourceConfig()
+	var gotIDs []string
+	cfg.getByIDs = func(_ context.Context, ids []string) ([]widget, error) {
+		gotIDs = ids
+		return widgets, nil
+	}
+	source := builtInFieldSource(cfg)
+
+	result, err := source.FilledBuiltInFields(context.Background(), []string{"w-1", "w-2"}, []string{"description", "experts"})
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{"w-1", "w-2"}, gotIDs)
+	assert.Equal(t, map[string]map[string]bool{
+		"w-1": {"description": true, "experts": false},
+		"w-2": {"description": false, "experts": true},
+	}, result)
+}
+
+func TestBuiltInFieldSource_FilledBuiltInFields_EmptyInputsSkipFetch(t *testing.T) {
+	cfg := widgetSourceConfig()
+	called := false
+	cfg.getByIDs = func(context.Context, []string) ([]widget, error) {
+		called = true
+		return nil, nil
+	}
+	source := builtInFieldSource(cfg)
+
+	result, err := source.FilledBuiltInFields(context.Background(), nil, []string{"experts"})
+
+	require.NoError(t, err)
+	assert.Empty(t, result)
+	assert.False(t, called, "no fetch when there are no subject IDs")
+}
+
+func TestBuiltInFieldSource_FilledBuiltInFields_ResolvesRequestedRelations(t *testing.T) {
+	widgets := []widget{
+		{id: "w-1", fields: map[string]ports.BuiltInFieldValue{}},
+		{id: "w-2", fields: map[string]ports.BuiltInFieldValue{}},
+	}
+	resolved := map[string]int{}
+	cfg := widgetSourceConfig()
+	cfg.getByIDs = func(context.Context, []string) ([]widget, error) { return widgets, nil }
+	cfg.relations = []relationBinding[widget]{
+		{entryID: "rel-a", resolve: func(_ context.Context, w *widget) (ports.ReferenceListValue, error) {
+			resolved["rel-a"]++
+			if w.id == "w-1" {
+				return ports.ReferenceListValue{References: []ports.Reference{{ID: "x", Label: "X", SubjectType: "application"}}}, nil
+			}
+			return ports.ReferenceListValue{}, nil
+		}},
+		{entryID: "rel-b", resolve: func(_ context.Context, _ *widget) (ports.ReferenceListValue, error) {
+			resolved["rel-b"]++
+			return ports.ReferenceListValue{}, nil
+		}},
+	}
+	source := builtInFieldSource(cfg)
+
+	result, err := source.FilledBuiltInFields(context.Background(), []string{"w-1", "w-2"}, []string{"rel-a"})
+
+	require.NoError(t, err)
+	assert.Equal(t, 2, resolved["rel-a"], "requested relation is resolved for every subject")
+	assert.Equal(t, 0, resolved["rel-b"], "unrequested relation is never resolved")
+	assert.Equal(t, map[string]map[string]bool{
+		"w-1": {"rel-a": true},
+		"w-2": {"rel-a": false},
+	}, result)
+}
+
+func TestBuiltInFieldSource_FilledBuiltInFields_WrapsError(t *testing.T) {
+	wantErr := errors.New("boom")
+	cfg := widgetSourceConfig()
+	cfg.getByIDs = func(context.Context, []string) ([]widget, error) { return nil, wantErr }
+	source := builtInFieldSource(cfg)
+
+	_, err := source.FilledBuiltInFields(context.Background(), []string{"w-1"}, []string{"experts"})
+
+	assert.ErrorIs(t, err, wantErr)
+}
+
+func TestBuiltInFieldSource_CountSubjectsWithBuiltInValue(t *testing.T) {
+	widgets := []widget{
+		{id: "w-1", fields: map[string]ports.BuiltInFieldValue{"experts": ports.ExpertsValue{Experts: []ports.Expert{{Name: "Alice"}}}}},
+		{id: "w-2", fields: map[string]ports.BuiltInFieldValue{"experts": ports.ExpertsValue{Experts: nil}}},
+		{id: "w-3", fields: map[string]ports.BuiltInFieldValue{"experts": ports.ExpertsValue{Experts: []ports.Expert{{Name: "Bob"}}}}},
+	}
+	cfg := widgetSourceConfig()
+	cfg.getAll = func(context.Context) ([]widget, error) { return widgets, nil }
+	source := builtInFieldSource(cfg)
+
+	count, err := source.CountSubjectsWithBuiltInValue(context.Background(), "experts")
+
+	require.NoError(t, err)
+	assert.Equal(t, 2, count)
+}
+
+func TestBuiltInFieldSource_CountSubjectsWithBuiltInValue_ResolvesRelation(t *testing.T) {
+	widgets := []widget{
+		{id: "w-1", fields: map[string]ports.BuiltInFieldValue{}},
+		{id: "w-2", fields: map[string]ports.BuiltInFieldValue{}},
+		{id: "w-3", fields: map[string]ports.BuiltInFieldValue{}},
+	}
+	cfg := widgetSourceConfig()
+	cfg.getAll = func(context.Context) ([]widget, error) { return widgets, nil }
+	cfg.relations = []relationBinding[widget]{
+		{entryID: "rel-a", resolve: func(_ context.Context, w *widget) (ports.ReferenceListValue, error) {
+			if w.id == "w-2" {
+				return ports.ReferenceListValue{}, nil
+			}
+			return ports.ReferenceListValue{References: []ports.Reference{{ID: "x", Label: "X", SubjectType: "application"}}}, nil
+		}},
+	}
+	source := builtInFieldSource(cfg)
+
+	count, err := source.CountSubjectsWithBuiltInValue(context.Background(), "rel-a")
+
+	require.NoError(t, err)
+	assert.Equal(t, 2, count)
+}
+
+func TestBuiltInFieldSource_CountSubjectsWithBuiltInValue_WrapsError(t *testing.T) {
+	wantErr := errors.New("boom")
+	cfg := widgetSourceConfig()
+	cfg.getAll = func(context.Context) ([]widget, error) { return nil, wantErr }
+	source := builtInFieldSource(cfg)
+
+	_, err := source.CountSubjectsWithBuiltInValue(context.Background(), "experts")
+
+	assert.ErrorIs(t, err, wantErr)
+}
+
 func catalogFieldIDs(t *testing.T, subjectType string) []string {
 	t.Helper()
 	st, err := valueobjects.NewSubjectType(subjectType)
 	require.NoError(t, err)
 
-	entries := catalog.EntriesFor(st)
+	entries := catalog.DefaultEntriesFor(st)
 	ids := make([]string, len(entries))
 	for i, entry := range entries {
 		ids[i] = entry.ID

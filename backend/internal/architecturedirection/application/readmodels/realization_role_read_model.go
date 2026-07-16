@@ -269,14 +269,26 @@ func (rm *RealizationRoleReadModel) GetByCapabilityIDs(ctx context.Context, capa
 	if err != nil {
 		return nil, err
 	}
+	return rm.roles(ctx, "tenant_id = $1 AND capability_id = ANY($2)", tenantID, pq.Array(capabilityIDs))
+}
+
+func (rm *RealizationRoleReadModel) GetAll(ctx context.Context) ([]RealizationRoleDTO, error) {
+	tenantID, err := tenantOf(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return rm.roles(ctx, "tenant_id = $1", tenantID)
+}
+
+func (rm *RealizationRoleReadModel) roles(ctx context.Context, where string, args ...any) ([]RealizationRoleDTO, error) {
 	roles := []RealizationRoleDTO{}
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+	err := rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
 			`SELECT `+realizationRoleSelectColumns+`
 			 FROM architecturedirection.realization_roles
-			 WHERE tenant_id = $1 AND capability_id = ANY($2)
+			 WHERE `+where+`
 			 ORDER BY assigned_at DESC`,
-			tenantID, pq.Array(capabilityIDs),
+			args...,
 		)
 		if err != nil {
 			return err

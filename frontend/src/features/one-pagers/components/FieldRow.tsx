@@ -2,6 +2,7 @@ import { ActionIcon, Badge, Checkbox, Group, Stack, Text } from '@mantine/core';
 import { IconPencil } from '@tabler/icons-react';
 import { hasLink } from '../../../utils/hateoas';
 import type { BuiltInField, CustomField, SelectionOption } from '../types';
+import { NumberFieldBoundsEditor } from './NumberFieldBoundsEditor';
 import { SelectionOptionsEditor } from './SelectionOptionsEditor';
 
 export function isBuiltInField(field: BuiltInField | CustomField): field is BuiltInField {
@@ -15,8 +16,10 @@ export interface FieldRowActions {
   onToggleRequired: (field: CustomField, required: boolean) => void;
   onRetireCustom: (field: CustomField) => void;
   onExcludeBuiltIn: (field: BuiltInField) => void;
+  onToggleBuiltInRequired: (field: BuiltInField, required: boolean) => void;
   onAddOption: (field: CustomField, label: string) => void;
   onRetireOption: (option: SelectionOption) => void;
+  onSetBounds: (field: CustomField, min: number | undefined, max: number | undefined) => void;
 }
 
 interface FieldRowProps {
@@ -65,17 +68,28 @@ function BuiltInRow({ field, actions }: { field: BuiltInField; actions: FieldRow
           Built-in
         </Badge>
       </Group>
-      {hasLink(field, 'x-exclude') && (
-        <ActionIcon
-          variant="subtle"
-          color="red"
-          aria-label={`Exclude ${field.label}`}
-          onClick={() => actions.onExcludeBuiltIn(field)}
-          data-testid={`one-pager-exclude-${field.id}`}
-        >
-          −
-        </ActionIcon>
-      )}
+      <Group gap="xs">
+        {hasLink(field, 'x-set-requirement') && (
+          <Checkbox
+            size="xs"
+            label="Required"
+            checked={field.required}
+            onChange={(e) => actions.onToggleBuiltInRequired(field, e.currentTarget.checked)}
+            data-testid={`one-pager-builtin-required-${field.id}`}
+          />
+        )}
+        {hasLink(field, 'x-exclude') && (
+          <ActionIcon
+            variant="subtle"
+            color="red"
+            aria-label={`Exclude ${field.label}`}
+            onClick={() => actions.onExcludeBuiltIn(field)}
+            data-testid={`one-pager-exclude-${field.id}`}
+          >
+            −
+          </ActionIcon>
+        )}
+      </Group>
     </Group>
   );
 }
@@ -135,6 +149,7 @@ function CustomRow({ field, actions }: { field: CustomField; actions: FieldRowAc
           onRetireOption={actions.onRetireOption}
         />
       )}
+      {field.type === 'number' && <NumberFieldBoundsEditor field={field} onSave={actions.onSetBounds} />}
     </Stack>
   );
 }

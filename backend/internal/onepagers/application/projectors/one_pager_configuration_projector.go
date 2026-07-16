@@ -73,16 +73,18 @@ func (p *OnePagerConfigurationProjector) handleCreated(ctx context.Context, even
 type documentMutation func(doc readmodels.ConfigurationDocument, eventData []byte) (readmodels.ConfigurationDocument, error)
 
 var documentMutations = map[string]documentMutation{
-	events.TypeCustomFieldDefined:            mutate(applyCustomFieldDefined),
-	events.TypeCustomFieldRenamed:            mutate(applyCustomFieldRenamed),
-	events.TypeCustomFieldRequirementChanged: mutate(applyCustomFieldRequirementChanged),
-	events.TypeCustomFieldRetired:            mutate(applyCustomFieldRetired),
-	events.TypeCustomFieldReactivated:        mutate(applyCustomFieldReactivated),
-	events.TypeBuiltInFieldIncluded:          mutate(applyBuiltInFieldIncluded),
-	events.TypeBuiltInFieldExcluded:          mutate(applyBuiltInFieldExcluded),
-	events.TypeOnePagerFieldsReordered:       mutate(applyFieldsReordered),
-	events.TypeSelectionOptionAdded:          mutate(applySelectionOptionAdded),
-	events.TypeSelectionOptionRetired:        mutate(applySelectionOptionRetired),
+	events.TypeCustomFieldDefined:             mutate(applyCustomFieldDefined),
+	events.TypeCustomFieldRenamed:             mutate(applyCustomFieldRenamed),
+	events.TypeCustomFieldRequirementChanged:  mutate(applyCustomFieldRequirementChanged),
+	events.TypeCustomFieldRetired:             mutate(applyCustomFieldRetired),
+	events.TypeCustomFieldReactivated:         mutate(applyCustomFieldReactivated),
+	events.TypeBuiltInFieldIncluded:           mutate(applyBuiltInFieldIncluded),
+	events.TypeBuiltInFieldExcluded:           mutate(applyBuiltInFieldExcluded),
+	events.TypeBuiltInFieldRequirementChanged: mutate(applyBuiltInFieldRequirementChanged),
+	events.TypeOnePagerFieldsReordered:        mutate(applyFieldsReordered),
+	events.TypeSelectionOptionAdded:           mutate(applySelectionOptionAdded),
+	events.TypeSelectionOptionRetired:         mutate(applySelectionOptionRetired),
+	events.TypeNumberFieldBoundsChanged:       mutate(applyNumberFieldBoundsChanged),
 }
 
 func mutate[E any](apply func(doc readmodels.ConfigurationDocument, event *E) readmodels.ConfigurationDocument) documentMutation {
@@ -181,6 +183,21 @@ func applyBuiltInFieldExcluded(doc readmodels.ConfigurationDocument, event *even
 	return doc
 }
 
+func applyBuiltInFieldRequirementChanged(doc readmodels.ConfigurationDocument, event *events.BuiltInFieldRequirementChanged) readmodels.ConfigurationDocument {
+	fields := make([]readmodels.BuiltInFieldRecord, len(doc.BuiltInFields))
+	copy(fields, doc.BuiltInFields)
+	for i := range fields {
+		if fields[i].ID == event.EntryID {
+			fields[i].Required = event.Required
+			doc.BuiltInFields = fields
+			return doc
+		}
+	}
+	fields = append(fields, readmodels.BuiltInFieldRecord{ID: event.EntryID, Required: event.Required})
+	doc.BuiltInFields = fields
+	return doc
+}
+
 func applyFieldsReordered(doc readmodels.ConfigurationDocument, event *events.OnePagerFieldsReordered) readmodels.ConfigurationDocument {
 	order := make([]readmodels.FieldRefRecord, len(event.Order))
 	for i, ref := range event.Order {
@@ -204,6 +221,13 @@ func applySelectionOptionRetired(doc readmodels.ConfigurationDocument, event *ev
 				return
 			}
 		}
+	})
+}
+
+func applyNumberFieldBoundsChanged(doc readmodels.ConfigurationDocument, event *events.NumberFieldBoundsChanged) readmodels.ConfigurationDocument {
+	return updateField(doc, event.FieldID, func(field *readmodels.CustomFieldRecord) {
+		field.Min = event.Min
+		field.Max = event.Max
 	})
 }
 

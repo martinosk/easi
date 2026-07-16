@@ -2,7 +2,6 @@ package repository
 
 import (
 	"encoding/json"
-	"log/slog"
 
 	domain "easi/backend/internal/shared/eventsourcing"
 )
@@ -33,6 +32,11 @@ func NewEventDeserializers(deserializers map[string]EventDeserializerFunc, upcas
 	}
 }
 
+func (d EventDeserializers) HasDeserializerFor(eventType string) bool {
+	_, exists := d.deserializers[eventType]
+	return exists
+}
+
 func (d EventDeserializers) Deserialize(storedEvents []domain.DomainEvent) ([]domain.DomainEvent, error) {
 	domainEvents := make([]domain.DomainEvent, 0, len(storedEvents))
 
@@ -46,12 +50,11 @@ func (d EventDeserializers) Deserialize(storedEvents []domain.DomainEvent) ([]do
 
 		deserializer, exists := d.deserializers[event.EventType()]
 		if !exists {
-			slog.Warn("unknown event type skipped for forward compatibility",
-				"aggregateId", event.AggregateID(),
-				"eventType", event.EventType(),
-				"sequenceNumber", sequenceNumber,
+			return nil, NewUnknownEventTypeError(
+				event.AggregateID(),
+				event.EventType(),
+				sequenceNumber,
 			)
-			continue
 		}
 
 		domainEvent, err := deserializer(eventData)

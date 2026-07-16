@@ -4,12 +4,32 @@ import (
 	"context"
 	"testing"
 
+	"easi/backend/internal/onepagers/application/ports"
 	"easi/backend/internal/onepagers/application/queries"
 	"easi/backend/internal/onepagers/application/readmodels"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func noBuiltInSources() map[string]ports.BuiltInFieldSource {
+	return map[string]ports.BuiltInFieldSource{}
+}
+
+func builtInSources(source ports.BuiltInFieldSource) map[string]ports.BuiltInFieldSource {
+	return map[string]ports.BuiltInFieldSource{"application": source}
+}
+
+func requiredBuiltInIndicatorConfig(customFields ...readmodels.CustomFieldRecord) *readmodels.ConfigurationRecord {
+	return &readmodels.ConfigurationRecord{
+		SubjectType: "application",
+		Document: readmodels.ConfigurationDocument{
+			CustomFields:  customFields,
+			BuiltInFields: []readmodels.BuiltInFieldRecord{{ID: "experts", Required: true}},
+			DisplayOrder:  []readmodels.FieldRefRecord{{Kind: "builtIn", ID: "experts"}},
+		},
+	}
+}
 
 type stubConfigurationSource struct {
 	calls  int
@@ -56,7 +76,7 @@ func TestForSubjects_IndicatorNotApplicable_SkipsFactsQuery(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			facts := &stubFilledCountsSource{}
-			sut := queries.NewCompletenessIndicators(&stubConfigurationSource{record: tc.config}, facts)
+			sut := queries.NewCompletenessIndicators(&stubConfigurationSource{record: tc.config}, facts, noBuiltInSources())
 
 			result, present, err := sut.ForSubjects(context.Background(), "application", []string{"app-1"})
 
@@ -125,7 +145,7 @@ func TestForSubjects_IndicatorValues(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			facts := &stubFilledCountsSource{counts: tc.counts}
-			sut := queries.NewCompletenessIndicators(&stubConfigurationSource{record: tc.config}, facts)
+			sut := queries.NewCompletenessIndicators(&stubConfigurationSource{record: tc.config}, facts, noBuiltInSources())
 
 			result, present, err := sut.ForSubjects(context.Background(), "application", tc.subjectIDs)
 
@@ -162,7 +182,7 @@ func TestForSubjects_ErrorPropagation(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			sut := queries.NewCompletenessIndicators(tc.configs, tc.facts)
+			sut := queries.NewCompletenessIndicators(tc.configs, tc.facts, noBuiltInSources())
 
 			result, present, err := sut.ForSubjects(context.Background(), "application", []string{"app-1"})
 
@@ -171,4 +191,62 @@ func TestForSubjects_ErrorPropagation(t *testing.T) {
 			assert.Nil(t, result)
 		})
 	}
+}
+
+func TestForSubjects_RequiredBuiltInIncludedInIndicator(t *testing.T) {
+	cases := []struct {
+		name       string
+		config     *readmodels.ConfigurationRecord
+		counts     map[string]int
+		filled     map[string]map[string]bool
+		subjectIDs []string
+		want       map[string]bool
+	}{
+		{
+			name:       "built-in only, filled subject is complete and empty subject is incomplete",
+			config:     requiredBuiltInIndicatorConfig(),
+			filled:     map[string]map[string]bool{"app-1": {"experts": true}, "app-2": {"experts": false}},
+			subjectIDs: []string{"app-1", "app-2"},
+			want:       map[string]bool{"app-1": true, "app-2": false},
+		},
+		{
+			name:       "custom and built-in both required needs both filled",
+			config:     requiredBuiltInIndicatorConfig(indicatorField("contract-link", true, true)),
+			counts:     map[string]int{"app-1": 1, "app-2": 1},
+			filled:     map[string]map[string]bool{"app-1": {"experts": true}, "app-2": {"experts": false}},
+			subjectIDs: []string{"app-1", "app-2"},
+			want:       map[string]bool{"app-1": true, "app-2": false},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			facts := &stubFilledCountsSource{counts: tc.counts}
+			source := &countingSubjectSource{filled: tc.filled}
+			sut := queries.NewCompletenessIndicators(&stubConfigurationSource{record: tc.config}, facts, builtInSources(source))
+
+			result, present, err := sut.ForSubjects(context.Background(), "application", tc.subjectIDs)
+
+			require.NoError(t, err)
+			assert.True(t, present)
+			assert.Equal(t, tc.want, result)
+			assert.Equal(t, 1, source.filledCalls)
+			assert.Equal(t, tc.subjectIDs, source.gotFilledIDs)
+			assert.Equal(t, []string{"experts"}, source.gotEntryIDs)
+		})
+	}
+}
+
+func TestForSubjects_BuiltInFillErrorPropagates(t *testing.T) {
+	source := &countingSubjectSource{filledErr: assert.AnError}
+	sut := queries.NewCompletenessIndicators(
+		&stubConfigurationSource{record: requiredBuiltInIndicatorConfig()},
+		&stubFilledCountsSource{},
+		builtInSources(source),
+	)
+
+	_, present, err := sut.ForSubjects(context.Background(), "application", []string{"app-1"})
+
+	require.ErrorIs(t, err, assert.AnError)
+	assert.False(t, present)
 }

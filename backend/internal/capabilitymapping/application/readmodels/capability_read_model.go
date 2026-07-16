@@ -445,6 +445,16 @@ func (rm *CapabilityReadModel) GetChildren(ctx context.Context, parentID string)
 	)
 }
 
+func (rm *CapabilityReadModel) GetByIDs(ctx context.Context, ids []string) ([]CapabilityDTO, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	return rm.queryForTenant(ctx,
+		"SELECT id, name, description, parent_id, level, maturity_value, ownership_model, primary_owner, ea_owner, status, created_at FROM capabilitymapping.capabilities WHERE tenant_id = $1 AND id = ANY($2) ORDER BY name",
+		pq.Array(ids),
+	)
+}
+
 func (rm *CapabilityReadModel) queryCapabilityList(ctx context.Context, tenantID string, query string, args ...any) ([]CapabilityDTO, error) {
 	var capabilities []CapabilityDTO
 	err := rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {

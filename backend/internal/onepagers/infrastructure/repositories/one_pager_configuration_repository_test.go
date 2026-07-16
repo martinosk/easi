@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"easi/backend/internal/onepagers/domain/aggregates"
+	"easi/backend/internal/onepagers/domain/events"
 	"easi/backend/internal/onepagers/domain/valueobjects"
 	domain "easi/backend/internal/shared/eventsourcing"
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
@@ -50,7 +51,7 @@ func mustLabel(t *testing.T, v string) valueobjects.OptionLabel {
 	return label
 }
 
-func TestOnePagerConfigurationDeserializers_AllElevenEventsRoundTrip(t *testing.T) {
+func TestOnePagerConfigurationDeserializers_AllEventsRoundTrip(t *testing.T) {
 	config, userEmail := newTestConfig(t)
 
 	textID, err := config.DefineCustomField(aggregates.DefineCustomFieldParams{
@@ -58,6 +59,15 @@ func TestOnePagerConfigurationDeserializers_AllElevenEventsRoundTrip(t *testing.
 		Type: mustType(t, "text"),
 	}, userEmail)
 	require.NoError(t, err)
+
+	maturityID, err := config.DefineCustomField(aggregates.DefineCustomFieldParams{
+		Name: mustName(t, "Maturity score"),
+		Type: mustType(t, "number"),
+	}, userEmail)
+	require.NoError(t, err)
+	minBound := 0.0
+	maxBound := 5.0
+	require.NoError(t, config.SetNumberFieldBounds(maturityID, &minBound, &maxBound, userEmail))
 
 	selectionID, err := config.DefineCustomField(aggregates.DefineCustomFieldParams{
 		Name:         mustName(t, "Hosting model"),
@@ -76,6 +86,7 @@ func TestOnePagerConfigurationDeserializers_AllElevenEventsRoundTrip(t *testing.
 	require.NoError(t, config.ChangeCustomFieldRequirement(textID, true, userEmail))
 	require.NoError(t, config.ExcludeBuiltInField("experts", userEmail))
 	require.NoError(t, config.IncludeBuiltInField("experts", userEmail))
+	require.NoError(t, config.ChangeBuiltInFieldRequirement("experts", true, userEmail))
 
 	_, err = config.AddSelectionOption(selectionID, mustLabel(t, "Hybrid"), userEmail)
 	require.NoError(t, err)
@@ -97,9 +108,11 @@ func TestOnePagerConfigurationDeserializers_AllElevenEventsRoundTrip(t *testing.
 		"CustomFieldReactivated",
 		"BuiltInFieldIncluded",
 		"BuiltInFieldExcluded",
+		"BuiltInFieldRequirementChanged",
 		"OnePagerFieldsReordered",
 		"SelectionOptionAdded",
 		"SelectionOptionRetired",
+		"NumberFieldBoundsChanged",
 	)
 
 	loaded := roundTripAndLoad(t, config, len(events))
@@ -109,6 +122,22 @@ func TestOnePagerConfigurationDeserializers_AllElevenEventsRoundTrip(t *testing.
 	assert.Equal(t, config.SubjectType().Value(), loaded.SubjectType().Value())
 	assert.Equal(t, config.DisplayOrder(), loaded.DisplayOrder())
 	assert.Equal(t, config.CustomFields(), loaded.CustomFields())
+}
+
+func TestOnePagerEventDeserializers_CoverEveryConfigurationEventType(t *testing.T) {
+	for _, eventType := range events.ConfigurationEventTypes() {
+		assert.Truef(t, onePagerEventDeserializers.HasDeserializerFor(eventType),
+			"No deserializer registered for %q: the event store silently skips unknown event types, "+
+				"so the aggregate reloads a version lower than the stored one and every subsequent "+
+				"write fails with a concurrency conflict", eventType)
+	}
+}
+
+func TestOnePagerFactsEventDeserializers_CoverEveryFactsEventType(t *testing.T) {
+	for _, eventType := range events.FactsEventTypes() {
+		assert.Truef(t, onePagerFactsEventDeserializers.HasDeserializerFor(eventType),
+			"No deserializer registered for %q", eventType)
+	}
 }
 
 func reverseOrder(order []valueobjects.FieldRef) []valueobjects.FieldRef {

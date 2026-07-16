@@ -23,6 +23,7 @@ Deliver the One-Pager — a stakeholder-facing fact sheet for a single subject e
 | **One-Pager Configuration** | Per-(tenant, subject type) definition of which fields the one-pager shows |
 | **One-Pager Facts** | Per-subject aggregate holding that subject's custom Field Values |
 | **Built-in Field** | A catalog-defined field sourced from the owning context's read contract at query time |
+| **Relation Built-in Field** | A read-only built-in whose value is a list of references to related entities (each rendered by name, deep-linked to its own one-pager when it is a subject type); excluded by default, opt-in via the spec-175 include/exclude/reorder machinery |
 | **Built-in Field Catalog** | Code-owned, per-subject-type list of built-in field entries (stable ID, label) |
 | **Built-in Field Source** | Consumer-defined port through which the context reads a subject's built-in field data |
 | **Custom Field Definition** | Tenant-defined field: FieldID, display name, field type, required flag, help text, options |
@@ -51,6 +52,7 @@ Deliver the One-Pager — a stakeholder-facing fact sheet for a single subject e
 
 **Queries made** (Customer/Supplier, query-time, through consumer-defined ports in `/backend/internal/onepagers/application/ports` with adapters at the composition root `/backend/internal/infrastructure/api`):
 - `BuiltInFieldSource` (one per subject type) wrapping the supplier read contracts: `CapabilityReadModel`, `EnterpriseCapabilityReadModel`, `ApplicationComponentReadModel`, `AcquiredEntityReadModel`, `VendorReadModel`, `InternalTeamReadModel`
+- Relation built-in fields (spec 188) resolve, in the same `BuiltInFieldSource` adapters and only for *included* relation entries, through the supplier relation read contracts: `RealizationReadModel` (`GetByCapabilityID`/`GetByComponentID`), `DependencyReadModel` (`GetOutgoing`), `DomainCapabilityAssignmentReadModel` (`GetByCapabilityID`), `CapabilityReadModel` (`GetChildren` + batched `GetByIDs` name resolution), `ApplicationComponentReadModel` (batched `GetByIDs` name resolution), `BuiltByRelationshipReadModel`/`PurchasedFromRelationshipReadModel`/`AcquiredViaRelationshipReadModel` (forward `GetByComponentID` and reverse `GetByTeamID`/`GetByVendorID`/`GetByEntityID`), `ComponentRelationReadModel` (`GetBySourceID`), and the enterprise `CompositionService` (`CompositionForEC`) for `Included Capabilities`
 - `MaturityScaleSource` wrapping the metamodel configuration read model — **metamodel is the upstream supplier of rendering semantics** (tenant maturity-scale sections)
 - `SubjectExistenceChecker` wrapping the six supplier read models (facts creation guard)
 
@@ -67,7 +69,7 @@ Deliver the One-Pager — a stakeholder-facing fact sheet for a single subject e
 9. One facts aggregate per subject, created on first recorded value after a subject-existence check through the subject port
 10. Every Field Value is a typed, constructor-validated VO persisted as a Value Envelope; validation against the current configuration happens in the command handler
 11. Subject deletion archives the facts aggregate in its own stream and removes its read-model rows; archived facts reject further writes
-12. The composed read assembles at query time with a constant query count: one configuration read, one facts read, one subject read through the port, at most one metamodel semantics read
+12. The composed read assembles at query time with a constant query count: one configuration read, one facts read, one subject read through the port, at most one metamodel semantics read, plus — per *included* relation built-in — at most one bounded edge read and one batched counterpart-name lookup (`id IN (…)`, never per-edge), so the total stays independent of the number of related entities and of the number of configured fields
 13. Retired fields never render on the one-pager; values referencing retired selection options render flagged, never invalid
 14. The composed read is authorized with the subject's own read permission; a missing configuration falls back to the catalog default without persisting
 

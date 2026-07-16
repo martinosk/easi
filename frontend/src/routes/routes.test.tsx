@@ -25,4 +25,8 @@ describe('Route configuration', () => {
   it('should have ONE_PAGER_DETAIL as a child path of ONE_PAGERS', () => {
     expect(ROUTES.ONE_PAGER_DETAIL.startsWith(ROUTES.ONE_PAGERS)).toBe(true);
   });
+
+  it('should define ONE_PAGER_QUALITY route at /one-pager-quality', () => {
+    expect(ROUTES.ONE_PAGER_QUALITY).toBe('/one-pager-quality');
+  });
 });

@@ -42,6 +42,10 @@ func NewExcludeBuiltInFieldHandler(repository *repositories.OnePagerConfiguratio
 	return newModifyHandler(repository, excludeBuiltInField)
 }
 
+func NewChangeBuiltInFieldRequirementHandler(repository *repositories.OnePagerConfigurationRepository) cqrs.CommandHandler {
+	return newModifyHandler(repository, changeBuiltInFieldRequirement)
+}
+
 func NewReorderOnePagerFieldsHandler(repository *repositories.OnePagerConfigurationRepository) cqrs.CommandHandler {
 	return newModifyHandler(repository, reorderOnePagerFields)
 }
@@ -52,6 +56,10 @@ func NewAddSelectionOptionHandler(repository *repositories.OnePagerConfiguration
 
 func NewRetireSelectionOptionHandler(repository *repositories.OnePagerConfigurationRepository) cqrs.CommandHandler {
 	return newModifyHandler(repository, retireSelectionOption)
+}
+
+func NewSetNumberFieldBoundsHandler(repository *repositories.OnePagerConfigurationRepository) cqrs.CommandHandler {
+	return newModifyHandler(repository, setNumberFieldBounds)
 }
 
 func defineCustomField(config *aggregates.OnePagerConfiguration, c *commands.DefineCustomField, modifiedBy valueobjects.UserEmail) (string, error) {
@@ -133,6 +141,10 @@ func excludeBuiltInField(config *aggregates.OnePagerConfiguration, c *commands.E
 	return "", config.ExcludeBuiltInField(c.EntryID, modifiedBy)
 }
 
+func changeBuiltInFieldRequirement(config *aggregates.OnePagerConfiguration, c *commands.ChangeBuiltInFieldRequirement, modifiedBy valueobjects.UserEmail) (string, error) {
+	return "", config.ChangeBuiltInFieldRequirement(c.EntryID, c.Required, modifiedBy)
+}
+
 func reorderOnePagerFields(config *aggregates.OnePagerConfiguration, c *commands.ReorderOnePagerFields, modifiedBy valueobjects.UserEmail) (string, error) {
 	order := make([]valueobjects.FieldRef, len(c.Order))
 	for i, ref := range c.Order {
@@ -171,4 +183,12 @@ func retireSelectionOption(config *aggregates.OnePagerConfiguration, c *commands
 		return "", err
 	}
 	return "", config.RetireSelectionOption(fieldID, optionID, modifiedBy)
+}
+
+func setNumberFieldBounds(config *aggregates.OnePagerConfiguration, c *commands.SetNumberFieldBounds, modifiedBy valueobjects.UserEmail) (string, error) {
+	fieldID, err := valueobjects.NewFieldIDFromString(c.FieldID)
+	if err != nil {
+		return "", err
+	}
+	return "", config.SetNumberFieldBounds(fieldID, c.Min, c.Max, modifiedBy)
 }

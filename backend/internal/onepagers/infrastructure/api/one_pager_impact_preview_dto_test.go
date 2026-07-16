@@ -12,7 +12,7 @@ import (
 func TestBuildImpactPreviewDTO_MapsFields(t *testing.T) {
 	preview := &queries.ImpactPreview{SubjectType: "application", FieldID: "contract-link", AffectedSubjectCount: 37}
 
-	dto := BuildImpactPreviewDTO(preview, testLinks())
+	dto := BuildImpactPreviewDTO(preview, testLinks(), "custom")
 
 	assert.Equal(t, "application", dto.SubjectType)
 	assert.Equal(t, "contract-link", dto.FieldID)
@@ -22,7 +22,7 @@ func TestBuildImpactPreviewDTO_MapsFields(t *testing.T) {
 func TestBuildImpactPreviewDTO_SelfLinkIncludesFieldID(t *testing.T) {
 	preview := &queries.ImpactPreview{SubjectType: "application", FieldID: "contract-link", AffectedSubjectCount: 37}
 
-	dto := BuildImpactPreviewDTO(preview, testLinks())
+	dto := BuildImpactPreviewDTO(preview, testLinks(), "custom")
 
 	self, ok := dto.Links["self"]
 	require.True(t, ok)
@@ -30,10 +30,20 @@ func TestBuildImpactPreviewDTO_SelfLinkIncludesFieldID(t *testing.T) {
 	assert.Equal(t, "GET", self.Method)
 }
 
+func TestBuildImpactPreviewDTO_SelfLinkIncludesBuiltInKind(t *testing.T) {
+	preview := &queries.ImpactPreview{SubjectType: "application", FieldID: "experts", AffectedSubjectCount: 40}
+
+	dto := BuildImpactPreviewDTO(preview, testLinks(), "builtIn")
+
+	self, ok := dto.Links["self"]
+	require.True(t, ok)
+	assert.Equal(t, "/api/v1/one-pagers/configurations/application/impact-preview?fieldId=experts&fieldKind=builtIn", self.Href)
+}
+
 func TestBuildImpactPreviewDTO_SelfLinkOmitsFieldIDWhenNewField(t *testing.T) {
 	preview := &queries.ImpactPreview{SubjectType: "vendor", FieldID: "", AffectedSubjectCount: 120}
 
-	dto := BuildImpactPreviewDTO(preview, testLinks())
+	dto := BuildImpactPreviewDTO(preview, testLinks(), "custom")
 
 	self, ok := dto.Links["self"]
 	require.True(t, ok)

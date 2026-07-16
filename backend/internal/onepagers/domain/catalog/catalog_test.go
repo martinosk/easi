@@ -24,7 +24,22 @@ func entryIDs(entries []Entry) []string {
 	return ids
 }
 
-func TestEntriesFor_MatchesInitialCatalogPerSubjectType(t *testing.T) {
+func TestEntriesFor_MatchesFullCatalogPerSubjectType(t *testing.T) {
+	cases := map[string][]string{
+		"capability":            {"name", "description", "maturity", "experts", "realizing-applications", "business-domains", "parent-capability", "child-capabilities", "depends-on"},
+		"enterprise-capability": {"name", "description", "category", "included-capabilities"},
+		"application":           {"name", "description", "experts", "realized-capabilities", "built-by", "purchased-from", "acquired-via", "component-relations"},
+		"acquired-entity":       {"name", "acquisition-date", "integration-status", "acquired-applications"},
+		"vendor":                {"name", "implementation-partner", "notes", "purchased-applications"},
+		"internal-team":         {"name", "department", "contact-person", "built-applications"},
+	}
+	for subject, expected := range cases {
+		entries := EntriesFor(subjectType(t, subject))
+		assert.Equal(t, expected, entryIDs(entries), subject)
+	}
+}
+
+func TestDefaultEntriesFor_ExcludesRelations(t *testing.T) {
 	cases := map[string][]string{
 		"capability":            {"name", "description", "maturity", "experts"},
 		"enterprise-capability": {"name", "description", "category"},
@@ -34,8 +49,39 @@ func TestEntriesFor_MatchesInitialCatalogPerSubjectType(t *testing.T) {
 		"internal-team":         {"name", "department", "contact-person"},
 	}
 	for subject, expected := range cases {
-		entries := EntriesFor(subjectType(t, subject))
+		entries := DefaultEntriesFor(subjectType(t, subject))
 		assert.Equal(t, expected, entryIDs(entries), subject)
+	}
+}
+
+func TestEntriesFor_ExposesRelationLabelsPerSubjectType(t *testing.T) {
+	cases := map[string]map[string]string{
+		"capability": {
+			"realizing-applications": "Realizing Applications",
+			"business-domains":       "Business Domains",
+			"parent-capability":      "Parent Capability",
+			"child-capabilities":     "Child Capabilities",
+			"depends-on":             "Depends On",
+		},
+		"enterprise-capability": {"included-capabilities": "Included Capabilities"},
+		"application": {
+			"realized-capabilities": "Realized Capabilities",
+			"built-by":              "Built By",
+			"purchased-from":        "Purchased From",
+			"acquired-via":          "Acquired Via",
+			"component-relations":   "Triggers / Serves",
+		},
+		"acquired-entity": {"acquired-applications": "Applications"},
+		"vendor":          {"purchased-applications": "Applications"},
+		"internal-team":   {"built-applications": "Applications"},
+	}
+	for subject, relations := range cases {
+		for entryID, label := range relations {
+			entry, found := LookupEntry(subjectType(t, subject), entryID)
+			require.Truef(t, found, "%s/%s", subject, entryID)
+			assert.Equalf(t, label, entry.Label, "%s/%s", subject, entryID)
+			assert.Truef(t, entry.Relation, "%s/%s must be marked as a relation", subject, entryID)
+		}
 	}
 }
 

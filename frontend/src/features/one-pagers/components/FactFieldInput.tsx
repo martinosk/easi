@@ -1,9 +1,10 @@
 import { Badge, Box, Group, NumberInput, Select, Stack, Text, TextInput } from '@mantine/core';
 import { Controller, type Control, type FieldError } from 'react-hook-form';
-import type {
-  ContactPersonFactValue,
-  LinkFactValue,
-  OnePagerFactsFormValues,
+import {
+  emptyFactValue,
+  type ContactPersonFactValue,
+  type LinkFactValue,
+  type OnePagerFactsFormValues,
 } from '../../../lib/schemas/onePagerFacts';
 import { selectionItems } from '../factFields';
 import type { CustomField, OnePagerFieldType } from '../types';
@@ -50,6 +51,8 @@ function NumberFactInput({ field, rhf, error }: FactInputProps) {
       value={rhf.value as number | ''}
       onChange={rhf.onChange}
       onBlur={rhf.onBlur}
+      min={field.min}
+      max={field.max}
       error={error?.message}
     />
   );
@@ -155,6 +158,7 @@ export function FactFieldInput({ field, control, showRequiredHint }: FactFieldIn
       <Controller
         name={field.id}
         control={control}
+        defaultValue={emptyFactValue(field.type)}
         render={({ field: rhf, fieldState }) => <InputControl field={field} rhf={rhf} error={fieldState.error} />}
       />
     </Stack>

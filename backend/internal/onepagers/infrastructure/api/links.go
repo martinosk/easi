@@ -47,10 +47,13 @@ func (l *OnePagerLinks) builtInFieldLinks(ctx linkContext, field BuiltInFieldDTO
 		return nil
 	}
 	base := configurationPath(ctx.subjectType) + "/built-in-fields/" + field.ID
-	if field.Included {
-		return sharedAPI.Links{"x-exclude": l.Post(base + "/exclude")}
+	if !field.Included {
+		return sharedAPI.Links{"x-include": l.Post(base + "/include")}
 	}
-	return sharedAPI.Links{"x-include": l.Post(base + "/include")}
+	return sharedAPI.Links{
+		"x-exclude":         l.Post(base + "/exclude"),
+		"x-set-requirement": l.Put(base + "/requirement"),
+	}
 }
 
 func (l *OnePagerLinks) customFieldLinks(ctx linkContext, field CustomFieldDTO) sharedAPI.Links {
@@ -68,6 +71,9 @@ func (l *OnePagerLinks) customFieldLinks(ctx linkContext, field CustomFieldDTO) 
 	}
 	if field.Type == "selection" {
 		links["x-add-option"] = l.Post(base + "/options")
+	}
+	if field.Type == "number" {
+		links["x-set-bounds"] = l.Put(base + "/bounds")
 	}
 	return links
 }

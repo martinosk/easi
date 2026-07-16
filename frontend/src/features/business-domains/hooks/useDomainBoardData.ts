@@ -3,19 +3,18 @@ import { useQueries } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
 import type { BusinessDomain, BusinessDomainId, Capability, CapabilityRealizationsGroup } from '../../../api/types';
 import { canCreate } from '../../../utils/hateoas';
-import { realizationRoleApi } from '../../architecture-direction/api/realizationRoleApi';
-import { timeAssessmentApi } from '../../architecture-direction/api/timeAssessmentApi';
-import { realizationRoleQueryKeys, timeAssessmentQueryKeys } from '../../architecture-direction/queryKeys';
+import { useAllRealizationRoles } from '../../architecture-direction/hooks/useRealizationRoles';
+import { useAllTimeAssessments } from '../../architecture-direction/hooks/useTimeAssessments';
 import type { RealizationRolesResponse, TimeAssessmentsResponse } from '../../architecture-direction/types';
 import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
 import type { CapabilityTreeNode } from '../../capabilities/hooks/useCapabilityTree';
 import { useCapabilityTree } from '../../capabilities/hooks/useCapabilityTree';
+import { useAllJourneys } from '../../journeys/hooks/useJourneys';
 import { businessDomainsApi } from '../api';
 import { businessDomainsQueryKeys } from '../queryKeys';
 import { buildDomainBoardViewModel, type DomainBoardViewModel } from './domainBoardViewModel';
-import { useBoardJourneyIndex, useJourneyQueries } from './useBoardJourneys';
+import { useBoardJourneyIndex } from './useBoardJourneys';
 import { useBusinessDomains } from './useBusinessDomains';
-import { useCapabilityIdQueries } from './useCapabilityIdQueries';
 
 export const REALIZATION_DEPTH = 4;
 
@@ -42,9 +41,11 @@ function assembleBoardDomains(
   tree: CapabilityTreeNode[],
   capabilityQueries: UseQueryResult<Capability[]>[],
   realizationQueries: UseQueryResult<CapabilityRealizationsGroup[]>[],
-  assessmentQueries: UseQueryResult<TimeAssessmentsResponse>[],
-  roleQueries: UseQueryResult<RealizationRolesResponse>[],
+  assessmentsQuery: UseQueryResult<TimeAssessmentsResponse>,
+  rolesQuery: UseQueryResult<RealizationRolesResponse>,
 ): DomainBoardViewModel[] {
+  const assessments = assessmentsQuery.data?.data ?? [];
+  const roles = rolesQuery.data?.data ?? [];
   return domains.map((domain, index) =>
     buildDomainBoardViewModel({
       domain,
@@ -52,8 +53,8 @@ function assembleBoardDomains(
       tree,
       realizationGroups: realizationQueries[index]?.data ?? [],
       isLoading: Boolean(capabilityQueries[index]?.isLoading || realizationQueries[index]?.isLoading),
-      assessments: assessmentQueries[index]?.data?.data ?? [],
-      roles: roleQueries[index]?.data?.data ?? [],
+      assessments,
+      roles,
     }),
   );
 }
@@ -73,24 +74,16 @@ export function useDomainBoardData() {
 
   const capabilityQueries = useCapabilityQueries(domains);
   const realizationQueries = useRealizationQueries(domains);
-  const assessmentQueries = useCapabilityIdQueries<TimeAssessmentsResponse>(
-    realizationQueries,
-    timeAssessmentQueryKeys.byCapabilityIds,
-    (capabilityIds) => timeAssessmentApi.getByCapabilityIds(capabilityIds),
-  );
-  const roleQueries = useCapabilityIdQueries<RealizationRolesResponse>(
-    realizationQueries,
-    realizationRoleQueryKeys.byCapabilityIds,
-    (capabilityIds) => realizationRoleApi.getByCapabilityIds(capabilityIds),
-  );
-  const journeyQueries = useJourneyQueries(realizationQueries);
+  const assessmentsQuery = useAllTimeAssessments();
+  const rolesQuery = useAllRealizationRoles();
+  const journeysQuery = useAllJourneys();
 
   const boardDomains = useMemo(
-    () => assembleBoardDomains(domains, tree, capabilityQueries, realizationQueries, assessmentQueries, roleQueries),
-    [domains, tree, capabilityQueries, realizationQueries, assessmentQueries, roleQueries],
+    () => assembleBoardDomains(domains, tree, capabilityQueries, realizationQueries, assessmentsQuery, rolesQuery),
+    [domains, tree, capabilityQueries, realizationQueries, assessmentsQuery, rolesQuery],
   );
 
-  const journeyIndex = useBoardJourneyIndex(boardDomains, journeyQueries);
+  const journeyIndex = useBoardJourneyIndex(boardDomains, journeysQuery);
 
   const refetchDomain = useCallback(
     async (domainId: BusinessDomainId) => {
@@ -99,12 +92,12 @@ export function useDomainBoardData() {
       await Promise.all([
         capabilityQueries[index]?.refetch(),
         realizationQueries[index]?.refetch(),
-        assessmentQueries[index]?.refetch(),
-        roleQueries[index]?.refetch(),
-        journeyQueries[index]?.refetch(),
+        assessmentsQuery.refetch(),
+        rolesQuery.refetch(),
+        journeysQuery.refetch(),
       ]);
     },
-    [domains, capabilityQueries, realizationQueries, assessmentQueries, roleQueries, journeyQueries],
+    [domains, capabilityQueries, realizationQueries, assessmentsQuery, rolesQuery, journeysQuery],
   );
 
   return {

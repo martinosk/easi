@@ -53,6 +53,8 @@ func init() {
 	registry.RegisterValidation(valueobjects.ErrFieldRefIDEmpty, "Field reference ID cannot be empty")
 	registry.RegisterValidation(aggregates.ErrInvalidDisplayOrder, "Display order must contain every included built-in and active custom field exactly once")
 	registry.RegisterValidation(aggregates.ErrUnknownBuiltInField, "Built-in field is not part of the catalog for this subject type")
+	registry.RegisterValidation(valueobjects.ErrBoundsNotAllowed, "Only number fields can define bounds")
+	registry.RegisterValidation(valueobjects.ErrMinExceedsMax, "Minimum bound must not exceed maximum bound")
 
 	registerFactsValidationErrors(registry)
 }
@@ -60,6 +62,8 @@ func init() {
 func registerFactsValidationErrors(registry *sharedAPI.ErrorRegistry) {
 	registry.RegisterValidation(handlers.ErrValueTypeMismatch, "Value type does not match the field's type")
 	registry.RegisterValidation(handlers.ErrOptionNotDefined, "Selection option is not defined on this field")
+	registry.RegisterValidation(handlers.ErrNumberBelowMinimum, "Number value is below the field's minimum bound")
+	registry.RegisterValidation(handlers.ErrNumberAboveMaximum, "Number value is above the field's maximum bound")
 	registry.RegisterValidation(aggregates.ErrFieldIDRequired, "A field value requires a field ID")
 	registry.RegisterValidation(aggregates.ErrFieldValueRequired, "A field value is required")
 	registry.RegisterValidation(valueobjects.ErrUnknownValueType, "Unknown field value type")

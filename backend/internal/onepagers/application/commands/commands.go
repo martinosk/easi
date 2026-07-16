@@ -86,6 +86,17 @@ func (c ExcludeBuiltInField) CommandName() string     { return "ExcludeBuiltInFi
 func (c ExcludeBuiltInField) ConfigurationID() string { return c.ConfigID }
 func (c ExcludeBuiltInField) ModifiedByEmail() string { return c.ModifiedBy }
 
+type ChangeBuiltInFieldRequirement struct {
+	ConfigID   string
+	EntryID    string
+	Required   bool
+	ModifiedBy string
+}
+
+func (c ChangeBuiltInFieldRequirement) CommandName() string     { return "ChangeBuiltInFieldRequirement" }
+func (c ChangeBuiltInFieldRequirement) ConfigurationID() string { return c.ConfigID }
+func (c ChangeBuiltInFieldRequirement) ModifiedByEmail() string { return c.ModifiedBy }
+
 type FieldRefInput struct {
 	Kind string
 	ID   string
@@ -111,6 +122,18 @@ type AddSelectionOption struct {
 func (c AddSelectionOption) CommandName() string     { return "AddSelectionOption" }
 func (c AddSelectionOption) ConfigurationID() string { return c.ConfigID }
 func (c AddSelectionOption) ModifiedByEmail() string { return c.ModifiedBy }
+
+type SetNumberFieldBounds struct {
+	ConfigID   string
+	FieldID    string
+	Min        *float64
+	Max        *float64
+	ModifiedBy string
+}
+
+func (c SetNumberFieldBounds) CommandName() string     { return "SetNumberFieldBounds" }
+func (c SetNumberFieldBounds) ConfigurationID() string { return c.ConfigID }
+func (c SetNumberFieldBounds) ModifiedByEmail() string { return c.ModifiedBy }
 
 type RetireSelectionOption struct {
 	ConfigID   string

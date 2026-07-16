@@ -15,6 +15,8 @@ import (
 	eaReadModels "easi/backend/internal/enterprisearchitecture/application/readmodels"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/onepagers/application/ports"
+	"easi/backend/internal/onepagers/domain/catalog"
+	"easi/backend/internal/onepagers/domain/valueobjects"
 	sharedctx "easi/backend/internal/shared/context"
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 
@@ -146,7 +148,7 @@ func assertCatalogContract(t *testing.T, ic *builtInFieldIntegrationContext, sou
 	require.NoError(t, c.insert(ic.ctx, id))
 	ic.cleanupRow(t, c.table, id)
 
-	snapshot, err := sources[c.subjectType].FetchSubject(ic.ctx, id)
+	snapshot, err := sources[c.subjectType].FetchSubject(ic.ctx, id, nil)
 
 	require.NoError(t, err)
 	require.NotNil(t, snapshot)
@@ -163,4 +165,90 @@ func TestOnePagerBuiltInFieldSources_CatalogContract_Integration(t *testing.T) {
 			assertCatalogContract(t, ic, sources, c)
 		})
 	}
+}
+
+func relationEntryIDs(t *testing.T, subjectType string) []string {
+	t.Helper()
+	st, err := valueobjects.NewSubjectType(subjectType)
+	require.NoError(t, err)
+	ids := []string{}
+	for _, entry := range catalog.EntriesFor(st) {
+		if entry.Relation {
+			ids = append(ids, entry.ID)
+		}
+	}
+	return ids
+}
+
+func assertRelationCatalogContract(t *testing.T, ic *builtInFieldIntegrationContext, sources map[string]ports.BuiltInFieldSource, c catalogContractCase) {
+	id := uuid.New().String()
+	require.NoError(t, c.insert(ic.ctx, id))
+	ic.cleanupRow(t, c.table, id)
+
+	for _, entryID := range relationEntryIDs(t, c.subjectType) {
+		t.Run(entryID, func(t *testing.T) {
+			snapshot, err := sources[c.subjectType].FetchSubject(ic.ctx, id, []string{entryID})
+
+			require.NoError(t, err, "relation %q must resolve against its supplier read model", entryID)
+			require.NotNil(t, snapshot)
+			value, present := snapshot.Fields[entryID]
+			require.Truef(t, present, "relation %q missing from snapshot fields", entryID)
+			_, isReferenceList := value.(ports.ReferenceListValue)
+			assert.Truef(t, isReferenceList, "relation %q must resolve to a ReferenceListValue", entryID)
+		})
+	}
+}
+
+func TestOnePagerBuiltInFieldSources_RelationCatalogContract_Integration(t *testing.T) {
+	ic := setupBuiltInFieldIntegration(t)
+	sources := newOnePagerBuiltInFieldSources(ic.tenantDB)
+
+	for _, c := range ic.catalogContractCases() {
+		t.Run(c.subjectType, func(t *testing.T) {
+			assertRelationCatalogContract(t, ic, sources, c)
+		})
+	}
+}
+
+func TestOnePagerBuiltInFieldSources_FilledBuiltInFields_Integration(t *testing.T) {
+	ic := setupBuiltInFieldIntegration(t)
+	sources := newOnePagerBuiltInFieldSources(ic.tenantDB)
+	apps := archReadModels.NewApplicationComponentReadModel(ic.tenantDB)
+
+	withExperts := uuid.New().String()
+	require.NoError(t, apps.Insert(ic.ctx, archReadModels.ApplicationComponentDTO{ID: withExperts, Name: "Billing", Description: "Handles invoicing", CreatedAt: time.Now()}))
+	ic.cleanupRow(t, "architecturemodeling.application_components", withExperts)
+	require.NoError(t, apps.AddExpert(ic.ctx, archReadModels.ExpertInfo{ComponentID: withExperts, Name: "Alice", Role: "Owner", Contact: "alice@example.com", AddedAt: time.Now()}))
+
+	noExperts := uuid.New().String()
+	require.NoError(t, apps.Insert(ic.ctx, archReadModels.ApplicationComponentDTO{ID: noExperts, Name: "Payments", CreatedAt: time.Now()}))
+	ic.cleanupRow(t, "architecturemodeling.application_components", noExperts)
+
+	filled, err := sources["application"].FilledBuiltInFields(ic.ctx, []string{withExperts, noExperts}, []string{"description", "experts"})
+
+	require.NoError(t, err)
+	assert.True(t, filled[withExperts]["experts"], "app with an expert has experts filled")
+	assert.True(t, filled[withExperts]["description"])
+	assert.False(t, filled[noExperts]["experts"], "app with no expert has experts unfilled")
+	assert.False(t, filled[noExperts]["description"])
+}
+
+func TestOnePagerBuiltInFieldSources_CountSubjectsWithBuiltInValue_Integration(t *testing.T) {
+	ic := setupBuiltInFieldIntegration(t)
+	sources := newOnePagerBuiltInFieldSources(ic.tenantDB)
+	apps := archReadModels.NewApplicationComponentReadModel(ic.tenantDB)
+
+	withExperts := uuid.New().String()
+	require.NoError(t, apps.Insert(ic.ctx, archReadModels.ApplicationComponentDTO{ID: withExperts, Name: "Billing", CreatedAt: time.Now()}))
+	ic.cleanupRow(t, "architecturemodeling.application_components", withExperts)
+	require.NoError(t, apps.AddExpert(ic.ctx, archReadModels.ExpertInfo{ComponentID: withExperts, Name: "Alice", Role: "Owner", Contact: "alice@example.com", AddedAt: time.Now()}))
+
+	noExperts := uuid.New().String()
+	require.NoError(t, apps.Insert(ic.ctx, archReadModels.ApplicationComponentDTO{ID: noExperts, Name: "Payments", CreatedAt: time.Now()}))
+	ic.cleanupRow(t, "architecturemodeling.application_components", noExperts)
+
+	count, err := sources["application"].CountSubjectsWithBuiltInValue(ic.ctx, "experts")
+
+	require.NoError(t, err)
+	assert.Equal(t, 1, count, "one application has a value for experts")
 }

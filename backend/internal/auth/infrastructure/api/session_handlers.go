@@ -159,7 +159,17 @@ func (h *SessionHandlers) buildSessionLinks(ctx context.Context, userID uuid.UUI
 		}
 	}
 
+	if canReadAnySubject(role) {
+		links["x-one-pager-quality"] = "/api/v1/one-pager-quality"
+	}
+
 	return links
+}
+
+func canReadAnySubject(role valueobjects.Role) bool {
+	return role.HasPermission(valueobjects.PermCapabilitiesRead) ||
+		role.HasPermission(valueobjects.PermEnterpriseArchRead) ||
+		role.HasPermission(valueobjects.PermComponentsRead)
 }
 
 // DeleteCurrentSession godoc

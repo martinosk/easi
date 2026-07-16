@@ -1,7 +1,19 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ActionIcon, Badge, Button, Checkbox, Group, Select, Stack, Text, Textarea, TextInput } from '@mantine/core';
+import {
+  ActionIcon,
+  Badge,
+  Button,
+  Checkbox,
+  Group,
+  NumberInput,
+  Select,
+  Stack,
+  Text,
+  Textarea,
+  TextInput,
+} from '@mantine/core';
 import { useEffect, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { type Control, Controller, useForm } from 'react-hook-form';
 import { type DefineCustomFieldFormData, defineCustomFieldSchema } from '../../../lib/schemas/onePagerConfiguration';
 import { ONE_PAGER_FIELD_TYPE_OPTIONS } from '../fieldTypes';
 
@@ -16,6 +28,8 @@ const DEFAULT_VALUES: DefineCustomFieldFormData = {
   required: false,
   helpText: '',
   options: [],
+  min: '',
+  max: '',
 };
 
 interface OptionEntry {
@@ -85,6 +99,38 @@ function OptionsEditor({ onChange, error }: { onChange: (labels: string[]) => vo
   );
 }
 
+function NumberBoundsFields({ control, error }: { control: Control<DefineCustomFieldFormData>; error?: string }) {
+  return (
+    <Group gap="xs" grow align="flex-start">
+      <Controller
+        name="min"
+        control={control}
+        render={({ field }) => (
+          <NumberInput
+            label="Minimum"
+            value={field.value}
+            onChange={field.onChange}
+            data-testid="one-pager-new-field-min"
+          />
+        )}
+      />
+      <Controller
+        name="max"
+        control={control}
+        render={({ field }) => (
+          <NumberInput
+            label="Maximum"
+            value={field.value}
+            onChange={field.onChange}
+            error={error}
+            data-testid="one-pager-new-field-max"
+          />
+        )}
+      />
+    </Group>
+  );
+}
+
 export function AddCustomFieldForm({ isSaving, onSubmit }: AddCustomFieldFormProps) {
   const {
     register,
@@ -103,6 +149,10 @@ export function AddCustomFieldForm({ isSaving, onSubmit }: AddCustomFieldFormPro
 
   useEffect(() => {
     if (fieldType !== 'selection') setValue('options', [], { shouldValidate: true });
+    if (fieldType !== 'number') {
+      setValue('min', '', { shouldValidate: true });
+      setValue('max', '', { shouldValidate: true });
+    }
   }, [fieldType, setValue]);
 
   const submit = handleSubmit(onSubmit);
@@ -155,6 +205,7 @@ export function AddCustomFieldForm({ isSaving, onSubmit }: AddCustomFieldFormPro
             error={errors.options?.message}
           />
         )}
+        {fieldType === 'number' && <NumberBoundsFields control={control} error={errors.max?.message} />}
         <Group justify="flex-end">
           <Button type="submit" loading={isSaving} disabled={!isValid} data-testid="one-pager-new-field-submit">
             Add field

@@ -3678,21 +3678,20 @@ const docTemplate = `{
                         "CookieAuth": []
                     }
                 ],
-                "description": "Returns, for each given capability, its active journey plus the most recent terminal journey.",
+                "description": "Returns, for each capability, its active journey plus the most recent terminal journey. Without capabilityIds the whole collection is returned.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "capability-journeys"
                 ],
-                "summary": "Bulk-fetch current journeys for a capability set",
+                "summary": "Bulk-fetch current journeys",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Comma-separated capability IDs",
+                        "description": "Comma-separated capability IDs; omit to return the whole collection",
                         "name": "capabilityIds",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -9151,6 +9150,110 @@ const docTemplate = `{
                 }
             }
         },
+        "/one-pager-quality": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Returns a cursor-paginated list of every one-pager subject the caller may read, across all six subject types, each row carrying the subject name, type, completeness signal, creator, and created / last-updated dates. Sortable by completeness (default; incomplete subjects first), creator, name, created, or updated. Filtered to the subject types the caller may read (capabilities:read, enterprise-arch:read, components:read); a caller holding none of the three receives 403.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "one-pagers"
+                ],
+                "summary": "Get the One-Pager Quality master list",
+                "parameters": [
+                    {
+                        "enum": [
+                            "completeness",
+                            "creator",
+                            "name",
+                            "created",
+                            "updated"
+                        ],
+                        "type": "string",
+                        "default": "completeness",
+                        "description": "Sort dimension",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "default": "asc",
+                        "description": "Sort order",
+                        "name": "order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 50,
+                        "description": "Number of items per page (max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cursor for pagination (opaque token)",
+                        "name": "after",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/easi_backend_internal_shared_api.PaginatedResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/internal_onepagers_infrastructure_api.QualityRowDTO"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/one-pagers/configurations/{subjectType}": {
             "get": {
                 "security": [
@@ -9395,6 +9498,95 @@ const docTemplate = `{
                 }
             }
         },
+        "/one-pagers/configurations/{subjectType}/built-in-fields/{entryID}/requirement": {
+            "put": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Marks an included built-in field as required or optional. Only included built-in fields can be required; targeting an excluded or unknown built-in is rejected. The change only affects the configuration; no recorded data is validated or blocked.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "one-pagers"
+                ],
+                "summary": "Change the required flag of a built-in field",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Subject type",
+                        "name": "subjectType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Catalog entry ID",
+                        "name": "entryID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Required flag",
+                        "name": "requirement",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_onepagers_infrastructure_api.ChangeRequirementRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_onepagers_infrastructure_api.OnePagerConfigurationDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/one-pagers/configurations/{subjectType}/custom-fields": {
             "post": {
                 "security": [
@@ -9517,6 +9709,95 @@ const docTemplate = `{
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/internal_onepagers_infrastructure_api.RenameCustomFieldRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_onepagers_infrastructure_api.OnePagerConfigurationDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/one-pagers/configurations/{subjectType}/custom-fields/{fieldID}/bounds": {
+            "put": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Sets, tightens, loosens, or clears an active Number custom field's minimum and/or maximum bounds. Bounds only gate new facts writes; already-recorded values are never altered or hidden. Setting bounds on a non-Number field is rejected.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "one-pagers"
+                ],
+                "summary": "Set a Number field's bounds",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Subject type",
+                        "name": "subjectType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Field ID",
+                        "name": "fieldID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "New bounds",
+                        "name": "bounds",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_onepagers_infrastructure_api.SetNumberFieldBoundsRequest"
                         }
                     }
                 ],
@@ -10107,14 +10388,14 @@ const docTemplate = `{
                         "CookieAuth": []
                     }
                 ],
-                "description": "Side-effect-free preview of how many subjects would be marked incomplete by making a custom field required. For an existing field, counts the subjects of the type lacking a recorded value; without fieldId, counts the full subject population for a new field being defined. Appends no events and changes no configuration or facts.",
+                "description": "Side-effect-free preview of how many subjects would be marked incomplete by making a field required. For an existing custom field, counts the subjects of the type lacking a recorded value; for a built-in field (fieldKind=builtIn), counts the subjects lacking a value for that built-in through the supplier read models; without fieldId, counts the full subject population for a new custom field being defined. Appends no events and changes no configuration or facts.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "one-pagers"
                 ],
-                "summary": "Preview the impact of a custom field requirement change",
+                "summary": "Preview the impact of a field requirement change",
                 "parameters": [
                     {
                         "enum": [
@@ -10133,8 +10414,18 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Existing custom field ID; omit for a new field being defined",
+                        "description": "Existing custom field ID or built-in catalog entry ID; omit for a new custom field being defined",
                         "name": "fieldId",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "custom",
+                            "builtIn"
+                        ],
+                        "type": "string",
+                        "description": "Field kind discriminator: 'custom' (default) or 'builtIn'",
+                        "name": "fieldKind",
                         "in": "query"
                     }
                 ],
@@ -10185,7 +10476,7 @@ const docTemplate = `{
                         "CookieAuth": []
                     }
                 ],
-                "description": "Assembles the tenant's one-pager configuration, the subject's recorded field values, and built-in field data sourced from the owning context into a single field list in the configured interleaved display order, alongside a completeness summary of the active required custom fields.",
+                "description": "Assembles the tenant's one-pager configuration, the subject's recorded field values, and built-in field data sourced from the owning context into a single field list in the configured interleaved display order, alongside a completeness summary of the active required custom fields. Carries an x-record link precisely when the requesting actor holds the subject's write permission.",
                 "produces": [
                     "application/json"
                 ],
@@ -10782,10 +11073,9 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Comma-separated capability IDs",
+                        "description": "Comma-separated capability IDs; omit to return the whole collection",
                         "name": "capabilityIds",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -11506,10 +11796,9 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Comma-separated capability IDs",
+                        "description": "Comma-separated capability IDs; omit to return the whole collection",
                         "name": "capabilityIds",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -17763,6 +18052,9 @@ const docTemplate = `{
                 },
                 "label": {
                     "type": "string"
+                },
+                "required": {
+                    "type": "boolean"
                 }
             }
         },
@@ -17794,6 +18086,12 @@ const docTemplate = `{
                 },
                 "maturity": {
                     "$ref": "#/definitions/internal_onepagers_infrastructure_api.MaturityValueDTO"
+                },
+                "references": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_onepagers_infrastructure_api.ReferenceDTO"
+                    }
                 },
                 "text": {
                     "type": "string"
@@ -17846,6 +18144,12 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "max": {
+                    "type": "number"
+                },
+                "min": {
+                    "type": "number"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -17877,6 +18181,9 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                },
+                "outOfBounds": {
+                    "type": "boolean"
                 },
                 "retiredOption": {
                     "type": "boolean"
@@ -17957,6 +18264,9 @@ const docTemplate = `{
                 },
                 "modifiedBy": {
                     "type": "string"
+                },
+                "outOfBounds": {
+                    "type": "boolean"
                 },
                 "retiredOption": {
                     "type": "boolean"
@@ -18109,11 +18419,66 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_onepagers_infrastructure_api.QualityRowDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "completeness": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "creatorEmail": {
+                    "type": "string"
+                },
+                "creatorId": {
+                    "type": "string"
+                },
+                "filledCount": {
+                    "type": "integer"
+                },
+                "lastUpdatedAt": {
+                    "type": "string"
+                },
+                "missingCount": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "requiredCount": {
+                    "type": "integer"
+                },
+                "subjectId": {
+                    "type": "string"
+                },
+                "subjectType": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_onepagers_infrastructure_api.RecordFieldValueRequest": {
             "type": "object",
             "properties": {
                 "value": {
                     "$ref": "#/definitions/internal_onepagers_infrastructure_api.ValueEnvelopeDTO"
+                }
+            }
+        },
+        "internal_onepagers_infrastructure_api.ReferenceDTO": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "subjectType": {
+                    "type": "string"
                 }
             }
         },
@@ -18162,6 +18527,20 @@ const docTemplate = `{
                 },
                 "label": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_onepagers_infrastructure_api.SetNumberFieldBoundsRequest": {
+            "type": "object",
+            "properties": {
+                "max": {
+                    "type": "number"
+                },
+                "min": {
+                    "type": "number"
+                },
+                "version": {
+                    "type": "integer"
                 }
             }
         },

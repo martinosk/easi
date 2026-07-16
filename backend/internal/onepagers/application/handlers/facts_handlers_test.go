@@ -203,6 +203,13 @@ func TestRecordFieldValueHandler_SuppressesNoOpWrite(t *testing.T) {
 	assert.Equal(t, 1, facts.Version())
 }
 
+func boundedNumberField(min, max *float64) readmodels.CustomFieldRecord {
+	field := activeField("number")
+	field.Min = min
+	field.Max = max
+	return field
+}
+
 func TestRecordFieldValueHandler_DefinitionValidation(t *testing.T) {
 	optionID := uuid.New().String()
 	retiredField := activeField("text")
@@ -212,6 +219,7 @@ func TestRecordFieldValueHandler_DefinitionValidation(t *testing.T) {
 	selectionField.Options = []readmodels.OptionRecord{
 		{ID: optionID, Label: "Tier 1", Active: false},
 	}
+	boundedField := boundedNumberField(floatPtr(0), floatPtr(5))
 
 	cases := []struct {
 		name    string
@@ -226,6 +234,8 @@ func TestRecordFieldValueHandler_DefinitionValidation(t *testing.T) {
 		{"type mismatch", configRecordWith(dateField), dateField.ID, envelope(t, "text", `"v"`), ErrValueTypeMismatch},
 		{"option not defined", configRecordWith(selectionField), selectionField.ID, envelope(t, "selection", fmt.Sprintf(`{"optionId":%q}`, uuid.New().String())), ErrOptionNotDefined},
 		{"retired option", configRecordWith(selectionField), selectionField.ID, envelope(t, "selection", fmt.Sprintf(`{"optionId":%q}`, optionID)), ErrOptionRetired},
+		{"number below minimum", configRecordWith(boundedField), boundedField.ID, envelope(t, "number", `-1`), ErrNumberBelowMinimum},
+		{"number above maximum", configRecordWith(boundedField), boundedField.ID, envelope(t, "number", `5.1`), ErrNumberAboveMaximum},
 	}
 
 	for _, tc := range cases {
@@ -237,6 +247,29 @@ func TestRecordFieldValueHandler_DefinitionValidation(t *testing.T) {
 			assert.ErrorIs(t, err, tc.wantErr)
 		})
 	}
+}
+
+func TestRecordFieldValueHandler_AcceptsNumberValueAtBoundaries(t *testing.T) {
+	boundedField := boundedNumberField(floatPtr(0), floatPtr(5))
+
+	for _, payload := range []string{"0", "5", "2.5"} {
+		t.Run(payload, func(t *testing.T) {
+			env := newFactsTestEnv(configRecordWith(boundedField))
+
+			_, err := env.recordHandler().Handle(context.Background(), recordCommand(boundedField.ID, envelope(t, "number", payload)))
+
+			assert.NoError(t, err)
+		})
+	}
+}
+
+func TestRecordFieldValueHandler_UnboundedNumberFieldAcceptsAnyFiniteValue(t *testing.T) {
+	unboundedField := activeField("number")
+	env := newFactsTestEnv(configRecordWith(unboundedField))
+
+	_, err := env.recordHandler().Handle(context.Background(), recordCommand(unboundedField.ID, envelope(t, "number", `-1000000`)))
+
+	assert.NoError(t, err)
 }
 
 func TestRecordFieldValueHandler_RejectsInvalidValuePayload(t *testing.T) {

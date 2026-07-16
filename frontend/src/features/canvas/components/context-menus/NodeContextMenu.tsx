@@ -109,7 +109,7 @@ function buildInviteToEditItem(ctx: MenuItemBuilderContext): ContextMenuItem | n
 const MENU_LABEL_MAX_NAME_LENGTH = 30;
 
 function truncateName(name: string, maxLength: number): string {
-  return name.length > maxLength ? name.slice(0, maxLength - 1) + '…' : name;
+  return name.length > maxLength ? `${name.slice(0, maxLength - 1)}…` : name;
 }
 
 function buildGenerateViewItem(ctx: MenuItemBuilderContext): ContextMenuItem | null {

@@ -10,13 +10,14 @@ import (
 
 type OnePagerConfiguration struct {
 	domain.AggregateRoot
-	tenantID     sharedvo.TenantID
-	subjectType  valueobjects.SubjectType
-	customFields []valueobjects.CustomField
-	displayOrder []valueobjects.FieldRef
-	createdAt    valueobjects.Timestamp
-	modifiedAt   valueobjects.Timestamp
-	modifiedBy   valueobjects.UserEmail
+	tenantID        sharedvo.TenantID
+	subjectType     valueobjects.SubjectType
+	customFields    []valueobjects.CustomField
+	displayOrder    []valueobjects.FieldRef
+	builtInRequired map[string]bool
+	createdAt       valueobjects.Timestamp
+	modifiedAt      valueobjects.Timestamp
+	modifiedBy      valueobjects.UserEmail
 }
 
 func NewOnePagerConfiguration(
@@ -28,7 +29,7 @@ func NewOnePagerConfiguration(
 		AggregateRoot: domain.NewAggregateRoot(),
 	}
 
-	entries := catalog.EntriesFor(subjectType)
+	entries := catalog.DefaultEntriesFor(subjectType)
 	builtIns := make([]string, len(entries))
 	for i, entry := range entries {
 		builtIns[i] = entry.ID
@@ -200,33 +201,26 @@ func (c *OnePagerConfiguration) ChangeCustomFieldRequirement(
 }
 
 func (c *OnePagerConfiguration) RetireCustomField(fieldID valueobjects.FieldID, modifiedBy valueobjects.UserEmail) error {
-	index := c.findFieldIndex(fieldID.Value())
-	if index < 0 {
-		return ErrFieldNotFound
-	}
-	if !c.customFields[index].IsActive() {
-		return ErrFieldAlreadyRetired
-	}
-
 	event := events.NewCustomFieldRetired(c.nextEventParams(modifiedBy), fieldID.Value())
-	return c.applyAndRaise(event)
+	return c.guardAndRaise(fieldID, event, func(field valueobjects.CustomField) error {
+		if !field.IsActive() {
+			return ErrFieldAlreadyRetired
+		}
+		return nil
+	})
 }
 
 func (c *OnePagerConfiguration) ReactivateCustomField(fieldID valueobjects.FieldID, modifiedBy valueobjects.UserEmail) error {
-	index := c.findFieldIndex(fieldID.Value())
-	if index < 0 {
-		return ErrFieldNotFound
-	}
-	field := c.customFields[index]
-	if field.IsActive() {
-		return ErrFieldAlreadyActive
-	}
-	if c.activeNameExists(field.Name(), fieldID.Value()) {
-		return ErrDuplicateFieldName
-	}
-
 	event := events.NewCustomFieldReactivated(c.nextEventParams(modifiedBy), fieldID.Value())
-	return c.applyAndRaise(event)
+	return c.guardAndRaise(fieldID, event, func(field valueobjects.CustomField) error {
+		if field.IsActive() {
+			return ErrFieldAlreadyActive
+		}
+		if c.activeNameExists(field.Name(), fieldID.Value()) {
+			return ErrDuplicateFieldName
+		}
+		return nil
+	})
 }
 
 func (c *OnePagerConfiguration) IncludeBuiltInField(entryID string, modifiedBy valueobjects.UserEmail) error {
@@ -252,6 +246,22 @@ func (c *OnePagerConfiguration) ExcludeBuiltInField(entryID string, modifiedBy v
 
 	event := events.NewBuiltInFieldExcluded(c.nextEventParams(modifiedBy), entryID)
 	return c.applyAndRaise(event)
+}
+
+func (c *OnePagerConfiguration) ChangeBuiltInFieldRequirement(entryID string, required bool, modifiedBy valueobjects.UserEmail) error {
+	if _, found := catalog.LookupEntry(c.subjectType, entryID); !found {
+		return ErrUnknownBuiltInField
+	}
+	if !c.isBuiltInIncluded(entryID) {
+		return ErrBuiltInFieldNotIncluded
+	}
+
+	event := events.NewBuiltInFieldRequirementChanged(c.nextEventParams(modifiedBy), entryID, required)
+	return c.applyAndRaise(event)
+}
+
+func (c *OnePagerConfiguration) IsBuiltInRequired(entryID string) bool {
+	return c.builtInRequired[entryID]
 }
 
 func (c *OnePagerConfiguration) ReorderFields(order []valueobjects.FieldRef, modifiedBy valueobjects.UserEmail) error {
@@ -290,15 +300,46 @@ func (c *OnePagerConfiguration) RetireSelectionOption(
 	optionID valueobjects.OptionID,
 	modifiedBy valueobjects.UserEmail,
 ) error {
-	field, err := c.activeField(fieldID)
+	event := events.NewSelectionOptionRetired(c.nextEventParams(modifiedBy), fieldID.Value(), optionID.Value())
+	return c.guardAndRaise(fieldID, event, requireActiveThen(func(field valueobjects.CustomField) error {
+		_, err := field.WithRetiredOption(optionID)
+		return err
+	}))
+}
+
+func (c *OnePagerConfiguration) SetNumberFieldBounds(
+	fieldID valueobjects.FieldID,
+	min, max *float64,
+	modifiedBy valueobjects.UserEmail,
+) error {
+	event := events.NewNumberFieldBoundsChanged(c.nextEventParams(modifiedBy), fieldID.Value(), min, max)
+	return c.guardAndRaise(fieldID, event, requireActiveThen(func(field valueobjects.CustomField) error {
+		_, err := field.WithBounds(min, max)
+		return err
+	}))
+}
+
+func requireActiveThen(next func(valueobjects.CustomField) error) func(valueobjects.CustomField) error {
+	return func(field valueobjects.CustomField) error {
+		if !field.IsActive() {
+			return ErrFieldRetired
+		}
+		return next(field)
+	}
+}
+
+func (c *OnePagerConfiguration) guardAndRaise(
+	fieldID valueobjects.FieldID,
+	event domain.DomainEvent,
+	guard func(valueobjects.CustomField) error,
+) error {
+	field, err := c.fieldAt(fieldID)
 	if err != nil {
 		return err
 	}
-	if _, err := field.WithRetiredOption(optionID); err != nil {
+	if err := guard(field); err != nil {
 		return err
 	}
-
-	event := events.NewSelectionOptionRetired(c.nextEventParams(modifiedBy), fieldID.Value(), optionID.Value())
 	return c.applyAndRaise(event)
 }
 
@@ -312,15 +353,22 @@ func (c *OnePagerConfiguration) nextEventParams(modifiedBy valueobjects.UserEmai
 }
 
 func (c *OnePagerConfiguration) activeField(fieldID valueobjects.FieldID) (valueobjects.CustomField, error) {
-	index := c.findFieldIndex(fieldID.Value())
-	if index < 0 {
-		return valueobjects.CustomField{}, ErrFieldNotFound
+	field, err := c.fieldAt(fieldID)
+	if err != nil {
+		return valueobjects.CustomField{}, err
 	}
-	field := c.customFields[index]
 	if !field.IsActive() {
 		return valueobjects.CustomField{}, ErrFieldRetired
 	}
 	return field, nil
+}
+
+func (c *OnePagerConfiguration) fieldAt(fieldID valueobjects.FieldID) (valueobjects.CustomField, error) {
+	index := c.findFieldIndex(fieldID.Value())
+	if index < 0 {
+		return valueobjects.CustomField{}, ErrFieldNotFound
+	}
+	return c.customFields[index], nil
 }
 
 func (c *OnePagerConfiguration) findFieldIndex(fieldID string) int {

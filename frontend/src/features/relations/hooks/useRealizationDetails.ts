@@ -14,7 +14,7 @@ export interface RealizationData {
   isInherited: boolean;
 }
 
-const isRealizationEdge = (edgeId: string | null): boolean => edgeId !== null && edgeId.startsWith(REALIZATION_PREFIX);
+const isRealizationEdge = (edgeId: string | null): boolean => (edgeId?.startsWith(REALIZATION_PREFIX) ?? false);
 
 const extractRealizationId = (edgeId: string): string => edgeId.replace(REALIZATION_PREFIX, '');
 

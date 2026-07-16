@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/lib/pq"
+
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/types"
@@ -96,6 +98,12 @@ func (rm *VendorReadModel) MarkAsDeleted(ctx context.Context, id string, deleted
 	return err
 }
 
+const (
+	vendorColumns = "id, name, implementation_partner, notes, created_at, updated_at"
+	vendorSelect  = "SELECT " + vendorColumns + " FROM architecturemodeling.vendors WHERE tenant_id = $1 AND is_deleted = FALSE"
+	vendorOrder   = " ORDER BY LOWER(name) ASC"
+)
+
 func (rm *VendorReadModel) GetByID(ctx context.Context, id string) (*VendorDTO, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
@@ -107,7 +115,7 @@ func (rm *VendorReadModel) GetByID(ctx context.Context, id string) (*VendorDTO, 
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		err := tx.QueryRowContext(ctx,
-			"SELECT id, name, implementation_partner, notes, created_at, updated_at FROM architecturemodeling.vendors WHERE tenant_id = $1 AND id = $2 AND is_deleted = FALSE",
+			vendorSelect+" AND id = $2",
 			tenantID.Value(), id,
 		).Scan(&dto.ID, &dto.Name, &dto.ImplementationPartner, &dto.Notes, &dto.CreatedAt, &dto.UpdatedAt)
 
@@ -133,13 +141,24 @@ func (rm *VendorReadModel) GetAll(ctx context.Context) ([]VendorDTO, error) {
 	if err != nil {
 		return nil, err
 	}
+	return rm.queryVendors(ctx, vendorSelect+vendorOrder, tenantID.Value())
+}
 
+func (rm *VendorReadModel) GetByIDs(ctx context.Context, ids []string) ([]VendorDTO, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return rm.queryVendors(ctx, vendorSelect+" AND id = ANY($2)"+vendorOrder, tenantID.Value(), pq.Array(ids))
+}
+
+func (rm *VendorReadModel) queryVendors(ctx context.Context, query string, args ...any) ([]VendorDTO, error) {
 	vendors := make([]VendorDTO, 0)
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		rows, err := tx.QueryContext(ctx,
-			"SELECT id, name, implementation_partner, notes, created_at, updated_at FROM architecturemodeling.vendors WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC",
-			tenantID.Value(),
-		)
+	err := rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx, query, args...)
 		if err != nil {
 			return err
 		}
@@ -183,27 +202,9 @@ func (rm *VendorReadModel) GetAllPaginated(ctx context.Context, limit int, after
 	}
 
 	queryLimit := limit + 1
-	vendors := make([]VendorDTO, 0)
 	query, args := vendorPageQuery(tenantID.Value(), queryLimit, afterCursor, afterName)
 
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		rows, err := tx.QueryContext(ctx, query, args...)
-		if err != nil {
-			return err
-		}
-		defer func() { _ = rows.Close() }()
-
-		for rows.Next() {
-			var dto VendorDTO
-			if err := rows.Scan(&dto.ID, &dto.Name, &dto.ImplementationPartner, &dto.Notes, &dto.CreatedAt, &dto.UpdatedAt); err != nil {
-				return err
-			}
-			vendors = append(vendors, dto)
-		}
-
-		return rows.Err()
-	})
-
+	vendors, err := rm.queryVendors(ctx, query, args...)
 	if err != nil {
 		return nil, false, err
 	}
@@ -217,12 +218,10 @@ func (rm *VendorReadModel) GetAllPaginated(ctx context.Context, limit int, after
 }
 
 func vendorPageQuery(tenantID string, queryLimit int, afterCursor, afterName string) (string, []any) {
-	const selectCols = "id, name, implementation_partner, notes, created_at, updated_at"
-	const base = "SELECT " + selectCols + " FROM architecturemodeling.vendors WHERE tenant_id = $1 AND is_deleted = FALSE"
-	const order = " ORDER BY LOWER(name) ASC, id ASC"
+	const order = vendorOrder + ", id ASC"
 	if afterCursor == "" {
-		return base + order + " LIMIT $2", []any{tenantID, queryLimit}
+		return vendorSelect + order + " LIMIT $2", []any{tenantID, queryLimit}
 	}
-	return base + " AND (LOWER(name) > LOWER($2) OR (LOWER(name) = LOWER($2) AND id > $3))" + order + " LIMIT $4",
+	return vendorSelect + " AND (LOWER(name) > LOWER($2) OR (LOWER(name) = LOWER($2) AND id > $3))" + order + " LIMIT $4",
 		[]any{tenantID, afterName, afterCursor, queryLimit}
 }

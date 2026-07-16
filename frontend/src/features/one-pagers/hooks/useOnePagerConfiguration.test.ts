@@ -83,4 +83,10 @@ describe('useOnePagerConfiguration', () => {
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.error).toEqual(error);
   });
+
+  it('does not fetch while disabled', () => {
+    renderHook(() => useOnePagerConfiguration('vendor', false), { wrapper: createWrapper(queryClient) });
+
+    expect(onePagersApi.getConfiguration).not.toHaveBeenCalled();
+  });
 });

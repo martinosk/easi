@@ -105,7 +105,7 @@
 
 .explorerPane :global(.navigation-tree),
 .explorerPane :global(.navigation-tree.closed) {
-  width: 100% !important;
+  width: 100%;
 }
 
 .explorerPane :global(.navigation-tree) {

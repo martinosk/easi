@@ -1,12 +1,13 @@
 import { Button, Group, Loader, Modal, Stack, Text } from '@mantine/core';
 import { useImpactPreview } from '../hooks/useImpactPreview';
 import { pluralSubjectTypeLabel } from '../subjectTypes';
-import type { OnePagerConfiguration } from '../types';
+import type { ImpactPreviewFieldKind, OnePagerConfiguration } from '../types';
 
 interface ImpactPreviewDialogProps {
   configuration: OnePagerConfiguration;
   fieldName: string;
   fieldId?: string;
+  fieldKind?: ImpactPreviewFieldKind;
   isConfirming: boolean;
   onConfirm: () => void;
   onCancel: () => void;
@@ -23,11 +24,12 @@ export function ImpactPreviewDialog({
   configuration,
   fieldName,
   fieldId,
+  fieldKind = 'custom',
   isConfirming,
   onConfirm,
   onCancel,
 }: ImpactPreviewDialogProps) {
-  const { data, isLoading, isError } = useImpactPreview(configuration, fieldId, true);
+  const { data, isLoading, isError } = useImpactPreview(configuration, fieldId, true, fieldKind);
   const pluralLabel = pluralSubjectTypeLabel(configuration.subjectType);
 
   return (

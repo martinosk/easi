@@ -10,6 +10,13 @@ function getErrorMessage(err: unknown, fallback: string): string {
   return err instanceof Error ? err.message : fallback;
 }
 
+export function useAllTimeAssessments() {
+  return useQuery({
+    queryKey: timeAssessmentQueryKeys.collection(),
+    queryFn: () => timeAssessmentApi.getAll(),
+  });
+}
+
 export function useTimeAssessmentsByCapabilityIds(capabilityIds: string[]) {
   return useQuery({
     queryKey: timeAssessmentQueryKeys.byCapabilityIds(capabilityIds),

@@ -16,7 +16,7 @@ import { useAppStore } from '../../../store/appStore';
 import { hasLink } from '../../../utils/hateoas';
 import { AuditHistorySection } from '../../audit';
 import { useCapabilities, useCapabilitiesByComponent } from '../../capabilities/hooks/useCapabilities';
-import { OnePagerActionButton, OnePagerFactsSection } from '../../one-pagers';
+import { OnePagerActionButton } from '../../one-pagers';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { useClearComponentColor, useUpdateComponentColor } from '../../views/hooks/useViews';
 import { useComponents } from '../hooks/useComponents';
@@ -323,7 +323,6 @@ const ComponentContentInternal: React.FC<ComponentContentProps> = ({
       <ComponentFitScores componentId={component.id} />
 
       <OnePagerActionButton subject={component} subjectType="application" subjectId={component.id} />
-      <OnePagerFactsSection subjectType="application" subjectId={component.id} />
 
       <AuditHistorySection aggregateId={component.id} />
     </Stack>

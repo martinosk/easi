@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   addSelectionOptionSchema,
   defineCustomFieldSchema,
+  numberFieldBoundsSchema,
   onePagerFieldNameSchema,
   onePagerHelpTextSchema,
   onePagerOptionLabelSchema,
@@ -57,6 +58,8 @@ describe('defineCustomFieldSchema', () => {
     required: false,
     helpText: '',
     options: [],
+    min: '' as const,
+    max: '' as const,
   };
 
   it('accepts a valid non-selection field with no options', () => {
@@ -99,6 +102,46 @@ describe('defineCustomFieldSchema', () => {
 
   it('rejects an invalid field type', () => {
     const result = defineCustomFieldSchema.safeParse({ ...base, fieldType: 'checkbox' });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a payload missing the min or max keys', () => {
+    const { min, max, ...withoutBounds } = base;
+    expect(defineCustomFieldSchema.safeParse(withoutBounds).success).toBe(false);
+  });
+
+  it('accepts a number field with both bounds', () => {
+    const result = defineCustomFieldSchema.safeParse({ ...base, fieldType: 'number', min: 0, max: 5 });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts a number field with only a minimum', () => {
+    const result = defineCustomFieldSchema.safeParse({ ...base, fieldType: 'number', min: 0, max: '' });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts a number field with neither bound', () => {
+    const result = defineCustomFieldSchema.safeParse({ ...base, fieldType: 'number', min: '', max: '' });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a number field where minimum exceeds maximum', () => {
+    const result = defineCustomFieldSchema.safeParse({ ...base, fieldType: 'number', min: 10, max: 5 });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('numberFieldBoundsSchema', () => {
+  it('accepts both bounds set', () => {
+    expect(numberFieldBoundsSchema.safeParse({ min: 0, max: 5 }).success).toBe(true);
+  });
+
+  it('accepts neither bound set', () => {
+    expect(numberFieldBoundsSchema.safeParse({ min: '', max: '' }).success).toBe(true);
+  });
+
+  it('rejects minimum greater than maximum', () => {
+    const result = numberFieldBoundsSchema.safeParse({ min: 10, max: 5 });
     expect(result.success).toBe(false);
   });
 });

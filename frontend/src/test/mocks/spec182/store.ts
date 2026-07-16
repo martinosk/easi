@@ -100,9 +100,10 @@ export function getHistoryForCapability(capabilityId: string): StubJourney[] {
     .sort((a, b) => b.plannedAt.localeCompare(a.plannedAt));
 }
 
-export function getCurrentByCapabilityIds(capabilityIds: string[]): StubJourney[] {
+export function getCurrentByCapabilityIds(capabilityIds: string[] | null): StubJourney[] {
+  const targets = capabilityIds ?? [...new Set(db.journeys.map((j) => j.capabilityId))];
   const result: StubJourney[] = [];
-  for (const capabilityId of capabilityIds) {
+  for (const capabilityId of targets) {
     const active = findActiveJourneyForCapability(capabilityId);
     if (active) {
       result.push(active);

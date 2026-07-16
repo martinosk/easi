@@ -26,6 +26,8 @@ func (c *OnePagerConfiguration) apply(event domain.DomainEvent) error {
 		return c.applyBuiltInFieldIncluded(e)
 	case events.BuiltInFieldExcluded:
 		return c.applyBuiltInFieldExcluded(e)
+	case events.BuiltInFieldRequirementChanged:
+		return c.applyBuiltInFieldRequirementChanged(e)
 	case events.OnePagerFieldsReordered:
 		return c.applyFieldsReordered(e)
 	}
@@ -44,10 +46,18 @@ func (c *OnePagerConfiguration) applyCustomFieldEvent(event domain.DomainEvent) 
 		return c.applyCustomFieldRetired(e)
 	case events.CustomFieldReactivated:
 		return c.applyCustomFieldReactivated(e)
+	}
+	return c.applyCustomFieldAttributeEvent(event)
+}
+
+func (c *OnePagerConfiguration) applyCustomFieldAttributeEvent(event domain.DomainEvent) error {
+	switch e := event.(type) {
 	case events.SelectionOptionAdded:
 		return c.applySelectionOptionAdded(e)
 	case events.SelectionOptionRetired:
 		return c.applySelectionOptionRetired(e)
+	case events.NumberFieldBoundsChanged:
+		return c.applyNumberFieldBoundsChanged(e)
 	}
 	return nil
 }
@@ -83,6 +93,7 @@ func (c *OnePagerConfiguration) applyCreated(e events.OnePagerConfigurationCreat
 	c.subjectType = subjectType
 	c.customFields = nil
 	c.displayOrder = displayOrder
+	c.builtInRequired = map[string]bool{}
 	c.createdAt = createdAt
 	c.modifiedAt = createdAt
 	c.modifiedBy = createdBy
@@ -219,6 +230,14 @@ func (c *OnePagerConfiguration) applyBuiltInFieldExcluded(e events.BuiltInFieldE
 	return c.applyModificationMetadata(e.ModifiedAt, e.ModifiedBy)
 }
 
+func (c *OnePagerConfiguration) applyBuiltInFieldRequirementChanged(e events.BuiltInFieldRequirementChanged) error {
+	if c.builtInRequired == nil {
+		c.builtInRequired = map[string]bool{}
+	}
+	c.builtInRequired[e.EntryID] = e.Required
+	return c.applyModificationMetadata(e.ModifiedAt, e.ModifiedBy)
+}
+
 func (c *OnePagerConfiguration) applyFieldsReordered(e events.OnePagerFieldsReordered) error {
 	order := make([]valueobjects.FieldRef, len(e.Order))
 	for i, d := range e.Order {
@@ -253,6 +272,12 @@ func (c *OnePagerConfiguration) applySelectionOptionRetired(e events.SelectionOp
 	}
 	return c.mutateField(e.FieldID, e.ModifiedAt, e.ModifiedBy, func(field valueobjects.CustomField) (valueobjects.CustomField, error) {
 		return field.WithRetiredOption(optionID)
+	})
+}
+
+func (c *OnePagerConfiguration) applyNumberFieldBoundsChanged(e events.NumberFieldBoundsChanged) error {
+	return c.mutateField(e.FieldID, e.ModifiedAt, e.ModifiedBy, func(field valueobjects.CustomField) (valueobjects.CustomField, error) {
+		return field.WithBounds(e.Min, e.Max)
 	})
 }
 

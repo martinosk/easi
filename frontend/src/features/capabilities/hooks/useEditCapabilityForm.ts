@@ -99,14 +99,12 @@ export function useEditCapabilityForm(
     mode: 'onChange',
   });
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally omit currentCapability to avoid re-running on state update
   useEffect(() => {
     if (capability) {
       setCurrentCapability(capabilities.find((c) => c.id === capability.id) || capability);
     }
   }, [capability, capabilities]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally omit backendError to avoid re-running on error clear
   useEffect(() => {
     if (isOpen && capability) {
       form.reset(createDefaultValues(capability, sections));

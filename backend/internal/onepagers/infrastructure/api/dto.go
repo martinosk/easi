@@ -25,6 +25,8 @@ type CustomFieldDTO struct {
 	HelpText string               `json:"helpText"`
 	Active   bool                 `json:"active"`
 	Options  []SelectionOptionDTO `json:"options,omitempty"`
+	Min      *float64             `json:"min,omitempty"`
+	Max      *float64             `json:"max,omitempty"`
 	Links    types.Links          `json:"_links,omitempty"`
 }
 
@@ -32,6 +34,7 @@ type BuiltInFieldDTO struct {
 	ID       string      `json:"id"`
 	Label    string      `json:"label"`
 	Included bool        `json:"included"`
+	Required bool        `json:"required"`
 	Links    types.Links `json:"_links,omitempty"`
 }
 
@@ -88,6 +91,7 @@ func buildBuiltInFieldDTOs(record *readmodels.ConfigurationRecord, links *OnePag
 			ID:       entry.ID,
 			Label:    entry.Label,
 			Included: included[entry.ID],
+			Required: record.Document.BuiltInRequired(entry.ID),
 		}
 		dto.Links = links.builtInFieldLinks(ctx, dto)
 		dtos[i] = dto
@@ -106,6 +110,8 @@ func buildCustomFieldDTOs(record *readmodels.ConfigurationRecord, links *OnePage
 			HelpText: field.HelpText,
 			Active:   field.Active,
 			Options:  buildOptionDTOs(ctx, field, links),
+			Min:      field.Min,
+			Max:      field.Max,
 		}
 		dto.Links = links.customFieldLinks(ctx, dto)
 		dtos[i] = dto

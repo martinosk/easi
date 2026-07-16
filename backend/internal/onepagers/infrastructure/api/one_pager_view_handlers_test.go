@@ -12,6 +12,7 @@ import (
 	"easi/backend/internal/onepagers/application/ports"
 	"easi/backend/internal/onepagers/application/queries"
 	"easi/backend/internal/onepagers/domain/valueobjects"
+	sharedctx "easi/backend/internal/shared/context"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -65,6 +66,21 @@ func getOnePager(t *testing.T, h *OnePagerViewHandlers, subjectType valueobjects
 		path:   "/one-pagers/" + subjectType.Value() + "/" + testSubjectID,
 		params: map[string]string{"subjectID": testSubjectID},
 		actor:  stakeholderActor(),
+	})
+	h.GetOnePager(subjectType)(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var dto OnePagerDTO
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &dto))
+	return dto
+}
+
+func getOnePagerAs(t *testing.T, h *OnePagerViewHandlers, subjectType valueobjects.SubjectType, actor sharedctx.Actor) OnePagerDTO {
+	t.Helper()
+	rec, req := requestFor(t, requestSpec{
+		method: http.MethodGet,
+		path:   "/one-pagers/" + subjectType.Value() + "/" + testSubjectID,
+		params: map[string]string{"subjectID": testSubjectID},
+		actor:  actor,
 	})
 	h.GetOnePager(subjectType)(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
@@ -351,6 +367,33 @@ func TestGetOnePager_LinksForAllSubjectTypes(t *testing.T) {
 			assert.Equal(t, "GET", subject.Method)
 		})
 	}
+}
+
+func TestGetOnePager_XRecordLinkPresentForActorWithSubjectWritePermission(t *testing.T) {
+	cases := []string{"capability", "enterprise-capability", "application", "acquired-entity", "vendor", "internal-team"}
+
+	for _, subjectType := range cases {
+		t.Run(subjectType, func(t *testing.T) {
+			onePager := &queries.OnePager{SubjectType: subjectType, SubjectID: testSubjectID, SubjectName: "Subject"}
+			h := newViewHandlers(&fakeOnePagerReader{onePager: onePager})
+
+			dto := getOnePagerAs(t, h, subjectTypeFor(t, subjectType), adminActor())
+
+			record, ok := dto.Links["x-record"]
+			require.True(t, ok, "expected x-record link for %s", subjectType)
+			assert.Equal(t, "PUT", record.Method)
+			assert.Equal(t, "/api/v1/one-pagers/"+subjectType+"/"+testSubjectID+"/facts", record.Href)
+		})
+	}
+}
+
+func TestGetOnePager_XRecordLinkAbsentForActorWithoutSubjectWritePermission(t *testing.T) {
+	onePager := &queries.OnePager{SubjectType: "application", SubjectID: testSubjectID, SubjectName: "Subject"}
+	h := newViewHandlers(&fakeOnePagerReader{onePager: onePager})
+
+	dto := getOnePagerAs(t, h, applicationSubjectType(t), stakeholderActor())
+
+	assert.NotContains(t, dto.Links, "x-record")
 }
 
 func TestGetOnePager_ErrorMapsToStatusCode(t *testing.T) {

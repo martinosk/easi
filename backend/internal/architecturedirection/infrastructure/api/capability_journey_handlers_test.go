@@ -30,6 +30,13 @@ type mockCapabilityJourneyQueries struct {
 	history        []readmodels.CapabilityJourneyDTO
 	bulk           []readmodels.CapabilityJourneyDTO
 	receivedCapIDs []string
+	all            []readmodels.CapabilityJourneyDTO
+	allCalled      bool
+}
+
+func (m *mockCapabilityJourneyQueries) GetAllCurrent(_ context.Context) ([]readmodels.CapabilityJourneyDTO, error) {
+	m.allCalled = true
+	return m.all, nil
 }
 
 func (m *mockCapabilityJourneyQueries) GetActiveByCapabilityID(_ context.Context, _ string) (*readmodels.CapabilityJourneyDTO, error) {
@@ -279,18 +286,35 @@ func TestGetJourneyHistory_ReturnsCollection(t *testing.T) {
 	assert.Contains(t, body.Links, "self")
 }
 
-func TestGetCapabilityJourneys_ParsesCapabilityIDs(t *testing.T) {
-	queries := &mockCapabilityJourneyQueries{}
-	h := setupCapabilityJourneyHandlers(&mockCommandBus{}, queries)
-	r := capabilityJourneyRouter(h)
-
+func TestGetCapabilityJourneys_CapabilityIDFiltering(t *testing.T) {
 	capA, capB := uuid.New().String(), uuid.New().String()
-	req := withActor(httptest.NewRequest(http.MethodGet, "/capability-journeys?capabilityIds="+capA+","+capB, nil), architectActor())
-	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, req)
+	cases := []struct {
+		name          string
+		query         string
+		wantAll       bool
+		wantForwarded []string
+	}{
+		{"no capabilityIds param fetches the whole collection", "", true, nil},
+		{"empty capabilityIds param forwards an empty filter", "?capabilityIds=", false, []string{}},
+		{"populated capabilityIds param forwards the parsed ids", "?capabilityIds=" + capA + "," + capB, false, []string{capA, capB}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			queries := &mockCapabilityJourneyQueries{all: []readmodels.CapabilityJourneyDTO{*plannedJourneyDTO()}}
+			h := setupCapabilityJourneyHandlers(&mockCommandBus{}, queries)
+			r := capabilityJourneyRouter(h)
 
-	require.Equal(t, http.StatusOK, rec.Code)
-	assert.Equal(t, []string{capA, capB}, queries.receivedCapIDs)
+			req := withActor(httptest.NewRequest(http.MethodGet, "/capability-journeys"+tc.query, nil), architectActor())
+			rec := httptest.NewRecorder()
+			r.ServeHTTP(rec, req)
+
+			require.Equal(t, http.StatusOK, rec.Code)
+			assert.Equal(t, tc.wantAll, queries.allCalled)
+			if !tc.wantAll {
+				assert.Equal(t, tc.wantForwarded, queries.receivedCapIDs)
+			}
+		})
+	}
 }
 
 func TestGetCapabilityJourneys_XCaptureLinkVisibilityByActor(t *testing.T) {
@@ -360,80 +384,81 @@ func TestJourneyTransitions_DispatchesCommand_Returns200(t *testing.T) {
 	}
 }
 
-func TestPutJourneyProgress_DispatchesCommand_Returns200(t *testing.T) {
-	journeyID, bus, r := newMutableJourneyFixture(t)
-
-	body, _ := json.Marshal(UpdateJourneyProgressRequest{Progress: 60})
-	req := withActor(httptest.NewRequest(http.MethodPut, "/capability-journeys/"+journeyID+"/progress", bytes.NewReader(body)), architectActor())
-	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, req)
-
-	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	cmd := bus.dispatched[0].(*commands.UpdateJourneyProgress)
-	assert.Equal(t, journeyID, cmd.JourneyID)
-	assert.Equal(t, 60, cmd.Progress)
-}
-
-func TestPutJourneyDetails_DispatchesCommand_Returns200(t *testing.T) {
-	journeyID, bus, r := newMutableJourneyFixture(t)
-
-	body, _ := json.Marshal(UpdateJourneyDetailsRequest{Note: "updated", TargetPeriod: &TargetPeriodRequest{Year: 2027, Quarter: 2}})
-	req := withActor(httptest.NewRequest(http.MethodPut, "/capability-journeys/"+journeyID+"/details", bytes.NewReader(body)), architectActor())
-	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, req)
-
-	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	cmd := bus.dispatched[0].(*commands.UpdateJourneyDetails)
-	assert.Equal(t, journeyID, cmd.JourneyID)
-	assert.Equal(t, "updated", cmd.Note)
-	require.NotNil(t, cmd.TargetYear)
-	assert.Equal(t, 2027, *cmd.TargetYear)
-}
-
-func TestPutJourneySourceApplications_DispatchesCommand_Returns200(t *testing.T) {
-	journeyID, bus, r := newMutableJourneyFixture(t)
-
-	newFrom := uuid.New().String()
-	body, _ := json.Marshal(ChangeJourneySourceApplicationsRequest{ComponentIDs: []string{newFrom}})
-	req := withActor(httptest.NewRequest(http.MethodPut, "/capability-journeys/"+journeyID+"/source-applications", bytes.NewReader(body)), architectActor())
-	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, req)
-
-	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	cmd := bus.dispatched[0].(*commands.ChangeJourneySourceApplications)
-	assert.Equal(t, journeyID, cmd.JourneyID)
-	assert.Equal(t, []string{newFrom}, cmd.FromComponentIDs)
-}
-
-func TestPostJourneyMilestone_DefaultsStatusToPlanned_Returns201(t *testing.T) {
-	journeyID, bus, r := newMutableJourneyFixture(t)
-
-	body, _ := json.Marshal(AddJourneyMilestoneRequest{Label: "Cut over region A"})
-	req := withActor(httptest.NewRequest(http.MethodPost, "/capability-journeys/"+journeyID+"/milestones", bytes.NewReader(body)), architectActor())
-	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, req)
-
-	require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
-	cmd := bus.dispatched[0].(*commands.AddJourneyMilestone)
-	assert.Equal(t, journeyID, cmd.JourneyID)
-	assert.Equal(t, "Cut over region A", cmd.Label)
-	assert.Equal(t, valueobjects.MilestoneStatusPlanned, cmd.Status)
-}
-
-func TestPutJourneyMilestone_DispatchesCommand_Returns200(t *testing.T) {
-	journeyID, bus, r := newMutableJourneyFixture(t)
+func TestJourneyMutationHandlers_DispatchCommand(t *testing.T) {
 	milestoneID := uuid.New().String()
+	newFrom := uuid.New().String()
+	cases := []struct {
+		name       string
+		method     string
+		pathSuffix string
+		body       any
+		wantStatus int
+		assertCmd  func(t *testing.T, journeyID string, cmd cqrs.Command)
+	}{
+		{
+			name: "progress", method: http.MethodPut, pathSuffix: "progress",
+			body: UpdateJourneyProgressRequest{Progress: 60}, wantStatus: http.StatusOK,
+			assertCmd: func(t *testing.T, journeyID string, cmd cqrs.Command) {
+				c := cmd.(*commands.UpdateJourneyProgress)
+				assert.Equal(t, journeyID, c.JourneyID)
+				assert.Equal(t, 60, c.Progress)
+			},
+		},
+		{
+			name: "details", method: http.MethodPut, pathSuffix: "details",
+			body: UpdateJourneyDetailsRequest{Note: "updated", TargetPeriod: &TargetPeriodRequest{Year: 2027, Quarter: 2}}, wantStatus: http.StatusOK,
+			assertCmd: func(t *testing.T, journeyID string, cmd cqrs.Command) {
+				c := cmd.(*commands.UpdateJourneyDetails)
+				assert.Equal(t, journeyID, c.JourneyID)
+				assert.Equal(t, "updated", c.Note)
+				require.NotNil(t, c.TargetYear)
+				assert.Equal(t, 2027, *c.TargetYear)
+			},
+		},
+		{
+			name: "source applications", method: http.MethodPut, pathSuffix: "source-applications",
+			body: ChangeJourneySourceApplicationsRequest{ComponentIDs: []string{newFrom}}, wantStatus: http.StatusOK,
+			assertCmd: func(t *testing.T, journeyID string, cmd cqrs.Command) {
+				c := cmd.(*commands.ChangeJourneySourceApplications)
+				assert.Equal(t, journeyID, c.JourneyID)
+				assert.Equal(t, []string{newFrom}, c.FromComponentIDs)
+			},
+		},
+		{
+			name: "add milestone defaults status to planned", method: http.MethodPost, pathSuffix: "milestones",
+			body: AddJourneyMilestoneRequest{Label: "Cut over region A"}, wantStatus: http.StatusCreated,
+			assertCmd: func(t *testing.T, journeyID string, cmd cqrs.Command) {
+				c := cmd.(*commands.AddJourneyMilestone)
+				assert.Equal(t, journeyID, c.JourneyID)
+				assert.Equal(t, "Cut over region A", c.Label)
+				assert.Equal(t, valueobjects.MilestoneStatusPlanned, c.Status)
+			},
+		},
+		{
+			name: "update milestone", method: http.MethodPut, pathSuffix: "milestones/" + milestoneID,
+			body: UpdateJourneyMilestoneRequest{Label: "done now", Status: valueobjects.MilestoneStatusDone}, wantStatus: http.StatusOK,
+			assertCmd: func(t *testing.T, journeyID string, cmd cqrs.Command) {
+				c := cmd.(*commands.UpdateJourneyMilestone)
+				assert.Equal(t, journeyID, c.JourneyID)
+				assert.Equal(t, milestoneID, c.MilestoneID)
+				assert.Equal(t, valueobjects.MilestoneStatusDone, c.Status)
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			journeyID, bus, r := newMutableJourneyFixture(t)
 
-	body, _ := json.Marshal(UpdateJourneyMilestoneRequest{Label: "done now", Status: valueobjects.MilestoneStatusDone})
-	req := withActor(httptest.NewRequest(http.MethodPut, "/capability-journeys/"+journeyID+"/milestones/"+milestoneID, bytes.NewReader(body)), architectActor())
-	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, req)
+			body, _ := json.Marshal(tc.body)
+			req := withActor(httptest.NewRequest(tc.method, "/capability-journeys/"+journeyID+"/"+tc.pathSuffix, bytes.NewReader(body)), architectActor())
+			rec := httptest.NewRecorder()
+			r.ServeHTTP(rec, req)
 
-	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	cmd := bus.dispatched[0].(*commands.UpdateJourneyMilestone)
-	assert.Equal(t, journeyID, cmd.JourneyID)
-	assert.Equal(t, milestoneID, cmd.MilestoneID)
-	assert.Equal(t, valueobjects.MilestoneStatusDone, cmd.Status)
+			require.Equal(t, tc.wantStatus, rec.Code, rec.Body.String())
+			require.Len(t, bus.dispatched, 1)
+			tc.assertCmd(t, journeyID, bus.dispatched[0])
+		})
+	}
 }
 
 func TestDeleteJourneyMilestone_DispatchesCommand_Returns204(t *testing.T) {

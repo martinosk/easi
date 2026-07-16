@@ -28,6 +28,13 @@ func TestFieldType_IsSelection(t *testing.T) {
 	assert.False(t, text.IsSelection())
 }
 
+func TestFieldType_IsNumber(t *testing.T) {
+	number, _ := NewFieldType("number")
+	text, _ := NewFieldType("text")
+	assert.True(t, number.IsNumber())
+	assert.False(t, text.IsNumber())
+}
+
 func TestFieldType_Equals(t *testing.T) {
 	a, _ := NewFieldType("link")
 	b, _ := NewFieldType("link")

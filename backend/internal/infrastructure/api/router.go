@@ -341,6 +341,7 @@ func setupDomainRoutes(r chi.Router, deps routerDependencies) {
 		Subjects:        newOnePagerSubjectExistenceAdapter(deps.db),
 		BuiltInFields:   newOnePagerBuiltInFieldSources(deps.db),
 		MaturityScale:   newOnePagerMaturityScaleAdapter(deps.db),
+		SubjectAudit:    newOnePagerAuditAdapter(deps.db),
 	}), "one-pagers routes")
 }
 

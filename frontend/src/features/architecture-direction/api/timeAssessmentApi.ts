@@ -19,6 +19,11 @@ export const timeAssessmentApi = {
     return response.data;
   },
 
+  async getAll(): Promise<TimeAssessmentsResponse> {
+    const response = await httpClient.get<TimeAssessmentsResponse>('/api/v1/time-assessments');
+    return response.data;
+  },
+
   async getRollups(componentIds: (ComponentId | string)[]): Promise<TimeAssessmentRollupsResponse> {
     const response = await httpClient.get<TimeAssessmentRollupsResponse>(
       `/api/v1/time-assessments/rollups?componentIds=${componentIds.join(',')}`,

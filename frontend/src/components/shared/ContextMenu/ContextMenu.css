@@ -292,7 +292,7 @@
   .ctx-menu--linear,
   .ctx-menu__hub,
   .ctx-menu__petal {
-    animation: none !important;
+    animation: none;
   }
   .ctx-menu__petal:hover,
   .ctx-menu__petal--focus,

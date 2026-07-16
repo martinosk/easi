@@ -65,6 +65,7 @@ var sqlKeywords = map[string]bool{
 	"select": true, "set": true, "where": true, "values": true,
 	"not": true, "null": true, "exists": true, "only": true,
 	"table": true, "index": true, "if": true, "as": true,
+	"unnest": true,
 }
 
 var approvedLocationPatterns = []string{

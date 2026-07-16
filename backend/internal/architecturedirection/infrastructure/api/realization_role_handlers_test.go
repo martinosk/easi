@@ -25,6 +25,13 @@ type mockRealizationRoleQueries struct {
 	byPairCallIdx  int
 	byCapability   []readmodels.RealizationRoleDTO
 	receivedCapIDs []string
+	all            []readmodels.RealizationRoleDTO
+	allCalled      bool
+}
+
+func (m *mockRealizationRoleQueries) GetAll(_ context.Context) ([]readmodels.RealizationRoleDTO, error) {
+	m.allCalled = true
+	return m.all, nil
 }
 
 func (m *mockRealizationRoleQueries) GetByPair(_ context.Context, _, _ string) (*readmodels.RealizationRoleDTO, error) {
@@ -166,19 +173,36 @@ func TestDeleteRealizationRole_DispatchesCommand_Returns204(t *testing.T) {
 	assert.Equal(t, "user@example.com", cmd.ClearedBy)
 }
 
-func TestGetRealizationRoles_ParsesCommaSeparatedCapabilityIDs(t *testing.T) {
+func TestGetRealizationRoles_CapabilityIDFiltering(t *testing.T) {
 	capA, capB := uuid.New().String(), uuid.New().String()
-	queries := &mockRealizationRoleQueries{}
-	h := setupRealizationRoleHandlers(&mockCommandBus{}, queries)
-	r := realizationRoleRouter(h)
+	cases := []struct {
+		name          string
+		query         string
+		wantAll       bool
+		wantForwarded []string
+	}{
+		{"no capabilityIds param fetches the whole collection", "", true, nil},
+		{"empty capabilityIds param forwards an empty filter", "?capabilityIds=", false, []string{}},
+		{"populated capabilityIds param forwards the parsed ids", "?capabilityIds=" + capA + "," + capB, false, []string{capA, capB}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			queries := &mockRealizationRoleQueries{all: []readmodels.RealizationRoleDTO{{CapabilityID: capA}}}
+			h := setupRealizationRoleHandlers(&mockCommandBus{}, queries)
+			r := realizationRoleRouter(h)
 
-	req := httptest.NewRequest(http.MethodGet, "/realization-roles?capabilityIds="+capA+","+capB, nil)
-	req = req.WithContext(sharedctx.WithActor(req.Context(), architectActor()))
-	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, req)
+			req := httptest.NewRequest(http.MethodGet, "/realization-roles"+tc.query, nil)
+			req = req.WithContext(sharedctx.WithActor(req.Context(), architectActor()))
+			rec := httptest.NewRecorder()
+			r.ServeHTTP(rec, req)
 
-	require.Equal(t, http.StatusOK, rec.Code)
-	assert.Equal(t, []string{capA, capB}, queries.receivedCapIDs)
+			require.Equal(t, http.StatusOK, rec.Code)
+			assert.Equal(t, tc.wantAll, queries.allCalled)
+			if !tc.wantAll {
+				assert.Equal(t, tc.wantForwarded, queries.receivedCapIDs)
+			}
+		})
+	}
 }
 
 func TestGetRealizationRoles_XAssignLinkVisibilityByActor(t *testing.T) {

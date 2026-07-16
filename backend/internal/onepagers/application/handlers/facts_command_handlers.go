@@ -21,6 +21,8 @@ var (
 	ErrOptionNotDefined       = errors.New("selection option is not defined on this field")
 	ErrOptionRetired          = errors.New("selection option is retired")
 	ErrSubjectNotFound        = errors.New("subject does not exist")
+	ErrNumberBelowMinimum     = errors.New("number value is below the field's minimum bound")
+	ErrNumberAboveMaximum     = errors.New("number value is above the field's maximum bound")
 )
 
 type ConfigurationDefinitions interface {
@@ -114,6 +116,20 @@ func validateSelectionOption(field readmodels.CustomFieldRecord, value valueobje
 	return ErrOptionNotDefined
 }
 
+func validateNumberBounds(field readmodels.CustomFieldRecord, value valueobjects.FieldValue) error {
+	number, ok := value.(valueobjects.NumberValue)
+	if !ok {
+		return nil
+	}
+	if field.Min != nil && number.Value() < *field.Min {
+		return ErrNumberBelowMinimum
+	}
+	if field.Max != nil && number.Value() > *field.Max {
+		return ErrNumberAboveMaximum
+	}
+	return nil
+}
+
 type RecordFieldValueHandler struct {
 	repository *repositories.OnePagerFactsRepository
 	configs    ConfigurationDefinitions
@@ -185,6 +201,9 @@ func (h *RecordFieldValueHandler) validateValue(
 		return nil, err
 	}
 	if err := validateSelectionOption(field, value); err != nil {
+		return nil, err
+	}
+	if err := validateNumberBounds(field, value); err != nil {
 		return nil, err
 	}
 	return value, nil

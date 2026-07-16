@@ -37,6 +37,7 @@ type OnePagersRoutesDeps struct {
 	Subjects        ports.SubjectExistenceChecker
 	BuiltInFields   map[string]ports.BuiltInFieldSource
 	MaturityScale   ports.MaturityScaleSource
+	SubjectAudit    ports.SubjectAuditReader
 }
 
 func SetupOnePagersRoutes(deps OnePagersRoutesDeps) error {
@@ -61,6 +62,13 @@ func SetupOnePagersRoutes(deps OnePagersRoutesDeps) error {
 	deletionReactor := projectors.NewSubjectDeletedReactor(factsReadModel, deps.CommandBus)
 	for _, eventType := range projectors.SubjectDeletionEventTypes() {
 		deps.EventBus.Subscribe(eventType, deletionReactor)
+	}
+
+	subjectIndexReadModel := readmodels.NewOnePagerSubjectIndexReadModel(deps.DB)
+	completenessCounter := queries.NewCompletenessIndicators(readModel, factsReadModel, deps.BuiltInFields)
+	subjectIndexProjector := projectors.NewSubjectIndexProjector(subjectIndexReadModel, completenessCounter, deps.SubjectAudit, readModel)
+	for _, eventType := range projectors.SubjectIndexEventTypes() {
+		deps.EventBus.Subscribe(eventType, subjectIndexProjector)
 	}
 
 	registerFactsCommands(deps, factsRepo, readModel, factsReadModel)
@@ -90,6 +98,9 @@ func SetupOnePagersRoutes(deps OnePagersRoutesDeps) error {
 	})
 	viewHandlers := NewOnePagerViewHandlers(onePagerQuery, links)
 	registerSubjectRoutes(deps.Router, viewHandlers, factsHandlers, deps.AuthMiddleware)
+
+	qualityHandlers := NewOnePagerQualityHandlers(subjectIndexReadModel, links)
+	deps.Router.Get("/one-pager-quality", qualityHandlers.GetQualityList)
 
 	return nil
 }
@@ -157,9 +168,11 @@ func registerCommands(
 	commandBus.Register("ReactivateCustomField", handlers.NewReactivateCustomFieldHandler(repo))
 	commandBus.Register("IncludeBuiltInField", handlers.NewIncludeBuiltInFieldHandler(repo))
 	commandBus.Register("ExcludeBuiltInField", handlers.NewExcludeBuiltInFieldHandler(repo))
+	commandBus.Register("ChangeBuiltInFieldRequirement", handlers.NewChangeBuiltInFieldRequirementHandler(repo))
 	commandBus.Register("ReorderOnePagerFields", handlers.NewReorderOnePagerFieldsHandler(repo))
 	commandBus.Register("AddSelectionOption", handlers.NewAddSelectionOptionHandler(repo))
 	commandBus.Register("RetireSelectionOption", handlers.NewRetireSelectionOptionHandler(repo))
+	commandBus.Register("SetNumberFieldBounds", handlers.NewSetNumberFieldBoundsHandler(repo))
 }
 
 func registerRoutes(router chi.Router, h *OnePagerConfigurationHandlers, previewHandlers *ImpactPreviewHandlers, authMiddleware AuthMiddleware) {
@@ -179,8 +192,10 @@ func registerRoutes(router chi.Router, h *OnePagerConfigurationHandlers, preview
 			r.Post("/custom-fields/{fieldID}/reactivate", h.ReactivateCustomField)
 			r.Post("/custom-fields/{fieldID}/options", h.AddSelectionOption)
 			r.Post("/custom-fields/{fieldID}/options/{optionID}/retire", h.RetireSelectionOption)
+			r.Put("/custom-fields/{fieldID}/bounds", h.SetNumberFieldBounds)
 			r.Post("/built-in-fields/{entryID}/include", h.IncludeBuiltInField)
 			r.Post("/built-in-fields/{entryID}/exclude", h.ExcludeBuiltInField)
+			r.Put("/built-in-fields/{entryID}/requirement", h.ChangeBuiltInFieldRequirement)
 			r.Put("/display-order", h.ReorderFields)
 		})
 	})

@@ -7,6 +7,7 @@ import type {
   CustomField,
   DefineCustomFieldRequest,
   FieldValue,
+  ImpactPreviewFieldKind,
   OnePagerConfiguration,
   OnePagerFacts,
   OnePagerImpactPreview,
@@ -16,6 +17,7 @@ import type {
   RenameCustomFieldRequest,
   ReorderFieldsRequest,
   SelectionOption,
+  SetNumberFieldBoundsRequest,
   VersionRequest,
 } from '../types';
 
@@ -53,6 +55,9 @@ export const onePagersApi = {
   changeFieldRequirement: (field: CustomField, request: ChangeRequirementRequest) =>
     sendCommand('put', field, 'x-set-requirement', request),
 
+  changeBuiltInFieldRequirement: (field: BuiltInField, request: ChangeRequirementRequest) =>
+    sendCommand('put', field, 'x-set-requirement', request),
+
   retireCustomField: (field: CustomField, request: VersionRequest) => sendCommand('post', field, 'x-retire', request),
 
   reactivateCustomField: (field: CustomField, request: VersionRequest) =>
@@ -64,10 +69,21 @@ export const onePagersApi = {
   retireSelectionOption: (option: SelectionOption, request: VersionRequest) =>
     sendCommand('post', option, 'x-retire', request),
 
-  async getImpactPreview(configuration: OnePagerConfiguration, fieldId?: string): Promise<OnePagerImpactPreview> {
+  setNumberFieldBounds: (field: CustomField, request: SetNumberFieldBoundsRequest) =>
+    sendCommand('put', field, 'x-set-bounds', request),
+
+  async getImpactPreview(
+    configuration: OnePagerConfiguration,
+    fieldId?: string,
+    fieldKind: ImpactPreviewFieldKind = 'custom',
+  ): Promise<OnePagerImpactPreview> {
     const base = getLink(configuration, 'x-impact-preview');
     if (!base) throw new Error("Link 'x-impact-preview' not found on resource");
-    const url = fieldId ? `${base}?fieldId=${encodeURIComponent(fieldId)}` : base;
+    let url = base;
+    if (fieldId) {
+      url = `${base}?fieldId=${encodeURIComponent(fieldId)}`;
+      if (fieldKind === 'builtIn') url += '&fieldKind=builtIn';
+    }
     const response = await httpClient.get<OnePagerImpactPreview>(url);
     return response.data;
   },

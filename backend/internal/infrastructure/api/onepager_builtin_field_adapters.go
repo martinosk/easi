@@ -14,35 +14,151 @@ import (
 )
 
 type builtInFieldAdapter struct {
-	fetch func(ctx context.Context, subjectID string) (*ports.SubjectSnapshot, error)
-	count func(ctx context.Context) (int, error)
+	fetch    func(ctx context.Context, subjectID string, includedEntryIDs []string) (*ports.SubjectSnapshot, error)
+	count    func(ctx context.Context) (int, error)
+	fill     func(ctx context.Context, subjectIDs, entryIDs []string) (map[string]map[string]bool, error)
+	countVal func(ctx context.Context, entryID string) (int, error)
 }
 
-func (a builtInFieldAdapter) FetchSubject(ctx context.Context, subjectID string) (*ports.SubjectSnapshot, error) {
-	return a.fetch(ctx, subjectID)
+func (a builtInFieldAdapter) FetchSubject(ctx context.Context, subjectID string, includedEntryIDs []string) (*ports.SubjectSnapshot, error) {
+	return a.fetch(ctx, subjectID, includedEntryIDs)
 }
 
 func (a builtInFieldAdapter) CountSubjects(ctx context.Context) (int, error) {
 	return a.count(ctx)
 }
 
-func builtInFieldSource[T any](subjectType string, getByID func(context.Context, string) (*T, error), toSnapshot func(*T) *ports.SubjectSnapshot, countSubjects func(context.Context) (int, error)) ports.BuiltInFieldSource {
+func (a builtInFieldAdapter) FilledBuiltInFields(ctx context.Context, subjectIDs, entryIDs []string) (map[string]map[string]bool, error) {
+	return a.fill(ctx, subjectIDs, entryIDs)
+}
+
+func (a builtInFieldAdapter) CountSubjectsWithBuiltInValue(ctx context.Context, entryID string) (int, error) {
+	return a.countVal(ctx, entryID)
+}
+
+type relationBinding[T any] struct {
+	entryID string
+	resolve func(context.Context, *T) (ports.ReferenceListValue, error)
+}
+
+type builtInSourceConfig[T any] struct {
+	subjectType   string
+	getByID       func(context.Context, string) (*T, error)
+	getByIDs      func(context.Context, []string) ([]T, error)
+	getAll        func(context.Context) ([]T, error)
+	toSnapshot    func(*T) *ports.SubjectSnapshot
+	idOf          func(*T) string
+	countSubjects func(context.Context) (int, error)
+	relations     []relationBinding[T]
+}
+
+func builtInFieldSource[T any](cfg builtInSourceConfig[T]) ports.BuiltInFieldSource {
 	return builtInFieldAdapter{
-		fetch: func(ctx context.Context, subjectID string) (*ports.SubjectSnapshot, error) {
-			dto, err := getByID(ctx, subjectID)
-			if err != nil {
-				return nil, fmt.Errorf("fetch %s %s for one-pager: %w", subjectType, subjectID, err)
-			}
-			return toSnapshot(dto), nil
-		},
-		count: func(ctx context.Context) (int, error) {
-			count, err := countSubjects(ctx)
-			if err != nil {
-				return 0, fmt.Errorf("count %s subjects for one-pager: %w", subjectType, err)
-			}
-			return count, nil
-		},
+		fetch:    cfg.fetchSubject,
+		count:    cfg.countAllSubjects,
+		fill:     cfg.filledBuiltInFields,
+		countVal: cfg.countSubjectsWithValue,
 	}
+}
+
+func (cfg builtInSourceConfig[T]) fetchSubject(ctx context.Context, subjectID string, includedEntryIDs []string) (*ports.SubjectSnapshot, error) {
+	dto, err := cfg.getByID(ctx, subjectID)
+	if err != nil {
+		return nil, fmt.Errorf("fetch %s %s for one-pager: %w", cfg.subjectType, subjectID, err)
+	}
+	return cfg.resolvedSnapshot(ctx, dto, includedEntryIDs)
+}
+
+func (cfg builtInSourceConfig[T]) resolveRelations(ctx context.Context, dto *T, snapshot *ports.SubjectSnapshot, includedEntryIDs []string) error {
+	if len(cfg.relations) == 0 {
+		return nil
+	}
+	included := make(map[string]struct{}, len(includedEntryIDs))
+	for _, entryID := range includedEntryIDs {
+		included[entryID] = struct{}{}
+	}
+	for _, binding := range cfg.relations {
+		if _, ok := included[binding.entryID]; !ok {
+			continue
+		}
+		value, err := binding.resolve(ctx, dto)
+		if err != nil {
+			return fmt.Errorf("resolve %s relation %s for one-pager: %w", cfg.subjectType, binding.entryID, err)
+		}
+		snapshot.Fields[binding.entryID] = value
+	}
+	return nil
+}
+
+func (cfg builtInSourceConfig[T]) countAllSubjects(ctx context.Context) (int, error) {
+	count, err := cfg.countSubjects(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("count %s subjects for one-pager: %w", cfg.subjectType, err)
+	}
+	return count, nil
+}
+
+func (cfg builtInSourceConfig[T]) filledBuiltInFields(ctx context.Context, subjectIDs, entryIDs []string) (map[string]map[string]bool, error) {
+	if len(subjectIDs) == 0 || len(entryIDs) == 0 {
+		return map[string]map[string]bool{}, nil
+	}
+	dtos, err := cfg.getByIDs(ctx, subjectIDs)
+	if err != nil {
+		return nil, fmt.Errorf("fetch %s subjects for one-pager completeness: %w", cfg.subjectType, err)
+	}
+	filled := make(map[string]map[string]bool, len(dtos))
+	for i := range dtos {
+		snapshot, err := cfg.resolvedSnapshot(ctx, &dtos[i], entryIDs)
+		if err != nil {
+			return nil, err
+		}
+		filled[cfg.idOf(&dtos[i])] = filledEntries(snapshot, entryIDs)
+	}
+	return filled, nil
+}
+
+func (cfg builtInSourceConfig[T]) resolvedSnapshot(ctx context.Context, dto *T, entryIDs []string) (*ports.SubjectSnapshot, error) {
+	snapshot := cfg.toSnapshot(dto)
+	if snapshot == nil {
+		return nil, nil
+	}
+	if err := cfg.resolveRelations(ctx, dto, snapshot, entryIDs); err != nil {
+		return nil, err
+	}
+	return snapshot, nil
+}
+
+func (cfg builtInSourceConfig[T]) countSubjectsWithValue(ctx context.Context, entryID string) (int, error) {
+	dtos, err := cfg.getAll(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("fetch %s subjects for one-pager impact preview: %w", cfg.subjectType, err)
+	}
+	count := 0
+	for i := range dtos {
+		snapshot, err := cfg.resolvedSnapshot(ctx, &dtos[i], []string{entryID})
+		if err != nil {
+			return 0, err
+		}
+		if ports.ValueFilled(snapshotField(snapshot, entryID)) {
+			count++
+		}
+	}
+	return count, nil
+}
+
+func filledEntries(snapshot *ports.SubjectSnapshot, entryIDs []string) map[string]bool {
+	filled := make(map[string]bool, len(entryIDs))
+	for _, entryID := range entryIDs {
+		filled[entryID] = ports.ValueFilled(snapshotField(snapshot, entryID))
+	}
+	return filled
+}
+
+func snapshotField(snapshot *ports.SubjectSnapshot, entryID string) ports.BuiltInFieldValue {
+	if snapshot == nil {
+		return nil
+	}
+	return snapshot.Fields[entryID]
 }
 
 func newOnePagerBuiltInFieldSources(db *database.TenantAwareDB) map[string]ports.BuiltInFieldSource {
@@ -52,16 +168,48 @@ func newOnePagerBuiltInFieldSources(db *database.TenantAwareDB) map[string]ports
 	acquiredEntities := archReadModels.NewAcquiredEntityReadModel(db)
 	vendors := archReadModels.NewVendorReadModel(db)
 	internalTeams := archReadModels.NewInternalTeamReadModel(db)
+	relations := newOnePagerRelationModels(db)
 
 	return map[string]ports.BuiltInFieldSource{
-		"capability":            builtInFieldSource("capability", capabilities.GetByID, capabilitySnapshot, capabilities.Count),
-		"enterprise-capability": builtInFieldSource("enterprise capability", enterpriseCapabilities.GetByID, enterpriseCapabilitySnapshot, enterpriseCapabilities.Count),
-		"application":           builtInFieldSource("application", applications.GetByID, applicationSnapshot, applications.Count),
-		"acquired-entity":       builtInFieldSource("acquired entity", acquiredEntities.GetByID, acquiredEntitySnapshot, acquiredEntities.Count),
-		"vendor":                builtInFieldSource("vendor", vendors.GetByID, vendorSnapshot, vendors.Count),
-		"internal-team":         builtInFieldSource("internal team", internalTeams.GetByID, internalTeamSnapshot, internalTeams.Count),
+		"capability": builtInFieldSource(builtInSourceConfig[capReadModels.CapabilityDTO]{
+			subjectType: "capability", getByID: capabilities.GetByID, getByIDs: capabilities.GetByIDs, getAll: capabilities.GetAll,
+			toSnapshot: capabilitySnapshot, idOf: capabilityID, countSubjects: capabilities.Count,
+			relations: relations.capabilityRelations(),
+		}),
+		"enterprise-capability": builtInFieldSource(builtInSourceConfig[eaReadModels.EnterpriseCapabilityDTO]{
+			subjectType: "enterprise capability", getByID: enterpriseCapabilities.GetByID, getByIDs: enterpriseCapabilities.GetByIDs, getAll: enterpriseCapabilities.GetAll,
+			toSnapshot: enterpriseCapabilitySnapshot, idOf: enterpriseCapabilityID, countSubjects: enterpriseCapabilities.Count,
+			relations: relations.enterpriseCapabilityRelations(),
+		}),
+		"application": builtInFieldSource(builtInSourceConfig[archReadModels.ApplicationComponentDTO]{
+			subjectType: "application", getByID: applications.GetByID, getByIDs: applications.GetByIDs, getAll: applications.GetAll,
+			toSnapshot: applicationSnapshot, idOf: applicationID, countSubjects: applications.Count,
+			relations: relations.applicationRelations(),
+		}),
+		"acquired-entity": builtInFieldSource(builtInSourceConfig[archReadModels.AcquiredEntityDTO]{
+			subjectType: "acquired entity", getByID: acquiredEntities.GetByID, getByIDs: acquiredEntities.GetByIDs, getAll: acquiredEntities.GetAll,
+			toSnapshot: acquiredEntitySnapshot, idOf: acquiredEntityID, countSubjects: acquiredEntities.Count,
+			relations: relations.acquiredEntityRelations(),
+		}),
+		"vendor": builtInFieldSource(builtInSourceConfig[archReadModels.VendorDTO]{
+			subjectType: "vendor", getByID: vendors.GetByID, getByIDs: vendors.GetByIDs, getAll: vendors.GetAll,
+			toSnapshot: vendorSnapshot, idOf: vendorID, countSubjects: vendors.Count,
+			relations: relations.vendorRelations(),
+		}),
+		"internal-team": builtInFieldSource(builtInSourceConfig[archReadModels.InternalTeamDTO]{
+			subjectType: "internal team", getByID: internalTeams.GetByID, getByIDs: internalTeams.GetByIDs, getAll: internalTeams.GetAll,
+			toSnapshot: internalTeamSnapshot, idOf: internalTeamID, countSubjects: internalTeams.Count,
+			relations: relations.internalTeamRelations(),
+		}),
 	}
 }
+
+func capabilityID(dto *capReadModels.CapabilityDTO) string                    { return dto.ID }
+func enterpriseCapabilityID(dto *eaReadModels.EnterpriseCapabilityDTO) string { return dto.ID }
+func applicationID(dto *archReadModels.ApplicationComponentDTO) string        { return dto.ID }
+func acquiredEntityID(dto *archReadModels.AcquiredEntityDTO) string           { return dto.ID }
+func vendorID(dto *archReadModels.VendorDTO) string                           { return dto.ID }
+func internalTeamID(dto *archReadModels.InternalTeamDTO) string               { return dto.ID }
 
 func capabilitySnapshot(dto *capReadModels.CapabilityDTO) *ports.SubjectSnapshot {
 	if dto == nil {

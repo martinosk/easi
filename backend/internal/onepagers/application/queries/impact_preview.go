@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"easi/backend/internal/onepagers/application/ports"
+	"easi/backend/internal/onepagers/domain/catalog"
 	"easi/backend/internal/onepagers/domain/valueobjects"
 )
 
@@ -19,6 +20,15 @@ type ImpactPreviewDeps struct {
 	Configurations ConfigurationSource
 	Facts          SubjectsWithValueCounter
 	Subjects       map[string]ports.BuiltInFieldSource
+}
+
+type PreviewField struct {
+	Kind string
+	ID   string
+}
+
+func (f PreviewField) isBuiltIn() bool {
+	return f.Kind == string(valueobjects.FieldRefKindBuiltIn)
 }
 
 type ImpactPreview struct {
@@ -35,33 +45,71 @@ func NewImpactPreviewQuery(deps ImpactPreviewDeps) *ImpactPreviewQuery {
 	return &ImpactPreviewQuery{deps: deps}
 }
 
-func (q *ImpactPreviewQuery) Preview(ctx context.Context, subjectType valueobjects.SubjectType, fieldID string) (*ImpactPreview, error) {
-	population, err := q.countPopulation(ctx, subjectType)
+type previewScope struct {
+	subjectType valueobjects.SubjectType
+	source      ports.BuiltInFieldSource
+	population  int
+}
+
+func (q *ImpactPreviewQuery) Preview(ctx context.Context, subjectType valueobjects.SubjectType, field PreviewField) (*ImpactPreview, error) {
+	source, err := q.subjectSource(subjectType)
 	if err != nil {
 		return nil, err
 	}
-
-	if fieldID == "" {
-		return &ImpactPreview{SubjectType: subjectType.Value(), FieldID: fieldID, AffectedSubjectCount: population}, nil
-	}
-
-	if err := q.ensureFieldConfigured(ctx, subjectType, fieldID); err != nil {
+	population, err := q.countPopulation(ctx, subjectType, source)
+	if err != nil {
 		return nil, err
 	}
+	scope := previewScope{subjectType: subjectType, source: source, population: population}
 
-	withValue, err := q.deps.Facts.CountSubjectsWithValue(ctx, subjectType.Value(), fieldID)
+	if field.isBuiltIn() {
+		return q.builtInPreview(ctx, scope, field.ID)
+	}
+	return q.customPreview(ctx, scope, field.ID)
+}
+
+func (q *ImpactPreviewQuery) builtInPreview(ctx context.Context, scope previewScope, entryID string) (*ImpactPreview, error) {
+	if _, found := catalog.LookupEntry(scope.subjectType, entryID); !found {
+		return nil, ErrFieldNotConfigured
+	}
+	withValue, err := scope.source.CountSubjectsWithBuiltInValue(ctx, entryID)
+	if err != nil {
+		return nil, fmt.Errorf("count subjects with value for built-in field %s: %w", entryID, err)
+	}
+	return q.impactPreview(scope.subjectType, entryID, scope.population, withValue), nil
+}
+
+func (q *ImpactPreviewQuery) customPreview(ctx context.Context, scope previewScope, fieldID string) (*ImpactPreview, error) {
+	if fieldID == "" {
+		return q.impactPreview(scope.subjectType, fieldID, scope.population, 0), nil
+	}
+	if err := q.ensureFieldConfigured(ctx, scope.subjectType, fieldID); err != nil {
+		return nil, err
+	}
+	withValue, err := q.deps.Facts.CountSubjectsWithValue(ctx, scope.subjectType.Value(), fieldID)
 	if err != nil {
 		return nil, fmt.Errorf("count subjects with value for field %s: %w", fieldID, err)
 	}
-
-	return &ImpactPreview{SubjectType: subjectType.Value(), FieldID: fieldID, AffectedSubjectCount: clampToZero(population - withValue)}, nil
+	return q.impactPreview(scope.subjectType, fieldID, scope.population, withValue), nil
 }
 
-func (q *ImpactPreviewQuery) countPopulation(ctx context.Context, subjectType valueobjects.SubjectType) (int, error) {
+func (q *ImpactPreviewQuery) impactPreview(subjectType valueobjects.SubjectType, fieldID string, population, withValue int) *ImpactPreview {
+	return &ImpactPreview{
+		SubjectType:          subjectType.Value(),
+		FieldID:              fieldID,
+		AffectedSubjectCount: clampToZero(population - withValue),
+	}
+}
+
+func (q *ImpactPreviewQuery) subjectSource(subjectType valueobjects.SubjectType) (ports.BuiltInFieldSource, error) {
 	source, found := q.deps.Subjects[subjectType.Value()]
 	if !found {
-		return 0, fmt.Errorf("no subject population source configured for subject type %s", subjectType.Value())
+		return nil, fmt.Errorf("no subject population source configured for subject type %s", subjectType.Value())
 	}
+	return source, nil
+}
+
+func (q *ImpactPreviewQuery) countPopulation(ctx context.Context, subjectType valueobjects.SubjectType, source ports.BuiltInFieldSource) (int, error) {
 	population, err := source.CountSubjects(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("count subjects for subject type %s: %w", subjectType.Value(), err)

@@ -15,6 +15,7 @@ import type {
   RenameCustomFieldRequest,
   ReorderFieldsRequest,
   SelectionOption,
+  SetNumberFieldBoundsRequest,
   VersionRequest,
 } from '../types';
 
@@ -110,6 +111,15 @@ export function useChangeFieldRequirement(subjectType: OnePagerSubjectType) {
   });
 }
 
+export function useChangeBuiltInFieldRequirement(subjectType: OnePagerSubjectType) {
+  return useOnePagerMutation<{ field: BuiltInField; request: ChangeRequirementRequest }>({
+    call: ({ field, request }) => onePagersApi.changeBuiltInFieldRequirement(field, request),
+    subjectType,
+    successMessage: 'Requirement updated',
+    failureMessage: 'Failed to change requirement',
+  });
+}
+
 export function useRetireCustomField(subjectType: OnePagerSubjectType) {
   return useOnePagerMutation<{ field: CustomField; request: VersionRequest }>({
     call: ({ field, request }) => onePagersApi.retireCustomField(field, request),
@@ -143,5 +153,14 @@ export function useRetireSelectionOption(subjectType: OnePagerSubjectType) {
     subjectType,
     successMessage: 'Option retired',
     failureMessage: 'Failed to retire option',
+  });
+}
+
+export function useSetNumberFieldBounds(subjectType: OnePagerSubjectType) {
+  return useOnePagerMutation<{ field: CustomField; request: SetNumberFieldBoundsRequest }>({
+    call: ({ field, request }) => onePagersApi.setNumberFieldBounds(field, request),
+    subjectType,
+    successMessage: 'Bounds updated',
+    failureMessage: 'Failed to update bounds',
   });
 }

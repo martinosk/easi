@@ -20,6 +20,7 @@ type CapabilityJourneyQueries interface {
 	GetActiveByCapabilityID(ctx context.Context, capabilityID string) (*readmodels.CapabilityJourneyDTO, error)
 	GetHistoryByCapabilityID(ctx context.Context, capabilityID string) ([]readmodels.CapabilityJourneyDTO, error)
 	GetCurrentByCapabilityIDs(ctx context.Context, capabilityIDs []string) ([]readmodels.CapabilityJourneyDTO, error)
+	GetAllCurrent(ctx context.Context) ([]readmodels.CapabilityJourneyDTO, error)
 	GetByID(ctx context.Context, journeyID string) (*readmodels.CapabilityJourneyDTO, error)
 }
 
@@ -198,22 +199,24 @@ func (h *CapabilityJourneyHandlers) GetJourneyHistory(w http.ResponseWriter, r *
 }
 
 // GetCapabilityJourneys godoc
-// @Summary Bulk-fetch current journeys for a capability set
-// @Description Returns, for each given capability, its active journey plus the most recent terminal journey.
+// @Summary Bulk-fetch current journeys
+// @Description Returns, for each capability, its active journey plus the most recent terminal journey. Without capabilityIds the whole collection is returned.
 // @Tags capability-journeys
 // @Produce json
 // @Security CookieAuth
-// @Param capabilityIds query string true "Comma-separated capability IDs"
+// @Param capabilityIds query string false "Comma-separated capability IDs; omit to return the whole collection"
 // @Success 200 {object} sharedAPI.CollectionResponse
 // @Failure 401 {object} sharedAPI.ErrorResponse
 // @Failure 403 {object} sharedAPI.ErrorResponse
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /capability-journeys [get]
 func (h *CapabilityJourneyHandlers) GetCapabilityJourneys(w http.ResponseWriter, r *http.Request) {
-	capabilityIDs := parseIDList(r.URL.Query().Get("capabilityIds"))
 	h.respondJourneyCollection(w, r,
 		func(ctx context.Context) ([]readmodels.CapabilityJourneyDTO, error) {
-			return h.queries.GetCurrentByCapabilityIDs(ctx, capabilityIDs)
+			if capabilityIDs, filtered := capabilityIDFilter(r); filtered {
+				return h.queries.GetCurrentByCapabilityIDs(ctx, capabilityIDs)
+			}
+			return h.queries.GetAllCurrent(ctx)
 		},
 		func(actor sharedctx.Actor) sharedAPI.Links {
 			return h.hateoas.BulkLinks(string(capabilityJourneysPath), actor)
