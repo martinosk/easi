@@ -16,11 +16,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type appliedCompleteness struct {
+	subjectType string
+	required    int
+	filled      map[string]int
+}
+
 type fakeIndexStore struct {
 	upserts    []readmodels.SubjectIndexRecord
 	deletes    []readmodels.SubjectKey
 	changes    []readmodels.SubjectChange
-	recomputes []readmodels.SubjectChange
+	recomputes []appliedCompleteness
 	idsByType  map[string][]string
 }
 
@@ -39,8 +45,8 @@ func (f *fakeIndexStore) ApplySubjectChange(_ context.Context, change readmodels
 	return nil
 }
 
-func (f *fakeIndexStore) ApplyCompleteness(_ context.Context, subject readmodels.SubjectKey, counts readmodels.CompletenessCounts) error {
-	f.recomputes = append(f.recomputes, readmodels.SubjectChange{Subject: subject, Counts: counts})
+func (f *fakeIndexStore) ApplyCompleteness(_ context.Context, subjectType string, required int, filledBySubject map[string]int) error {
+	f.recomputes = append(f.recomputes, appliedCompleteness{subjectType: subjectType, required: required, filled: filledBySubject})
 	return nil
 }
 
@@ -172,7 +178,7 @@ func TestSubjectIndexProjector_FactsRecorded_RecomputesSubjectOnly(t *testing.T)
 	})
 
 	require.Len(t, store.recomputes, 1)
-	assert.Equal(t, readmodels.SubjectChange{Subject: subjectKey("application", "app-9"), Counts: readmodels.CompletenessCounts{Required: 2, Filled: 2}}, store.recomputes[0])
+	assert.Equal(t, appliedCompleteness{subjectType: "application", required: 2, filled: map[string]int{"app-9": 2}}, store.recomputes[0])
 	assert.Empty(t, store.changes)
 }
 
@@ -184,9 +190,8 @@ func TestSubjectIndexProjector_ConfigChange_RecomputesAllSubjectsOfType(t *testi
 
 	h.project(opevents.TypeBuiltInFieldRequirementChanged, time.Now(), map[string]any{"id": "cfg-app"})
 
-	require.Len(t, store.recomputes, 2)
-	assert.Equal(t, 1, store.recomputes[0].Counts.Filled)
-	assert.Equal(t, 0, store.recomputes[1].Counts.Filled)
+	require.Len(t, store.recomputes, 1, "all subjects of the type recompute in a single batched store call")
+	assert.Equal(t, appliedCompleteness{subjectType: "application", required: 1, filled: map[string]int{"app-1": 1, "app-2": 0}}, store.recomputes[0])
 }
 
 func TestSubjectIndexProjector_UnknownEvent_NoOp(t *testing.T) {

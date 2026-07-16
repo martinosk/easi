@@ -7,6 +7,8 @@ import (
 
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
+
+	"github.com/lib/pq"
 )
 
 const (
@@ -72,13 +74,23 @@ func (rm *OnePagerSubjectIndexReadModel) ApplySubjectChange(ctx context.Context,
 	)
 }
 
-func (rm *OnePagerSubjectIndexReadModel) ApplyCompleteness(ctx context.Context, subject SubjectKey, counts CompletenessCounts) error {
+func (rm *OnePagerSubjectIndexReadModel) ApplyCompleteness(ctx context.Context, subjectType string, required int, filledBySubject map[string]int) error {
+	if len(filledBySubject) == 0 {
+		return nil
+	}
+	subjectIDs := make([]string, 0, len(filledBySubject))
+	filledCounts := make([]int64, 0, len(filledBySubject))
+	for subjectID, filled := range filledBySubject {
+		subjectIDs = append(subjectIDs, subjectID)
+		filledCounts = append(filledCounts, int64(filled))
+	}
 	return rm.exec(ctx,
-		fmt.Sprintf("apply completeness for %s %s", subject.SubjectType, subject.SubjectID),
-		`UPDATE onepagers.one_pager_subject_index
-		SET required_count = $4, filled_count = $5
-		WHERE tenant_id = $1 AND subject_type = $2 AND subject_id = $3`,
-		subject.SubjectType, subject.SubjectID, counts.Required, counts.Filled,
+		fmt.Sprintf("apply completeness for %d %s subjects", len(subjectIDs), subjectType),
+		`UPDATE onepagers.one_pager_subject_index AS idx
+		SET required_count = $3, filled_count = filled.count
+		FROM unnest($4::text[], $5::int[]) AS filled(subject_id, count)
+		WHERE idx.tenant_id = $1 AND idx.subject_type = $2 AND idx.subject_id = filled.subject_id`,
+		subjectType, required, pq.Array(subjectIDs), pq.Array(filledCounts),
 	)
 }
 

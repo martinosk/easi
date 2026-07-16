@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"time"
 
 	amPL "easi/backend/internal/architecturemodeling/publishedlanguage"
@@ -19,7 +20,7 @@ type SubjectIndexStore interface {
 	Upsert(ctx context.Context, record readmodels.SubjectIndexRecord) error
 	Delete(ctx context.Context, subject readmodels.SubjectKey) error
 	ApplySubjectChange(ctx context.Context, change readmodels.SubjectChange) error
-	ApplyCompleteness(ctx context.Context, subject readmodels.SubjectKey, counts readmodels.CompletenessCounts) error
+	ApplyCompleteness(ctx context.Context, subjectType string, required int, filledBySubject map[string]int) error
 	SubjectIDs(ctx context.Context, subjectType string) ([]string, error)
 }
 
@@ -221,20 +222,12 @@ func (p *SubjectIndexProjector) recompute(ctx context.Context, subjectType strin
 	if err != nil {
 		return fmt.Errorf("compute completeness for %s subjects: %w", subjectType, err)
 	}
-	for _, subjectID := range subjectIDs {
-		subject := readmodels.SubjectKey{SubjectType: subjectType, SubjectID: subjectID}
-		if err := p.store.ApplyCompleteness(ctx, subject, readmodels.CompletenessCounts{Required: required, Filled: filled[subjectID]}); err != nil {
-			return fmt.Errorf("apply completeness for %s %s: %w", subjectType, subjectID, err)
-		}
+	if err := p.store.ApplyCompleteness(ctx, subjectType, required, filled); err != nil {
+		return fmt.Errorf("apply completeness for %s subjects: %w", subjectType, err)
 	}
 	return nil
 }
 
 func isConfigurationEvent(eventType string) bool {
-	for _, configEvent := range opevents.ConfigurationEventTypes() {
-		if configEvent == eventType {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(opevents.ConfigurationEventTypes(), eventType)
 }

@@ -121,9 +121,7 @@ func TestSubjectIndex_CRUDRoundtrip(t *testing.T) {
 	assert.Equal(t, "Alpha Renamed", page[0].Name)
 	assert.Equal(t, readmodels.SignalComplete, page[0].Signal())
 
-	require.NoError(t, f.rm.ApplyCompleteness(f.ctx,
-		readmodels.SubjectKey{SubjectType: "application", SubjectID: "app-1"},
-		readmodels.CompletenessCounts{Required: 3, Filled: 1}))
+	require.NoError(t, f.rm.ApplyCompleteness(f.ctx, "application", 3, map[string]int{"app-1": 1}))
 	page, _, _ = f.rm.Page(f.ctx, readmodels.SubjectIndexQuery{SubjectTypes: []string{"application"}, Sort: readmodels.SortName, Limit: 10})
 	assert.Equal(t, readmodels.SignalIncomplete, page[0].Signal())
 
@@ -134,6 +132,27 @@ func TestSubjectIndex_CRUDRoundtrip(t *testing.T) {
 	require.NoError(t, f.rm.Delete(f.ctx, readmodels.SubjectKey{SubjectType: "application", SubjectID: "app-1"}))
 	page, _, _ = f.rm.Page(f.ctx, readmodels.SubjectIndexQuery{SubjectTypes: []string{"application"}, Sort: readmodels.SortName, Limit: 10})
 	assert.Empty(t, page)
+}
+
+func TestSubjectIndex_ApplyCompletenessBatchesAllSubjectsOfType(t *testing.T) {
+	f := newIndexFixture(t)
+	f.seed(seedRow{subjectType: "application", subjectID: "app-1", name: "Alpha", email: "a@x.com", required: 1, filled: 0})
+	f.seed(seedRow{subjectType: "application", subjectID: "app-2", name: "Beta", email: "b@x.com", required: 1, filled: 0})
+	f.seed(seedRow{subjectType: "vendor", subjectID: "ven-1", name: "Vend", email: "v@x.com", required: 1, filled: 0})
+
+	require.NoError(t, f.rm.ApplyCompleteness(f.ctx, "application", 2, map[string]int{"app-1": 2, "app-2": 1}))
+
+	apps := f.allPages(readmodels.SubjectIndexQuery{SubjectTypes: []string{"application"}, Sort: readmodels.SortName, Order: readmodels.OrderAsc, Limit: 10})
+	require.Len(t, apps, 2)
+	assert.Equal(t, 2, apps[0].RequiredCount)
+	assert.Equal(t, 2, apps[0].FilledCount)
+	assert.Equal(t, 2, apps[1].RequiredCount)
+	assert.Equal(t, 1, apps[1].FilledCount)
+
+	vendors := f.allPages(readmodels.SubjectIndexQuery{SubjectTypes: []string{"vendor"}, Sort: readmodels.SortName, Order: readmodels.OrderAsc, Limit: 10})
+	require.Len(t, vendors, 1)
+	assert.Equal(t, 1, vendors[0].RequiredCount)
+	assert.Equal(t, 0, vendors[0].FilledCount)
 }
 
 func TestSubjectIndex_PaginationIsTotalOrderPerSort(t *testing.T) {
