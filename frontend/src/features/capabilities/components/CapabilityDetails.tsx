@@ -18,7 +18,7 @@ import { hasLink } from '../../../utils/hateoas';
 import { deriveLegacyMaturityValue, getDefaultSections } from '../../../utils/maturity';
 import { AuditHistorySection } from '../../audit';
 import { useStrategyImportanceByCapability } from '../../business-domains/hooks/useStrategyImportance';
-import { OnePagerActionButton } from '../../one-pagers';
+import { OnePagerActionButton } from '../../one-pagers/components/OnePagerActionButton';
 import { useComponents } from '../../components/hooks/useComponents';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { useUpdateCapabilityColor } from '../../views/hooks/useViews';
@@ -255,7 +255,7 @@ interface CapabilityContentProps {
   onAddExpert: () => void;
 }
 
-const CapabilityContent: React.FC<CapabilityContentProps> = ({
+export const CapabilityContent: React.FC<CapabilityContentProps> = ({
   capability,
   capabilityInView,
   currentView,

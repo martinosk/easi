@@ -4,8 +4,14 @@ import { businessDomainsQueryKeys } from '../business-domains/queryKeys';
 import { componentsQueryKeys } from '../components/queryKeys';
 import { maturityAnalysisQueryKeys } from '../enterprise-architecture/queryKeys';
 import { artifactCreatorsQueryKeys } from '../navigation/hooks/useArtifactCreators';
+import { onePagerQualityQueryKeys } from '../one-pager-quality/queryKeys';
+import { onePagersQueryKeys } from '../one-pagers/queryKeys';
 import { valueStreamsQueryKeys } from '../value-streams/queryKeys';
 import { capabilitiesQueryKeys } from './queryKeys';
+
+function onePagerFreshness(capabilityId: string) {
+  return [onePagersQueryKeys.onePager('capability', capabilityId), onePagerQualityQueryKeys.lists()];
+}
 
 export const capabilitiesMutationEffects = {
   create: (context: { parentId?: string; businessDomainId?: string }) => [
@@ -21,6 +27,7 @@ export const capabilitiesMutationEffects = {
     capabilitiesQueryKeys.detail(capabilityId),
     auditQueryKeys.history(capabilityId),
     valueStreamsQueryKeys.all,
+    ...onePagerFreshness(capabilityId),
   ],
 
   delete: (context: { id: string; parentId?: string; domainId?: string }) => [
@@ -119,6 +126,7 @@ export const capabilitiesMutationEffects = {
     capabilitiesQueryKeys.lists(),
     capabilitiesQueryKeys.expertRoles(),
     auditQueryKeys.history(capabilityId),
+    ...onePagerFreshness(capabilityId),
   ],
 
   removeExpert: (capabilityId: string) => [
@@ -126,6 +134,7 @@ export const capabilitiesMutationEffects = {
     capabilitiesQueryKeys.lists(),
     capabilitiesQueryKeys.expertRoles(),
     auditQueryKeys.history(capabilityId),
+    ...onePagerFreshness(capabilityId),
   ],
 
   addTag: (capabilityId: string) => [

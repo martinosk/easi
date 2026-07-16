@@ -16,7 +16,7 @@ import { useAppStore } from '../../../store/appStore';
 import { hasLink } from '../../../utils/hateoas';
 import { AuditHistorySection } from '../../audit';
 import { useCapabilities, useCapabilitiesByComponent } from '../../capabilities/hooks/useCapabilities';
-import { OnePagerActionButton } from '../../one-pagers';
+import { OnePagerActionButton } from '../../one-pagers/components/OnePagerActionButton';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { useClearComponentColor, useUpdateComponentColor } from '../../views/hooks/useViews';
 import { useComponents } from '../hooks/useComponents';

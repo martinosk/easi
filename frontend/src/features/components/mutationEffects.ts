@@ -2,7 +2,13 @@ import { auditQueryKeys } from '../audit/queryKeys';
 import { businessDomainsQueryKeys } from '../business-domains/queryKeys';
 import { strategicFitAnalysisQueryKeys } from '../enterprise-architecture/queryKeys';
 import { artifactCreatorsQueryKeys } from '../navigation/hooks/useArtifactCreators';
+import { onePagerQualityQueryKeys } from '../one-pager-quality/queryKeys';
+import { onePagersQueryKeys } from '../one-pagers/queryKeys';
 import { componentsQueryKeys, fitScoresQueryKeys } from './queryKeys';
+
+function onePagerFreshness(componentId: string) {
+  return [onePagersQueryKeys.onePager('application', componentId), onePagerQualityQueryKeys.lists()];
+}
 
 export const componentsMutationEffects = {
   create: () => [componentsQueryKeys.lists(), artifactCreatorsQueryKeys.all],
@@ -12,6 +18,7 @@ export const componentsMutationEffects = {
     componentsQueryKeys.detail(componentId),
     businessDomainsQueryKeys.all,
     auditQueryKeys.history(componentId),
+    ...onePagerFreshness(componentId),
   ],
 
   delete: (componentId: string) => [componentsQueryKeys.lists(), componentsQueryKeys.detail(componentId)],
@@ -21,6 +28,7 @@ export const componentsMutationEffects = {
     componentsQueryKeys.lists(),
     componentsQueryKeys.expertRoles(),
     auditQueryKeys.history(componentId),
+    ...onePagerFreshness(componentId),
   ],
 
   removeExpert: (componentId: string) => [
@@ -28,6 +36,7 @@ export const componentsMutationEffects = {
     componentsQueryKeys.lists(),
     componentsQueryKeys.expertRoles(),
     auditQueryKeys.history(componentId),
+    ...onePagerFreshness(componentId),
   ],
 };
 

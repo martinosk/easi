@@ -7,7 +7,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../../api/types';
 import { createTestQueryClient } from '../../../test/helpers';
 import { theme } from '../../../theme/mantine';
-import type { CustomField, FieldValue, OnePagerConfiguration, OnePagerFacts, OnePagerView, OnePagerViewField } from '../types';
+import type {
+  CustomField,
+  FieldValue,
+  OnePagerConfiguration,
+  OnePagerFacts,
+  OnePagerSubjectType,
+  OnePagerView,
+  OnePagerViewField,
+} from '../types';
 import { OnePagerPage } from './OnePagerPage';
 
 vi.mock('../api/onePagersApi', () => ({
@@ -29,6 +37,11 @@ vi.mock('../../../utils/clipboard', () => ({
   generateOnePagerShareUrl: vi.fn(
     (subjectType: string, subjectId: string) => `https://app.example.com/one-pagers/${subjectType}/${subjectId}`,
   ),
+}));
+
+vi.mock('../components/SubjectDrawer', () => ({
+  SubjectDrawer: ({ opened, subjectType, subjectId }: { opened: boolean; subjectType: string; subjectId: string }) =>
+    opened ? <div data-testid="one-pager-subject-drawer">{`${subjectType}:${subjectId}`}</div> : null,
 }));
 
 import { onePagersApi } from '../api/onePagersApi';
@@ -690,5 +703,78 @@ describe('OnePagerPage', () => {
     expect(onePagersApi.recordFieldValue).not.toHaveBeenCalled();
     expect(onePagersApi.clearFieldValue).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Share (copy URL)' })).toBeInTheDocument();
+  });
+});
+
+describe('OnePagerPage subject drawer', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const labelCases: [OnePagerSubjectType, string][] = [
+    ['capability', 'Open capability'],
+    ['enterprise-capability', 'Open enterprise capability'],
+    ['application', 'Open application'],
+    ['acquired-entity', 'Open acquired entity'],
+    ['vendor', 'Open vendor'],
+    ['internal-team', 'Open internal team'],
+  ];
+
+  it.each(labelCases)('offers an Open button labeled for a %s subject when x-subject is present', async (subjectType, label) => {
+    vi.mocked(onePagersApi.getOnePager).mockResolvedValue(
+      buildView({
+        subjectType,
+        subjectId: 'subj-1',
+        _links: {
+          self: { href: `/api/v1/one-pagers/${subjectType}/subj-1`, method: 'GET' },
+          'x-subject': { href: '/api/v1/subjects/subj-1', method: 'GET' },
+        },
+      }),
+    );
+
+    renderPage(`/one-pagers/${subjectType}/subj-1`);
+
+    expect(await screen.findByRole('button', { name: label })).toBeInTheDocument();
+  });
+
+  it('hides the Open button when the view carries no x-subject link', async () => {
+    vi.mocked(onePagersApi.getOnePager).mockResolvedValue(
+      buildView({ _links: { self: { href: '/api/v1/one-pagers/capability/cap-1', method: 'GET' } } }),
+    );
+
+    renderPage();
+
+    await screen.findByRole('button', { name: 'Share (copy URL)' });
+    expect(screen.queryByRole('button', { name: 'Open capability' })).not.toBeInTheDocument();
+  });
+
+  it('opens the drawer for the viewed subject when the Open button is clicked', async () => {
+    const user = userEvent.setup();
+    vi.mocked(onePagersApi.getOnePager).mockResolvedValue(buildView());
+
+    renderPage();
+
+    expect(screen.queryByTestId('one-pager-subject-drawer')).not.toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: 'Open capability' }));
+
+    expect(await screen.findByTestId('one-pager-subject-drawer')).toHaveTextContent('capability:cap-1');
+  });
+
+  it('does not offer the Open button while facts edit mode is active', async () => {
+    const user = userEvent.setup();
+    vi.mocked(onePagersApi.getOnePager).mockResolvedValue(buildView({ _links: withRecordLink() }));
+    vi.mocked(onePagersApi.getConfiguration).mockResolvedValue(buildConfiguration([]));
+    vi.mocked(onePagersApi.getFacts).mockResolvedValue(buildFacts());
+
+    renderPage();
+    expect(await screen.findByRole('button', { name: 'Open capability' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Edit' }));
+
+    expect(screen.queryByRole('button', { name: 'Open capability' })).not.toBeInTheDocument();
   });
 });

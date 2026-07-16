@@ -2,6 +2,9 @@ import { auditQueryKeys } from '../audit/queryKeys';
 import { layoutsQueryKeys } from '../canvas/queryKeys';
 import { componentsQueryKeys } from '../components/queryKeys';
 import { artifactCreatorsQueryKeys } from '../navigation/hooks/useArtifactCreators';
+import { onePagerQualityQueryKeys } from '../one-pager-quality/queryKeys';
+import { onePagersQueryKeys } from '../one-pagers/queryKeys';
+import type { OnePagerSubjectType } from '../one-pagers/types';
 import {
   acquiredEntitiesQueryKeys,
   internalTeamsQueryKeys,
@@ -17,11 +20,17 @@ interface OriginEntityQueryKeys {
   relationships: (id: string) => readonly string[];
 }
 
-function createOriginEntityMutationEffects(entityQueryKeys: OriginEntityQueryKeys) {
+function createOriginEntityMutationEffects(entityQueryKeys: OriginEntityQueryKeys, subjectType: OnePagerSubjectType) {
   return {
     create: () => [entityQueryKeys.lists(), artifactCreatorsQueryKeys.all],
 
-    update: (id: string) => [entityQueryKeys.lists(), entityQueryKeys.detail(id), auditQueryKeys.history(id)],
+    update: (id: string) => [
+      entityQueryKeys.lists(),
+      entityQueryKeys.detail(id),
+      auditQueryKeys.history(id),
+      onePagersQueryKeys.onePager(subjectType, id),
+      onePagerQualityQueryKeys.lists(),
+    ],
 
     delete: (id: string) => [
       entityQueryKeys.lists(),
@@ -54,6 +63,9 @@ function createOriginEntityMutationEffects(entityQueryKeys: OriginEntityQueryKey
   };
 }
 
-export const acquiredEntitiesMutationEffects = createOriginEntityMutationEffects(acquiredEntitiesQueryKeys);
-export const vendorsMutationEffects = createOriginEntityMutationEffects(vendorsQueryKeys);
-export const internalTeamsMutationEffects = createOriginEntityMutationEffects(internalTeamsQueryKeys);
+export const acquiredEntitiesMutationEffects = createOriginEntityMutationEffects(
+  acquiredEntitiesQueryKeys,
+  'acquired-entity',
+);
+export const vendorsMutationEffects = createOriginEntityMutationEffects(vendorsQueryKeys, 'vendor');
+export const internalTeamsMutationEffects = createOriginEntityMutationEffects(internalTeamsQueryKeys, 'internal-team');

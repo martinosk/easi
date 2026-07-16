@@ -4,7 +4,7 @@ import type { OriginRelationship, Vendor } from '../../../api/types';
 import { DetailField } from '../../../components/shared/DetailField';
 import { hasLink } from '../../../utils/hateoas';
 import { AuditHistorySection } from '../../audit';
-import { OnePagerActionButton } from '../../one-pagers';
+import { OnePagerActionButton } from '../../one-pagers/components/OnePagerActionButton';
 import { OriginEntityActions, OriginEntityRelationshipsList } from './OriginEntityPanelChrome';
 
 interface VendorDetailsProps {

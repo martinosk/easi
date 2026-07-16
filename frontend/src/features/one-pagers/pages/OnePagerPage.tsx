@@ -12,6 +12,7 @@ import { copyToClipboard, generateOnePagerShareUrl } from '../../../utils/clipbo
 import { BuiltInValueDisplay } from '../components/BuiltInValueDisplay';
 import { FactFieldInput } from '../components/FactFieldInput';
 import { FactValueDisplay } from '../components/FactValueDisplay';
+import { SubjectDrawer } from '../components/SubjectDrawer';
 import { activeCustomFieldsInOrder, customFieldViewDisplayProps } from '../factFields';
 import { useOnePager } from '../hooks/useOnePager';
 import { useOnePagerConfiguration } from '../hooks/useOnePagerConfiguration';
@@ -119,18 +120,34 @@ function CompletenessSummary({ completeness }: { completeness: OnePagerCompleten
   );
 }
 
+interface OpenSubjectAction {
+  label: string;
+  onOpen: () => void;
+}
+
 interface OnePagerSheetActionsProps {
   mode: OnePagerMode;
   canEdit: boolean;
   isDirty: boolean;
   isPending: boolean;
+  openSubject?: OpenSubjectAction;
   onShare: () => void;
   onEdit: () => void;
   onSave: () => void;
   onCancel: () => void;
 }
 
-function OnePagerSheetActions({ mode, canEdit, isDirty, isPending, onShare, onEdit, onSave, onCancel }: OnePagerSheetActionsProps) {
+function OnePagerSheetActions({
+  mode,
+  canEdit,
+  isDirty,
+  isPending,
+  openSubject,
+  onShare,
+  onEdit,
+  onSave,
+  onCancel,
+}: OnePagerSheetActionsProps) {
   if (mode === 'edit') {
     return (
       <Group gap="sm">
@@ -148,6 +165,11 @@ function OnePagerSheetActions({ mode, canEdit, isDirty, isPending, onShare, onEd
       {canEdit && (
         <Button variant="default" size="sm" onClick={onEdit}>
           Edit
+        </Button>
+      )}
+      {openSubject && (
+        <Button variant="default" size="sm" onClick={openSubject.onOpen}>
+          {openSubject.label}
         </Button>
       )}
       <Button variant="light" leftSection={<ShareIcon />} onClick={onShare}>
@@ -181,6 +203,7 @@ function useEditableFacts(view: OnePagerView, editing: boolean) {
 
 function OnePagerSheet({ view }: { view: OnePagerView }) {
   const [mode, setMode] = useState<OnePagerMode>('read');
+  const [subjectDrawerOpened, setSubjectDrawerOpened] = useState(false);
   const editing = mode === 'edit';
   const { editableFields, editableFieldsById, facts } = useEditableFacts(view, editing);
   const editForm = useOnePagerFactsForm(editableFields, facts, () => setMode('read'));
@@ -198,6 +221,13 @@ function OnePagerSheet({ view }: { view: OnePagerView }) {
     editForm.cancel();
     setMode('read');
   };
+
+  const openSubject = hasLink(view, 'x-subject')
+    ? {
+        label: `Open ${subjectTypeLabel(view.subjectType).toLowerCase()}`,
+        onOpen: () => setSubjectDrawerOpened(true),
+      }
+    : undefined;
 
   return (
     <Box p="xl">
@@ -218,6 +248,7 @@ function OnePagerSheet({ view }: { view: OnePagerView }) {
               canEdit={hasLink(view, 'x-record')}
               isDirty={editForm.isDirty}
               isPending={editForm.isPending}
+              openSubject={openSubject}
               onShare={handleShare}
               onEdit={() => setMode('edit')}
               onSave={editForm.submit}
@@ -241,6 +272,13 @@ function OnePagerSheet({ view }: { view: OnePagerView }) {
           </Stack>
         </Stack>
       </Paper>
+
+      <SubjectDrawer
+        opened={subjectDrawerOpened}
+        onClose={() => setSubjectDrawerOpened(false)}
+        subjectType={view.subjectType}
+        subjectId={view.subjectId}
+      />
     </Box>
   );
 }

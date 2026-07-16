@@ -1,6 +1,6 @@
 import { Badge, Box, CloseButton, Divider, Group, Paper, Stack, Text, Title } from '@mantine/core';
 import { DirectionPanel } from '../../architecture-direction/components/DirectionPanel';
-import { OnePagerActionButton } from '../../one-pagers';
+import { OnePagerActionButton } from '../../one-pagers/components/OnePagerActionButton';
 import { StandardApplicationPanel } from '../../standard-application/components/StandardApplicationPanel';
 import { useComposition } from '../hooks/useComposition';
 import type { EnterpriseCapability } from '../types';

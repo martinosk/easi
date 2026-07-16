@@ -1,4 +1,3 @@
-import { Center, Group, Loader, Stack, Text } from '@mantine/core';
 import React, { useState } from 'react';
 import type {
   AcquiredEntity,
@@ -10,6 +9,7 @@ import type {
   Vendor,
   VendorId,
 } from '../../../api/types';
+import { DetailPanelFailure, DetailPanelLoading } from '../../../components/shared/DetailPanelStatus';
 import { type OriginEntityType } from '../../../constants/entityIdentifiers';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { useRemoveOriginEntityFromView } from '../../views/hooks/useViews';
@@ -81,28 +81,8 @@ export const OriginEntityDetailsPanel: React.FC<OriginEntityDetailsPanelProps> =
 
   const [showEditDialog, setShowEditDialog] = useState(false);
 
-  if (isLoading) {
-    return (
-      <Stack gap="sm" p="md">
-        <Center py="xl">
-          <Group gap="xs">
-            <Loader size="sm" />
-            <Text c="dimmed">Loading...</Text>
-          </Group>
-        </Center>
-      </Stack>
-    );
-  }
-
-  if (error || !entity) {
-    return (
-      <Stack gap="sm" p="md">
-        <Center py="xl">
-          <Text c="red">Failed to load entity</Text>
-        </Center>
-      </Stack>
-    );
-  }
+  if (isLoading) return <DetailPanelLoading />;
+  if (error || !entity) return <DetailPanelFailure message="Failed to load entity" />;
 
   const relationships = allRelationships.filter(
     (rel) => rel.relationshipType === RELATIONSHIP_TYPES[entityType] && rel.originEntityId === entityId,
