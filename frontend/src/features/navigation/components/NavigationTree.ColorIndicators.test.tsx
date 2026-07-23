@@ -12,19 +12,6 @@ vi.mock('../../../store/appStore', () => ({
   useAppStore: vi.fn(),
 }));
 
-vi.mock('../../canvas/context/CanvasLayoutContext', () => ({
-  useCanvasLayoutContext: vi.fn(() => ({
-    positions: {},
-    isLoading: false,
-    error: null,
-    updateComponentPosition: vi.fn(),
-    updateCapabilityPosition: vi.fn(),
-    batchUpdatePositions: vi.fn(),
-    getPositionForElement: vi.fn(),
-    refetch: vi.fn(),
-  })),
-}));
-
 vi.mock('../../views/hooks/useCurrentView', () => ({
   useCurrentView: vi.fn(),
 }));

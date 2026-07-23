@@ -10,20 +10,20 @@ import type {
   ViewCapability,
 } from '../../../api/types';
 import { makeNodeId, type OriginEntityType } from '../../../constants/entityIdentifiers';
-import type { CanvasPositionMap } from '../hooks/useCanvasLayout';
+
+export type CanvasPositionMap = Record<string, Position>;
 
 const DEFAULT_POSITION: Position = { x: 400, y: 300 };
 
 export const createComponentNode = (
   component: Component,
   currentView: View,
-  layoutPositions: CanvasPositionMap,
+  positions: CanvasPositionMap,
   selectedNodeId: string | null,
 ): Node => {
   const viewComponent = currentView.components.find((vc) => vc.componentId === component.id);
 
-  const layoutPosition = layoutPositions[component.id];
-  const position = layoutPosition ?? DEFAULT_POSITION;
+  const position = positions[component.id] ?? DEFAULT_POSITION;
 
   return {
     id: component.id,
@@ -41,15 +41,14 @@ export const createComponentNode = (
 interface CapabilityNodeParams {
   capabilityId: string;
   capability: Capability;
-  layoutPositions: CanvasPositionMap;
+  positions: CanvasPositionMap;
   viewCapability: ViewCapability | undefined;
   selectedCapabilityId: string | null;
 }
 
 export const createCapabilityNode = (params: CapabilityNodeParams): Node => {
-  const { capabilityId, capability, layoutPositions, viewCapability, selectedCapabilityId } = params;
-  const layoutPosition = layoutPositions[capabilityId];
-  const position = layoutPosition ?? DEFAULT_POSITION;
+  const { capabilityId, capability, positions, viewCapability, selectedCapabilityId } = params;
+  const position = positions[capabilityId] ?? DEFAULT_POSITION;
 
   return {
     id: `cap-${capability.id}`,
@@ -74,16 +73,15 @@ interface OriginEntityNodeParams {
   entityId: string;
   entityType: OriginEntityType;
   name: string;
-  layoutPositions: CanvasPositionMap;
+  positions: CanvasPositionMap;
   selectedOriginEntityId: string | null;
   subtitle?: string;
 }
 
 export const createOriginEntityNode = (params: OriginEntityNodeParams): Node => {
-  const { entityId, entityType, name, layoutPositions, selectedOriginEntityId, subtitle } = params;
+  const { entityId, entityType, name, positions, selectedOriginEntityId, subtitle } = params;
   const nodeId = makeNodeId(entityType, entityId);
-  const layoutPosition = layoutPositions[entityId];
-  const position = layoutPosition ?? DEFAULT_POSITION;
+  const position = positions[entityId] ?? DEFAULT_POSITION;
 
   return {
     id: nodeId,
@@ -100,7 +98,7 @@ export const createOriginEntityNode = (params: OriginEntityNodeParams): Node => 
 
 export const createAcquiredEntityNode = (
   entity: AcquiredEntity,
-  layoutPositions: CanvasPositionMap,
+  positions: CanvasPositionMap,
   selectedOriginEntityId: string | null,
 ): Node => {
   const subtitle = entity.acquisitionDate ? new Date(entity.acquisitionDate).getFullYear().toString() : undefined;
@@ -108,7 +106,7 @@ export const createAcquiredEntityNode = (
     entityId: entity.id,
     entityType: 'acquired',
     name: entity.name,
-    layoutPositions,
+    positions,
     selectedOriginEntityId,
     subtitle,
   });
@@ -116,28 +114,28 @@ export const createAcquiredEntityNode = (
 
 export const createVendorNode = (
   vendor: Vendor,
-  layoutPositions: CanvasPositionMap,
+  positions: CanvasPositionMap,
   selectedOriginEntityId: string | null,
 ): Node =>
   createOriginEntityNode({
     entityId: vendor.id,
     entityType: 'vendor',
     name: vendor.name,
-    layoutPositions,
+    positions,
     selectedOriginEntityId,
     subtitle: vendor.implementationPartner,
   });
 
 export const createInternalTeamNode = (
   team: InternalTeam,
-  layoutPositions: CanvasPositionMap,
+  positions: CanvasPositionMap,
   selectedOriginEntityId: string | null,
 ): Node =>
   createOriginEntityNode({
     entityId: team.id,
     entityType: 'team',
     name: team.name,
-    layoutPositions,
+    positions,
     selectedOriginEntityId,
     subtitle: team.department,
   });

@@ -9,7 +9,6 @@ import { useCallback, useEffect, useState } from 'react';
 import type { Capability } from '../../api/types';
 import { ComponentCanvas, type ComponentCanvasRef } from '../../features/canvas';
 import { CANVAS_COMMANDS_SLOT_ID } from '../../features/canvas/components/CanvasCommandsPortal';
-import { CanvasLayoutProvider } from '../../features/canvas/context/CanvasLayoutContext';
 import { NavigationTree } from '../../features/navigation';
 import { ViewSelector } from '../../features/views';
 import { useCurrentView } from '../../features/views/hooks/useCurrentView';
@@ -217,27 +216,25 @@ export const CanvasWorkspace: React.FC<CanvasWorkspaceProps> = (props) => {
   const { panelVisibility, togglePanel } = usePanelVisibility();
 
   return (
-    <CanvasLayoutProvider>
-      <div className={classes.workspace}>
-        <div className={classes.body}>
-          {panelVisibility.navigation && <ExplorerPane props={props} onCollapse={() => togglePanel('navigation')} />}
-          <div className={classes.canvasPane} data-testid="canvas-pane">
-            <CanvasHeaderBar panelVisibility={panelVisibility} togglePanel={togglePanel} />
-            <div className={classes.canvasFlowWrapper}>
-              <ErrorBoundary
-                fallback={(error, reset) => <FeatureErrorFallback featureName="Canvas" error={error} onReset={reset} />}
-              >
-                <ComponentCanvas
-                  ref={props.canvasRef}
-                  onConnect={props.onConnect}
-                  onComponentDrop={props.onComponentDrop}
-                />
-              </ErrorBoundary>
-            </div>
+    <div className={classes.workspace}>
+      <div className={classes.body}>
+        {panelVisibility.navigation && <ExplorerPane props={props} onCollapse={() => togglePanel('navigation')} />}
+        <div className={classes.canvasPane} data-testid="canvas-pane">
+          <CanvasHeaderBar panelVisibility={panelVisibility} togglePanel={togglePanel} />
+          <div className={classes.canvasFlowWrapper}>
+            <ErrorBoundary
+              fallback={(error, reset) => <FeatureErrorFallback featureName="Canvas" error={error} onReset={reset} />}
+            >
+              <ComponentCanvas
+                ref={props.canvasRef}
+                onConnect={props.onConnect}
+                onComponentDrop={props.onComponentDrop}
+              />
+            </ErrorBoundary>
           </div>
-          {panelVisibility.details && <DetailsPane props={props} onCollapse={() => togglePanel('details')} />}
         </div>
+        {panelVisibility.details && <DetailsPane props={props} onCollapse={() => togglePanel('details')} />}
       </div>
-    </CanvasLayoutProvider>
+    </div>
   );
 };

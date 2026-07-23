@@ -14,12 +14,6 @@ const createWrapper = () => {
   );
 };
 
-const mockLayoutPositions: Record<string, { x: number; y: number }> = {};
-
-vi.mock('../context/CanvasLayoutContext', () => ({
-  useCanvasLayoutContext: () => ({ positions: mockLayoutPositions }),
-}));
-
 vi.mock('../../components/hooks/useComponents', () => ({
   useComponents: () => ({
     data: [
@@ -93,9 +87,6 @@ function seedDraft(state: Partial<ReturnType<typeof useAppStore.getState>>) {
 
 describe('Canvas in dynamic mode', () => {
   beforeEach(() => {
-    for (const key of Object.keys(mockLayoutPositions)) {
-      delete mockLayoutPositions[key];
-    }
     seedDraft({
       dynamicViewId: 'view-1',
       dynamicEntities: [
@@ -141,8 +132,7 @@ describe('Canvas in dynamic mode', () => {
     expect(ids).toEqual(['comp-2']);
   });
 
-  it('uses draft positions over layout positions', () => {
-    mockLayoutPositions['comp-1'] = { x: 0, y: 0 };
+  it('uses draft positions over persisted view positions', () => {
     seedDraft({
       dynamicPositions: { 'comp-1': { x: 999, y: 999 } },
     });

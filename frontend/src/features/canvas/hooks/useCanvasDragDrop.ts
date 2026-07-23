@@ -4,7 +4,6 @@ import { useAppStore } from '../../../store/appStore';
 import { canEdit } from '../../../utils/hateoas';
 import type { MultiDragPayload, TreeItemType } from '../../navigation/hooks/useTreeMultiSelect';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
-import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
 import type { EntityRef, EntityType } from '../utils/dynamicMode';
 import { buildSnapshotFromView } from './useDynamicSnapshot';
 
@@ -119,7 +118,6 @@ export const useCanvasDragDrop = (
   _onComponentDrop?: (componentId: string, x: number, y: number) => void,
 ) => {
   const { currentViewId, currentView } = useCurrentView();
-  const { positions: layoutPositions } = useCanvasLayoutContext();
   const draftAddEntities = useAppStore((s) => s.draftAddEntities);
   const enterDynamicMode = useAppStore((s) => s.enterDynamicMode);
   const dynamicViewId = useAppStore((s) => s.dynamicViewId);
@@ -137,7 +135,7 @@ export const useCanvasDragDrop = (
 
       const isDraftForCurrentView = dynamicViewId === currentViewId;
       if (!isDraftForCurrentView) {
-        enterDynamicMode(buildSnapshotFromView(currentView!, layoutPositions), currentViewId);
+        enterDynamicMode(buildSnapshotFromView(currentView!), currentViewId);
       }
 
       const position = reactFlowInstance!.screenToFlowPosition({ x: event.clientX, y: event.clientY });
@@ -154,7 +152,6 @@ export const useCanvasDragDrop = (
       currentView,
       dynamicViewId,
       dynamicEntities,
-      layoutPositions,
       enterDynamicMode,
       draftAddEntities,
     ],

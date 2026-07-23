@@ -16,12 +16,6 @@ const createWrapper = () => {
   );
 };
 
-const mockLayoutPositions: Record<string, { x: number; y: number }> = {};
-
-vi.mock('../context/CanvasLayoutContext', () => ({
-  useCanvasLayoutContext: () => ({ positions: mockLayoutPositions }),
-}));
-
 vi.mock('../../components/hooks/useComponents', () => ({
   useComponents: () => ({
     data: [
@@ -31,8 +25,10 @@ vi.mock('../../components/hooks/useComponents', () => ({
   }),
 }));
 
+let mockCapabilities: { id: string; name: string; level: number }[] = [];
+
 vi.mock('../../capabilities/hooks/useCapabilities', () => ({
-  useCapabilities: () => ({ data: [] }),
+  useCapabilities: () => ({ data: mockCapabilities }),
 }));
 
 vi.mock('../../../store/appStore', () => ({
@@ -40,14 +36,21 @@ vi.mock('../../../store/appStore', () => ({
 }));
 
 const mockCurrentView: {
-  components: { componentId: ComponentId }[];
-  capabilities: unknown[];
+  components: { componentId: ComponentId; x?: number; y?: number }[];
+  capabilities: { capabilityId: string; x: number; y: number }[];
   originEntities: { originEntityId: string; x: number; y: number }[];
 } = {
-  components: [{ componentId: 'comp-1' as ComponentId }, { componentId: 'comp-2' as ComponentId }],
+  components: [],
   capabilities: [],
   originEntities: [],
 };
+
+function defaultViewComponents(): { componentId: ComponentId; x?: number; y?: number }[] {
+  return [
+    { componentId: 'comp-1' as ComponentId, x: 10, y: 20 },
+    { componentId: 'comp-2' as ComponentId, x: 30, y: 40 },
+  ];
+}
 
 vi.mock('../../views/hooks/useCurrentView', () => ({
   useCurrentView: () => ({ currentView: mockCurrentView }),
@@ -104,11 +107,11 @@ function renderAndGetAcquiredEntityNodes() {
 
 describe('useCanvasNodes', () => {
   beforeEach(() => {
-    for (const key of Object.keys(mockLayoutPositions)) {
-      delete mockLayoutPositions[key];
-    }
     mockOriginRelationships = [];
     mockCurrentView.originEntities = [];
+    mockCurrentView.components = defaultViewComponents();
+    mockCurrentView.capabilities = [];
+    mockCapabilities = [];
   });
 
   describe('origin entity nodes with relationships', () => {
@@ -167,6 +170,37 @@ describe('useCanvasNodes', () => {
       const componentNodes = result.current.filter((n) => !n.id.startsWith('acq-') && !n.id.startsWith('cap-'));
       expect(componentNodes).toHaveLength(2);
       expect(componentNodes.map((n) => n.id).sort()).toEqual(['comp-1', 'comp-2']);
+    });
+  });
+
+  describe('node positions outside draft mode', () => {
+    const positionOf = (id: string) => {
+      const { result } = renderHook(() => useCanvasNodes(), { wrapper: createWrapper() });
+      return result.current.find((n) => n.id === id)?.position;
+    };
+
+    it('should position components from view coordinates', () => {
+      expect(positionOf('comp-1')).toEqual({ x: 10, y: 20 });
+      expect(positionOf('comp-2')).toEqual({ x: 30, y: 40 });
+    });
+
+    it('should position capabilities from view coordinates', () => {
+      mockCapabilities = [{ id: 'cap-1', name: 'Capability 1', level: 1 }];
+      mockCurrentView.capabilities = [{ capabilityId: 'cap-1', x: 55, y: 66 }];
+
+      expect(positionOf('cap-cap-1')).toEqual({ x: 55, y: 66 });
+    });
+
+    it('should position origin entities from view coordinates', () => {
+      addOriginEntityToView('ae-1', 120, 130);
+
+      expect(positionOf('acq-ae-1')).toEqual({ x: 120, y: 130 });
+    });
+
+    it('should place an element with no view coordinates at the canvas default position', () => {
+      mockCurrentView.components = [{ componentId: 'comp-1' as ComponentId }];
+
+      expect(positionOf('comp-1')).toEqual({ x: 400, y: 300 });
     });
   });
 });

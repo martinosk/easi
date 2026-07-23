@@ -12,14 +12,14 @@ import type {
 import { createAcquiredEntityNode, createInternalTeamNode, createOriginEntityNode, createVendorNode } from './nodeFactory';
 
 describe('createOriginEntityNode', () => {
-  const emptyLayoutPositions = {};
-  const layoutWithPosition = { '123': { x: 100, y: 200 } };
+  const emptyPositions = {};
+  const viewWithPosition = { '123': { x: 100, y: 200 } };
 
   const makeParams = (overrides = {}) => ({
     entityId: '123',
     entityType: 'acquired' as const,
     name: 'TechCorp',
-    layoutPositions: emptyLayoutPositions,
+    positions: emptyPositions,
     selectedOriginEntityId: null as string | null,
     ...overrides,
   });
@@ -45,12 +45,12 @@ describe('createOriginEntityNode', () => {
     expect(node.data.entityType).toBe('team');
   });
 
-  it('should use layout position when available', () => {
-    const node = createOriginEntityNode(makeParams({ layoutPositions: layoutWithPosition }));
+  it('should use the stored position when available', () => {
+    const node = createOriginEntityNode(makeParams({ positions: viewWithPosition }));
     expect(node.position).toEqual({ x: 100, y: 200 });
   });
 
-  it('should use default position when not in layout', () => {
+  it('should use default position when no position is stored', () => {
     const node = createOriginEntityNode(makeParams({ entityId: '999' }));
     expect(node.position).toEqual({ x: 400, y: 300 });
   });
@@ -78,7 +78,7 @@ describe('createOriginEntityNode', () => {
 
 describe('createAcquiredEntityNode', () => {
   const mockLinks: HATEOASLinks = { self: { href: '/acquired-entities/123', method: 'GET' } };
-  const emptyLayoutPositions = {};
+  const emptyPositions = {};
 
   const createMockAcquiredEntity = (overrides = {}): AcquiredEntity => ({
     id: 'ae-123' as AcquiredEntityId,
@@ -94,39 +94,39 @@ describe('createAcquiredEntityNode', () => {
 
   it('should create node with correct entity ID prefix', () => {
     const entity = createMockAcquiredEntity();
-    const node = createAcquiredEntityNode(entity, emptyLayoutPositions, null);
+    const node = createAcquiredEntityNode(entity, emptyPositions, null);
     expect(node.id).toBe('acq-ae-123');
     expect(node.type).toBe('originEntity');
   });
 
   it('should use entity name as label', () => {
     const entity = createMockAcquiredEntity({ name: 'AcmeCo' });
-    const node = createAcquiredEntityNode(entity, emptyLayoutPositions, null);
+    const node = createAcquiredEntityNode(entity, emptyPositions, null);
     expect(node.data.label).toBe('AcmeCo');
   });
 
   it('should extract year from acquisition date for subtitle', () => {
     const entity = createMockAcquiredEntity({ acquisitionDate: '2021-03-15' });
-    const node = createAcquiredEntityNode(entity, emptyLayoutPositions, null);
+    const node = createAcquiredEntityNode(entity, emptyPositions, null);
     expect(node.data.subtitle).toBe('2021');
   });
 
   it('should not include subtitle when acquisition date is undefined', () => {
     const entity = createMockAcquiredEntity({ acquisitionDate: undefined });
-    const node = createAcquiredEntityNode(entity, emptyLayoutPositions, null);
+    const node = createAcquiredEntityNode(entity, emptyPositions, null);
     expect(node.data.subtitle).toBeUndefined();
   });
 
   it('should set entity type to acquired', () => {
     const entity = createMockAcquiredEntity();
-    const node = createAcquiredEntityNode(entity, emptyLayoutPositions, null);
+    const node = createAcquiredEntityNode(entity, emptyPositions, null);
     expect(node.data.entityType).toBe('acquired');
   });
 });
 
 describe('createVendorNode', () => {
   const mockLinks: HATEOASLinks = { self: { href: '/vendors/456', method: 'GET' } };
-  const emptyLayoutPositions = {};
+  const emptyPositions = {};
 
   const createMockVendor = (overrides = {}): Vendor => ({
     id: 'v-456' as VendorId,
@@ -141,39 +141,39 @@ describe('createVendorNode', () => {
 
   it('should create node with correct entity ID prefix', () => {
     const vendor = createMockVendor();
-    const node = createVendorNode(vendor, emptyLayoutPositions, null);
+    const node = createVendorNode(vendor, emptyPositions, null);
     expect(node.id).toBe('vendor-v-456');
     expect(node.type).toBe('originEntity');
   });
 
   it('should use vendor name as label', () => {
     const vendor = createMockVendor({ name: 'Microsoft' });
-    const node = createVendorNode(vendor, emptyLayoutPositions, null);
+    const node = createVendorNode(vendor, emptyPositions, null);
     expect(node.data.label).toBe('Microsoft');
   });
 
   it('should use implementation partner as subtitle', () => {
     const vendor = createMockVendor({ implementationPartner: 'Deloitte' });
-    const node = createVendorNode(vendor, emptyLayoutPositions, null);
+    const node = createVendorNode(vendor, emptyPositions, null);
     expect(node.data.subtitle).toBe('Deloitte');
   });
 
   it('should not include subtitle when implementation partner is undefined', () => {
     const vendor = createMockVendor({ implementationPartner: undefined });
-    const node = createVendorNode(vendor, emptyLayoutPositions, null);
+    const node = createVendorNode(vendor, emptyPositions, null);
     expect(node.data.subtitle).toBeUndefined();
   });
 
   it('should set entity type to vendor', () => {
     const vendor = createMockVendor();
-    const node = createVendorNode(vendor, emptyLayoutPositions, null);
+    const node = createVendorNode(vendor, emptyPositions, null);
     expect(node.data.entityType).toBe('vendor');
   });
 });
 
 describe('createInternalTeamNode', () => {
   const mockLinks: HATEOASLinks = { self: { href: '/internal-teams/789', method: 'GET' } };
-  const emptyLayoutPositions = {};
+  const emptyPositions = {};
 
   const createMockInternalTeam = (overrides = {}): InternalTeam => ({
     id: 'it-789' as InternalTeamId,
@@ -189,32 +189,32 @@ describe('createInternalTeamNode', () => {
 
   it('should create node with correct entity ID prefix', () => {
     const team = createMockInternalTeam();
-    const node = createInternalTeamNode(team, emptyLayoutPositions, null);
+    const node = createInternalTeamNode(team, emptyPositions, null);
     expect(node.id).toBe('team-it-789');
     expect(node.type).toBe('originEntity');
   });
 
   it('should use team name as label', () => {
     const team = createMockInternalTeam({ name: 'Data Team' });
-    const node = createInternalTeamNode(team, emptyLayoutPositions, null);
+    const node = createInternalTeamNode(team, emptyPositions, null);
     expect(node.data.label).toBe('Data Team');
   });
 
   it('should use department as subtitle', () => {
     const team = createMockInternalTeam({ department: 'Engineering' });
-    const node = createInternalTeamNode(team, emptyLayoutPositions, null);
+    const node = createInternalTeamNode(team, emptyPositions, null);
     expect(node.data.subtitle).toBe('Engineering');
   });
 
   it('should not include subtitle when department is undefined', () => {
     const team = createMockInternalTeam({ department: undefined });
-    const node = createInternalTeamNode(team, emptyLayoutPositions, null);
+    const node = createInternalTeamNode(team, emptyPositions, null);
     expect(node.data.subtitle).toBeUndefined();
   });
 
   it('should set entity type to team', () => {
     const team = createMockInternalTeam();
-    const node = createInternalTeamNode(team, emptyLayoutPositions, null);
+    const node = createInternalTeamNode(team, emptyPositions, null);
     expect(node.data.entityType).toBe('team');
   });
 });

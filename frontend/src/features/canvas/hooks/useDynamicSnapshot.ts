@@ -4,35 +4,17 @@ import { useAppStore } from '../../../store/appStore';
 import type { DraftEntry, DynamicModeSnapshot } from '../../../store/slices/dynamicModeSlice';
 import { canEdit } from '../../../utils/hateoas';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
-import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
-import type { EntityRef } from '../utils/dynamicMode';
+import { viewPositions } from '../utils/viewPositions';
+import { entitiesFromView } from './useCanvasNodes';
 
-type Position = { x: number; y: number };
-
-export function buildSnapshotFromView(view: View, layoutPositions: Record<string, Position>): DynamicModeSnapshot {
-  const entities: EntityRef[] = [];
-  const positions: Record<string, Position> = {};
-
-  for (const c of view.components) {
-    entities.push({ id: c.componentId, type: 'component' });
-    positions[c.componentId] = layoutPositions[c.componentId] ?? { x: c.x, y: c.y };
-  }
-  for (const cap of view.capabilities ?? []) {
-    entities.push({ id: cap.capabilityId, type: 'capability' });
-    positions[cap.capabilityId] = layoutPositions[cap.capabilityId] ?? { x: cap.x, y: cap.y };
-  }
-  for (const oe of view.originEntities ?? []) {
-    entities.push({ id: oe.originEntityId, type: 'originEntity' });
-    positions[oe.originEntityId] = { x: oe.x, y: oe.y };
-  }
-  return { entities, positions };
+export function buildSnapshotFromView(view: View): DynamicModeSnapshot {
+  return { entities: entitiesFromView(view), positions: viewPositions(view) };
 }
 
 interface DynamicSnapshotInputs {
   currentView: View | null;
   currentViewId: ViewId | null;
   dynamicViewId: string | null;
-  layoutPositions: Record<string, Position>;
   draftsByView: Record<string, DraftEntry>;
 }
 
@@ -64,12 +46,11 @@ function applySwitch(inputs: DynamicSnapshotInputs, prevViewId: string | null, a
   }
   if (actions.hydrateDraftForView(viewId)) return;
   if (inputs.draftsByView[viewId]) return;
-  actions.enterDynamicMode(buildSnapshotFromView(view, inputs.layoutPositions), viewId);
+  actions.enterDynamicMode(buildSnapshotFromView(view), viewId);
 }
 
 export function useDynamicSnapshot(): void {
   const { currentView, currentViewId } = useCurrentView();
-  const { positions: layoutPositions } = useCanvasLayoutContext();
   const dynamicViewId = useAppStore((s) => s.dynamicViewId);
   const draftsByView = useAppStore((s) => s.draftsByView);
   const enterDynamicMode = useAppStore((s) => s.enterDynamicMode);
@@ -83,7 +64,6 @@ export function useDynamicSnapshot(): void {
       currentView,
       currentViewId,
       dynamicViewId,
-      layoutPositions,
       draftsByView,
     };
     if (shouldExit(inputs)) {
@@ -104,7 +84,6 @@ export function useDynamicSnapshot(): void {
     currentView,
     currentViewId,
     dynamicViewId,
-    layoutPositions,
     draftsByView,
     enterDynamicMode,
     exitDynamicMode,

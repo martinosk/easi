@@ -17,7 +17,6 @@ import { useAcquiredEntitiesQuery } from '../../origin-entities/hooks/useAcquire
 import { useInternalTeamsQuery } from '../../origin-entities/hooks/useInternalTeams';
 import { useVendorsQuery } from '../../origin-entities/hooks/useVendors';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
-import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
 import type { EntityRef } from '../utils/dynamicMode';
 import {
   createAcquiredEntityNode,
@@ -26,6 +25,7 @@ import {
   createInternalTeamNode,
   createVendorNode,
 } from '../utils/nodeFactory';
+import { viewPositions } from '../utils/viewPositions';
 
 interface NodeBuildContext {
   positions: Record<string, Position>;
@@ -64,7 +64,7 @@ function buildCapabilityNode(id: string, ctx: NodeBuildContext): Node | null {
   return createCapabilityNode({
     capabilityId: id,
     capability,
-    layoutPositions: ctx.positions,
+    positions: ctx.positions,
     viewCapability,
     selectedCapabilityId: ctx.selectedCapabilityId,
   });
@@ -91,26 +91,17 @@ function buildNodesFromRefs(refs: readonly EntityRef[], ctx: NodeBuildContext): 
   return nodes;
 }
 
-function originEntityPositions(view: View): Record<string, Position> {
-  const out: Record<string, Position> = {};
-  for (const oe of view.originEntities ?? []) out[oe.originEntityId] = { x: oe.x, y: oe.y };
-  return out;
-}
-
 function selectRefsAndPositions(
   draftActive: boolean,
   dynamicEntities: readonly EntityRef[],
   dynamicPositions: Record<string, Position>,
-  layoutPositions: Record<string, Position>,
   view: View,
 ): { refs: readonly EntityRef[]; positions: Record<string, Position> } {
+  const persisted = viewPositions(view);
   if (draftActive) {
-    return { refs: dynamicEntities, positions: { ...layoutPositions, ...dynamicPositions } };
+    return { refs: dynamicEntities, positions: { ...persisted, ...dynamicPositions } };
   }
-  return {
-    refs: entitiesFromView(view),
-    positions: { ...layoutPositions, ...originEntityPositions(view) },
-  };
+  return { refs: entitiesFromView(view), positions: persisted };
 }
 
 export const useCanvasNodes = (): Node[] => {
@@ -119,7 +110,6 @@ export const useCanvasNodes = (): Node[] => {
   const selectedNodeId = useAppStore((state) => state.selectedNodeId);
   const { data: capabilities = [] } = useCapabilities();
   const selectedCapabilityId = useAppStore((state) => state.selectedCapabilityId);
-  const { positions: layoutPositions } = useCanvasLayoutContext();
   const { data: acquiredEntities = [] } = useAcquiredEntitiesQuery();
   const { data: vendors = [] } = useVendorsQuery();
   const { data: internalTeams = [] } = useInternalTeamsQuery();
@@ -131,13 +121,7 @@ export const useCanvasNodes = (): Node[] => {
 
   return useMemo(() => {
     if (!currentView) return [];
-    const { refs, positions } = selectRefsAndPositions(
-      draftActive,
-      dynamicEntities,
-      dynamicPositions,
-      layoutPositions,
-      currentView,
-    );
+    const { refs, positions } = selectRefsAndPositions(draftActive, dynamicEntities, dynamicPositions, currentView);
     return buildNodesFromRefs(refs, {
       positions,
       currentView,
@@ -155,7 +139,6 @@ export const useCanvasNodes = (): Node[] => {
     selectedNodeId,
     capabilities,
     selectedCapabilityId,
-    layoutPositions,
     acquiredEntities,
     vendors,
     internalTeams,

@@ -10,19 +10,6 @@ vi.mock('../../views/hooks/useViews', () => ({
   useView: vi.fn(),
 }));
 
-vi.mock('../context/CanvasLayoutContext', () => ({
-  useCanvasLayoutContext: () => ({
-    positions: {},
-    isLoading: false,
-    error: null,
-    updateComponentPosition: vi.fn(),
-    updateCapabilityPosition: vi.fn(),
-    batchUpdatePositions: vi.fn(),
-    getPositionForElement: () => null,
-    refetch: vi.fn(),
-  }),
-}));
-
 const { useView } = await import('../../views/hooks/useViews');
 const mockUseView = vi.mocked(useView);
 

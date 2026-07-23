@@ -3,18 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { View } from '../../../api/types';
 import { useAppStore } from '../../../store/appStore';
 import { selectDirtyForView } from '../../../store/slices/dynamicModeSlice';
-import { useDynamicSnapshot } from './useDynamicSnapshot';
+import { buildSnapshotFromView, useDynamicSnapshot } from './useDynamicSnapshot';
 
 let currentViewState: { currentView: View | null; currentViewId: string | null } = {
   currentView: null,
   currentViewId: null,
 };
-
-const mockLayoutPositions: Record<string, { x: number; y: number }> = {};
-
-vi.mock('../context/CanvasLayoutContext', () => ({
-  useCanvasLayoutContext: () => ({ positions: mockLayoutPositions }),
-}));
 
 vi.mock('../../views/hooks/useCurrentView', () => ({
   useCurrentView: () => currentViewState,
@@ -40,6 +34,45 @@ function makeView(id: string, componentIds: string[]): View {
 function setActiveView(view: View | null) {
   currentViewState = { currentView: view, currentViewId: view?.id ?? null };
 }
+
+describe('buildSnapshotFromView', () => {
+  function viewAt(componentId: string, x: number, y: number): View {
+    const view = makeView('view-a', [componentId]);
+    view.components = [{ componentId, x, y }] as View['components'];
+    return view;
+  }
+
+  it('seeds positions from view coordinates', () => {
+    const snapshot = buildSnapshotFromView(viewAt('comp-1', 12, 34));
+
+    expect(snapshot.positions['comp-1']).toEqual({ x: 12, y: 34 });
+  });
+
+  it('seeds capability and origin entity positions from view coordinates', () => {
+    const view = makeView('view-a', []);
+    view.capabilities = [{ capabilityId: 'cap-1', x: 55, y: 66 }] as View['capabilities'];
+    view.originEntities = [{ originEntityId: 'oe-1', x: 77, y: 88 }] as View['originEntities'];
+
+    const snapshot = buildSnapshotFromView(view);
+
+    expect(snapshot.positions['cap-1']).toEqual({ x: 55, y: 66 });
+    expect(snapshot.positions['oe-1']).toEqual({ x: 77, y: 88 });
+    expect(snapshot.entities).toEqual([
+      { id: 'cap-1', type: 'capability' },
+      { id: 'oe-1', type: 'originEntity' },
+    ]);
+  });
+
+  it('seeds no position for an element the view has no coordinates for', () => {
+    const view = makeView('view-a', ['comp-1']);
+    view.components = [{ componentId: 'comp-1' }] as unknown as View['components'];
+
+    const snapshot = buildSnapshotFromView(view);
+
+    expect(snapshot.entities).toEqual([{ id: 'comp-1', type: 'component' }]);
+    expect(snapshot.positions['comp-1']).toBeUndefined();
+  });
+});
 
 describe('useDynamicSnapshot — per-view drafts', () => {
   beforeEach(() => {

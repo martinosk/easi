@@ -2,32 +2,32 @@ import type { Node, ReactFlowInstance } from '@xyflow/react';
 import { useReactFlow } from '@xyflow/react';
 import { useCallback, useState } from 'react';
 import toast from 'react-hot-toast';
+import { toCapabilityId, toComponentId } from '../../../api/types';
+import { getEntityId, toNodeId } from '../../../constants/entityIdentifiers';
 import { useAppStore } from '../../../store/appStore';
 import { calculateAutoLayout } from '../../../utils/autoLayout';
 import { canEdit } from '../../../utils/hateoas';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
-import { useUpdateOriginEntityPosition } from '../../views/hooks/useViews';
-import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
-
-function toLayoutUpdate(node: Node) {
-  return {
-    elementId: node.type === 'capability' ? node.id.replace('cap-', '') : node.id,
-    x: node.position.x,
-    y: node.position.y,
-  };
-}
+import {
+  useUpdateCapabilityPosition,
+  useUpdateMultiplePositions,
+  useUpdateOriginEntityPosition,
+} from '../../views/hooks/useViews';
 
 function partitionByType(nodes: Node[]) {
-  const layout: Node[] = [];
+  const components: Node[] = [];
+  const capabilities: Node[] = [];
   const origin: Node[] = [];
   for (const node of nodes) {
-    (node.type === 'originEntity' ? origin : layout).push(node);
+    if (node.type === 'originEntity') origin.push(node);
+    else if (node.type === 'capability') capabilities.push(node);
+    else components.push(node);
   }
-  return { layout, origin };
+  return { components, capabilities, origin };
 }
 
 function nodeEntityId(node: Node): string {
-  return node.type === 'capability' ? node.id.replace('cap-', '') : node.id;
+  return getEntityId(toNodeId(node.id));
 }
 
 function fitAfterRender(reactFlow: ReactFlowInstance) {
@@ -52,30 +52,45 @@ function useDraftApply() {
 }
 
 function useServerApply() {
-  const { batchUpdatePositions } = useCanvasLayoutContext();
   const { currentViewId } = useCurrentView();
+  const updateMultiplePositionsMutation = useUpdateMultiplePositions();
+  const updateCapabilityPositionMutation = useUpdateCapabilityPosition();
   const updateOriginEntityPositionMutation = useUpdateOriginEntityPosition();
 
   return useCallback(
     async (nodes: Node[]) => {
       if (!currentViewId) return;
-      const { layout, origin } = partitionByType(nodes);
-      if (layout.length > 0) {
-        await batchUpdatePositions(layout.map(toLayoutUpdate));
+      const { components, capabilities, origin } = partitionByType(nodes);
+      if (components.length > 0) {
+        await updateMultiplePositionsMutation.mutateAsync({
+          viewId: currentViewId,
+          request: {
+            positions: components.map((node) => ({
+              componentId: toComponentId(node.id),
+              x: node.position.x,
+              y: node.position.y,
+            })),
+          },
+        });
       }
-      if (origin.length > 0) {
-        await Promise.all(
-          origin.map((node) =>
-            updateOriginEntityPositionMutation.mutateAsync({
-              viewId: currentViewId,
-              originEntityId: node.id,
-              position: { x: node.position.x, y: node.position.y },
-            }),
-          ),
-        );
-      }
+      await Promise.all([
+        ...capabilities.map((node) =>
+          updateCapabilityPositionMutation.mutateAsync({
+            viewId: currentViewId,
+            capabilityId: toCapabilityId(nodeEntityId(node)),
+            position: { x: node.position.x, y: node.position.y },
+          }),
+        ),
+        ...origin.map((node) =>
+          updateOriginEntityPositionMutation.mutateAsync({
+            viewId: currentViewId,
+            originEntityId: nodeEntityId(node),
+            position: { x: node.position.x, y: node.position.y },
+          }),
+        ),
+      ]);
     },
-    [currentViewId, batchUpdatePositions, updateOriginEntityPositionMutation],
+    [currentViewId, updateMultiplePositionsMutation, updateCapabilityPositionMutation, updateOriginEntityPositionMutation],
   );
 }
 

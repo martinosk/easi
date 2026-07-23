@@ -1,7 +1,25 @@
 # ViewLayouts Bounded Context
 
 ## Status
-**Done** - New bounded context to separate presentation concerns (layout/positions) from domain concerns (view membership).
+**Done, partially reversed** - New bounded context to separate presentation concerns (layout/positions) from domain concerns (view membership). Slices 1-9 were implemented. Slice 10 (Cleanup) was never done, and that omission caused a production incident. Canvas positions are being consolidated back into ArchitectureViews by spec 192.
+
+## Outcome (recorded 2026-07-23)
+
+Slice 10 was deferred with the note *"verify in production first"* and never revisited. Because the old `view_element_positions` store was left live and writable alongside the new one, the authoritative store for component and capability positions changed twice without anyone deciding it should:
+
+| Period | Positions written to |
+|--------|----------------------|
+| until 2025-11-30 | `architectureviews.view_element_positions` |
+| 2025-11-30 → 2026-04-26 | `viewlayouts.element_positions` (this spec's cutover) |
+| 2026-04-26 onward | `architectureviews.view_element_positions` (spec 164 routed canvas saves through the views API) |
+
+Consequences:
+
+- **Production incident.** The canvas kept reading positions from ViewLayouts while all writes went elsewhere, so views whose layout container was empty rendered every component and capability stacked at the canvas default origin. Read-only views showed this directly; editable views were masked because draft mode reseeded positions from the view.
+- **Split data.** Which store holds a view's current positions depends on when that view was last edited. No single store is authoritative for the whole estate.
+- **Slice 8 undone.** The Business Domain grid consumer (`useGridPositions`) was deleted by spec 179's UI redesign and replaced with a computed CSS grid that persists no positions. `business-domain-grid` has had no caller since 2026-07-11, though its layout containers still exist in the database.
+
+The domain/presentation separation this spec introduced no longer has a second consumer. Spec 192 reconciles the split position data, returns canvas position ownership to ArchitectureViews, and retires the ViewLayouts context — code, tables and schema.
 
 ## Problem Statement
 
@@ -176,6 +194,8 @@ Create generic layout management hook.
 
 ### Slice 8: Migrate Business Domain Grid
 
+**Implemented, then undone by spec 179.** `useGridPositions` was deleted in the UI redesign (2026-07-11) and replaced by a computed CSS grid that persists no positions. `business-domain-grid` has had no caller since.
+
 Update Business Domain visualization to use new API.
 
 - [x] Update `useGridPositions` hook to use `useLayout('business-domain-grid', domainId)`
@@ -186,6 +206,8 @@ Update Business Domain visualization to use new API.
 - [x] Test concurrent editing works
 
 ### Slice 9: Migrate Architecture Canvas
+
+**Implemented, then reversed by spec 192.** Spec 164 (2026-04-26) routed canvas saves back through the views API without removing this read path, leaving the canvas reading a store nothing wrote to. Spec 192 returns canvas position ownership to ArchitectureViews.
 
 Update Architecture Canvas to use new API for positions.
 
@@ -200,10 +222,12 @@ Update Architecture Canvas to use new API for positions.
 
 Remove deprecated code and old tables.
 
-- [ ] Remove view-related position methods from old API client
-- [ ] Remove `view_element_positions` table (migration)
-- [ ] Remove `view_preferences` table (migration)
-- [ ] Remove position-related events from ArchitectureViews aggregate
+**Not done. Abandoned — see Outcome above.** These items are superseded by spec 192, which takes the opposite direction: `view_element_positions` is retained as the single source of truth and the canvas stops using ViewLayouts. Do not implement this slice as written.
+
+- [ ] ~~Remove view-related position methods from old API client~~ — superseded by spec 192
+- [ ] ~~Remove `view_element_positions` table (migration)~~ — superseded by spec 192; this table becomes the surviving store
+- [ ] ~~Remove `view_preferences` table (migration)~~ — superseded by spec 192
+- [ ] ~~Remove position-related events from ArchitectureViews aggregate~~ — superseded by spec 192
 - [ ] Update documentation
 
 ---
@@ -282,5 +306,5 @@ Preferences: PATCH (requires version in ETag/If-Match)
 - [x] Event handlers for model sync complete
 - [x] Unit tests passing
 - [ ] Integration tests passing
-- [ ] Old code cleaned up (deferred - verify in production first)
+- [ ] Old code cleaned up — **abandoned**; the deferral caused a production incident (see Outcome). Superseded by spec 192.
 - [ ] User sign-off
