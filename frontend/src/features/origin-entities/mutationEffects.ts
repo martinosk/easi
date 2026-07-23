@@ -1,10 +1,10 @@
 import { auditQueryKeys } from '../audit/queryKeys';
-import { layoutsQueryKeys } from '../canvas/queryKeys';
 import { componentsQueryKeys } from '../components/queryKeys';
 import { artifactCreatorsQueryKeys } from '../navigation/hooks/useArtifactCreators';
 import { onePagerQualityQueryKeys } from '../one-pager-quality/queryKeys';
 import { onePagersQueryKeys } from '../one-pagers/queryKeys';
 import type { OnePagerSubjectType } from '../one-pagers/types';
+import { viewsQueryKeys } from '../views/queryKeys';
 import {
   acquiredEntitiesQueryKeys,
   internalTeamsQueryKeys,
@@ -38,7 +38,7 @@ function createOriginEntityMutationEffects(entityQueryKeys: OriginEntityQueryKey
       componentsQueryKeys.lists(),
       componentsQueryKeys.details(),
       originRelationshipsQueryKeys.lists(),
-      layoutsQueryKeys.all,
+      viewsQueryKeys.all,
     ],
 
     linkComponent: (entityId: string, componentId: string) => [

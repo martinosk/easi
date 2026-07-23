@@ -1,5 +1,4 @@
 export { businessDomainsApi } from '../features/business-domains/api';
-export { layoutsApi } from '../features/canvas/api';
 export { capabilitiesApi } from '../features/capabilities/api';
 export { componentsApi } from '../features/components/api';
 export { relationsApi } from '../features/relations/api';

@@ -1,5 +1,4 @@
 import { businessDomainsApi } from '../features/business-domains/api';
-import { layoutsApi } from '../features/canvas/api';
 import { capabilitiesApi } from '../features/capabilities/api';
 import { componentsApi } from '../features/components/api';
 import { relationsApi } from '../features/relations/api';
@@ -11,8 +10,6 @@ import type {
   AddCapabilityToViewRequest,
   AddComponentToViewRequest,
   AssociateCapabilityRequest,
-  BatchUpdateItem,
-  BatchUpdateResponse,
   BusinessDomain,
   BusinessDomainId,
   Capability,
@@ -28,11 +25,6 @@ import type {
   CreateComponentRequest,
   CreateRelationRequest,
   CreateViewRequest,
-  ElementPosition,
-  ElementPositionInput,
-  LayoutContainer,
-  LayoutContainerSummary,
-  LayoutContextType,
   LinkSystemToCapabilityRequest,
   OwnershipModelOption,
   Position,
@@ -50,7 +42,6 @@ import type {
   UpdateRealizationRequest,
   UpdateViewColorSchemeRequest,
   UpdateViewEdgeTypeRequest,
-  UpsertLayoutRequest,
   View,
   ViewComponent,
   ViewId,
@@ -343,51 +334,6 @@ class ApiClient {
     return businessDomainsApi.getCapabilityRealizations(domainId, depth);
   }
 
-  async getLayout(contextType: LayoutContextType, contextRef: string): Promise<LayoutContainer | null> {
-    return layoutsApi.get(contextType, contextRef);
-  }
-
-  async upsertLayout(
-    contextType: LayoutContextType,
-    contextRef: string,
-    request: UpsertLayoutRequest = {},
-  ): Promise<LayoutContainer> {
-    return layoutsApi.upsert(contextType, contextRef, request);
-  }
-
-  async deleteLayout(contextType: LayoutContextType, contextRef: string): Promise<void> {
-    return layoutsApi.delete(contextType, contextRef);
-  }
-
-  async updateLayoutPreferences(
-    contextType: LayoutContextType,
-    contextRef: string,
-    preferences: Record<string, unknown>,
-    version: number,
-  ): Promise<LayoutContainerSummary> {
-    return layoutsApi.updatePreferences(contextType, contextRef, preferences, version);
-  }
-
-  async upsertElementPosition(
-    contextType: LayoutContextType,
-    contextRef: string,
-    elementId: string,
-    position: ElementPositionInput,
-  ): Promise<ElementPosition> {
-    return layoutsApi.upsertElement(contextType, contextRef, elementId, position);
-  }
-
-  async deleteElementPosition(contextType: LayoutContextType, contextRef: string, elementId: string): Promise<void> {
-    return layoutsApi.deleteElement(contextType, contextRef, elementId);
-  }
-
-  async batchUpdateElements(
-    contextType: LayoutContextType,
-    contextRef: string,
-    updates: BatchUpdateItem[],
-  ): Promise<BatchUpdateResponse> {
-    return layoutsApi.batchUpdateElements(contextType, contextRef, updates);
-  }
 }
 
 export const apiClient = new ApiClient();

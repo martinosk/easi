@@ -48,7 +48,6 @@ import (
 	"easi/backend/internal/shared/events"
 	vsAdapters "easi/backend/internal/valuestreams/infrastructure/adapters"
 	valuestreamsAPI "easi/backend/internal/valuestreams/infrastructure/api"
-	viewlayoutsAPI "easi/backend/internal/viewlayouts/infrastructure/api"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
@@ -314,9 +313,6 @@ func setupDomainRoutes(r chi.Router, deps routerDependencies) {
 		DomainExists:                  directionServices.DomainExists(existsByID(capReadModels.NewBusinessDomainReadModel(deps.db).GetByID)),
 		CapabilityEffectivelyInDomain: capabilityEffectivelyInDomain(capReadModels.NewCMEffectiveBusinessDomainReadModel(deps.db)),
 	}), "architecture direction routes")
-
-	viewlayoutsAPI.SubscribeEvents(deps.eventBus, deps.db)
-	viewlayoutsAPI.RegisterRoutes(r, deps.db, deps.hateoas, deps.authDeps.AuthMiddleware)
 
 	mustSetup(metamodelAPI.SetupMetaModelRoutes(metamodelAPI.MetaModelRoutesDeps{
 		Router:          r,

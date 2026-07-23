@@ -15,7 +15,6 @@ All locations are relative to `/backend/internal/`.
 | Enterprise Architecture | Core | Enable cross-domain capability analysis, standardization tracking, and maturity gap analysis | `enterprisearchitecture/` | [Canvas](./EnterpriseArchitecture.md) |
 | Value Streams | Core | Model value streams with stages and map business capabilities to each stage | `valuestreams/` | — |
 | Access Delegation | Supporting | Manage temporary edit grants for specific users on specific artifacts | `accessdelegation/` | — |
-| View Layouts | Supporting | Persist element positions, colors, and preferences for layout contexts | `viewlayouts/` | — |
 | Releases | Generic | Track and communicate platform releases and version history | `releases/` | [Canvas](./Releases.md) |
 | Arch Assistant | Supporting | AI-powered conversational assistant for exploring and modifying enterprise architecture | `archassistant/` | [Canvas](./ArchAssistant.md) |
 | Architecture Direction | Core | Govern architectural direction decisions — standardization, migration horizons, technology placement | `architecturedirection/` | — |
@@ -40,14 +39,14 @@ All locations are relative to `/backend/internal/`.
 | Value Streams        |    | Architecture Views  |    | Access Delegation         |
 | (Stage-Cap Mapping)  |    | (Views/Layouts)     |    | (Edit Grants)             |
 | [Core Domain]        |    | [Supporting Domain] |    | [Supporting Domain]       |
-└──────────────────────┘    └─────────┬───────────┘    └───────────────┬───────────┘
-        ^                             | Events (ViewDeleted)           | Events
-        | Events                      v                                | (EditGrantForNonUserCreated)
-        | (Capability lifecycle)┌──────────────────┐                   v
-        |                     | View Layouts     |           ┌────────────────┐
-┌───────────────────────┐     | (Position/Style) |           | Auth           |
-| Capability Mapping    |◄────| [Supporting]     |           | (Users/Invites)|
-| (Cap-to-System Map)  |     └──────────────────┘           | [Supporting]   |
+└──────────────────────┘    └─────────────────────┘    └───────────────┬───────────┘
+        ^                                                              | Events
+        | Events                                                       | (EditGrantForNonUserCreated)
+        | (Capability lifecycle)                                       v
+        |                                                    ┌────────────────┐
+┌───────────────────────┐                                    | Auth           |
+| Capability Mapping    |                                    | (Users/Invites)|
+| (Cap-to-System Map)  |                                     | [Supporting]   |
 | [Core Domain]         |                                    └────────────────┘
 └───────┬───────────────┘
         |                  ┌────────────────────────────┐
@@ -104,7 +103,6 @@ flowchart LR
     CM[Capability Mapping]
     MM[MetaModel]
     EA[Enterprise Architecture]
-    VL[View Layouts]
     AD[Access Delegation]
     AU[Auth]
     VS[Value Streams]
@@ -113,7 +111,6 @@ flowchart LR
     AM -->|ComponentCreated/Updated/Deleted| CM
     AM -->|ComponentCreated/Updated/Deleted| ADR
     AM -->|ComponentDeleted, RelationDeleted| AV
-    AM -->|ComponentDeleted| VL
     AM -->|ComponentDeleted, VendorDeleted, AcquiredEntityDeleted, InternalTeamDeleted| AD
 
     MM -->|PillarAdded/Updated/Removed, FitConfigUpdated, ConfigurationCreated| CM
@@ -121,10 +118,8 @@ flowchart LR
     MM -->|MaturityScaleConfigUpdated/Reset| CM
 
     CM -->|CapabilityCreated/Updated/Deleted, ParentChanged, AssignedToDomain, UnassignedFromDomain| EA
-    CM -->|CapabilityDeleted, BusinessDomainDeleted| VL
     CM -->|CapabilityDeleted, BusinessDomainDeleted| AD
 
-    AV -->|ViewDeleted| VL
     AV -->|ViewDeleted| AD
 
     AD -->|EditGrantForNonUserCreated| AU
@@ -146,17 +141,14 @@ flowchart LR
 |----------|-----------|--------------|---------------------|
 | Architecture Modeling | Architecture Views | Customer-Supplier | Event-driven (component/relation deletions) |
 | Architecture Modeling | Capability Mapping | Customer-Supplier | Event-driven (component CRUD) + Query (component read model) |
-| Architecture Modeling | View Layouts | Customer-Supplier | Event-driven (component deletion cleanup) |
 | Architecture Modeling | Access Delegation | Customer-Supplier | Event-driven (artifact deletion revokes grants) |
 | Architecture Modeling | Architecture Direction | Customer-Supplier | Event-driven (component CRUD for stale detection) |
 | MetaModel | Capability Mapping | Published Language | Event-driven (pillar/maturity config) + Query (configuration gateway) |
 | MetaModel | Enterprise Architecture | Published Language | Event-driven (pillar config) + Query (pillar cache) |
 | Capability Mapping | Enterprise Architecture | Customer-Supplier | Event-driven (capability lifecycle, domain assignments) |
-| Capability Mapping | View Layouts | Customer-Supplier | Event-driven (capability/domain deletion cleanup) |
 | Capability Mapping | Access Delegation | Customer-Supplier | Event-driven (artifact deletion revokes grants) |
 | Capability Mapping | Value Streams | Customer-Supplier | Event-driven (capability lifecycle via local cache projector) |
 | Capability Mapping | Architecture Direction | Customer-Supplier | Event-driven (capability/domain lifecycle for stale detection) |
-| Architecture Views | View Layouts | Customer-Supplier | Event-driven (view deletion cleanup) |
 | Architecture Views | Access Delegation | Customer-Supplier | Event-driven (artifact deletion revokes grants) |
 | Access Delegation | Auth | Customer-Supplier | Event-driven (auto-invite non-users) |
 | Auth | Arch Assistant | Customer-Supplier | Event-driven (TenantCreated provisions AI configuration) |

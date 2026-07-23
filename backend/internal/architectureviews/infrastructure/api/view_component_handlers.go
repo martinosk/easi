@@ -171,7 +171,7 @@ func (h *ViewComponentHandlers) UpdateComponentPosition(w http.ResponseWriter, r
 // @Failure 400 {object} sharedAPI.ErrorResponse
 // @Failure 403 {object} sharedAPI.ErrorResponse
 // @Failure 500 {object} sharedAPI.ErrorResponse
-// @Router /views/{id}/positions [patch]
+// @Router /views/{id}/layout [patch]
 func (h *ViewComponentHandlers) UpdateMultiplePositions(w http.ResponseWriter, r *http.Request) {
 	viewID := sharedAPI.GetPathParam(r, "id")
 

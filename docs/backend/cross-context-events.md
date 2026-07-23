@@ -235,27 +235,6 @@ Every event subscription that crosses a bounded context boundary is documented b
 | `StrategyPillarRemoved` | `StrategyPillarCacheProjector` | same | Remove pillar from cache |
 | `PillarFitConfigurationUpdated` | `StrategyPillarCacheProjector` | same | Update fit scoring config in cache |
 
-### View Layouts consumes from:
-
-**Architecture Modeling** (`archPL`):
-
-| Event | Handler | Wired In | Purpose |
-|-------|---------|----------|---------|
-| `ApplicationComponentDeleted` | `ComponentDeletedHandler` | `viewlayouts/infrastructure/api/routes.go` `SubscribeEvents()` | Remove element positions for deleted component |
-
-**Capability Mapping** (`cmPL`):
-
-| Event | Handler | Wired In | Purpose |
-|-------|---------|----------|---------|
-| `CapabilityDeleted` | `CapabilityDeletedHandler` | same | Remove element positions for deleted capability |
-| `BusinessDomainDeleted` | `BusinessDomainDeletedHandler` | same | Remove layout container for deleted domain |
-
-**Architecture Views** (`avPL`):
-
-| Event | Handler | Wired In | Purpose |
-|-------|---------|----------|---------|
-| `ViewDeleted` | `ViewDeletedHandler` | same | Remove layout container for deleted view |
-
 ### Value Streams consumes from:
 
 **Capability Mapping** (`cmPL`):
@@ -336,7 +315,6 @@ When adding a new deletable artifact type:
 
 - [ ] Add `<ArtifactType>Deleted` constant to the publisher's published language
 - [ ] Subscribe `ArtifactDeletionProjector` in Access Delegation for grant cleanup
-- [ ] Subscribe cleanup handler in View Layouts if the artifact can appear in layouts
 - [ ] Verify all downstream read models that reference the artifact are cleaned up
 
 ## Query-Based Integration (Non-Event)

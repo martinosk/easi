@@ -14,7 +14,6 @@ export type EnterpriseCapabilityId = Branded<string, 'EnterpriseCapabilityId'>;
 export type EnterpriseCapabilityLinkId = Branded<string, 'EnterpriseCapabilityLinkId'>;
 export type StandardApplicationId = Branded<string, 'StandardApplicationId'>;
 export type EnterpriseStrategicImportanceId = Branded<string, 'EnterpriseStrategicImportanceId'>;
-export type LayoutContainerId = Branded<string, 'LayoutContainerId'>;
 export type StrategyImportanceId = Branded<string, 'StrategyImportanceId'>;
 export type AcquiredEntityId = Branded<string, 'AcquiredEntityId'>;
 export type VendorId = Branded<string, 'VendorId'>;
@@ -55,7 +54,6 @@ export const toStandardApplicationId = createBrandedFactory<StandardApplicationI
 export const toEnterpriseStrategicImportanceId = createBrandedFactory<EnterpriseStrategicImportanceId>(
   'EnterpriseStrategicImportanceId',
 );
-export const toLayoutContainerId = createBrandedFactory<LayoutContainerId>('LayoutContainerId');
 export const toStrategyImportanceId = createBrandedFactory<StrategyImportanceId>('StrategyImportanceId');
 export const toAcquiredEntityId = createBrandedFactory<AcquiredEntityId>('AcquiredEntityId');
 export const toVendorId = createBrandedFactory<VendorId>('VendorId');
@@ -75,7 +73,6 @@ export const isBusinessDomainId = createBrandedTypeGuard<BusinessDomainId>();
 export const isEnterpriseCapabilityId = createBrandedTypeGuard<EnterpriseCapabilityId>();
 export const isEnterpriseCapabilityLinkId = createBrandedTypeGuard<EnterpriseCapabilityLinkId>();
 export const isEnterpriseStrategicImportanceId = createBrandedTypeGuard<EnterpriseStrategicImportanceId>();
-export const isLayoutContainerId = createBrandedTypeGuard<LayoutContainerId>();
 export const isStrategyImportanceId = createBrandedTypeGuard<StrategyImportanceId>();
 export const isAcquiredEntityId = createBrandedTypeGuard<AcquiredEntityId>();
 export const isVendorId = createBrandedTypeGuard<VendorId>();
@@ -571,98 +568,6 @@ export interface ReorderStagesRequest {
 
 export interface AddStageCapabilityRequest {
   capabilityId: string;
-}
-
-export type LayoutContextType = 'architecture-canvas' | 'business-domain-grid';
-
-export interface LayoutLink {
-  href: string;
-  method?: string;
-}
-
-export interface LayoutLinks {
-  self?: LayoutLink;
-  updatePreferences?: LayoutLink;
-  batchUpdate?: LayoutLink;
-  delete?: LayoutLink;
-  layout?: LayoutLink;
-  update?: LayoutLink;
-}
-
-export interface ElementPositionLinks {
-  self?: LayoutLink;
-  layout?: LayoutLink;
-  update?: LayoutLink;
-  delete?: LayoutLink;
-}
-
-export interface ElementPosition {
-  elementId: string;
-  x: number;
-  y: number;
-  width?: number;
-  height?: number;
-  customColor?: string;
-  sortOrder?: number;
-  _links: ElementPositionLinks;
-}
-
-export interface LayoutContainer {
-  id: LayoutContainerId;
-  contextType: LayoutContextType;
-  contextRef: string;
-  preferences: Record<string, unknown>;
-  elements: ElementPosition[];
-  version: number;
-  createdAt: string;
-  updatedAt: string;
-  _links: LayoutLinks;
-}
-
-export interface LayoutContainerSummary {
-  id: LayoutContainerId;
-  contextType: LayoutContextType;
-  contextRef: string;
-  preferences: Record<string, unknown>;
-  version: number;
-  _links: LayoutLinks;
-}
-
-export interface UpsertLayoutRequest {
-  preferences?: Record<string, unknown>;
-}
-
-export interface UpdatePreferencesRequest {
-  preferences: Record<string, unknown>;
-}
-
-export interface ElementPositionInput {
-  x: number;
-  y: number;
-  width?: number;
-  height?: number;
-  customColor?: string;
-  sortOrder?: number;
-}
-
-export interface BatchUpdateItem {
-  elementId: string;
-  x: number;
-  y: number;
-  width?: number;
-  height?: number;
-  customColor?: string;
-  sortOrder?: number;
-}
-
-export interface BatchUpdateRequest {
-  updates: BatchUpdateItem[];
-}
-
-export interface BatchUpdateResponse {
-  updated: number;
-  elements: ElementPosition[];
-  _links: LayoutLinks;
 }
 
 export interface CapabilityRealizationsGroup {

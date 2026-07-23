@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { realizationRoleQueryKeys, timeAssessmentQueryKeys } from '../features/architecture-direction/queryKeys';
 import { auditQueryKeys } from '../features/audit/queryKeys';
 import { businessDomainsQueryKeys } from '../features/business-domains/queryKeys';
-import { layoutsQueryKeys } from '../features/canvas/queryKeys';
+import { viewsQueryKeys } from '../features/views/queryKeys';
 import { capabilitiesMutationEffects } from '../features/capabilities/mutationEffects';
 import { capabilitiesQueryKeys } from '../features/capabilities/queryKeys';
 import { componentsMutationEffects } from '../features/components/mutationEffects';
@@ -131,10 +131,10 @@ describe('mutationEffects', () => {
   });
 
   describe('acquiredEntities.delete', () => {
-    it('should invalidate layouts cache to remove deleted entity from canvas', () => {
+    it('should invalidate views cache to remove deleted entity from canvas', () => {
       const effects = acquiredEntitiesMutationEffects.delete('entity-1');
 
-      expect(effects).toContainEqual(layoutsQueryKeys.all);
+      expect(effects).toContainEqual(viewsQueryKeys.all);
     });
 
     it('should invalidate entity lists and detail', () => {
@@ -146,10 +146,10 @@ describe('mutationEffects', () => {
   });
 
   describe('vendors.delete', () => {
-    it('should invalidate layouts cache to remove deleted vendor from canvas', () => {
+    it('should invalidate views cache to remove deleted vendor from canvas', () => {
       const effects = vendorsMutationEffects.delete('vendor-1');
 
-      expect(effects).toContainEqual(layoutsQueryKeys.all);
+      expect(effects).toContainEqual(viewsQueryKeys.all);
     });
 
     it('should invalidate vendor lists and detail', () => {
@@ -161,10 +161,10 @@ describe('mutationEffects', () => {
   });
 
   describe('internalTeams.delete', () => {
-    it('should invalidate layouts cache to remove deleted team from canvas', () => {
+    it('should invalidate views cache to remove deleted team from canvas', () => {
       const effects = internalTeamsMutationEffects.delete('team-1');
 
-      expect(effects).toContainEqual(layoutsQueryKeys.all);
+      expect(effects).toContainEqual(viewsQueryKeys.all);
     });
 
     it('should invalidate team lists and detail', () => {

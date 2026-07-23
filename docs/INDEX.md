@@ -25,7 +25,6 @@ Quick reference for navigating EASI documentation.
 | ArchitectureViews | [docs/architecture/ArchitectureViews.md](architecture/ArchitectureViews.md) | Supporting | Implemented |
 | MetaModel | [docs/architecture/MetaModel.md](architecture/MetaModel.md) | Supporting | Implemented |
 | AccessDelegation | [docs/architecture/README.md](architecture/README.md) | Supporting | Implemented |
-| ViewLayouts | [docs/architecture/README.md](architecture/README.md) | Supporting | Implemented |
 | ArchAssistant | [docs/architecture/ArchAssistant.md](architecture/ArchAssistant.md) | Supporting | Implemented |
 | ArchitectureDirection | [docs/architecture/README.md](architecture/README.md) | Core | Implemented |
 | OnePagers | [docs/architecture/OnePagers.md](architecture/OnePagers.md) | Supporting | Implemented |
