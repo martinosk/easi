@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"easi/backend/internal/architecturedirection/application/readmodels"
 	amPL "easi/backend/internal/architecturemodeling/publishedlanguage"
 	authPL "easi/backend/internal/auth/publishedlanguage"
 	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
@@ -16,12 +17,12 @@ import (
 
 type mockCapabilityJourneyReferenceStore struct {
 	cachedNames     map[string]string
-	capabilityName  []string
-	capabilityStale []string
-	componentName   []string
-	componentStale  []string
-	domainName      []string
-	domainStale     []string
+	capabilityName  []readmodels.CapabilityID
+	capabilityStale []readmodels.CapabilityID
+	componentName   []readmodels.ComponentID
+	componentStale  []readmodels.ComponentID
+	domainName      []readmodels.BusinessDomainID
+	domainStale     []readmodels.BusinessDomainID
 	plannedByName   []string
 }
 
@@ -29,37 +30,37 @@ func newMockCapabilityJourneyReferenceStore() *mockCapabilityJourneyReferenceSto
 	return &mockCapabilityJourneyReferenceStore{cachedNames: map[string]string{}}
 }
 
-func (m *mockCapabilityJourneyReferenceStore) CacheReferenceName(_ context.Context, entityType, entityID, name string) error {
-	m.cachedNames[entityType+"|"+entityID] = name
+func (m *mockCapabilityJourneyReferenceStore) CacheReferenceName(_ context.Context, entity readmodels.ReferenceEntity, entityID, name string) error {
+	m.cachedNames[string(entity)+"|"+entityID] = name
 	return nil
 }
 
-func (m *mockCapabilityJourneyReferenceStore) UpdateCapabilityName(_ context.Context, capabilityID, _ string) error {
+func (m *mockCapabilityJourneyReferenceStore) UpdateCapabilityName(_ context.Context, capabilityID readmodels.CapabilityID, _ string) error {
 	m.capabilityName = append(m.capabilityName, capabilityID)
 	return nil
 }
 
-func (m *mockCapabilityJourneyReferenceStore) MarkCapabilityStale(_ context.Context, capabilityID string) error {
+func (m *mockCapabilityJourneyReferenceStore) MarkCapabilityStale(_ context.Context, capabilityID readmodels.CapabilityID) error {
 	m.capabilityStale = append(m.capabilityStale, capabilityID)
 	return nil
 }
 
-func (m *mockCapabilityJourneyReferenceStore) UpdateComponentName(_ context.Context, componentID, _ string) error {
+func (m *mockCapabilityJourneyReferenceStore) UpdateComponentName(_ context.Context, componentID readmodels.ComponentID, _ string) error {
 	m.componentName = append(m.componentName, componentID)
 	return nil
 }
 
-func (m *mockCapabilityJourneyReferenceStore) MarkComponentStale(_ context.Context, componentID string) error {
+func (m *mockCapabilityJourneyReferenceStore) MarkComponentStale(_ context.Context, componentID readmodels.ComponentID) error {
 	m.componentStale = append(m.componentStale, componentID)
 	return nil
 }
 
-func (m *mockCapabilityJourneyReferenceStore) UpdateDomainName(_ context.Context, domainID, _ string) error {
+func (m *mockCapabilityJourneyReferenceStore) UpdateDomainName(_ context.Context, domainID readmodels.BusinessDomainID, _ string) error {
 	m.domainName = append(m.domainName, domainID)
 	return nil
 }
 
-func (m *mockCapabilityJourneyReferenceStore) MarkDomainStale(_ context.Context, domainID string) error {
+func (m *mockCapabilityJourneyReferenceStore) MarkDomainStale(_ context.Context, domainID readmodels.BusinessDomainID) error {
 	m.domainStale = append(m.domainStale, domainID)
 	return nil
 }
@@ -84,7 +85,7 @@ func TestCapabilityJourneyReferenceProjector_CapabilityCreated_UpdatesName(t *te
 	require.NoError(t, projectJourneyReferenceEvent(t, projector, cmPL.CapabilityCreated, map[string]interface{}{"id": capID, "name": "Booking management"}))
 
 	assert.Equal(t, "Booking management", store.cachedNames["capability|"+capID])
-	assert.Contains(t, store.capabilityName, capID)
+	assert.Contains(t, store.capabilityName, readmodels.CapabilityID(capID))
 }
 
 func TestCapabilityJourneyReferenceProjector_CapabilityDeleted_MarksStale(t *testing.T) {
@@ -94,7 +95,7 @@ func TestCapabilityJourneyReferenceProjector_CapabilityDeleted_MarksStale(t *tes
 
 	require.NoError(t, projectJourneyReferenceEvent(t, projector, cmPL.CapabilityDeleted, map[string]interface{}{"id": capID}))
 
-	assert.Contains(t, store.capabilityStale, capID)
+	assert.Contains(t, store.capabilityStale, readmodels.CapabilityID(capID))
 }
 
 func TestCapabilityJourneyReferenceProjector_ApplicationComponentCreated_UpdatesName(t *testing.T) {
@@ -105,7 +106,7 @@ func TestCapabilityJourneyReferenceProjector_ApplicationComponentCreated_Updates
 	require.NoError(t, projectJourneyReferenceEvent(t, projector, amPL.ApplicationComponentCreated, map[string]interface{}{"id": compID, "name": "Phoenix"}))
 
 	assert.Equal(t, "Phoenix", store.cachedNames["application|"+compID])
-	assert.Contains(t, store.componentName, compID)
+	assert.Contains(t, store.componentName, readmodels.ComponentID(compID))
 }
 
 func TestCapabilityJourneyReferenceProjector_ApplicationComponentDeleted_MarksStale(t *testing.T) {
@@ -115,7 +116,7 @@ func TestCapabilityJourneyReferenceProjector_ApplicationComponentDeleted_MarksSt
 
 	require.NoError(t, projectJourneyReferenceEvent(t, projector, amPL.ApplicationComponentDeleted, map[string]interface{}{"id": compID, "name": "Phoenix"}))
 
-	assert.Contains(t, store.componentStale, compID)
+	assert.Contains(t, store.componentStale, readmodels.ComponentID(compID))
 }
 
 func TestCapabilityJourneyReferenceProjector_BusinessDomainCreated_UpdatesName(t *testing.T) {
@@ -126,7 +127,7 @@ func TestCapabilityJourneyReferenceProjector_BusinessDomainCreated_UpdatesName(t
 	require.NoError(t, projectJourneyReferenceEvent(t, projector, cmPL.BusinessDomainCreated, map[string]interface{}{"id": domID, "name": "Group functions"}))
 
 	assert.Equal(t, "Group functions", store.cachedNames["business_domain|"+domID])
-	assert.Contains(t, store.domainName, domID)
+	assert.Contains(t, store.domainName, readmodels.BusinessDomainID(domID))
 }
 
 func TestCapabilityJourneyReferenceProjector_BusinessDomainDeleted_MarksStale(t *testing.T) {
@@ -136,7 +137,7 @@ func TestCapabilityJourneyReferenceProjector_BusinessDomainDeleted_MarksStale(t 
 
 	require.NoError(t, projectJourneyReferenceEvent(t, projector, cmPL.BusinessDomainDeleted, map[string]interface{}{"id": domID}))
 
-	assert.Contains(t, store.domainStale, domID)
+	assert.Contains(t, store.domainStale, readmodels.BusinessDomainID(domID))
 }
 
 func TestCapabilityJourneyReferenceProjector_UserCreated_CachesPlannedByName(t *testing.T) {

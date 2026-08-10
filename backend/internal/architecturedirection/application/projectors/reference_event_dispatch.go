@@ -19,7 +19,7 @@ func dispatchReferenceEvent(ctx context.Context, event domain.DomainEvent, proje
 	return project(ctx, event.EventType(), eventData)
 }
 
-func dispatchByReferenceID(ctx context.Context, eventData []byte, run func(context.Context, string) error) error {
+func dispatchByReferenceID[ID ~string](ctx context.Context, eventData []byte, run func(context.Context, ID) error) error {
 	var payload struct {
 		ID string `json:"id"`
 	}
@@ -29,14 +29,14 @@ func dispatchByReferenceID(ctx context.Context, eventData []byte, run func(conte
 	if payload.ID == "" {
 		return nil
 	}
-	return run(ctx, payload.ID)
+	return run(ctx, ID(payload.ID))
 }
 
-func dispatchReferenceNameChange(
+func dispatchReferenceNameChange[ID ~string](
 	ctx context.Context,
 	eventData []byte,
-	cache func(context.Context, string, string) error,
-	update func(context.Context, string, string) error,
+	cache func(context.Context, ID, string) error,
+	update func(context.Context, ID, string) error,
 ) error {
 	var payload struct {
 		ID   string `json:"id"`
@@ -48,10 +48,10 @@ func dispatchReferenceNameChange(
 	if payload.ID == "" {
 		return nil
 	}
-	if err := cache(ctx, payload.ID, payload.Name); err != nil {
+	if err := cache(ctx, ID(payload.ID), payload.Name); err != nil {
 		return err
 	}
-	return update(ctx, payload.ID, payload.Name)
+	return update(ctx, ID(payload.ID), payload.Name)
 }
 
 func dispatchReferenceUserCreated(ctx context.Context, eventData []byte, save func(context.Context, string, string) error) error {

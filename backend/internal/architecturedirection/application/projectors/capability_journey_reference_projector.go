@@ -3,6 +3,7 @@ package projectors
 import (
 	"context"
 
+	"easi/backend/internal/architecturedirection/application/readmodels"
 	amPL "easi/backend/internal/architecturemodeling/publishedlanguage"
 	authPL "easi/backend/internal/auth/publishedlanguage"
 	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
@@ -10,13 +11,13 @@ import (
 )
 
 type CapabilityJourneyReferenceStore interface {
-	CacheReferenceName(ctx context.Context, entityType, entityID, name string) error
-	UpdateCapabilityName(ctx context.Context, capabilityID, name string) error
-	MarkCapabilityStale(ctx context.Context, capabilityID string) error
-	UpdateComponentName(ctx context.Context, componentID, name string) error
-	MarkComponentStale(ctx context.Context, componentID string) error
-	UpdateDomainName(ctx context.Context, domainID, name string) error
-	MarkDomainStale(ctx context.Context, domainID string) error
+	CacheReferenceName(ctx context.Context, entity readmodels.ReferenceEntity, entityID, name string) error
+	UpdateCapabilityName(ctx context.Context, capabilityID readmodels.CapabilityID, name string) error
+	MarkCapabilityStale(ctx context.Context, capabilityID readmodels.CapabilityID) error
+	UpdateComponentName(ctx context.Context, componentID readmodels.ComponentID, name string) error
+	MarkComponentStale(ctx context.Context, componentID readmodels.ComponentID) error
+	UpdateDomainName(ctx context.Context, domainID readmodels.BusinessDomainID, name string) error
+	MarkDomainStale(ctx context.Context, domainID readmodels.BusinessDomainID) error
 	UpdatePlannedByName(ctx context.Context, email, name string) error
 }
 
@@ -53,14 +54,14 @@ func (p *CapabilityJourneyReferenceProjector) ProjectEvent(ctx context.Context, 
 	}
 }
 
-func (p *CapabilityJourneyReferenceProjector) cacheCapabilityName(ctx context.Context, id, name string) error {
-	return p.readModel.CacheReferenceName(ctx, "capability", id, name)
+func (p *CapabilityJourneyReferenceProjector) cacheCapabilityName(ctx context.Context, id readmodels.CapabilityID, name string) error {
+	return p.readModel.CacheReferenceName(ctx, readmodels.ReferenceEntityCapability, string(id), name)
 }
 
-func (p *CapabilityJourneyReferenceProjector) cacheComponentName(ctx context.Context, id, name string) error {
-	return p.readModel.CacheReferenceName(ctx, "application", id, name)
+func (p *CapabilityJourneyReferenceProjector) cacheComponentName(ctx context.Context, id readmodels.ComponentID, name string) error {
+	return p.readModel.CacheReferenceName(ctx, readmodels.ReferenceEntityApplication, string(id), name)
 }
 
-func (p *CapabilityJourneyReferenceProjector) cacheDomainName(ctx context.Context, id, name string) error {
-	return p.readModel.CacheReferenceName(ctx, "business_domain", id, name)
+func (p *CapabilityJourneyReferenceProjector) cacheDomainName(ctx context.Context, id readmodels.BusinessDomainID, name string) error {
+	return p.readModel.CacheReferenceName(ctx, readmodels.ReferenceEntityBusinessDomain, string(id), name)
 }
