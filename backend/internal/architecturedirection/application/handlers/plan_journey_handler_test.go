@@ -148,7 +148,7 @@ func TestPlanJourneyHandler_KindCardinalityViolation_Fails(t *testing.T) {
 		sources int
 	}{
 		{"migration with zero from-apps rejected (rule 3)", valueobjects.JourneyKindMigration, 0},
-		{"consolidation with one from-app rejected (rule 3)", valueobjects.JourneyKindConsolidation, 1},
+		{"consolidation with zero from-apps rejected (rule 3)", valueobjects.JourneyKindConsolidation, 0},
 		{"carve-out with two from-apps rejected (rule 3)", valueobjects.JourneyKindCarveOut, 2},
 	}
 	for _, tc := range cases {

@@ -38,7 +38,7 @@ func TestJourneyKind_ValidateSourceCount_Rule3(t *testing.T) {
 		{"migration", 1, true},
 		{"migration", 3, true},
 		{"consolidation", 0, false},
-		{"consolidation", 1, false},
+		{"consolidation", 1, true},
 		{"consolidation", 2, true},
 		{"consolidation", 5, true},
 		{"carve-out", 0, false},

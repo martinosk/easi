@@ -33,8 +33,13 @@ describe('captureJourneySchema — kind cardinality (spec 182 rule 3)', () => {
     expect(result.success).toBe(true);
   });
 
-  it('rejects a consolidation with fewer than two from-apps', () => {
+  it('accepts a consolidation with one from-app (spec 194 rule 3)', () => {
     const result = captureJourneySchema.safeParse(makeBase({ kind: 'consolidation', fromComponentIds: ['comp-a'] }));
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a consolidation with zero from-apps', () => {
+    const result = captureJourneySchema.safeParse(makeBase({ kind: 'consolidation', fromComponentIds: [] }));
     expect(result.success).toBe(false);
   });
 

@@ -1,6 +1,6 @@
 # 194 — Consolidation Implicit Sources
 
-> **Status:** pending
+> **Status:** done
 > **Depends on:** 182 (Capability Journey), 193 (Move Journey Target Among Realisations)
 
 ---
@@ -81,14 +81,14 @@ Feature: Consolidation journey with implicit sources
 
 ## Acceptance Criteria
 
-- [ ] For kind `consolidation`, the capture form shows no source field, offers the full catalog as targets, and submits `fromComponentIds` = current realisations minus the selected target, recomputed on target change
-- [ ] A consolidation capture on a capability with fewer than two current realisations is blocked in the form with an explanatory message
-- [ ] A consolidation with exactly one source application is accepted end-to-end (form validation, API, aggregate); zero sources remains rejected
-- [ ] Changing sources on an active consolidation journey accepts one source and rejects zero
-- [ ] `migration` and `carve-out` capture behavior, including source field and cardinality rules, is unchanged
-- [ ] API documentation reflects the relaxed consolidation cardinality
-- [ ] Every BDD scenario has at least one corresponding test; rules 1–3 have unit tests
-- [ ] Every modified file scores 10.0 per `easi-codehealth`
+- [x] For kind `consolidation`, the capture form shows no source field, offers the full catalog as targets, and submits `fromComponentIds` = current realisations minus the selected target, recomputed on target change
+- [x] A consolidation capture on a capability with fewer than two current realisations is blocked in the form with an explanatory message
+- [x] A consolidation with exactly one source application is accepted end-to-end (form validation, API, aggregate); zero sources remains rejected
+- [x] Changing sources on an active consolidation journey accepts one source and rejects zero
+- [x] `migration` and `carve-out` capture behavior, including source field and cardinality rules, is unchanged
+- [x] API documentation reflects the relaxed consolidation cardinality (no annotation change required; cardinality text lives in the domain error message)
+- [x] Every BDD scenario has at least one corresponding test; rules 1–3 have unit tests
+- [x] Every modified file scores 10.0 per `easi-codehealth`
 
 ---
 
@@ -121,9 +121,9 @@ Backend: the journey-kind value object's source-count validation for consolidati
 
 ## Checklist
 
-- [ ] Specification ready
-- [ ] Implementation done
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
-- [ ] API documentation updated
-- [ ] User sign-off
+- [x] Specification ready
+- [x] Implementation done
+- [x] Unit tests implemented and passing
+- [x] Integration tests implemented if relevant (covered by existing handler/aggregate suites)
+- [x] API documentation updated (no annotation change)
+- [x] User sign-off

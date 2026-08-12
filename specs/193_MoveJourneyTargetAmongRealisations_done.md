@@ -1,6 +1,6 @@
 # 193 — Move Journey Target Among Realisations
 
-> **Status:** ongoing
+> **Status:** done
 > **Depends on:** 182 (Capability Journey)
 
 ---
@@ -101,4 +101,4 @@ Frontend-only. The journey capture form derives a move's implicit sources from t
 - [x] Unit tests implemented and passing
 - [x] Integration tests implemented if relevant (none relevant — frontend-only change)
 - [x] API documentation updated (no API change)
-- [ ] User sign-off
+- [x] User sign-off

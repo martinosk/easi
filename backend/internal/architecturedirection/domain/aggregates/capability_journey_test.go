@@ -214,7 +214,8 @@ func TestPlanCapabilityJourney_KindCardinality_Rule3(t *testing.T) {
 	}{
 		{"migration with zero sources is rejected", valueobjects.JourneyKindMigration, 0, true},
 		{"migration with one source succeeds", valueobjects.JourneyKindMigration, 1, false},
-		{"consolidation with one source is rejected", valueobjects.JourneyKindConsolidation, 1, true},
+		{"consolidation with zero sources is rejected", valueobjects.JourneyKindConsolidation, 0, true},
+		{"consolidation with one source succeeds", valueobjects.JourneyKindConsolidation, 1, false},
 		{"consolidation with two sources succeeds", valueobjects.JourneyKindConsolidation, 2, false},
 		{"carve-out with zero sources is rejected", valueobjects.JourneyKindCarveOut, 0, true},
 		{"carve-out with one source succeeds", valueobjects.JourneyKindCarveOut, 1, false},
@@ -491,9 +492,11 @@ func TestCapabilityJourney_ChangeSourceApplications_RevalidatesCardinality_Rule3
 	require.NoError(t, err)
 	j.MarkChangesAsCommitted()
 
-	err = j.ChangeSourceApplications(newComponentRefs(t, 1), journeyActor)
-
+	err = j.ChangeSourceApplications(newComponentRefs(t, 0), journeyActor)
 	assert.ErrorIs(t, err, valueobjects.ErrInvalidSourceApplicationCount)
+
+	err = j.ChangeSourceApplications(newComponentRefs(t, 1), journeyActor)
+	assert.NoError(t, err)
 }
 
 func TestCapabilityJourney_ChangeSourceApplications_RevalidatesTargetNotInSources_Rule4(t *testing.T) {

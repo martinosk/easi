@@ -43,8 +43,8 @@ func (k JourneyKind) ValidateSourceCount(n int) error {
 			return fmt.Errorf("%w: migration requires at least 1 from-application", ErrInvalidSourceApplicationCount)
 		}
 	case JourneyKindConsolidation:
-		if n < 2 {
-			return fmt.Errorf("%w: consolidation requires at least 2 from-applications", ErrInvalidSourceApplicationCount)
+		if n < 1 {
+			return fmt.Errorf("%w: consolidation requires at least 1 from-application", ErrInvalidSourceApplicationCount)
 		}
 	case JourneyKindCarveOut:
 		if n != 1 {

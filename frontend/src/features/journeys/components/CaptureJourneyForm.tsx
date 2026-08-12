@@ -12,7 +12,7 @@ import {
   TextInput,
 } from '@mantine/core';
 import { useEffect, useMemo } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, type FieldErrors, useForm } from 'react-hook-form';
 import type { Capability, CapabilityRealization } from '../../../api/types';
 import { type CaptureJourneyFormData, captureJourneySchema } from '../../../lib/schemas/journey';
 import { useBusinessDomainsQuery } from '../../business-domains/hooks/useBusinessDomains';
@@ -38,7 +38,8 @@ const KIND_OPTIONS = [
 
 const KIND_DESCRIPTIONS = {
   migration: 'The realisation moves from the current application(s) to another. At least one source application.',
-  consolidation: 'Several applications merge onto one. At least two source applications.',
+  consolidation:
+    'Several applications merge onto one. Its current realisations, apart from the target, are the implicit sources.',
   'carve-out': 'Functionality is extracted from one application into another. Exactly one source application.',
   move: 'The capability relocates to another business domain or parent, under a new name. Its current realisations, apart from the target, are the implicit sources.',
 } as const satisfies Record<JourneyKind, string>;
@@ -57,7 +58,11 @@ function defaultValues(capability: Capability, realizations: CapabilityRealizati
   };
 }
 
-function implicitMoveSources(realizations: CapabilityRealization[], toComponentId: string): string[] {
+function hasImplicitSources(kind: JourneyKind): boolean {
+  return kind === 'move' || kind === 'consolidation';
+}
+
+function implicitSources(realizations: CapabilityRealization[], toComponentId: string): string[] {
   return realizations.map((r) => String(r.componentId)).filter((id) => id !== toComponentId);
 }
 
@@ -97,7 +102,7 @@ function useOptions(
   const toAppOptions = useMemo(
     () =>
       (componentsQuery.data ?? [])
-        .filter((c) => kind === 'move' || !fromComponentIds.includes(String(c.id)))
+        .filter((c) => hasImplicitSources(kind) || !fromComponentIds.includes(String(c.id)))
         .map((c) => ({ value: String(c.id), label: c.name })),
     [componentsQuery.data, fromComponentIds, kind],
   );
@@ -135,12 +140,13 @@ function useCaptureJourneyController(
   const toComponentId = watch('toComponentId');
 
   useEffect(() => {
-    if (kind === 'move') {
-      setValue('fromComponentIds', implicitMoveSources(realizations, toComponentId), { shouldValidate: true });
+    if (hasImplicitSources(kind)) {
+      setValue('fromComponentIds', implicitSources(realizations, toComponentId), { shouldValidate: true });
     }
   }, [kind, realizations, toComponentId, setValue]);
 
   const options = useOptions(realizations, String(capability.id), fromComponentIds, kind);
+  const consolidationBlocked = kind === 'consolidation' && realizations.length < 2;
 
   const submit = form.handleSubmit(async (data) => {
     try {
@@ -151,7 +157,7 @@ function useCaptureJourneyController(
 
   const errorMessage = captureMutation.error instanceof Error ? captureMutation.error.message : null;
 
-  return { form, kind, options, submit, isPending: captureMutation.isPending, errorMessage };
+  return { form, kind, options, submit, isPending: captureMutation.isPending, errorMessage, consolidationBlocked };
 }
 
 type FormControl = ReturnType<typeof useForm<CaptureJourneyFormData>>['control'];
@@ -338,8 +344,32 @@ function NoteField({ control }: { control: FormControl }) {
   );
 }
 
+function SubmitAlerts({
+  errors,
+  errorMessage,
+}: {
+  errors: FieldErrors<CaptureJourneyFormData>;
+  errorMessage: string | null;
+}) {
+  const validationMessage = errors.fromComponentIds?.message ?? errors.toComponentId?.message;
+  return (
+    <>
+      {validationMessage && (
+        <Alert color="red" data-testid="capture-submit-error">
+          {validationMessage}
+        </Alert>
+      )}
+      {errorMessage && (
+        <Alert color="red" data-testid="capture-journey-error">
+          {errorMessage}
+        </Alert>
+      )}
+    </>
+  );
+}
+
 export function CaptureJourneyForm({ capability, realizations, onCaptured, onCancel }: CaptureJourneyFormProps) {
-  const { form, kind, options, submit, isPending, errorMessage } = useCaptureJourneyController(
+  const { form, kind, options, submit, isPending, errorMessage, consolidationBlocked } = useCaptureJourneyController(
     capability,
     realizations,
     onCaptured,
@@ -356,7 +386,14 @@ export function CaptureJourneyForm({ capability, realizations, onCaptured, onCan
           </Text>
         </Stack>
 
-        {kind !== 'move' && <FromAppsField control={control} options={options.fromAppOptions} />}
+        {consolidationBlocked && (
+          <Alert color="yellow" data-testid="consolidation-gate">
+            A consolidation needs at least two current realising applications. Use a migration to move a single
+            realisation.
+          </Alert>
+        )}
+
+        {!hasImplicitSources(kind) && <FromAppsField control={control} options={options.fromAppOptions} />}
 
         <ToAppField control={control} options={options.toAppOptions} />
 
@@ -368,21 +405,7 @@ export function CaptureJourneyForm({ capability, realizations, onCaptured, onCan
           <MoveFields control={control} domainOptions={options.domainOptions} parentOptions={options.parentOptions} />
         )}
 
-        {formState.errors.fromComponentIds && (
-          <Alert color="red" data-testid="capture-submit-error">
-            {formState.errors.fromComponentIds.message}
-          </Alert>
-        )}
-        {!formState.errors.fromComponentIds && formState.errors.toComponentId && (
-          <Alert color="red" data-testid="capture-submit-error">
-            {formState.errors.toComponentId.message}
-          </Alert>
-        )}
-        {errorMessage && (
-          <Alert color="red" data-testid="capture-journey-error">
-            {errorMessage}
-          </Alert>
-        )}
+        <SubmitAlerts errors={formState.errors} errorMessage={errorMessage} />
 
         <Group justify="flex-end" gap="sm">
           <Button variant="default" onClick={onCancel} disabled={isPending}>
@@ -391,7 +414,7 @@ export function CaptureJourneyForm({ capability, realizations, onCaptured, onCan
           <Button
             type="submit"
             loading={isPending}
-            disabled={!formState.isValid || isPending}
+            disabled={!formState.isValid || isPending || consolidationBlocked}
             data-testid="capture-journey-submit"
           >
             Plan journey

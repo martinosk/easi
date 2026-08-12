@@ -87,7 +87,7 @@ describe('CaptureJourneyForm — kind-driven fields', () => {
     expect(screen.getByTestId('journey-kind-description')).toHaveTextContent(/at least one source/i);
 
     await user.click(screen.getByRole('radio', { name: 'Consolidation' }));
-    expect(screen.getByTestId('journey-kind-description')).toHaveTextContent(/at least two source/i);
+    expect(screen.getByTestId('journey-kind-description')).toHaveTextContent(/merge onto one/i);
 
     await user.click(screen.getByRole('radio', { name: 'Carve-out' }));
     expect(screen.getByTestId('journey-kind-description')).toHaveTextContent(/exactly one source/i);
@@ -124,23 +124,16 @@ describe('CaptureJourneyForm — cardinality validation (rule 3)', () => {
     return user;
   }
 
-  it('disables submit for a consolidation with too few prefilled sources', async () => {
-    await renderWithSeabookSource('Consolidation');
-
-    expect(screen.getByTestId('capture-journey-submit')).toBeDisabled();
-  });
-
   it('surfaces the cardinality error once the sources are edited below the minimum', async () => {
     const seabook = addComponent({ name: 'Seabook' });
-    const phoenix = addComponent({ name: 'Phoenix' });
+    addComponent({ name: 'Phoenix' });
     const user = userEvent.setup();
-    renderForm({ realizations: [realizationOf(seabook), realizationOf(phoenix)] });
+    renderForm({ realizations: [realizationOf(seabook)] });
 
-    await user.click(screen.getByRole('radio', { name: 'Consolidation' }));
     await user.click(screen.getByTestId('journey-from-apps'));
     await pickFromAppOption('Seabook');
 
-    await waitFor(() => expect(screen.getByTestId('capture-submit-error')).toHaveTextContent(/at least two/i));
+    await waitFor(() => expect(screen.getByTestId('capture-submit-error')).toHaveTextContent(/at least one/i));
     expect(screen.getByTestId('capture-journey-submit')).toBeDisabled();
   });
 
@@ -154,15 +147,16 @@ describe('CaptureJourneyForm — cardinality validation (rule 3)', () => {
   });
 });
 
-describe('CaptureJourneyForm — move target among realisations (spec 193)', () => {
-  async function captureMove(target: string) {
-    const user = userEvent.setup();
-    await user.click(screen.getByRole('radio', { name: 'Move' }));
-    await user.click(screen.getByTestId('journey-to-app'));
-    await pickToAppOption(target);
-    await user.click(screen.getByTestId('journey-target-domain'));
-    await pickToAppOption('Group functions');
-    fireEvent.click(screen.getByTestId('capture-journey-submit'));
+describe('CaptureJourneyForm — implicit sources (specs 193 & 194)', () => {
+  const KIND_SETUPS = { Move: { needsDomain: true }, Consolidation: { needsDomain: false } } as const;
+  type ImplicitKind = keyof typeof KIND_SETUPS;
+
+  function seedCatalog(names: readonly string[]) {
+    return new Map(names.map((name) => [name, addComponent({ name })]));
+  }
+
+  function inToAppDropdown(name: string) {
+    return screen.queryAllByText(name).some((el) => el.closest('.mantine-Select-dropdown') !== null);
   }
 
   async function capturedJourney(capabilityId: string | number) {
@@ -170,84 +164,149 @@ describe('CaptureJourneyForm — move target among realisations (spec 193)', () 
     return result.journey;
   }
 
-  it('offers current realisers as move targets', async () => {
-    const seabook = addComponent({ name: 'Seabook' });
-    const phoenix = addComponent({ name: 'Phoenix' });
-    seedDomains();
-    const user = userEvent.setup();
-    renderForm({ realizations: [realizationOf(seabook), realizationOf(phoenix)] });
-
-    await user.click(screen.getByRole('radio', { name: 'Move' }));
+  async function pickTarget(user: ReturnType<typeof userEvent.setup>, name: string) {
     await user.click(screen.getByTestId('journey-to-app'));
+    await pickToAppOption(name);
+  }
 
-    const inToAppDropdown = (name: string) =>
-      screen.queryAllByText(name).some((el) => el.closest('.mantine-Select-dropdown') !== null);
-    await waitFor(() => expect(inToAppDropdown('Seabook')).toBe(true));
-    expect(inToAppDropdown('Phoenix')).toBe(true);
-  });
-
-  it('captures a move onto a realiser with the other realisers as implicit sources', async () => {
-    const seabook = addComponent({ name: 'Seabook' });
-    const phoenix = addComponent({ name: 'Phoenix' });
-    seedDomains();
-    const onCaptured = vi.fn();
-    const { capability } = renderForm({ onCaptured, realizations: [realizationOf(seabook), realizationOf(phoenix)] });
-
-    await captureMove('Phoenix');
-
-    await waitFor(() => expect(onCaptured).toHaveBeenCalled());
-    const journey = await capturedJourney(capability.id);
-    expect(journey?.toApplication.componentId).toBe(phoenix.id);
-    expect(journey?.fromApplications.map((app) => app.componentId)).toEqual([seabook.id]);
-  });
-
-  it('captures a move onto the sole realiser with no sources', async () => {
-    const seabook = addComponent({ name: 'Seabook' });
-    seedDomains();
-    const onCaptured = vi.fn();
-    const { capability } = renderForm({ onCaptured, realizations: [realizationOf(seabook)] });
-
-    await captureMove('Seabook');
-
-    await waitFor(() => expect(onCaptured).toHaveBeenCalled());
-    const journey = await capturedJourney(capability.id);
-    expect(journey?.toApplication.componentId).toBe(seabook.id);
-    expect(journey?.fromApplications).toEqual([]);
-  });
-
-  it('recomputes the implicit sources when the move target changes', async () => {
-    const seabook = addComponent({ name: 'Seabook' });
-    const phoenix = addComponent({ name: 'Phoenix' });
-    seedDomains();
-    const user = userEvent.setup();
-    const onCaptured = vi.fn();
-    const { capability } = renderForm({ onCaptured, realizations: [realizationOf(seabook), realizationOf(phoenix)] });
-
-    await user.click(screen.getByRole('radio', { name: 'Move' }));
-    await user.click(screen.getByTestId('journey-to-app'));
-    await pickToAppOption('Phoenix');
-    await user.click(screen.getByTestId('journey-to-app'));
-    await pickToAppOption('Seabook');
-    await user.click(screen.getByTestId('journey-target-domain'));
-    await pickToAppOption('Group functions');
+  async function submitAs(user: ReturnType<typeof userEvent.setup>, kind: ImplicitKind) {
+    if (KIND_SETUPS[kind].needsDomain) {
+      await user.click(screen.getByTestId('journey-target-domain'));
+      await pickToAppOption('Group functions');
+    }
     fireEvent.click(screen.getByTestId('capture-journey-submit'));
+  }
 
-    await waitFor(() => expect(onCaptured).toHaveBeenCalled());
-    const journey = await capturedJourney(capability.id);
-    expect(journey?.toApplication.componentId).toBe(seabook.id);
-    expect(journey?.fromApplications.map((app) => app.componentId)).toEqual([phoenix.id]);
+  const captureCases: ReadonlyArray<{
+    name: string;
+    kind: ImplicitKind;
+    realisers: readonly string[];
+    target: string;
+    sources: readonly string[];
+  }> = [
+    {
+      name: 'a move onto a realiser with the other realisers as implicit sources',
+      kind: 'Move',
+      realisers: ['Seabook', 'Phoenix'],
+      target: 'Phoenix',
+      sources: ['Seabook'],
+    },
+    {
+      name: 'a move onto the sole realiser with no sources',
+      kind: 'Move',
+      realisers: ['Seabook'],
+      target: 'Seabook',
+      sources: [],
+    },
+    {
+      name: 'a consolidation onto a realiser with the other realisers as implicit sources',
+      kind: 'Consolidation',
+      realisers: ['TrackIt', 'CargoEye', 'Phoenix'],
+      target: 'Phoenix',
+      sources: ['TrackIt', 'CargoEye'],
+    },
+    {
+      name: 'a consolidation onto a new application with all realisers as implicit sources',
+      kind: 'Consolidation',
+      realisers: ['TrackIt', 'CargoEye'],
+      target: 'Unity',
+      sources: ['TrackIt', 'CargoEye'],
+    },
+    {
+      name: 'a two-realiser consolidation onto one of them with a single source',
+      kind: 'Consolidation',
+      realisers: ['TrackIt', 'Phoenix'],
+      target: 'Phoenix',
+      sources: ['TrackIt'],
+    },
+  ];
+
+  for (const c of captureCases) {
+    it(`captures ${c.name}`, async () => {
+      const catalog = seedCatalog([...new Set([...c.realisers, c.target])]);
+      seedDomains();
+      const user = userEvent.setup();
+      const onCaptured = vi.fn();
+      const { capability } = renderForm({
+        onCaptured,
+        realizations: c.realisers.map((name) => realizationOf(catalog.get(name)!)),
+      });
+
+      await user.click(screen.getByRole('radio', { name: c.kind }));
+      await pickTarget(user, c.target);
+      await submitAs(user, c.kind);
+
+      await waitFor(() => expect(onCaptured).toHaveBeenCalled());
+      const journey = await capturedJourney(capability.id);
+      expect(journey?.toApplication.componentId).toBe(catalog.get(c.target)!.id);
+      expect(journey?.fromApplications.map((app) => app.componentId)).toEqual(
+        c.sources.map((name) => catalog.get(name)!.id),
+      );
+    });
+  }
+
+  for (const kind of ['Move', 'Consolidation'] as const) {
+    it(`offers current realisers as ${kind.toLowerCase()} targets`, async () => {
+      const catalog = seedCatalog(['Seabook', 'Phoenix']);
+      seedDomains();
+      const user = userEvent.setup();
+      renderForm({ realizations: [...catalog.values()].map(realizationOf) });
+
+      await user.click(screen.getByRole('radio', { name: kind }));
+      await user.click(screen.getByTestId('journey-to-app'));
+
+      await waitFor(() => expect(inToAppDropdown('Seabook')).toBe(true));
+      expect(inToAppDropdown('Phoenix')).toBe(true);
+    });
+
+    it(`recomputes the implicit sources when the ${kind.toLowerCase()} target changes`, async () => {
+      const catalog = seedCatalog(['Seabook', 'Phoenix']);
+      seedDomains();
+      const user = userEvent.setup();
+      const onCaptured = vi.fn();
+      const { capability } = renderForm({ onCaptured, realizations: [...catalog.values()].map(realizationOf) });
+
+      await user.click(screen.getByRole('radio', { name: kind }));
+      await pickTarget(user, 'Phoenix');
+      await pickTarget(user, 'Seabook');
+      await submitAs(user, kind);
+
+      await waitFor(() => expect(onCaptured).toHaveBeenCalled());
+      const journey = await capturedJourney(capability.id);
+      expect(journey?.toApplication.componentId).toBe(catalog.get('Seabook')!.id);
+      expect(journey?.fromApplications.map((app) => app.componentId)).toEqual([catalog.get('Phoenix')!.id]);
+    });
+  }
+
+  it('hides the from-apps picker for a consolidation', async () => {
+    const catalog = seedCatalog(['Seabook', 'Phoenix']);
+    const user = userEvent.setup();
+    renderForm({ realizations: [...catalog.values()].map(realizationOf) });
+
+    await user.click(screen.getByRole('radio', { name: 'Consolidation' }));
+
+    expect(screen.queryByTestId('journey-from-apps')).not.toBeInTheDocument();
   });
 
-  it('keeps selected sources excluded from targets for non-move kinds', async () => {
-    const seabook = addComponent({ name: 'Seabook' });
-    addComponent({ name: 'Phoenix' });
+  it('blocks a consolidation when the capability has fewer than two realisers', async () => {
+    const catalog = seedCatalog(['Seabook', 'Phoenix']);
     const user = userEvent.setup();
-    renderForm({ realizations: [realizationOf(seabook)] });
+    renderForm({ realizations: [realizationOf(catalog.get('Seabook')!)] });
+
+    await user.click(screen.getByRole('radio', { name: 'Consolidation' }));
+
+    expect(screen.getByTestId('consolidation-gate')).toHaveTextContent(/at least two/i);
+    await pickTarget(user, 'Phoenix');
+    expect(screen.getByTestId('capture-journey-submit')).toBeDisabled();
+  });
+
+  it('keeps selected sources excluded from targets for kinds with explicit sources', async () => {
+    const catalog = seedCatalog(['Seabook', 'Phoenix']);
+    const user = userEvent.setup();
+    renderForm({ realizations: [realizationOf(catalog.get('Seabook')!)] });
 
     await user.click(screen.getByTestId('journey-to-app'));
 
-    const inToAppDropdown = (name: string) =>
-      screen.queryAllByText(name).some((el) => el.closest('.mantine-Select-dropdown') !== null);
     await waitFor(() => expect(inToAppDropdown('Phoenix')).toBe(true));
     expect(inToAppDropdown('Seabook')).toBe(false);
   });

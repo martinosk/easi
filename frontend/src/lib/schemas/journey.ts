@@ -10,7 +10,7 @@ export function minSourceCount(kind: JourneyKindValue): number {
     case 'migration':
       return 1;
     case 'consolidation':
-      return 2;
+      return 1;
     case 'carve-out':
       return 1;
     case 'move':
@@ -27,7 +27,7 @@ export function sourceCardinalityMessage(kind: JourneyKindValue): string {
     case 'migration':
       return 'A migration needs at least one source application.';
     case 'consolidation':
-      return 'A consolidation needs at least two source applications.';
+      return 'A consolidation needs at least one source application.';
     case 'carve-out':
       return 'A carve-out needs exactly one source application.';
     case 'move':
