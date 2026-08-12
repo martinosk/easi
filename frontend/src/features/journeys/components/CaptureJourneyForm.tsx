@@ -40,7 +40,7 @@ const KIND_DESCRIPTIONS = {
   migration: 'The realisation moves from the current application(s) to another. At least one source application.',
   consolidation: 'Several applications merge onto one. At least two source applications.',
   'carve-out': 'Functionality is extracted from one application into another. Exactly one source application.',
-  move: 'The capability relocates to another business domain or parent, under a new name. Its current realisations are the implicit sources.',
+  move: 'The capability relocates to another business domain or parent, under a new name. Its current realisations, apart from the target, are the implicit sources.',
 } as const satisfies Record<JourneyKind, string>;
 
 function defaultValues(capability: Capability, realizations: CapabilityRealization[]): CaptureJourneyFormData {
@@ -55,6 +55,10 @@ function defaultValues(capability: Capability, realizations: CapabilityRealizati
     targetParentId: '',
     resultingName: capability.name,
   };
+}
+
+function implicitMoveSources(realizations: CapabilityRealization[], toComponentId: string): string[] {
+  return realizations.map((r) => String(r.componentId)).filter((id) => id !== toComponentId);
 }
 
 function toCaptureRequest(data: CaptureJourneyFormData): CaptureJourneyRequest {
@@ -75,7 +79,12 @@ function toCaptureRequest(data: CaptureJourneyFormData): CaptureJourneyRequest {
   };
 }
 
-function useOptions(realizations: CapabilityRealization[], capabilityId: string, fromComponentIds: string[]) {
+function useOptions(
+  realizations: CapabilityRealization[],
+  capabilityId: string,
+  fromComponentIds: string[],
+  kind: JourneyKind,
+) {
   const componentsQuery = useComponents();
   const domainsQuery = useBusinessDomainsQuery();
   const capabilitiesQuery = useCapabilities();
@@ -88,9 +97,9 @@ function useOptions(realizations: CapabilityRealization[], capabilityId: string,
   const toAppOptions = useMemo(
     () =>
       (componentsQuery.data ?? [])
-        .filter((c) => !fromComponentIds.includes(String(c.id)))
+        .filter((c) => kind === 'move' || !fromComponentIds.includes(String(c.id)))
         .map((c) => ({ value: String(c.id), label: c.name })),
-    [componentsQuery.data, fromComponentIds],
+    [componentsQuery.data, fromComponentIds, kind],
   );
 
   const domainOptions = useMemo(
@@ -123,18 +132,15 @@ function useCaptureJourneyController(
   const { watch, setValue } = form;
   const kind = watch('kind');
   const fromComponentIds = watch('fromComponentIds');
+  const toComponentId = watch('toComponentId');
 
   useEffect(() => {
     if (kind === 'move') {
-      setValue(
-        'fromComponentIds',
-        realizations.map((r) => String(r.componentId)),
-        { shouldValidate: true },
-      );
+      setValue('fromComponentIds', implicitMoveSources(realizations, toComponentId), { shouldValidate: true });
     }
-  }, [kind, realizations, setValue]);
+  }, [kind, realizations, toComponentId, setValue]);
 
-  const options = useOptions(realizations, String(capability.id), fromComponentIds);
+  const options = useOptions(realizations, String(capability.id), fromComponentIds, kind);
 
   const submit = form.handleSubmit(async (data) => {
     try {

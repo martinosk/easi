@@ -154,6 +154,105 @@ describe('CaptureJourneyForm — cardinality validation (rule 3)', () => {
   });
 });
 
+describe('CaptureJourneyForm — move target among realisations (spec 193)', () => {
+  async function captureMove(target: string) {
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('radio', { name: 'Move' }));
+    await user.click(screen.getByTestId('journey-to-app'));
+    await pickToAppOption(target);
+    await user.click(screen.getByTestId('journey-target-domain'));
+    await pickToAppOption('Group functions');
+    fireEvent.click(screen.getByTestId('capture-journey-submit'));
+  }
+
+  async function capturedJourney(capabilityId: string | number) {
+    const result = await journeyApi.getForCapability(String(capabilityId));
+    return result.journey;
+  }
+
+  it('offers current realisers as move targets', async () => {
+    const seabook = addComponent({ name: 'Seabook' });
+    const phoenix = addComponent({ name: 'Phoenix' });
+    seedDomains();
+    const user = userEvent.setup();
+    renderForm({ realizations: [realizationOf(seabook), realizationOf(phoenix)] });
+
+    await user.click(screen.getByRole('radio', { name: 'Move' }));
+    await user.click(screen.getByTestId('journey-to-app'));
+
+    const inToAppDropdown = (name: string) =>
+      screen.queryAllByText(name).some((el) => el.closest('.mantine-Select-dropdown') !== null);
+    await waitFor(() => expect(inToAppDropdown('Seabook')).toBe(true));
+    expect(inToAppDropdown('Phoenix')).toBe(true);
+  });
+
+  it('captures a move onto a realiser with the other realisers as implicit sources', async () => {
+    const seabook = addComponent({ name: 'Seabook' });
+    const phoenix = addComponent({ name: 'Phoenix' });
+    seedDomains();
+    const onCaptured = vi.fn();
+    const { capability } = renderForm({ onCaptured, realizations: [realizationOf(seabook), realizationOf(phoenix)] });
+
+    await captureMove('Phoenix');
+
+    await waitFor(() => expect(onCaptured).toHaveBeenCalled());
+    const journey = await capturedJourney(capability.id);
+    expect(journey?.toApplication.componentId).toBe(phoenix.id);
+    expect(journey?.fromApplications.map((app) => app.componentId)).toEqual([seabook.id]);
+  });
+
+  it('captures a move onto the sole realiser with no sources', async () => {
+    const seabook = addComponent({ name: 'Seabook' });
+    seedDomains();
+    const onCaptured = vi.fn();
+    const { capability } = renderForm({ onCaptured, realizations: [realizationOf(seabook)] });
+
+    await captureMove('Seabook');
+
+    await waitFor(() => expect(onCaptured).toHaveBeenCalled());
+    const journey = await capturedJourney(capability.id);
+    expect(journey?.toApplication.componentId).toBe(seabook.id);
+    expect(journey?.fromApplications).toEqual([]);
+  });
+
+  it('recomputes the implicit sources when the move target changes', async () => {
+    const seabook = addComponent({ name: 'Seabook' });
+    const phoenix = addComponent({ name: 'Phoenix' });
+    seedDomains();
+    const user = userEvent.setup();
+    const onCaptured = vi.fn();
+    const { capability } = renderForm({ onCaptured, realizations: [realizationOf(seabook), realizationOf(phoenix)] });
+
+    await user.click(screen.getByRole('radio', { name: 'Move' }));
+    await user.click(screen.getByTestId('journey-to-app'));
+    await pickToAppOption('Phoenix');
+    await user.click(screen.getByTestId('journey-to-app'));
+    await pickToAppOption('Seabook');
+    await user.click(screen.getByTestId('journey-target-domain'));
+    await pickToAppOption('Group functions');
+    fireEvent.click(screen.getByTestId('capture-journey-submit'));
+
+    await waitFor(() => expect(onCaptured).toHaveBeenCalled());
+    const journey = await capturedJourney(capability.id);
+    expect(journey?.toApplication.componentId).toBe(seabook.id);
+    expect(journey?.fromApplications.map((app) => app.componentId)).toEqual([phoenix.id]);
+  });
+
+  it('keeps selected sources excluded from targets for non-move kinds', async () => {
+    const seabook = addComponent({ name: 'Seabook' });
+    addComponent({ name: 'Phoenix' });
+    const user = userEvent.setup();
+    renderForm({ realizations: [realizationOf(seabook)] });
+
+    await user.click(screen.getByTestId('journey-to-app'));
+
+    const inToAppDropdown = (name: string) =>
+      screen.queryAllByText(name).some((el) => el.closest('.mantine-Select-dropdown') !== null);
+    await waitFor(() => expect(inToAppDropdown('Phoenix')).toBe(true));
+    expect(inToAppDropdown('Seabook')).toBe(false);
+  });
+});
+
 describe('CaptureJourneyForm — capture', () => {
   it('captures a migration journey and calls onCaptured', async () => {
     const seabook = addComponent({ name: 'Seabook' });
