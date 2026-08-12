@@ -134,7 +134,7 @@ function useCaptureJourneyController(
     defaultValues: defaultValues(capability, realizations),
     mode: 'onChange',
   });
-  const { watch, setValue } = form;
+  const { watch, setValue, trigger } = form;
   const kind = watch('kind');
   const fromComponentIds = watch('fromComponentIds');
   const toComponentId = watch('toComponentId');
@@ -142,8 +142,9 @@ function useCaptureJourneyController(
   useEffect(() => {
     if (hasImplicitSources(kind)) {
       setValue('fromComponentIds', implicitSources(realizations, toComponentId), { shouldValidate: true });
+      void trigger('toComponentId');
     }
-  }, [kind, realizations, toComponentId, setValue]);
+  }, [kind, realizations, toComponentId, setValue, trigger]);
 
   const options = useOptions(realizations, String(capability.id), fromComponentIds, kind);
   const consolidationBlocked = kind === 'consolidation' && realizations.length < 2;

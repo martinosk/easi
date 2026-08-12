@@ -259,6 +259,18 @@ describe('CaptureJourneyForm — implicit sources (specs 193 & 194)', () => {
       expect(inToAppDropdown('Phoenix')).toBe(true);
     });
 
+    it(`shows no target-among-sources error when a realiser becomes the ${kind.toLowerCase()} target`, async () => {
+      const catalog = seedCatalog(['Seabook', 'Phoenix']);
+      seedDomains();
+      const user = userEvent.setup();
+      renderForm({ realizations: [...catalog.values()].map(realizationOf) });
+
+      await user.click(screen.getByRole('radio', { name: kind }));
+      await pickTarget(user, 'Phoenix');
+
+      await waitFor(() => expect(screen.queryByTestId('capture-submit-error')).not.toBeInTheDocument());
+    });
+
     it(`recomputes the implicit sources when the ${kind.toLowerCase()} target changes`, async () => {
       const catalog = seedCatalog(['Seabook', 'Phoenix']);
       seedDomains();
