@@ -22,7 +22,7 @@ ENV VITE_BASE_PATH=${VITE_BASE_PATH}
 RUN npm run build
 
 # Run stage
-FROM nginx:1.31.1-alpine3.23-slim
+FROM nginx:1.31.3-alpine3.24-slim
 
 # Copy custom nginx config (replaces default nginx.conf)
 COPY nginx.conf /etc/nginx/nginx.conf
