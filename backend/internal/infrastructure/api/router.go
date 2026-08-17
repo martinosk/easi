@@ -134,7 +134,7 @@ func configureMiddleware(r chi.Router, authDeps *authAPI.AuthDependencies) {
 	r.Use(chimiddleware.Logger)
 	r.Use(chimiddleware.Recoverer)
 	r.Use(chimiddleware.RequestID)
-	r.Use(chimiddleware.RealIP)
+	r.Use(middleware.ClientIP())
 	r.Use(compressionMiddleware())
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:*", "http://127.0.0.1:*"},

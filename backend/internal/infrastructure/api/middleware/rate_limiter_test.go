@@ -75,13 +75,14 @@ func TestRateLimiter_TracksIPsSeparately(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code, "different IP should have its own limit")
 }
 
-func TestRateLimiter_UsesXForwardedFor(t *testing.T) {
-	limiter := NewRateLimiter(2, 60)
-	middleware := RateLimitMiddleware(limiter)
+func TestRateLimiter_UsesTrustedProxyClientIP(t *testing.T) {
+	t.Setenv("TRUSTED_PROXY_CIDRS", "")
+	t.Setenv("TRUSTED_PROXY_COUNT", "1")
 
-	handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	limiter := NewRateLimiter(2, 60)
+	handler := ClientIP()(RateLimitMiddleware(limiter)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-	}))
+	})))
 
 	for i := 0; i < 2; i++ {
 		req := httptest.NewRequest("GET", "/api/platform/v1/tenants", nil)
@@ -97,8 +98,41 @@ func TestRateLimiter_UsesXForwardedFor(t *testing.T) {
 	req.Header.Set("X-Forwarded-For", "203.0.113.1")
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusTooManyRequests, w.Code, "should rate limit on the IP the trusted proxy reported")
 
-	assert.Equal(t, http.StatusTooManyRequests, w.Code, "should rate limit based on X-Forwarded-For")
+	req = httptest.NewRequest("GET", "/api/platform/v1/tenants", nil)
+	req.RemoteAddr = "10.0.0.1:12345"
+	req.Header.Set("X-Forwarded-For", "203.0.113.2")
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code, "a different client behind the proxy keeps its own limit")
+}
+
+func TestRateLimiter_UntrustedXForwardedForCannotEvadeLimit(t *testing.T) {
+	t.Setenv("TRUSTED_PROXY_CIDRS", "")
+	t.Setenv("TRUSTED_PROXY_COUNT", "")
+
+	limiter := NewRateLimiter(2, 60)
+	handler := ClientIP()(RateLimitMiddleware(limiter)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})))
+
+	for i := 0; i < 2; i++ {
+		req := httptest.NewRequest("GET", "/api/platform/v1/tenants", nil)
+		req.RemoteAddr = "203.0.113.9:12345"
+		req.Header.Set("X-Forwarded-For", "198.51.100.1")
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusOK, w.Code)
+	}
+
+	req := httptest.NewRequest("GET", "/api/platform/v1/tenants", nil)
+	req.RemoteAddr = "203.0.113.9:12345"
+	req.Header.Set("X-Forwarded-For", "198.51.100.2")
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusTooManyRequests, w.Code, "rotating a spoofed header must not reset the limit")
 }
 
 func TestRateLimiter_IncludesRetryAfterHeader(t *testing.T) {

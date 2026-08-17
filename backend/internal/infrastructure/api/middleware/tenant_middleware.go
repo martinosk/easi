@@ -112,11 +112,7 @@ func tryAgentTokenAuth(r *http.Request, userRoleLookup UserRoleLookup) (context.
 }
 
 func isLoopback(r *http.Request) bool {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		host = r.RemoteAddr
-	}
-	ip := net.ParseIP(host)
+	ip := net.ParseIP(remoteAddrHost(r))
 	return ip != nil && ip.IsLoopback()
 }
 
@@ -212,24 +208,6 @@ func logTenantContext(r *http.Request, tenantID sharedvo.TenantID) {
 		getClientIP(r),
 		r.UserAgent(),
 	)
-}
-
-func getClientIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		parts := strings.Split(xff, ",")
-		if len(parts) > 0 {
-			ip := strings.TrimSpace(parts[0])
-			if ip != "" {
-				return ip
-			}
-		}
-	}
-
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr
-	}
-	return host
 }
 
 func RequireTenant() func(http.Handler) http.Handler {
