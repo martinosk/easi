@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>196 — Journey milestone reorder (mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #03304C;
+  --ink: #16262F;
+  --muted: #5D7381;
+  --faint: #8CA0AC;
+  --bg: #F2F6F7;
+  --surface: #FFFFFF;
+  --well: #F7FAFB;
+  --line: #DDE6EA;
+  --line-strong: #B9C9D1;
+  --done: #0E7A5F;   --done-bg: #E3F2EC;
+  --flight: #A96605; --flight-bg: #FBEFD8;
+  --idle: #5D7381;   --idle-bg: #EEF2F4;  --idle-line: #C6D3DA;
+  --incoming: #5A4FBF; --incoming-bg: #ECEAFB;
+  --font-ui: "Inter", system-ui, sans-serif;
+  --font-display: "Archivo", var(--font-ui);
+  --font-mono: "IBM Plex Mono", monospace;
+}
+* { box-sizing: border-box; margin: 0; }
+body { font-family: var(--font-ui); font-size: 14px; line-height: 1.5; color: var(--ink); background: var(--bg); padding: 24px; }
+button { font: inherit; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+
+.intro { max-width: 960px; margin: 0 auto 20px; }
+.intro h1 { font-family: var(--font-display); font-size: 18px; font-weight: 600; }
+.intro p { font-size: 13px; color: var(--muted); margin-top: 4px; max-width: 72ch; }
+
+.panels { display: flex; gap: 20px; flex-wrap: wrap; max-width: 960px; margin: 0 auto; align-items: flex-start; }
+.panel { flex: 1 1 400px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px 26px; box-shadow: 0 2px 10px rgba(3,48,76,0.06); }
+.panel .caption { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--incoming); margin-bottom: 12px; }
+
+section h4 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--faint); margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+.new-tag { background: var(--incoming-bg); color: var(--incoming); border-radius: 999px; font-size: 9px; font-weight: 600; padding: 1px 7px; letter-spacing: 0.04em; }
+
+.pill { font-size: 10.5px; font-weight: 500; padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
+.p-flight { background: var(--flight-bg); color: var(--flight); }
+
+.jhead { display: flex; align-items: baseline; gap: 8px; margin-bottom: 14px; }
+.jhead .cname { font-family: var(--font-display); font-size: 15px; font-weight: 600; }
+.jhead .route { font-size: 12px; color: var(--muted); }
+
+.milestones { list-style: none; }
+.milestones li { display: flex; gap: 10px; align-items: center; padding: 6px 8px; font-size: 13px; border-radius: 7px; border: 1px solid transparent; }
+.milestones li.draggable:hover { background: var(--well); border-color: var(--line); }
+.milestones li.lifted { background: var(--surface); border: 1px solid var(--incoming); box-shadow: 0 4px 14px rgba(90,79,191,0.22); position: relative; }
+.milestones li.drop-slot { border: 1px dashed var(--incoming); background: var(--incoming-bg); height: 34px; }
+.handle { color: var(--faint); font-size: 13px; letter-spacing: -1px; cursor: grab; flex: none; user-select: none; }
+.lifted .handle { color: var(--incoming); cursor: grabbing; }
+.seq { font-family: var(--font-mono); font-size: 10.5px; color: var(--faint); width: 14px; flex: none; text-align: right; }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.d-done { background: var(--done); }
+.d-flight { background: var(--flight); }
+.d-idle { background: var(--idle-line); }
+.when { color: var(--muted); margin-left: auto; font-size: 12px; white-space: nowrap; }
+
+.hint { font-size: 12px; color: var(--muted); background: var(--well); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; margin-top: 12px; }
+.hint code { font-family: var(--font-mono); font-size: 11px; }
+
+.footnote { max-width: 960px; margin: 20px auto 0; font-size: 12px; color: var(--faint); }
+.footnote em { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <h1>196 — Journey milestone reorder</h1>
+  <p>The drawer's milestone list gains a drag affordance while the journey is active and the reorder link is present. One drop submits the full permutation; the list re-renders in the stored order everywhere. Read-only users and terminal journeys keep today's static list.</p>
+</div>
+
+<div class="panels">
+
+  <div class="panel">
+    <div class="caption">A · Architect, active journey — during drag</div>
+    <div class="jhead">
+      <span class="cname">Booking management</span>
+      <span class="route">Seabook → Phoenix</span>
+      <span class="pill p-flight" style="margin-left:auto">in flight</span>
+    </div>
+    <section>
+      <h4>Milestones <span class="new-tag">Reorderable</span></h4>
+      <ul class="milestones">
+        <li class="draggable"><span class="handle">⠿</span><span class="seq">1</span><span class="dot d-done"></span> Phoenix booking API live <span class="when">Done · Q4 2025</span></li>
+        <li class="draggable"><span class="handle">⠿</span><span class="seq">2</span><span class="dot d-done"></span> Channel &amp; Baltic routes migrated <span class="when">Done · Q1 2026</span></li>
+        <li class="drop-slot" aria-hidden="true"></li>
+        <li class="draggable"><span class="handle">⠿</span><span class="seq">4</span><span class="dot d-idle"></span> Seabook read-only <span class="when">Q1 2027</span></li>
+        <li class="lifted"><span class="handle">⠿</span><span class="seq">3</span><span class="dot d-flight"></span> North Sea corridor migrated <span class="when">Q4 2026</span></li>
+      </ul>
+      <p class="hint">Dropping records one <code>JourneyMilestoneReordered</code> event with the full resulting order. Labels, target periods, and statuses are untouched.</p>
+    </section>
+  </div>
+
+  <div class="panel">
+    <div class="caption">B · After the drop / read-only &amp; terminal journeys</div>
+    <div class="jhead">
+      <span class="cname">Booking management</span>
+      <span class="route">Seabook → Phoenix</span>
+      <span class="pill p-flight" style="margin-left:auto">in flight</span>
+    </div>
+    <section>
+      <h4>Milestones</h4>
+      <ul class="milestones">
+        <li><span class="seq">1</span><span class="dot d-done"></span> Phoenix booking API live <span class="when">Done · Q4 2025</span></li>
+        <li><span class="seq">2</span><span class="dot d-done"></span> Channel &amp; Baltic routes migrated <span class="when">Done · Q1 2026</span></li>
+        <li><span class="seq">3</span><span class="dot d-flight"></span> North Sea corridor migrated <span class="when">Q4 2026</span></li>
+        <li><span class="seq">4</span><span class="dot d-idle"></span> Seabook read-only <span class="when">Q1 2027</span></li>
+      </ul>
+      <p class="hint">Without the HATEOAS reorder link — read-only users, done or abandoned journeys — no handles render and rows are inert, exactly as today. New milestones append at the end; removing one compacts the numbering.</p>
+    </section>
+  </div>
+
+</div>
+
+<p class="footnote">Drag-and-drop is the pointer affordance; the handles are keyboard-operable (<em>focus + arrow keys</em>) per the board's accessibility posture. A stale submission — the list changed since it was fetched — is rejected by permutation validation and the client refetches.</p>
+
+</body>
+</html>

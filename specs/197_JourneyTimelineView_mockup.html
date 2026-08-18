@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>197 — Journey timeline view (mockup v2)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #03304C;
+  --ink: #16262F;
+  --muted: #5D7381;
+  --faint: #8CA0AC;
+  --bg: #F2F6F7;
+  --surface: #FFFFFF;
+  --well: #F7FAFB;
+  --line: #DDE6EA;
+  --line-strong: #B9C9D1;
+  --done: #0E7A5F;   --done-bg: #E3F2EC;
+  --flight: #A96605; --flight-bg: #FBEFD8;
+  --idle: #5D7381;   --idle-bg: #EEF2F4;  --idle-line: #C6D3DA;
+  --incoming: #5A4FBF; --incoming-bg: #ECEAFB;
+  --danger: #A32D2D; --danger-bg: #FCEBEB;
+  --radius: 10px;
+  --font-ui: "Inter", system-ui, sans-serif;
+  --font-display: "Archivo", var(--font-ui);
+  --font-mono: "IBM Plex Mono", monospace;
+
+  --label-w: 230px;
+  --q-w: 56px;
+}
+* { box-sizing: border-box; margin: 0; }
+body { font-family: var(--font-ui); font-size: 14px; line-height: 1.5; color: var(--ink); background: var(--bg); }
+button { font: inherit; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+
+.appbar { background: var(--navy); color: #fff; padding: 14px 24px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.appbar h1 { font-family: var(--font-display); font-size: 17px; font-weight: 600; }
+.appbar h1 span { color: #9FC3DA; font-weight: 500; }
+.seg { display: flex; background: rgba(255,255,255,0.12); border-radius: 999px; padding: 3px; }
+.seg button { border: none; background: transparent; color: #C8DCE9; font-weight: 500; font-size: 13px; padding: 6px 18px; border-radius: 999px; }
+.seg button[aria-pressed="true"] { background: #fff; color: var(--navy); }
+.seg.dimmed { opacity: 0.45; }
+.appbar .asof { margin-left: auto; font-size: 12px; color: #9FC3DA; }
+
+.toolbar { padding: 16px 24px 0; max-width: 1200px; margin: 0 auto; }
+.view-desc { color: var(--muted); font-size: 13px; }
+.summary { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+.summary .stat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 14px; font-size: 13px; display: flex; align-items: baseline; gap: 6px; }
+.summary .stat b { font-family: var(--font-display); font-size: 17px; font-weight: 600; }
+.summary .stat.s-flight b { color: var(--flight); }
+.summary .stat.s-idle b { color: var(--idle); }
+.summary .stat.s-danger { border-color: var(--danger); }
+.summary .stat.s-danger b { color: var(--danger); }
+
+.legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 12px; font-size: 12px; color: var(--muted); }
+.legend .key { display: flex; align-items: center; gap: 5px; }
+.mdot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.m-done { background: var(--done); }
+.m-flight { background: var(--flight); }
+.m-idle { background: var(--surface); border: 2px solid var(--idle-line); }
+.m-overdue { box-shadow: 0 0 0 2px var(--danger-bg), 0 0 0 3px var(--danger); }
+.flag { color: var(--navy); font-size: 12px; line-height: 1; }
+.flag.overdue { color: var(--danger); }
+.legend .todaykey { width: 2px; height: 12px; background: var(--navy); display: inline-block; }
+
+.tl-wrap { max-width: 1200px; margin: 16px auto 48px; padding: 0 24px; }
+.tl-scroll { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+.tl { min-width: calc(var(--label-w) + 13 * var(--q-w)); position: relative; padding-bottom: 6px; }
+
+.chart-bg { position: absolute; top: 0; bottom: 0; left: var(--label-w); right: 0; z-index: 0;
+  background: repeating-linear-gradient(to right, var(--line) 0 1px, transparent 1px var(--q-w)); }
+.today-stripe { position: absolute; top: 0; bottom: 0; left: calc(var(--label-w) + 3 * var(--q-w)); width: var(--q-w);
+  background: #EDF3F6; box-shadow: inset 2px 0 0 var(--navy); z-index: 0; }
+
+.grid-row { display: grid; grid-template-columns: var(--label-w) repeat(13, var(--q-w)); position: relative; z-index: 1; }
+
+.axis { position: sticky; top: 0; background: var(--surface); border-bottom: 1px solid var(--line-strong); z-index: 3; }
+.axis .qcell { font-size: 10.5px; color: var(--muted); font-family: var(--font-mono); padding: 8px 0 6px; text-align: center; }
+.axis .label-cell { text-align: left; padding: 8px 0 6px 16px; font-weight: 600; color: var(--faint); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+.axis .qcell.today { color: var(--navy); font-weight: 600; background: #EDF3F6; box-shadow: inset 2px 0 0 var(--navy); }
+
+.domain-row { background: var(--well); border-top: 1px solid var(--line); z-index: 2; }
+.domain-row .dname { grid-column: 1 / -1; font-family: var(--font-display); font-size: 13px; font-weight: 600; padding: 8px 16px 6px; }
+
+.jhead { border-top: 1px solid var(--line); text-align: left; background: none; border-left: none; border-right: none; border-bottom: none; width: 100%; padding: 0; }
+.jhead:hover .jlabel { background: var(--well); }
+.jlabel { padding: 8px 12px 4px 16px; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.jlabel .top { display: flex; align-items: baseline; gap: 6px; }
+.jlabel .cname { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jlabel .route { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jlabel .route .kind { font-family: var(--font-mono); font-size: 10px; }
+.pill { font-size: 10px; font-weight: 500; padding: 0 7px; border-radius: 999px; white-space: nowrap; flex: none; }
+.p-flight { background: var(--flight-bg); color: var(--flight); }
+.p-idle { background: var(--idle-bg); color: var(--idle); }
+.p-overdue { background: var(--danger-bg); color: var(--danger); }
+.bar { height: 3px; background: var(--idle-bg); border-radius: 2px; overflow: hidden; width: 120px; }
+.bar > div { height: 100%; border-radius: 2px; background: var(--flight); }
+
+.target { display: flex; align-items: center; gap: 5px; align-self: center; white-space: nowrap; font-family: var(--font-mono); font-size: 10.5px; color: var(--navy); padding-left: 4px; }
+.target.overdue { color: var(--danger); }
+
+.lane { min-height: 26px; }
+.ms { display: flex; align-items: center; gap: 7px; padding: 3px 8px 3px 4px; min-width: 0; white-space: nowrap; overflow: hidden; }
+.ms .mdot { margin-left: -5px; }
+.ms .mlabel { font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
+.ms .mwhen { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); flex: none; }
+.ms .mwhen.done { color: var(--done); }
+.ms .mwhen.overdue { color: var(--danger); font-weight: 500; }
+.ms .odchip { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; background: var(--danger-bg); color: var(--danger); border-radius: 999px; padding: 0 6px; flex: none; }
+.ms .ndchip { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; background: var(--idle-bg); color: var(--idle); border-radius: 999px; padding: 0 6px; flex: none; }
+.lane:last-child { padding-bottom: 5px; }
+
+.mock-note { max-width: 1200px; margin: 0 auto; padding: 0 24px 32px; font-size: 12px; color: var(--faint); }
+.mock-note em { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header class="appbar">
+  <h1>Landscape <span>/ Business domains</span></h1>
+  <div class="seg" role="group" aria-label="Presentation">
+    <button type="button" aria-pressed="false">Board</button>
+    <button type="button" aria-pressed="true">Timeline</button>
+  </div>
+  <div class="seg dimmed" role="group" aria-label="Time lens (board only)">
+    <button type="button" aria-pressed="false" disabled>Now</button>
+    <button type="button" aria-pressed="false" disabled>Journey</button>
+    <button type="button" aria-pressed="false" disabled>Target</button>
+  </div>
+  <span class="asof">Model as of August 2026</span>
+</header>
+
+<div class="toolbar">
+  <p class="view-desc">Active journeys on a quarter axis — every milestone as a labelled row at its target quarter, ⚑ at the journey's target period.</p>
+  <div class="summary">
+    <span class="stat s-flight"><b>3</b> in flight</span>
+    <span class="stat s-idle"><b>2</b> planned</span>
+    <span class="stat s-danger"><b>1</b> journey overdue</span>
+    <span class="stat s-danger"><b>2</b> milestones overdue</span>
+  </div>
+  <div class="legend">
+    <span class="key"><span class="mdot m-done"></span> milestone done</span>
+    <span class="key"><span class="mdot m-flight"></span> in flight</span>
+    <span class="key"><span class="mdot m-idle"></span> planned</span>
+    <span class="key"><span class="mdot m-idle m-overdue"></span> overdue (target quarter passed, not done)</span>
+    <span class="key"><span class="flag">⚑</span> journey target period</span>
+    <span class="key"><span class="todaykey"></span> current quarter</span>
+  </div>
+</div>
+
+<div class="tl-wrap">
+  <div class="tl-scroll">
+    <div class="tl">
+      <div class="chart-bg" aria-hidden="true"></div>
+      <div class="today-stripe" aria-hidden="true"></div>
+
+      <div class="grid-row axis">
+        <div class="label-cell">Journey</div>
+        <div class="qcell">Q4'25</div><div class="qcell">Q1'26</div><div class="qcell">Q2'26</div>
+        <div class="qcell today">Q3'26</div>
+        <div class="qcell">Q4'26</div><div class="qcell">Q1'27</div><div class="qcell">Q2'27</div>
+        <div class="qcell">Q3'27</div><div class="qcell">Q4'27</div><div class="qcell">Q1'28</div>
+        <div class="qcell">Q2'28</div><div class="qcell">Q3'28</div><div class="qcell">Q4'28</div>
+      </div>
+
+      <div class="grid-row domain-row"><div class="dname">Ferry freight</div></div>
+
+      <button type="button" class="grid-row jhead">
+        <span class="jlabel">
+          <span class="top"><span class="cname">Ferry booking</span><span class="pill p-flight">in flight</span></span>
+          <span class="route"><span class="kind">migration</span> → Control Tower</span>
+          <span class="bar"><div style="width:25%"></div></span>
+        </span>
+        <span class="target" style="grid-column: 14">⚑ Q4'28</span>
+      </button>
+      <div class="grid-row lane"><span class="ms" style="grid-column: 3 / -1"><span class="mdot m-done"></span><span class="mlabel">Control Tower booking core live</span><span class="mwhen done">done · Q1'26</span></span></div>
+      <div class="grid-row lane"><span class="ms" style="grid-column: 8 / -1"><span class="mdot m-flight"></span><span class="mlabel">First routes handled end-to-end in CT</span><span class="mwhen">Q2'27</span></span></div>
+      <div class="grid-row lane"><span class="ms" style="grid-column: 12 / -1"><span class="mdot m-idle"></span><span class="mlabel">Phoenix decommission decision</span><span class="mwhen">Q2'28</span></span></div>
+      <div class="grid-row lane"><span class="ms" style="grid-column: 2 / -1"><span class="mdot m-idle"></span><span class="mlabel">Legacy contract exit</span><span class="ndchip">no date</span></span></div>
+
+      <button type="button" class="grid-row jhead">
+        <span class="jlabel">
+          <span class="top"><span class="cname">Hazardous</span><span class="pill p-idle">planned</span></span>
+          <span class="route"><span class="kind">migration</span> → Control Tower Hazardous</span>
+        </span>
+        <span class="target" style="grid-column: 5">⚑ Q3'26</span>
+      </button>
+      <div class="grid-row lane"><span class="ms" style="grid-column: 5 / -1"><span class="mdot m-idle"></span><span class="mlabel">Hazardous management app in Control Tower</span><span class="mwhen">Q3'26</span></span></div>
+
+      <button type="button" class="grid-row jhead">
+        <span class="jlabel">
+          <span class="top"><span class="cname">Booking management</span><span class="pill p-flight">in flight</span></span>
+          <span class="route"><span class="kind">migration</span> Seabook → Phoenix</span>
+          <span class="bar"><div style="width:60%"></div></span>
+        </span>
+        <span class="target" style="grid-column: 8">⚑ Q2'27</span>
+      </button>
+      <div class="grid-row lane"><span class="ms" style="grid-column: 2 / -1"><span class="mdot m-done"></span><span class="mlabel">Phoenix booking API live</span><span class="mwhen done">done · Q4'25</span></span></div>
+      <div class="grid-row lane"><span class="ms" style="grid-column: 3 / -1"><span class="mdot m-done"></span><span class="mlabel">Channel &amp; Baltic routes migrated</span><span class="mwhen done">done · Q1'26</span></span></div>
+      <div class="grid-row lane"><span class="ms" style="grid-column: 4 / -1"><span class="mdot m-flight m-overdue"></span><span class="mlabel">North Sea corridor migrated</span><span class="mwhen overdue">Q2'26</span><span class="odchip">overdue</span></span></div>
+      <div class="grid-row lane"><span class="ms" style="grid-column: 7 / -1"><span class="mdot m-idle"></span><span class="mlabel">Seabook read-only</span><span class="mwhen">Q1'27</span></span></div>
+
+      <div class="grid-row domain-row"><div class="dname">Group functions</div></div>
+
+      <button type="button" class="grid-row jhead">
+        <span class="jlabel">
+          <span class="top"><span class="cname">Expense handling</span><span class="pill p-overdue">planned · overdue</span></span>
+          <span class="route"><span class="kind">consolidation</span> → D365</span>
+        </span>
+        <span class="target overdue" style="grid-column: 3">⚑ Q1'26</span>
+      </button>
+      <div class="grid-row lane"><span class="ms" style="grid-column: 3 / -1"><span class="mdot m-idle m-overdue"></span><span class="mlabel">Pilot in D365</span><span class="mwhen overdue">Q1'26</span><span class="odchip">overdue</span></span></div>
+
+      <button type="button" class="grid-row jhead">
+        <span class="jlabel">
+          <span class="top"><span class="cname">Space charter settlement</span><span class="pill p-flight">in flight</span></span>
+          <span class="route"><span class="kind">carve-out</span> Phoenix → Charter Hub</span>
+          <span class="bar"><div style="width:45%"></div></span>
+        </span>
+        <span class="target" style="grid-column: 7">⚑ Q1'27</span>
+      </button>
+      <div class="grid-row lane"><span class="ms" style="grid-column: 6 / -1"><span class="mdot m-flight"></span><span class="mlabel">Charter Hub settlement engine live</span><span class="mwhen">Q4'26</span></span></div>
+      <div class="grid-row lane"><span class="ms" style="grid-column: 6 / -1"><span class="mdot m-idle"></span><span class="mlabel">First partner settled in Charter Hub</span><span class="mwhen">Q4'26</span></span></div>
+
+    </div>
+  </div>
+</div>
+
+<p class="mock-note">Mockup v2 with sample data, current quarter Q3 2026. Each milestone is a labelled row placed at its target quarter — label, status, period, and overdue flag are readable without hover. Rows within a journey follow the <em>stored milestone order</em> (196), dated before undated; undated rows carry a "no date" tag and are never overdue. Journeys are all <em>active</em> ones, grouped by business domain (A–Z), ordered by target period (undated last). Overdue is computed, never persisted. Activating a journey header opens the capability's drawer on the board. The view is URL-addressed like a lens; read-only users see it identically.</p>
+
+</body>
+</html>

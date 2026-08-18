@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>195 — Sub-capability journeys in the plan view (mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #03304C;
+  --ink: #16262F;
+  --muted: #5D7381;
+  --faint: #8CA0AC;
+  --bg: #F2F6F7;
+  --surface: #FFFFFF;
+  --well: #F7FAFB;
+  --line: #DDE6EA;
+  --line-strong: #B9C9D1;
+  --done: #0E7A5F;   --done-bg: #E3F2EC;
+  --flight: #A96605; --flight-bg: #FBEFD8;
+  --idle: #5D7381;   --idle-bg: #EEF2F4;  --idle-line: #C6D3DA;
+  --incoming: #5A4FBF; --incoming-bg: #ECEAFB;
+  --radius: 10px;
+  --font-ui: "Inter", system-ui, sans-serif;
+  --font-display: "Archivo", var(--font-ui);
+  --font-mono: "IBM Plex Mono", monospace;
+}
+* { box-sizing: border-box; margin: 0; }
+body { font-family: var(--font-ui); font-size: 14px; line-height: 1.5; color: var(--ink); background: var(--bg); padding: 24px; }
+button { font: inherit; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+
+.intro { max-width: 960px; margin: 0 auto 20px; }
+.intro h1 { font-family: var(--font-display); font-size: 18px; font-weight: 600; }
+.intro p { font-size: 13px; color: var(--muted); margin-top: 4px; max-width: 72ch; }
+
+.panels { display: flex; gap: 20px; flex-wrap: wrap; max-width: 960px; margin: 0 auto; align-items: flex-start; }
+.panel { flex: 1 1 400px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px 26px; box-shadow: 0 2px 10px rgba(3,48,76,0.06); }
+.panel .caption { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--incoming); margin-bottom: 12px; }
+
+.crumb { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+h3 { font-family: var(--font-display); font-size: 18px; font-weight: 600; }
+section { margin-top: 16px; }
+section h4 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--faint); margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+.new-tag { background: var(--incoming-bg); color: var(--incoming); border-radius: 999px; font-size: 9px; font-weight: 600; padding: 1px 7px; letter-spacing: 0.04em; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+td { padding: 4px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+td:first-child { color: var(--muted); width: 38%; }
+
+.note { font-size: 13px; background: var(--well); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+
+.pill { font-size: 10.5px; font-weight: 500; padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
+.p-done { background: var(--done-bg); color: var(--done); }
+.p-flight { background: var(--flight-bg); color: var(--flight); }
+.p-idle { background: var(--idle-bg); color: var(--idle); }
+
+.milestones { list-style: none; }
+.milestones li { display: flex; gap: 10px; align-items: baseline; padding: 4px 0; font-size: 13px; }
+.milestones .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.d-done { background: var(--done); }
+.d-flight { background: var(--flight); }
+.d-idle { background: var(--idle-line); }
+.milestones .when { color: var(--muted); margin-left: auto; font-size: 12px; white-space: nowrap; }
+
+.subjourney { display: flex; gap: 10px; align-items: baseline; border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; margin-bottom: 6px; background: var(--surface); width: 100%; text-align: left; }
+.subjourney:hover { box-shadow: 0 1px 4px rgba(3,48,76,0.12); }
+.subjourney .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; align-self: center; }
+.subjourney .body { min-width: 0; }
+.subjourney .cname { font-weight: 600; font-size: 13px; }
+.subjourney .route { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.subjourney .route .kind { font-family: var(--font-mono); font-size: 10.5px; }
+.subjourney .right { margin-left: auto; text-align: right; flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.subjourney .when { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.arrow { color: var(--faint); font-size: 11px; }
+
+.ancestor { display: flex; gap: 10px; align-items: baseline; border: 1px dashed var(--line-strong); border-radius: 8px; padding: 9px 12px; background: var(--well); width: 100%; text-align: left; }
+.ancestor:hover { box-shadow: 0 1px 4px rgba(3,48,76,0.12); }
+.ancestor .lbl { font-size: 12px; color: var(--muted); flex: none; }
+.ancestor .cname { font-weight: 600; font-size: 13px; }
+.ancestor .right { margin-left: auto; display: flex; align-items: baseline; gap: 8px; flex: none; }
+.ancestor .when { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+.footnote { max-width: 960px; margin: 20px auto 0; font-size: 12px; color: var(--faint); }
+.footnote em { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <h1>195 — Sub-capability journeys in the plan view</h1>
+  <p>Two drawers, same data, no duplicated milestone. The parent's journey section derives the journeys running beneath it; the sub-capability's journey section names the ancestor journey it is part of. Every row navigates to the referenced capability's drawer.</p>
+</div>
+
+<div class="panels">
+
+  <div class="panel">
+    <div class="caption">A · Parent drawer (L1)</div>
+    <p class="crumb">Ferry freight · Ferry booking</p>
+    <h3>Ferry booking <span style="font-size:11px;color:var(--faint);font-weight:400">L1</span></h3>
+
+    <section>
+      <h4>Transition</h4>
+      <table>
+        <tr><td>Type</td><td>migration</td></tr>
+        <tr><td>From → to</td><td>Space Charter + Capacity Management + Phoenix + Control Tower Hazardous → Control Tower</td></tr>
+        <tr><td>Status</td><td><span class="pill p-flight">in flight · 25%</span></td></tr>
+        <tr><td>Target date</td><td>Q4 2028</td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h4>Plan summary</h4>
+      <p class="note">Moving Ferry Booking realisation out of the legacy systems (i.e. Phoenix) and into the Control Tower.</p>
+    </section>
+
+    <section>
+      <h4>Milestones</h4>
+      <ul class="milestones">
+        <li><span class="dot d-done"></span> Control Tower booking core live <span class="when">Done · Q1 2026</span></li>
+        <li><span class="dot d-flight"></span> First routes handled end-to-end in CT <span class="when">Q2 2027</span></li>
+        <li><span class="dot d-idle"></span> Phoenix decommission decision <span class="when">Q2 2028</span></li>
+      </ul>
+    </section>
+
+    <section>
+      <h4>Sub-capability journeys <span class="new-tag">New</span></h4>
+      <button type="button" class="subjourney">
+        <span class="dot d-done"></span>
+        <span class="body">
+          <span class="cname">Space charter</span>
+          <div class="route"><span class="kind">migration</span> <span class="arrow">→</span> Control Tower</div>
+        </span>
+        <span class="right"><span class="pill p-done">done</span><span class="when">Q1 2026</span></span>
+      </button>
+      <button type="button" class="subjourney">
+        <span class="dot d-idle"></span>
+        <span class="body">
+          <span class="cname">Hazardous</span>
+          <div class="route"><span class="kind">migration</span> <span class="arrow">→</span> Control Tower Hazardous</div>
+        </span>
+        <span class="right"><span class="pill p-idle">planned</span><span class="when">Q3 2026</span></span>
+      </button>
+      <button type="button" class="subjourney">
+        <span class="dot d-flight"></span>
+        <span class="body">
+          <span class="cname">Capacity management</span>
+          <div class="route"><span class="kind">migration</span> <span class="arrow">→</span> Control Tower</div>
+        </span>
+        <span class="right"><span class="pill p-flight">in flight · 40%</span><span class="when">Q1 2027</span></span>
+      </button>
+    </section>
+  </div>
+
+  <div class="panel">
+    <div class="caption">B · Sub-capability drawer (L2)</div>
+    <p class="crumb">Ferry freight · Ferry booking · Hazardous</p>
+    <h3>Hazardous <span style="font-size:11px;color:var(--faint);font-weight:400">L2</span></h3>
+
+    <section>
+      <h4>Part of <span class="new-tag">New</span></h4>
+      <button type="button" class="ancestor">
+        <span class="body">
+          <span class="cname">Ferry booking</span>
+          <span style="font-size:12px;color:var(--muted)"> <span class="arrow">→</span> Control Tower</span>
+        </span>
+        <span class="right"><span class="pill p-flight">in flight</span><span class="when">Q4 2028</span></span>
+      </button>
+    </section>
+
+    <section>
+      <h4>Transition</h4>
+      <table>
+        <tr><td>Type</td><td>migration</td></tr>
+        <tr><td>From → to</td><td>Phoenix + Hazcheck → Control Tower Hazardous</td></tr>
+        <tr><td>Status</td><td><span class="pill p-idle">planned</span></td></tr>
+        <tr><td>Target date</td><td>Q3 2026</td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h4>Plan summary</h4>
+      <p class="note">Hazardous in Control Tower — isolate hazardous cargo handling into its own app in Control Tower.</p>
+    </section>
+
+    <section>
+      <h4>Milestones</h4>
+      <ul class="milestones">
+        <li><span class="dot d-idle"></span> Hazardous management app in Control Tower <span class="when">Q3 2026</span></li>
+      </ul>
+    </section>
+  </div>
+
+</div>
+
+<p class="footnote">Sub-capability rows cover descendants at any depth, ordered by target period (undated last). A descendant's <em>current</em> journey shows when planned, in flight, or done — abandoned journeys never appear. The "Part of" line lists every ancestor with an active journey, nearest first. Both sections are pure read-side derivation: nothing is stored, and no write affordances exist on either.</p>
+
+</body>
+</html>
