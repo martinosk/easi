@@ -6,7 +6,8 @@ import { buildCapabilityRealization, renderWithProviders } from '../../../test/h
 import { buildCapabilityAt as cap } from '../../../test/helpers/entityBuilders';
 import { addComponent } from '../../../test/mocks/db';
 import { buildStubJourney } from '../../../test/mocks/spec182/builders';
-import { seedSpec182Db, type StubJourney } from '../../../test/mocks/spec182/store';
+import { type StubJourney, seedSpec182Db } from '../../../test/mocks/spec182/store';
+import { NO_HIERARCHY_JOURNEYS } from '../lens/hierarchyJourneys';
 import { JourneySection } from './JourneySection';
 
 vi.mock('react-hot-toast', () => ({
@@ -23,9 +24,15 @@ function renderSection(realizationNames: Record<string, string> = {}) {
       componentName,
     });
   });
-  return renderWithProviders(<JourneySection capability={capability} realizations={realizations} />, {
-    withRouter: false,
-  });
+  return renderWithProviders(
+    <JourneySection
+      capability={capability}
+      realizations={realizations}
+      hierarchyJourneys={NO_HIERARCHY_JOURNEYS}
+      onNavigateToCapability={vi.fn()}
+    />,
+    { withRouter: false },
+  );
 }
 
 function seedActive(overrides: Partial<StubJourney> = {}) {

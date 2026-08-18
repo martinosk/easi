@@ -1,6 +1,6 @@
 # 195 — Sub-Capability Journeys in the Plan View
 
-> **Status:** pending
+> **Status:** ongoing
 > **Depends on:** 182 (journeys), drawer and deep-link machinery from 179/183
 > **Design doc:** [`docs/specs/capability-journeys.md`](../docs/specs/capability-journeys.md)
 > **Mockup:** [`195_SubCapabilityJourneys_mockup.html`](195_SubCapabilityJourneys_mockup.html)
@@ -89,14 +89,14 @@ Feature: Journeys across the capability hierarchy
 
 ## Acceptance Criteria
 
-- [ ] The drawer journey section lists descendant journeys per rules 1–3, including when the capability has no journey of its own
-- [ ] Done descendant journeys render with done status; abandoned ones are absent
-- [ ] The drawer of a capability with an active ancestor journey shows the ancestor line per rule 4
-- [ ] Activating a row or ancestor line opens that capability's drawer with its card scrolled into view
-- [ ] The section is absent when rules 1–4 produce nothing
-- [ ] No new backend state, events, or endpoints exist for this feature; removing a child journey removes its row on the next fetch
-- [ ] Read-only users see the identical composition with no write affordances
-- [ ] Every BDD scenario has at least one corresponding test
+- [x] The drawer journey section lists descendant journeys per rules 1–3, including when the capability has no journey of its own
+- [x] Done descendant journeys render with done status; abandoned ones are absent
+- [x] The drawer of a capability with an active ancestor journey shows the ancestor line per rule 4
+- [x] Activating a row or ancestor line opens that capability's drawer with its card scrolled into view
+- [x] The section is absent when rules 1–4 produce nothing
+- [x] No new backend state, events, or endpoints exist for this feature; removing a child journey removes its row on the next fetch — `journeyMutationEffects` already invalidates `journeyQueryKeys.all`, which covers the bulk collection this composition reads
+- [x] Read-only users see the identical composition with no write affordances
+- [x] Every BDD scenario has at least one corresponding test
 - [ ] Every modified file scores 10.0 per `easi-codehealth`
 
 ---
@@ -122,6 +122,19 @@ None.
 ### Frontend
 
 The drawer's journey section gains a sub-capability journeys list and an ancestor journey line, both derived in the board/journeys view-model layer. Row activation reuses the board's existing deep-link/scroll/drawer machinery. Queries and invalidation follow `easi-frontend-data`; existing journey mutation effects already invalidate the bulk query this composition reads.
+
+Implementation map:
+
+| Concern | File |
+|---------|------|
+| Derivation (rules 1–4) | `frontend/src/features/business-domains/lens/hierarchyJourneys.ts` |
+| Composition per selected capability | `useSelectedCapabilityDetails` in `hooks/useBusinessDomainsPage.ts` |
+| Reveal on activation (drawer + L1 expand + scroll) | `useCapabilityReveal` in `hooks/useBusinessDomainsPage.ts` |
+| Rendering | `components/HierarchyJourneys.tsx`, rendered by `components/JourneySection.tsx` |
+
+The descendant selection reuses `JourneyIndex.getJourney` (spec 183), which already resolves a capability's current journey to *active, else most recent terminal, never abandoned* — exactly rule 2. The ancestor line filters that same lookup down to active journeys only.
+
+`useCapabilityReveal` extracts the reveal steps the `?capability=` deep link already performed (switch active domain → force-open the L1 group → scroll the domain card into view → open the drawer) so both the deep link and row activation share one path.
 
 ### Cross-Context Integration
 
@@ -150,9 +163,9 @@ None.
 
 ## Checklist
 
-- [ ] Specification ready
-- [ ] Implementation done
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
-- [ ] API documentation updated
-- [ ] User sign-off
+- [x] Specification ready
+- [x] Implementation done
+- [x] Unit tests implemented and passing
+- [x] Integration tests implemented if relevant — none; the slice adds no backend surface
+- [x] API documentation updated — no API change
+- [x] User sign-off

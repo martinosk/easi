@@ -10,6 +10,7 @@ import type {
   TimeAssessmentGradeCounts,
   TimeGrade,
 } from '../../architecture-direction/types';
+import { NO_HIERARCHY_JOURNEYS } from '../lens/hierarchyJourneys';
 import { CapabilityDrawer } from './CapabilityDrawer';
 
 vi.mock('../../../hooks/useStrategyPillarsSettings', () => ({
@@ -140,8 +141,10 @@ describe('CapabilityDrawer', () => {
         domain={null}
         l1Name={null}
         getRealizationsForCapability={() => []}
+        hierarchyJourneys={NO_HIERARCHY_JOURNEYS}
         onClose={vi.fn()}
         onChipClick={vi.fn()}
+        onNavigateToCapability={vi.fn()}
       />,
     );
 
@@ -157,8 +160,10 @@ describe('CapabilityDrawer', () => {
         domain={domain}
         l1Name="Ferry Booking"
         getRealizationsForCapability={() => []}
+        hierarchyJourneys={NO_HIERARCHY_JOURNEYS}
         onClose={vi.fn()}
         onChipClick={vi.fn()}
+        onNavigateToCapability={vi.fn()}
       />,
     );
 
@@ -194,8 +199,10 @@ describe('CapabilityDrawer', () => {
         domain={domain}
         l1Name="Ferry Booking"
         getRealizationsForCapability={() => realizations}
+        hierarchyJourneys={NO_HIERARCHY_JOURNEYS}
         onClose={vi.fn()}
         onChipClick={vi.fn()}
+        onNavigateToCapability={vi.fn()}
       />,
     );
 
@@ -216,8 +223,10 @@ describe('CapabilityDrawer', () => {
         domain={domain}
         l1Name="Ferry Booking"
         getRealizationsForCapability={() => realizations}
+        hierarchyJourneys={NO_HIERARCHY_JOURNEYS}
         onClose={vi.fn()}
         onChipClick={onChipClick}
+        onNavigateToCapability={vi.fn()}
       />,
     );
 
@@ -234,8 +243,10 @@ describe('CapabilityDrawer', () => {
         domain={domain}
         l1Name="Ferry Booking"
         getRealizationsForCapability={() => []}
+        hierarchyJourneys={NO_HIERARCHY_JOURNEYS}
         onClose={vi.fn()}
         onChipClick={vi.fn()}
+        onNavigateToCapability={vi.fn()}
       />,
     );
 
@@ -258,8 +269,10 @@ describe('CapabilityDrawer', () => {
         domain={domain}
         l1Name="Ferry Booking"
         getRealizationsForCapability={() => []}
+        hierarchyJourneys={NO_HIERARCHY_JOURNEYS}
         onClose={vi.fn()}
         onChipClick={vi.fn()}
+        onNavigateToCapability={vi.fn()}
       />,
     );
 
@@ -270,7 +283,9 @@ describe('CapabilityDrawer', () => {
   });
 
   describe('TIME assessment on a Direct realising application', () => {
-    function renderAssessmentDrawer(realizationOverrides: Partial<Parameters<typeof buildCapabilityRealization>[0]> = {}) {
+    function renderAssessmentDrawer(
+      realizationOverrides: Partial<Parameters<typeof buildCapabilityRealization>[0]> = {},
+    ) {
       const capability = cap('l2-a', 'Booking Management', 'L2');
       const realizations = [
         buildCapabilityRealization({
@@ -287,8 +302,10 @@ describe('CapabilityDrawer', () => {
           domain={domain}
           l1Name="Ferry Booking"
           getRealizationsForCapability={() => realizations}
+          hierarchyJourneys={NO_HIERARCHY_JOURNEYS}
           onClose={vi.fn()}
           onChipClick={vi.fn()}
+          onNavigateToCapability={vi.fn()}
         />,
       );
     }
@@ -371,8 +388,10 @@ describe('CapabilityDrawer', () => {
           domain={domain}
           l1Name="Ferry Booking"
           getRealizationsForCapability={() => realizations}
+          hierarchyJourneys={NO_HIERARCHY_JOURNEYS}
           onClose={vi.fn()}
           onChipClick={vi.fn()}
+          onNavigateToCapability={vi.fn()}
         />,
       );
     }

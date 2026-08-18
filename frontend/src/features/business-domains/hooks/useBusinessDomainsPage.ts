@@ -5,6 +5,8 @@ import type { BusinessDomain, BusinessDomainId, Capability, CapabilityId, Compon
 import { useMaturityColorScale } from '../../../hooks/useMaturityColorScale';
 import { clearParams, deepLinkParams, getParamValue } from '../../../lib/deepLinks';
 import { useUserStore } from '../../../store/userStore';
+import { buildHierarchyJourneys, NO_HIERARCHY_JOURNEYS } from '../lens/hierarchyJourneys';
+import type { JourneyIndex } from '../lens/journeyIndex';
 import type { DomainBoardViewModel } from './domainBoardViewModel';
 import { flattenViewModelCapabilities } from './domainBoardViewModel';
 import { useBoardLensState } from './useBoardLensState';
@@ -240,23 +242,19 @@ function useCapabilityBoardInteractions({
   };
 }
 
-interface BusinessDomainsDeepLinksParams {
-  domains: BusinessDomain[];
-  isLoading: boolean;
+interface CapabilityRevealParams {
   allCapabilities: Capability[];
   boardDomains: DomainBoardViewModel[];
   switchActiveDomain: (domainId: BusinessDomainId) => void;
   openCapabilityDrawer: (domainId: BusinessDomainId, capability: Capability) => void;
 }
 
-function useBusinessDomainsDeepLinks({
-  domains,
-  isLoading,
+function useCapabilityReveal({
   allCapabilities,
   boardDomains,
   switchActiveDomain,
   openCapabilityDrawer,
-}: BusinessDomainsDeepLinksParams) {
+}: CapabilityRevealParams) {
   const [highlightedDomainId, setHighlightedDomainId] = useState<BusinessDomainId | null>(null);
   const [forceOpenL1Ids, setForceOpenL1Ids] = useState<Set<CapabilityId>>(new Set());
 
@@ -266,26 +264,57 @@ function useBusinessDomainsDeepLinks({
     return () => clearTimeout(timer);
   }, [highlightedDomainId]);
 
+  const revealCapability = useCallback(
+    (capability: Capability): boolean => {
+      const l1Ancestor = findL1Ancestor(capability, allCapabilities);
+      const owningDomain = boardDomains.find((vm) => vm.assignedCapabilities.some((c) => c.id === l1Ancestor.id));
+      if (!owningDomain) return false;
+
+      switchActiveDomain(owningDomain.domain.id);
+      setForceOpenL1Ids(new Set([l1Ancestor.id]));
+      setHighlightedDomainId(owningDomain.domain.id);
+      openCapabilityDrawer(owningDomain.domain.id, capability);
+      return true;
+    },
+    [allCapabilities, boardDomains, switchActiveDomain, openCapabilityDrawer],
+  );
+
+  const openCapabilityById = useCallback(
+    (capabilityId: string) => {
+      const capability = allCapabilities.find((c) => String(c.id) === capabilityId);
+      if (capability) revealCapability(capability);
+    },
+    [allCapabilities, revealCapability],
+  );
+
+  return {
+    highlightedDomainId,
+    highlightDomain: setHighlightedDomainId,
+    forceOpenL1Ids,
+    revealCapability,
+    openCapabilityById,
+  };
+}
+
+interface BusinessDomainsDeepLinksParams {
+  domains: BusinessDomain[];
+  isLoading: boolean;
+  allCapabilities: Capability[];
+  reveal: ReturnType<typeof useCapabilityReveal>;
+}
+
+function useBusinessDomainsDeepLinks({ domains, isLoading, allCapabilities, reveal }: BusinessDomainsDeepLinksParams) {
+  const { highlightDomain, revealCapability } = reveal;
+
   useDomainDeepLink(domains, isLoading, (domain) => {
-    setHighlightedDomainId(domain.id);
+    highlightDomain(domain.id);
   });
 
   useCapabilityDeepLink(allCapabilities, isLoading, (capability) => {
-    const l1Ancestor = findL1Ancestor(capability, allCapabilities);
-    const owningDomain = boardDomains.find((vm) => vm.assignedCapabilities.some((c) => c.id === l1Ancestor.id));
-
-    if (!owningDomain) {
+    if (!revealCapability(capability)) {
       toast.error('The linked capability is not assigned to a business domain');
-      return;
     }
-
-    switchActiveDomain(owningDomain.domain.id);
-    setForceOpenL1Ids(new Set([l1Ancestor.id]));
-    setHighlightedDomainId(owningDomain.domain.id);
-    openCapabilityDrawer(owningDomain.domain.id, capability);
   });
-
-  return { highlightedDomainId, forceOpenL1Ids };
 }
 
 function useBoardFilters() {
@@ -357,40 +386,49 @@ function useDomainDialogAndMenu({
   return { dialogManager, domainContextMenu };
 }
 
-function useSelectedCapabilityDetails(
-  selectedCapability: Capability | null,
-  selectedCapabilityDomainId: BusinessDomainId | null,
-  boardDomainsById: Map<BusinessDomainId, DomainBoardViewModel>,
-  allCapabilities: Capability[],
-) {
+interface SelectedCapabilityDetailsParams {
+  selectedCapability: Capability | null;
+  selectedCapabilityDomainId: BusinessDomainId | null;
+  boardDomainsById: Map<BusinessDomainId, DomainBoardViewModel>;
+  allCapabilities: Capability[];
+  journeyIndex: JourneyIndex;
+}
+
+function useSelectedCapabilityDetails({
+  selectedCapability,
+  selectedCapabilityDomainId,
+  boardDomainsById,
+  allCapabilities,
+  journeyIndex,
+}: SelectedCapabilityDetailsParams) {
   const selectedDomainViewModel = selectedCapabilityDomainId
     ? boardDomainsById.get(selectedCapabilityDomainId)
     : undefined;
+
+  const hierarchyJourneys = useMemo(() => {
+    if (!selectedCapability) return NO_HIERARCHY_JOURNEYS;
+    return buildHierarchyJourneys({
+      capabilityId: String(selectedCapability.id),
+      capabilities: allCapabilities,
+      getJourney: journeyIndex.getJourney,
+    });
+  }, [selectedCapability, allCapabilities, journeyIndex]);
 
   return {
     selectedDomain: selectedDomainViewModel?.domain ?? null,
     selectedL1Name: selectedCapability ? findL1Ancestor(selectedCapability, allCapabilities).name : null,
     getRealizationsForSelectedCapability: selectedDomainViewModel?.getRealizationsForCapability ?? (() => []),
+    hierarchyJourneys,
   };
 }
 
 interface DomainBoardInteractionsParams {
-  boardDomains: DomainBoardViewModel[];
-  domains: BusinessDomain[];
-  isLoading: boolean;
-  allCapabilities: Capability[];
-  refetchDomain: (domainId: BusinessDomainId) => Promise<void>;
+  board: ReturnType<typeof useDomainBoardData>;
   drawer: ReturnType<typeof useCapabilityDrawerState>;
 }
 
-function useDomainBoardInteractions({
-  boardDomains,
-  domains,
-  isLoading,
-  allCapabilities,
-  refetchDomain,
-  drawer,
-}: DomainBoardInteractionsParams) {
+function useDomainBoardInteractions({ board, drawer }: DomainBoardInteractionsParams) {
+  const { boardDomains, domains, isLoading, allCapabilities, journeyIndex, refetchDomain } = board;
   const { boardDomainsById, globalAssignedCapabilityIds } = useBoardIndexes(boardDomains);
   const activeDomain = useActiveDomainSelection(boardDomainsById, drawer.openCapabilityDrawer);
 
@@ -404,86 +442,46 @@ function useDomainBoardInteractions({
     refetchDomain,
   });
 
-  const { highlightedDomainId, forceOpenL1Ids } = useBusinessDomainsDeepLinks({
-    domains,
-    isLoading,
+  const reveal = useCapabilityReveal({
     allCapabilities,
     boardDomains,
     switchActiveDomain: activeDomain.switchActiveDomain,
     openCapabilityDrawer: drawer.openCapabilityDrawer,
   });
 
-  const { selectedDomain, selectedL1Name, getRealizationsForSelectedCapability } = useSelectedCapabilityDetails(
-    drawer.selectedCapability,
-    drawer.selectedCapabilityDomainId,
+  useBusinessDomainsDeepLinks({ domains, isLoading, allCapabilities, reveal });
+
+  const selectedCapabilityDetails = useSelectedCapabilityDetails({
+    selectedCapability: drawer.selectedCapability,
+    selectedCapabilityDomainId: drawer.selectedCapabilityDomainId,
     boardDomainsById,
     allCapabilities,
-  );
-
-  const openCapabilityById = useCallback(
-    (capabilityId: string) => {
-      const capability = allCapabilities.find((c) => c.id === capabilityId);
-      if (!capability) return;
-      const l1Ancestor = findL1Ancestor(capability, allCapabilities);
-      const owningDomain = boardDomains.find((vm) => vm.assignedCapabilities.some((c) => c.id === l1Ancestor.id));
-      if (!owningDomain) return;
-      activeDomain.switchActiveDomain(owningDomain.domain.id);
-      drawer.openCapabilityDrawer(owningDomain.domain.id, capability);
-    },
-    [allCapabilities, boardDomains, activeDomain, drawer],
-  );
+    journeyIndex,
+  });
 
   return {
     activeDomain,
     globalAssignedCapabilityIds,
     capabilityContextMenu,
     dragHandlers,
-    highlightedDomainId,
-    forceOpenL1Ids,
-    selectedDomain,
-    selectedL1Name,
-    getRealizationsForSelectedCapability,
-    openCapabilityById,
+    highlightedDomainId: reveal.highlightedDomainId,
+    forceOpenL1Ids: reveal.forceOpenL1Ids,
+    openCapabilityById: reveal.openCapabilityById,
+    ...selectedCapabilityDetails,
   };
 }
 
 export function useBusinessDomainsPage() {
   const board = useDomainBoardData();
-  const {
-    domains,
-    boardDomains,
-    journeyIndex,
-    canCreateDomain,
-    isLoading,
-    error,
-    allCapabilities,
-    refetchDomain,
-    createDomain,
-    updateDomain,
-    deleteDomain,
-  } = board;
-
   const filters = useBoardFilters();
   const lensState = useBoardLensState();
   const drawer = useCapabilityDrawerState();
-
-  const {
-    activeDomain,
-    globalAssignedCapabilityIds,
-    capabilityContextMenu,
-    dragHandlers,
-    highlightedDomainId,
-    forceOpenL1Ids,
-    selectedDomain,
-    selectedL1Name,
-    getRealizationsForSelectedCapability,
-    openCapabilityById,
-  } = useDomainBoardInteractions({ boardDomains, domains, isLoading, allCapabilities, refetchDomain, drawer });
+  const { activeDomain, ...interactions } = useDomainBoardInteractions({ board, drawer });
 
   const { dialogManager, domainContextMenu } = useDomainDialogAndMenu({
-    createDomain,
-    updateDomain,
-    deleteDomain,
+    createDomain: board.createDomain,
+    updateDomain: board.updateDomain,
+    deleteDomain: board.deleteDomain,
     activeDomainId: activeDomain.activeDomainId,
     setActiveDomainId: activeDomain.setActiveDomainId,
     selectedCapabilityDomainId: drawer.selectedCapabilityDomainId,
@@ -491,28 +489,20 @@ export function useBusinessDomainsPage() {
   });
 
   return {
-    boardDomains,
-    journeyIndex,
-    canCreateDomain,
-    isLoading,
-    error,
-    allCapabilities,
-    globalAssignedCapabilityIds,
+    boardDomains: board.boardDomains,
+    journeyIndex: board.journeyIndex,
+    canCreateDomain: board.canCreateDomain,
+    isLoading: board.isLoading,
+    error: board.error,
+    allCapabilities: board.allCapabilities,
     ...filters,
     ...lensState,
-    openCapabilityById,
+    ...interactions,
     selectedCapability: drawer.selectedCapability,
-    selectedDomain,
-    selectedL1Name,
-    getRealizationsForSelectedCapability,
     selectedComponentId: drawer.selectedComponentId,
     selectedCapabilities: activeDomain.selection.selectedCapabilities,
-    highlightedDomainId,
-    forceOpenL1Ids,
     dialogManager,
     domainContextMenu,
-    capabilityContextMenu,
-    dragHandlers,
     handleCapabilityClick: activeDomain.handleCapabilityClick,
     clearCapabilityDetails: drawer.clearCapabilityDetails,
     handleApplicationClick: drawer.handleApplicationClick,

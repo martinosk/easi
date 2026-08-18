@@ -5,6 +5,7 @@ import { renderWithProviders } from '../../../test/helpers';
 import { buildCapabilityAt as cap } from '../../../test/helpers/entityBuilders';
 import { buildStubJourney } from '../../../test/mocks/spec182/builders';
 import { seedSpec182Db } from '../../../test/mocks/spec182/store';
+import { NO_HIERARCHY_JOURNEYS } from '../lens/hierarchyJourneys';
 import { JourneySection } from './JourneySection';
 
 vi.mock('react-hot-toast', () => ({
@@ -13,7 +14,15 @@ vi.mock('react-hot-toast', () => ({
 
 function renderSection() {
   const capability = cap('cap-1', 'Booking management', 'L2');
-  return renderWithProviders(<JourneySection capability={capability} realizations={[]} />, { withRouter: false });
+  return renderWithProviders(
+    <JourneySection
+      capability={capability}
+      realizations={[]}
+      hierarchyJourneys={NO_HIERARCHY_JOURNEYS}
+      onNavigateToCapability={vi.fn()}
+    />,
+    { withRouter: false },
+  );
 }
 
 describe('JourneySection — no journey', () => {

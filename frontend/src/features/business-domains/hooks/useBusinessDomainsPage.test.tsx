@@ -4,9 +4,10 @@ import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { toBusinessDomainId, toComponentId } from '../../../api/types';
-import { buildBusinessDomain } from '../../../test/helpers';
+import { buildBusinessDomain, buildCapabilityJourney } from '../../../test/helpers';
 import { buildCapabilityAt as cap } from '../../../test/helpers/entityBuilders';
 import { buildCapabilityTree } from '../../capabilities/hooks/useCapabilityTree';
+import type { CapabilityJourney } from '../../journeys/types';
 import { buildJourneyIndex } from '../lens/journeyIndex';
 import { buildDomainBoardViewModel } from './domainBoardViewModel';
 import { useBusinessDomainsPage } from './useBusinessDomainsPage';
@@ -34,7 +35,7 @@ const domain = buildBusinessDomain({ id: toBusinessDomainId('domain-1'), name: '
 const l1 = cap('l1-a', 'Ferry Booking', 'L1');
 const l2 = cap('l2-a1', 'Booking Management', 'L2', 'l1-a');
 
-function buildBoardData() {
+function buildBoardData(journeys: CapabilityJourney[] = []) {
   const tree = buildCapabilityTree([l1, l2]);
   const viewModel = buildDomainBoardViewModel({
     domain,
@@ -46,7 +47,7 @@ function buildBoardData() {
   return {
     domains: [domain],
     boardDomains: [viewModel],
-    journeyIndex: buildJourneyIndex({ journeys: [], capabilityDomainNames: new Map() }),
+    journeyIndex: buildJourneyIndex({ journeys, capabilityDomainNames: new Map() }),
     canCreateDomain: true,
     isLoading: false,
     error: null,
@@ -155,6 +156,64 @@ describe('useBusinessDomainsPage', () => {
     expect(result.current.selectedDomain).toEqual(domain);
     expect(result.current.forceOpenL1Ids.has(l1.id)).toBe(true);
     expect(result.current.highlightedDomainId).toBe(domain.id);
+  });
+
+  it('reveals a capability opened by id — drawer, expanded L1 ancestor, and scrolled-to domain card', () => {
+    const { result } = renderPage();
+
+    act(() => {
+      result.current.openCapabilityById('l2-a1');
+    });
+
+    expect(result.current.selectedCapability).toEqual(l2);
+    expect(result.current.selectedDomain).toEqual(domain);
+    expect(result.current.forceOpenL1Ids.has(l1.id)).toBe(true);
+    expect(result.current.highlightedDomainId).toBe(domain.id);
+  });
+
+  it('ignores an unknown capability id', () => {
+    const { result } = renderPage();
+
+    act(() => {
+      result.current.openCapabilityById('not-on-the-board');
+    });
+
+    expect(result.current.selectedCapability).toBeNull();
+  });
+
+  it('composes the hierarchy journeys of the selected capability', () => {
+    const subJourney = buildCapabilityJourney({
+      id: 'journey-l2',
+      capabilityId: 'l2-a1',
+      capabilityName: 'Booking Management',
+      status: 'planned',
+    });
+    const parentJourney = buildCapabilityJourney({
+      id: 'journey-l1',
+      capabilityId: 'l1-a',
+      capabilityName: 'Ferry Booking',
+      status: 'in-flight',
+    });
+    vi.mocked(useDomainBoardData).mockReturnValue(buildBoardData([subJourney, parentJourney]));
+    const { result } = renderPage();
+
+    act(() => {
+      result.current.handleCapabilityClick(domain.id, l1, clickEvent());
+    });
+    expect(result.current.hierarchyJourneys.descendants.map((journey) => journey.id)).toEqual(['journey-l2']);
+    expect(result.current.hierarchyJourneys.ancestors).toEqual([]);
+
+    act(() => {
+      result.current.handleCapabilityClick(domain.id, l2, clickEvent());
+    });
+    expect(result.current.hierarchyJourneys.descendants).toEqual([]);
+    expect(result.current.hierarchyJourneys.ancestors.map((journey) => journey.id)).toEqual(['journey-l1']);
+  });
+
+  it('composes no hierarchy journeys when no capability is selected', () => {
+    const { result } = renderPage();
+
+    expect(result.current.hierarchyJourneys).toEqual({ descendants: [], ancestors: [] });
   });
 
   it('highlights a ?domain= deep-linked domain and clears the highlight after 2 seconds', async () => {

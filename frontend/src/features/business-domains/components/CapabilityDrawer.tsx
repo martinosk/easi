@@ -18,6 +18,7 @@ import { useTimeSuggestions } from '../../enterprise-architecture/hooks/useTimeS
 import { OnePagerActionButton } from '../../one-pagers';
 import { type CapabilityAssessments, useCapabilityAssessments } from '../hooks/useCapabilityAssessments';
 import { type CapabilityRoles, useCapabilityRoles } from '../hooks/useCapabilityRoles';
+import type { CapabilityHierarchyJourneys } from '../lens/hierarchyJourneys';
 import { AppChip } from './AppChip';
 import classes from './CapabilityDrawer.module.css';
 import { DrawerSectionHeader } from './DrawerSectionHeader';
@@ -31,8 +32,10 @@ export interface CapabilityDrawerProps {
   domain: BusinessDomain | null;
   l1Name: string | null;
   getRealizationsForCapability: (capabilityId: CapabilityId) => CapabilityRealization[];
+  hierarchyJourneys: CapabilityHierarchyJourneys;
   onClose: () => void;
   onChipClick: (componentId: ComponentId) => void;
+  onNavigateToCapability: (capabilityId: string) => void;
 }
 
 interface RealizationRowProps {
@@ -156,8 +159,10 @@ export function CapabilityDrawer({
   domain,
   l1Name,
   getRealizationsForCapability,
+  hierarchyJourneys,
   onClose,
   onChipClick,
+  onNavigateToCapability,
 }: CapabilityDrawerProps) {
   const [editOpen, setEditOpen] = useState(false);
   const [addExpertOpen, setAddExpertOpen] = useState(false);
@@ -193,7 +198,12 @@ export function CapabilityDrawer({
             onChipClick={onChipClick}
           />
 
-          <JourneySection capability={capability} realizations={getRealizationsForCapability(capability.id)} />
+          <JourneySection
+            capability={capability}
+            realizations={getRealizationsForCapability(capability.id)}
+            hierarchyJourneys={hierarchyJourneys}
+            onNavigateToCapability={onNavigateToCapability}
+          />
 
           {domain && <StrategicImportanceSection domain={domain} capabilityId={capability.id} />}
 

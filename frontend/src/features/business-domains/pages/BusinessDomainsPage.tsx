@@ -85,8 +85,10 @@ export function BusinessDomainsPage() {
         domain={hookData.selectedDomain}
         l1Name={hookData.selectedL1Name}
         getRealizationsForCapability={hookData.getRealizationsForSelectedCapability}
+        hierarchyJourneys={hookData.hierarchyJourneys}
         onClose={hookData.clearCapabilityDetails}
         onChipClick={hookData.handleApplicationClick}
+        onNavigateToCapability={hookData.openCapabilityById}
       />
 
       <ApplicationDrawer componentId={hookData.selectedComponentId} onClose={hookData.clearSelectedComponent} />

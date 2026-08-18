@@ -9,12 +9,16 @@ import { JourneyProgressBar } from '../../journeys/components/JourneyProgressBar
 import { JourneyTransitionTable } from '../../journeys/components/JourneyTransitionTable';
 import { useJourneyForCapability, useJourneyHistory } from '../../journeys/hooks/useJourneys';
 import type { CapabilityJourney, CapabilityJourneyResponse } from '../../journeys/types';
+import type { CapabilityHierarchyJourneys } from '../lens/hierarchyJourneys';
 import { DrawerSectionHeader } from './DrawerSectionHeader';
+import { AncestorJourneys, SubCapabilityJourneys } from './HierarchyJourneys';
 import classes from './JourneySection.module.css';
 
 export interface JourneySectionProps {
   capability: Capability;
   realizations: CapabilityRealization[];
+  hierarchyJourneys: CapabilityHierarchyJourneys;
+  onNavigateToCapability: (capabilityId: string) => void;
 }
 
 function useDisplayJourney(capabilityId: string) {
@@ -87,17 +91,24 @@ function CaptureAffordance({
   );
 }
 
-export function JourneySection({ capability, realizations }: JourneySectionProps) {
+export function JourneySection({
+  capability,
+  realizations,
+  hierarchyJourneys,
+  onNavigateToCapability,
+}: JourneySectionProps) {
   const { wrapper, displayJourney } = useDisplayJourney(String(capability.id));
 
   if (!wrapper) return null;
 
   return (
     <Stack gap="xs" data-testid="journey-section">
+      <AncestorJourneys journeys={hierarchyJourneys.ancestors} onNavigate={onNavigateToCapability} />
       <DrawerSectionHeader>Transition</DrawerSectionHeader>
       {!displayJourney && <Text className={classes.empty}>No change planned.</Text>}
       <CaptureAffordance wrapper={wrapper} capability={capability} realizations={realizations} />
       {displayJourney && <JourneyContent journey={displayJourney} realizations={realizations} />}
+      <SubCapabilityJourneys journeys={hierarchyJourneys.descendants} onNavigate={onNavigateToCapability} />
     </Stack>
   );
 }
