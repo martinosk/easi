@@ -2,31 +2,27 @@ package api
 
 import (
 	"net/http"
+	"slices"
 
 	"easi/backend/internal/auth/application/readmodels"
 	"easi/backend/internal/auth/domain/valueobjects"
 	"easi/backend/internal/auth/infrastructure/repositories"
-	"easi/backend/internal/auth/infrastructure/session"
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
-	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 )
 
 type TenantHandlers struct {
-	tenantRepo     *repositories.TenantRepository
-	userReadModel  *readmodels.UserReadModel
-	sessionManager *session.SessionManager
+	tenantRepo    *repositories.TenantRepository
+	userReadModel *readmodels.UserReadModel
 }
 
 func NewTenantHandlers(
 	tenantRepo *repositories.TenantRepository,
 	userReadModel *readmodels.UserReadModel,
-	sessionManager *session.SessionManager,
 ) *TenantHandlers {
 	return &TenantHandlers{
-		tenantRepo:     tenantRepo,
-		userReadModel:  userReadModel,
-		sessionManager: sessionManager,
+		tenantRepo:    tenantRepo,
+		userReadModel: userReadModel,
 	}
 }
 
@@ -48,34 +44,33 @@ type CurrentTenantResponse struct {
 // @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
 // @Router /tenants/current [get]
 func (h *TenantHandlers) GetCurrentTenant(w http.ResponseWriter, r *http.Request) {
-	authSession, err := h.sessionManager.LoadAuthenticatedSession(r.Context())
+	ctx := r.Context()
+	actor, ok := sharedctx.GetActor(ctx)
+	if !ok {
+		sharedAPI.RespondError(w, http.StatusUnauthorized, nil, "Not authenticated")
+		return
+	}
+
+	tenantIDVO, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusUnauthorized, err, "Not authenticated")
 		return
 	}
+	tenantID := tenantIDVO.Value()
 
-	tenantID := authSession.TenantID()
-	tenant, err := h.tenantRepo.GetByID(r.Context(), tenantID)
+	tenant, err := h.tenantRepo.GetByID(ctx, tenantID)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve tenant")
 		return
 	}
 
-	domains, err := h.tenantRepo.GetDomains(r.Context(), tenantID)
+	domains, err := h.tenantRepo.GetDomains(ctx, tenantID)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve tenant domains")
 		return
 	}
 
-	tenantIDVO, err := sharedvo.NewTenantID(tenantID)
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Invalid tenant ID")
-		return
-	}
-	ctx := sharedctx.WithTenant(r.Context(), tenantIDVO)
-
-	userEmail := authSession.UserEmail()
-	user, err := h.userReadModel.GetByEmail(ctx, userEmail)
+	user, err := h.userReadModel.GetByEmail(ctx, actor.Email)
 	if err != nil || user == nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to get user")
 		return
@@ -103,8 +98,8 @@ func (h *TenantHandlers) tenantLinks(userRole string, permissions []string) map[
 		"self": "/api/v1/tenants/current",
 	}
 
-	hasUsersRead := hasPermission(permissions, valueobjects.PermUsersRead.String())
-	hasInvitationsManage := hasPermission(permissions, valueobjects.PermInvitationsManage.String())
+	hasUsersRead := slices.Contains(permissions, valueobjects.PermUsersRead.String())
+	hasInvitationsManage := slices.Contains(permissions, valueobjects.PermInvitationsManage.String())
 
 	if userRole == "admin" || hasUsersRead {
 		links["users"] = "/api/v1/users"
@@ -115,13 +110,4 @@ func (h *TenantHandlers) tenantLinks(userRole string, permissions []string) map[
 	}
 
 	return links
-}
-
-func hasPermission(permissions []string, perm string) bool {
-	for _, p := range permissions {
-		if p == perm {
-			return true
-		}
-	}
-	return false
 }

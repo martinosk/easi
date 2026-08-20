@@ -37,6 +37,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      args:
+        GO_BUILD_TAGS: ${GO_BUILD_TAGS:-devauth}
     container_name: easi-backend
     environment:
       DB_CONN_STRING: ${DB_CONN_STRING:-host=postgres port=5432 user=easi_app password=localdev dbname=easi sslmode=disable}

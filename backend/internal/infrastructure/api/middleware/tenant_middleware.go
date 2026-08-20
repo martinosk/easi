@@ -52,6 +52,9 @@ func buildBypassContext(r *http.Request) (context.Context, error) {
 		return nil, err
 	}
 	ctx := sharedctx.WithTenant(r.Context(), tenantID)
+	identity := config.BypassIdentity()
+	actor := sharedctx.NewActor(identity.UserID, identity.Email, sharedctx.Role(identity.Role))
+	ctx = sharedctx.WithActor(ctx, actor)
 	logTenantContext(r, tenantID)
 	return ctx, nil
 }

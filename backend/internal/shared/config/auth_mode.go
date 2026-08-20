@@ -1,6 +1,8 @@
 package config
 
 import (
+	"fmt"
+	"log"
 	"os"
 	"strings"
 	"sync"
@@ -19,17 +21,27 @@ var (
 	authModeOnce    sync.Once
 )
 
+func resolveAuthMode(raw string) (AuthMode, error) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "local_oidc":
+		return AuthModeLocalOIDC, nil
+	case "bypass":
+		if !bypassBuildEnabled {
+			return "", fmt.Errorf("AUTH_MODE=bypass requires a binary built with -tags devauth")
+		}
+		return AuthModeBypass, nil
+	default:
+		return AuthModeProduction, nil
+	}
+}
+
 func GetAuthMode() AuthMode {
 	authModeOnce.Do(func() {
-		mode := strings.ToLower(strings.TrimSpace(os.Getenv("AUTH_MODE")))
-		switch mode {
-		case "local_oidc":
-			currentAuthMode = AuthModeLocalOIDC
-		case "bypass":
-			currentAuthMode = AuthModeBypass
-		default:
-			currentAuthMode = AuthModeProduction
+		mode, err := resolveAuthMode(os.Getenv("AUTH_MODE"))
+		if err != nil {
+			log.Fatalf("refusing to start: %v", err)
 		}
+		currentAuthMode = mode
 	})
 	return currentAuthMode
 }

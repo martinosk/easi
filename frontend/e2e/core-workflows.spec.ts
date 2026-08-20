@@ -1,26 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { createComponent, dragTreeItemToCanvas, saveView, treeItem } from './helpers';
-
-/**
- * Core E2E Workflows
- *
- * These tests cover the essential user workflows in an isolated environment.
- * Each test runs against a clean database spun up via Docker Compose.
- */
+import { createComponent, dragTreeItemToCanvas, openApp, saveView, treeItem } from './helpers';
 
 test.describe('Core Application Workflows', () => {
-  test.beforeEach(async ({ page }) => {
-    // Navigate to app - isolated backend will have empty database
-    await page.goto('/');
-
-    // Wait for canvas to be ready
-    await page.waitForSelector('[data-testid="canvas-loaded"]', {
-      state: 'visible',
-      timeout: 10000,
-    });
-
-    // Give React Flow time to initialize
-    await page.waitForTimeout(500);
+  test.beforeEach(async ({ page, request }) => {
+    await openApp(page, request);
   });
 
   test('creates a component into the model without auto-adding it to the canvas', async ({ page }) => {

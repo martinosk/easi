@@ -159,6 +159,19 @@ func runActorPreservationPipeline(t *testing.T, originalActor sharedctx.Actor) (
 	return capturedActor, actorFound
 }
 
+func TestBuildBypassContext_SetsAdminActor(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/views", nil)
+
+	ctx, err := buildBypassContext(req)
+
+	require.NoError(t, err)
+	actor, ok := sharedctx.GetActor(ctx)
+	require.True(t, ok, "bypass context must carry an actor so command handlers can resolve the acting user")
+	assert.Equal(t, sharedctx.RoleAdmin, actor.Role)
+	assert.NotEmpty(t, actor.ID)
+	assert.NotEmpty(t, actor.Email)
+}
+
 func TestActorPreservedAfterContextWithTenantOverwrite(t *testing.T) {
 	originalActor := sharedctx.NewActor("user-1", "user@acme.com", sharedctx.RoleArchitect)
 

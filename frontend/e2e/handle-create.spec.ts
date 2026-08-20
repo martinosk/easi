@@ -1,11 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { dragTreeItemToCanvas } from './helpers';
+import { dragTreeItemToCanvas, openApp } from './helpers';
 
 test.describe('Spec 165 — handle-click create related component', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/');
-    await page.waitForSelector('[data-testid="canvas-loaded"]', { state: 'visible', timeout: 10000 });
-    await page.waitForTimeout(500);
+  test.beforeEach(async ({ page, request }) => {
+    await openApp(page, request);
   });
 
   test('clicking a handle opens the picker and creates a related component', async ({ page }) => {

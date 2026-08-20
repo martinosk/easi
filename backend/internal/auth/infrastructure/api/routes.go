@@ -188,8 +188,8 @@ func SetupUserRoutes(deps UserRoutesDeps) error {
 	registerUserCommandHandlers(deps.CommandBus, userAggregateRepo, userReadModel)
 	registerUserEventSubscriptions(deps.EventBus, userReadModel)
 
-	userHandlers := NewUserHandlers(deps.CommandBus, userReadModel, deps.AuthDeps.SessionManager)
-	tenantHandlers := NewTenantHandlers(tenantRepo, userReadModel, deps.AuthDeps.SessionManager)
+	userHandlers := NewUserHandlers(deps.CommandBus, userReadModel)
+	tenantHandlers := NewTenantHandlers(tenantRepo, userReadModel)
 
 	registerUserAPIRoutes(deps.Router, deps.AuthDeps.AuthMiddleware, userHandlers)
 	registerTenantRoutes(deps.Router, deps.AuthDeps.AuthMiddleware, tenantHandlers)
@@ -257,19 +257,25 @@ func registerInvitationRoutes(r chi.Router, authMiddleware *AuthMiddleware, h *I
 }
 
 func handleBypassSession(w http.ResponseWriter, r *http.Request) {
-	permissions := valueobjects.PermissionsToStrings(valueobjects.RoleAdmin.Permissions())
+	identity := config.BypassIdentity()
+	role, err := valueobjects.RoleFromString(identity.Role)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Invalid bypass role")
+		return
+	}
+	permissions := valueobjects.PermissionsToStrings(role.Permissions())
 	response := CurrentSessionResponse{
-		ID: "acme",
+		ID: identity.TenantID,
 		User: CurrentSessionUser{
-			ID:          "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12",
-			Email:       "admin@acme.com",
-			Name:        "Admin User (Bypass)",
-			Role:        "admin",
+			ID:          identity.UserID,
+			Email:       identity.Email,
+			Name:        identity.Name,
+			Role:        identity.Role,
 			Permissions: permissions,
 		},
 		Tenant: CurrentSessionTenant{
-			ID:   "acme",
-			Name: "ACME Corporation",
+			ID:   identity.TenantID,
+			Name: identity.TenantName,
 		},
 		ExpiresAt: time.Now().Add(24 * time.Hour),
 		Links: map[string]string{

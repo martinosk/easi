@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -9,8 +10,8 @@ import (
 	"easi/backend/internal/auth/application/commands"
 	"easi/backend/internal/auth/application/readmodels"
 	"easi/backend/internal/auth/domain/valueobjects"
-	"easi/backend/internal/auth/infrastructure/session"
 	sharedAPI "easi/backend/internal/shared/api"
+	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
 
 	"github.com/go-chi/chi/v5"
@@ -19,19 +20,16 @@ import (
 type UserHandlers struct {
 	commandBus       cqrs.CommandBus
 	userReadModel    *readmodels.UserReadModel
-	sessionManager   *session.SessionManager
 	paginationHelper *sharedAPI.PaginationHelper
 }
 
 func NewUserHandlers(
 	commandBus cqrs.CommandBus,
 	userReadModel *readmodels.UserReadModel,
-	sessionManager *session.SessionManager,
 ) *UserHandlers {
 	return &UserHandlers{
 		commandBus:       commandBus,
 		userReadModel:    userReadModel,
-		sessionManager:   sessionManager,
 		paginationHelper: sharedAPI.NewPaginationHelper("/api/v1/users"),
 	}
 }
@@ -253,11 +251,11 @@ func (h *UserHandlers) handleStatusUpdate(ctx userUpdateContext, status string) 
 }
 
 func (h *UserHandlers) getCurrentUserID(r *http.Request) (string, error) {
-	authSession, err := h.sessionManager.LoadAuthenticatedSession(r.Context())
-	if err != nil {
-		return "", err
+	actor, ok := sharedctx.GetActor(r.Context())
+	if !ok {
+		return "", errors.New("no actor in request context")
 	}
-	return authSession.UserID().String(), nil
+	return actor.ID, nil
 }
 
 func (h *UserHandlers) respondWithUpdatedUser(w http.ResponseWriter, r *http.Request, id string) {

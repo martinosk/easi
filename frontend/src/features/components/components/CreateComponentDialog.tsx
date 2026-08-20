@@ -74,14 +74,8 @@ export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({ is
   };
 
   return (
-    <Modal
-      opened={isOpen}
-      onClose={handleClose}
-      title="Create Application"
-      centered
-      data-testid="create-component-dialog"
-    >
-      <form onSubmit={handleSubmit(onSubmit)}>
+    <Modal opened={isOpen} onClose={handleClose} title="Create Application" centered>
+      <form onSubmit={handleSubmit(onSubmit)} data-testid="create-component-dialog">
         <Stack gap="md">
           <TextInput
             label="Name"

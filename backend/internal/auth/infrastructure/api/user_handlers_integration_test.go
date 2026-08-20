@@ -20,14 +20,12 @@ import (
 	"easi/backend/internal/auth/domain/aggregates"
 	"easi/backend/internal/auth/domain/valueobjects"
 	"easi/backend/internal/auth/infrastructure/repositories"
-	"easi/backend/internal/auth/infrastructure/session"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
+	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
 
-	"github.com/alexedwards/scs/v2"
-	"github.com/alexedwards/scs/v2/memstore"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
@@ -95,13 +93,10 @@ func (ctx *userTestContext) demoteExistingAdmins(t *testing.T) {
 }
 
 type userTestFixture struct {
-	handlers       *UserHandlers
-	readModel      *readmodels.UserReadModel
-	commandBus     cqrs.CommandBus
-	sessionManager *session.SessionManager
-	scsManager     *scs.SessionManager
-	router         chi.Router
-	cookies        []*http.Cookie
+	handlers   *UserHandlers
+	readModel  *readmodels.UserReadModel
+	commandBus cqrs.CommandBus
+	router     chi.Router
 }
 
 func setupUserHandlers(db *sql.DB) *userTestFixture {
@@ -128,84 +123,42 @@ func setupUserHandlers(db *sql.DB) *userTestFixture {
 	commandBus.Register("DisableUser", disableHandler)
 	commandBus.Register("EnableUser", enableHandler)
 
-	scsManager := scs.New()
-	scsManager.Store = memstore.New()
-	scsManager.Lifetime = time.Hour
-	sessionManager := session.NewSessionManager(scsManager)
-
-	userHandlers := NewUserHandlers(commandBus, readModel, sessionManager)
+	userHandlers := NewUserHandlers(commandBus, readModel)
 
 	return &userTestFixture{
-		handlers:       userHandlers,
-		readModel:      readModel,
-		commandBus:     commandBus,
-		sessionManager: sessionManager,
-		scsManager:     scsManager,
+		handlers:   userHandlers,
+		readModel:  readModel,
+		commandBus: commandBus,
 	}
 }
 
-func (f *userTestFixture) createRouter(userID string) chi.Router {
-	setupHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authSession := createTestUserSession(userID)
-		f.sessionManager.StoreAuthenticatedSession(r.Context(), authSession)
-		w.WriteHeader(http.StatusOK)
-	})
-
+func (f *userTestFixture) createRouter(actor sharedctx.Actor) chi.Router {
 	r := chi.NewRouter()
-	r.Use(f.scsManager.LoadAndSave)
-	r.Post("/setup", setupHandler)
-	r.Get("/api/v1/users", withTestTenantMiddleware(f.handlers.GetAllUsers))
-	r.Get("/api/v1/users/{id}", withTestTenantMiddleware(f.handlers.GetUserByID))
-	r.Patch("/api/v1/users/{id}", withTestTenantMiddleware(f.handlers.UpdateUser))
+	r.Get("/api/v1/users", withActor(actor, f.handlers.GetAllUsers))
+	r.Get("/api/v1/users/{id}", withActor(actor, f.handlers.GetUserByID))
+	r.Patch("/api/v1/users/{id}", withActor(actor, f.handlers.UpdateUser))
 	return r
 }
 
-func withTestTenantMiddleware(next http.HandlerFunc) http.HandlerFunc {
+func withActor(actor sharedctx.Actor, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		r = withTestTenant(r)
+		r = r.WithContext(sharedctx.WithActor(r.Context(), actor))
 		next(w, r)
 	}
 }
 
 func (f *userTestFixture) setupAuthenticated(t *testing.T, adminID string) {
 	t.Helper()
-	f.router = f.createRouter(adminID)
-	f.cookies = f.setupSessionAndGetCookies(t, f.router)
-}
-
-func (f *userTestFixture) setupSessionAndGetCookies(t *testing.T, router chi.Router) []*http.Cookie {
-	req := httptest.NewRequest(http.MethodPost, "/setup", nil)
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusOK, rec.Code)
-	cookies := rec.Result().Cookies()
-	require.NotEmpty(t, cookies, "Should have session cookie")
-	return cookies
-}
-
-func createTestUserSession(userID string) session.AuthSession {
-	parsedID, _ := uuid.Parse(userID)
-	sessionData := fmt.Sprintf(`{
-		"tenantId": "acme",
-		"userId": "%s",
-		"userEmail": "test@acme.com",
-		"accessToken": "test-token",
-		"refreshToken": "test-refresh",
-		"tokenExpiry": "%s",
-		"authenticated": true
-	}`, userID, time.Now().Add(1*time.Hour).Format(time.RFC3339))
-
-	authSession, _ := session.UnmarshalAuthSession([]byte(sessionData))
-	_ = parsedID
-	return authSession
+	f.router = f.createRouter(sharedctx.NewActor(adminID, "test@acme.com", sharedctx.RoleAdmin))
 }
 
 type userSpec struct {
 	email string
-	role  string
+	role  valueobjects.Role
 }
 
-func (ctx *userTestContext) newUserSpec(prefix, role string) userSpec {
+func (ctx *userTestContext) newUserSpec(prefix string, role valueobjects.Role) userSpec {
 	return userSpec{
 		email: fmt.Sprintf("%s-%s@acme.com", prefix, ctx.testID),
 		role:  role,
@@ -214,7 +167,6 @@ func (ctx *userTestContext) newUserSpec(prefix, role string) userSpec {
 
 func (ctx *userTestContext) createUser(t *testing.T, spec userSpec) string {
 	t.Helper()
-	email, role := spec.email, spec.role
 	tenantDB := database.NewTenantAwareDB(ctx.db)
 	eventStore := eventstore.NewPostgresEventStore(tenantDB)
 	eventBus := events.NewInMemoryEventBus()
@@ -229,14 +181,11 @@ func (ctx *userTestContext) createUser(t *testing.T, spec userSpec) string {
 	eventBus.Subscribe("UserDisabled", projector)
 	eventBus.Subscribe("UserEnabled", projector)
 
-	roleVO, err := valueobjects.RoleFromString(role)
-	require.NoError(t, err)
-
-	emailVO, err := valueobjects.NewEmail(email)
+	emailVO, err := valueobjects.NewEmail(spec.email)
 	require.NoError(t, err)
 
 	profile := valueobjects.NewExternalProfile("Test User", "")
-	user, err := aggregates.NewUser(emailVO, profile, roleVO, "")
+	user, err := aggregates.NewUser(emailVO, profile, spec.role, "")
 	require.NoError(t, err)
 
 	tCtx := tenantContext()
@@ -260,9 +209,6 @@ func (f *userTestFixture) authenticatedRequest(t *testing.T, method, url string,
 	req := httptest.NewRequest(method, url, reader)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
-	}
-	for _, c := range f.cookies {
-		req.AddCookie(c)
 	}
 	rec := httptest.NewRecorder()
 	f.router.ServeHTTP(rec, req)
@@ -311,9 +257,9 @@ func TestGetAllUsers_Integration(t *testing.T) {
 
 	fixture := setupUserHandlers(testCtx.db)
 
-	adminID := testCtx.createUser(t, testCtx.newUserSpec("admin-list", "admin"))
+	adminID := testCtx.createUser(t, testCtx.newUserSpec("admin-list", valueobjects.RoleAdmin))
 	for i := 0; i < 3; i++ {
-		testCtx.createUser(t, testCtx.newUserSpec(fmt.Sprintf("list-user-%d", i), "architect"))
+		testCtx.createUser(t, testCtx.newUserSpec(fmt.Sprintf("list-user-%d", i), valueobjects.RoleArchitect))
 	}
 
 	fixture.setupAuthenticated(t, adminID)
@@ -327,8 +273,8 @@ func TestGetUserByID_Integration(t *testing.T) {
 
 	fixture := setupUserHandlers(testCtx.db)
 
-	adminID := testCtx.createUser(t, testCtx.newUserSpec("admin-getbyid", "admin"))
-	spec := testCtx.newUserSpec("get-user", "stakeholder")
+	adminID := testCtx.createUser(t, testCtx.newUserSpec("admin-getbyid", valueobjects.RoleAdmin))
+	spec := testCtx.newUserSpec("get-user", valueobjects.RoleStakeholder)
 	email := spec.email
 	userID := testCtx.createUser(t, spec)
 
@@ -352,7 +298,7 @@ func TestGetUserByID_NotFound_Integration(t *testing.T) {
 
 	fixture := setupUserHandlers(testCtx.db)
 
-	adminID := testCtx.createUser(t, testCtx.newUserSpec("admin-notfound", "admin"))
+	adminID := testCtx.createUser(t, testCtx.newUserSpec("admin-notfound", valueobjects.RoleAdmin))
 
 	fixture.setupAuthenticated(t, adminID)
 	rec := fixture.authenticatedRequest(t, http.MethodGet, fmt.Sprintf("/api/v1/users/%s", uuid.New().String()), nil)
@@ -362,8 +308,8 @@ func TestGetUserByID_NotFound_Integration(t *testing.T) {
 func TestChangeUserRole_Integration(t *testing.T) {
 	testCtx, fixture := newUserTestFixture(t)
 
-	adminID := testCtx.createUser(t, testCtx.newUserSpec("admin-changerole", "admin"))
-	userID := testCtx.createUser(t, testCtx.newUserSpec("change-role", "architect"))
+	adminID := testCtx.createUser(t, testCtx.newUserSpec("admin-changerole", valueobjects.RoleAdmin))
+	userID := testCtx.createUser(t, testCtx.newUserSpec("change-role", valueobjects.RoleArchitect))
 
 	fixture.setupAuthenticated(t, adminID)
 	body, _ := json.Marshal(UpdateUserRequest{Role: stringPtr("stakeholder")})
@@ -379,8 +325,8 @@ func TestChangeUserRole_InvalidRole_Integration(t *testing.T) {
 
 	fixture := setupUserHandlers(testCtx.db)
 
-	adminID := testCtx.createUser(t, testCtx.newUserSpec("admin-invalidrole", "admin"))
-	userID := testCtx.createUser(t, testCtx.newUserSpec("invalid-role", "architect"))
+	adminID := testCtx.createUser(t, testCtx.newUserSpec("admin-invalidrole", valueobjects.RoleAdmin))
+	userID := testCtx.createUser(t, testCtx.newUserSpec("invalid-role", valueobjects.RoleArchitect))
 
 	fixture.setupAuthenticated(t, adminID)
 	body, _ := json.Marshal(UpdateUserRequest{Role: stringPtr("superadmin")})
@@ -391,8 +337,8 @@ func TestChangeUserRole_InvalidRole_Integration(t *testing.T) {
 func TestDisableUser_Integration(t *testing.T) {
 	testCtx, fixture := newUserTestFixture(t)
 
-	adminID := testCtx.createUser(t, testCtx.newUserSpec("admin-disable", "admin"))
-	userID := testCtx.createUser(t, testCtx.newUserSpec("disable-user", "architect"))
+	adminID := testCtx.createUser(t, testCtx.newUserSpec("admin-disable", valueobjects.RoleAdmin))
+	userID := testCtx.createUser(t, testCtx.newUserSpec("disable-user", valueobjects.RoleArchitect))
 
 	fixture.setupAuthenticated(t, adminID)
 	body, _ := json.Marshal(UpdateUserRequest{Status: stringPtr("disabled")})
@@ -408,8 +354,8 @@ func TestEnableUser_Integration(t *testing.T) {
 
 	fixture := setupUserHandlers(testCtx.db)
 
-	adminID := testCtx.createUser(t, testCtx.newUserSpec("admin-enable", "admin"))
-	userID := testCtx.createUser(t, testCtx.newUserSpec("enable-user", "architect"))
+	adminID := testCtx.createUser(t, testCtx.newUserSpec("admin-enable", valueobjects.RoleAdmin))
+	userID := testCtx.createUser(t, testCtx.newUserSpec("enable-user", valueobjects.RoleArchitect))
 
 	ctx := tenantContext()
 	_, err := fixture.commandBus.Dispatch(ctx, &commands.DisableUser{
@@ -443,8 +389,8 @@ func TestUpdateUser_ConflictScenarios_Integration(t *testing.T) {
 			name: "cannot demote last admin",
 			arrange: func(t *testing.T, testCtx *userTestContext, fixture *userTestFixture) (string, string) {
 				testCtx.demoteExistingAdmins(t)
-				adminID := testCtx.createUser(t, testCtx.newUserSpec("sole-admin-demote", "admin"))
-				otherUserID := testCtx.createUser(t, testCtx.newUserSpec("other-user-demote", "architect"))
+				adminID := testCtx.createUser(t, testCtx.newUserSpec("sole-admin-demote", valueobjects.RoleAdmin))
+				otherUserID := testCtx.createUser(t, testCtx.newUserSpec("other-user-demote", valueobjects.RoleArchitect))
 				return otherUserID, adminID
 			},
 			request:     UpdateUserRequest{Role: stringPtr("architect")},
@@ -454,8 +400,8 @@ func TestUpdateUser_ConflictScenarios_Integration(t *testing.T) {
 		{
 			name: "cannot disable self",
 			arrange: func(t *testing.T, testCtx *userTestContext, fixture *userTestFixture) (string, string) {
-				testCtx.createUser(t, testCtx.newUserSpec("other-admin-self", "admin"))
-				userID := testCtx.createUser(t, testCtx.newUserSpec("self-disable", "admin"))
+				testCtx.createUser(t, testCtx.newUserSpec("other-admin-self", valueobjects.RoleAdmin))
+				userID := testCtx.createUser(t, testCtx.newUserSpec("self-disable", valueobjects.RoleAdmin))
 				return userID, userID
 			},
 			request:     UpdateUserRequest{Status: stringPtr("disabled")},
@@ -466,8 +412,8 @@ func TestUpdateUser_ConflictScenarios_Integration(t *testing.T) {
 			name: "cannot disable last admin",
 			arrange: func(t *testing.T, testCtx *userTestContext, fixture *userTestFixture) (string, string) {
 				testCtx.demoteExistingAdmins(t)
-				adminID := testCtx.createUser(t, testCtx.newUserSpec("sole-admin-disable", "admin"))
-				otherUserID := testCtx.createUser(t, testCtx.newUserSpec("other-user-disable", "architect"))
+				adminID := testCtx.createUser(t, testCtx.newUserSpec("sole-admin-disable", valueobjects.RoleAdmin))
+				otherUserID := testCtx.createUser(t, testCtx.newUserSpec("other-user-disable", valueobjects.RoleArchitect))
 				return otherUserID, adminID
 			},
 			request:     UpdateUserRequest{Status: stringPtr("disabled")},
@@ -496,8 +442,8 @@ func TestDemoteAdmin_WithMultipleAdmins_Integration(t *testing.T) {
 
 	fixture := setupUserHandlers(testCtx.db)
 
-	admin1ID := testCtx.createUser(t, testCtx.newUserSpec("admin1", "admin"))
-	admin2ID := testCtx.createUser(t, testCtx.newUserSpec("admin2", "admin"))
+	admin1ID := testCtx.createUser(t, testCtx.newUserSpec("admin1", valueobjects.RoleAdmin))
+	admin2ID := testCtx.createUser(t, testCtx.newUserSpec("admin2", valueobjects.RoleAdmin))
 
 	fixture.setupAuthenticated(t, admin2ID)
 	body, _ := json.Marshal(UpdateUserRequest{Role: stringPtr("architect")})
@@ -519,9 +465,9 @@ func TestFilterUsersByStatus_Integration(t *testing.T) {
 
 	fixture := setupUserHandlers(testCtx.db)
 
-	adminID := testCtx.createUser(t, testCtx.newUserSpec("admin-filter-status", "admin"))
-	testCtx.createUser(t, testCtx.newUserSpec("filter-active", "architect"))
-	disabledUserID := testCtx.createUser(t, testCtx.newUserSpec("filter-disabled", "stakeholder"))
+	adminID := testCtx.createUser(t, testCtx.newUserSpec("admin-filter-status", valueobjects.RoleAdmin))
+	testCtx.createUser(t, testCtx.newUserSpec("filter-active", valueobjects.RoleArchitect))
+	disabledUserID := testCtx.createUser(t, testCtx.newUserSpec("filter-disabled", valueobjects.RoleStakeholder))
 
 	ctx := tenantContext()
 	_, err := fixture.commandBus.Dispatch(ctx, &commands.DisableUser{
@@ -545,8 +491,8 @@ func TestFilterUsersByRole_Integration(t *testing.T) {
 
 	fixture := setupUserHandlers(testCtx.db)
 
-	adminID := testCtx.createUser(t, testCtx.newUserSpec("role-admin", "admin"))
-	testCtx.createUser(t, testCtx.newUserSpec("role-architect", "architect"))
+	adminID := testCtx.createUser(t, testCtx.newUserSpec("role-admin", valueobjects.RoleAdmin))
+	testCtx.createUser(t, testCtx.newUserSpec("role-architect", valueobjects.RoleArchitect))
 
 	fixture.setupAuthenticated(t, adminID)
 	data := fixture.listUsersData(t, "role=admin&limit=50")

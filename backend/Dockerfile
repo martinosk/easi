@@ -4,6 +4,7 @@ FROM golang:1.26.6-alpine AS builder
 WORKDIR /app
 
 ARG APP_VERSION=0.0.0
+ARG GO_BUILD_TAGS=""
 
 # Copy go mod files
 COPY go.mod go.sum ./
@@ -17,6 +18,7 @@ COPY . .
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=linux go build \
+    -tags "${GO_BUILD_TAGS}" \
     -ldflags "-X 'easi/backend/internal/infrastructure/api.Version=${APP_VERSION}'" \
     -o /app/api cmd/api/main.go
 

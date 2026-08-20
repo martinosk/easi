@@ -1,6 +1,6 @@
 # 179 — UI Redesign: Design System, White-Label Skins, Domain Board
 
-> **Status:** ongoing
+> **Status:** done
 > **Depends on:** 168 (Mantine vocabulary), 174 (shared CapabilityTree)
 
 ---
@@ -216,6 +216,21 @@ Appearance (admin/dev affordance).
    tab/resize chrome. Simpler code, calmer chrome, one less dependency.
 4. **Board rebuilt Mantine-native** — the mockup is vanilla HTML/CSS; porting it
    verbatim would violate the single-vocabulary rule.
+5. **E2E runtime pass repairs (2026-08-20)** — completing the pending Playwright pass
+   surfaced environment rot and two real regressions. The spec-011 e2e environment
+   referenced a never-committed `Dockerfile.e2e`/`.env.e2e` and the long-removed
+   `LOCAL_DEV_MODE` flag; it was rebuilt on the main `Dockerfile` + `AUTH_MODE=bypass`.
+   Bypass mode set no actor on the request context, so every command handler returned
+   500 (fixed in the tenant middleware). The user and tenant handlers loaded the SCS
+   session directly instead of reading the middleware-set actor, returning 401 in
+   bypass mode (fixed — auth decisions now stay at the middleware boundary). The
+   `create-component-dialog` testid sat on the always-mounted, zero-size Mantine Modal
+   root, so visibility assertions could never pass post-168/179 (moved onto the
+   modal's form). Bypass itself was hardened at user direction: one synthetic identity
+   (`config.BypassIdentity()`), and the mode is compiled out of production binaries
+   via the `devauth` build tag — a binary built without it refuses to start under
+   `AUTH_MODE=bypass`. The suite gained per-test backend cleanup and release-notes
+   overlay suppression; all 6 e2e tests pass against the isolated compose backend.
 
 ## Checklist
 
@@ -223,6 +238,7 @@ Appearance (admin/dev affordance).
 - [x] Implementation done
 - [x] Unit tests implemented and passing (1674 tests, 176 files)
 - [x] Integration verified (live browser pass against seeded backend + screenshot review;
-      Playwright e2e specs compile and target unchanged selectors, full runtime pass pending)
+      full Playwright runtime pass completed 2026-08-20 — 6/6 green against the isolated
+      compose backend; repairs recorded in design decision 5)
 - [x] API documentation updated (no API changes — frontend-only)
-- [ ] User sign-off
+- [x] User sign-off
