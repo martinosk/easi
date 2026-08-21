@@ -5,7 +5,7 @@ import { renderWithProviders } from '../../../test/helpers';
 import { buildCapabilityAt as cap, buildCapabilityRealization } from '../../../test/helpers/entityBuilders';
 import type { MapDepth } from '../hooks/useMapViewState';
 import { buildViewModel } from '../testkit/hookData';
-import { CapabilityMap } from './CapabilityMap';
+import { CapabilityMap, type CapabilityMapProps } from './CapabilityMap';
 
 const capabilities = [
   cap('l1-b', 'Billing', 'L1'),
@@ -17,6 +17,8 @@ const capabilities = [
 const billingRealizations = [
   {
     capabilityId: toCapabilityId('l1-b'),
+    capabilityName: 'Billing',
+    level: 'L1' as const,
     realizations: [
       buildCapabilityRealization({
         capabilityId: toCapabilityId('l1-b'),
@@ -53,8 +55,8 @@ function renderMap({
       searchQuery={searchQuery}
       showApps={showApps}
       getColorForValue={() => '#123456'}
-      onCapabilityClick={onCapabilityClick}
-      onChipClick={onChipClick}
+      onCapabilityClick={onCapabilityClick as CapabilityMapProps['onCapabilityClick']}
+      onChipClick={onChipClick as CapabilityMapProps['onChipClick']}
     />,
     { withRouter: false },
   );

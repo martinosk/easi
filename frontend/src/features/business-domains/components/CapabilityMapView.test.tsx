@@ -10,6 +10,8 @@ import { CapabilityMapView } from './CapabilityMapView';
 const financeRealizations = [
   {
     capabilityId: toCapabilityId('d1-l1'),
+    capabilityName: 'Billing',
+    level: 'L1' as const,
     realizations: [
       buildCapabilityRealization({
         capabilityId: toCapabilityId('d1-l1'),
