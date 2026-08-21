@@ -18,6 +18,8 @@ function baseProps(overrides: Partial<BoardToolbarProps> = {}): BoardToolbarProp
     changesOnly: false,
     onChangesOnlyChange: vi.fn(),
     summary: { settled: 0, inFlight: 0, notStarted: 0 },
+    viewMode: 'board',
+    onViewModeChange: vi.fn(),
     ...overrides,
   };
 }
@@ -69,6 +71,17 @@ describe('BoardToolbar', () => {
 
     await userEvent.click(screen.getByText('Journey'));
     expect(onLensChange).toHaveBeenCalledWith('journey');
+  });
+
+  it('offers the Board and Map views and reports a switch to the map', async () => {
+    const onViewModeChange = vi.fn();
+    renderToolbar({ onViewModeChange });
+
+    expect(screen.getByTestId('view-mode-toggle')).toHaveTextContent('Board');
+    expect(screen.getByTestId('view-mode-toggle')).toHaveTextContent('Map');
+
+    await userEvent.click(screen.getByRole('radio', { name: 'Map' }));
+    expect(onViewModeChange).toHaveBeenCalledWith('map');
   });
 
   it('hides the assign rail toggle outside the Now lens', () => {

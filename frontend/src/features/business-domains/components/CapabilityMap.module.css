@@ -1,0 +1,76 @@
+.map {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--spacing-md);
+  align-items: start;
+}
+
+.cell {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  padding: 6px 8px;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cellHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.apps {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  flex-wrap: wrap;
+}
+
+.cell:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+.dimmed {
+  opacity: 0.25;
+}
+
+.name {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.levelTag {
+  font-size: 10.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.children {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-xs);
+  align-items: start;
+}
+
+.cell .cell {
+  background: var(--well);
+}
+
+.cell .cell .cell {
+  background: var(--surface);
+}
+
+.scrollInner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: var(--spacing-md) var(--spacing-lg) var(--spacing-xl);
+}

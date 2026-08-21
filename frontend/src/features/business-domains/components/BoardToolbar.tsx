@@ -1,10 +1,12 @@
-import { Button, Group, Stack, Switch, TextInput } from '@mantine/core';
-import { IconSearch } from '@tabler/icons-react';
+import { Button, Group, Stack } from '@mantine/core';
+import type { BoardViewMode } from '../hooks/useMapViewState';
 import type { BoardLens } from '../lens/boardLens';
 import type { SummaryCounts } from '../lens/journeyIndex';
 import { BoardLegend } from './BoardLegend';
 import classes from './BoardToolbar.module.css';
 import { LensSwitcher } from './LensSwitcher';
+import { ChangesOnlySwitch, ToolbarSearchInput } from './ToolbarControls';
+import { ViewModeToggle } from './ViewModeToggle';
 
 export interface BoardToolbarProps {
   searchQuery: string;
@@ -19,6 +21,8 @@ export interface BoardToolbarProps {
   changesOnly: boolean;
   onChangesOnlyChange: (value: boolean) => void;
   summary: SummaryCounts;
+  viewMode: BoardViewMode;
+  onViewModeChange: (mode: BoardViewMode) => void;
 }
 
 function BoardSummary({ summary }: { summary: SummaryCounts }) {
@@ -50,20 +54,18 @@ export function BoardToolbar({
   changesOnly,
   onChangesOnlyChange,
   summary,
+  viewMode,
+  onViewModeChange,
 }: BoardToolbarProps) {
   return (
     <Stack gap="sm">
       <Group justify="space-between" wrap="wrap" gap="md">
-        <LensSwitcher lens={lens} onLensChange={onLensChange} />
         <Group gap="sm">
-          <TextInput
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.currentTarget.value)}
-            placeholder="Filter capabilities or apps..."
-            leftSection={<IconSearch size={14} />}
-            data-testid="board-search-input"
-            className={classes.searchInput}
-          />
+          <ViewModeToggle value={viewMode} onChange={onViewModeChange} />
+          <LensSwitcher lens={lens} onLensChange={onLensChange} />
+        </Group>
+        <Group gap="sm">
+          <ToolbarSearchInput value={searchQuery} onChange={onSearchChange} />
           {showAssignToggle && lens === 'now' && (
             <Button
               variant={assignRailOpen ? 'filled' : 'default'}
@@ -81,14 +83,7 @@ export function BoardToolbar({
         </Group>
       </Group>
 
-      {lens !== 'now' && (
-        <Switch
-          checked={changesOnly}
-          onChange={(e) => onChangesOnlyChange(e.currentTarget.checked)}
-          label="Highlight only what changed"
-          data-testid="changes-only-toggle"
-        />
-      )}
+      {lens !== 'now' && <ChangesOnlySwitch checked={changesOnly} onChange={onChangesOnlyChange} />}
       {lens === 'journey' && <BoardSummary summary={summary} />}
       <BoardLegend lens={lens} />
     </Stack>

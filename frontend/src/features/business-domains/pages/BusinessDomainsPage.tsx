@@ -4,19 +4,26 @@ import { InviteToEditDialog } from '../../edit-grants/components/InviteToEditDia
 import { useCreateEditGrant } from '../../edit-grants/hooks/useEditGrants';
 import { ApplicationDrawer } from '../components/ApplicationDrawer';
 import { CapabilityDrawer } from '../components/CapabilityDrawer';
+import { CapabilityMapView } from '../components/CapabilityMapView';
 import { DomainBoard } from '../components/DomainBoard';
 import { DomainDialogs } from '../components/DomainDialogs';
 import { PageLoadingStates } from '../components/PageLoadingStates';
 import { useBusinessDomainsPage } from '../hooks/useBusinessDomainsPage';
+import { useViewMode } from '../hooks/useMapViewState';
 
 export function BusinessDomainsPage() {
   const hookData = useBusinessDomainsPage();
   const { boardDomains, isLoading, error, dialogManager, domainContextMenu, capabilityContextMenu } = hookData;
   const createGrant = useCreateEditGrant();
+  const [viewMode, setViewMode] = useViewMode();
 
   return (
     <PageLoadingStates isLoading={isLoading} hasData={boardDomains.length > 0} error={error}>
-      <DomainBoard hookData={hookData} />
+      {viewMode === 'board' ? (
+        <DomainBoard hookData={hookData} viewMode={viewMode} onViewModeChange={setViewMode} />
+      ) : (
+        <CapabilityMapView hookData={hookData} viewMode={viewMode} onViewModeChange={setViewMode} />
+      )}
 
       {domainContextMenu.contextMenu && (
         <ContextMenu

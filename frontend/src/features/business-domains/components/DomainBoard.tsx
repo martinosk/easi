@@ -2,6 +2,7 @@ import { Stack, Text } from '@mantine/core';
 import { useEffect, useMemo, useRef } from 'react';
 import type { BusinessDomainId } from '../../../api/types';
 import type { useBusinessDomainsPage } from '../hooks/useBusinessDomainsPage';
+import type { BoardViewMode } from '../hooks/useMapViewState';
 import { summaryCounts } from '../lens/journeyIndex';
 import { AssignRail } from './AssignRail';
 import { BoardLensProvider } from './BoardLensContext';
@@ -13,9 +14,11 @@ type BusinessDomainsHookReturn = ReturnType<typeof useBusinessDomainsPage>;
 
 export interface DomainBoardProps {
   hookData: BusinessDomainsHookReturn;
+  viewMode: BoardViewMode;
+  onViewModeChange: (mode: BoardViewMode) => void;
 }
 
-export function DomainBoard({ hookData }: DomainBoardProps) {
+export function DomainBoard({ hookData, viewMode, onViewModeChange }: DomainBoardProps) {
   const cardRefs = useRef(new Map<BusinessDomainId, HTMLDivElement>());
 
   useEffect(() => {
@@ -56,6 +59,8 @@ export function DomainBoard({ hookData }: DomainBoardProps) {
             changesOnly={hookData.changesOnly}
             onChangesOnlyChange={hookData.setChangesOnly}
             summary={summary}
+            viewMode={viewMode}
+            onViewModeChange={onViewModeChange}
           />
         </div>
 
