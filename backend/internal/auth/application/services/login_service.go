@@ -59,6 +59,12 @@ type LoginResult struct {
 }
 
 func (s *LoginService) ProcessLogin(ctx context.Context, email, name string) (*LoginResult, error) {
+	emailVO, err := valueobjects.NewEmail(email)
+	if err != nil {
+		return nil, err
+	}
+	email = emailVO.Value()
+
 	existingUser, err := s.userReadModel.GetByEmail(ctx, email)
 	if err != nil {
 		return nil, err
@@ -78,7 +84,7 @@ func (s *LoginService) ProcessLogin(ctx context.Context, email, name string) (*L
 		return s.expirePendingInvitation(ctx, invitation.ID)
 	}
 
-	return s.createUserFromInvitation(ctx, email, name, invitation)
+	return s.createUserFromInvitation(ctx, emailVO, name, invitation)
 }
 
 func (s *LoginService) loginExistingUser(ctx context.Context, user *readmodels.UserDTO) (*LoginResult, error) {
@@ -98,8 +104,8 @@ func (s *LoginService) expirePendingInvitation(ctx context.Context, invitationID
 	return nil, ErrNoValidInvitation
 }
 
-func (s *LoginService) createUserFromInvitation(ctx context.Context, email, name string, invitation *readmodels.InvitationDTO) (*LoginResult, error) {
-	if _, err := s.commandBus.Dispatch(ctx, &commands.AcceptInvitation{Email: email}); err != nil {
+func (s *LoginService) createUserFromInvitation(ctx context.Context, email valueobjects.Email, name string, invitation *readmodels.InvitationDTO) (*LoginResult, error) {
+	if _, err := s.commandBus.Dispatch(ctx, &commands.AcceptInvitation{Email: email.Value()}); err != nil {
 		return nil, err
 	}
 
@@ -115,18 +121,14 @@ func (s *LoginService) createUserFromInvitation(ctx context.Context, email, name
 	if err != nil {
 		return nil, err
 	}
-	return &LoginResult{UserID: newUserID, Email: email, Role: invitation.Role, IsNew: true}, nil
+	return &LoginResult{UserID: newUserID, Email: email.Value(), Role: invitation.Role, IsNew: true}, nil
 }
 
-func buildUserAggregate(email, name string, invitation *readmodels.InvitationDTO) (*aggregates.User, error) {
-	emailVO, err := valueobjects.NewEmail(email)
-	if err != nil {
-		return nil, err
-	}
+func buildUserAggregate(email valueobjects.Email, name string, invitation *readmodels.InvitationDTO) (*aggregates.User, error) {
 	role, err := valueobjects.RoleFromString(invitation.Role)
 	if err != nil {
 		return nil, err
 	}
 	profile := valueobjects.NewExternalProfile(name, "")
-	return aggregates.NewUser(emailVO, profile, role, invitation.ID)
+	return aggregates.NewUser(email, profile, role, invitation.ID)
 }
