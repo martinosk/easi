@@ -1,5 +1,6 @@
 import type { Capability } from '../../../api/types';
-import type { CapabilityJourney, TargetPeriod } from '../../journeys/types';
+import type { CapabilityJourney } from '../../journeys/types';
+import { byTargetPeriodThenName } from '../../journeys/utils/period';
 
 export interface CapabilityHierarchyJourneys {
   descendants: CapabilityJourney[];
@@ -30,17 +31,6 @@ function indexChildren(capabilities: Capability[]): Map<string, Capability[]> {
     children.set(parentId, siblings);
   }
   return children;
-}
-
-function periodRank(period: TargetPeriod | null): number {
-  return period ? period.year * 4 + period.quarter : Number.POSITIVE_INFINITY;
-}
-
-function byTargetPeriodThenName(first: CapabilityJourney, second: CapabilityJourney): number {
-  const firstRank = periodRank(first.targetPeriod);
-  const secondRank = periodRank(second.targetPeriod);
-  if (firstRank !== secondRank) return firstRank - secondRank;
-  return first.capabilityName.localeCompare(second.capabilityName);
 }
 
 function isActive(journey: CapabilityJourney): boolean {

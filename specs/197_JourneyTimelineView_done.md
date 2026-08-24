@@ -1,6 +1,6 @@
 # 197 — Journey Timeline View
 
-> **Status:** pending
+> **Status:** done
 > **Depends on:** 182 (journeys), 183 (board toolbar and deep-link machinery). Pairs with 196 — the stored milestone order becomes architect-controlled — but does not require it.
 > **Design doc:** [`docs/specs/capability-journeys.md`](../docs/specs/capability-journeys.md)
 > **Mockup:** [`197_JourneyTimelineView_mockup.html`](197_JourneyTimelineView_mockup.html)
@@ -102,15 +102,15 @@ Feature: Journey timeline
 
 ## Acceptance Criteria
 
-- [ ] The Timeline view renders every active journey per rules 1 and 5–7, with kind, status, progress, labelled milestone rows at their quarters, and the target period marked
-- [ ] Overdue marking follows rules 2–4 exactly, covered by unit tests including boundary cases (current-quarter items are not overdue; done past-period items are not overdue)
-- [ ] Undated milestones render as the journey's last rows, marked as having no date, in stored order
-- [ ] The current-quarter marker and the overdue summary render; the empty state renders when no active journeys exist
-- [ ] Activating a row opens the capability's drawer with its card scrolled into view; the view state is URL-addressable
-- [ ] No schedule state is persisted; changing a milestone status or period changes the next render with no other bookkeeping
-- [ ] Read-only users see the identical view with no write affordances
-- [ ] Every BDD scenario has at least one corresponding test
-- [ ] Every modified file scores 10.0 per `easi-codehealth`
+- [x] The Timeline view renders every active journey per rules 1 and 5–7, with kind, status, progress, labelled milestone rows at their quarters, and the target period marked
+- [x] Overdue marking follows rules 2–4 exactly, covered by unit tests including boundary cases (current-quarter items are not overdue; done past-period items are not overdue)
+- [x] Undated milestones render as the journey's last rows, marked as having no date, in stored order
+- [x] The current-quarter marker and the overdue summary render; the empty state renders when no active journeys exist
+- [x] Activating a row opens the capability's drawer with its card scrolled into view; the view state is URL-addressable
+- [x] No schedule state is persisted; changing a milestone status or period changes the next render with no other bookkeeping
+- [x] Read-only users see the identical view with no write affordances
+- [x] Every BDD scenario has at least one corresponding test
+- [x] Every modified file scores 10.0 per `easi-codehealth`
 
 ---
 
@@ -150,6 +150,7 @@ None.
 4. **Active journeys only** — terminal journeys carry no schedule question; they remain in the drawer's journey history, and mixing them in was rejected as burying the on-track/behind answer the view exists for.
 5. **Milestone dependencies rejected** — field feedback floated dependency links between milestones; stored order (196), dated periods, and overdue flags answer "show them in order and show what is behind", while dependency edges across journey aggregates would couple aggregates and drift into project-management tooling outside an EA landscape record.
 6. **Labelled milestone rows, not bare markers** — field feedback: a dot gives no context. Each milestone is a row of its own — label, status, period, overdue flag — placed at its quarter, so the journey band grows vertically with its milestone count. A dots-per-cell band with hover tooltips was rejected: identification would require pointer hover, unusable on touch and useless when scanning the whole view.
+7. **URL parameter is `presentation`** (implementation discovery) — `?presentation=timeline` addresses the view; `view` was unavailable as it is a globally registered canvas deep-link parameter. Board and map keep their existing localStorage preference, so visiting the timeline never overwrites the user's chosen board/map presentation.
 
 ---
 
@@ -166,9 +167,9 @@ None.
 
 ## Checklist
 
-- [ ] Specification ready
-- [ ] Implementation done
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
-- [ ] API documentation updated
-- [ ] User sign-off
+- [x] Specification ready
+- [x] Implementation done
+- [x] Unit tests implemented and passing
+- [x] Integration tests implemented if relevant (component-integration tests over the timeline view and page presentation switch; no backend changes, so no server integration tests)
+- [x] API documentation updated (none — read-side frontend slice over the existing bulk journey query, no new endpoints)
+- [x] User sign-off

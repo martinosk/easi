@@ -1,0 +1,319 @@
+.wrap {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: var(--spacing-md) var(--spacing-lg) var(--spacing-xl);
+}
+
+.summary {
+  flex-wrap: wrap;
+}
+
+.stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 6px 14px;
+  font-size: var(--font-size-sm);
+}
+
+.stat b {
+  font-family: var(--font-display);
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--status-neutral);
+}
+
+.stat:first-child b {
+  color: var(--status-progress);
+}
+
+.stat[data-danger="true"] {
+  border-color: var(--status-danger-line);
+}
+
+.stat[data-danger="true"] b {
+  color: var(--status-danger);
+}
+
+.legend {
+  flex-wrap: wrap;
+  font-size: var(--font-size-xs);
+  color: var(--muted);
+}
+
+.legendKey {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.flag {
+  color: var(--color-primary);
+  line-height: 1;
+}
+
+.todayKey {
+  width: 2px;
+  height: 12px;
+  background: var(--color-primary);
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.dot[data-status="done"] {
+  background: var(--status-positive);
+}
+
+.dot[data-status="in-flight"] {
+  background: var(--status-progress);
+}
+
+.dot[data-status="planned"] {
+  background: var(--surface);
+  border: 2px solid var(--status-neutral-line);
+}
+
+.dot[data-overdue="true"] {
+  box-shadow: 0 0 0 2px var(--status-danger-bg), 0 0 0 3px var(--status-danger);
+}
+
+.scroll {
+  overflow-x: auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+
+.grid {
+  --tl-label-w: 230px;
+  --tl-q-w: 56px;
+  min-width: fit-content;
+  position: relative;
+  padding-bottom: 6px;
+}
+
+.chartBackground {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--tl-label-w);
+  right: 0;
+  z-index: 0;
+  background: repeating-linear-gradient(to right, var(--line) 0 1px, transparent 1px var(--tl-q-w));
+}
+
+.todayStripe {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--tl-label-w) + var(--tl-today-column) * var(--tl-q-w));
+  width: var(--tl-q-w);
+  background: var(--well);
+  box-shadow: inset 2px 0 0 var(--color-primary);
+  z-index: 0;
+}
+
+.gridRow {
+  display: grid;
+  grid-template-columns: var(--tl-columns);
+  position: relative;
+  z-index: 1;
+}
+
+.axisRow {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line-strong);
+  z-index: 3;
+}
+
+.axisLabel {
+  text-align: left;
+  padding: 8px 0 6px 16px;
+  font-weight: 600;
+  color: var(--faint);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.axisCell {
+  font-size: var(--font-size-xs);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  padding: 8px 0 6px;
+  text-align: center;
+}
+
+.axisCell[data-today="true"] {
+  color: var(--color-primary);
+  font-weight: 600;
+  background: var(--well);
+  box-shadow: inset 2px 0 0 var(--color-primary);
+}
+
+.domainRow {
+  background: var(--well);
+  border-top: 1px solid var(--line);
+  z-index: 2;
+}
+
+.domainName {
+  grid-column: 1 / -1;
+  font-family: var(--font-display);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  padding: 8px 16px 6px;
+}
+
+.journeyRow {
+  border-top: 1px solid var(--line);
+  text-align: left;
+  width: 100%;
+}
+
+.journeyLabel {
+  grid-column: 1;
+  padding: 8px 12px 4px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.journeyRow:hover .journeyLabel {
+  background: var(--well);
+}
+
+.journeyTop {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.journeyName {
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.journeyRoute {
+  font-size: var(--font-size-xs);
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.progress {
+  width: 120px;
+}
+
+.pill {
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  padding: 0 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+  flex: none;
+}
+
+.pill[data-status="in-flight"] {
+  background: var(--status-progress-bg);
+  color: var(--status-progress);
+}
+
+.pill[data-status="planned"] {
+  background: var(--status-neutral-bg);
+  color: var(--status-neutral);
+}
+
+.pill[data-overdue="true"] {
+  background: var(--status-danger-bg);
+  color: var(--status-danger);
+}
+
+.target {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  align-self: center;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-primary);
+  padding-left: 4px;
+}
+
+.target[data-overdue="true"] {
+  color: var(--status-danger);
+}
+
+.milestone {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 8px;
+  min-width: 0;
+  min-height: 26px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.milestone .dot {
+  margin-left: -5px;
+}
+
+.milestoneLabel {
+  font-size: var(--font-size-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.milestoneWhen {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--muted);
+  flex: none;
+}
+
+.milestoneWhen[data-status="done"] {
+  color: var(--status-positive);
+}
+
+.milestoneWhen[data-overdue="true"] {
+  color: var(--status-danger);
+  font-weight: 500;
+}
+
+.overdueChip,
+.noDateChip {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: 999px;
+  padding: 0 6px;
+  flex: none;
+}
+
+.overdueChip {
+  background: var(--status-danger-bg);
+  color: var(--status-danger);
+}
+
+.noDateChip {
+  background: var(--status-neutral-bg);
+  color: var(--status-neutral);
+}

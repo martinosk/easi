@@ -8,6 +8,7 @@ import { CapabilityMapView } from '../components/CapabilityMapView';
 import { DomainBoard } from '../components/DomainBoard';
 import { DomainDialogs } from '../components/DomainDialogs';
 import { PageLoadingStates } from '../components/PageLoadingStates';
+import { TimelineView } from '../components/TimelineView';
 import { useBusinessDomainsPage } from '../hooks/useBusinessDomainsPage';
 import { useViewMode } from '../hooks/useMapViewState';
 
@@ -19,10 +20,12 @@ export function BusinessDomainsPage() {
 
   return (
     <PageLoadingStates isLoading={isLoading} hasData={boardDomains.length > 0} error={error}>
-      {viewMode === 'board' ? (
-        <DomainBoard hookData={hookData} viewMode={viewMode} onViewModeChange={setViewMode} />
-      ) : (
+      {viewMode === 'board' && <DomainBoard hookData={hookData} viewMode={viewMode} onViewModeChange={setViewMode} />}
+      {viewMode === 'map' && (
         <CapabilityMapView hookData={hookData} viewMode={viewMode} onViewModeChange={setViewMode} />
+      )}
+      {viewMode === 'timeline' && (
+        <TimelineView hookData={hookData} viewMode={viewMode} onViewModeChange={setViewMode} />
       )}
 
       {domainContextMenu.contextMenu && (

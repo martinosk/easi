@@ -1,8 +1,13 @@
 import { useCallback, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import type { BusinessDomain, BusinessDomainId } from '../../../api/types';
 
-export type BoardViewMode = 'board' | 'map';
+export type BoardViewMode = 'board' | 'map' | 'timeline';
+type StoredViewMode = Exclude<BoardViewMode, 'timeline'>;
 export type MapDepth = 1 | 2 | 3 | 4;
+
+export const PRESENTATION_PARAM = 'presentation';
+const TIMELINE = 'timeline';
 
 const VIEW_MODE_KEY = 'business-domains-view';
 const DEPTH_KEY = 'business-domains-map-depth';
@@ -11,7 +16,7 @@ const SHOW_APPS_KEY = 'business-domains-map-apps';
 
 const DEFAULT_DEPTH: MapDepth = 2;
 
-function isBoardViewMode(value: string | null): value is BoardViewMode {
+function isStoredViewMode(value: string | null): value is StoredViewMode {
   return value === 'board' || value === 'map';
 }
 
@@ -34,7 +39,30 @@ function usePersistedValue<T>(key: string, parse: (stored: string | null) => T):
 }
 
 export function useViewMode(): [BoardViewMode, (mode: BoardViewMode) => void] {
-  return usePersistedValue(VIEW_MODE_KEY, (stored) => (isBoardViewMode(stored) ? stored : 'board'));
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [stored, setStored] = usePersistedValue<StoredViewMode>(VIEW_MODE_KEY, (value) =>
+    isStoredViewMode(value) ? value : 'board',
+  );
+
+  const mode: BoardViewMode = searchParams.get(PRESENTATION_PARAM) === TIMELINE ? TIMELINE : stored;
+
+  const setMode = useCallback(
+    (next: BoardViewMode) => {
+      setSearchParams(
+        (prev) => {
+          const params = new URLSearchParams(prev);
+          if (next === TIMELINE) params.set(PRESENTATION_PARAM, TIMELINE);
+          else params.delete(PRESENTATION_PARAM);
+          return params;
+        },
+        { replace: true },
+      );
+      if (next !== TIMELINE) setStored(next);
+    },
+    [setSearchParams, setStored],
+  );
+
+  return [mode, setMode];
 }
 
 export function useMapDepth(): [MapDepth, (depth: MapDepth) => void] {

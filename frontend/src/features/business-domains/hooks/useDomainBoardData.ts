@@ -10,6 +10,7 @@ import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
 import type { CapabilityTreeNode } from '../../capabilities/hooks/useCapabilityTree';
 import { useCapabilityTree } from '../../capabilities/hooks/useCapabilityTree';
 import { useAllJourneys } from '../../journeys/hooks/useJourneys';
+import type { CapabilityJourney } from '../../journeys/types';
 import { businessDomainsApi } from '../api';
 import { businessDomainsQueryKeys } from '../queryKeys';
 import { buildDomainBoardViewModel, type DomainBoardViewModel } from './domainBoardViewModel';
@@ -17,6 +18,8 @@ import { useBoardJourneyIndex } from './useBoardJourneys';
 import { useBusinessDomains } from './useBusinessDomains';
 
 export const REALIZATION_DEPTH = 4;
+
+const NO_JOURNEYS: CapabilityJourney[] = [];
 
 function useCapabilityQueries(domains: BusinessDomain[]) {
   return useQueries({
@@ -103,6 +106,7 @@ export function useDomainBoardData() {
   return {
     domains,
     boardDomains,
+    journeys: journeysQuery.data?.data ?? NO_JOURNEYS,
     journeyIndex,
     canCreateDomain: canCreate({ _links: collectionLinks }),
     isLoading: domainsLoading || treeLoading,

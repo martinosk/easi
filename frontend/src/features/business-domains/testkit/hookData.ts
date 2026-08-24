@@ -29,6 +29,7 @@ export function buildViewModel(
 export function buildHookData(overrides: Partial<BusinessDomainsHookData> = {}): BusinessDomainsHookData {
   return {
     boardDomains: [buildViewModel('Ferry Freight', 'domain-1'), buildViewModel('Logistics', 'domain-2')],
+    journeys: [],
     journeyIndex: buildJourneyIndex({ journeys: [], capabilityDomainNames: new Map() }),
     lens: 'now',
     setLens: vi.fn(),

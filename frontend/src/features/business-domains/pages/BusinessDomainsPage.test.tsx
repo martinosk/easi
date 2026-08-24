@@ -37,4 +37,23 @@ describe('BusinessDomainsPage view switching', () => {
     renderWithProviders(<BusinessDomainsPage />);
     expect(screen.getByTestId('business-domains-map-view')).toBeInTheDocument();
   });
+
+  it('switches to the timeline view through the toggle', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<BusinessDomainsPage />);
+
+    await user.click(screen.getByRole('radio', { name: 'Timeline' }));
+    expect(screen.getByTestId('business-domains-timeline-view')).toBeInTheDocument();
+    expect(screen.queryByTestId('domain-board')).toBeNull();
+
+    await user.click(screen.getByRole('radio', { name: 'Board' }));
+    expect(screen.getByTestId('domain-board')).toBeInTheDocument();
+  });
+
+  it('restores the timeline view from a deep link', () => {
+    renderWithProviders(<BusinessDomainsPage />, {
+      routerProps: { initialEntries: ['/business-domains?presentation=timeline'] },
+    });
+    expect(screen.getByTestId('business-domains-timeline-view')).toBeInTheDocument();
+  });
 });

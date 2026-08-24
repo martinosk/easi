@@ -34,7 +34,7 @@ import {
   toVendorId,
   toViewId,
 } from '../../api/types';
-import type { CapabilityJourney } from '../../features/journeys/types';
+import type { CapabilityJourney, JourneyMilestone } from '../../features/journeys/types';
 
 let idCounter = 0;
 function nextId(prefix: string): string {
@@ -178,6 +178,18 @@ export function buildCapabilityRealization(overrides: Partial<CapabilityRealizat
     origin: 'Direct',
     linkedAt: '2024-01-01T00:00:00Z',
     _links: buildLinks(`/api/v1/capability-realizations/${id}`),
+    ...overrides,
+  };
+}
+
+export function buildJourneyMilestone(overrides: Partial<JourneyMilestone> = {}): JourneyMilestone {
+  const id = overrides.id ?? nextId('milestone');
+  return {
+    id,
+    label: 'Test Milestone',
+    targetPeriod: { year: 2026, quarter: 4 },
+    status: 'planned',
+    _links: {},
     ...overrides,
   };
 }

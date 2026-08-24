@@ -14,6 +14,7 @@ export function ViewModeToggle({ value, onChange }: ViewModeToggleProps) {
       data={[
         { value: 'board', label: 'Board' },
         { value: 'map', label: 'Map' },
+        { value: 'timeline', label: 'Timeline' },
       ]}
       size="sm"
       data-testid="view-mode-toggle"

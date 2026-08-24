@@ -47,6 +47,7 @@ function buildBoardData(journeys: CapabilityJourney[] = []) {
   return {
     domains: [domain],
     boardDomains: [viewModel],
+    journeys,
     journeyIndex: buildJourneyIndex({ journeys, capabilityDomainNames: new Map() }),
     canCreateDomain: true,
     isLoading: false,

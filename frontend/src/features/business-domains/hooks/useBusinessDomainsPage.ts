@@ -490,6 +490,7 @@ export function useBusinessDomainsPage() {
 
   return {
     boardDomains: board.boardDomains,
+    journeys: board.journeys,
     journeyIndex: board.journeyIndex,
     canCreateDomain: board.canCreateDomain,
     isLoading: board.isLoading,

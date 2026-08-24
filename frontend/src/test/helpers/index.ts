@@ -20,6 +20,7 @@ export {
   buildComponent,
   buildExpert,
   buildInternalTeam,
+  buildJourneyMilestone,
   buildOriginRelationship,
   buildRelation,
   buildVendor,

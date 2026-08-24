@@ -1,4 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
+import type { ReactNode } from 'react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { toBusinessDomainId } from '../../../api/types';
 import { buildBusinessDomain } from '../../../test/helpers/entityBuilders';
@@ -8,25 +10,74 @@ beforeEach(() => {
   localStorage.clear();
 });
 
+function routerWrapper(initialEntries: string[] = ['/business-domains']) {
+  return ({ children }: { children: ReactNode }) => (
+    <MemoryRouter initialEntries={initialEntries}>{children}</MemoryRouter>
+  );
+}
+
+function renderViewMode(initialEntries?: string[]) {
+  return renderHook(() => ({ viewMode: useViewMode(), location: useLocation() }), {
+    wrapper: routerWrapper(initialEntries),
+  });
+}
+
 describe('useViewMode', () => {
   it('defaults to the board view', () => {
-    const { result } = renderHook(() => useViewMode());
-    expect(result.current[0]).toBe('board');
+    const { result } = renderViewMode();
+    expect(result.current.viewMode[0]).toBe('board');
   });
 
   it('persists the chosen view across hook instances', () => {
-    const first = renderHook(() => useViewMode());
-    act(() => first.result.current[1]('map'));
-    expect(first.result.current[0]).toBe('map');
+    const first = renderViewMode();
+    act(() => first.result.current.viewMode[1]('map'));
+    expect(first.result.current.viewMode[0]).toBe('map');
 
-    const second = renderHook(() => useViewMode());
-    expect(second.result.current[0]).toBe('map');
+    const second = renderViewMode();
+    expect(second.result.current.viewMode[0]).toBe('map');
   });
 
   it('falls back to board when the stored value is invalid', () => {
     localStorage.setItem('business-domains-view', 'bogus');
-    const { result } = renderHook(() => useViewMode());
-    expect(result.current[0]).toBe('board');
+    const { result } = renderViewMode();
+    expect(result.current.viewMode[0]).toBe('board');
+  });
+
+  it('lands on the timeline from a deep link with the presentation param', () => {
+    const { result } = renderViewMode(['/business-domains?presentation=timeline']);
+    expect(result.current.viewMode[0]).toBe('timeline');
+  });
+
+  it('reflects switching to the timeline in the URL', () => {
+    const { result } = renderViewMode();
+
+    act(() => result.current.viewMode[1]('timeline'));
+
+    expect(result.current.viewMode[0]).toBe('timeline');
+    expect(result.current.location.search).toContain('presentation=timeline');
+  });
+
+  it('drops the presentation param when leaving the timeline', () => {
+    const { result } = renderViewMode(['/business-domains?presentation=timeline']);
+
+    act(() => result.current.viewMode[1]('board'));
+
+    expect(result.current.viewMode[0]).toBe('board');
+    expect(result.current.location.search).not.toContain('presentation');
+  });
+
+  it('keeps the stored board or map preference while on the timeline', () => {
+    const first = renderViewMode();
+    act(() => first.result.current.viewMode[1]('map'));
+    act(() => first.result.current.viewMode[1]('timeline'));
+
+    const second = renderViewMode();
+    expect(second.result.current.viewMode[0]).toBe('map');
+  });
+
+  it('ignores an invalid presentation value in the URL', () => {
+    const { result } = renderViewMode(['/business-domains?presentation=bogus']);
+    expect(result.current.viewMode[0]).toBe('board');
   });
 });
 
