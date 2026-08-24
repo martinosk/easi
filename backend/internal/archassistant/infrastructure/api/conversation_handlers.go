@@ -151,7 +151,7 @@ func (h *ConversationHandlers) parseSendMessageInput(r *http.Request) (*parsedIn
 		tenantID:             tenantID.Value(),
 		convID:               convID,
 		content:              req.Content,
-		allowWriteOperations: req.AllowWriteOperations,
+		allowWriteOperations: req.AllowWriteOperations && tools.HasAnyWritePermission(&actorPermissions{actor: actor}),
 	}, nil
 }
 

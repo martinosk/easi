@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useLayoutEffect, useState } from 'react';
+import { type ComponentType, lazy, Suspense, useCallback, useLayoutEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import type { Release } from './api/types';
 import { AppLayout } from './components/layout/AppLayout';
@@ -100,73 +100,24 @@ function LazyFeatureView({ featureName, children }: { featureName: string; child
   );
 }
 
+const mainViews: Record<AppView, { featureName: string; Component: ComponentType }> = {
+  canvas: { featureName: 'Canvas', Component: CanvasContainer },
+  'business-domains': { featureName: 'Business Domains', Component: BusinessDomainsRouter },
+  'value-streams': { featureName: 'Value Streams', Component: ValueStreamsRouter },
+  invitations: { featureName: 'Invitations', Component: InvitationsPage },
+  users: { featureName: 'Users', Component: UsersPage },
+  settings: { featureName: 'Settings', Component: SettingsPage },
+  'enterprise-architecture': { featureName: 'Enterprise Architecture', Component: EnterpriseArchRouter },
+  'my-edit-access': { featureName: 'My Edit Access', Component: MyEditAccessPage },
+  'one-pagers': { featureName: 'One-Pagers', Component: OnePagersRouter },
+  'one-pager-quality': { featureName: 'One-Pager Quality', Component: OnePagerQualityPage },
+};
+
 function MainContent({ view }: { view: AppView }) {
-  if (view === 'canvas') {
-    return (
-      <LazyFeatureView featureName="Canvas">
-        <CanvasContainer />
-      </LazyFeatureView>
-    );
-  }
-  if (view === 'invitations') {
-    return (
-      <LazyFeatureView featureName="Invitations">
-        <InvitationsPage />
-      </LazyFeatureView>
-    );
-  }
-  if (view === 'users') {
-    return (
-      <LazyFeatureView featureName="Users">
-        <UsersPage />
-      </LazyFeatureView>
-    );
-  }
-  if (view === 'settings') {
-    return (
-      <LazyFeatureView featureName="Settings">
-        <SettingsPage />
-      </LazyFeatureView>
-    );
-  }
-  if (view === 'value-streams') {
-    return (
-      <LazyFeatureView featureName="Value Streams">
-        <ValueStreamsRouter />
-      </LazyFeatureView>
-    );
-  }
-  if (view === 'enterprise-architecture') {
-    return (
-      <LazyFeatureView featureName="Enterprise Architecture">
-        <EnterpriseArchRouter />
-      </LazyFeatureView>
-    );
-  }
-  if (view === 'my-edit-access') {
-    return (
-      <LazyFeatureView featureName="My Edit Access">
-        <MyEditAccessPage />
-      </LazyFeatureView>
-    );
-  }
-  if (view === 'one-pagers') {
-    return (
-      <LazyFeatureView featureName="One-Pagers">
-        <OnePagersRouter />
-      </LazyFeatureView>
-    );
-  }
-  if (view === 'one-pager-quality') {
-    return (
-      <LazyFeatureView featureName="One-Pager Quality">
-        <OnePagerQualityPage />
-      </LazyFeatureView>
-    );
-  }
+  const { featureName, Component } = mainViews[view] ?? mainViews['business-domains'];
   return (
-    <LazyFeatureView featureName="Business Domains">
-      <BusinessDomainsRouter />
+    <LazyFeatureView featureName={featureName}>
+      <Component />
     </LazyFeatureView>
   );
 }
@@ -181,6 +132,7 @@ function App({ view }: AppProps) {
   const isAuthenticated = useUserStore((state) => state.isAuthenticated);
   const sessionLinks = useUserStore((state) => state.sessionLinks);
   const assistantAvailable = Boolean(sessionLinks?.['x-assistant']);
+  const assistantWriteAvailable = Boolean(sessionLinks?.['x-assistant-write']);
   const chatIsOpen = useChatStore((state) => state.isOpen);
   const toggleChat = useChatStore((state) => state.togglePanel);
   const closeChat = useChatStore((state) => state.closePanel);
@@ -235,7 +187,7 @@ function App({ view }: AppProps) {
       </Suspense>
       {chatIsOpen && (
         <Suspense fallback={null}>
-          <ChatPanel isOpen={chatIsOpen} onClose={closeChat} />
+          <ChatPanel isOpen={chatIsOpen} onClose={closeChat} writeAvailable={assistantWriteAvailable} />
         </Suspense>
       )}
       <ReleaseNotesDisplay showOverlay={showReleaseNotes} release={release} onDismiss={dismissReleaseNotes} />

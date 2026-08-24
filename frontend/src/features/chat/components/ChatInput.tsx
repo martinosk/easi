@@ -6,9 +6,10 @@ interface ChatInputProps {
   disabled: boolean;
   yoloEnabled: boolean;
   onToggleYolo: () => void;
+  writeAvailable: boolean;
 }
 
-export function ChatInput({ onSend, disabled, yoloEnabled, onToggleYolo }: ChatInputProps) {
+export function ChatInput({ onSend, disabled, yoloEnabled, onToggleYolo, writeAvailable }: ChatInputProps) {
   const [value, setValue] = useState('');
 
   const handleSend = useCallback(() => {
@@ -61,14 +62,16 @@ export function ChatInput({ onSend, disabled, yoloEnabled, onToggleYolo }: ChatI
         rightSection={sendButton}
         rightSectionWidth={48}
       />
-      <Stack gap={4}>
-        <Checkbox checked={yoloEnabled} onChange={onToggleYolo} label="YOLO (allow changes)" size="xs" />
-        <Text size="xs" c="dimmed">
-          {yoloEnabled
-            ? 'Assistant may apply changes you are already permitted to make.'
-            : 'When off, assistant can read only. When on, assistant may apply changes you are already permitted to make.'}
-        </Text>
-      </Stack>
+      {writeAvailable && (
+        <Stack gap={4}>
+          <Checkbox checked={yoloEnabled} onChange={onToggleYolo} label="YOLO (allow changes)" size="xs" />
+          <Text size="xs" c="dimmed">
+            {yoloEnabled
+              ? 'Assistant may apply changes you are already permitted to make.'
+              : 'When off, assistant can read only. When on, assistant may apply changes you are already permitted to make.'}
+          </Text>
+        </Stack>
+      )}
     </Stack>
   );
 }

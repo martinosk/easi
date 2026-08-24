@@ -156,6 +156,7 @@ var rolePermissions = map[Role][]string{
 		"enterprise-arch:read",
 		"architecture-direction:read",
 		"valuestreams:read",
+		"assistant:use",
 	},
 }
 

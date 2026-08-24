@@ -11,9 +11,10 @@ import './ChatPanel.css';
 interface ChatPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  writeAvailable: boolean;
 }
 
-export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
+export function ChatPanel({ isOpen, onClose, writeAvailable }: ChatPanelProps) {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [yoloEnabled, setYoloEnabled] = useState(false);
   const [showConversationList, setShowConversationList] = useState(false);
@@ -41,9 +42,9 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
         setConversationId(convId);
         invalidateList();
       }
-      sendMessage(convId, content, yoloEnabled);
+      sendMessage(convId, content, writeAvailable && yoloEnabled);
     },
-    [conversationId, sendMessage, yoloEnabled, invalidateList],
+    [conversationId, sendMessage, yoloEnabled, writeAvailable, invalidateList],
   );
 
   const handleSelectConversation = useCallback(
@@ -106,6 +107,7 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
         disabled={isStreaming}
         yoloEnabled={yoloEnabled}
         onToggleYolo={() => setYoloEnabled(!yoloEnabled)}
+        writeAvailable={writeAvailable}
       />
     </aside>
   );

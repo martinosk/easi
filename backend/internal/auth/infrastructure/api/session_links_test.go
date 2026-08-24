@@ -35,3 +35,48 @@ func TestBuildSessionLinks_OnePagerQualityEntryPoint(t *testing.T) {
 		})
 	}
 }
+
+type stubAIConfigStatusChecker struct {
+	configured bool
+}
+
+func (s *stubAIConfigStatusChecker) IsConfigured(_ context.Context) (bool, error) {
+	return s.configured, nil
+}
+
+func TestBuildSessionLinks_AssistantEntryPoints(t *testing.T) {
+	cases := []struct {
+		name         string
+		role         valueobjects.Role
+		assistant    bool
+		writeVariant bool
+	}{
+		{"admin gets assistant and write link", valueobjects.RoleAdmin, true, true},
+		{"architect gets assistant and write link", valueobjects.RoleArchitect, true, true},
+		{"stakeholder gets assistant without write link", valueobjects.RoleStakeholder, true, false},
+	}
+
+	handlers := &SessionHandlers{aiConfigStatusChecker: &stubAIConfigStatusChecker{configured: true}}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			links := handlers.buildSessionLinks(context.Background(), uuid.New(), tc.role)
+			link, ok := links["x-assistant"]
+			assert.Equal(t, tc.assistant, ok)
+			if tc.assistant {
+				assert.Equal(t, "/api/v1/assistant/conversations", link)
+			}
+			writeLink, ok := links["x-assistant-write"]
+			assert.Equal(t, tc.writeVariant, ok)
+			if tc.writeVariant {
+				assert.Equal(t, "/api/v1/assistant/conversations", writeLink)
+			}
+		})
+	}
+}
+
+func TestBuildSessionLinks_AssistantNotConfigured(t *testing.T) {
+	handlers := &SessionHandlers{aiConfigStatusChecker: &stubAIConfigStatusChecker{configured: false}}
+	links := handlers.buildSessionLinks(context.Background(), uuid.New(), valueobjects.RoleAdmin)
+	assert.NotContains(t, links, "x-assistant")
+	assert.NotContains(t, links, "x-assistant-write")
+}

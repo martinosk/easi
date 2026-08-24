@@ -5,21 +5,11 @@ describe('useChatStore', () => {
   beforeEach(() => {
     useChatStore.setState({
       isOpen: false,
-      conversationId: null,
-      yoloEnabled: false,
     });
   });
 
   it('should start with panel closed', () => {
     expect(useChatStore.getState().isOpen).toBe(false);
-  });
-
-  it('should start with no conversation', () => {
-    expect(useChatStore.getState().conversationId).toBeNull();
-  });
-
-  it('should start with yolo disabled', () => {
-    expect(useChatStore.getState().yoloEnabled).toBe(false);
   });
 
   it('should open the panel', () => {
@@ -38,17 +28,5 @@ describe('useChatStore', () => {
     expect(useChatStore.getState().isOpen).toBe(true);
     useChatStore.getState().togglePanel();
     expect(useChatStore.getState().isOpen).toBe(false);
-  });
-
-  it('should set conversation id', () => {
-    useChatStore.getState().setConversationId('conv-123');
-    expect(useChatStore.getState().conversationId).toBe('conv-123');
-  });
-
-  it('should toggle yolo', () => {
-    useChatStore.getState().toggleYolo();
-    expect(useChatStore.getState().yoloEnabled).toBe(true);
-    useChatStore.getState().toggleYolo();
-    expect(useChatStore.getState().yoloEnabled).toBe(false);
   });
 });

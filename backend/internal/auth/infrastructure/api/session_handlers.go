@@ -156,6 +156,9 @@ func (h *SessionHandlers) buildSessionLinks(ctx context.Context, userID uuid.UUI
 	if role.HasPermission(valueobjects.PermAssistantUse) && h.aiConfigStatusChecker != nil {
 		if configured, err := h.aiConfigStatusChecker.IsConfigured(ctx); err == nil && configured {
 			links["x-assistant"] = "/api/v1/assistant/conversations"
+			if canWriteAnySubject(role) {
+				links["x-assistant-write"] = "/api/v1/assistant/conversations"
+			}
 		}
 	}
 
@@ -164,6 +167,12 @@ func (h *SessionHandlers) buildSessionLinks(ctx context.Context, userID uuid.UUI
 	}
 
 	return links
+}
+
+func canWriteAnySubject(role valueobjects.Role) bool {
+	return role.HasPermission(valueobjects.PermCapabilitiesWrite) ||
+		role.HasPermission(valueobjects.PermEnterpriseArchWrite) ||
+		role.HasPermission(valueobjects.PermComponentsWrite)
 }
 
 func canReadAnySubject(role valueobjects.Role) bool {

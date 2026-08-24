@@ -69,3 +69,15 @@ func TestAgentScopedPermissions_BlocksAllExcludedPermissions(t *testing.T) {
 		assert.False(t, scoped.HasPermission(perm), "ceiling should block %s", perm)
 	}
 }
+
+func TestHasAnyWritePermission(t *testing.T) {
+	assert.True(t, tools.HasAnyWritePermission(permsFor("components:read", "components:write")))
+	assert.True(t, tools.HasAnyWritePermission(permsFor("capabilities:write")))
+	assert.False(t, tools.HasAnyWritePermission(permsFor(
+		"components:read", "capabilities:read", "domains:read",
+		"enterprise-arch:read", "architecture-direction:read",
+		"valuestreams:read", "views:read", "metamodel:read", "assistant:use",
+	)), "read-only actor has no write permission")
+	assert.False(t, tools.HasAnyWritePermission(permsFor("metamodel:write")),
+		"write permission outside the ceiling does not count")
+}

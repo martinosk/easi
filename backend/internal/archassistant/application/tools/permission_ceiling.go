@@ -1,5 +1,7 @@
 package tools
 
+import "strings"
+
 var agentPermissionCeiling = map[string]bool{
 	"components:read":              true,
 	"components:write":             true,
@@ -28,4 +30,13 @@ func NewAgentScopedPermissions(inner PermissionChecker) *AgentScopedPermissions 
 
 func (a *AgentScopedPermissions) HasPermission(permission string) bool {
 	return agentPermissionCeiling[permission] && a.inner.HasPermission(permission)
+}
+
+func HasAnyWritePermission(checker PermissionChecker) bool {
+	for permission := range agentPermissionCeiling {
+		if strings.HasSuffix(permission, ":write") && checker.HasPermission(permission) {
+			return true
+		}
+	}
+	return false
 }

@@ -27,13 +27,13 @@ function createWrapper(queryClient: QueryClient) {
   };
 }
 
-function renderPanel(isOpen: boolean, onClose = vi.fn(), queryClient?: QueryClient) {
+function renderPanel(isOpen: boolean, onClose = vi.fn(), queryClient?: QueryClient, writeAvailable = true) {
   const qc = queryClient ?? createTestQueryClient();
   vi.mocked(chatApi.listConversations).mockResolvedValue({ data: [], _links: {} });
   const Wrapper = createWrapper(qc);
   return render(
     <Wrapper>
-      <ChatPanel isOpen={isOpen} onClose={onClose} />
+      <ChatPanel isOpen={isOpen} onClose={onClose} writeAvailable={writeAvailable} />
     </Wrapper>,
   );
 }
@@ -156,7 +156,7 @@ describe('ChatPanel', () => {
     const Wrapper = createWrapper(qc);
     render(
       <Wrapper>
-        <ChatPanel isOpen={true} onClose={vi.fn()} />
+        <ChatPanel isOpen={true} onClose={vi.fn()} writeAvailable />
       </Wrapper>,
     );
 
@@ -198,7 +198,7 @@ describe('ChatPanel', () => {
     const Wrapper = createWrapper(qc);
     render(
       <Wrapper>
-        <ChatPanel isOpen={true} onClose={vi.fn()} />
+        <ChatPanel isOpen={true} onClose={vi.fn()} writeAvailable />
       </Wrapper>,
     );
 
@@ -233,6 +233,25 @@ describe('ChatPanel', () => {
       expect(chatApi.sendMessageStream).toHaveBeenCalledWith('conv-yolo', {
         content: 'Create app',
         allowWriteOperations: true,
+      });
+    });
+  });
+
+  it('should not render YOLO checkbox when write is unavailable', () => {
+    renderPanel(true, vi.fn(), undefined, false);
+    expect(screen.queryByLabelText('YOLO (allow changes)')).not.toBeInTheDocument();
+  });
+
+  it('should send allowWriteOperations=false when write is unavailable', async () => {
+    mockConversationAndStream('conv-readonly');
+    renderPanel(true, vi.fn(), undefined, false);
+
+    await typeAndSendMessage('What apps exist?');
+
+    await waitFor(() => {
+      expect(chatApi.sendMessageStream).toHaveBeenCalledWith('conv-readonly', {
+        content: 'What apps exist?',
+        allowWriteOperations: false,
       });
     });
   });

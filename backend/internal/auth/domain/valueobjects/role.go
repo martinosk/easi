@@ -83,6 +83,7 @@ var rolePermissionsList = map[string][]Permission{
 		PermEnterpriseArchRead,
 		PermArchitectureDirectionRead,
 		PermValueStreamsRead,
+		PermAssistantUse,
 	},
 }
 

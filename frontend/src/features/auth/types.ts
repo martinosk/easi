@@ -31,6 +31,7 @@ export interface SessionLinks {
   user: string;
   tenant: string;
   'x-assistant'?: string;
+  'x-assistant-write'?: string;
   'x-one-pager-quality'?: string;
   [key: string]: string | undefined;
 }
