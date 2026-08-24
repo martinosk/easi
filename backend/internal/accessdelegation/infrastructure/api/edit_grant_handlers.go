@@ -11,6 +11,7 @@ import (
 	"easi/backend/internal/accessdelegation/application/ports"
 	"easi/backend/internal/accessdelegation/application/readmodels"
 	"easi/backend/internal/accessdelegation/application/services"
+	"easi/backend/internal/accessdelegation/domain/valueobjects"
 	adPL "easi/backend/internal/accessdelegation/publishedlanguage"
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
@@ -21,9 +22,16 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+type EditGrantReader interface {
+	HasActiveGrant(ctx context.Context, granteeEmail, artifactType, artifactID string) (bool, error)
+	GetByID(ctx context.Context, id string) (*readmodels.EditGrantDTO, error)
+	GetByGranteeEmail(ctx context.Context, email string) ([]readmodels.EditGrantDTO, error)
+	GetActiveForArtifact(ctx context.Context, artifactType, artifactID string) ([]readmodels.EditGrantDTO, error)
+}
+
 type EditGrantHandlerDeps struct {
 	CommandBus    cqrs.CommandBus
-	ReadModel     *readmodels.EditGrantReadModel
+	ReadModel     EditGrantReader
 	Hateoas       *EditGrantLinks
 	NameResolver  services.ArtifactNameResolver
 	UserLookup    ports.UserEmailLookup
@@ -63,14 +71,9 @@ type CreateEditGrantRequest struct {
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /edit-grants [post]
 func (h *EditGrantHandlers) CreateEditGrant(w http.ResponseWriter, r *http.Request) {
-	var req CreateEditGrantRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+	req, ok := h.decodeCreateEditGrantRequest(w, r)
+	if !ok {
 		return
-	}
-
-	if req.Scope == "" {
-		req.Scope = "write"
 	}
 
 	actor, ok := sharedctx.GetActor(r.Context())
@@ -111,6 +114,26 @@ func (h *EditGrantHandlers) CreateEditGrant(w http.ResponseWriter, r *http.Reque
 		grant.InvitationCreated = h.autoInviteIfNeeded(r.Context(), req.GranteeEmail, actor)
 	}
 	h.respondCreated(w, result.CreatedID, grant)
+}
+
+func (h *EditGrantHandlers) decodeCreateEditGrantRequest(w http.ResponseWriter, r *http.Request) (CreateEditGrantRequest, bool) {
+	var req CreateEditGrantRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+		return req, false
+	}
+
+	granteeEmail, err := valueobjects.NewGranteeEmail(req.GranteeEmail)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid grantee email")
+		return req, false
+	}
+	req.GranteeEmail = granteeEmail.Value()
+
+	if req.Scope == "" {
+		req.Scope = "write"
+	}
+	return req, true
 }
 
 func (h *EditGrantHandlers) canGrantEditAccess(actor sharedctx.Actor, artifactType string) bool {
