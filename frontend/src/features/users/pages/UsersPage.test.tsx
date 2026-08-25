@@ -76,7 +76,7 @@ describe('UsersPage', () => {
   });
 
   it('renders user management page with all users', async () => {
-    renderWithProviders(<UsersPage />, { withRouter: false });
+    renderWithProviders(<UsersPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('users-table')).toBeInTheDocument();
@@ -93,7 +93,7 @@ describe('UsersPage', () => {
     { filterType: 'status', testId: 'status-filter', value: 'disabled', expectedCall: ['disabled', undefined] },
     { filterType: 'role', testId: 'role-filter', value: 'admin', expectedCall: [undefined, 'admin'] },
   ])('filters users by $filterType when $value filter is selected', async ({ testId, value, expectedCall }) => {
-    renderWithProviders(<UsersPage />, { withRouter: false });
+    renderWithProviders(<UsersPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('users-table')).toBeInTheDocument();
@@ -108,7 +108,7 @@ describe('UsersPage', () => {
   });
 
   it('displays "You" badge for current user', async () => {
-    renderWithProviders(<UsersPage />, { withRouter: false });
+    renderWithProviders(<UsersPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('user-row-current-user-id')).toBeInTheDocument();
@@ -119,7 +119,7 @@ describe('UsersPage', () => {
   });
 
   it('does not show action buttons for current user', async () => {
-    renderWithProviders(<UsersPage />, { withRouter: false });
+    renderWithProviders(<UsersPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('users-table')).toBeInTheDocument();
@@ -130,7 +130,7 @@ describe('UsersPage', () => {
   });
 
   it('shows change role button for other users', async () => {
-    renderWithProviders(<UsersPage />, { withRouter: false });
+    renderWithProviders(<UsersPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('users-table')).toBeInTheDocument();
@@ -141,7 +141,7 @@ describe('UsersPage', () => {
   });
 
   it('shows disable button for active users', async () => {
-    renderWithProviders(<UsersPage />, { withRouter: false });
+    renderWithProviders(<UsersPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('users-table')).toBeInTheDocument();
@@ -152,7 +152,7 @@ describe('UsersPage', () => {
   });
 
   it('shows enable button for disabled users', async () => {
-    renderWithProviders(<UsersPage />, { withRouter: false });
+    renderWithProviders(<UsersPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('users-table')).toBeInTheDocument();
@@ -162,7 +162,7 @@ describe('UsersPage', () => {
   });
 
   it('opens change role modal when change role button is clicked', async () => {
-    renderWithProviders(<UsersPage />, { withRouter: false });
+    renderWithProviders(<UsersPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('users-table')).toBeInTheDocument();
@@ -179,7 +179,7 @@ describe('UsersPage', () => {
   it('calls update user API when disable is confirmed', async () => {
     vi.mocked(userApi.update).mockResolvedValue(mockUsers[1]);
 
-    renderWithProviders(<UsersPage />, { withRouter: false });
+    renderWithProviders(<UsersPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('users-table')).toBeInTheDocument();
@@ -198,7 +198,7 @@ describe('UsersPage', () => {
   it('calls update user API when enable button is clicked', async () => {
     vi.mocked(userApi.update).mockResolvedValue(mockUsers[2]);
 
-    renderWithProviders(<UsersPage />, { withRouter: false });
+    renderWithProviders(<UsersPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('users-table')).toBeInTheDocument();
@@ -212,7 +212,7 @@ describe('UsersPage', () => {
   });
 
   it('does not disable user when confirmation is cancelled', async () => {
-    renderWithProviders(<UsersPage />, { withRouter: false });
+    renderWithProviders(<UsersPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('users-table')).toBeInTheDocument();
@@ -229,7 +229,7 @@ describe('UsersPage', () => {
   it('shows error message when users fail to load', async () => {
     vi.mocked(userApi.getAll).mockRejectedValue(new Error('Failed to fetch users'));
 
-    renderWithProviders(<UsersPage />, { withRouter: false });
+    renderWithProviders(<UsersPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('users-error')).toBeInTheDocument();
@@ -241,7 +241,7 @@ describe('UsersPage', () => {
   it('shows empty state when no users are found', async () => {
     vi.mocked(userApi.getAll).mockResolvedValue([]);
 
-    renderWithProviders(<UsersPage />, { withRouter: false });
+    renderWithProviders(<UsersPage />);
 
     await waitFor(() => {
       expect(screen.getByText('No users found')).toBeInTheDocument();
@@ -249,7 +249,7 @@ describe('UsersPage', () => {
   });
 
   it('displays loading state while fetching users', async () => {
-    renderWithProviders(<UsersPage />, { withRouter: false });
+    renderWithProviders(<UsersPage />);
 
     expect(screen.getByText('Loading users...')).toBeInTheDocument();
 
@@ -259,7 +259,7 @@ describe('UsersPage', () => {
   });
 
   it('reloads users after successful role change', async () => {
-    renderWithProviders(<UsersPage />, { withRouter: false });
+    renderWithProviders(<UsersPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('users-table')).toBeInTheDocument();
@@ -269,7 +269,7 @@ describe('UsersPage', () => {
   });
 
   it('displays user status badges correctly', async () => {
-    renderWithProviders(<UsersPage />, { withRouter: false });
+    renderWithProviders(<UsersPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('users-table')).toBeInTheDocument();
@@ -283,7 +283,7 @@ describe('UsersPage', () => {
   });
 
   it('displays role badges correctly', async () => {
-    renderWithProviders(<UsersPage />, { withRouter: false });
+    renderWithProviders(<UsersPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('users-table')).toBeInTheDocument();

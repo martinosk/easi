@@ -29,38 +29,6 @@ body {
   overflow: hidden;
 }
 
-.app-header-action-btn {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-  padding: 6px 10px;
-  background: transparent;
-  border: none;
-  border-radius: var(--radius-sm);
-  color: var(--skin-on-brand-muted);
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-  cursor: pointer;
-  transition:
-    color 0.15s ease,
-    background-color 0.15s ease;
-}
-
-.app-header-action-btn:hover {
-  color: var(--skin-on-brand);
-  background: color-mix(in srgb, var(--skin-on-brand) 10%, transparent);
-}
-
-.app-header-action-btn-active {
-  color: var(--skin-on-brand);
-  background: color-mix(in srgb, var(--skin-on-brand) 15%, transparent);
-}
-
-.app-header-action-icon {
-  width: 16px;
-  height: 16px;
-}
-
 .canvas-container {
   position: absolute;
   top: 0;

@@ -20,6 +20,7 @@ import { useUserStore } from '../../../store/userStore';
 import type { UserRole } from '../../auth/types';
 import { userApi } from '../api/userApi';
 import { ChangeRoleModal } from '../components/ChangeRoleModal';
+import { UserAdminTabs } from '../components/UserAdminTabs';
 import type { User, UserStatus } from '../types';
 import classes from './UsersPage.module.css';
 
@@ -172,6 +173,7 @@ export function UsersPage() {
 
   return (
     <PageShell>
+      <UserAdminTabs active="users" />
       <UsersHeader />
       <UsersFilters
         statusFilter={statusFilter}

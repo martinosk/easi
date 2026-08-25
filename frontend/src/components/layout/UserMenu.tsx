@@ -1,9 +1,10 @@
-import { Avatar, Badge, Divider, Group, Menu, Stack, Text, UnstyledButton } from '@mantine/core';
+import { Avatar, Badge, Divider, Group, Menu, Stack, Text, Tooltip, UnstyledButton } from '@mantine/core';
 import { IconChevronDown, IconEdit, IconLogout } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 import { useMyEditGrants } from '../../features/edit-grants/hooks/useEditGrants';
 import { ROUTES } from '../../routes/routePaths';
 import { useUserStore } from '../../store/userStore';
+import { SettingsIcon } from './AppNavigation.icons';
 import classes from './UserMenu.module.css';
 
 const CHEVRON_DOWN = <IconChevronDown size={14} stroke={1.75} aria-hidden="true" />;
@@ -72,6 +73,7 @@ export function UserMenu() {
   const user = useUserStore((state) => state.user);
   const tenant = useUserStore((state) => state.tenant);
   const logout = useUserStore((state) => state.logout);
+  const canEditSettings = useUserStore((state) => state.hasPermission('metamodel:write'));
   const { data: grants } = useMyEditGrants();
   const activeGrantCount = (grants?.filter((g) => g.status === 'active') ?? []).length;
 
@@ -87,21 +89,36 @@ export function UserMenu() {
 
   return (
     <Menu shadow="md" classNames={{ dropdown: classes.dropdown }} position="bottom-end" withinPortal>
-      <Menu.Target>
-        <UnstyledButton data-testid="user-menu-trigger" aria-label="User menu" p="xs" className={classes.trigger}>
-          <Group gap="xs" wrap="nowrap">
-            <Avatar size="sm" color="blue" radius="xl">
-              {getInitials(user.name)}
-            </Avatar>
-            {CHEVRON_DOWN}
-          </Group>
-        </UnstyledButton>
-      </Menu.Target>
+      <Tooltip label={user.name} openDelay={300} withinPortal>
+        <Menu.Target>
+          <UnstyledButton data-testid="user-menu-trigger" aria-label="User menu" p="xs" className={classes.trigger}>
+            <Group gap="xs" wrap="nowrap">
+              <Avatar size="sm" color="blue" radius="xl">
+                {getInitials(user.name)}
+              </Avatar>
+              {CHEVRON_DOWN}
+            </Group>
+          </UnstyledButton>
+        </Menu.Target>
+      </Tooltip>
 
       <Menu.Dropdown data-testid="user-menu-dropdown">
         <UserMenuHeader name={user.name} email={user.email} />
         <Divider />
         <UserMenuInfo organizationName={tenant.name} role={user.role} />
+
+        {canEditSettings && (
+          <>
+            <Divider />
+            <Menu.Item
+              leftSection={SettingsIcon}
+              onClick={() => navigate(ROUTES.SETTINGS)}
+              data-testid="user-menu-settings"
+            >
+              Settings
+            </Menu.Item>
+          </>
+        )}
 
         {activeGrantCount > 0 && (
           <>

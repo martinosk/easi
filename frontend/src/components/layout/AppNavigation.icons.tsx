@@ -1,8 +1,9 @@
 import {
   IconBuildingBank,
   IconClipboardCheck,
-  IconMailPlus,
+  IconDots,
   IconMap2,
+  IconMessage,
   IconRoute,
   IconSettings2,
   IconSparkles,
@@ -23,10 +24,12 @@ export const EnterpriseArchIcon = <IconBuildingBank size={ICON_SIZE} stroke={ICO
 
 export const UsersIcon = <IconUsers size={ICON_SIZE} stroke={ICON_STROKE} />;
 
-export const InvitationsIcon = <IconMailPlus size={ICON_SIZE} stroke={ICON_STROKE} />;
-
 export const SettingsIcon = <IconSettings2 size={ICON_SIZE} stroke={ICON_STROKE} />;
 
 export const OnePagerQualityIcon = <IconClipboardCheck size={ICON_SIZE} stroke={ICON_STROKE} />;
 
 export const ReleaseNotesIcon = <IconSparkles size={ICON_SIZE} stroke={ICON_STROKE} />;
+
+export const AssistantIcon = <IconMessage size={ICON_SIZE} stroke={ICON_STROKE} />;
+
+export const MoreIcon = <IconDots size={ICON_SIZE} stroke={ICON_STROKE} />;

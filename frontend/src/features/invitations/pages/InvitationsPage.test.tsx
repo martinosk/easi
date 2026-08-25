@@ -76,7 +76,7 @@ describe('InvitationsPage', () => {
   });
 
   it('renders all invitations when filter is set to all', async () => {
-    renderWithProviders(<InvitationsPage />, { withRouter: false });
+    renderWithProviders(<InvitationsPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('invitations-table')).toBeInTheDocument();
@@ -91,7 +91,7 @@ describe('InvitationsPage', () => {
     { status: 'expired', expectedCount: 1, expectedIds: ['inv-4'] },
     { status: 'revoked', expectedCount: 1, expectedIds: ['inv-5'] },
   ])('filters to show only $status invitations', async ({ status, expectedCount, expectedIds }) => {
-    renderWithProviders(<InvitationsPage />, { withRouter: false });
+    renderWithProviders(<InvitationsPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('invitations-table')).toBeInTheDocument();
@@ -110,7 +110,7 @@ describe('InvitationsPage', () => {
   it('shows empty state when filter matches no invitations', async () => {
     vi.mocked(invitationApi.getAll).mockResolvedValue(mockInvitations.filter((i) => i.status === 'pending'));
 
-    renderWithProviders(<InvitationsPage />, { withRouter: false });
+    renderWithProviders(<InvitationsPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('invitations-table')).toBeInTheDocument();
@@ -124,7 +124,7 @@ describe('InvitationsPage', () => {
   });
 
   it('returns to showing all invitations when filter is reset to all', async () => {
-    renderWithProviders(<InvitationsPage />, { withRouter: false });
+    renderWithProviders(<InvitationsPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('invitations-table')).toBeInTheDocument();

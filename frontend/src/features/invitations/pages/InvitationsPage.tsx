@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
 import { useUserStore } from '../../../store/userStore';
+import { UserAdminTabs } from '../../users/components/UserAdminTabs';
 import { invitationApi } from '../api/invitationApi';
 import { InvitationsEmptyState } from '../components/InvitationsEmptyState';
 import { InvitationsFilters } from '../components/InvitationsFilters';
@@ -88,6 +89,7 @@ export function InvitationsPage() {
 
   return (
     <PageShell>
+      <UserAdminTabs active="invitations" />
       <InvitationsHeader onInvite={() => setIsModalOpen(true)} />
       <InvitationsFilters statusFilter={statusFilter} onFilterChange={setStatusFilter} />
       <InvitationsContent

@@ -3,13 +3,13 @@
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--spacing-lg);
   padding: 0 var(--spacing-lg);
   background: var(--skin-brand);
   border-bottom: 1px solid rgba(0, 0, 0, 0.2);
   position: relative;
   z-index: 100;
+  container-type: inline-size;
 }
 
 .brand {
@@ -33,10 +33,29 @@
 }
 
 .nav {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.navRow {
   display: flex;
   align-items: stretch;
   gap: var(--spacing-xs);
   height: 100%;
+}
+
+.measure {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  gap: var(--spacing-xs);
+  height: 100%;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .navItem {
@@ -52,6 +71,7 @@
   color: var(--skin-on-brand-muted);
   font-size: var(--font-size-sm);
   font-weight: 500;
+  white-space: nowrap;
   transition:
     color 0.15s ease,
     background-color 0.15s ease;
@@ -86,6 +106,7 @@
 .tenant {
   font-size: var(--font-size-xs);
   color: var(--skin-on-brand-muted);
+  white-space: nowrap;
 }
 
 .actionButton {
@@ -99,6 +120,7 @@
   color: var(--skin-on-brand-muted);
   font-size: var(--font-size-sm);
   font-weight: 500;
+  white-space: nowrap;
   transition:
     color 0.15s ease,
     background-color 0.15s ease;
@@ -107,4 +129,16 @@
 .actionButton:hover {
   color: var(--skin-on-brand);
   background: color-mix(in srgb, var(--skin-on-brand) 10%, transparent);
+}
+
+.actionButtonActive {
+  color: var(--skin-on-brand);
+  background: color-mix(in srgb, var(--skin-on-brand) 15%, transparent);
+}
+
+@container (max-width: 1400px) {
+  .actionLabel,
+  .tenant {
+    display: none;
+  }
 }

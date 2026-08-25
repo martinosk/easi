@@ -1,9 +1,11 @@
 import type { ReactElement } from 'react';
 import { fireEvent, screen } from '@testing-library/react';
-import { renderWithProviders } from '../../../test/helpers';
-const render = (ui: ReactElement) => renderWithProviders(ui, { withRouter: false });
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import { renderWithProviders } from '../../../test/helpers';
 import { ChatButton } from './ChatButton';
+
+const render = (ui: ReactElement) => renderWithProviders(ui, { withRouter: false });
 
 describe('ChatButton', () => {
   it('should render when assistantAvailable is true', () => {
@@ -23,13 +25,22 @@ describe('ChatButton', () => {
     expect(onClick).toHaveBeenCalled();
   });
 
-  it('should show active state when isActive is true', () => {
+  it('should expose active state when isActive is true', () => {
     render(<ChatButton assistantAvailable={true} onClick={vi.fn()} isActive={true} />);
-    expect(screen.getByTestId('nav-chat')).toHaveClass('app-header-action-btn-active');
+    expect(screen.getByTestId('nav-chat')).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('should not show active state when isActive is false', () => {
+  it('should not expose active state when isActive is false', () => {
     render(<ChatButton assistantAvailable={true} onClick={vi.fn()} isActive={false} />);
-    expect(screen.getByTestId('nav-chat')).not.toHaveClass('app-header-action-btn-active');
+    expect(screen.getByTestId('nav-chat')).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('should show a tooltip naming the assistant', async () => {
+    const user = userEvent.setup();
+    render(<ChatButton assistantAvailable={true} onClick={vi.fn()} />);
+
+    await user.hover(screen.getByTestId('nav-chat'));
+
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Architecture Assistant');
   });
 });
