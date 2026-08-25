@@ -115,7 +115,7 @@ func capabilityMetadataTools() []pl.AgentToolSpec {
 				pl.StringParam("maturityLevel", "Maturity level name", false),
 				pl.StringParam("ownershipModel", "Ownership model (e.g. Centralized, Federated)", false),
 				pl.StringParam("primaryOwner", "Primary owner name", false),
-				pl.StringParam("eaOwner", "EA owner name", false),
+				pl.StringParam("eaOwner", "EA owner: a user ID, or a user name/email that matches exactly one user", false),
 			},
 		},
 		{

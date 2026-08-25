@@ -14,13 +14,19 @@ type UpdateCapabilityMetadataRepository interface {
 	Save(ctx context.Context, capability *aggregates.Capability) error
 }
 
-type UpdateCapabilityMetadataHandler struct {
-	repository UpdateCapabilityMetadataRepository
+type EAOwnerResolver interface {
+	ResolveEAOwner(ctx context.Context, value string) (string, error)
 }
 
-func NewUpdateCapabilityMetadataHandler(repository UpdateCapabilityMetadataRepository) *UpdateCapabilityMetadataHandler {
+type UpdateCapabilityMetadataHandler struct {
+	repository      UpdateCapabilityMetadataRepository
+	eaOwnerResolver EAOwnerResolver
+}
+
+func NewUpdateCapabilityMetadataHandler(repository UpdateCapabilityMetadataRepository, eaOwnerResolver EAOwnerResolver) *UpdateCapabilityMetadataHandler {
 	return &UpdateCapabilityMetadataHandler{
-		repository: repository,
+		repository:      repository,
+		eaOwnerResolver: eaOwnerResolver,
 	}
 }
 
@@ -34,7 +40,21 @@ func resolveMaturityLevel(maturityValue int, maturityLevel string) (valueobjects
 	return valueobjects.MaturityGenesis, nil
 }
 
-func buildMetadata(cmd *commands.UpdateCapabilityMetadata) (valueobjects.CapabilityMetadata, error) {
+func (h *UpdateCapabilityMetadataHandler) resolveEAOwner(ctx context.Context, capability *aggregates.Capability, value string) (valueobjects.EAOwner, error) {
+	if value == "" {
+		return valueobjects.EAOwner{}, nil
+	}
+	resolved, err := h.eaOwnerResolver.ResolveEAOwner(ctx, value)
+	if err != nil {
+		if value == capability.EAOwner().Value() {
+			return capability.EAOwner(), nil
+		}
+		return valueobjects.EAOwner{}, err
+	}
+	return valueobjects.NewEAOwner(resolved)
+}
+
+func buildMetadata(cmd *commands.UpdateCapabilityMetadata, eaOwner valueobjects.EAOwner) (valueobjects.CapabilityMetadata, error) {
 	maturityLevel, err := resolveMaturityLevel(cmd.MaturityValue, cmd.MaturityLevel)
 	if err != nil {
 		return valueobjects.CapabilityMetadata{}, err
@@ -54,7 +74,7 @@ func buildMetadata(cmd *commands.UpdateCapabilityMetadata) (valueobjects.Capabil
 		maturityLevel,
 		ownershipModel,
 		valueobjects.NewOwner(cmd.PrimaryOwner),
-		valueobjects.NewOwner(cmd.EAOwner),
+		eaOwner,
 		status,
 	), nil
 }
@@ -70,7 +90,12 @@ func (h *UpdateCapabilityMetadataHandler) Handle(ctx context.Context, cmd cqrs.C
 		return cqrs.EmptyResult(), err
 	}
 
-	metadata, err := buildMetadata(command)
+	eaOwner, err := h.resolveEAOwner(ctx, capability, command.EAOwner)
+	if err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	metadata, err := buildMetadata(command, eaOwner)
 	if err != nil {
 		return cqrs.EmptyResult(), err
 	}

@@ -15,15 +15,26 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+var metadataValidationErrors = []error{
+	valueobjects.ErrInvalidMaturityLevel,
+	valueobjects.ErrMaturityValueOutOfRange,
+	valueobjects.ErrInvalidOwnershipModel,
+	valueobjects.ErrInvalidCapabilityStatus,
+	valueobjects.ErrTagEmpty,
+	valueobjects.ErrExpertNameEmpty,
+	valueobjects.ErrExpertRoleEmpty,
+	valueobjects.ErrExpertContactEmpty,
+	valueobjects.ErrEAOwnerNotUser,
+	valueobjects.ErrEAOwnerAmbiguous,
+}
+
 func isValidationError(err error) bool {
-	return errors.Is(err, valueobjects.ErrInvalidMaturityLevel) ||
-		errors.Is(err, valueobjects.ErrMaturityValueOutOfRange) ||
-		errors.Is(err, valueobjects.ErrInvalidOwnershipModel) ||
-		errors.Is(err, valueobjects.ErrInvalidCapabilityStatus) ||
-		errors.Is(err, valueobjects.ErrTagEmpty) ||
-		errors.Is(err, valueobjects.ErrExpertNameEmpty) ||
-		errors.Is(err, valueobjects.ErrExpertRoleEmpty) ||
-		errors.Is(err, valueobjects.ErrExpertContactEmpty)
+	for _, validationErr := range metadataValidationErrors {
+		if errors.Is(err, validationErr) {
+			return true
+		}
+	}
+	return false
 }
 
 func isNotFoundError(err error) bool {

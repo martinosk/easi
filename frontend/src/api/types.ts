@@ -306,6 +306,7 @@ export interface Capability {
   ownershipModel?: string;
   primaryOwner?: string;
   eaOwner?: string;
+  eaOwnerName?: string;
   status?: string;
   experts?: Expert[];
   tags?: string[];

@@ -140,7 +140,7 @@ func setupHandlers(db *sql.DB) *CapabilityHandlers {
 
 	createHandler := handlers.NewCreateCapabilityHandler(capabilityRepo)
 	updateHandler := handlers.NewUpdateCapabilityHandler(capabilityRepo)
-	updateMetadataHandler := handlers.NewUpdateCapabilityMetadataHandler(capabilityRepo)
+	updateMetadataHandler := handlers.NewUpdateCapabilityMetadataHandler(capabilityRepo, readmodels.NewUserNameCacheReadModel(tenantDB))
 	addExpertHandler := handlers.NewAddCapabilityExpertHandler(capabilityRepo)
 	addTagHandler := handlers.NewAddCapabilityTagHandler(capabilityRepo)
 	deleteHandler := handlers.NewDeleteCapabilityHandler(capabilityRepo, deletionService, realizationReadModel, readModel)

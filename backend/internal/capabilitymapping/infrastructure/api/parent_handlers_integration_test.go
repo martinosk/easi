@@ -72,7 +72,7 @@ func setupParentHandlers(db *sql.DB) *CapabilityHandlers {
 
 	commandBus.Register("CreateCapability", handlers.NewCreateCapabilityHandler(capabilityRepo))
 	commandBus.Register("UpdateCapability", handlers.NewUpdateCapabilityHandler(capabilityRepo))
-	commandBus.Register("UpdateCapabilityMetadata", handlers.NewUpdateCapabilityMetadataHandler(capabilityRepo))
+	commandBus.Register("UpdateCapabilityMetadata", handlers.NewUpdateCapabilityMetadataHandler(capabilityRepo, readmodels.NewUserNameCacheReadModel(tenantDB)))
 	commandBus.Register("AddCapabilityExpert", handlers.NewAddCapabilityExpertHandler(capabilityRepo))
 	commandBus.Register("AddCapabilityTag", handlers.NewAddCapabilityTagHandler(capabilityRepo))
 	commandBus.Register("ChangeCapabilityParent", handlers.NewChangeCapabilityParentHandler(capabilityRepo, readModel, realizationReadModel, reparentingService))

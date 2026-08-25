@@ -137,7 +137,7 @@ const CapabilityOptionalFields: React.FC<CapabilityFieldsProps> = ({ capability 
     <OptionalField value={capability.status} label="Status" render={(status) => status} />
     <OptionalField value={capability.ownershipModel} label="Ownership Model" render={(model) => model} />
     <OptionalField value={capability.primaryOwner} label="Primary Owner" render={(owner) => owner} />
-    <OptionalField value={capability.eaOwner} label="EA Owner" render={(owner) => owner} />
+    <OptionalField value={capability.eaOwnerName ?? capability.eaOwner} label="EA Owner" render={(owner) => owner} />
     <OptionalField value={capability.tags} label="Tags" render={(tags) => <TagList tags={tags} />} />
   </>
 );

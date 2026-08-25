@@ -282,6 +282,52 @@ describe('CapabilityDrawer', () => {
     expect(screen.getByText('freight')).toBeInTheDocument();
   });
 
+  it('renders the EA owner display name instead of the stored user id', () => {
+    const capability = {
+      ...cap('l2-a', 'Booking Management', 'L2'),
+      eaOwner: '2ec46b70-63b3-4d6d-92f0-1d385f9d4c4b',
+      eaOwnerName: 'Alice Smith',
+    };
+
+    renderWithProviders(
+      <CapabilityDrawer
+        capability={capability}
+        domain={domain}
+        l1Name="Ferry Booking"
+        getRealizationsForCapability={() => []}
+        hierarchyJourneys={NO_HIERARCHY_JOURNEYS}
+        onClose={vi.fn()}
+        onChipClick={vi.fn()}
+        onNavigateToCapability={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Alice Smith')).toBeInTheDocument();
+    expect(screen.queryByText('2ec46b70-63b3-4d6d-92f0-1d385f9d4c4b')).not.toBeInTheDocument();
+  });
+
+  it('falls back to the stored EA owner value when no display name is provided', () => {
+    const capability = {
+      ...cap('l2-a', 'Booking Management', 'L2'),
+      eaOwner: 'Bob Jones',
+    };
+
+    renderWithProviders(
+      <CapabilityDrawer
+        capability={capability}
+        domain={domain}
+        l1Name="Ferry Booking"
+        getRealizationsForCapability={() => []}
+        hierarchyJourneys={NO_HIERARCHY_JOURNEYS}
+        onClose={vi.fn()}
+        onChipClick={vi.fn()}
+        onNavigateToCapability={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Bob Jones')).toBeInTheDocument();
+  });
+
   describe('TIME assessment on a Direct realising application', () => {
     function renderAssessmentDrawer(
       realizationOverrides: Partial<Parameters<typeof buildCapabilityRealization>[0]> = {},

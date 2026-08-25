@@ -61,7 +61,7 @@ func TestCapabilityDeserializers_RoundTripWithMetadata(t *testing.T) {
 	maturityLevel, _ := valueobjects.NewMaturityLevelFromValue(50)
 	ownershipModel, _ := valueobjects.NewOwnershipModel("IT")
 	primaryOwner := valueobjects.NewOwner("john@example.com")
-	eaOwner := valueobjects.NewOwner("ea@example.com")
+	eaOwner := valueobjects.EAOwnerFromHistory("ea@example.com")
 	status, _ := valueobjects.NewCapabilityStatus("active")
 
 	metadata := valueobjects.NewCapabilityMetadata(maturityLevel, ownershipModel, primaryOwner, eaOwner, status)
@@ -138,7 +138,7 @@ func TestCapabilityDeserializers_AllEventsCanBeDeserialized(t *testing.T) {
 	maturityLevel, _ := valueobjects.NewMaturityLevelFromValue(30)
 	ownershipModel, _ := valueobjects.NewOwnershipModel("Business")
 	primaryOwner := valueobjects.NewOwner("owner@example.com")
-	eaOwner := valueobjects.NewOwner("ea@example.com")
+	eaOwner := valueobjects.EAOwnerFromHistory("ea@example.com")
 	status, _ := valueobjects.NewCapabilityStatus("active")
 	metadata := valueobjects.NewCapabilityMetadata(maturityLevel, ownershipModel, primaryOwner, eaOwner, status)
 	_ = capability.UpdateMetadata(metadata)

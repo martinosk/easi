@@ -30,7 +30,7 @@ type Capability struct {
 	maturityLevel  valueobjects.MaturityLevel
 	ownershipModel valueobjects.OwnershipModel
 	primaryOwner   valueobjects.Owner
-	eaOwner        valueobjects.Owner
+	eaOwner        valueobjects.EAOwner
 	status         valueobjects.CapabilityStatus
 	experts        []valueobjects.Expert
 	tags           []valueobjects.Tag
@@ -221,7 +221,7 @@ func (c *Capability) applyMetadataUpdated(e events.CapabilityMetadataUpdated) er
 	}
 	c.ownershipModel = ownershipModel
 	c.primaryOwner = valueobjects.NewOwner(e.PrimaryOwner)
-	c.eaOwner = valueobjects.NewOwner(e.EAOwner)
+	c.eaOwner = valueobjects.EAOwnerFromHistory(e.EAOwner)
 	status, err := valueobjects.NewCapabilityStatus(e.Status)
 	if err != nil {
 		return fmt.Errorf("%w: capability status %q: %v", domain.ErrCorruptedEvent, e.Status, err)
@@ -318,7 +318,7 @@ func (c *Capability) PrimaryOwner() valueobjects.Owner {
 	return c.primaryOwner
 }
 
-func (c *Capability) EAOwner() valueobjects.Owner {
+func (c *Capability) EAOwner() valueobjects.EAOwner {
 	return c.eaOwner
 }
 

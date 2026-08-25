@@ -25,6 +25,32 @@ describe('CapabilityDetailsPanel', () => {
     expect(screen.getByText('Capability Details')).toBeInTheDocument();
   });
 
+  it('renders the EA owner display name instead of the stored user id', async () => {
+    renderPanel(
+      buildCapability({
+        id: 'cap-1' as CapabilityId,
+        name: 'Order Management',
+        eaOwner: '2ec46b70-63b3-4d6d-92f0-1d385f9d4c4b',
+        eaOwnerName: 'Alice Smith',
+      }),
+    );
+
+    expect(await screen.findByText('Alice Smith')).toBeInTheDocument();
+    expect(screen.queryByText('2ec46b70-63b3-4d6d-92f0-1d385f9d4c4b')).not.toBeInTheDocument();
+  });
+
+  it('falls back to the stored EA owner value when no display name is provided', async () => {
+    renderPanel(
+      buildCapability({
+        id: 'cap-1' as CapabilityId,
+        name: 'Order Management',
+        eaOwner: 'Bob Jones',
+      }),
+    );
+
+    expect(await screen.findByText('Bob Jones')).toBeInTheDocument();
+  });
+
   it('shows the Edit affordance when the capability carries an edit link', async () => {
     renderPanel(buildCapability({ id: 'cap-1' as CapabilityId }));
 

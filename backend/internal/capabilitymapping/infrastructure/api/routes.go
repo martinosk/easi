@@ -131,6 +131,7 @@ type routeReadModels struct {
 	effectiveCapabilityImportance *readmodels.EffectiveCapabilityImportanceReadModel
 	strategyPillarCache           *readmodels.StrategyPillarCacheReadModel
 	effectiveBusinessDomain       *readmodels.CMEffectiveBusinessDomainReadModel
+	userNameCache                 *readmodels.UserNameCacheReadModel
 }
 
 type routeHTTPHandlers struct {
@@ -172,6 +173,7 @@ func initializeReadModels(db *database.TenantAwareDB) *routeReadModels {
 		effectiveCapabilityImportance: readmodels.NewEffectiveCapabilityImportanceReadModel(db),
 		strategyPillarCache:           readmodels.NewStrategyPillarCacheReadModel(db),
 		effectiveBusinessDomain:       readmodels.NewCMEffectiveBusinessDomainReadModel(db),
+		userNameCache:                 readmodels.NewUserNameCacheReadModel(db),
 	}
 }
 
@@ -211,6 +213,7 @@ func setupEventSubscriptions(eventBus events.EventBus, rm *routeReadModels, pill
 	subscribeHierarchyChangeEffectiveEvents(eventBus, hierarchyChangeProjector)
 	subscribeDomainAssignmentEffectiveEvents(eventBus, domainAssignmentEffectiveProjector)
 	subscribeMetaModelEvents(eventBus, pillarCacheProjector)
+	eventBus.Subscribe(authPL.UserCreated, projectors.NewUserNameCacheProjector(rm.userNameCache))
 }
 
 func subscribeCapabilityEvents(eventBus events.EventBus, projector *projectors.CapabilityProjector) {
@@ -339,9 +342,10 @@ func setupCascadingDeleteHandlers(eventBus events.EventBus, commandBus *cqrs.InM
 
 func setupCommandHandlers(commandBus *cqrs.InMemoryCommandBus, repos *routeRepositories, rm *routeReadModels, pillarsGateway metamodel.StrategyPillarsGateway) {
 	registerCapabilityCommands(commandBus, repos.capability, capabilityCommandReadModels{
-		capability:  rm.capability,
-		realization: rm.realization,
-		dependency:  rm.dependency,
+		capability:    rm.capability,
+		realization:   rm.realization,
+		dependency:    rm.dependency,
+		userNameCache: rm.userNameCache,
 	})
 	registerDependencyCommands(commandBus, repos.dependency, repos.capability)
 	registerRealizationCommands(commandBus, repos, rm)
@@ -363,9 +367,10 @@ func setupCommandHandlers(commandBus *cqrs.InMemoryCommandBus, repos *routeRepos
 }
 
 type capabilityCommandReadModels struct {
-	capability  *readmodels.CapabilityReadModel
-	realization *readmodels.RealizationReadModel
-	dependency  *readmodels.DependencyReadModel
+	capability    *readmodels.CapabilityReadModel
+	realization   *readmodels.RealizationReadModel
+	dependency    *readmodels.DependencyReadModel
+	userNameCache *readmodels.UserNameCacheReadModel
 }
 
 func registerCapabilityCommands(commandBus *cqrs.InMemoryCommandBus, repo *repositories.CapabilityRepository, rm capabilityCommandReadModels) {
@@ -380,7 +385,7 @@ func registerCapabilityCommands(commandBus *cqrs.InMemoryCommandBus, repo *repos
 
 	commandBus.Register("CreateCapability", handlers.NewCreateCapabilityHandler(repo))
 	commandBus.Register("UpdateCapability", handlers.NewUpdateCapabilityHandler(repo))
-	commandBus.Register("UpdateCapabilityMetadata", handlers.NewUpdateCapabilityMetadataHandler(repo))
+	commandBus.Register("UpdateCapabilityMetadata", handlers.NewUpdateCapabilityMetadataHandler(repo, rm.userNameCache))
 	commandBus.Register("AddCapabilityExpert", handlers.NewAddCapabilityExpertHandler(repo))
 	commandBus.Register("RemoveCapabilityExpert", handlers.NewRemoveCapabilityExpertHandler(repo))
 	commandBus.Register("AddCapabilityTag", handlers.NewAddCapabilityTagHandler(repo))

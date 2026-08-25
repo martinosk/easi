@@ -13,7 +13,11 @@ import (
 	"testing"
 	"time"
 
+	"easi/backend/internal/capabilitymapping/application/readmodels"
+	"easi/backend/internal/infrastructure/database"
+
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -87,11 +91,24 @@ func (ctx *testContext) requireEventDataContains(t *testing.T, aggregateID, even
 	}
 }
 
+func seedCachedUser(t *testing.T, testCtx *testContext, name, email string) string {
+	t.Helper()
+	userID := uuid.New().String()
+	cache := readmodels.NewUserNameCacheReadModel(database.NewTenantAwareDB(testCtx.db))
+	require.NoError(t, cache.Upsert(tenantContext(), userID, name, email))
+	t.Cleanup(func() {
+		testCtx.setTenantContext(t)
+		_, _ = testCtx.db.Exec("DELETE FROM capabilitymapping.user_names WHERE user_id = $1", userID)
+	})
+	return userID
+}
+
 func TestUpdateCapabilityMetadata_Integration(t *testing.T) {
 	testCtx, cleanup := setupTestDB(t)
 	defer cleanup()
 
 	handlers := setupHandlers(testCtx.db)
+	janeID := seedCachedUser(t, testCtx, "Jane Smith", "jane.smith@example.com")
 
 	capabilityID := createCapabilityForTest(t, testCtx, handlers, CreateCapabilityRequest{
 		Name:        "Digital Transformation",
@@ -114,22 +131,53 @@ func TestUpdateCapabilityMetadata_Integration(t *testing.T) {
 	metadataW := invokeHandler(handlers.UpdateCapabilityMetadata, metadataReq)
 
 	assert.Equal(t, http.StatusOK, metadataW.Code)
+	assert.Contains(t, metadataW.Body.String(), `"eaOwner":"`+janeID+`"`)
+	assert.Contains(t, metadataW.Body.String(), `"eaOwnerName":"Jane Smith"`)
 
-	testCtx.requireEventDataContains(t, capabilityID, "CapabilityMetadataUpdated", `"maturityValue": 37`, "TribeOwned")
+	testCtx.requireEventDataContains(t, capabilityID, "CapabilityMetadataUpdated", `"maturityValue": 37`, "TribeOwned", janeID)
 
 	time.Sleep(100 * time.Millisecond)
 
 	testCtx.setTenantContext(t)
-	var ownershipModel, status string
+	var ownershipModel, status, eaOwner string
 	var maturityValue int
 	err := testCtx.db.QueryRow(
-		"SELECT maturity_value, ownership_model, status FROM capabilitymapping.capabilities WHERE id = $1",
+		"SELECT maturity_value, ownership_model, status, ea_owner FROM capabilitymapping.capabilities WHERE id = $1",
 		capabilityID,
-	).Scan(&maturityValue, &ownershipModel, &status)
+	).Scan(&maturityValue, &ownershipModel, &status, &eaOwner)
 	require.NoError(t, err)
 	assert.Equal(t, 37, maturityValue)
 	assert.Equal(t, "TribeOwned", ownershipModel)
 	assert.Equal(t, "Active", status)
+	assert.Equal(t, janeID, eaOwner)
+}
+
+func TestUpdateCapabilityMetadata_EAOwnerUserID_Integration(t *testing.T) {
+	testCtx, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	handlers := setupHandlers(testCtx.db)
+	aliceID := seedCachedUser(t, testCtx, "Alice Smith", "alice.smith@example.com")
+
+	capabilityID := createCapabilityForTest(t, testCtx, handlers, CreateCapabilityRequest{
+		Name:  "Payments",
+		Level: "L1",
+	})
+
+	metadataReq := newJSONRequest(t, jsonRequest{
+		method: http.MethodPut,
+		target: "/api/v1/capabilities/" + capabilityID + "/metadata",
+		id:     capabilityID,
+		body: UpdateCapabilityMetadataRequest{
+			EAOwner: aliceID,
+			Status:  "Active",
+		},
+	})
+	metadataW := invokeHandler(handlers.UpdateCapabilityMetadata, metadataReq)
+
+	assert.Equal(t, http.StatusOK, metadataW.Code)
+	assert.Contains(t, metadataW.Body.String(), `"eaOwner":"`+aliceID+`"`)
+	assert.Contains(t, metadataW.Body.String(), `"eaOwnerName":"Alice Smith"`)
 }
 
 func TestUpdateCapabilityMetadata_ValidationErrors_Integration(t *testing.T) {
@@ -146,6 +194,10 @@ func TestUpdateCapabilityMetadata_ValidationErrors_Integration(t *testing.T) {
 		{
 			name: "unknown maturity level",
 			body: UpdateCapabilityMetadataRequest{MaturityLevel: "InvalidLevel", Status: "Active"},
+		},
+		{
+			name: "unresolvable EA owner",
+			body: UpdateCapabilityMetadataRequest{EAOwner: "Nobody Anyone Knows", Status: "Active"},
 		},
 	}
 

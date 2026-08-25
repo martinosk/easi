@@ -4,7 +4,7 @@ type CapabilityMetadata struct {
 	maturityLevel  MaturityLevel
 	ownershipModel OwnershipModel
 	primaryOwner   Owner
-	eaOwner        Owner
+	eaOwner        EAOwner
 	status         CapabilityStatus
 }
 
@@ -12,7 +12,7 @@ func NewCapabilityMetadata(
 	maturityLevel MaturityLevel,
 	ownershipModel OwnershipModel,
 	primaryOwner Owner,
-	eaOwner Owner,
+	eaOwner EAOwner,
 	status CapabilityStatus,
 ) CapabilityMetadata {
 	return CapabilityMetadata{
@@ -36,7 +36,7 @@ func (m CapabilityMetadata) PrimaryOwner() Owner {
 	return m.primaryOwner
 }
 
-func (m CapabilityMetadata) EAOwner() Owner {
+func (m CapabilityMetadata) EAOwner() EAOwner {
 	return m.eaOwner
 }
 

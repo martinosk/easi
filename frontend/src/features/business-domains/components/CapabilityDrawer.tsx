@@ -132,7 +132,7 @@ function DetailsSection({ capability, onAddExpertClick }: DetailsSectionProps) {
       {capability.description && <DetailField label="Description">{capability.description}</DetailField>}
       {capability.ownershipModel && <DetailField label="Ownership Model">{capability.ownershipModel}</DetailField>}
       {capability.primaryOwner && <DetailField label="Primary Owner">{capability.primaryOwner}</DetailField>}
-      {capability.eaOwner && <DetailField label="EA Owner">{capability.eaOwner}</DetailField>}
+      {capability.eaOwner && <DetailField label="EA Owner">{capability.eaOwnerName ?? capability.eaOwner}</DetailField>}
       {capability.tags && capability.tags.length > 0 && (
         <DetailField label="Tags">
           <Group gap="xs">

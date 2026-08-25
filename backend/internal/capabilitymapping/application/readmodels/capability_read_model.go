@@ -35,6 +35,7 @@ type CapabilityDTO struct {
 	OwnershipModel   string              `json:"ownershipModel,omitempty"`
 	PrimaryOwner     string              `json:"primaryOwner,omitempty"`
 	EAOwner          string              `json:"eaOwner,omitempty"`
+	EAOwnerName      string              `json:"eaOwnerName,omitempty"`
 	Status           string              `json:"status,omitempty"`
 	Experts          []ExpertDTO         `json:"experts,omitempty"`
 	Tags             []string            `json:"tags,omitempty"`
@@ -76,7 +77,14 @@ type capabilityScanResult struct {
 	ownershipModel sql.NullString
 	primaryOwner   sql.NullString
 	eaOwner        sql.NullString
+	eaOwnerName    sql.NullString
 }
+
+const capabilitySelect = `SELECT c.id, c.name, c.description, c.parent_id, c.level, c.maturity_value, c.ownership_model, c.primary_owner, c.ea_owner,
+	COALESCE(NULLIF(un.name, ''), NULLIF(un.email, ''), c.ea_owner) AS ea_owner_name,
+	c.status, c.created_at
+	FROM capabilitymapping.capabilities c
+	LEFT JOIN capabilitymapping.user_names un ON un.tenant_id = c.tenant_id AND un.user_id = c.ea_owner`
 
 type CapabilityReadModel struct {
 	db *database.TenantAwareDB
@@ -302,9 +310,9 @@ func (rm *CapabilityReadModel) GetByID(ctx context.Context, id string) (*Capabil
 func scanCapabilityRow(ctx context.Context, tx *sql.Tx, tenantID, id string) (*capabilityScanResult, bool, error) {
 	var result capabilityScanResult
 	err := tx.QueryRowContext(ctx,
-		"SELECT id, name, description, parent_id, level, maturity_value, ownership_model, primary_owner, ea_owner, status, created_at FROM capabilitymapping.capabilities WHERE tenant_id = $1 AND id = $2",
+		capabilitySelect+" WHERE c.tenant_id = $1 AND c.id = $2",
 		tenantID, id,
-	).Scan(&result.dto.ID, &result.dto.Name, &result.dto.Description, &result.parentID, &result.dto.Level, &result.maturityValue, &result.ownershipModel, &result.primaryOwner, &result.eaOwner, &result.dto.Status, &result.dto.CreatedAt)
+	).Scan(&result.dto.ID, &result.dto.Name, &result.dto.Description, &result.parentID, &result.dto.Level, &result.maturityValue, &result.ownershipModel, &result.primaryOwner, &result.eaOwner, &result.eaOwnerName, &result.dto.Status, &result.dto.CreatedAt)
 
 	if err == sql.ErrNoRows {
 		return nil, false, nil
@@ -375,6 +383,9 @@ func (r *capabilityScanResult) toDTO() *CapabilityDTO {
 	if r.eaOwner.Valid {
 		dto.EAOwner = r.eaOwner.String
 	}
+	if r.eaOwnerName.Valid {
+		dto.EAOwnerName = r.eaOwnerName.String
+	}
 	return dto
 }
 
@@ -434,13 +445,13 @@ func (rm *CapabilityReadModel) queryForTenant(ctx context.Context, query string,
 
 func (rm *CapabilityReadModel) GetAll(ctx context.Context) ([]CapabilityDTO, error) {
 	return rm.queryForTenant(ctx,
-		"SELECT id, name, description, parent_id, level, maturity_value, ownership_model, primary_owner, ea_owner, status, created_at FROM capabilitymapping.capabilities WHERE tenant_id = $1 ORDER BY level, name",
+		capabilitySelect+" WHERE c.tenant_id = $1 ORDER BY c.level, c.name",
 	)
 }
 
 func (rm *CapabilityReadModel) GetChildren(ctx context.Context, parentID string) ([]CapabilityDTO, error) {
 	return rm.queryForTenant(ctx,
-		"SELECT id, name, description, parent_id, level, maturity_value, ownership_model, primary_owner, ea_owner, status, created_at FROM capabilitymapping.capabilities WHERE tenant_id = $1 AND parent_id = $2 ORDER BY name",
+		capabilitySelect+" WHERE c.tenant_id = $1 AND c.parent_id = $2 ORDER BY c.name",
 		parentID,
 	)
 }
@@ -450,7 +461,7 @@ func (rm *CapabilityReadModel) GetByIDs(ctx context.Context, ids []string) ([]Ca
 		return nil, nil
 	}
 	return rm.queryForTenant(ctx,
-		"SELECT id, name, description, parent_id, level, maturity_value, ownership_model, primary_owner, ea_owner, status, created_at FROM capabilitymapping.capabilities WHERE tenant_id = $1 AND id = ANY($2) ORDER BY name",
+		capabilitySelect+" WHERE c.tenant_id = $1 AND c.id = ANY($2) ORDER BY c.name",
 		pq.Array(ids),
 	)
 }
@@ -490,7 +501,7 @@ func (rm *CapabilityReadModel) scanCapabilityRows(ctx context.Context, tx *sql.T
 		if err := rows.Scan(
 			&result.dto.ID, &result.dto.Name, &result.dto.Description, &result.parentID,
 			&result.dto.Level, &result.maturityValue,
-			&result.ownershipModel, &result.primaryOwner, &result.eaOwner, &result.dto.Status, &result.dto.CreatedAt,
+			&result.ownershipModel, &result.primaryOwner, &result.eaOwner, &result.eaOwnerName, &result.dto.Status, &result.dto.CreatedAt,
 		); err != nil {
 			return nil, err
 		}

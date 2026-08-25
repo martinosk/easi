@@ -14610,6 +14610,9 @@ const docTemplate = `{
                 "eaOwner": {
                     "type": "string"
                 },
+                "eaOwnerName": {
+                    "type": "string"
+                },
                 "experts": {
                     "type": "array",
                     "items": {
