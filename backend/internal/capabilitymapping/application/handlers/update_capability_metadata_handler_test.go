@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"easi/backend/internal/capabilitymapping/application/commands"
@@ -62,17 +63,31 @@ func newMetadataCommand(capabilityID, eaOwner string) *commands.UpdateCapability
 }
 
 func TestUpdateCapabilityMetadataHandler_ResolvesEAOwnerToUserID(t *testing.T) {
-	capability := newMetadataTestCapability(t)
-	repo := &mockUpdateMetadataRepository{capability: capability}
-	resolver := &mockEAOwnerResolver{resolved: "2ec46b70-63b3-4d6d-92f0-1d385f9d4c4b"}
-	handler := NewUpdateCapabilityMetadataHandler(repo, resolver)
+	cases := []struct {
+		name       string
+		capability func(t *testing.T) *aggregates.Capability
+	}{
+		{name: "from a name on a capability without an EA owner", capability: newMetadataTestCapability},
+		{name: "from unchanged legacy text that now matches a user", capability: func(t *testing.T) *aggregates.Capability {
+			return newLegacyEAOwnerCapability(t, "Alice Smith")
+		}},
+	}
 
-	_, err := handler.Handle(context.Background(), newMetadataCommand(capability.ID(), "Alice Smith"))
-	require.NoError(t, err)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			capability := tc.capability(t)
+			repo := &mockUpdateMetadataRepository{capability: capability}
+			resolver := &mockEAOwnerResolver{resolved: "2ec46b70-63b3-4d6d-92f0-1d385f9d4c4b"}
+			handler := NewUpdateCapabilityMetadataHandler(repo, resolver)
 
-	assert.Equal(t, "Alice Smith", resolver.receivedValue)
-	require.NotNil(t, repo.saved)
-	assert.Equal(t, "2ec46b70-63b3-4d6d-92f0-1d385f9d4c4b", repo.saved.EAOwner().Value())
+			_, err := handler.Handle(context.Background(), newMetadataCommand(capability.ID(), "Alice Smith"))
+			require.NoError(t, err)
+
+			assert.Equal(t, "Alice Smith", resolver.receivedValue)
+			require.NotNil(t, repo.saved)
+			assert.Equal(t, "2ec46b70-63b3-4d6d-92f0-1d385f9d4c4b", repo.saved.EAOwner().Value())
+		})
+	}
 }
 
 func TestUpdateCapabilityMetadataHandler_RejectsUnresolvableEAOwner(t *testing.T) {
@@ -87,7 +102,8 @@ func TestUpdateCapabilityMetadataHandler_RejectsUnresolvableEAOwner(t *testing.T
 	assert.Nil(t, repo.saved)
 }
 
-func TestUpdateCapabilityMetadataHandler_KeepsUnchangedLegacyEAOwner(t *testing.T) {
+func newLegacyEAOwnerCapability(t *testing.T, legacyValue string) *aggregates.Capability {
+	t.Helper()
 	capability := newMetadataTestCapability(t)
 	ownershipModel, err := valueobjects.NewOwnershipModel("")
 	require.NoError(t, err)
@@ -95,21 +111,52 @@ func TestUpdateCapabilityMetadataHandler_KeepsUnchangedLegacyEAOwner(t *testing.
 		valueobjects.MaturityGenesis,
 		ownershipModel,
 		valueobjects.NewOwner(""),
-		valueobjects.EAOwnerFromHistory("Old Legacy Owner"),
+		valueobjects.EAOwnerFromHistory(legacyValue),
 		valueobjects.StatusActive,
 	)
 	require.NoError(t, capability.UpdateMetadata(legacyMetadata))
 	capability.MarkChangesAsCommitted()
+	return capability
+}
 
+func TestUpdateCapabilityMetadataHandler_KeepsUnchangedLegacyEAOwner(t *testing.T) {
+	cases := []struct {
+		name       string
+		resolveErr error
+		submitted  string
+	}{
+		{name: "unresolvable text", resolveErr: valueobjects.ErrEAOwnerNotUser, submitted: "Old Legacy Owner"},
+		{name: "ambiguous text", resolveErr: valueobjects.ErrEAOwnerAmbiguous, submitted: "Old Legacy Owner"},
+		{name: "surrounding whitespace", resolveErr: valueobjects.ErrEAOwnerNotUser, submitted: "  Old Legacy Owner "},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			capability := newLegacyEAOwnerCapability(t, "Old Legacy Owner")
+			repo := &mockUpdateMetadataRepository{capability: capability}
+			resolver := &mockEAOwnerResolver{err: tc.resolveErr}
+			handler := NewUpdateCapabilityMetadataHandler(repo, resolver)
+
+			_, err := handler.Handle(context.Background(), newMetadataCommand(capability.ID(), tc.submitted))
+			require.NoError(t, err)
+
+			require.NotNil(t, repo.saved)
+			assert.Equal(t, "Old Legacy Owner", repo.saved.EAOwner().Value())
+		})
+	}
+}
+
+func TestUpdateCapabilityMetadataHandler_PropagatesResolverInfrastructureErrors(t *testing.T) {
+	capability := newLegacyEAOwnerCapability(t, "Old Legacy Owner")
 	repo := &mockUpdateMetadataRepository{capability: capability}
-	resolver := &mockEAOwnerResolver{err: valueobjects.ErrEAOwnerNotUser}
+	infraErr := errors.New("user name cache unavailable")
+	resolver := &mockEAOwnerResolver{err: infraErr}
 	handler := NewUpdateCapabilityMetadataHandler(repo, resolver)
 
-	_, err = handler.Handle(context.Background(), newMetadataCommand(capability.ID(), "Old Legacy Owner"))
-	require.NoError(t, err)
+	_, err := handler.Handle(context.Background(), newMetadataCommand(capability.ID(), "Old Legacy Owner"))
 
-	require.NotNil(t, repo.saved)
-	assert.Equal(t, "Old Legacy Owner", repo.saved.EAOwner().Value())
+	assert.ErrorIs(t, err, infraErr)
+	assert.Nil(t, repo.saved)
 }
 
 func TestUpdateCapabilityMetadataHandler_SkipsResolutionForEmptyEAOwner(t *testing.T) {

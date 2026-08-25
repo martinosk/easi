@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"context"
+	"errors"
+	"strings"
 
 	"easi/backend/internal/capabilitymapping/application/commands"
 	"easi/backend/internal/capabilitymapping/domain/aggregates"
@@ -41,17 +43,22 @@ func resolveMaturityLevel(maturityValue int, maturityLevel string) (valueobjects
 }
 
 func (h *UpdateCapabilityMetadataHandler) resolveEAOwner(ctx context.Context, capability *aggregates.Capability, value string) (valueobjects.EAOwner, error) {
+	value = strings.TrimSpace(value)
 	if value == "" {
 		return valueobjects.EAOwner{}, nil
 	}
 	resolved, err := h.eaOwnerResolver.ResolveEAOwner(ctx, value)
-	if err != nil {
-		if value == capability.EAOwner().Value() {
-			return capability.EAOwner(), nil
-		}
-		return valueobjects.EAOwner{}, err
+	if err == nil {
+		return valueobjects.NewEAOwner(resolved)
 	}
-	return valueobjects.NewEAOwner(resolved)
+	if isUnresolvable(err) && value == capability.EAOwner().Value() {
+		return capability.EAOwner(), nil
+	}
+	return valueobjects.EAOwner{}, err
+}
+
+func isUnresolvable(err error) bool {
+	return errors.Is(err, valueobjects.ErrEAOwnerNotUser) || errors.Is(err, valueobjects.ErrEAOwnerAmbiguous)
 }
 
 func buildMetadata(cmd *commands.UpdateCapabilityMetadata, eaOwner valueobjects.EAOwner) (valueobjects.CapabilityMetadata, error) {

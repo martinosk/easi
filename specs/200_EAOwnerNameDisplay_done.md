@@ -1,6 +1,6 @@
 # 200 — EA Owner Name Display
 
-> **Status:** ongoing
+> **Status:** done
 > **Depends on:** 136/137 (ACL cache pattern), 139 (schema ownership)
 
 ---
@@ -86,23 +86,23 @@ Feature: EA owner shown by name and stored as a user reference
 1. **Server-side resolution** — EA owner id→name resolution happens in CapabilityMapping read models; clients never need users:read to display an EA owner.
 2. **BC isolation preserved** — CapabilityMapping runtime SQL touches only `capabilitymapping` schema tables; user names come from a CM-owned cache, never from `auth.users` at runtime.
 3. **Graceful display fallback** — when the stored EA owner does not match a cached user id, the raw stored value is returned unchanged.
-4. **EA owner is a reference** — after this change, every newly stored EA owner is either empty or a user id. The command boundary accepts a user id or a name/email that resolves to exactly one cached user; anything else is rejected with a validation error.
+4. **EA owner is a reference** — after this change, every newly stored EA owner is either empty or a user id. The command boundary accepts a value that matches exactly one cached user by id, name, or email; anything else — including a well-formed id of a user that is not in the cache — is rejected with a validation error.
 5. **History is append-only** — existing events are never rewritten; rehydration accepts historical free-text values. Validation applies only at the command boundary.
-6. **Unchanged values are never rejected** — resubmitting a capability's current EA owner value succeeds even when it is unresolvable legacy text, so saving an untouched edit form cannot fail.
+6. **Unchanged values are never rejected** — resubmitting a capability's current EA owner value succeeds even when it is unresolvable or ambiguous, so saving an untouched edit form cannot fail. Infrastructure failures during resolution are still surfaced as errors.
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Capability GET/list responses include a resolved EA owner display name whenever `eaOwner` is set.
-- [ ] Capability details panel and capability drawer render the resolved name, never a GUID, for owners selected via the dropdown.
-- [ ] A capability with a legacy free-text EA owner renders that text unchanged.
-- [ ] A stakeholder session renders the resolved name (no dependency on `/api/v1/users`).
-- [ ] A user created after deployment resolves via the event-driven cache without manual intervention.
-- [ ] A migration backfills the cache for all existing users, so pre-existing capabilities resolve immediately.
-- [ ] Metadata updates with an eaOwner user id are stored as-is; with a uniquely matching name/email are stored as the resolved id; with unresolvable or ambiguous text are rejected with 400.
-- [ ] The assistant's update_capability_metadata tool documents that eaOwner accepts a user name or id.
-- [ ] Architecture guard tests pass (no cross-schema SQL from CM read models).
+- [x] Capability GET/list responses include a resolved EA owner display name whenever `eaOwner` is set.
+- [x] Capability details panel and capability drawer render the resolved name, never a GUID, for owners selected via the dropdown.
+- [x] A capability with a legacy free-text EA owner renders that text unchanged.
+- [x] A stakeholder session renders the resolved name (no dependency on `/api/v1/users`).
+- [x] A user created after deployment resolves via the event-driven cache without manual intervention.
+- [x] A migration backfills the cache for all existing users, so pre-existing capabilities resolve immediately.
+- [x] Metadata updates with an eaOwner user id are stored as-is; with a uniquely matching name/email are stored as the resolved id; with unresolvable or ambiguous text are rejected with 400.
+- [x] The assistant's update_capability_metadata tool documents that eaOwner accepts a user name or id.
+- [x] Architecture guard tests pass (no cross-schema SQL from CM read models).
 
 ---
 
@@ -114,7 +114,7 @@ CapabilityMapping owns the change. Auth is affected only as an upstream event pu
 
 ### Domain Model
 
-New `EAOwnerRef` value object replaces the reuse of `Owner` for `eaOwner` in `CapabilityMetadata`: empty or a canonical user-id string. Construction from historical event payloads remains permissive; strict resolution happens in the command handler. No event schema changes.
+New `EAOwner` value object replaces the reuse of `Owner` for `eaOwner` in `CapabilityMetadata`: empty or a canonical user-id string. Construction from historical event payloads remains permissive; strict resolution happens in the command handler. No event schema changes.
 
 ### API Surface
 
@@ -151,15 +151,15 @@ CM subscribes to Auth's published-language `UserCreated` event and upserts (user
 | Event-driven name cache | Name changes in auth after user creation are not propagated (auth publishes no name-change event) | Names originate from OIDC at invitation acceptance and are effectively immutable today; a future auth event can update the cache |
 | Extra cache table | One more projection to maintain | Follows the established ACL cache pattern (specs 136/137) |
 | Organic legacy convergence | Dormant capabilities keep free-text values in the aggregate indefinitely | Display is unaffected (fallback); values converge on any subsequent edit |
-| Name-or-id input | A name that is also a valid UUID of another user is treated as an id | User names are never UUID-shaped in practice |
+| Single id/name/email lookup | A name or email equal to another user's id would be ambiguous | User ids are UUIDs; names and emails are never UUID-shaped in practice |
 
 ---
 
 ## Checklist
 
 - [x] Specification ready
-- [ ] Implementation done
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
-- [ ] API documentation updated
-- [ ] User sign-off
+- [x] Implementation done
+- [x] Unit tests implemented and passing
+- [x] Integration tests implemented if relevant
+- [x] API documentation updated
+- [x] User sign-off

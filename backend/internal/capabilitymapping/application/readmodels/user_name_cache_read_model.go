@@ -9,8 +9,6 @@ import (
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
-
-	"github.com/google/uuid"
 )
 
 type UserNameCacheReadModel struct {
@@ -43,11 +41,8 @@ func (rm *UserNameCacheReadModel) ResolveEAOwner(ctx context.Context, value stri
 	if trimmed == "" {
 		return "", valueobjects.ErrEAOwnerNotUser
 	}
-	if _, err := uuid.Parse(trimmed); err == nil {
-		return trimmed, nil
-	}
 
-	ids, err := rm.findUserIDsByNameOrEmail(ctx, trimmed)
+	ids, err := rm.findUserIDs(ctx, trimmed)
 	if err != nil {
 		return "", fmt.Errorf("resolve EA owner %q: %w", trimmed, err)
 	}
@@ -62,7 +57,7 @@ func (rm *UserNameCacheReadModel) ResolveEAOwner(ctx context.Context, value stri
 	}
 }
 
-func (rm *UserNameCacheReadModel) findUserIDsByNameOrEmail(ctx context.Context, value string) ([]string, error) {
+func (rm *UserNameCacheReadModel) findUserIDs(ctx context.Context, value string) ([]string, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return nil, err
@@ -72,7 +67,7 @@ func (rm *UserNameCacheReadModel) findUserIDsByNameOrEmail(ctx context.Context, 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
 			`SELECT user_id FROM capabilitymapping.user_names
-			 WHERE tenant_id = $1 AND (LOWER(name) = LOWER($2) OR LOWER(email) = LOWER($2))
+			 WHERE tenant_id = $1 AND (user_id = $2 OR LOWER(name) = LOWER($2) OR LOWER(email) = LOWER($2))
 			 LIMIT 2`,
 			tenantID.Value(), value,
 		)

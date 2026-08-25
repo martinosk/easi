@@ -96,11 +96,15 @@ func seedCachedUser(t *testing.T, testCtx *testContext, name, email string) stri
 	userID := uuid.New().String()
 	cache := readmodels.NewUserNameCacheReadModel(database.NewTenantAwareDB(testCtx.db))
 	require.NoError(t, cache.Upsert(tenantContext(), userID, name, email))
-	t.Cleanup(func() {
-		testCtx.setTenantContext(t)
-		_, _ = testCtx.db.Exec("DELETE FROM capabilitymapping.user_names WHERE user_id = $1", userID)
-	})
+	testCtx.createdUserIDs = append(testCtx.createdUserIDs, userID)
 	return userID
+}
+
+func decodeCapability(t *testing.T, w *httptest.ResponseRecorder) readmodels.CapabilityDTO {
+	t.Helper()
+	var dto readmodels.CapabilityDTO
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &dto))
+	return dto
 }
 
 func TestUpdateCapabilityMetadata_Integration(t *testing.T) {
@@ -130,9 +134,10 @@ func TestUpdateCapabilityMetadata_Integration(t *testing.T) {
 	})
 	metadataW := invokeHandler(handlers.UpdateCapabilityMetadata, metadataReq)
 
-	assert.Equal(t, http.StatusOK, metadataW.Code)
-	assert.Contains(t, metadataW.Body.String(), `"eaOwner":"`+janeID+`"`)
-	assert.Contains(t, metadataW.Body.String(), `"eaOwnerName":"Jane Smith"`)
+	require.Equal(t, http.StatusOK, metadataW.Code)
+	dto := decodeCapability(t, metadataW)
+	assert.Equal(t, janeID, dto.EAOwner)
+	assert.Equal(t, "Jane Smith", dto.EAOwnerName)
 
 	testCtx.requireEventDataContains(t, capabilityID, "CapabilityMetadataUpdated", `"maturityValue": 37`, "TribeOwned", janeID)
 
@@ -175,17 +180,19 @@ func TestUpdateCapabilityMetadata_EAOwnerUserID_Integration(t *testing.T) {
 	})
 	metadataW := invokeHandler(handlers.UpdateCapabilityMetadata, metadataReq)
 
-	assert.Equal(t, http.StatusOK, metadataW.Code)
-	assert.Contains(t, metadataW.Body.String(), `"eaOwner":"`+aliceID+`"`)
-	assert.Contains(t, metadataW.Body.String(), `"eaOwnerName":"Alice Smith"`)
+	require.Equal(t, http.StatusOK, metadataW.Code)
+	dto := decodeCapability(t, metadataW)
+	assert.Equal(t, aliceID, dto.EAOwner)
+	assert.Equal(t, "Alice Smith", dto.EAOwnerName)
 }
 
 func TestUpdateCapabilityMetadata_ValidationErrors_Integration(t *testing.T) {
 	invalidValue := 150
 
 	cases := []struct {
-		name string
-		body UpdateCapabilityMetadataRequest
+		name  string
+		body  UpdateCapabilityMetadataRequest
+		setup func(t *testing.T, testCtx *testContext)
 	}{
 		{
 			name: "maturity value out of range",
@@ -199,6 +206,18 @@ func TestUpdateCapabilityMetadata_ValidationErrors_Integration(t *testing.T) {
 			name: "unresolvable EA owner",
 			body: UpdateCapabilityMetadataRequest{EAOwner: "Nobody Anyone Knows", Status: "Active"},
 		},
+		{
+			name: "unknown EA owner user id",
+			body: UpdateCapabilityMetadataRequest{EAOwner: uuid.New().String(), Status: "Active"},
+		},
+		{
+			name: "ambiguous EA owner name",
+			body: UpdateCapabilityMetadataRequest{EAOwner: "Alex Kim", Status: "Active"},
+			setup: func(t *testing.T, testCtx *testContext) {
+				seedCachedUser(t, testCtx, "Alex Kim", "alex.kim.1@example.com")
+				seedCachedUser(t, testCtx, "Alex Kim", "alex.kim.2@example.com")
+			},
+		},
 	}
 
 	for _, tc := range cases {
@@ -206,6 +225,9 @@ func TestUpdateCapabilityMetadata_ValidationErrors_Integration(t *testing.T) {
 			testCtx, cleanup := setupTestDB(t)
 			defer cleanup()
 
+			if tc.setup != nil {
+				tc.setup(t, testCtx)
+			}
 			handlers := setupHandlers(testCtx.db)
 			capabilityID := createCapabilityForTest(t, testCtx, handlers, CreateCapabilityRequest{
 				Name:  "Test Capability",

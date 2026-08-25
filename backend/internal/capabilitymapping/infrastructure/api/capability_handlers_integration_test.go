@@ -35,9 +35,10 @@ import (
 )
 
 type testContext struct {
-	db         *sql.DB
-	testID     string
-	createdIDs []string
+	db             *sql.DB
+	testID         string
+	createdIDs     []string
+	createdUserIDs []string
 }
 
 func (ctx *testContext) setTenantContext(t *testing.T) {
@@ -75,6 +76,9 @@ func setupTestDB(t *testing.T) (*testContext, func()) {
 			db.Exec("DELETE FROM capabilitymapping.capability_dependencies WHERE id = $1", id)
 			db.Exec("DELETE FROM capabilitymapping.capabilities WHERE id = $1", id)
 			db.Exec("DELETE FROM infrastructure.events WHERE aggregate_id = $1", id)
+		}
+		for _, userID := range ctx.createdUserIDs {
+			db.Exec("DELETE FROM capabilitymapping.user_names WHERE user_id = $1", userID)
 		}
 		db.Close()
 	}

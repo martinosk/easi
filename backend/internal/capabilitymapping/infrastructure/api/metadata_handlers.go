@@ -62,7 +62,7 @@ type AddCapabilityTagRequest struct {
 
 // UpdateCapabilityMetadata godoc
 // @Summary Update capability metadata
-// @Description Updates metadata fields like maturity level, ownership, and strategy alignment
+// @Description Updates maturity level, ownership model, primary owner, EA owner, and status. The eaOwner field accepts a user id or a user name/email that matches exactly one user; unresolvable or ambiguous values are rejected with 400. Responses include eaOwnerName, the resolved display name.
 // @Tags capabilities
 // @Accept json
 // @Produce json
