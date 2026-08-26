@@ -12,8 +12,6 @@ EASI uses **one UI vocabulary: Mantine v8** (`@mantine/core`). Never write plain
 
 This skill is exclusively about UI primitives, dialogs, layout, and styling. For HATEOAS link gating, TanStack Query, cache invalidation, and mutation hooks, load `easi-frontend-data` instead.
 
-Spec 168 captures the underlying refactor (three competing vocabularies collapsed to Mantine). The rules below are the post-168 steady state.
-
 ## UI Component Framework (Mantine v8)
 
 ### Component Mapping
@@ -75,7 +73,7 @@ The older `MantineTestWrapper` import path still exists but is deprecated — pr
 
 ## Layout — no inline `style={{}}` for static layout
 
-**Never use `style={{}}` for static layout.** This is a hard rule from spec 168 invariant #2. Use Mantine layout primitives and system props instead.
+**Never use `style={{}}` for static layout.** Use Mantine layout primitives and system props instead.
 
 ### What to do instead
 
