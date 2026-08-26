@@ -129,6 +129,31 @@ Do not write `<button>`, `<input>`, `<select>`, `<textarea>`, `<form>`, `<dialog
 
 These class systems are being retired. Do not introduce new usages. Do not invent CSS class names for UI elements — the EASI stylesheet does not back them.
 
+## Layering — regions isolate, z-index is a token (spec 202)
+
+Stacking is governed by the design system, not by numbers picked per component. `npm run lint` fails on any numeric `z-index` / `zIndex` outside `src/theme/tokens.css`.
+
+| Token | Value | Use for |
+|---|---|---|
+| `--layer-base` | 0 | Backgrounds, grid lines inside a region |
+| `--layer-raised` | 1 | Content above the background inside a region |
+| `--layer-floating` | 2 | Badges, handles, hover chrome inside a region |
+| `--layer-pinned` | 3 | Sticky headers, in-region toolbars — the top of a region |
+| `--layer-shell` | 100 | The app header (= Mantine `app`) |
+| `--layer-panel` | 200 | Slide-in panels (= Mantine `modal`) |
+| `--layer-popover` | 300 | Anything portaled that must beat panels (= Mantine `popover`) |
+
+Rules:
+
+1. **Regions isolate.** Every shell layout region (`explorerPane`, `canvasPane`, `detailsPane`, the main content region) has `isolation: isolate`. A feature's z-index only orders elements *inside its region* and can never out-stack the header or a Mantine portal.
+2. **Features never position to the viewport.** No `position: fixed`, no viewport-level `@media` layout rules in feature stylesheets. If something must escape its region it is an overlay — use Mantine `Menu` / `Popover` / `Tooltip` / `Drawer` / `Modal`, which portal to `body` on Mantine's scale.
+3. **Only `--layer-*` tokens.** `z-index: var(--layer-raised)` in a `.module.css`; never a literal, never `var(--mantine-z-index-*)` directly.
+4. **A test guards the scale** — `src/theme/layers.test.ts` asserts token ordering and equality with Mantine's defaults; `scripts/layering.test.ts` covers the lint check.
+
+### CSS modules only (spec 204)
+
+The only non-module stylesheets under `src` are `index.css`, `theme/tokens.css`, `theme/skins.css`. Every component imports its own `X.module.css`; never add a global `.css` file or a `:global(` selector that reaches into another component (styling third-party DOM such as `.react-flow__…` under a local class is the one exception). `@keyframes` used by a module are defined inside that module. Test hooks are `data-testid`, never class names.
+
 ## Reference Implementations
 
 | Pattern | Reference |
@@ -151,3 +176,4 @@ These class systems are being retired. Do not introduce new usages. Do not inven
 8. **Never require users to enter GUIDs.** Every ID reference uses a searchable `Select` or `MultiSelect`. Chain selects when context is needed (pick EC first → auto-resolve Direction).
 9. **New features go where the domain lives.** "Under area X" = tab inside X, not a top-level nav item.
 10. **Empty states explain the feature.** `Title` + `Text` + call-to-action `Button`.
+11. **z-index is a `--layer-*` token, regions isolate, stylesheets are CSS modules.** Overlays go through Mantine portals; features never position to the viewport. See Layering above.
