@@ -93,7 +93,7 @@ export function UserMenu() {
         <Menu.Target>
           <UnstyledButton data-testid="user-menu-trigger" aria-label="User menu" p="xs" className={classes.trigger}>
             <Group gap="xs" wrap="nowrap">
-              <Avatar size="sm" color="blue" radius="xl">
+              <Avatar size="sm" radius="xl" className={classes.avatar}>
                 {getInitials(user.name)}
               </Avatar>
               {CHEVRON_DOWN}

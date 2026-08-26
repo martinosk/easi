@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../test/helpers';
 import { UserMenu } from './UserMenu';
+import classes from './UserMenu.module.css';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => ({
@@ -30,6 +31,15 @@ describe('UserMenu', () => {
   beforeEach(() => {
     mockNavigate.mockClear();
     mockState.permissions = new Set();
+  });
+
+  it('renders the initials avatar with the header skin colour, not the Mantine blue palette', () => {
+    renderWithProviders(<UserMenu />);
+
+    const avatar = screen.getByText('AL').closest('.mantine-Avatar-root');
+
+    expect(avatar).toHaveClass(classes.avatar);
+    expect(avatar).not.toHaveStyle({ '--avatar-bg': 'var(--mantine-color-blue-light)' });
   });
 
   it('shows a Settings item for users with metamodel:write that navigates to settings', async () => {

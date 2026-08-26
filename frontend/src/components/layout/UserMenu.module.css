@@ -14,3 +14,8 @@
   color: var(--skin-on-brand);
   background: color-mix(in srgb, var(--skin-on-brand) 10%, transparent);
 }
+
+.avatar {
+  --avatar-bg: color-mix(in srgb, var(--skin-on-brand) 12%, transparent);
+  --avatar-color: currentColor;
+}
