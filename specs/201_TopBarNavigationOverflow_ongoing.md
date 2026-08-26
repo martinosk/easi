@@ -109,6 +109,7 @@ Frontend only — `frontend/src/components/layout/` (AppNavigation, UserMenu), `
 
 - `npm run build` passes; the compiled CSS contains the `@container (width<=1400px)` rule.
 - Browser check (three density modes, overflow menu, tooltips) is pending — no compose stack in the implementation environment.
+- Bug found in browser (MSW mock mode, Playwright): on the Architecture Canvas the overflow dropdown opened but was painted behind the explorer tree once the tree had loaded. Cause: a pre-spec-179 `@media (max-width: 768px)` rule in `navigation.css` made `.navigation-tree` `position: absolute; z-index: 1000`, and `explorerPane` had no positioning or stacking context, so the tree escaped the pane and out-ranked Mantine's portaled dropdown (z-index 300). Fix: `explorerPane` is now `position: relative; isolation: isolate`, and the obsolete media rule is removed. Verified at 420px on canvas and business-domains pages.
 
 ### Frontend
 
