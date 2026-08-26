@@ -3,7 +3,7 @@
    ============================================================ */
 .ctx-menu {
   position: fixed;
-  z-index: 10000;
+  z-index: var(--layer-popover);
   font-family: inherit;
 }
 
@@ -202,7 +202,7 @@
   box-shadow: 0 8px 20px -4px color-mix(in srgb, var(--skin-accent-8) 55%, transparent);
   scale: 1.08;
   outline: none;
-  z-index: 1;
+  z-index: var(--layer-raised);
 }
 
 .ctx-menu__petal--danger {

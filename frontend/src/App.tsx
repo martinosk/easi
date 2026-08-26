@@ -1,6 +1,7 @@
 import { type ComponentType, lazy, Suspense, useCallback, useLayoutEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import type { Release } from './api/types';
+import classes from './App.module.css';
 import { AppLayout } from './components/layout/AppLayout';
 import { AppNavigation } from './components/layout/AppNavigation';
 import { ErrorBoundary, FeatureErrorFallback } from './components/shared/ErrorBoundary';
@@ -116,9 +117,11 @@ const mainViews: Record<AppView, { featureName: string; Component: ComponentType
 function MainContent({ view }: { view: AppView }) {
   const { featureName, Component } = mainViews[view] ?? mainViews['business-domains'];
   return (
-    <LazyFeatureView featureName={featureName}>
-      <Component />
-    </LazyFeatureView>
+    <main className={classes.mainRegion} data-testid="main-region">
+      <LazyFeatureView featureName={featureName}>
+        <Component />
+      </LazyFeatureView>
+    </main>
   );
 }
 

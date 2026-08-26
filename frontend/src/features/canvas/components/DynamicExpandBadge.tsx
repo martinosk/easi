@@ -14,6 +14,7 @@ import {
   getUnexpandedByEdgeType,
   type UnexpandedByEdgeType,
 } from '../utils/dynamicMode';
+import classes from './DynamicExpandBadge.module.css';
 import { ExpandPopover } from './ExpandPopover';
 
 interface DynamicExpandBadgeProps {
@@ -140,7 +141,7 @@ export function DynamicExpandBadge({ entityId, entityType, entityName }: Dynamic
         size="md"
         variant="filled"
         color="blue"
-        style={{ position: 'absolute', top: -8, right: -8, cursor: 'pointer', zIndex: 5 }}
+        className={classes.badge}
         aria-label={`Expand ${entityName} (+${total})`}
         onClick={(e) => {
           e.stopPropagation();

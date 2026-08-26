@@ -114,6 +114,17 @@
   --shadow-lg: 0 8px 24px rgba(22, 30, 37, 0.12);
   --shadow-xl: 0 16px 40px rgba(22, 30, 37, 0.16);
 
+  /* Layering: in-region */
+  --layer-base: 0;
+  --layer-raised: 1;
+  --layer-floating: 2;
+  --layer-pinned: 3;
+
+  /* Layering: shell, aligned with Mantine */
+  --layer-shell: 100;
+  --layer-panel: 200;
+  --layer-popover: 300;
+
   /* Origin entity accents */
   --entity-acquired: #5f4fc7;
   --entity-vendor: #b23a6b;

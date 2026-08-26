@@ -106,7 +106,7 @@
   bottom: 0;
   left: var(--tl-label-w);
   right: 0;
-  z-index: 0;
+  z-index: var(--layer-base);
   background: repeating-linear-gradient(to right, var(--line) 0 1px, transparent 1px var(--tl-q-w));
 }
 
@@ -118,14 +118,14 @@
   width: var(--tl-q-w);
   background: var(--well);
   box-shadow: inset 2px 0 0 var(--color-primary);
-  z-index: 0;
+  z-index: var(--layer-base);
 }
 
 .gridRow {
   display: grid;
   grid-template-columns: var(--tl-columns);
   position: relative;
-  z-index: 1;
+  z-index: var(--layer-raised);
 }
 
 .axisRow {
@@ -133,7 +133,7 @@
   top: 0;
   background: var(--surface);
   border-bottom: 1px solid var(--line-strong);
-  z-index: 3;
+  z-index: var(--layer-pinned);
 }
 
 .axisLabel {
@@ -164,7 +164,7 @@
 .domainRow {
   background: var(--well);
   border-top: 1px solid var(--line);
-  z-index: 2;
+  z-index: var(--layer-floating);
 }
 
 .domainName {

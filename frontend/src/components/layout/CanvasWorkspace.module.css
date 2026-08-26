@@ -26,6 +26,7 @@
 }
 
 .detailsPane {
+  isolation: isolate;
   width: 350px;
   flex-shrink: 0;
   display: flex;
@@ -87,6 +88,7 @@
 }
 
 .canvasPane {
+  isolation: isolate;
   flex: 1;
   min-width: 0;
   display: flex;
