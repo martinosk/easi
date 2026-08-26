@@ -674,4 +674,8 @@ export const handlers = [
       headers: { 'Content-Type': 'text/event-stream' },
     });
   }),
+
+  http.get(`${BASE_URL}/api/v1/edit-grants`, () => {
+    return HttpResponse.json({ data: [] });
+  }),
 ];

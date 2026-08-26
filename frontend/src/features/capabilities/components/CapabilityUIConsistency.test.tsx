@@ -1,9 +1,13 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { apiClient } from '../../../api/client';
 import type { Capability, CapabilityId, Component, ComponentId, View, ViewId } from '../../../api/types';
 import type { AppStore } from '../../../store/appStore';
 import { useAppStore } from '../../../store/appStore';
 import { createMantineTestWrapper, seedDb } from '../../../test/helpers';
+import { EditComponentDialog } from '../../components/components/EditComponentDialog';
+import { NavigationTree } from '../../navigation/components/NavigationTree';
+import { EditCapabilityDialog } from './EditCapabilityDialog';
 
 vi.mock('../../../store/appStore', () => ({
   useAppStore: vi.fn(),
@@ -30,27 +34,25 @@ function setupMockStore(overrides: Record<string, unknown> = {}) {
   return mockStore;
 }
 
-async function setupApiClientMocks() {
-  const { apiClient } = await import('../../../api/client');
+function setupApiClientMocks() {
   vi.mocked(apiClient.getMaturityLevels).mockResolvedValue(['Genesis', 'Custom Build', 'Product', 'Commodity']);
   vi.mocked(apiClient.getStatuses).mockResolvedValue([{ value: 'Active', displayName: 'Active', sortOrder: 1 }]);
   vi.mocked(apiClient.getOwnershipModels).mockResolvedValue([]);
 }
 
-async function renderNavigationTree(props: Record<string, unknown> = {}) {
+function renderNavigationTree(props: Record<string, unknown> = {}) {
   const { Wrapper } = createMantineTestWrapper();
-  const { NavigationTree } = await import('../../navigation/components/NavigationTree');
   return render(<NavigationTree {...props} />, { wrapper: Wrapper });
 }
 
-async function renderEditCapabilityDialog(props: {
-  isOpen: boolean;
-  onClose: () => void;
-  capability: Capability | null;
-}) {
+function renderEditCapabilityDialog(props: { isOpen: boolean; onClose: () => void; capability: Capability | null }) {
   const { Wrapper } = createMantineTestWrapper();
-  const { EditCapabilityDialog } = await import('./EditCapabilityDialog');
-  return { result: render(<EditCapabilityDialog {...props} />, { wrapper: Wrapper }), Wrapper, EditCapabilityDialog };
+  return render(<EditCapabilityDialog {...props} />, { wrapper: Wrapper });
+}
+
+function expandButtonFor(capabilityName: string) {
+  const item = screen.getByText(capabilityName).closest('[data-testid^="capability-tree-item-"]');
+  return item?.querySelector('button[aria-label="Expand"]');
 }
 
 async function openContextMenuOn(text: string, selector: string) {
@@ -183,8 +185,8 @@ describe('Capability UI Consistency', () => {
     describe('EditCapabilityDialog should be managed via DialogManager pattern', () => {
       it('should render dialog as a modal overlay when opened', async () => {
         setupMockStore();
-        await setupApiClientMocks();
-        await renderEditCapabilityDialog({ isOpen: true, onClose: vi.fn(), capability: mockCapabilities[0] });
+        setupApiClientMocks();
+        renderEditCapabilityDialog({ isOpen: true, onClose: vi.fn(), capability: mockCapabilities[0] });
 
         await waitFor(() => {
           expect(screen.getByText('Edit Capability')).toBeInTheDocument();
@@ -193,16 +195,16 @@ describe('Capability UI Consistency', () => {
 
       it('should not show modal when isOpen is false', async () => {
         setupMockStore();
-        await renderEditCapabilityDialog({ isOpen: false, onClose: vi.fn(), capability: null });
+        renderEditCapabilityDialog({ isOpen: false, onClose: vi.fn(), capability: null });
 
         expect(screen.queryByText('Edit Capability')).not.toBeInTheDocument();
       });
 
       it('should call onClose when cancel button is clicked', async () => {
         setupMockStore();
-        await setupApiClientMocks();
+        setupApiClientMocks();
         const mockOnClose = vi.fn();
-        await renderEditCapabilityDialog({ isOpen: true, onClose: mockOnClose, capability: mockCapabilities[0] });
+        renderEditCapabilityDialog({ isOpen: true, onClose: mockOnClose, capability: mockCapabilities[0] });
 
         await waitFor(() => {
           expect(screen.getByTestId('edit-capability-cancel')).toBeInTheDocument();
@@ -215,11 +217,8 @@ describe('Capability UI Consistency', () => {
 
       it('should follow same pattern as EditComponentDialog for dialog opening', async () => {
         setupMockStore();
-        await setupApiClientMocks();
+        setupApiClientMocks();
         const { Wrapper } = createMantineTestWrapper();
-
-        const { EditComponentDialog } = await import('../../components/components/EditComponentDialog');
-        const { EditCapabilityDialog } = await import('./EditCapabilityDialog');
 
         const { rerender } = render(
           <EditComponentDialog isOpen={true} onClose={vi.fn()} component={mockComponents[0]} />,
@@ -244,7 +243,7 @@ describe('Capability UI Consistency', () => {
     describe('Capabilities should show visual distinction when not in view', () => {
       it('should render all capabilities in tree regardless of view presence', async () => {
         setupMockStore({ canvasCapabilities: [{ capabilityId: 'cap-1', x: 200, y: 200 }] });
-        await renderNavigationTree();
+        renderNavigationTree();
 
         await waitFor(() => {
           expect(screen.getByText('Customer Management')).toBeInTheDocument();
@@ -254,23 +253,27 @@ describe('Capability UI Consistency', () => {
 
       it('should allow capabilities not in view to remain draggable', async () => {
         setupMockStore({ canvasCapabilities: [{ capabilityId: 'cap-1', x: 200, y: 200 }] });
-        await renderNavigationTree();
+        renderNavigationTree();
 
         await waitFor(() => {
-          const capabilityItem = screen.getByText('Inventory Control').closest('[data-testid^="capability-tree-item-"]');
+          const capabilityItem = screen
+            .getByText('Inventory Control')
+            .closest('[data-testid^="capability-tree-item-"]');
           expect(capabilityItem).toHaveAttribute('draggable', 'true');
         });
       });
 
       it('should set correct data transfer on drag start for capabilities', async () => {
         setupMockStore({ canvasCapabilities: [] });
-        await renderNavigationTree();
+        renderNavigationTree();
 
         await waitFor(() => {
           expect(screen.getByText('Customer Management')).toBeInTheDocument();
         });
 
-        const capabilityItem = screen.getByText('Customer Management').closest('[data-testid^="capability-tree-item-"]');
+        const capabilityItem = screen
+          .getByText('Customer Management')
+          .closest('[data-testid^="capability-tree-item-"]');
         expect(capabilityItem).toBeTruthy();
 
         const mockDataTransfer = {
@@ -301,7 +304,7 @@ describe('Capability UI Consistency', () => {
 
       it('should apply not-in-view class to components not in current view', async () => {
         setupComponentOutOfViewStore();
-        await renderNavigationTree();
+        renderNavigationTree();
 
         await waitFor(() => {
           const compBButton = screen.getByText('Component B').closest('button');
@@ -311,7 +314,7 @@ describe('Capability UI Consistency', () => {
 
       it('should show tooltip suffix for components not in current view', async () => {
         setupComponentOutOfViewStore();
-        await renderNavigationTree();
+        renderNavigationTree();
 
         await waitFor(() => {
           const compBButton = screen.getByText('Component B').closest('button');
@@ -322,34 +325,21 @@ describe('Capability UI Consistency', () => {
   });
 
   describe('View Focus on Selection', () => {
-    it('should call onCapabilitySelect when capability is clicked in tree', async () => {
-      const mockOnCapabilitySelect = vi.fn();
+    it.each([
+      ['onCapabilitySelect', 'Customer Management', '[data-testid^="capability-tree-item-"]', 'cap-1'],
+      ['onComponentSelect', 'Component A', 'button', 'comp-1'],
+    ])('should call %s when the tree item is clicked', async (prop, text, selector, expectedId) => {
+      const onSelect = vi.fn();
       setupMockStore();
-      await renderNavigationTree({ onCapabilitySelect: mockOnCapabilitySelect });
+      renderNavigationTree({ [prop]: onSelect });
 
       await waitFor(() => {
-        expect(screen.getByText('Customer Management')).toBeInTheDocument();
+        expect(screen.getByText(text)).toBeInTheDocument();
       });
 
-      const capabilityItem = screen.getByText('Customer Management').closest('[data-testid^="capability-tree-item-"]');
-      fireEvent.click(capabilityItem!);
+      fireEvent.click(screen.getByText(text).closest(selector)!);
 
-      expect(mockOnCapabilitySelect).toHaveBeenCalledWith('cap-1');
-    });
-
-    it('should call onComponentSelect when component is clicked in tree', async () => {
-      const mockOnComponentSelect = vi.fn();
-      setupMockStore();
-      await renderNavigationTree({ onComponentSelect: mockOnComponentSelect });
-
-      await waitFor(() => {
-        expect(screen.getByText('Component A')).toBeInTheDocument();
-      });
-
-      const componentButton = screen.getByText('Component A').closest('button');
-      fireEvent.click(componentButton!);
-
-      expect(mockOnComponentSelect).toHaveBeenCalledWith('comp-1');
+      expect(onSelect).toHaveBeenCalledWith(expectedId);
     });
   });
 
@@ -357,7 +347,7 @@ describe('Capability UI Consistency', () => {
     describe('Tree Context Menu for Capabilities', () => {
       it('should show Edit option in capability tree context menu', async () => {
         setupMockStore();
-        await renderNavigationTree({ onEditCapability: vi.fn() });
+        renderNavigationTree({ onEditCapability: vi.fn() });
         await openContextMenuOn('Customer Management', '[data-testid^="capability-tree-item-"]');
 
         expect(screen.getByRole('menuitem', { name: 'Edit' })).toBeInTheDocument();
@@ -365,7 +355,7 @@ describe('Capability UI Consistency', () => {
 
       it('should show Delete from Model option in capability tree context menu', async () => {
         setupMockStore();
-        await renderNavigationTree();
+        renderNavigationTree();
         await openContextMenuOn('Customer Management', '[data-testid^="capability-tree-item-"]');
 
         expect(screen.getByRole('menuitem', { name: /Delete capability from model/i })).toBeInTheDocument();
@@ -375,7 +365,7 @@ describe('Capability UI Consistency', () => {
     describe('Tree Context Menu for Components', () => {
       it('should show Edit option in component tree context menu', async () => {
         setupMockStore();
-        await renderNavigationTree({ onEditComponent: vi.fn() });
+        renderNavigationTree({ onEditComponent: vi.fn() });
         await openContextMenuOn('Component A', 'button');
 
         expect(screen.getByRole('menuitem', { name: 'Edit' })).toBeInTheDocument();
@@ -383,7 +373,7 @@ describe('Capability UI Consistency', () => {
 
       it('should show Delete from Model option in component tree context menu', async () => {
         setupMockStore();
-        await renderNavigationTree();
+        renderNavigationTree();
         await openContextMenuOn('Component A', 'button');
 
         expect(screen.getByRole('menuitem', { name: /Delete application from model/i })).toBeInTheDocument();
@@ -395,7 +385,6 @@ describe('Capability UI Consistency', () => {
         setupMockStore();
         const { Wrapper } = createMantineTestWrapper();
 
-        const { NavigationTree } = await import('../../navigation/components/NavigationTree');
         const { rerender } = render(<NavigationTree onEditCapability={vi.fn()} onEditComponent={vi.fn()} />, {
           wrapper: Wrapper,
         });
@@ -404,7 +393,9 @@ describe('Capability UI Consistency', () => {
           expect(screen.getByText('Customer Management')).toBeInTheDocument();
         });
 
-        const capabilityItem = screen.getByText('Customer Management').closest('[data-testid^="capability-tree-item-"]');
+        const capabilityItem = screen
+          .getByText('Customer Management')
+          .closest('[data-testid^="capability-tree-item-"]');
         fireEvent.contextMenu(capabilityItem!);
 
         await waitFor(() => {
@@ -452,7 +443,7 @@ describe('Capability Tree Item Selection', () => {
 
   it('should apply selected class when capability is clicked', async () => {
     setupMockStore({ selectedCapabilityId: null });
-    await renderNavigationTree();
+    renderNavigationTree();
 
     await waitFor(() => {
       const capabilityItem = screen.getByText('Customer Management').closest('[data-testid^="capability-tree-item-"]');
@@ -472,34 +463,31 @@ describe('Capability Expand/Collapse in Tree', () => {
 
   it('should show expand button for capabilities with children', async () => {
     setupMockStore();
-    await renderNavigationTree();
+    renderNavigationTree();
 
     await waitFor(() => {
-      const customerManagementItem = screen.getByText('Customer Management').closest('[data-testid^="capability-tree-item-"]');
-      expect(customerManagementItem?.querySelector('button[aria-label="Expand"]')).toBeInTheDocument();
+      expect(expandButtonFor('Customer Management')).toBeInTheDocument();
     });
   });
 
   it('should not show expand button for capabilities without children', async () => {
     setupMockStore();
-    await renderNavigationTree();
+    renderNavigationTree();
 
     await waitFor(() => {
-      const inventoryControlItem = screen.getByText('Inventory Control').closest('[data-testid^="capability-tree-item-"]');
-      expect(inventoryControlItem?.querySelector('button[aria-label="Expand"]')).not.toBeInTheDocument();
+      expect(expandButtonFor('Inventory Control')).not.toBeInTheDocument();
     });
   });
 
   it('should toggle children visibility when expand button is clicked', async () => {
     setupMockStore();
-    await renderNavigationTree();
+    renderNavigationTree();
 
     await waitFor(() => {
       expect(screen.getByText('Customer Management')).toBeInTheDocument();
     });
 
-    const customerManagementItem = screen.getByText('Customer Management').closest('[data-testid^="capability-tree-item-"]');
-    const expandBtn = customerManagementItem?.querySelector('button[aria-label="Expand"]');
+    const expandBtn = expandButtonFor('Customer Management');
     expect(expandBtn).toBeTruthy();
 
     expect(screen.queryByText('Order Processing')).not.toBeInTheDocument();
