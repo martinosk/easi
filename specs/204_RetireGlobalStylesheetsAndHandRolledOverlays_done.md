@@ -128,4 +128,4 @@ Frontend only. Bounded contexts touched: navigation (explorer tree), canvas, vie
 - [x] Unit tests implemented and passing
 - [x] Integration tests implemented if relevant — mock-mode context-menu smoke case
 - [x] API documentation updated — no API change
-- [ ] User sign-off
+- [x] User sign-off

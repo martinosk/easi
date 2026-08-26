@@ -108,4 +108,4 @@ Frontend only — `frontend/src/theme/tokens.css`, `frontend/src/components/layo
 - [x] Unit tests implemented and passing — `layers.test.ts`, `layering.test.ts`
 - [x] Integration tests implemented if relevant — spec 203 mock-mode overlay smoke test
 - [x] API documentation updated — no API change
-- [ ] User sign-off
+- [x] User sign-off
