@@ -1,10 +1,17 @@
-import { Button, NativeSelect, TextInput, UnstyledButton } from '@mantine/core';
+import { Button, NativeSelect, Stack, Text, TextInput, UnstyledButton } from '@mantine/core';
 import type { AIConfigurationResponse, LLMProvider, TestConnectionResponse } from '../../../api/assistant/types';
 import { useAIConfigForm } from '../hooks/useAIConfigForm';
 import { useAIConfiguration } from '../hooks/useAIConfiguration';
 import { AdvancedSettings } from './AdvancedSettings';
+import classes from './AIConfigurationSettings.module.css';
 import { APIKeyField } from './APIKeyField';
-import './AIConfigurationSettings.css';
+import {
+  SettingsSection,
+  SettingsSectionError,
+  SettingsSectionFooter,
+  SettingsSectionHeader,
+  SettingsSectionLoading,
+} from './SettingsSection';
 
 const PROVIDER_DEFAULTS: Record<LLMProvider, string> = {
   openai: 'https://api.openai.com',
@@ -12,46 +19,41 @@ const PROVIDER_DEFAULTS: Record<LLMProvider, string> = {
 };
 
 function TestResultBanner({ result }: { result: TestConnectionResponse }) {
-  const className = `ai-config-test-result ${result.success ? 'success' : 'failure'}`;
-  if (result.success) {
-    return (
-      <div className={className}>
-        Connection successful. Model: {result.model}. Latency: {result.latencyMs}ms.
-      </div>
-    );
-  }
-  return <div className={className}>Connection failed: {result.error}</div>;
+  const outcomeClass = result.success ? classes.testResultSuccess : classes.testResultFailure;
+  return (
+    <Text mt="sm" className={`${classes.testResult} ${outcomeClass}`}>
+      {result.success
+        ? `Connection successful. Model: ${result.model}. Latency: ${result.latencyMs}ms.`
+        : `Connection failed: ${result.error}`}
+    </Text>
+  );
 }
 
 function AIConfigForm({ config }: { config: AIConfigurationResponse | undefined }) {
   const form = useAIConfigForm(config);
 
   return (
-    <div className="ai-config-form">
-      <div className="ai-config-field">
-        <NativeSelect
-          id="ai-provider"
-          label="Provider"
-          withAsterisk
-          data={[
-            { value: 'openai', label: 'OpenAI' },
-            { value: 'anthropic', label: 'Anthropic' },
-          ]}
-          value={form.fields.provider}
-          onChange={(e) => form.updateField('provider', e.currentTarget.value as LLMProvider)}
-        />
-      </div>
+    <Stack gap="md">
+      <NativeSelect
+        id="ai-provider"
+        label="Provider"
+        withAsterisk
+        data={[
+          { value: 'openai', label: 'OpenAI' },
+          { value: 'anthropic', label: 'Anthropic' },
+        ]}
+        value={form.fields.provider}
+        onChange={(e) => form.updateField('provider', e.currentTarget.value as LLMProvider)}
+      />
 
-      <div className="ai-config-field">
-        <TextInput
-          id="ai-endpoint"
-          label="Base URL override (optional)"
-          value={form.fields.endpoint}
-          onChange={(e) => form.updateField('endpoint', e.currentTarget.value)}
-          placeholder={PROVIDER_DEFAULTS[form.fields.provider]}
-          description="Leave empty to use the default provider endpoint"
-        />
-      </div>
+      <TextInput
+        id="ai-endpoint"
+        label="Base URL override (optional)"
+        value={form.fields.endpoint}
+        onChange={(e) => form.updateField('endpoint', e.currentTarget.value)}
+        placeholder={PROVIDER_DEFAULTS[form.fields.provider]}
+        description="Leave empty to use the default provider endpoint"
+      />
 
       <APIKeyField
         apiKeyStatus={config?.apiKeyStatus}
@@ -61,24 +63,22 @@ function AIConfigForm({ config }: { config: AIConfigurationResponse | undefined 
         onShowInput={form.apiKeyInput.setShowApiKeyInput}
       />
 
-      <div className="ai-config-field">
-        <TextInput
-          id="ai-model"
-          label="Model"
-          withAsterisk
-          value={form.fields.model}
-          onChange={(e) => form.updateField('model', e.currentTarget.value)}
-          placeholder={form.fields.provider === 'anthropic' ? 'claude-sonnet-4-5-20250929' : 'gpt-4o'}
-        />
-      </div>
+      <TextInput
+        id="ai-model"
+        label="Model"
+        withAsterisk
+        value={form.fields.model}
+        onChange={(e) => form.updateField('model', e.currentTarget.value)}
+        placeholder={form.fields.provider === 'anthropic' ? 'claude-sonnet-4-5-20250929' : 'gpt-4o'}
+      />
 
       <UnstyledButton
         component="button"
         type="button"
-        className="ai-config-advanced-toggle"
+        className={classes.advancedToggle}
         onClick={() => form.advanced.setShowAdvanced(!form.advanced.showAdvanced)}
       >
-        {form.advanced.showAdvanced ? '\u25BC' : '\u25B6'} Advanced Settings
+        {form.advanced.showAdvanced ? '▼' : '▶'} Advanced Settings
       </UnstyledButton>
 
       {form.advanced.showAdvanced && (
@@ -94,7 +94,7 @@ function AIConfigForm({ config }: { config: AIConfigurationResponse | undefined 
 
       {form.testResult && <TestResultBanner result={form.testResult} />}
 
-      <div className="ai-config-actions">
+      <SettingsSectionFooter>
         {form.isTestable && (
           <Button
             variant="outline"
@@ -108,50 +108,28 @@ function AIConfigForm({ config }: { config: AIConfigurationResponse | undefined 
         <Button onClick={form.handleSave} loading={form.isSaving} disabled={form.isSaveDisabled}>
           Save
         </Button>
-      </div>
-    </div>
+      </SettingsSectionFooter>
+    </Stack>
   );
 }
 
 export function AIConfigurationSettings() {
   const { data: config, isLoading, error } = useAIConfiguration();
 
-  if (isLoading) {
-    return (
-      <div className="ai-config-settings">
-        <div className="loading-state">
-          <div className="loading-spinner" />
-          <p>Loading AI configuration...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="ai-config-settings">
-        <div className="error-message">
-          {error instanceof Error ? error.message : 'Failed to load AI configuration'}
-        </div>
-      </div>
-    );
-  }
+  if (isLoading) return <SettingsSectionLoading message="Loading AI configuration..." />;
+  if (error) return <SettingsSectionError error={error} fallback="Failed to load AI configuration" />;
 
   return (
-    <div className="ai-config-settings">
-      <div className="ai-config-header">
-        <h2 className="ai-config-title">AI Assistant Configuration</h2>
-        <p className="ai-config-description">
-          Configure the LLM provider for your organization&apos;s architecture assistant.
-        </p>
-      </div>
-
-      <div className="ai-config-banner">
+    <SettingsSection>
+      <SettingsSectionHeader
+        title="AI Assistant Configuration"
+        description="Configure the LLM provider for your organization's architecture assistant."
+      />
+      <Text className={classes.banner}>
         Architecture data will be sent to the configured LLM endpoint. Ensure compliance with your organization&apos;s
         data handling requirements.
-      </div>
-
+      </Text>
       <AIConfigForm config={config} />
-    </div>
+    </SettingsSection>
   );
 }

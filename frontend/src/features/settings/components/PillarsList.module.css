@@ -1,0 +1,44 @@
+.emptyState {
+  background-color: var(--color-gray-50);
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--color-gray-300);
+}
+
+.row {
+  background-color: var(--color-gray-50);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-gray-200);
+  transition:
+    opacity 0.2s,
+    background-color 0.2s;
+}
+
+.row[data-marked-for-deletion] {
+  opacity: 0.5;
+  background-color: var(--status-danger-bg);
+  border-color: var(--status-danger-line);
+}
+
+.divider {
+  border-top: 1px solid var(--color-gray-200);
+}
+
+.fitBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  border-radius: var(--radius-xs);
+  width: fit-content;
+}
+
+.fitBadgeScoring {
+  color: var(--color-blue-7);
+  background-color: var(--color-blue-0);
+}
+
+.fitBadgeType {
+  color: var(--status-future);
+  background-color: var(--status-future-bg);
+}

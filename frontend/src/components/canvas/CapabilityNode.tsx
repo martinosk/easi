@@ -3,7 +3,9 @@ import React from 'react';
 import { DEFAULT_CUSTOM_COLOR, deriveMaturityValue } from '../../constants/maturityColors';
 import { useCurrentView } from '../../features/views/hooks/useCurrentView';
 import { useMaturityColorScale } from '../../hooks/useMaturityColorScale';
+import classes from './CapabilityNode.module.css';
 import { getContrastTextColor } from './contrastText';
+import handles from './nodeHandles.module.css';
 
 type ColorScheme = 'maturity' | 'classic' | 'custom';
 
@@ -17,10 +19,8 @@ export interface CapabilityNodeData {
   customColor?: string;
 }
 
-const SCHEME_CLASS_NAMES: Record<ColorScheme, string> = {
-  maturity: 'capability-node--maturity',
-  classic: 'capability-node--classic classic-text',
-  custom: 'capability-node--custom',
+const SCHEME_CLASS_NAMES: Partial<Record<ColorScheme, string>> = {
+  classic: classes.classic,
 };
 
 const hasValidCustomColor = (customColor: string | undefined): boolean => {
@@ -51,11 +51,7 @@ export const CapabilityNode: React.FC<{ data: CapabilityNodeData; id: string; se
         ? getColorForValue(effectiveMaturityValue)
         : undefined;
 
-  const nodeClassName = [
-    'capability-node',
-    SCHEME_CLASS_NAMES[colorScheme],
-    isSelected ? 'capability-node-selected' : '',
-  ]
+  const nodeClassName = [classes.node, SCHEME_CLASS_NAMES[colorScheme], isSelected ? classes.selected : '']
     .filter(Boolean)
     .join(' ');
 
@@ -66,17 +62,18 @@ export const CapabilityNode: React.FC<{ data: CapabilityNodeData; id: string; se
         dataDrivenFill ? { backgroundColor: dataDrivenFill, color: getContrastTextColor(dataDrivenFill) } : undefined
       }
       data-capability-id={id}
+      data-testid="capability-node"
     >
-      <Handle type="source" position={Position.Top} id="top" className="capability-handle capability-handle-top" />
-      <Handle type="target" position={Position.Top} id="top" className="capability-handle capability-handle-top" />
+      <Handle type="source" position={Position.Top} id="top" className={handles.top} />
+      <Handle type="target" position={Position.Top} id="top" className={handles.top} />
 
-      <Handle type="source" position={Position.Left} id="left" className="capability-handle capability-handle-left" />
-      <Handle type="target" position={Position.Left} id="left" className="capability-handle capability-handle-left" />
+      <Handle type="source" position={Position.Left} id="left" className={handles.left} />
+      <Handle type="target" position={Position.Left} id="left" className={handles.left} />
 
-      <div className="capability-node-content">
-        <div className="capability-node-header">
+      <div className={classes.content}>
+        <div className={classes.header}>
           <svg
-            className="capability-node-icon"
+            className={classes.icon}
             width="16"
             height="16"
             viewBox="0 0 16 16"
@@ -88,37 +85,21 @@ export const CapabilityNode: React.FC<{ data: CapabilityNodeData; id: string; se
             <rect x="1" y="9" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none" />
             <rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none" />
           </svg>
-          <span className="capability-node-level">{data.level}:</span>
-          <span className="capability-node-name">{data.label}</span>
+          <span className={classes.level} data-testid="capability-node-level">
+            {data.level}:
+          </span>
+          <span className={classes.name}>{data.label}</span>
         </div>
-        <div className="capability-node-maturity">{sectionName}</div>
+        <div className={classes.maturitySection} data-testid="capability-node-maturity">
+          {sectionName}
+        </div>
       </div>
 
-      <Handle
-        type="source"
-        position={Position.Right}
-        id="right"
-        className="capability-handle capability-handle-right"
-      />
-      <Handle
-        type="target"
-        position={Position.Right}
-        id="right"
-        className="capability-handle capability-handle-right"
-      />
+      <Handle type="source" position={Position.Right} id="right" className={handles.right} />
+      <Handle type="target" position={Position.Right} id="right" className={handles.right} />
 
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        id="bottom"
-        className="capability-handle capability-handle-bottom"
-      />
-      <Handle
-        type="target"
-        position={Position.Bottom}
-        id="bottom"
-        className="capability-handle capability-handle-bottom"
-      />
+      <Handle type="source" position={Position.Bottom} id="bottom" className={handles.bottom} />
+      <Handle type="target" position={Position.Bottom} id="bottom" className={handles.bottom} />
     </div>
   );
 };

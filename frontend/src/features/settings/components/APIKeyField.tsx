@@ -1,4 +1,5 @@
-import { Button, PasswordInput } from '@mantine/core';
+import { Button, Group, Input, PasswordInput, Stack } from '@mantine/core';
+import classes from './APIKeyField.module.css';
 
 interface APIKeyFieldProps {
   apiKeyStatus: string | undefined;
@@ -9,48 +10,43 @@ interface APIKeyFieldProps {
 }
 
 export function APIKeyField({ apiKeyStatus, apiKey, onApiKeyChange, showInput, onShowInput }: APIKeyFieldProps) {
-  if (apiKeyStatus === 'configured' && !showInput) {
-    return (
-      <div className="ai-config-field">
-        <label htmlFor="ai-api-key">
-          API Key <span className="ai-config-required">*</span>
-        </label>
-        <div>
-          <span className="ai-config-api-key-status configured">API key configured</span>{' '}
+  const isConfigured = apiKeyStatus === 'configured';
+
+  return (
+    <Stack gap="xs">
+      <Input.Label htmlFor="ai-api-key" required>
+        API Key
+      </Input.Label>
+      {isConfigured && !showInput ? (
+        <Group gap="xs">
+          <span className={classes.configuredStatus}>API key configured</span>
           <Button variant="subtle" size="xs" onClick={() => onShowInput(true)}>
             Change
           </Button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="ai-config-field">
-      <label htmlFor="ai-api-key">
-        API Key <span className="ai-config-required">*</span>
-      </label>
-      <div className="ai-config-api-key-row">
-        <PasswordInput
-          id="ai-api-key"
-          value={apiKey}
-          onChange={(e) => onApiKeyChange(e.currentTarget.value)}
-          placeholder="sk-..."
-          style={{ flex: 1 }}
-        />
-        {apiKeyStatus === 'configured' && (
-          <Button
-            variant="subtle"
-            size="xs"
-            onClick={() => {
-              onShowInput(false);
-              onApiKeyChange('');
-            }}
-          >
-            Cancel
-          </Button>
-        )}
-      </div>
-    </div>
+        </Group>
+      ) : (
+        <Group gap="sm" align="flex-start" wrap="nowrap">
+          <PasswordInput
+            id="ai-api-key"
+            value={apiKey}
+            onChange={(e) => onApiKeyChange(e.currentTarget.value)}
+            placeholder="sk-..."
+            flex={1}
+          />
+          {isConfigured && (
+            <Button
+              variant="subtle"
+              size="xs"
+              onClick={() => {
+                onShowInput(false);
+                onApiKeyChange('');
+              }}
+            >
+              Cancel
+            </Button>
+          )}
+        </Group>
+      )}
+    </Stack>
   );
 }

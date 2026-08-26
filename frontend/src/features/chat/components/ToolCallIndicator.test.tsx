@@ -7,26 +7,21 @@ const render = (ui: React.ReactElement) => renderWithProviders(ui, { withRouter:
 
 describe('ToolCallIndicator', () => {
   it('should render running state with pulsing dot and activity text', () => {
-    const { container } = render(<ToolCallIndicator status="running" name="list_applications" />);
-    expect(container.querySelector('.tool-call-indicator')).toBeInTheDocument();
-    expect(container.querySelector('.tool-call-running')).toBeInTheDocument();
-    expect(container.querySelector('.tool-call-pulse')).toBeInTheDocument();
+    render(<ToolCallIndicator status="running" name="list_applications" />);
+    expect(screen.getByRole('button')).toHaveAttribute('data-status', 'running');
+    expect(screen.getByTestId('tool-call-pulse')).toBeInTheDocument();
     expect(screen.getByText('Looking up data...')).toBeInTheDocument();
   });
 
   it('should render completed state with check icon and preview', () => {
-    const { container } = render(
-      <ToolCallIndicator status="completed" name="list_applications" resultPreview="Found 3 applications" />,
-    );
-    expect(container.querySelector('.tool-call-completed')).toBeInTheDocument();
+    render(<ToolCallIndicator status="completed" name="list_applications" resultPreview="Found 3 applications" />);
+    expect(screen.getByRole('button')).toHaveAttribute('data-status', 'completed');
     expect(screen.getByText('\u2713')).toBeInTheDocument();
   });
 
   it('should render error state with warning icon and error message', () => {
-    const { container } = render(
-      <ToolCallIndicator status="error" name="list_applications" errorMessage="Service unavailable" />,
-    );
-    expect(container.querySelector('.tool-call-error')).toBeInTheDocument();
+    render(<ToolCallIndicator status="error" name="list_applications" errorMessage="Service unavailable" />);
+    expect(screen.getByRole('button')).toHaveAttribute('data-status', 'error');
     expect(screen.getByText('\u26A0')).toBeInTheDocument();
     expect(screen.getByText('Service unavailable')).toBeInTheDocument();
   });
@@ -66,7 +61,7 @@ describe('ToolCallIndicator', () => {
 
     expect(screen.queryByText('Found 3 applications')).not.toBeInTheDocument();
 
-    const indicator = screen.getByText('Searching applications').closest('.tool-call-indicator')!;
+    const indicator = screen.getByRole('button', { name: /Searching applications/ });
     fireEvent.click(indicator);
 
     expect(screen.getByText('Found 3 applications')).toBeInTheDocument();
@@ -75,7 +70,7 @@ describe('ToolCallIndicator', () => {
   it('should collapse preview on second click', () => {
     render(<ToolCallIndicator status="completed" name="list_applications" resultPreview="Found 3 applications" />);
 
-    const indicator = screen.getByText('Searching applications').closest('.tool-call-indicator')!;
+    const indicator = screen.getByRole('button', { name: /Searching applications/ });
     fireEvent.click(indicator);
     expect(screen.getByText('Found 3 applications')).toBeInTheDocument();
 

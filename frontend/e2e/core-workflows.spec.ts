@@ -31,7 +31,7 @@ test.describe('Core Application Workflows', () => {
     await createComponent(page, 'Payment Service', 'Processes payments');
 
     await dragTreeItemToCanvas(page, 'Payment Service');
-    await expect(page.locator('.component-node-header').filter({ hasText: 'Payment Service' })).toBeVisible();
+    await expect(page.getByTestId('component-node-header').filter({ hasText: 'Payment Service' })).toBeVisible();
 
     await saveView(page);
 
@@ -42,7 +42,7 @@ test.describe('Core Application Workflows', () => {
     });
     await page.waitForTimeout(500);
 
-    await expect(page.locator('.component-node-header').filter({ hasText: 'Payment Service' })).toBeVisible();
+    await expect(page.getByTestId('component-node-header').filter({ hasText: 'Payment Service' })).toBeVisible();
     await expect(page.locator('[data-component-id]')).toHaveCount(1);
   });
 

@@ -1,5 +1,6 @@
 import { UnstyledButton } from '@mantine/core';
 import { useState } from 'react';
+import classes from './ToolCallIndicator.module.css';
 
 const toolDisplayNames: Record<string, string> = {
   list_applications: 'Searching applications',
@@ -61,10 +62,10 @@ interface ToolCallIndicatorProps {
 }
 
 function StatusIndicator({ status }: { status: string }) {
-  if (status === 'running') return <span className="tool-call-pulse" />;
+  if (status === 'running') return <span className={classes.pulse} data-testid="tool-call-pulse" />;
   const icon = statusIcons[status];
   if (!icon) return null;
-  return <span className="tool-call-status-icon">{icon}</span>;
+  return <span className={classes.statusIcon}>{icon}</span>;
 }
 
 function hasVisiblePreview(expanded: boolean, resultPreview?: string): boolean {
@@ -82,10 +83,10 @@ function StatusDetail({
   expanded: boolean;
   resultPreview?: string;
 }) {
-  if (status === 'running') return <span className="tool-call-activity">Looking up data...</span>;
-  if (status === 'error' && errorMessage) return <span className="tool-call-error-message">{errorMessage}</span>;
+  if (status === 'running') return <span className={classes.activity}>Looking up data...</span>;
+  if (status === 'error' && errorMessage) return <span className={classes.errorMessage}>{errorMessage}</span>;
   if (status === 'completed' && hasVisiblePreview(expanded, resultPreview))
-    return <div className="tool-call-preview">{resultPreview}</div>;
+    return <div className={classes.preview}>{resultPreview}</div>;
   return null;
 }
 
@@ -98,13 +99,14 @@ export function ToolCallIndicator({ status, name, resultPreview, errorMessage }:
     <UnstyledButton
       component="button"
       type="button"
-      className={`tool-call-indicator tool-call-${status}`}
+      className={classes.indicator}
+      data-status={status}
       aria-expanded={expanded}
       onClick={() => setExpanded((prev) => !prev)}
     >
-      <span className="tool-call-category-icon">{icon}</span>
+      <span className={classes.categoryIcon}>{icon}</span>
       <StatusIndicator status={status} />
-      <span className="tool-call-label">{label}</span>
+      <span className={classes.label}>{label}</span>
       <StatusDetail status={status} errorMessage={errorMessage} expanded={expanded} resultPreview={resultPreview} />
     </UnstyledButton>
   );

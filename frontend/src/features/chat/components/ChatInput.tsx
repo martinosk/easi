@@ -1,5 +1,6 @@
 import { ActionIcon, Checkbox, Stack, Text, Textarea } from '@mantine/core';
 import { type KeyboardEvent, useCallback, useState } from 'react';
+import classes from './ChatInput.module.css';
 
 interface ChatInputProps {
   onSend: (content: string) => void;
@@ -48,7 +49,7 @@ export function ChatInput({ onSend, disabled, yoloEnabled, onToggleYolo, writeAv
   );
 
   return (
-    <Stack gap="xs" p="sm" className="chat-input-area">
+    <Stack gap="xs" p="sm" className={classes.inputArea}>
       <Textarea
         placeholder="Ask about your architecture..."
         value={value}

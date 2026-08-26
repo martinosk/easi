@@ -1,10 +1,10 @@
-import { ActionIcon } from '@mantine/core';
+import { ActionIcon, Box, Group, Paper, Stack, Text, Title } from '@mantine/core';
 import { useCallback, useState } from 'react';
 import type { StageCapabilityMapping, ValueStreamStage } from '../../../api/types';
 import { useRemoveStageCapability } from '../hooks/useValueStreamStages';
 import { AddStageButton } from './AddStageButton';
 import { StageColumn } from './StageColumn';
-import './StageFlowDiagram.css';
+import classes from './StageFlowDiagram.module.css';
 
 interface StageFlowDiagramProps {
   valueStreamId: string;
@@ -77,13 +77,13 @@ interface StageConnectorProps {
 
 function StageConnector({ canWrite, position, onInsert, index }: StageConnectorProps) {
   return (
-    <div className="stage-connector-group">
-      <div className="stage-connector" />
+    <Stack gap={0} align="center" className={classes.connectorGroup}>
+      <Box className={classes.connector} />
       {canWrite && (
         <ActionIcon
           variant="filled"
           size="sm"
-          className="stage-insert-btn"
+          className={classes.insertButton}
           data-testid={`insert-stage-btn-${index}`}
           onClick={() => onInsert(position)}
           title="Insert stage here"
@@ -100,26 +100,32 @@ function StageConnector({ canWrite, position, onInsert, index }: StageConnectorP
           </svg>
         </ActionIcon>
       )}
-    </div>
+    </Stack>
   );
 }
 
 function EmptyStages({ canWrite, onAddStage }: { canWrite: boolean; onAddStage: (position?: number) => void }) {
   return (
-    <div className="stage-flow-empty" data-testid="empty-stages">
-      <svg viewBox="0 0 24 24" fill="none" width="48" height="48">
-        <path
-          d="M22 12H18L15 21L9 3L6 12H2"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-      <h3>No stages yet</h3>
-      <p>Add stages to model the flow of this value stream.</p>
-      {canWrite && <AddStageButton onClick={() => onAddStage()} />}
-    </div>
+    <Paper radius="lg" shadow="sm" px="xl" py="xxl" data-testid="empty-stages">
+      <Stack align="center" gap="md">
+        <Box c="gray.4">
+          <svg viewBox="0 0 24 24" fill="none" width="48" height="48">
+            <path
+              d="M22 12H18L15 21L9 3L6 12H2"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </Box>
+        <Title order={3}>No stages yet</Title>
+        <Text size="sm" c="dimmed" ta="center" className={classes.emptyHint}>
+          Add stages to model the flow of this value stream.
+        </Text>
+        {canWrite && <AddStageButton onClick={() => onAddStage()} />}
+      </Stack>
+    </Paper>
   );
 }
 
@@ -173,31 +179,29 @@ export function StageFlowDiagram({
   }
 
   return (
-    <div className="stage-flow" data-testid="stage-flow-diagram">
-      <div className="stage-flow-scroll">
-        {sortedStages.map((stage, i) => (
-          <div key={stage.id} className="stage-flow-item">
-            {i > 0 && <StageConnector canWrite={canWrite} position={stage.position} onInsert={onAddStage} index={i} />}
-            <StageColumn
-              stage={stage}
-              capabilities={capsByStage.get(stage.id) || []}
-              canWrite={canWrite}
-              onEdit={onEditStage}
-              onDelete={onDeleteStage}
-              onRemoveCapability={handleRemoveCapability}
-              onDragStart={handleDragStart}
-              onDragOver={handleDragOver}
-              onDrop={handleDrop}
-            />
-          </div>
-        ))}
-        {canWrite && (
-          <div className="stage-flow-item">
-            <div className="stage-connector" />
-            <AddStageButton onClick={() => onAddStage()} />
-          </div>
-        )}
-      </div>
-    </div>
+    <Group gap={0} align="flex-start" wrap="nowrap" py="md" className={classes.scroll} data-testid="stage-flow-diagram">
+      {sortedStages.map((stage, i) => (
+        <Group key={stage.id} gap={0} align="flex-start" wrap="nowrap" className={classes.item}>
+          {i > 0 && <StageConnector canWrite={canWrite} position={stage.position} onInsert={onAddStage} index={i} />}
+          <StageColumn
+            stage={stage}
+            capabilities={capsByStage.get(stage.id) || []}
+            canWrite={canWrite}
+            onEdit={onEditStage}
+            onDelete={onDeleteStage}
+            onRemoveCapability={handleRemoveCapability}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+          />
+        </Group>
+      ))}
+      {canWrite && (
+        <Group gap={0} align="flex-start" wrap="nowrap" className={classes.item}>
+          <Box className={classes.connector} />
+          <AddStageButton onClick={() => onAddStage()} />
+        </Group>
+      )}
+    </Group>
   );
 }

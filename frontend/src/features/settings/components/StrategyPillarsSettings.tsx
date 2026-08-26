@@ -1,7 +1,6 @@
-import { Button } from '@mantine/core';
+import { Button, Stack, Text } from '@mantine/core';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
-import { HelpTooltip } from '../../../components/shared/HelpTooltip';
 import { useBatchUpdateStrategyPillars, useStrategyPillarsConfig } from '../../../hooks/useStrategyPillarsSettings';
 import {
   buildPillarChanges,
@@ -17,7 +16,15 @@ import {
   validatePillars,
 } from './pillarChanges';
 import { type PillarHandlers, PillarsList } from './PillarsList';
-import './StrategyPillarsSettings.css';
+import {
+  SettingsConflictNotice,
+  SettingsSection,
+  SettingsSectionError,
+  SettingsSectionFooter,
+  SettingsSectionHeader,
+  SettingsSectionLoading,
+} from './SettingsSection';
+import classes from './StrategyPillarsSettings.module.css';
 
 export function StrategyPillarsSettings() {
   const { data: config, isLoading, error, refetch } = useStrategyPillarsConfig();
@@ -48,7 +55,8 @@ export function StrategyPillarsSettings() {
     () => ({
       onNameChange: (i, name) => mutate((p) => patchPillarAt(p, i, { name }), true),
       onDescriptionChange: (i, description) => mutate((p) => patchPillarAt(p, i, { description }), false),
-      onFitScoringEnabledChange: (i, fitScoringEnabled) => mutate((p) => patchPillarAt(p, i, { fitScoringEnabled }), false),
+      onFitScoringEnabledChange: (i, fitScoringEnabled) =>
+        mutate((p) => patchPillarAt(p, i, { fitScoringEnabled }), false),
       onFitCriteriaChange: (i, fitCriteria) => mutate((p) => patchPillarAt(p, i, { fitCriteria }), false),
       onFitTypeChange: (i, fitType) => mutate((p) => patchPillarAt(p, i, { fitType }), false),
       onDelete: (i) => mutate((p) => deleteOrMarkAt(p, i), true),
@@ -105,20 +113,27 @@ export function StrategyPillarsSettings() {
     setConflictError(false);
   };
 
-  if (isLoading) return <LoadingState />;
-  if (error) return <ErrorState error={error} />;
+  if (isLoading) return <SettingsSectionLoading message="Loading strategy pillars configuration..." />;
+  if (error) return <SettingsSectionError error={error} fallback="Failed to load strategy pillars configuration" />;
 
   const activeCount = countActive(editedPillars);
   const hasErrors = Object.keys(validationErrors).length > 0;
 
   return (
-    <div className="strategy-pillars-settings">
-      <Header isEditing={isEditing} onEdit={handleEdit} />
-      {conflictError && (
-        <div className="conflict-message">
-          Configuration was modified by another user. Please refresh and try again.
-        </div>
-      )}
+    <SettingsSection>
+      <SettingsSectionHeader
+        title="Strategy Pillars"
+        description="Define the strategic pillars used to categorize capabilities across your organization."
+        help="Strategic pillars represent your organization's key strategic themes. Use them to align capabilities with business strategy and measure strategic fit."
+        actions={
+          !isEditing && (
+            <Button onClick={handleEdit} data-testid="edit-pillars-btn">
+              Edit
+            </Button>
+          )
+        }
+      />
+      {conflictError && <SettingsConflictNotice />}
       <PillarsList
         pillars={isEditing ? editedPillars : activePillars}
         isEditing={isEditing}
@@ -146,33 +161,7 @@ export function StrategyPillarsSettings() {
           onCancel={() => setShowRefreshDialog(false)}
         />
       )}
-    </div>
-  );
-}
-
-function Header({ isEditing, onEdit }: { isEditing: boolean; onEdit: () => void }) {
-  return (
-    <div className="strategy-pillars-header">
-      <div>
-        <h2 className="strategy-pillars-title">
-          Strategy Pillars
-          <HelpTooltip
-            content="Strategic pillars represent your organization's key strategic themes. Use them to align capabilities with business strategy and measure strategic fit."
-            iconOnly
-          />
-        </h2>
-        <p className="strategy-pillars-description">
-          Define the strategic pillars used to categorize capabilities across your organization.
-        </p>
-      </div>
-      {!isEditing && (
-        <div className="strategy-pillars-actions">
-          <Button onClick={onEdit} data-testid="edit-pillars-btn">
-            Edit
-          </Button>
-        </div>
-      )}
-    </div>
+    </SettingsSection>
   );
 }
 
@@ -188,51 +177,29 @@ interface EditFooterProps {
 function EditFooter({ activeCount, disabled, isSaving, onAdd, onCancel, onSave }: EditFooterProps) {
   return (
     <>
-      <div className="add-pillar-section">
+      <Stack gap="sm">
         <Button
           variant="default"
-          className="add-pillar-btn"
+          className={classes.addPillarButton}
           onClick={onAdd}
           disabled={activeCount >= MAX_PILLARS}
           data-testid="add-pillar-btn"
           fullWidth
-          styles={{ root: { borderStyle: 'dashed' } }}
         >
           + Add Pillar
         </Button>
-        <p className="max-pillars-notice">
+        <Text size="xs" c="gray.5" ta="center">
           Maximum 20 pillars allowed. Currently {activeCount} of {MAX_PILLARS}.
-        </p>
-      </div>
-      <div className="edit-actions">
+        </Text>
+      </Stack>
+      <SettingsSectionFooter>
         <Button variant="outline" onClick={onCancel} disabled={isSaving} data-testid="cancel-pillars-btn">
           Cancel
         </Button>
         <Button onClick={onSave} disabled={disabled} loading={isSaving} data-testid="save-pillars-btn">
           Save Changes
         </Button>
-      </div>
+      </SettingsSectionFooter>
     </>
-  );
-}
-
-function LoadingState() {
-  return (
-    <div className="strategy-pillars-settings">
-      <div className="loading-state">
-        <div className="loading-spinner" />
-        <p>Loading strategy pillars configuration...</p>
-      </div>
-    </div>
-  );
-}
-
-function ErrorState({ error }: { error: unknown }) {
-  return (
-    <div className="strategy-pillars-settings">
-      <div className="error-message">
-        {error instanceof Error ? error.message : 'Failed to load strategy pillars configuration'}
-      </div>
-    </div>
   );
 }

@@ -25,7 +25,6 @@ function usePersistedSet(key: string): [Set<string>, React.Dispatch<React.SetSta
 }
 
 export function useNavigationTreeState() {
-  const [isOpen, setIsOpen] = usePersistedBoolean('navigationTreeOpen', true);
   const [isModelsExpanded, setIsModelsExpanded] = usePersistedBoolean('navigationTreeModelsExpanded', true);
   const [isViewsExpanded, setIsViewsExpanded] = usePersistedBoolean('navigationTreeViewsExpanded', true);
   const [isCapabilitiesExpanded, setIsCapabilitiesExpanded] = usePersistedBoolean(
@@ -59,8 +58,6 @@ export function useNavigationTreeState() {
   );
 
   return {
-    isOpen,
-    setIsOpen,
     isModelsExpanded,
     setIsModelsExpanded,
     isViewsExpanded,

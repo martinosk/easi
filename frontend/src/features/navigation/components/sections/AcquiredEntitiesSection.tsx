@@ -112,26 +112,24 @@ export const AcquiredEntitiesSection: React.FC<AcquiredEntitiesSectionProps> = (
       addTestId="create-acquired-entity-button"
     >
       <TreeSearchInput value={search} onChange={setSearch} placeholder="Search acquired entities..." />
-      <div className="tree-items">
-        <TreeItemList
-          items={filteredEntities}
-          emptyMessage={emptyMessage}
-          icon={<IconBuildingSkyscraper size={16} stroke={1.75} />}
-          dragDataKey="acquiredEntityId"
-          isSelected={(entity) => selectedEntityId === entity.id || multiSelect.isMultiSelected(entity.id)}
-          isInView={(entity) => !currentView || entityIdsOnCanvas.has(entity.id)}
-          getTitle={(entity, isInView) => (isInView ? entity.name : `${entity.name} (not on canvas)`)}
-          renderLabel={(entity) => (
-            <>
-              {entity.name}
-              {formatAcquisitionYear(entity.acquisitionDate)}
-            </>
-          )}
-          onSelect={handleSelect}
-          onContextMenu={handleContextMenu}
-          onDragStart={handleDragStart}
-        />
-      </div>
+      <TreeItemList
+        items={filteredEntities}
+        emptyMessage={emptyMessage}
+        icon={<IconBuildingSkyscraper size={16} stroke={1.75} />}
+        dragDataKey="acquiredEntityId"
+        isSelected={(entity) => selectedEntityId === entity.id || multiSelect.isMultiSelected(entity.id)}
+        isInView={(entity) => !currentView || entityIdsOnCanvas.has(entity.id)}
+        getTitle={(entity, isInView) => (isInView ? entity.name : `${entity.name} (not on canvas)`)}
+        renderLabel={(entity) => (
+          <>
+            {entity.name}
+            {formatAcquisitionYear(entity.acquisitionDate)}
+          </>
+        )}
+        onSelect={handleSelect}
+        onContextMenu={handleContextMenu}
+        onDragStart={handleDragStart}
+      />
     </TreeSection>
   );
 };

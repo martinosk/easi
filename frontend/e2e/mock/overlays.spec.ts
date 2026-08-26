@@ -33,6 +33,17 @@ async function expectTopmost(overlay: Locator): Promise<void> {
   expect(topmost, 'overlay is painted behind page content').toBe(true);
 }
 
+test.describe('context menu', () => {
+  test('is topmost when opened from the explorer tree', async ({ page }) => {
+    await openPage(page, '/');
+    await page.getByTestId('tree-item').first().click({ button: 'right' });
+    const menu = page.getByTestId('context-menu');
+    await expectTopmost(menu.getByRole('menuitem').first());
+    await page.keyboard.press('Escape');
+    await expect(menu).toHaveCount(0);
+  });
+});
+
 for (const viewport of VIEWPORTS) {
   test.describe(`header overlays at ${viewport.name} width`, () => {
     test.use({ viewport: { width: viewport.width, height: viewport.height } });

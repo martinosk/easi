@@ -1,17 +1,55 @@
-import { Button, NumberInput, TextInput } from '@mantine/core';
+import { Box, Button, Group, NumberInput, Paper, Stack, Text, TextInput } from '@mantine/core';
 import { useLayoutEffect, useState } from 'react';
 import type { MaturityScaleSection } from '../../../api/types';
 import { ApiError } from '../../../api/types';
 import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
-import { HelpTooltip } from '../../../components/shared/HelpTooltip';
 import { useMaturityScale, useResetMaturityScale, useUpdateMaturityScale } from '../../../hooks/useMaturityScale';
-import './MaturityScaleSettings.css';
+import classes from './MaturityScaleSettings.module.css';
+import {
+  SettingsConflictNotice,
+  SettingsSection,
+  SettingsSectionError,
+  SettingsSectionFooter,
+  SettingsSectionHeader,
+  SettingsSectionLoading,
+} from './SettingsSection';
 
 interface ValidationErrors {
   [key: number]: {
     name?: string;
     boundary?: string;
   };
+}
+
+const TOTAL_RANGE = 100;
+
+function validateSections(sections: MaturityScaleSection[]): ValidationErrors {
+  const errors: ValidationErrors = {};
+
+  sections.forEach((section, index) => {
+    if (!section.name.trim()) {
+      errors[index] = { ...errors[index], name: 'Section name cannot be empty' };
+    }
+    if (section.name.length > 50) {
+      errors[index] = { ...errors[index], name: 'Section name must be 50 characters or less' };
+    }
+
+    if (index > 0) {
+      const prevSection = sections[index - 1];
+      if (section.minValue !== prevSection.maxValue + 1) {
+        errors[index] = {
+          ...errors[index],
+          boundary: 'Sections must be contiguous',
+        };
+      }
+    }
+  });
+
+  return errors;
+}
+
+function sectionWidthPercent(section: MaturityScaleSection): number {
+  return ((section.maxValue - section.minValue + 1) / TOTAL_RANGE) * 100;
 }
 
 export function MaturityScaleSettings() {
@@ -34,31 +72,6 @@ export function MaturityScaleSettings() {
       }
     }
   }, [config, editedSections]);
-
-  const validateSections = (sections: MaturityScaleSection[]): ValidationErrors => {
-    const errors: ValidationErrors = {};
-
-    sections.forEach((section, index) => {
-      if (!section.name.trim()) {
-        errors[index] = { ...errors[index], name: 'Section name cannot be empty' };
-      }
-      if (section.name.length > 50) {
-        errors[index] = { ...errors[index], name: 'Section name must be 50 characters or less' };
-      }
-
-      if (index > 0) {
-        const prevSection = sections[index - 1];
-        if (section.minValue !== prevSection.maxValue + 1) {
-          errors[index] = {
-            ...errors[index],
-            boundary: 'Sections must be contiguous',
-          };
-        }
-      }
-    });
-
-    return errors;
-  };
 
   const handleEdit = () => {
     setIsEditing(true);
@@ -135,138 +148,54 @@ export function MaturityScaleSettings() {
     setValidationErrors(errors);
   };
 
-  if (isLoading) {
-    return (
-      <div className="maturity-scale-settings">
-        <div className="loading-state">
-          <div className="loading-spinner" />
-          <p>Loading maturity scale configuration...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="maturity-scale-settings">
-        <div className="error-message">
-          {error instanceof Error ? error.message : 'Failed to load maturity scale configuration'}
-        </div>
-      </div>
-    );
-  }
-
-  if (!config) {
-    return null;
-  }
+  if (isLoading) return <SettingsSectionLoading message="Loading maturity scale configuration..." />;
+  if (error) return <SettingsSectionError error={error} fallback="Failed to load maturity scale configuration" />;
+  if (!config) return null;
 
   const hasValidationErrors = Object.keys(validationErrors).length > 0;
   const sections = isEditing ? editedSections : config.sections;
-  const totalRange = 100;
 
   return (
-    <div className="maturity-scale-settings">
-      <div className="maturity-scale-header">
-        <div>
-          <h2 className="maturity-scale-title">
-            Maturity Scale Configuration
-            <HelpTooltip
-              content="Define how capability maturity is categorized. Each section represents a stage of evolution from experimental (Genesis) to fully commoditized (Commodity)."
-              iconOnly
-            />
-          </h2>
-          <p className="maturity-scale-description">
-            Configure the names and boundaries of maturity sections (0-99 range).
-          </p>
-        </div>
-        {!isEditing && (
-          <div className="maturity-scale-actions">
-            {!config.isDefault && (
-              <Button variant="outline" onClick={() => setShowResetDialog(true)} disabled={resetMutation.isPending}>
-                Reset to Defaults
-              </Button>
-            )}
-            <Button onClick={handleEdit}>Edit</Button>
-          </div>
-        )}
-      </div>
+    <SettingsSection>
+      <SettingsSectionHeader
+        title="Maturity Scale Configuration"
+        description="Configure the names and boundaries of maturity sections (0-99 range)."
+        help="Define how capability maturity is categorized. Each section represents a stage of evolution from experimental (Genesis) to fully commoditized (Commodity)."
+        actions={
+          !isEditing && (
+            <Group gap="sm">
+              {!config.isDefault && (
+                <Button variant="outline" onClick={() => setShowResetDialog(true)} disabled={resetMutation.isPending}>
+                  Reset to Defaults
+                </Button>
+              )}
+              <Button onClick={handleEdit}>Edit</Button>
+            </Group>
+          )
+        }
+      />
 
-      {config.isDefault && <div className="default-badge">Using default configuration</div>}
+      {config.isDefault && <Text className={classes.defaultBadge}>Using default configuration</Text>}
 
-      {conflictError && (
-        <div className="conflict-message">
-          Configuration was modified by another user. Please refresh and try again.
-        </div>
-      )}
+      {conflictError && <SettingsConflictNotice />}
 
-      <div className="maturity-scale-visualization">
-        <div className="scale-bar">
-          {sections.map((section, index) => {
-            const width = ((section.maxValue - section.minValue + 1) / totalRange) * 100;
-            return (
-              <div key={section.order} className="scale-section" style={{ width: `${width}%` }}>
-                {isEditing ? (
-                  <div className="scale-section-edit">
-                    <TextInput
-                      className="section-name-input"
-                      value={section.name}
-                      onChange={(e) => handleNameChange(index, e.currentTarget.value)}
-                      aria-label={`Section ${index + 1} name`}
-                      maxLength={50}
-                      error={validationErrors[index]?.name}
-                      size="xs"
-                    />
-                    <div className="section-range">
-                      {section.minValue}-{section.maxValue}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="scale-section-view">
-                    <div className="section-name">{section.name}</div>
-                    <div className="section-range">
-                      {section.minValue}-{section.maxValue}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {isEditing && (
-          <div className="boundary-controls">
-            {sections.map((section, index) => {
-              const isLastSection = index === sections.length - 1;
-              return (
-                <div key={section.order} className="boundary-control-slot">
-                  {!isLastSection && (
-                    <div className="boundary-control">
-                      <NumberInput
-                        label={`End of ${section.name}:`}
-                        className="boundary-input"
-                        min={section.minValue + 1}
-                        max={sections[index + 1].maxValue - 1}
-                        value={section.maxValue}
-                        onChange={(v) => handleBoundaryChange(index, typeof v === 'number' ? v : section.maxValue)}
-                        aria-label={`End boundary for ${section.name}`}
-                        size="xs"
-                      />
-                      {validationErrors[index + 1]?.boundary && (
-                        <div className="validation-error" role="alert">
-                          {validationErrors[index + 1].boundary}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      <ScaleBar
+        sections={sections}
+        isEditing={isEditing}
+        validationErrors={validationErrors}
+        onNameChange={handleNameChange}
+      />
 
       {isEditing && (
-        <div className="edit-actions">
+        <BoundaryControls
+          sections={sections}
+          validationErrors={validationErrors}
+          onBoundaryChange={handleBoundaryChange}
+        />
+      )}
+
+      {isEditing && (
+        <SettingsSectionFooter>
           <Button variant="outline" onClick={handleCancel} disabled={updateMutation.isPending}>
             Cancel
           </Button>
@@ -277,7 +206,7 @@ export function MaturityScaleSettings() {
           >
             Save Changes
           </Button>
-        </div>
+        </SettingsSectionFooter>
       )}
 
       {showResetDialog && (
@@ -302,6 +231,86 @@ export function MaturityScaleSettings() {
           onCancel={() => setShowRefreshDialog(false)}
         />
       )}
+    </SettingsSection>
+  );
+}
+
+interface ScaleBarProps {
+  sections: MaturityScaleSection[];
+  isEditing: boolean;
+  validationErrors: ValidationErrors;
+  onNameChange: (index: number, name: string) => void;
+}
+
+function ScaleBar({ sections, isEditing, validationErrors, onNameChange }: ScaleBarProps) {
+  return (
+    <div className={classes.scaleBar}>
+      {sections.map((section, index) => (
+        <div key={section.order} className={classes.scaleSection} style={{ width: `${sectionWidthPercent(section)}%` }}>
+          <Stack align="center" gap="sm" w="100%">
+            {isEditing ? (
+              <TextInput
+                w="100%"
+                size="xs"
+                classNames={{ input: classes.centeredInput }}
+                value={section.name}
+                onChange={(e) => onNameChange(index, e.currentTarget.value)}
+                aria-label={`Section ${index + 1} name`}
+                maxLength={50}
+                error={validationErrors[index]?.name}
+              />
+            ) : (
+              <Text fw={600} c="gray.8" ta="center">
+                {section.name}
+              </Text>
+            )}
+            <Text size="xs" c="dimmed" fw={500}>
+              {section.minValue}-{section.maxValue}
+            </Text>
+          </Stack>
+        </div>
+      ))}
     </div>
+  );
+}
+
+interface BoundaryControlsProps {
+  sections: MaturityScaleSection[];
+  validationErrors: ValidationErrors;
+  onBoundaryChange: (index: number, endValue: number) => void;
+}
+
+function BoundaryControls({ sections, validationErrors, onBoundaryChange }: BoundaryControlsProps) {
+  return (
+    <Paper bg="gray.0" p="md" radius="md">
+      <Group gap="md" align="flex-start">
+        {sections.map((section, index) => {
+          const isLastSection = index === sections.length - 1;
+          return (
+            <Box key={section.order} flex="1 1 auto" className={classes.boundarySlot}>
+              {!isLastSection && (
+                <Stack gap="xs">
+                  <NumberInput
+                    label={`End of ${section.name}:`}
+                    classNames={{ input: classes.centeredInput }}
+                    min={section.minValue + 1}
+                    max={sections[index + 1].maxValue - 1}
+                    value={section.maxValue}
+                    onChange={(v) => onBoundaryChange(index, typeof v === 'number' ? v : section.maxValue)}
+                    aria-label={`End boundary for ${section.name}`}
+                    size="xs"
+                  />
+                  {validationErrors[index + 1]?.boundary && (
+                    <Text size="xs" ta="center" className={classes.validationError} role="alert">
+                      {validationErrors[index + 1].boundary}
+                    </Text>
+                  )}
+                </Stack>
+              )}
+            </Box>
+          );
+        })}
+      </Group>
+    </Paper>
   );
 }

@@ -18,7 +18,7 @@ test.describe('Spec 165 — handle-click create related component', () => {
     const sourceNode = page.locator('[data-component-id]').first();
     await expect(sourceNode).toBeVisible();
 
-    const rightHandle = sourceNode.locator('.component-handle-right').first();
+    const rightHandle = sourceNode.getByTestId('component-handle-right').first();
     await expect(rightHandle).toBeVisible();
     const box = await rightHandle.boundingBox();
     if (!box) throw new Error('right handle had no bounding box');
@@ -37,8 +37,8 @@ test.describe('Spec 165 — handle-click create related component', () => {
     await page.click('[data-testid="create-component-submit"]');
     await expect(page.locator('[data-testid="create-component-dialog"]')).not.toBeVisible();
 
-    await expect(page.locator('.component-node-header').filter({ hasText: 'Order Service' })).toBeVisible();
-    await expect(page.locator('.component-node-header').filter({ hasText: 'Payment Service' })).toBeVisible();
+    await expect(page.getByTestId('component-node-header').filter({ hasText: 'Order Service' })).toBeVisible();
+    await expect(page.getByTestId('component-node-header').filter({ hasText: 'Payment Service' })).toBeVisible();
   });
 
   test('clicking one handle then another does not create a relation (drag-only)', async ({ page }) => {
@@ -61,7 +61,7 @@ test.describe('Spec 165 — handle-click create related component', () => {
     await expect(beta).toBeVisible();
 
     const clickHandle = async (node: ReturnType<typeof page.locator>) => {
-      const handle = node.locator('.component-handle-right').first();
+      const handle = node.getByTestId('component-handle-right').first();
       const box = await handle.boundingBox();
       if (!box) throw new Error('handle had no bounding box');
       await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);

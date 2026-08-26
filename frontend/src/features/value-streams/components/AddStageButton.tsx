@@ -1,4 +1,5 @@
 import { Button } from '@mantine/core';
+import classes from './AddStageButton.module.css';
 
 interface AddStageButtonProps {
   onClick: () => void;
@@ -15,7 +16,7 @@ export function AddStageButton({ onClick }: AddStageButtonProps) {
     <Button
       variant="default"
       leftSection={PLUS_ICON}
-      className="stage-add-btn"
+      className={classes.root}
       onClick={onClick}
       data-testid="add-stage-btn"
     >

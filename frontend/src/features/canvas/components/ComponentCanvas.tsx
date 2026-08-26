@@ -13,6 +13,7 @@ import {
 } from '@xyflow/react';
 import React, { forwardRef, useCallback, useImperativeHandle, useState } from 'react';
 import '@xyflow/react/dist/style.css';
+import classes from './ComponentCanvas.module.css';
 import { CapabilityNode } from '../../../components/canvas/CapabilityNode';
 import { ComponentNode } from '../../../components/canvas/ComponentNode';
 import { OriginEntityNode } from '../../../components/canvas/OriginEntityNode';
@@ -180,7 +181,7 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
 
     return (
       <section
-        className="canvas-container"
+        className={classes.container}
         aria-label="Architecture canvas"
         onDragOver={onDragOver}
         onDrop={onDrop}

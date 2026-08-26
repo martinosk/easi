@@ -51,7 +51,7 @@ describe('HandleCreatePicker', () => {
   it('calls onClose on Escape', () => {
     const onClose = vi.fn();
     render(<HandleCreatePicker x={0} y={0} entries={[entry()]} onSelect={() => {}} onClose={onClose} />);
-    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.keyDown(screen.getByTestId('context-menu'), { key: 'Escape' });
     expect(onClose).toHaveBeenCalled();
   });
 

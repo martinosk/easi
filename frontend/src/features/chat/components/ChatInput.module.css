@@ -1,0 +1,5 @@
+.inputArea {
+  border-top: 1px solid var(--color-gray-200);
+  background: var(--surface);
+  flex-shrink: 0;
+}

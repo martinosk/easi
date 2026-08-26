@@ -1,18 +1,16 @@
-.view-selector {
+.selector {
   flex-shrink: 0;
   background: var(--surface);
-  border-bottom: 1px solid var(--color-gray-200);
   padding: var(--spacing-xs) var(--spacing-md);
-  box-shadow: var(--shadow-sm);
 }
 
-.view-tabs {
+.tabs {
   display: flex;
   gap: var(--spacing-xs);
   overflow-x: auto;
 }
 
-.view-tab {
+.tab {
   display: flex;
   align-items: center;
   border-radius: var(--radius-md) var(--radius-md) 0 0;
@@ -20,16 +18,16 @@
   transition: all 0.2s ease;
 }
 
-.view-tab:hover {
+.tab:hover {
   background: var(--color-gray-50);
 }
 
-.view-tab.active {
+.tab.active {
   background: var(--surface);
   border-bottom-color: var(--skin-accent-8);
 }
 
-.view-tab-body {
+.body {
   padding: var(--spacing-sm) var(--spacing-md);
   font-size: var(--font-size-sm);
   font-weight: 500;
@@ -43,34 +41,34 @@
   white-space: nowrap;
 }
 
-.view-tab.active .view-tab-body {
+.tab.active .body {
   color: var(--ink);
   font-weight: 600;
 }
 
-.view-tab-body:hover {
+.body:hover {
   color: var(--ink);
 }
 
-.view-tab-name {
+.name {
   max-width: 150px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.default-indicator {
+.defaultIndicator {
   font-size: 0.75rem;
   opacity: 0.8;
 }
 
-.view-tab-dirty {
+.dirty {
   color: var(--color-warning);
   font-size: 0.6rem;
   margin-left: 4px;
   line-height: 1;
 }
 
-.view-tab-close {
+.close {
   padding: 0 var(--spacing-sm);
   font-size: 1.1rem;
   align-self: stretch;

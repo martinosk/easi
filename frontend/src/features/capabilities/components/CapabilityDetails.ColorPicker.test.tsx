@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { HttpResponse, http } from 'msw';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -131,12 +131,9 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
       const mockView = createMockView('maturity');
       renderCapabilityDetails(mockView);
 
-      await waitFor(() => {
-        const colorPickerButton = screen.getByTestId('color-picker-button');
-        fireEvent.mouseOver(colorPickerButton);
-      });
+      fireEvent.mouseEnter(await screen.findByTestId('color-picker-target'));
 
-      expect(screen.getByText('Switch to custom color scheme to assign colors')).toBeInTheDocument();
+      expect(await screen.findByText('Switch to custom color scheme to assign colors')).toBeInTheDocument();
     });
   });
 
@@ -174,14 +171,8 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
   const COLOR_PATH = `${API_BASE}/api/v1/views/:viewId/capabilities/:capabilityId/color`;
 
   const selectColor = async (color: string) => {
-    await waitFor(() => {
-      expect(screen.getByTestId('color-picker-button')).toBeInTheDocument();
-    });
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('color-picker-button'));
-      fireEvent.change(screen.getByTestId('color-picker-input'), { target: { value: color } });
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
+    fireEvent.click(await screen.findByTestId('color-picker-button'));
+    fireEvent.change(await screen.findByTestId('color-picker-input'), { target: { value: color } });
   };
 
   describe('API calls on color selection', () => {

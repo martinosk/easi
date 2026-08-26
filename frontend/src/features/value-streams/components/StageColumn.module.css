@@ -1,0 +1,52 @@
+.column {
+  width: 260px;
+  background: var(--well);
+  border: 1px solid var(--line);
+  transition:
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+  cursor: default;
+}
+
+.column[draggable="true"] {
+  cursor: grab;
+}
+
+.column[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.column:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.position {
+  width: 1.5rem;
+  height: 1.5rem;
+  background: var(--color-primary);
+  color: var(--skin-on-brand);
+  border-radius: 9999px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.name {
+  word-break: break-word;
+}
+
+.actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.column:hover .actions {
+  opacity: 1;
+}
+
+.capabilities {
+  border-top: 1px solid var(--color-gray-100);
+  min-height: 2rem;
+}

@@ -62,8 +62,10 @@ describe('ConversationList', () => {
       activeConversationId: 'conv-1',
     });
 
-    const activeItem = screen.getByText('Active chat').closest('.conversation-item');
-    expect(activeItem).toHaveClass('conversation-item-active');
+    const [activeItem, otherItem] = screen.getAllByTestId('conversation-item');
+    expect(activeItem).toHaveTextContent('Active chat');
+    expect(activeItem).toHaveAttribute('data-active');
+    expect(otherItem).not.toHaveAttribute('data-active');
   });
 
   it('should call onDelete when delete button is clicked', () => {

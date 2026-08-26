@@ -1,0 +1,88 @@
+.node {
+  position: relative;
+  min-width: 150px;
+  max-width: 220px;
+  padding: var(--spacing-md);
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color 120ms ease;
+}
+
+.node:hover {
+  border-color: var(--skin-focus);
+}
+
+.node::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  border-top-left-radius: var(--radius-md);
+  border-bottom-left-radius: var(--radius-md);
+  background: var(--line-strong);
+}
+
+.acquired::before {
+  background: var(--entity-acquired);
+}
+
+.vendor::before {
+  background: var(--entity-vendor);
+}
+
+.team::before {
+  background: var(--entity-team);
+}
+
+.node.selected {
+  border: 2px solid var(--skin-focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--skin-focus) 20%, transparent);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+}
+
+.acquired .icon {
+  color: var(--entity-acquired);
+}
+
+.vendor .icon {
+  color: var(--entity-vendor);
+}
+
+.team .icon {
+  color: var(--entity-team);
+}
+
+.label {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.type {
+  font-size: var(--font-size-xs);
+  color: var(--muted);
+}

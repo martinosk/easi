@@ -1,0 +1,10 @@
+.configuredStatus {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-xs);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  background-color: var(--status-positive-bg);
+  color: var(--status-positive);
+}

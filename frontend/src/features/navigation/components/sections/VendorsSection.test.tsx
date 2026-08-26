@@ -165,12 +165,12 @@ describe('VendorsSection', () => {
       expect(onVendorSelect).toHaveBeenCalledWith('v-123');
     });
 
-    it('should apply selected class when vendor is selected', () => {
+    it('should mark the vendor as selected when it is selected', () => {
       const vendor = createMockVendor({ id: 'v-123' as VendorId });
       render(<VendorsSection {...defaultProps} vendors={[vendor]} selectedVendorId="v-123" />);
 
       const vendorButton = screen.getByTitle('SAP');
-      expect(vendorButton).toHaveClass('selected');
+      expect(vendorButton).toHaveAttribute('data-selected', 'true');
     });
   });
 

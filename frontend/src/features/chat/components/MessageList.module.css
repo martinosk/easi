@@ -1,0 +1,13 @@
+.messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.error {
+  background: var(--status-danger-bg);
+  color: var(--color-error);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--status-danger-line);
+}

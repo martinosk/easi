@@ -1,6 +1,10 @@
-import { render, screen } from '@testing-library/react';
+import type { ReactElement } from 'react';
+import { screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { renderWithProviders } from '../../../test/helpers';
 import { ChatMessage } from './ChatMessage';
+
+const render = (ui: ReactElement) => renderWithProviders(ui, { withRouter: false });
 
 describe('ChatMessage', () => {
   it('should render user message content', () => {
@@ -13,14 +17,14 @@ describe('ChatMessage', () => {
     expect(screen.getByText('Hi there')).toBeInTheDocument();
   });
 
-  it('should apply user message styling', () => {
-    const { container } = render(<ChatMessage sender="user" content="Test" />);
-    expect(container.querySelector('.chat-message-user')).toBeInTheDocument();
+  it('should mark user messages with the user sender', () => {
+    render(<ChatMessage sender="user" content="Test" />);
+    expect(screen.getByTestId('chat-message')).toHaveAttribute('data-sender', 'user');
   });
 
-  it('should apply assistant message styling', () => {
-    const { container } = render(<ChatMessage sender="assistant" content="Test" />);
-    expect(container.querySelector('.chat-message-assistant')).toBeInTheDocument();
+  it('should mark assistant messages with the assistant sender', () => {
+    render(<ChatMessage sender="assistant" content="Test" />);
+    expect(screen.getByTestId('chat-message')).toHaveAttribute('data-sender', 'assistant');
   });
 
   it('should render markdown in assistant messages', () => {
@@ -31,12 +35,12 @@ describe('ChatMessage', () => {
   });
 
   it('should show streaming cursor when isStreaming is true', () => {
-    const { container } = render(<ChatMessage sender="assistant" content="Loading" isStreaming />);
-    expect(container.querySelector('.chat-cursor')).toBeInTheDocument();
+    render(<ChatMessage sender="assistant" content="Loading" isStreaming />);
+    expect(screen.getByTestId('chat-cursor')).toBeInTheDocument();
   });
 
   it('should not show streaming cursor when isStreaming is false', () => {
-    const { container } = render(<ChatMessage sender="assistant" content="Done" />);
-    expect(container.querySelector('.chat-cursor')).not.toBeInTheDocument();
+    render(<ChatMessage sender="assistant" content="Done" />);
+    expect(screen.queryByTestId('chat-cursor')).not.toBeInTheDocument();
   });
 });

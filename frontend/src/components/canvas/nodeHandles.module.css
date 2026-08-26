@@ -1,0 +1,33 @@
+.handle {
+  width: 9px;
+  height: 9px;
+  background: var(--surface);
+  border: 2px solid var(--line-strong);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: border-color 120ms ease;
+}
+
+.handle:hover {
+  border-color: var(--skin-focus);
+}
+
+.top {
+  composes: handle;
+  top: -6px;
+}
+
+.bottom {
+  composes: handle;
+  bottom: -6px;
+}
+
+.left {
+  composes: handle;
+  left: -6px;
+}
+
+.right {
+  composes: handle;
+  right: -6px;
+}

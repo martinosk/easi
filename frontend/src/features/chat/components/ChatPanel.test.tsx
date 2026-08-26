@@ -1,8 +1,7 @@
-import type { QueryClient } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import type { ReactNode } from 'react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createTestQueryClient, TestProviders } from '../../../test/helpers/renderWithProviders';
+import { renderWithProviders } from '../../../test/helpers';
+import type { ChatMessage } from '../api/types';
 import { ChatPanel } from './ChatPanel';
 
 vi.mock('../api/chatApi', () => ({
@@ -17,25 +16,20 @@ vi.mock('../api/chatApi', () => ({
 
 import { chatApi } from '../api/chatApi';
 
-function createWrapper(queryClient: QueryClient) {
-  return function Wrapper({ children }: { children: ReactNode }) {
-    return (
-      <TestProviders withRouter={false} queryClient={queryClient}>
-        {children}
-      </TestProviders>
-    );
-  };
+interface RenderPanelOptions {
+  onClose?: () => void;
+  writeAvailable?: boolean;
 }
 
-function renderPanel(isOpen: boolean, onClose = vi.fn(), queryClient?: QueryClient, writeAvailable = true) {
-  const qc = queryClient ?? createTestQueryClient();
-  vi.mocked(chatApi.listConversations).mockResolvedValue({ data: [], _links: {} });
-  const Wrapper = createWrapper(qc);
-  return render(
-    <Wrapper>
-      <ChatPanel isOpen={isOpen} onClose={onClose} writeAvailable={writeAvailable} />
-    </Wrapper>,
-  );
+function renderPanel(isOpen: boolean, { onClose = vi.fn(), writeAvailable = true }: RenderPanelOptions = {}) {
+  renderWithProviders(<ChatPanel isOpen={isOpen} onClose={onClose} writeAvailable={writeAvailable} />, {
+    withRouter: false,
+  });
+}
+
+async function renderOpenPanel(options: RenderPanelOptions = {}) {
+  renderPanel(true, options);
+  return screen.findByRole('dialog');
 }
 
 function mockConversationAndStream(convId: string) {
@@ -62,6 +56,32 @@ function mockConversationAndStream(convId: string) {
   );
 }
 
+function mockStoredConversation(messages: ChatMessage[]) {
+  const now = new Date().toISOString();
+  vi.mocked(chatApi.listConversations).mockResolvedValue({
+    data: [{ id: 'conv-old', title: 'Old chat', createdAt: now, _links: {} }],
+    _links: {},
+  });
+  vi.mocked(chatApi.getConversation).mockResolvedValue({
+    id: 'conv-old',
+    title: 'Old chat',
+    createdAt: now,
+    lastMessageAt: now,
+    _links: {},
+    messages: messages.map((m) => ({ ...m, createdAt: now })),
+  });
+}
+
+async function openStoredConversation() {
+  fireEvent.click(screen.getByLabelText('Conversation history'));
+  await waitFor(() => {
+    expect(screen.getByText('Old chat')).toBeInTheDocument();
+  });
+  await act(async () => {
+    fireEvent.click(screen.getByText('Old chat'));
+  });
+}
+
 async function typeAndSendMessage(text: string) {
   const textarea = screen.getByPlaceholderText('Ask about your architecture...');
   await act(async () => {
@@ -73,56 +93,67 @@ async function typeAndSendMessage(text: string) {
 describe('ChatPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(chatApi.listConversations).mockResolvedValue({ data: [], _links: {} });
   });
 
-  it('should not render when isOpen is false', () => {
-    const { container } = renderPanel(false);
-    expect(container.querySelector('.chat-panel')).not.toBeInTheDocument();
+  it('should not render a dialog when isOpen is false', () => {
+    renderPanel(false);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('should render when isOpen is true', () => {
-    const { container } = renderPanel(true);
-    expect(container.querySelector('.chat-panel')).toBeInTheDocument();
+  it('should render a dialog when isOpen is true', async () => {
+    const dialog = await renderOpenPanel();
+    expect(dialog).toBeInTheDocument();
   });
 
-  it('should render header with title', () => {
-    renderPanel(true);
+  it('should name the dialog for assistive technology', async () => {
+    const dialog = await renderOpenPanel();
+    expect(dialog).toHaveAccessibleName('Chat panel');
+  });
+
+  it('should leave the page behind interactive by rendering no overlay', async () => {
+    await renderOpenPanel();
+    expect(document.querySelector('.mantine-Drawer-overlay')).toBeNull();
+  });
+
+  it('should render header with title', async () => {
+    await renderOpenPanel();
     expect(screen.getByText('Architecture Assistant')).toBeInTheDocument();
   });
 
-  it('should render close button', () => {
-    renderPanel(true);
+  it('should render close button', async () => {
+    await renderOpenPanel();
     expect(screen.getByLabelText('Close chat')).toBeInTheDocument();
   });
 
-  it('should call onClose when close button is clicked', () => {
+  it('should call onClose when close button is clicked', async () => {
     const onClose = vi.fn();
-    renderPanel(true, onClose);
+    await renderOpenPanel({ onClose });
     fireEvent.click(screen.getByLabelText('Close chat'));
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('should call onClose when Escape is pressed', () => {
+  it('should call onClose when Escape is pressed', async () => {
     const onClose = vi.fn();
-    renderPanel(true, onClose);
-    fireEvent.keyDown(document, { key: 'Escape' });
+    await renderOpenPanel({ onClose });
+    fireEvent.keyDown(document.body, { key: 'Escape' });
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('should show prompt suggestions in empty state', () => {
-    renderPanel(true);
+  it('should show prompt suggestions in empty state', async () => {
+    await renderOpenPanel();
     expect(screen.getByText('What applications are in the Finance domain?')).toBeInTheDocument();
     expect(screen.getByText('Show me a portfolio summary')).toBeInTheDocument();
   });
 
-  it('should render chat input', () => {
-    renderPanel(true);
+  it('should render chat input', async () => {
+    await renderOpenPanel();
     expect(screen.getByPlaceholderText('Ask about your architecture...')).toBeInTheDocument();
   });
 
   it('should create conversation on first send and send message', async () => {
     mockConversationAndStream('conv-1');
-    renderPanel(true);
+    await renderOpenPanel();
     await typeAndSendMessage('Hello');
 
     await waitFor(() => {
@@ -130,48 +161,19 @@ describe('ChatPanel', () => {
     });
   });
 
-  it('should render YOLO checkbox', () => {
-    renderPanel(true);
+  it('should render YOLO checkbox', async () => {
+    await renderOpenPanel();
     expect(screen.getByLabelText('YOLO (allow changes)')).toBeInTheDocument();
   });
 
   it('should load conversation messages when selecting a previous conversation', async () => {
-    const qc = createTestQueryClient();
-    vi.mocked(chatApi.listConversations).mockResolvedValue({
-      data: [{ id: 'conv-old', title: 'Old chat', createdAt: new Date().toISOString(), _links: {} }],
-      _links: {},
-    });
-    vi.mocked(chatApi.getConversation).mockResolvedValue({
-      id: 'conv-old',
-      title: 'Old chat',
-      createdAt: new Date().toISOString(),
-      lastMessageAt: new Date().toISOString(),
-      _links: {},
-      messages: [
-        { id: 'msg-1', role: 'user', content: 'What apps exist?', createdAt: new Date().toISOString() },
-        { id: 'msg-2', role: 'assistant', content: 'There are 3 apps.', createdAt: new Date().toISOString() },
-      ],
-    });
+    mockStoredConversation([
+      { id: 'msg-1', role: 'user', content: 'What apps exist?' },
+      { id: 'msg-2', role: 'assistant', content: 'There are 3 apps.' },
+    ]);
+    await renderOpenPanel();
 
-    const Wrapper = createWrapper(qc);
-    render(
-      <Wrapper>
-        <ChatPanel isOpen={true} onClose={vi.fn()} writeAvailable />
-      </Wrapper>,
-    );
-
-    await waitFor(() => {
-      expect(screen.queryByText('No conversations yet')).not.toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByLabelText('Conversation history'));
-    await waitFor(() => {
-      expect(screen.getByText('Old chat')).toBeInTheDocument();
-    });
-
-    await act(async () => {
-      fireEvent.click(screen.getByText('Old chat'));
-    });
+    await openStoredConversation();
 
     await waitFor(() => {
       expect(chatApi.getConversation).toHaveBeenCalledWith('conv-old');
@@ -181,34 +183,10 @@ describe('ChatPanel', () => {
   });
 
   it('should clear messages when starting a new conversation', async () => {
-    const qc = createTestQueryClient();
-    vi.mocked(chatApi.listConversations).mockResolvedValue({
-      data: [{ id: 'conv-old', title: 'Old chat', createdAt: new Date().toISOString(), _links: {} }],
-      _links: {},
-    });
-    vi.mocked(chatApi.getConversation).mockResolvedValue({
-      id: 'conv-old',
-      title: 'Old chat',
-      createdAt: new Date().toISOString(),
-      lastMessageAt: new Date().toISOString(),
-      _links: {},
-      messages: [{ id: 'msg-1', role: 'user', content: 'Previous question', createdAt: new Date().toISOString() }],
-    });
+    mockStoredConversation([{ id: 'msg-1', role: 'user', content: 'Previous question' }]);
+    await renderOpenPanel();
 
-    const Wrapper = createWrapper(qc);
-    render(
-      <Wrapper>
-        <ChatPanel isOpen={true} onClose={vi.fn()} writeAvailable />
-      </Wrapper>,
-    );
-
-    fireEvent.click(screen.getByLabelText('Conversation history'));
-    await waitFor(() => {
-      expect(screen.getByText('Old chat')).toBeInTheDocument();
-    });
-    await act(async () => {
-      fireEvent.click(screen.getByText('Old chat'));
-    });
+    await openStoredConversation();
     await waitFor(() => {
       expect(screen.getByText('Previous question')).toBeInTheDocument();
     });
@@ -224,7 +202,7 @@ describe('ChatPanel', () => {
 
   it('should pass yoloEnabled as allowWriteOperations when sending message', async () => {
     mockConversationAndStream('conv-yolo');
-    renderPanel(true);
+    await renderOpenPanel();
 
     fireEvent.click(screen.getByLabelText('YOLO (allow changes)'));
     await typeAndSendMessage('Create app');
@@ -237,14 +215,14 @@ describe('ChatPanel', () => {
     });
   });
 
-  it('should not render YOLO checkbox when write is unavailable', () => {
-    renderPanel(true, vi.fn(), undefined, false);
+  it('should not render YOLO checkbox when write is unavailable', async () => {
+    await renderOpenPanel({ writeAvailable: false });
     expect(screen.queryByLabelText('YOLO (allow changes)')).not.toBeInTheDocument();
   });
 
   it('should send allowWriteOperations=false when write is unavailable', async () => {
     mockConversationAndStream('conv-readonly');
-    renderPanel(true, vi.fn(), undefined, false);
+    await renderOpenPanel({ writeAvailable: false });
 
     await typeAndSendMessage('What apps exist?');
 

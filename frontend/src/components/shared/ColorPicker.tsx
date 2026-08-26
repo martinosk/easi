@@ -1,7 +1,11 @@
-import { TextInput, UnstyledButton } from '@mantine/core';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Box, Popover, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
+import { useEffect, useRef, useState } from 'react';
 import { HexColorPicker } from 'react-colorful';
 import classes from './ColorPicker.module.css';
+
+const DEFAULT_COLOR = '#E0E0E0';
+const COMMIT_DEBOUNCE_MS = 300;
+const HEX_COLOR = /^#[0-9A-Fa-f]{6}$/;
 
 interface ColorPickerProps {
   color: string | null;
@@ -10,119 +14,101 @@ interface ColorPickerProps {
   disabledTooltip?: string;
 }
 
+function useDraftColor(color: string | null, onChange: (color: string) => void) {
+  const committed = (color ?? DEFAULT_COLOR).toUpperCase();
+  const [draft, setDraft] = useState(committed);
+  const [syncedFrom, setSyncedFrom] = useState(committed);
+  const pendingCommit = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  if (syncedFrom !== committed) {
+    setSyncedFrom(committed);
+    setDraft(committed);
+  }
+
+  const cancelPendingCommit = () => {
+    clearTimeout(pendingCommit.current);
+    pendingCommit.current = undefined;
+  };
+
+  useEffect(() => () => clearTimeout(pendingCommit.current), []);
+
+  const commit = (value: string) => {
+    cancelPendingCommit();
+    const normalized = value.toUpperCase();
+    if (normalized !== committed) onChange(normalized);
+  };
+
+  const stageFromPicker = (value: string) => {
+    setDraft(value.toUpperCase());
+    cancelPendingCommit();
+    pendingCommit.current = setTimeout(() => commit(value), COMMIT_DEBOUNCE_MS);
+  };
+
+  return { draft, setDraft, commit, stageFromPicker, commitDraft: () => commit(draft) };
+}
+
 export function ColorPicker({ color, onChange, disabled, disabledTooltip }: ColorPickerProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [tempColor, setTempColor] = useState(color || '#E0E0E0');
-  const displayColor = tempColor;
-  const commitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pickerRef = useRef<HTMLDivElement>(null);
+  const [opened, setOpened] = useState(false);
+  const { draft, setDraft, commit, stageFromPicker, commitDraft } = useDraftColor(color, onChange);
 
-  useLayoutEffect(() => {
-    const normalized = color || '#E0E0E0';
-    if (tempColor !== normalized) queueMicrotask(() => setTempColor(normalized));
-  }, [color, tempColor]);
+  const handleOpenedChange = (nextOpened: boolean) => {
+    if (!nextOpened) commitDraft();
+    setOpened(nextOpened);
+  };
 
-  useEffect(() => {
-    return () => {
-      if (commitTimeoutRef.current) {
-        clearTimeout(commitTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleClickOutside = (event: MouseEvent) => {
-      if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) {
-        if (commitTimeoutRef.current) {
-          clearTimeout(commitTimeoutRef.current);
-        }
-        const upperColor = tempColor.toUpperCase();
-        if (upperColor !== color?.toUpperCase()) {
-          onChange(upperColor);
-        }
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isOpen, tempColor, color, onChange]);
-
-  const handleButtonClick = () => {
-    if (!disabled) {
-      setIsOpen(!isOpen);
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.currentTarget.value;
+    setDraft(value);
+    if (HEX_COLOR.test(value)) {
+      commit(value);
+      setOpened(false);
     }
   };
 
-  const commitColor = (newColor: string) => {
-    const upperColor = newColor.toUpperCase();
-    if (upperColor !== color?.toUpperCase()) {
-      onChange(upperColor);
-    }
-  };
-
-  const handleColorChange = (newColor: string) => {
-    setTempColor(newColor.toUpperCase());
-
-    if (commitTimeoutRef.current) {
-      clearTimeout(commitTimeoutRef.current);
-    }
-
-    commitTimeoutRef.current = setTimeout(() => {
-      commitColor(newColor);
-    }, 300);
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setTempColor(value);
-    if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
-      commitColor(value);
-      setIsOpen(false);
-    }
-  };
-
-  return (
-    <div ref={pickerRef} className={classes.wrapper}>
+  const target = (
+    <Box display="inline-block" data-testid="color-picker-target">
       <UnstyledButton
-        component="button"
         type="button"
         data-testid="color-picker-button"
-        onClick={handleButtonClick}
         disabled={disabled}
-        title={disabled && disabledTooltip ? disabledTooltip : undefined}
+        onClick={() => handleOpenedChange(!opened)}
         className={classes.button}
       >
-        <div data-testid="color-picker-display" className={classes.swatch} style={{ backgroundColor: displayColor }} />
-        <span>{displayColor}</span>
+        <Box data-testid="color-picker-display" className={classes.swatch} style={{ backgroundColor: draft }} />
+        <span>{draft}</span>
       </UnstyledButton>
+    </Box>
+  );
 
-      {!disabled && (
-        <div
-          data-testid="color-picker-popover"
-          className={classes.popover}
-          style={{ display: isOpen ? 'block' : 'none' }}
-        >
-          <HexColorPicker color={displayColor} onChange={handleColorChange} />
-          <TextInput
-            data-testid="color-picker-input"
-            value={displayColor}
-            onChange={handleInputChange}
-            mt="xs"
-            styles={{ input: { fontFamily: 'monospace' } }}
-          />
-        </div>
-      )}
+  if (disabled) {
+    return (
+      <Tooltip label={disabledTooltip} disabled={!disabledTooltip}>
+        {target}
+      </Tooltip>
+    );
+  }
 
-      {disabled && disabledTooltip && (
-        <div data-testid="color-picker-tooltip" style={{ display: 'none' }}>
-          {disabledTooltip}
-        </div>
-      )}
-    </div>
+  return (
+    <Popover
+      opened={opened}
+      onChange={handleOpenedChange}
+      withinPortal
+      position="bottom-start"
+      trapFocus={false}
+      shadow="lg"
+      radius="md"
+    >
+      <Popover.Target>{target}</Popover.Target>
+      <Popover.Dropdown data-testid="color-picker-popover" p="md">
+        <HexColorPicker color={draft} onChange={stageFromPicker} />
+        <TextInput
+          data-testid="color-picker-input"
+          value={draft}
+          onChange={handleInputChange}
+          mt="xs"
+          classNames={{ input: classes.hexInput }}
+        />
+      </Popover.Dropdown>
+    </Popover>
   );
 }

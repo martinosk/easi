@@ -1,10 +1,10 @@
-import { ActionIcon } from '@mantine/core';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ComponentId } from '../../../api/types';
 import { useAppStore } from '../../../store/appStore';
 import { useNavigationTree } from '../hooks/useNavigationTree';
 import type { TreeSelectedItem } from '../hooks/useTreeMultiSelect';
 import type { NavigationTreeProps } from '../types';
+import classes from './NavigationTree.module.css';
 import { NavigationTreeContent } from './NavigationTreeContent';
 import { NavigationTreeDialogs } from './NavigationTreeDialogs';
 
@@ -136,57 +136,44 @@ export const NavigationTree: React.FC<NavigationTreeProps> = (props) => {
 
   return (
     <>
-      <div className={`navigation-tree ${tree.treeState.isOpen ? 'open' : 'closed'}`}>
-        {tree.treeState.isOpen && (
-          <NavigationTreeContent
-            components={tree.filtered.components}
-            currentView={tree.currentView}
-            selectedNodeId={tree.selectedNodeId}
-            capabilities={tree.filtered.capabilities}
-            views={tree.views}
-            acquiredEntities={tree.filtered.acquiredEntities}
-            vendors={tree.filtered.vendors}
-            internalTeams={tree.filtered.internalTeams}
-            selectedCapabilityId={tree.selectedCapabilityId}
-            setSelectedCapabilityId={tree.setSelectedCapabilityId}
-            selectedEntityIds={tree.selectedEntityIds}
-            treeState={tree.treeState}
-            contextMenus={tree.contextMenus}
-            multiSelect={multiSelectProps}
-            selectionCount={tree.multiSelect.selectionCount}
-            onComponentSelect={onComponentSelect}
-            onViewSelect={onViewSelect}
-            onAddComponent={onAddComponent}
-            onCapabilitySelect={onCapabilitySelect}
-            onAddCapability={onAddCapability}
-            onOriginEntitySelect={onOriginEntitySelect}
-            canCreateView={tree.canCreateView}
-            onAddAcquiredEntity={originEntity.onAddAcquired}
-            onAddVendor={originEntity.onAddVendor}
-            onAddTeam={originEntity.onAddTeam}
-            artifactCreators={tree.filteredData.artifactCreators}
-            users={tree.filteredData.activeUsers}
-            selectedCreatorIds={tree.filteredData.selectedCreatorIds}
-            onCreatorSelectionChange={tree.filteredData.setSelectedCreatorIds}
-            domains={tree.filteredData.domains}
-            selectedDomainIds={tree.filteredData.selectedDomainIds}
-            onDomainSelectionChange={tree.filteredData.setSelectedDomainIds}
-            hasActiveFilters={tree.filteredData.hasActiveFilters}
-            onClearAllFilters={tree.filteredData.clearAllFilters}
-          />
-        )}
+      <div className={classes.tree}>
+        <NavigationTreeContent
+          components={tree.filtered.components}
+          currentView={tree.currentView}
+          selectedNodeId={tree.selectedNodeId}
+          capabilities={tree.filtered.capabilities}
+          views={tree.views}
+          acquiredEntities={tree.filtered.acquiredEntities}
+          vendors={tree.filtered.vendors}
+          internalTeams={tree.filtered.internalTeams}
+          selectedCapabilityId={tree.selectedCapabilityId}
+          setSelectedCapabilityId={tree.setSelectedCapabilityId}
+          selectedEntityIds={tree.selectedEntityIds}
+          treeState={tree.treeState}
+          contextMenus={tree.contextMenus}
+          multiSelect={multiSelectProps}
+          selectionCount={tree.multiSelect.selectionCount}
+          onComponentSelect={onComponentSelect}
+          onViewSelect={onViewSelect}
+          onAddComponent={onAddComponent}
+          onCapabilitySelect={onCapabilitySelect}
+          onAddCapability={onAddCapability}
+          onOriginEntitySelect={onOriginEntitySelect}
+          canCreateView={tree.canCreateView}
+          onAddAcquiredEntity={originEntity.onAddAcquired}
+          onAddVendor={originEntity.onAddVendor}
+          onAddTeam={originEntity.onAddTeam}
+          artifactCreators={tree.filteredData.artifactCreators}
+          users={tree.filteredData.activeUsers}
+          selectedCreatorIds={tree.filteredData.selectedCreatorIds}
+          onCreatorSelectionChange={tree.filteredData.setSelectedCreatorIds}
+          domains={tree.filteredData.domains}
+          selectedDomainIds={tree.filteredData.selectedDomainIds}
+          onDomainSelectionChange={tree.filteredData.setSelectedDomainIds}
+          hasActiveFilters={tree.filteredData.hasActiveFilters}
+          onClearAllFilters={tree.filteredData.clearAllFilters}
+        />
       </div>
-
-      {!tree.treeState.isOpen && (
-        <ActionIcon
-          variant="default"
-          className="tree-toggle-btn-collapsed"
-          onClick={() => tree.treeState.setIsOpen(true)}
-          aria-label="Open navigation"
-        >
-          ›
-        </ActionIcon>
-      )}
 
       <NavigationTreeDialogs
         contextMenus={tree.contextMenus}

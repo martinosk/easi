@@ -1,6 +1,7 @@
-import { Chip, Group, UnstyledButton } from '@mantine/core';
+import { Chip, Group } from '@mantine/core';
 import React, { useMemo } from 'react';
 import type { ArtifactCreator } from '../utils/filterByCreator';
+import { TreeFilterSection } from './shared/TreeFilterSection';
 
 interface CreatedByFilterProps {
   artifactCreators: ArtifactCreator[];
@@ -28,24 +29,12 @@ export const CreatedByFilter: React.FC<CreatedByFilterProps> = ({
     });
   }, [artifactCreators, users]);
 
-  const handleClear = () => onSelectionChange([]);
-
   return (
-    <div className="tree-filter">
-      <div className="tree-filter-header">
-        <span className="tree-filter-label">Created by</span>
-        {selectedCreatorIds.length > 0 && (
-          <UnstyledButton
-            component="button"
-            type="button"
-            className="tree-filter-clear"
-            onClick={handleClear}
-            aria-label="Clear filter"
-          >
-            Clear
-          </UnstyledButton>
-        )}
-      </div>
+    <TreeFilterSection
+      label="Created by"
+      hasSelection={selectedCreatorIds.length > 0}
+      onClear={() => onSelectionChange([])}
+    >
       <Chip.Group multiple value={selectedCreatorIds} onChange={onSelectionChange}>
         <Group gap={4}>
           {creatorOptions.map((option) => (
@@ -55,6 +44,6 @@ export const CreatedByFilter: React.FC<CreatedByFilterProps> = ({
           ))}
         </Group>
       </Chip.Group>
-    </div>
+    </TreeFilterSection>
   );
 };

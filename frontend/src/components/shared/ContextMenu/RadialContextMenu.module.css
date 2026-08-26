@@ -1,0 +1,167 @@
+.root {
+  position: absolute;
+  z-index: var(--layer-popover);
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  font-family: inherit;
+}
+
+.root > * {
+  pointer-events: auto;
+}
+
+.hub {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  box-shadow: var(--shadow-lg);
+  padding: var(--spacing-xs) var(--spacing-md);
+  min-width: 96px;
+  max-width: 200px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  pointer-events: none;
+  animation: hub-pop 120ms ease-out;
+}
+
+.hubLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 120ms ease;
+}
+
+.hubLabelActive {
+  color: var(--skin-accent-8);
+}
+
+.hubLabelDanger {
+  color: var(--status-danger);
+}
+
+.hubDesc {
+  font-size: 0.6875rem;
+  color: var(--muted);
+  line-height: 1.35;
+  white-space: normal;
+  word-wrap: break-word;
+  max-height: 2.7em;
+  overflow: hidden;
+}
+
+.petal {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink);
+  cursor: pointer;
+  padding: 0;
+  animation: petal-in 120ms ease-out backwards;
+  transition:
+    background 140ms ease,
+    color 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    scale 140ms ease;
+}
+
+.petal:hover,
+.petalFocus,
+.petal:focus-visible {
+  background: var(--skin-accent-8);
+  color: var(--skin-on-brand);
+  border-color: var(--skin-accent-9);
+  box-shadow: 0 8px 20px -4px color-mix(in srgb, var(--skin-accent-8) 55%, transparent);
+  scale: 1.08;
+  outline: none;
+  z-index: var(--layer-raised);
+}
+
+.petalDanger {
+  color: var(--status-danger);
+}
+
+.petalDanger:hover,
+.petalDanger.petalFocus,
+.petalDanger:focus-visible {
+  background: var(--status-danger);
+  border-color: var(--status-danger);
+  color: var(--skin-on-brand);
+  box-shadow: 0 8px 20px -4px color-mix(in srgb, var(--status-danger) 55%, transparent);
+}
+
+.petalDisabled,
+.petalDisabled:hover,
+.petalDisabled.petalFocus,
+.petalDisabled:focus-visible {
+  color: var(--faint);
+  background: var(--well);
+  border-color: var(--line);
+  box-shadow: none;
+  cursor: not-allowed;
+  scale: 1;
+}
+
+.petalIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+}
+
+.petalIcon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+@keyframes hub-pop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes petal-in {
+  from {
+    opacity: 0;
+    scale: 0.2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hub,
+  .petal {
+    animation: none;
+  }
+  .petal:hover,
+  .petalFocus,
+  .petal:focus-visible {
+    scale: 1;
+  }
+}

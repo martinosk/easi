@@ -1,4 +1,4 @@
-import { NumberInput, Textarea } from '@mantine/core';
+import { NumberInput, Paper, SimpleGrid, Stack, Textarea } from '@mantine/core';
 
 interface AdvancedSettingsProps {
   maxTokens: number;
@@ -11,9 +11,9 @@ interface AdvancedSettingsProps {
 
 export function AdvancedSettings(props: AdvancedSettingsProps) {
   return (
-    <div className="ai-config-advanced-section">
-      <div className="ai-config-row">
-        <div className="ai-config-field">
+    <Paper bg="gray.0" p="md" radius="sm">
+      <Stack gap="md">
+        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
           <NumberInput
             id="ai-max-tokens"
             label="Max Tokens"
@@ -23,9 +23,6 @@ export function AdvancedSettings(props: AdvancedSettingsProps) {
             onChange={(v) => props.onMaxTokensChange(typeof v === 'number' ? v : 4096)}
             description="256 - 32,768"
           />
-        </div>
-
-        <div className="ai-config-field">
           <NumberInput
             id="ai-temperature"
             label="Temperature"
@@ -37,10 +34,7 @@ export function AdvancedSettings(props: AdvancedSettingsProps) {
             onChange={(v) => props.onTemperatureChange(typeof v === 'number' ? v : 0.3)}
             description="0.0 - 2.0 (lower = more deterministic)"
           />
-        </div>
-      </div>
-
-      <div className="ai-config-field">
+        </SimpleGrid>
         <Textarea
           id="ai-system-prompt"
           label="System Prompt Override"
@@ -52,7 +46,7 @@ export function AdvancedSettings(props: AdvancedSettingsProps) {
           autosize
           minRows={3}
         />
-      </div>
-    </div>
+      </Stack>
+    </Paper>
   );
 }

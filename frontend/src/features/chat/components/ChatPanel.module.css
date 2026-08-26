@@ -1,0 +1,18 @@
+.root {
+  --chat-panel-width: 400px;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+}

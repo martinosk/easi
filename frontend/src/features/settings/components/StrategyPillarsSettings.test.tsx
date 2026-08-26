@@ -214,9 +214,7 @@ describe('StrategyPillarsSettings', () => {
   });
 
   it('disables add pillar button when max pillars (20) reached', async () => {
-    mockConfig(
-      Array.from({ length: 20 }, (_, i) => buildPillar({ id: `pillar-${i}`, name: `Pillar ${i + 1}` })),
-    );
+    mockConfig(Array.from({ length: 20 }, (_, i) => buildPillar({ id: `pillar-${i}`, name: `Pillar ${i + 1}` })));
 
     await renderAndEnterEditMode();
 
@@ -229,8 +227,8 @@ describe('StrategyPillarsSettings', () => {
 
     fireEvent.click(screen.getByTestId('delete-pillar-btn-0'));
 
-    const pillarRow = screen.getByTestId('pillar-row-0');
-    expect(pillarRow).toHaveClass('pillar-marked-for-deletion');
+    expect(screen.getByTestId('pillar-row-0')).toHaveAttribute('data-marked-for-deletion');
+    expect(screen.getByTestId('restore-pillar-btn-0')).toBeInTheDocument();
   });
 
   it('disables delete button when only one active pillar remains', async () => {

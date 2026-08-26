@@ -1,14 +1,14 @@
-.help-tooltip-wrapper {
+.wrapper {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
 }
 
-.help-tooltip-label {
+.label {
   font-size: inherit;
 }
 
-.help-tooltip-icon {
+.icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -17,10 +17,14 @@
   transition: color 0.15s ease;
 }
 
-.help-tooltip-icon:hover {
+.icon:hover {
   color: var(--muted);
 }
 
-.help-tooltip-icon svg {
+.icon svg {
   display: block;
+}
+
+.tooltip {
+  width: 17.5rem;
 }

@@ -1,6 +1,7 @@
 import { CloseButton } from '@mantine/core';
 import type { StageCapabilityMapping } from '../../../api/types';
 import { hasLink } from '../../../utils/hateoas';
+import classes from './CapabilityChip.module.css';
 
 interface CapabilityChipProps {
   mapping: StageCapabilityMapping;
@@ -11,12 +12,12 @@ interface CapabilityChipProps {
 export function CapabilityChip({ mapping, canRemove, onRemove }: CapabilityChipProps) {
   const showRemove = canRemove && hasLink(mapping, 'delete');
   return (
-    <span className="cap-chip" data-testid={`cap-chip-${mapping.capabilityId}`}>
-      <span className="cap-chip-name">{mapping.capabilityName || mapping.capabilityId}</span>
+    <span className={classes.chip} data-testid={`cap-chip-${mapping.capabilityId}`}>
+      <span className={classes.name}>{mapping.capabilityName || mapping.capabilityId}</span>
       {showRemove && (
         <CloseButton
           size="xs"
-          className="cap-chip-remove"
+          className={classes.remove}
           onClick={(e) => {
             e.stopPropagation();
             onRemove(mapping);

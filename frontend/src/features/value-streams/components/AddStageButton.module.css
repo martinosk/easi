@@ -1,0 +1,25 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+  width: 160px;
+  min-height: 120px;
+  border: 2px dashed var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: none;
+  color: var(--faint);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.root:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--skin-accent-0);
+}

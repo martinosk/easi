@@ -173,12 +173,12 @@ describe('InternalTeamsSection', () => {
       expect(onTeamSelect).toHaveBeenCalledWith('it-123');
     });
 
-    it('should apply selected class when team is selected', () => {
+    it('should mark the team as selected when it is selected', () => {
       const team = createMockTeam({ id: 'it-123' as InternalTeamId });
       render(<InternalTeamsSection {...defaultProps} internalTeams={[team]} selectedTeamId="it-123" />);
 
       const teamButton = screen.getByTitle('Platform Engineering');
-      expect(teamButton).toHaveClass('selected');
+      expect(teamButton).toHaveAttribute('data-selected', 'true');
     });
   });
 
@@ -290,7 +290,7 @@ describe('InternalTeamsSection', () => {
       render(<InternalTeamsSection {...defaultProps} internalTeams={[team]} currentView={currentView} />);
 
       const teamButton = screen.getByTitle('Platform Engineering');
-      expect(teamButton).not.toHaveClass('not-in-view');
+      expect(teamButton).toHaveAttribute('data-in-view', 'true');
     });
 
     it('should show team as not-on-canvas when it is not in the view', () => {
@@ -300,7 +300,7 @@ describe('InternalTeamsSection', () => {
       render(<InternalTeamsSection {...defaultProps} internalTeams={[team]} currentView={currentView} />);
 
       const teamButton = screen.getByTitle('Platform Engineering (not on canvas)');
-      expect(teamButton).toHaveClass('not-in-view');
+      expect(teamButton).toHaveAttribute('data-in-view', 'false');
     });
 
     it('should show all teams as on-canvas when no current view is selected', () => {
@@ -309,7 +309,7 @@ describe('InternalTeamsSection', () => {
       render(<InternalTeamsSection {...defaultProps} internalTeams={[team]} currentView={null} />);
 
       const teamButton = screen.getByTitle('Platform Engineering');
-      expect(teamButton).not.toHaveClass('not-in-view');
+      expect(teamButton).toHaveAttribute('data-in-view', 'true');
     });
   });
 });

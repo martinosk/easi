@@ -6,6 +6,7 @@ import { TreeSearchInput } from '../../../../components/shared';
 import { OnePagerIncompleteIndicator } from '../../../one-pagers/components/OnePagerIncompleteIndicator';
 import type { EditingState, TreeMultiSelectProps } from '../../types';
 import { hasCustomColor } from '../../utils/treeUtils';
+import classes from '../shared/TreeItem.module.css';
 import { TreeSection } from '../TreeSection';
 
 interface ColorIndicatorProps {
@@ -50,13 +51,13 @@ const EditingItem: React.FC<EditingItemProps> = ({
   onRenameSubmit,
   editInputRef,
 }) => (
-  <div key={component.id} className="tree-item-edit">
-    <span className="tree-item-icon">
+  <div key={component.id} className={classes.edit}>
+    <span className={classes.icon}>
       <IconBox size={16} stroke={1.75} />
     </span>
     <TextInput
       ref={editInputRef}
-      className="tree-item-input"
+      className={classes.input}
       value={editingState.name}
       onChange={(e) => setEditingState({ ...editingState, name: e.currentTarget.value })}
       onBlur={onRenameSubmit}
@@ -94,17 +95,20 @@ const ComponentItem: React.FC<ComponentItemProps> = ({
   <UnstyledButton
     component="button"
     type="button"
-    className={`tree-item ${isSelected ? 'selected' : ''} ${!isInView ? 'not-in-view' : ''}`}
+    className={classes.item}
+    data-testid="tree-item"
+    data-selected={isSelected || undefined}
+    data-in-view={isInView}
     onClick={onClick}
     onContextMenu={onContextMenu}
     title={isInView ? component.name : `${component.name} (not in current view)`}
     draggable
     onDragStart={onDragStart}
   >
-    <span className="tree-item-icon">
+    <span className={classes.icon}>
       <IconBox size={16} stroke={1.75} />
     </span>
-    <span className="tree-item-label">{component.name}</span>
+    <span className={classes.label}>{component.name}</span>
     <OnePagerIncompleteIndicator id={component.id} onePagerComplete={component.onePagerComplete} />
     {showColorIndicator && <ColorIndicator customColor={customColor} />}
   </UnstyledButton>
@@ -250,9 +254,9 @@ export const ApplicationsSection: React.FC<ApplicationsSectionProps> = ({
       addTestId="create-component-button"
     >
       <TreeSearchInput value={applicationSearch} onChange={setApplicationSearch} placeholder="Search applications..." />
-      <div className="tree-items">
+      <div className={classes.list}>
         {filteredComponents.length === 0 ? (
-          <div className="tree-item-empty">{emptyMessage}</div>
+          <div className={classes.empty}>{emptyMessage}</div>
         ) : (
           filteredComponents.map(renderComponent)
         )}

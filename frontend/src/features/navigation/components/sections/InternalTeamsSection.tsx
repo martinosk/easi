@@ -107,21 +107,19 @@ export const InternalTeamsSection: React.FC<InternalTeamsSectionProps> = ({
       addTestId="create-internal-team-button"
     >
       <TreeSearchInput value={search} onChange={setSearch} placeholder="Search internal teams..." />
-      <div className="tree-items">
-        <TreeItemList
-          items={filteredTeams}
-          emptyMessage={emptyMessage}
-          icon={<IconUsers size={16} stroke={1.75} />}
-          dragDataKey="internalTeamId"
-          isSelected={(team) => selectedTeamId === team.id || multiSelect.isMultiSelected(team.id)}
-          isInView={(team) => !currentView || teamIdsOnCanvas.has(team.id)}
-          getTitle={(team, isInView) => (isInView ? team.name : `${team.name} (not on canvas)`)}
-          renderLabel={(team) => team.name}
-          onSelect={handleSelect}
-          onContextMenu={handleContextMenu}
-          onDragStart={handleDragStart}
-        />
-      </div>
+      <TreeItemList
+        items={filteredTeams}
+        emptyMessage={emptyMessage}
+        icon={<IconUsers size={16} stroke={1.75} />}
+        dragDataKey="internalTeamId"
+        isSelected={(team) => selectedTeamId === team.id || multiSelect.isMultiSelected(team.id)}
+        isInView={(team) => !currentView || teamIdsOnCanvas.has(team.id)}
+        getTitle={(team, isInView) => (isInView ? team.name : `${team.name} (not on canvas)`)}
+        renderLabel={(team) => team.name}
+        onSelect={handleSelect}
+        onContextMenu={handleContextMenu}
+        onDragStart={handleDragStart}
+      />
     </TreeSection>
   );
 };

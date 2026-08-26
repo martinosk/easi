@@ -1,6 +1,6 @@
 import { Tooltip } from '@mantine/core';
 import type { ReactNode } from 'react';
-import './HelpTooltip.css';
+import classes from './HelpTooltip.module.css';
 
 export interface HelpTooltipProps {
   content: ReactNode;
@@ -11,10 +11,10 @@ export interface HelpTooltipProps {
 
 export function HelpTooltip({ content, label, iconOnly = false, position = 'top' }: HelpTooltipProps) {
   return (
-    <span className="help-tooltip-wrapper">
-      {label && !iconOnly && <span className="help-tooltip-label">{label}</span>}
-      <Tooltip label={content} position={position} withArrow multiline w={280} className="help-tooltip">
-        <span className="help-tooltip-icon" role="img" aria-label="Help">
+    <span className={classes.wrapper}>
+      {label && !iconOnly && <span className={classes.label}>{label}</span>}
+      <Tooltip label={content} position={position} withArrow multiline classNames={{ tooltip: classes.tooltip }}>
+        <span className={classes.icon} role="img" aria-label="Help">
           <svg
             width="14"
             height="14"

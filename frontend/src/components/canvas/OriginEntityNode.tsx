@@ -1,6 +1,8 @@
 import { Handle, Position } from '@xyflow/react';
 import React from 'react';
 import type { OriginEntityType } from '../../constants/entityIdentifiers';
+import handles from './nodeHandles.module.css';
+import classes from './OriginEntityNode.module.css';
 
 export type { OriginEntityType };
 
@@ -48,78 +50,34 @@ export const OriginEntityNode: React.FC<{ data: OriginEntityNodeData; id: string
 }) => {
   const isSelected = data.isSelected || !!selected;
 
-  const nodeClassName = [
-    'origin-entity-node',
-    `origin-entity-node-${data.entityType}`,
-    isSelected ? 'origin-entity-node-selected' : '',
-  ]
+  const nodeClassName = [classes.node, classes[data.entityType], isSelected ? classes.selected : '']
     .filter(Boolean)
     .join(' ');
 
   return (
-    <div className={nodeClassName} data-origin-entity-id={id}>
-      <Handle
-        type="source"
-        position={Position.Top}
-        id="top"
-        className="origin-entity-handle origin-entity-handle-top"
-      />
-      <Handle
-        type="target"
-        position={Position.Top}
-        id="top"
-        className="origin-entity-handle origin-entity-handle-top"
-      />
+    <div className={nodeClassName} data-origin-entity-id={id} data-testid="origin-entity-node">
+      <Handle type="source" position={Position.Top} id="top" className={handles.top} />
+      <Handle type="target" position={Position.Top} id="top" className={handles.top} />
 
-      <Handle
-        type="source"
-        position={Position.Left}
-        id="left"
-        className="origin-entity-handle origin-entity-handle-left"
-      />
-      <Handle
-        type="target"
-        position={Position.Left}
-        id="left"
-        className="origin-entity-handle origin-entity-handle-left"
-      />
+      <Handle type="source" position={Position.Left} id="left" className={handles.left} />
+      <Handle type="target" position={Position.Left} id="left" className={handles.left} />
 
-      <div className="origin-entity-node-content">
-        <div className="origin-entity-node-header">
-          <span className="origin-entity-node-icon">{ENTITY_ICONS[data.entityType]}</span>
-          <span className="origin-entity-node-label">{data.label}</span>
+      <div className={classes.content}>
+        <div className={classes.header}>
+          <span className={classes.icon}>{ENTITY_ICONS[data.entityType]}</span>
+          <span className={classes.label}>{data.label}</span>
         </div>
-        <div className="origin-entity-node-type">
+        <div className={classes.type}>
           {ENTITY_LABELS[data.entityType]}
           {data.subtitle && ` - ${data.subtitle}`}
         </div>
       </div>
 
-      <Handle
-        type="source"
-        position={Position.Right}
-        id="right"
-        className="origin-entity-handle origin-entity-handle-right"
-      />
-      <Handle
-        type="target"
-        position={Position.Right}
-        id="right"
-        className="origin-entity-handle origin-entity-handle-right"
-      />
+      <Handle type="source" position={Position.Right} id="right" className={handles.right} />
+      <Handle type="target" position={Position.Right} id="right" className={handles.right} />
 
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        id="bottom"
-        className="origin-entity-handle origin-entity-handle-bottom"
-      />
-      <Handle
-        type="target"
-        position={Position.Bottom}
-        id="bottom"
-        className="origin-entity-handle origin-entity-handle-bottom"
-      />
+      <Handle type="source" position={Position.Bottom} id="bottom" className={handles.bottom} />
+      <Handle type="target" position={Position.Bottom} id="bottom" className={handles.bottom} />
     </div>
   );
 };

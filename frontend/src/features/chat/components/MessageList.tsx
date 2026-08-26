@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import type { ChatMessage as ChatMessageType } from '../api/types';
 import type { ToolCallState } from '../hooks/useChat';
 import { ChatMessage } from './ChatMessage';
+import classes from './MessageList.module.css';
 import { ToolCallIndicator } from './ToolCallIndicator';
 
 const PROMPT_SUGGESTIONS = [
@@ -13,7 +14,7 @@ const PROMPT_SUGGESTIONS = [
 
 function EmptyState({ onSuggestionClick }: { onSuggestionClick: (s: string) => void }) {
   return (
-    <Stack align="center" gap="lg" p="lg" className="chat-empty-state">
+    <Stack align="center" gap="lg" p="lg" flex={1}>
       <Text fw={600}>How can I help with your architecture?</Text>
       <Stack gap="sm" w="100%">
         {PROMPT_SUGGESTIONS.map((suggestion) => (
@@ -52,7 +53,7 @@ export function MessageList({ messages, toolCalls, isStreaming, error, onSuggest
   }, [messages]);
 
   return (
-    <div className="chat-panel-messages">
+    <Stack gap="sm" p="md" className={classes.messages}>
       {messages.length === 0 && <EmptyState onSuggestionClick={onSuggestionClick} />}
 
       {messages.map((msg, index) => (
@@ -74,9 +75,13 @@ export function MessageList({ messages, toolCalls, isStreaming, error, onSuggest
         />
       ))}
 
-      {error && <div className="chat-error">{error}</div>}
+      {error && (
+        <Text size="sm" className={classes.error}>
+          {error}
+        </Text>
+      )}
 
       <div ref={messagesEndRef} />
-    </div>
+    </Stack>
   );
 }

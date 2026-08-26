@@ -1,8 +1,9 @@
-import { ActionIcon, Button, Indicator } from '@mantine/core';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ActionIcon, Button, Group, Indicator, Popover } from '@mantine/core';
+import React from 'react';
 import type { ArtifactCreator } from '../utils/filterByCreator';
 import { CreatedByFilter } from './CreatedByFilter';
 import { DomainFilter } from './DomainFilter';
+import classes from './FilterPopover.module.css';
 
 interface FilterPopoverProps {
   artifactCreators: ArtifactCreator[];
@@ -14,24 +15,6 @@ interface FilterPopoverProps {
   onDomainSelectionChange?: (domainIds: string[]) => void;
   hasActiveFilters: boolean;
   onClearAllFilters?: () => void;
-}
-
-function useClickOutside(ref: React.RefObject<HTMLDivElement | null>, isOpen: boolean, onClose: () => void) {
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (ref.current && !ref.current.contains(event.target as Node)) {
-        onClose();
-      }
-    }
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isOpen, ref, onClose]);
 }
 
 const FILTER_ICON = (
@@ -60,16 +43,10 @@ export const FilterPopover: React.FC<FilterPopoverProps> = ({
   hasActiveFilters,
   onClearAllFilters,
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const popoverRef = useRef<HTMLDivElement>(null);
-
-  const close = useCallback(() => setIsOpen(false), []);
-  useClickOutside(popoverRef, isOpen, close);
-
   const activeCount = selectedCreatorIds.length + selectedDomainIds.length;
 
   return (
-    <div className="filter-popover" ref={popoverRef}>
+    <Popover withinPortal position="bottom-start" offset={4} shadow="md" classNames={{ dropdown: classes.dropdown }}>
       <Indicator
         label={activeCount > 0 ? activeCount : undefined}
         disabled={activeCount === 0}
@@ -77,46 +54,43 @@ export const FilterPopover: React.FC<FilterPopoverProps> = ({
         offset={2}
         color="blue"
       >
-        <ActionIcon
-          variant={hasActiveFilters ? 'light' : 'subtle'}
-          color={hasActiveFilters ? 'blue' : 'gray'}
-          size="sm"
-          onClick={() => setIsOpen(!isOpen)}
-          aria-expanded={isOpen}
-          aria-haspopup="true"
-          aria-label="Toggle filters"
-        >
-          {FILTER_ICON}
-        </ActionIcon>
+        <Popover.Target>
+          <ActionIcon
+            variant={hasActiveFilters ? 'light' : 'subtle'}
+            color={hasActiveFilters ? 'blue' : 'gray'}
+            size="sm"
+            aria-label="Toggle filters"
+          >
+            {FILTER_ICON}
+          </ActionIcon>
+        </Popover.Target>
       </Indicator>
 
-      {isOpen && (
-        <div className="filter-popover-panel">
-          <div className="filter-popover-header">
-            <span className="filter-popover-title">Filters</span>
-            {hasActiveFilters && onClearAllFilters && (
-              <Button variant="subtle" size="compact-xs" onClick={onClearAllFilters}>
-                Clear all
-              </Button>
-            )}
-          </div>
-          {onCreatorSelectionChange && (
-            <CreatedByFilter
-              artifactCreators={artifactCreators}
-              users={users}
-              selectedCreatorIds={selectedCreatorIds}
-              onSelectionChange={onCreatorSelectionChange}
-            />
+      <Popover.Dropdown p={0}>
+        <Group justify="space-between" className={classes.header}>
+          <span className={classes.title}>Filters</span>
+          {hasActiveFilters && onClearAllFilters && (
+            <Button variant="subtle" size="compact-xs" onClick={onClearAllFilters}>
+              Clear all
+            </Button>
           )}
-          {onDomainSelectionChange && (
-            <DomainFilter
-              domains={domains}
-              selectedDomainIds={selectedDomainIds}
-              onSelectionChange={onDomainSelectionChange}
-            />
-          )}
-        </div>
-      )}
-    </div>
+        </Group>
+        {onCreatorSelectionChange && (
+          <CreatedByFilter
+            artifactCreators={artifactCreators}
+            users={users}
+            selectedCreatorIds={selectedCreatorIds}
+            onSelectionChange={onCreatorSelectionChange}
+          />
+        )}
+        {onDomainSelectionChange && (
+          <DomainFilter
+            domains={domains}
+            selectedDomainIds={selectedDomainIds}
+            onSelectionChange={onDomainSelectionChange}
+          />
+        )}
+      </Popover.Dropdown>
+    </Popover>
   );
 };

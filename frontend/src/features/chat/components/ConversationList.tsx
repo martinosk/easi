@@ -1,5 +1,6 @@
-import { ActionIcon, Group, UnstyledButton } from '@mantine/core';
+import { ActionIcon, Group, Stack, Text, UnstyledButton } from '@mantine/core';
 import type { Conversation } from '../api/types';
+import classes from './ConversationList.module.css';
 
 interface ConversationListProps {
   conversations: Conversation[];
@@ -35,8 +36,8 @@ export function ConversationList({
   onNewConversation,
 }: ConversationListProps) {
   return (
-    <div className="conversation-list">
-      <Group justify="flex-end" px="sm" py="xs" className="conversation-list-header">
+    <div className={classes.list}>
+      <Group justify="flex-end" px="sm" py="xs" className={classes.header}>
         <ActionIcon variant="default" onClick={onNewConversation} aria-label="New conversation" size="sm">
           <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
             <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -44,28 +45,36 @@ export function ConversationList({
         </ActionIcon>
       </Group>
       {conversations.length === 0 ? (
-        <div className="conversation-list-empty">No conversations yet</div>
+        <Text size="sm" ta="center" p="md" className={classes.empty}>
+          No conversations yet
+        </Text>
       ) : (
-        <div className="conversation-list-items">
+        <Stack gap={0}>
           {conversations.map((conv) => (
-            <div
+            <Group
               key={conv.id}
-              className={`conversation-item${activeConversationId === conv.id ? ' conversation-item-active' : ''}`}
+              gap="xs"
+              px="md"
+              py="sm"
+              wrap="nowrap"
+              className={classes.item}
+              data-active={activeConversationId === conv.id || undefined}
+              data-testid="conversation-item"
             >
               <UnstyledButton
                 component="button"
                 type="button"
-                className="conversation-item-content"
+                className={classes.itemContent}
                 onClick={() => onSelect(conv.id)}
               >
-                <span className="conversation-item-title">{conv.title}</span>
-                <span className="conversation-item-time">{formatRelativeTime(conv.createdAt)}</span>
+                <span className={classes.itemTitle}>{conv.title}</span>
+                <span className={classes.itemTime}>{formatRelativeTime(conv.createdAt)}</span>
               </UnstyledButton>
               <ActionIcon
                 variant="subtle"
                 color="gray"
                 size="sm"
-                className="conversation-delete-btn"
+                className={classes.deleteButton}
                 onClick={(e) => {
                   e.stopPropagation();
                   onDelete(conv.id);
@@ -76,9 +85,9 @@ export function ConversationList({
                   <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                 </svg>
               </ActionIcon>
-            </div>
+            </Group>
           ))}
-        </div>
+        </Stack>
       )}
     </div>
   );

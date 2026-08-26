@@ -5,7 +5,9 @@ import type { View } from '../../../../api/types';
 import { useActiveUsers } from '../../../users/hooks/useUsers';
 import type { User } from '../../../users/types';
 import type { EditingState } from '../../types';
+import itemClasses from '../shared/TreeItem.module.css';
 import { TreeSection } from '../TreeSection';
+import classes from './ViewsSection.module.css';
 
 const buildUserNameMap = (users: User[]): Map<string, string> => {
   const map = new Map<string, string>();
@@ -63,13 +65,13 @@ const ViewEditInput: React.FC<ViewEditInputProps> = ({
   };
 
   return (
-    <div className="tree-item-edit">
-      <span className="tree-item-icon">
+    <div className={itemClasses.edit}>
+      <span className={itemClasses.icon}>
         <IconEye size={16} stroke={1.75} />
       </span>
       <TextInput
         ref={editInputRef}
-        className="tree-item-input"
+        className={itemClasses.input}
         value={editingState.name}
         onChange={(e) => setEditingState({ ...editingState, name: e.currentTarget.value })}
         onBlur={onRenameSubmit}
@@ -100,21 +102,31 @@ const ViewButton: React.FC<ViewButtonProps> = ({
 }) => (
   <UnstyledButton
     type="button"
-    className={`tree-item ${isActive ? 'selected' : ''}`}
+    className={itemClasses.item}
+    data-testid="tree-item"
+    data-selected={isActive || undefined}
     onClick={onClick}
     onDoubleClick={onDoubleClick}
     onContextMenu={onContextMenu}
     title={view.isPrivate ? `Private view by ${ownerDisplayName}` : view.name}
   >
-    <span className="tree-item-icon">
-      {view.isPrivate ? <IconLock size={16} stroke={1.75} /> : <IconEye size={16} stroke={1.75} />}
-    </span>
-    <span className="tree-item-label">
-      {view.name}
-      {view.isPrivate && <span className="owner-badge"> ({ownerDisplayName})</span>}
-      {view.isDefault && <span className="default-badge"> ⭐</span>}
-    </span>
+    <ViewIcon isPrivate={view.isPrivate} />
+    <ViewLabel view={view} ownerDisplayName={ownerDisplayName} />
   </UnstyledButton>
+);
+
+const ViewIcon: React.FC<{ isPrivate: boolean }> = ({ isPrivate }) => (
+  <span className={itemClasses.icon}>
+    {isPrivate ? <IconLock size={16} stroke={1.75} /> : <IconEye size={16} stroke={1.75} />}
+  </span>
+);
+
+const ViewLabel: React.FC<{ view: View; ownerDisplayName: string }> = ({ view, ownerDisplayName }) => (
+  <span className={itemClasses.label}>
+    {view.name}
+    {view.isPrivate && <span> ({ownerDisplayName})</span>}
+    {view.isDefault && <span className={classes.defaultBadge}> ⭐</span>}
+  </span>
 );
 
 interface ViewItemProps {
@@ -148,26 +160,22 @@ const ViewItem: React.FC<ViewItemProps> = ({
     }
   };
 
-  return (
-    <div className={`tree-item-container ${isActive ? 'selected' : ''}`}>
-      {isEditing && editingState ? (
-        <ViewEditInput
-          editingState={editingState}
-          setEditingState={setEditingState}
-          onRenameSubmit={onRenameSubmit}
-          editInputRef={editInputRef}
-        />
-      ) : (
-        <ViewButton
-          view={view}
-          isActive={isActive}
-          ownerDisplayName={ownerDisplayName}
-          onClick={onViewClick}
-          onDoubleClick={handleDoubleClick}
-          onContextMenu={onViewContextMenu}
-        />
-      )}
-    </div>
+  return isEditing && editingState ? (
+    <ViewEditInput
+      editingState={editingState}
+      setEditingState={setEditingState}
+      onRenameSubmit={onRenameSubmit}
+      editInputRef={editInputRef}
+    />
+  ) : (
+    <ViewButton
+      view={view}
+      isActive={isActive}
+      ownerDisplayName={ownerDisplayName}
+      onClick={onViewClick}
+      onDoubleClick={handleDoubleClick}
+      onContextMenu={onViewContextMenu}
+    />
   );
 };
 
@@ -195,7 +203,7 @@ const ViewList: React.FC<ViewListProps> = ({
   onViewContextMenu,
 }) => {
   if (views.length === 0) {
-    return <div className="tree-item-empty">No views</div>;
+    return <div className={itemClasses.empty}>No views</div>;
   }
 
   return (
@@ -245,7 +253,7 @@ export const ViewsSection: React.FC<ViewsSectionProps> = ({
       onAdd={canCreateView ? onCreateView : undefined}
       addTitle="Create new view"
     >
-      <div className="tree-items">
+      <div className={itemClasses.list}>
         <ViewList
           views={views}
           currentViewId={currentView?.id}

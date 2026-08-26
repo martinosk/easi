@@ -185,7 +185,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
         [{ componentId: 'comp-1', customColor: '#FF5733' }, { componentId: 'comp-2' }],
         [],
         'Payment Service',
-        [{ name: 'Payment Service', selector: '.tree-item', color: '#FF5733' }],
+        [{ name: 'Payment Service', selector: '[data-testid="tree-item"]', color: '#FF5733' }],
       );
     });
 
@@ -200,12 +200,12 @@ describe('NavigationTree - Custom Color Indicators', () => {
         createViewWithColorScheme(scheme, [{ componentId: 'comp-1', customColor: color }], []),
         'Payment Service',
       );
-      expectNoIndicator(findTreeItem('Payment Service', '.tree-item'));
+      expectNoIndicator(findTreeItem('Payment Service', '[data-testid="tree-item"]'));
     });
 
     it('should NOT show color indicator when colorScheme is "custom" but customColor is null', async () => {
       await renderAndWait(createViewWithColorScheme('custom', [{ componentId: 'comp-1' }], []), 'Payment Service');
-      expectNoIndicator(findTreeItem('Payment Service', '.tree-item'));
+      expectNoIndicator(findTreeItem('Payment Service', '[data-testid="tree-item"]'));
     });
 
     it('should show correct color for each component with custom colors', async () => {
@@ -217,8 +217,8 @@ describe('NavigationTree - Custom Color Indicators', () => {
         [],
         'Payment Service',
         [
-          { name: 'Payment Service', selector: '.tree-item', color: '#FF5733' },
-          { name: 'Order Service', selector: '.tree-item', color: '#33AAFF' },
+          { name: 'Payment Service', selector: '[data-testid="tree-item"]', color: '#FF5733' },
+          { name: 'Order Service', selector: '[data-testid="tree-item"]', color: '#33AAFF' },
         ],
       );
     });
@@ -286,13 +286,13 @@ describe('NavigationTree - Custom Color Indicators', () => {
       const { rerender } = renderWithRerender(initialView);
       await waitForText('Payment Service');
 
-      expectNoIndicator(findTreeItem('Payment Service', '.tree-item'));
+      expectNoIndicator(findTreeItem('Payment Service', '[data-testid="tree-item"]'));
 
       const customView = createViewWithColorScheme('custom', [{ componentId: 'comp-1', customColor: '#FF5733' }], []);
       switchView(customView);
       rerender(<NavigationTree />);
 
-      expectIndicatorWithColor(findTreeItem('Payment Service', '.tree-item'), '#FF5733');
+      expectIndicatorWithColor(findTreeItem('Payment Service', '[data-testid="tree-item"]'), '#FF5733');
     });
 
     it('should hide indicators when switching from custom to classic scheme', async () => {
@@ -313,7 +313,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
   describe('Edge Cases', () => {
     it('should handle null currentView gracefully', async () => {
       await renderAndWait(null, 'Payment Service');
-      expectNoIndicator(findTreeItem('Payment Service', '.tree-item'));
+      expectNoIndicator(findTreeItem('Payment Service', '[data-testid="tree-item"]'));
     });
 
     it('should handle undefined colorScheme gracefully', async () => {
@@ -324,7 +324,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
       );
       currentView.colorScheme = undefined;
       await renderAndWait(currentView, 'Payment Service');
-      expectNoIndicator(findTreeItem('Payment Service', '.tree-item'));
+      expectNoIndicator(findTreeItem('Payment Service', '[data-testid="tree-item"]'));
     });
 
     it('should handle mixed scenario with some elements having colors and others not', async () => {
@@ -336,8 +336,8 @@ describe('NavigationTree - Custom Color Indicators', () => {
         ),
         'Payment Service',
       );
-      expectIndicatorWithColor(findTreeItem('Payment Service', '.tree-item'), '#FF5733');
-      expectNoIndicator(findTreeItem('Order Service', '.tree-item'));
+      expectIndicatorWithColor(findTreeItem('Payment Service', '[data-testid="tree-item"]'), '#FF5733');
+      expectNoIndicator(findTreeItem('Order Service', '[data-testid="tree-item"]'));
       expectIndicatorWithColor(findTreeItem('Customer Management', '[data-testid^="capability-tree-item-"]'), '#AA00FF');
       expectNoIndicator(findTreeItem('Shipping', '[data-testid^="capability-tree-item-"]'));
     });

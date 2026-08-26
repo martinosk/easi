@@ -1,4 +1,5 @@
 import { ActionIcon, Group, Title } from '@mantine/core';
+import classes from './ChatPanelHeader.module.css';
 
 interface ChatPanelHeaderProps {
   onToggleHistory: () => void;
@@ -7,7 +8,7 @@ interface ChatPanelHeaderProps {
 
 export function ChatPanelHeader({ onToggleHistory, onClose }: ChatPanelHeaderProps) {
   return (
-    <Group justify="space-between" px="md" py="sm" className="chat-panel-header">
+    <Group justify="space-between" px="md" py="sm" className={classes.header}>
       <Title order={4}>Architecture Assistant</Title>
       <Group gap="xs">
         <ActionIcon variant="subtle" color="gray" onClick={onToggleHistory} aria-label="Conversation history">

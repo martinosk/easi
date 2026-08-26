@@ -1,0 +1,19 @@
+.footer {
+  border-top: 1px solid var(--color-gray-200);
+}
+
+.errorNotice {
+  padding: var(--spacing-md);
+  background-color: var(--status-danger-bg);
+  border: 1px solid var(--status-danger-line);
+  border-radius: var(--radius-md);
+  color: var(--status-danger);
+}
+
+.conflictNotice {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: var(--status-progress-bg);
+  border: 1px solid var(--status-progress-line);
+  border-radius: var(--radius-sm);
+  color: var(--status-progress);
+}

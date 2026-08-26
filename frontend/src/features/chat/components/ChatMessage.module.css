@@ -1,0 +1,117 @@
+.message {
+  display: flex;
+}
+
+.message[data-sender='user'] {
+  justify-content: flex-end;
+}
+
+.message[data-sender='assistant'] {
+  justify-content: flex-start;
+}
+
+.bubble {
+  max-width: 85%;
+  padding: var(--spacing-sm) var(--spacing-md);
+}
+
+.message[data-sender='user'] .bubble {
+  background: var(--skin-accent-0);
+  color: var(--skin-accent-8);
+  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-sm) var(--radius-lg);
+}
+
+.message[data-sender='assistant'] .bubble {
+  background: var(--well);
+  color: var(--ink);
+  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) var(--radius-sm);
+}
+
+.bubble p {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+}
+
+.bubble h1,
+.bubble h2,
+.bubble h3 {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  margin: var(--spacing-sm) 0 var(--spacing-xs);
+}
+
+.bubble h1:first-child,
+.bubble h2:first-child,
+.bubble h3:first-child {
+  margin-top: 0;
+}
+
+.bubble ul,
+.bubble ol {
+  margin: var(--spacing-xs) 0;
+  padding-left: var(--spacing-lg);
+  font-size: var(--font-size-sm);
+}
+
+.bubble code {
+  background: var(--color-gray-200);
+  padding: 1px 4px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8em;
+}
+
+.bubble pre {
+  background: var(--color-gray-900);
+  color: var(--color-gray-100);
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  font-size: var(--font-size-xs);
+  margin: var(--spacing-xs) 0;
+}
+
+.bubble pre code {
+  background: none;
+  padding: 0;
+}
+
+.bubble table {
+  border-collapse: collapse;
+  font-size: var(--font-size-xs);
+  width: 100%;
+  margin: var(--spacing-xs) 0;
+}
+
+.bubble th,
+.bubble td {
+  border: 1px solid var(--line-strong);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  text-align: left;
+}
+
+.bubble th {
+  background: var(--color-gray-200);
+  font-weight: 600;
+}
+
+.cursor {
+  display: inline-block;
+  width: 8px;
+  height: 16px;
+  background: var(--color-primary);
+  margin-left: 2px;
+  animation: blink 1s infinite;
+  vertical-align: text-bottom;
+}
+
+@keyframes blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
+}

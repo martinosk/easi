@@ -302,13 +302,13 @@ describe('Capability UI Consistency', () => {
         seedDb({ components: componentsWithB, capabilities: mockCapabilities });
       }
 
-      it('should apply not-in-view class to components not in current view', async () => {
+      it('should mark components not in current view as out of view', async () => {
         setupComponentOutOfViewStore();
         renderNavigationTree();
 
         await waitFor(() => {
           const compBButton = screen.getByText('Component B').closest('button');
-          expect(compBButton).toHaveClass('not-in-view');
+          expect(compBButton).toHaveAttribute('data-in-view', 'false');
         });
       });
 
@@ -405,7 +405,7 @@ describe('Capability UI Consistency', () => {
         const capabilityMenuItems = screen.getAllByRole('menuitem');
         const capabilityMenuLabels = capabilityMenuItems.map((item) => item.textContent);
 
-        fireEvent.keyDown(document, { key: 'Escape' });
+        fireEvent.keyDown(screen.getByTestId('context-menu'), { key: 'Escape' });
 
         rerender(<NavigationTree onEditCapability={vi.fn()} onEditComponent={vi.fn()} />);
 

@@ -1,0 +1,36 @@
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: var(--status-positive-bg);
+  border: 1px solid var(--status-positive-line);
+  border-radius: 9999px;
+  font-size: var(--font-size-xs);
+  color: var(--status-positive);
+  max-width: 100%;
+}
+
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.remove {
+  width: 1rem;
+  height: 1rem;
+  border: none;
+  background: none;
+  color: var(--status-positive);
+  padding: 0;
+  font-size: 14px;
+  line-height: 1;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+
+.remove:hover {
+  background: var(--status-positive-line);
+  color: var(--status-positive);
+}

@@ -1,0 +1,56 @@
+.scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.item {
+  flex-shrink: 0;
+}
+
+.connectorGroup {
+  align-self: center;
+  margin-top: var(--spacing-xl);
+  flex-shrink: 0;
+}
+
+.connector {
+  width: 32px;
+  height: 2px;
+  background: var(--line-strong);
+  align-self: center;
+  margin-top: var(--spacing-xl);
+  flex-shrink: 0;
+}
+
+.connectorGroup > .connector {
+  margin-top: 0;
+}
+
+.insertButton {
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  border: 1.5px dashed var(--line-strong);
+  background: var(--surface);
+  color: var(--faint);
+  margin-top: 4px;
+  opacity: 0;
+  transition:
+    opacity 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.connectorGroup:hover .insertButton {
+  opacity: 1;
+}
+
+.insertButton:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--skin-accent-0);
+}
+
+.emptyHint {
+  max-width: 400px;
+}

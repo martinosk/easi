@@ -145,7 +145,7 @@ function ValueStreamCard({ stream, canWrite, canDelete, onNavigate, onEdit, onDe
       className={classes.card}
     >
       <Group justify="space-between" align="flex-start" wrap="nowrap">
-        <Box style={{ minWidth: 0, flex: 1 }}>
+        <Box flex={1} miw={0}>
           <Text size="lg" fw={600}>
             {stream.name}
           </Text>

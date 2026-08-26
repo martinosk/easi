@@ -193,20 +193,20 @@ describe('AcquiredEntitiesSection', () => {
       expect(onEntitySelect).toHaveBeenCalledWith('ae-123');
     });
 
-    it('should apply selected class when entity is selected', () => {
+    it('should mark the entity as selected when it is selected', () => {
       const entity = createMockEntity({ id: 'ae-123' as AcquiredEntityId });
       render(<AcquiredEntitiesSection {...defaultProps} acquiredEntities={[entity]} selectedEntityId="ae-123" />);
 
       const entityButton = screen.getByTitle('TechCorp');
-      expect(entityButton).toHaveClass('selected');
+      expect(entityButton).toHaveAttribute('data-selected', 'true');
     });
 
-    it('should not apply selected class when entity is not selected', () => {
+    it('should not mark the entity as selected when another entity is selected', () => {
       const entity = createMockEntity({ id: 'ae-123' as AcquiredEntityId });
       render(<AcquiredEntitiesSection {...defaultProps} acquiredEntities={[entity]} selectedEntityId="ae-456" />);
 
       const entityButton = screen.getByTitle('TechCorp');
-      expect(entityButton).not.toHaveClass('selected');
+      expect(entityButton).not.toHaveAttribute('data-selected');
     });
   });
 
@@ -324,7 +324,7 @@ describe('AcquiredEntitiesSection', () => {
       render(<AcquiredEntitiesSection {...defaultProps} acquiredEntities={[entity]} currentView={currentView} />);
 
       const entityButton = screen.getByTitle('TechCorp');
-      expect(entityButton).not.toHaveClass('not-in-view');
+      expect(entityButton).toHaveAttribute('data-in-view', 'true');
     });
 
     it('should show entity as not-on-canvas when it is not in the view', () => {
@@ -334,7 +334,7 @@ describe('AcquiredEntitiesSection', () => {
       render(<AcquiredEntitiesSection {...defaultProps} acquiredEntities={[entity]} currentView={currentView} />);
 
       const entityButton = screen.getByTitle('TechCorp (not on canvas)');
-      expect(entityButton).toHaveClass('not-in-view');
+      expect(entityButton).toHaveAttribute('data-in-view', 'false');
     });
 
     it('should show all entities as on-canvas when no current view is selected', () => {
@@ -343,7 +343,7 @@ describe('AcquiredEntitiesSection', () => {
       render(<AcquiredEntitiesSection {...defaultProps} acquiredEntities={[entity]} currentView={null} />);
 
       const entityButton = screen.getByTitle('TechCorp');
-      expect(entityButton).not.toHaveClass('not-in-view');
+      expect(entityButton).toHaveAttribute('data-in-view', 'true');
     });
   });
 });

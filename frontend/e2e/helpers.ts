@@ -47,7 +47,7 @@ export async function createComponent(page: Page, name: string, description?: st
 }
 
 export function treeItem(page: Page, name: string): Locator {
-  return page.locator('.tree-item', { hasText: name }).first();
+  return page.getByTestId('tree-item').filter({ hasText: name }).first();
 }
 
 export async function dragTreeItemToCanvas(

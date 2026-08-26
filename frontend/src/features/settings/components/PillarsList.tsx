@@ -1,8 +1,9 @@
-import { ActionIcon, Checkbox, Group, NativeSelect, TextInput } from '@mantine/core';
+import { ActionIcon, Box, Checkbox, Group, NativeSelect, Stack, Text, TextInput } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 import type { FitType, StrategyPillar } from '../../../api/types';
 import { HelpTooltip } from '../../../components/shared/HelpTooltip';
 import type { EditablePillar, ValidationErrors } from './pillarChanges';
+import classes from './PillarsList.module.css';
 
 export interface PillarHandlers {
   onNameChange: (index: number, name: string) => void;
@@ -43,15 +44,13 @@ function describeRows(pillars: EditablePillar[] | StrategyPillar[], isEditing: b
 export function PillarsList({ pillars, isEditing, validationErrors, activeCount, handlers }: PillarsListProps) {
   if (pillars.length === 0 && !isEditing) {
     return (
-      <div className="pillars-list">
-        <div className="pillars-empty-state" data-testid="empty-pillars-state">
-          No strategy pillars configured yet. Click Edit to add pillars.
-        </div>
-      </div>
+      <Text p="xl" ta="center" c="gray.5" className={classes.emptyState} data-testid="empty-pillars-state">
+        No strategy pillars configured yet. Click Edit to add pillars.
+      </Text>
     );
   }
   return (
-    <div className="pillars-list">
+    <Stack gap="sm">
       {describeRows(pillars, isEditing).map((row) => (
         <PillarRow
           key={row.pillar.id}
@@ -61,7 +60,7 @@ export function PillarsList({ pillars, isEditing, validationErrors, activeCount,
           handlers={handlers}
         />
       ))}
-    </div>
+    </Stack>
   );
 }
 
@@ -87,12 +86,19 @@ function PillarRow({
   handlers,
 }: PillarRowProps) {
   return (
-    <div
-      className={`pillar-row ${markedForDeletion ? 'pillar-marked-for-deletion' : ''}`}
+    <Group
+      align="flex-start"
+      gap="md"
+      p="md"
+      wrap="nowrap"
+      className={classes.row}
+      mod={{ 'marked-for-deletion': markedForDeletion }}
       data-testid={`pillar-row-${index}`}
     >
-      <span className="pillar-order">{orderLabel}</span>
-      <div className="pillar-content">
+      <Text size="lg" fw={600} c="gray.5" miw="xl" pt="xs">
+        {orderLabel}
+      </Text>
+      <Stack flex={1} gap="xs">
         {editable ? (
           <PillarEditRow
             pillar={editable}
@@ -104,8 +110,8 @@ function PillarRow({
         ) : (
           <PillarViewRow pillar={pillar} />
         )}
-      </div>
-    </div>
+      </Stack>
+    </Group>
   );
 }
 
@@ -122,7 +128,6 @@ function PillarEditRow({ pillar, index, validationError, canDelete, handlers }: 
   return (
     <>
       <TextInput
-        className="pillar-name-input"
         value={pillar.name}
         onChange={(e) => handlers.onNameChange(index, e.currentTarget.value)}
         placeholder="Pillar name"
@@ -133,7 +138,6 @@ function PillarEditRow({ pillar, index, validationError, canDelete, handlers }: 
         fw={600}
       />
       <TextInput
-        className="pillar-description-input"
         value={pillar.description}
         onChange={(e) => handlers.onDescriptionChange(index, e.currentTarget.value)}
         placeholder="Description (optional)"
@@ -168,8 +172,8 @@ const FIT_TYPE_OPTIONS = [
 
 function FitConfigEditor({ pillar, index, disabled, handlers }: FitConfigEditorProps) {
   return (
-    <div className="pillar-fit-config">
-      <Group gap="xs" className="fit-scoring-toggle">
+    <Box mt="sm" pt="sm" className={classes.divider}>
+      <Group gap="xs">
         <Checkbox
           checked={pillar.fitScoringEnabled}
           onChange={(e) => handlers.onFitScoringEnabledChange(index, e.currentTarget.checked)}
@@ -184,7 +188,7 @@ function FitConfigEditor({ pillar, index, disabled, handlers }: FitConfigEditorP
       </Group>
       {pillar.fitScoringEnabled && (
         <>
-          <Group gap="xs" className="fit-type-selector">
+          <Group gap="xs" mt="sm">
             <NativeSelect
               label="Fit Type"
               data={FIT_TYPE_OPTIONS}
@@ -200,7 +204,6 @@ function FitConfigEditor({ pillar, index, disabled, handlers }: FitConfigEditorP
             />
           </Group>
           <TextInput
-            className="pillar-fit-criteria-input"
             value={pillar.fitCriteria}
             onChange={(e) => handlers.onFitCriteriaChange(index, e.currentTarget.value)}
             placeholder="Fit criteria (e.g., Reliability, uptime SLA, disaster recovery)"
@@ -211,7 +214,7 @@ function FitConfigEditor({ pillar, index, disabled, handlers }: FitConfigEditorP
           />
         </>
       )}
-    </div>
+    </Box>
   );
 }
 
@@ -225,7 +228,7 @@ interface PillarRowActionsProps {
 
 function PillarRowActions({ pillar, index, canDelete, onDelete, onRestore }: PillarRowActionsProps) {
   return (
-    <div className="pillar-actions">
+    <Group align="flex-start" pt="xs">
       {pillar.markedForDeletion ? (
         <ActionIcon
           variant="subtle"
@@ -248,7 +251,7 @@ function PillarRowActions({ pillar, index, canDelete, onDelete, onRestore }: Pil
           <IconTrash size={16} stroke={1.75} />
         </ActionIcon>
       )}
-    </div>
+    </Group>
   );
 }
 
@@ -257,16 +260,24 @@ type PillarView = Pick<StrategyPillar, 'name' | 'description' | 'fitScoringEnabl
 function PillarViewRow({ pillar }: { pillar: PillarView }) {
   return (
     <>
-      <span className="pillar-name">{pillar.name}</span>
-      {pillar.description && <span className="pillar-description-view">{pillar.description}</span>}
+      <Text size="lg" fw={600} c="gray.9">
+        {pillar.name}
+      </Text>
+      {pillar.description && <Text c="dimmed">{pillar.description}</Text>}
       {pillar.fitScoringEnabled && (
-        <div className="pillar-fit-info">
-          <span className="fit-scoring-badge">Fit Scoring Enabled</span>
+        <Stack gap="xs" mt="sm" pt="sm" className={classes.divider}>
+          <span className={`${classes.fitBadge} ${classes.fitBadgeScoring}`}>Fit Scoring Enabled</span>
           {pillar.fitType && (
-            <span className="fit-type-badge">{pillar.fitType === 'TECHNICAL' ? 'Technical' : 'Functional'}</span>
+            <span className={`${classes.fitBadge} ${classes.fitBadgeType}`}>
+              {pillar.fitType === 'TECHNICAL' ? 'Technical' : 'Functional'}
+            </span>
           )}
-          {pillar.fitCriteria && <span className="fit-criteria-view">{pillar.fitCriteria}</span>}
-        </div>
+          {pillar.fitCriteria && (
+            <Text size="sm" c="gray.5" fs="italic">
+              {pillar.fitCriteria}
+            </Text>
+          )}
+        </Stack>
       )}
     </>
   );

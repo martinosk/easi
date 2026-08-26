@@ -106,21 +106,19 @@ export const VendorsSection: React.FC<VendorsSectionProps> = ({
       addTestId="create-vendor-button"
     >
       <TreeSearchInput value={search} onChange={setSearch} placeholder="Search vendors..." />
-      <div className="tree-items">
-        <TreeItemList
-          items={filteredVendors}
-          emptyMessage={emptyMessage}
-          icon={<IconBuildingStore size={16} stroke={1.75} />}
-          dragDataKey="vendorId"
-          isSelected={(vendor) => selectedVendorId === vendor.id || multiSelect.isMultiSelected(vendor.id)}
-          isInView={(vendor) => !currentView || vendorIdsOnCanvas.has(vendor.id)}
-          getTitle={(vendor, isInView) => (isInView ? vendor.name : `${vendor.name} (not on canvas)`)}
-          renderLabel={(vendor) => vendor.name}
-          onSelect={handleSelect}
-          onContextMenu={handleContextMenu}
-          onDragStart={handleDragStart}
-        />
-      </div>
+      <TreeItemList
+        items={filteredVendors}
+        emptyMessage={emptyMessage}
+        icon={<IconBuildingStore size={16} stroke={1.75} />}
+        dragDataKey="vendorId"
+        isSelected={(vendor) => selectedVendorId === vendor.id || multiSelect.isMultiSelected(vendor.id)}
+        isInView={(vendor) => !currentView || vendorIdsOnCanvas.has(vendor.id)}
+        getTitle={(vendor, isInView) => (isInView ? vendor.name : `${vendor.name} (not on canvas)`)}
+        renderLabel={(vendor) => vendor.name}
+        onSelect={handleSelect}
+        onContextMenu={handleContextMenu}
+        onDragStart={handleDragStart}
+      />
     </TreeSection>
   );
 };

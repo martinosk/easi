@@ -1,0 +1,4 @@
+.defaultBadge {
+  margin-left: var(--spacing-xs);
+  font-size: 0.85em;
+}

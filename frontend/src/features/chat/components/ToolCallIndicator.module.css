@@ -1,0 +1,81 @@
+.indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  color: var(--muted);
+  cursor: pointer;
+  flex-wrap: wrap;
+  transition: background 0.15s ease;
+}
+
+.indicator:hover {
+  background: var(--color-gray-100);
+}
+
+.indicator[data-status='error'] {
+  color: var(--color-error);
+}
+
+.categoryIcon,
+.statusIcon {
+  flex-shrink: 0;
+  font-size: 0.85em;
+}
+
+.label {
+  font-weight: 500;
+}
+
+.indicator[data-status='running'] .label {
+  color: var(--color-gray-700);
+}
+
+.indicator[data-status='completed'] .statusIcon {
+  color: var(--color-success);
+}
+
+.activity {
+  color: var(--faint);
+  font-style: italic;
+}
+
+.pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  animation: pulse 1.2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+.errorMessage {
+  color: var(--color-error);
+  font-size: var(--font-size-xs);
+}
+
+.preview {
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px 8px;
+  background: var(--well);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  color: var(--muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+}

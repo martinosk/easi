@@ -23,6 +23,7 @@ import { toViewId } from '../../api/types';
 import { DEFAULT_CUSTOM_COLOR } from '../../constants/maturityColors';
 import { useCurrentView } from '../../features/views/hooks/useCurrentView';
 import { CapabilityNode, type CapabilityNodeData } from './CapabilityNode';
+import classes from './CapabilityNode.module.css';
 import { getContrastTextColor } from './contrastText';
 
 const createMockView = (colorScheme: string | undefined): View => ({
@@ -61,7 +62,7 @@ const renderNode = (data: CapabilityNodeData, id = 'cap-1') => {
       <CapabilityNode data={data} id={id} />
     </ReactFlowProvider>,
   );
-  const node = result.container.querySelector('.capability-node') as HTMLElement;
+  const node = result.getByTestId('capability-node');
   return { ...result, node };
 };
 
@@ -74,7 +75,6 @@ describe('CapabilityNode color rendering', () => {
     it('fills the card with the heat-mapped colour from useMaturityColorScale', () => {
       mockCurrentView(createMockView('maturity'));
       const { node } = renderNode(createCapabilityNodeData({ maturityValue: 87 }));
-      expect(node).toHaveClass('capability-node--maturity');
       expect(node.style.backgroundColor).toBeTruthy();
       expect(node.style.color).toBe(getContrastTextColor('#CFE8DA'));
       expect(getColorForValue).toHaveBeenCalledWith(87);
@@ -100,7 +100,6 @@ describe('CapabilityNode color rendering', () => {
 
     it('fills the card with the custom colour and computes contrast-appropriate text', () => {
       const { node } = renderNode(createCapabilityNodeData({ customColor: '#22AA88' }));
-      expect(node).toHaveClass('capability-node--custom');
       expect(node.style.backgroundColor.toUpperCase()).toBe('#22AA88');
       expect(node.style.color).toBe(getContrastTextColor('#22AA88'));
     });
@@ -117,11 +116,10 @@ describe('CapabilityNode color rendering', () => {
   });
 
   describe('classic scheme', () => {
-    it('applies no inline fill and carries the classic classes', () => {
+    it('applies no inline fill and carries the classic class', () => {
       mockCurrentView(createMockView('classic'));
       const { node } = renderNode(createCapabilityNodeData({ customColor: '#FF5733' }));
-      expect(node).toHaveClass('capability-node--classic');
-      expect(node).toHaveClass('classic-text');
+      expect(node).toHaveClass(classes.classic);
       expect(node.style.backgroundColor).toBe('');
       expect(node.style.color).toBe('');
     });
@@ -129,34 +127,34 @@ describe('CapabilityNode color rendering', () => {
 
   it('renders the level tag and section name', () => {
     mockCurrentView(createMockView('maturity'));
-    const { container } = renderNode(createCapabilityNodeData({ maturityValue: 12 }));
-    expect(container.querySelector('.capability-node-level')?.textContent).toBe('L1:');
-    expect(container.querySelector('.capability-node-maturity')?.textContent).toBe('Genesis');
+    const { getByTestId } = renderNode(createCapabilityNodeData({ maturityValue: 12 }));
+    expect(getByTestId('capability-node-level').textContent).toBe('L1:');
+    expect(getByTestId('capability-node-maturity').textContent).toBe('Genesis');
   });
 
   describe('selection', () => {
     it('adds the selected class regardless of colour scheme', () => {
       mockCurrentView(createMockView('custom'));
       const { node } = renderNode(createCapabilityNodeData({ isSelected: true }));
-      expect(node).toHaveClass('capability-node-selected');
+      expect(node).toHaveClass(classes.selected);
     });
 
     it('omits the selected class when not selected', () => {
       mockCurrentView(createMockView('maturity'));
       const { node } = renderNode(createCapabilityNodeData());
-      expect(node).not.toHaveClass('capability-node-selected');
+      expect(node).not.toHaveClass(classes.selected);
     });
   });
 
   describe('reactivity', () => {
     it('switches from custom fill to heat-mapped fill when scheme changes from custom to maturity', () => {
       mockCurrentView(createMockView('custom'));
-      const { container, rerender } = render(
+      const { getByTestId, rerender } = render(
         <ReactFlowProvider>
           <CapabilityNode data={createCapabilityNodeData({ customColor: '#FF5733' })} id="cap-1" />
         </ReactFlowProvider>,
       );
-      const customFill = (container.querySelector('.capability-node') as HTMLElement).style.backgroundColor;
+      const customFill = getByTestId('capability-node').style.backgroundColor;
 
       mockCurrentView(createMockView('maturity'));
       rerender(
@@ -164,7 +162,7 @@ describe('CapabilityNode color rendering', () => {
           <CapabilityNode data={createCapabilityNodeData({ customColor: '#FF5733', maturityValue: 87 })} id="cap-1" />
         </ReactFlowProvider>,
       );
-      const maturityFill = (container.querySelector('.capability-node') as HTMLElement).style.backgroundColor;
+      const maturityFill = getByTestId('capability-node').style.backgroundColor;
 
       expect(maturityFill).not.toBe(customFill);
     });

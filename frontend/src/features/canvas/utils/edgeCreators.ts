@@ -174,7 +174,6 @@ function buildRealizationEdge(realization: CapabilityRealization, ctx: EdgeCreat
     label: isInherited ? 'Realizes (inherited)' : 'Realizes',
     type: ctx.edgeType,
     animated: isSelected,
-    className: isInherited ? 'realization-edge inherited' : 'realization-edge',
     ...buildEdgeVisuals({
       color: realizationColor,
       isSelected,

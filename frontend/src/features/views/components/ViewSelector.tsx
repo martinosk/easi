@@ -8,6 +8,7 @@ import { selectDirtyForView } from '../../../store/slices/dynamicModeSlice';
 import { useActiveUsers } from '../../users/hooks/useUsers';
 import { useCurrentView } from '../hooks/useCurrentView';
 import { useViews } from '../hooks/useViews';
+import classes from './ViewSelector.module.css';
 
 interface OwnerLookup {
   getOwnerDisplayName: (view: View) => string;
@@ -70,28 +71,30 @@ function ViewTab({ view, isActive, isOnlyTab, ownerLookup, onSelect, onRequestCl
     onRequestClose(view);
   };
 
+  const tabClassName = [classes.tab, isActive ? classes.active : ''].filter(Boolean).join(' ');
+
   return (
-    <div className={`view-tab ${isActive ? 'active' : ''}`}>
+    <div className={tabClassName}>
       <UnstyledButton
         component="button"
         type="button"
-        className="view-tab-body"
+        className={classes.body}
         onClick={() => onSelect(view.id)}
         title={title}
         aria-label={`Switch to ${view.name}`}
       >
         {view.isPrivate && (
-          <span className="private-indicator">
+          <span>
             <IconLock size={16} stroke={1.75} />
           </span>
         )}
-        <span className="view-tab-name">
+        <span className={classes.name}>
           {view.name}
           {view.isPrivate && ` (${ownerName})`}
         </span>
-        {view.isDefault && <span className="default-indicator">⭐</span>}
+        {view.isDefault && <span className={classes.defaultIndicator}>⭐</span>}
         {isDirty && (
-          <span className="view-tab-dirty" role="img" aria-label="Unsaved changes">
+          <span className={classes.dirty} role="img" aria-label="Unsaved changes">
             ●
           </span>
         )}
@@ -100,7 +103,7 @@ function ViewTab({ view, isActive, isOnlyTab, ownerLookup, onSelect, onRequestCl
         variant="subtle"
         color="gray"
         size="sm"
-        className="view-tab-close"
+        className={classes.close}
         onClick={handleClose}
         disabled={isOnlyTab}
         aria-label={`Close ${view.name}`}
@@ -175,8 +178,8 @@ export const ViewSelector: React.FC = () => {
   if (!views || openViews.length === 0) return null;
 
   return (
-    <div className="view-selector">
-      <div className="view-tabs">
+    <div className={classes.selector}>
+      <div className={classes.tabs}>
         {openViews.map((view) => (
           <ViewTab
             key={view.id}

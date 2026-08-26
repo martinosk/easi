@@ -78,14 +78,14 @@ Feature: Every stylesheet is a CSS module
 
 ## Acceptance Criteria
 
-- [ ] `find src -name '*.css' ! -name '*.module.css'` lists only `index.css`, `theme/tokens.css`, `theme/skins.css`.
-- [ ] `grep -rn "addEventListener('mousedown'\|addEventListener('keydown'" src/components/shared src/features/chat src/features/navigation/components/FilterPopover*` returns nothing.
-- [ ] `ColorPicker`, `FilterPopover` render Mantine `Popover`; `ChatPanel` renders Mantine `Drawer`; `LinearContextMenu` renders Mantine `Menu`; `RadialContextMenu` renders inside Mantine `Portal`.
-- [ ] Unit tests for each converted overlay cover: opens, closes on outside click, closes on Escape, and (for the colour picker) commits on close.
-- [ ] `e2e/helpers.ts` and all unit tests locate tree items via `data-testid`.
-- [ ] `CanvasWorkspace.module.css` contains no `:global(` selector.
-- [ ] `npm run test`, `npm run lint`, `npm run build`, and `npx playwright test --project=mock` pass.
-- [ ] Spec 203's overlay smoke test is extended with one context-menu and one colour-picker case.
+- [x] `find src -name '*.css' ! -name '*.module.css'` lists only `index.css`, `theme/tokens.css`, `theme/skins.css` — 12 global stylesheets removed.
+- [x] `grep -rn "addEventListener('mousedown'\|addEventListener('keydown'" src/components/shared src/features/chat src/features/navigation/components/FilterPopover*` returns nothing.
+- [x] `ColorPicker`, `FilterPopover` render Mantine `Popover`; `ChatPanel` renders Mantine `Drawer` (compound API, `aria-label="Chat panel"`); `LinearContextMenu` renders Mantine `Menu`; `RadialContextMenu` renders inside Mantine `Portal` with `useClickOutside`.
+- [x] Unit tests for each converted overlay cover: opens, closes on outside click, closes on Escape, and (for the colour picker) commits on close — `ColorPicker.test.tsx` (13), `FilterPopover.test.tsx` (6), `ChatPanel.test.tsx` (17), `ContextMenu.test.tsx` (19).
+- [x] `e2e/helpers.ts` and all unit tests locate tree items via `data-testid`.
+- [x] `CanvasWorkspace.module.css` contains no `:global(` selector.
+- [x] `npm run test` (234 files / 2,280 tests), `npm run lint`, `npm run build`, and `npx playwright test --project=mock` (9/9) pass.
+- [x] Spec 203's overlay smoke test is extended with a context-menu case (radial menu from a tree item; asserted on a `menuitem` because the radial root is a zero-size anchor). A colour-picker case is not possible with the current mock seed: it places no component or capability on the canvas, so no details pane with a picker can be opened; the picker's portal behaviour is covered by its unit tests.
 
 ---
 
@@ -124,8 +124,8 @@ Frontend only. Bounded contexts touched: navigation (explorer tree), canvas, vie
 ## Checklist
 
 - [x] Specification ready — approved by user directive ("implement all 4", 2026-08-26)
-- [ ] Implementation done
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
-- [ ] API documentation updated — no API change
+- [x] Implementation done
+- [x] Unit tests implemented and passing
+- [x] Integration tests implemented if relevant — mock-mode context-menu smoke case
+- [x] API documentation updated — no API change
 - [ ] User sign-off

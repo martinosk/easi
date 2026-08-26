@@ -1,10 +1,10 @@
-import { ActionIcon } from '@mantine/core';
 import React from 'react';
 import type { AcquiredEntity, Capability, Component, InternalTeam, Vendor, View } from '../../../api/types';
 import { useCurrentViewElementIds } from '../../views/hooks/useCurrentViewElementIds';
 import type { EditingState, TreeMultiSelectProps } from '../types';
 import type { ArtifactCreator } from '../utils/filterByCreator';
 import { FilterPopover } from './FilterPopover';
+import classes from './NavigationTreeContent.module.css';
 import { AcquiredEntitiesSection } from './sections/AcquiredEntitiesSection';
 import { ApplicationsSection } from './sections/ApplicationsSection';
 import { CapabilitiesSection } from './sections/CapabilitiesSection';
@@ -45,7 +45,6 @@ interface NavigationTreeContentProps {
     setIsInternalTeamsExpanded: (v: boolean) => void;
     expandedCapabilities: Set<string>;
     toggleCapabilityExpanded: (id: string) => void;
-    setIsOpen: (v: boolean) => void;
   };
   contextMenus: {
     handleComponentContextMenu: (e: React.MouseEvent, component: Component) => void;
@@ -154,15 +153,6 @@ const OriginEntitySections: React.FC<OriginEntitySectionsProps> = ({
   </>
 );
 
-const TreeHeader: React.FC<{ onClose: () => void }> = ({ onClose }) => (
-  <div className="navigation-tree-header">
-    <h3>Explorer</h3>
-    <ActionIcon variant="subtle" color="gray" onClick={onClose} aria-label="Close navigation">
-      ‹
-    </ActionIcon>
-  </div>
-);
-
 export const NavigationTreeContent: React.FC<NavigationTreeContentProps> = ({
   components,
   currentView,
@@ -202,10 +192,8 @@ export const NavigationTreeContent: React.FC<NavigationTreeContentProps> = ({
   const viewElementIds = useCurrentViewElementIds();
 
   return (
-    <div className="navigation-tree-content">
-      <TreeHeader onClose={() => treeState.setIsOpen(false)} />
-
-      <div className="tree-filter-bar">
+    <div className={classes.content}>
+      <div className={classes.filterBar}>
         <FilterPopover
           artifactCreators={artifactCreators}
           users={users}
@@ -219,7 +207,7 @@ export const NavigationTreeContent: React.FC<NavigationTreeContentProps> = ({
         />
       </div>
 
-      <div className="navigation-tree-sections">
+      <div className={classes.sections}>
         <ApplicationsSection
           components={components}
           currentView={currentView}
@@ -284,7 +272,7 @@ export const NavigationTreeContent: React.FC<NavigationTreeContentProps> = ({
           onAddTeam={onAddTeam}
         />
 
-        {selectionCount >= 2 && <div className="tree-selection-count">{selectionCount} items selected</div>}
+        {selectionCount >= 2 && <div className={classes.selectionCount}>{selectionCount} items selected</div>}
       </div>
     </div>
   );

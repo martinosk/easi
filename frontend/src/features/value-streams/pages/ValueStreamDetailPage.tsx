@@ -1,4 +1,4 @@
-import { Button } from '@mantine/core';
+import { Box, Button, Center, Group, Stack, Text, Title } from '@mantine/core';
 import { useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { ValueStreamDetail } from '../../../api/types';
@@ -11,21 +11,73 @@ import { StageFormOverlay } from '../components/StageFormOverlay';
 import { SummaryBar } from '../components/SummaryBar';
 import { useStageOperations } from '../hooks/useStageOperations';
 import { useValueStreamDetail } from '../hooks/useValueStreamStages';
-import './ValueStreamDetailPage.css';
+import classes from './ValueStreamDetailPage.module.css';
+
+const BACK_ICON = (
+  <svg viewBox="0 0 24 24" fill="none" width="14" height="14" aria-hidden="true">
+    <path
+      d="M19 12H5M12 19l-7-7 7-7"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
 
 function LoadingState() {
   return (
-    <div className="vsd-page">
-      <div className="vsd-loading">Loading value stream...</div>
-    </div>
+    <Stack gap={0} className={classes.page}>
+      <Center p="xxl">
+        <Text c="dimmed">Loading value stream...</Text>
+      </Center>
+    </Stack>
   );
 }
 
 function ErrorState({ message }: { message?: string }) {
   return (
-    <div className="vsd-page">
-      <div className="vsd-error">{message || 'Value stream not found'}</div>
-    </div>
+    <Stack gap={0} className={classes.page}>
+      <Center p="xxl">
+        <Text c="red">{message || 'Value stream not found'}</Text>
+      </Center>
+    </Stack>
+  );
+}
+
+interface DetailHeaderProps {
+  detail: ValueStreamDetail;
+  uniqueCapCount: number;
+}
+
+function DetailHeader({ detail, uniqueCapCount }: DetailHeaderProps) {
+  const navigate = useNavigate();
+  return (
+    <Box className={classes.header}>
+      <Button
+        variant="subtle"
+        size="sm"
+        mb="md"
+        className={classes.backButton}
+        onClick={() => navigate('/value-streams')}
+        leftSection={BACK_ICON}
+      >
+        Back to Value Streams
+      </Button>
+      <Group justify="space-between" align="flex-start" mb="md">
+        <Box>
+          <Title order={1} mb="xs">
+            {detail.name}
+          </Title>
+          {detail.description && (
+            <Text size="sm" c="dimmed">
+              {detail.description}
+            </Text>
+          )}
+        </Box>
+      </Group>
+      <SummaryBar stageCount={detail.stages.length} capabilityCount={uniqueCapCount} />
+    </Box>
   );
 }
 
@@ -35,7 +87,6 @@ interface DetailContentProps {
 }
 
 function DetailContent({ detail, canWrite }: DetailContentProps) {
-  const navigate = useNavigate();
   const ops = useStageOperations(detail);
 
   const mappedCapabilityIds = useMemo(
@@ -47,35 +98,8 @@ function DetailContent({ detail, canWrite }: DetailContentProps) {
   const canAddStage = canWrite && hasLink(detail, 'x-add-stage');
 
   return (
-    <div className="vsd-page" data-testid="value-stream-detail-page">
-      <div className="vsd-header">
-        <Button
-          variant="subtle"
-          size="sm"
-          className="vsd-back-btn"
-          onClick={() => navigate('/value-streams')}
-          leftSection={
-            <svg viewBox="0 0 24 24" fill="none" width="14" height="14" aria-hidden="true">
-              <path
-                d="M19 12H5M12 19l-7-7 7-7"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          }
-        >
-          Back to Value Streams
-        </Button>
-        <div className="vsd-header-content">
-          <div>
-            <h1 className="vsd-title">{detail.name}</h1>
-            {detail.description && <p className="vsd-description">{detail.description}</p>}
-          </div>
-        </div>
-        <SummaryBar stageCount={detail.stages.length} capabilityCount={uniqueCapCount} />
-      </div>
+    <Stack gap={0} className={classes.page} data-testid="value-stream-detail-page">
+      <DetailHeader detail={detail} uniqueCapCount={uniqueCapCount} />
 
       {ops.isFormOpen && (
         <StageFormOverlay
@@ -87,8 +111,8 @@ function DetailContent({ detail, canWrite }: DetailContentProps) {
         />
       )}
 
-      <div className="vsd-content">
-        <div className="vsd-main">
+      <Group gap="xl" align="stretch" wrap="nowrap" px="xxl" py="xl" className={classes.content}>
+        <Box flex={1} miw={0} className={classes.main}>
           <StageFlowDiagram
             valueStreamId={detail.id}
             stages={detail.stages}
@@ -100,10 +124,10 @@ function DetailContent({ detail, canWrite }: DetailContentProps) {
             onReorder={ops.reorderStages}
             onAddCapability={canWrite ? ops.addCapability : undefined}
           />
-        </div>
+        </Box>
         {canWrite && <CapabilitySidebar mappedCapabilityIds={mappedCapabilityIds} />}
-      </div>
-    </div>
+      </Group>
+    </Stack>
   );
 }
 
