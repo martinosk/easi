@@ -28,6 +28,7 @@ export function useMilestoneReorder(journey: CapabilityJourney): MilestoneReorde
   if (!hasLink(journey, 'x-reorder-milestones')) return null;
 
   const submitMove = (from: number, to: number) => {
+    if (reorderMutation.isPending) return;
     const milestoneIds = moveMilestone(
       journey.milestones.map((m) => m.id),
       from,

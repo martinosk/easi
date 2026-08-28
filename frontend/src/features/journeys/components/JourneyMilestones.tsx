@@ -27,12 +27,13 @@ function ScheduleConflictMarker({
 }) {
   const label = scheduleConflictLabel(milestone, latestAbove);
   return (
-    <Tooltip label={label} withArrow>
+    <Tooltip label={label} withArrow events={{ hover: true, focus: true, touch: false }}>
       <ThemeIcon
         variant="transparent"
         color="orange"
         size="xs"
         tabIndex={0}
+        role="img"
         aria-label={label}
         data-testid={`milestone-schedule-conflict-${milestone.id}`}
       >

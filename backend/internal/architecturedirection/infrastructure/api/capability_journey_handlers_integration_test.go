@@ -118,6 +118,7 @@ func subscribeCapabilityJourneyTestEvents(eventBus events.EventBus, readModel *r
 	eventBus.Subscribe(pl.JourneyMilestoneAdded, projector)
 	eventBus.Subscribe(pl.JourneyMilestoneUpdated, projector)
 	eventBus.Subscribe(pl.JourneyMilestoneRemoved, projector)
+	eventBus.Subscribe(pl.JourneyMilestonesReordered, projector)
 
 	referenceProjector := projectors.NewCapabilityJourneyReferenceProjector(readModel)
 	eventBus.Subscribe(cmPL.CapabilityCreated, referenceProjector)
@@ -149,6 +150,7 @@ func registerCapabilityJourneyTestCommands(commandBus cqrs.CommandBus, repo *rep
 	commandBus.Register("AddJourneyMilestone", handlers.NewAddJourneyMilestoneHandler(repo))
 	commandBus.Register("UpdateJourneyMilestone", handlers.NewUpdateJourneyMilestoneHandler(repo))
 	commandBus.Register("RemoveJourneyMilestone", handlers.NewRemoveJourneyMilestoneHandler(repo))
+	commandBus.Register("ReorderJourneyMilestones", handlers.NewReorderJourneyMilestonesHandler(repo))
 }
 
 func cleanupCapabilityJourneyTestData(db *sql.DB, capabilityIDs []string) {
