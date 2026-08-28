@@ -227,10 +227,10 @@ describe('JourneySection — milestone reorder (spec 196)', () => {
     seedActive({ status: 'in-flight', progress: 40, milestones: threeMilestones() });
     renderSection();
 
-    const first = await screen.findByTestId('milestone-row-ms-1');
+    const firstHandle = await screen.findByTestId('milestone-handle-ms-1');
     const last = screen.getByTestId('milestone-row-ms-3');
     const dataTransfer = { effectAllowed: '', setData: vi.fn() };
-    fireEvent.dragStart(first, { dataTransfer });
+    fireEvent.dragStart(firstHandle, { dataTransfer });
     fireEvent.dragOver(last, { dataTransfer });
     expect(last).toHaveAttribute('data-drag-over', 'true');
     fireEvent.drop(last, { dataTransfer });

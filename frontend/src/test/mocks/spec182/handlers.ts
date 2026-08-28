@@ -278,11 +278,15 @@ export const spec182Handlers = [
     if (!journey) return new HttpResponse(null, { status: 404 });
     const body = (await request.json()) as ReorderJourneyMilestonesRequest;
     const current = journey.milestones.map((m) => m.id);
-    const isPermutation =
-      body.milestoneIds.length === current.length &&
-      new Set(body.milestoneIds).size === current.length &&
-      body.milestoneIds.every((id) => current.includes(id));
-    if (!isPermutation) return HttpResponse.json({ error: 'invalid milestone order' }, { status: 400 });
+    if (body.milestoneIds.length !== current.length) {
+      return HttpResponse.json({ error: 'milestone order incomplete' }, { status: 400 });
+    }
+    const seen = new Set<string>();
+    for (const id of body.milestoneIds) {
+      if (seen.has(id)) return HttpResponse.json({ error: 'duplicate milestone id' }, { status: 400 });
+      if (!current.includes(id)) return HttpResponse.json({ error: 'milestone not found' }, { status: 404 });
+      seen.add(id);
+    }
     if (body.milestoneIds.every((id, i) => id === current[i])) {
       return HttpResponse.json({ error: 'milestone order unchanged' }, { status: 409 });
     }

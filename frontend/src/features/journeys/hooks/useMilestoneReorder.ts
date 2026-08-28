@@ -6,11 +6,13 @@ import { useReorderJourneyMilestones } from './useJourneys';
 
 export interface MilestoneReorderControls {
   overIndex: number | null;
-  rowProps: (index: number) => {
-    draggable: true;
-    onDragStart: (event: DragEvent<HTMLElement>) => void;
+  dropTargetProps: (index: number) => {
     onDragOver: (event: DragEvent<HTMLElement>) => void;
     onDrop: (event: DragEvent<HTMLElement>) => void;
+  };
+  dragHandleProps: (index: number) => {
+    draggable: true;
+    onDragStart: (event: DragEvent<HTMLElement>) => void;
     onDragEnd: () => void;
   };
   handleKeyDown: (index: number) => (event: KeyboardEvent<HTMLElement>) => void;
@@ -41,13 +43,7 @@ export function useMilestoneReorder(journey: CapabilityJourney): MilestoneReorde
 
   return {
     overIndex,
-    rowProps: (index) => ({
-      draggable: true,
-      onDragStart: (event) => {
-        event.dataTransfer.effectAllowed = 'move';
-        event.dataTransfer.setData('text/plain', journey.milestones[index].id);
-        setDragIndex(index);
-      },
+    dropTargetProps: (index) => ({
       onDragOver: (event) => {
         event.preventDefault();
         if (overIndex !== index) setOverIndex(index);
@@ -56,6 +52,14 @@ export function useMilestoneReorder(journey: CapabilityJourney): MilestoneReorde
         event.preventDefault();
         if (dragIndex !== null) submitMove(dragIndex, index);
         resetDrag();
+      },
+    }),
+    dragHandleProps: (index) => ({
+      draggable: true,
+      onDragStart: (event) => {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', journey.milestones[index].id);
+        setDragIndex(index);
       },
       onDragEnd: resetDrag,
     }),

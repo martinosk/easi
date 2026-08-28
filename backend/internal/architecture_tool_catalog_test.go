@@ -267,6 +267,7 @@ var excludedRoutes = map[string]string{
 	"POST /capability-journeys/*/milestones":                        "journey milestone add — architect-only deliberation, reserved for human via UI",
 	"PUT /capability-journeys/*/milestones/*":                       "journey milestone edit — architect-only deliberation, reserved for human via UI",
 	"DELETE /capability-journeys/*/milestones/*":                    "journey milestone removal — architect-only deliberation, reserved for human via UI",
+	"PUT /capability-journeys/*/milestone-order":                    "journey milestone reorder — architect-only deliberation, reserved for human via UI",
 	"DELETE /value-streams/*":                                       "value stream delete — high-impact, reserved for UI",
 	"DELETE /value-streams/*/stages/*":                              "stage delete — reserved for UI",
 	"DELETE /value-streams/*/stages/*/capabilities/*":               "stage-capability unmapping — reserved for UI",

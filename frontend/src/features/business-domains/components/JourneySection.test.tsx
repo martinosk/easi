@@ -290,8 +290,10 @@ describe('JourneySection — milestone reorder affordance is HATEOAS-gated (spec
     seedSpec182Db({ canWrite: true, journeys: [buildStubJourney({ status: 'in-flight', milestones: twoMilestones })] });
     renderSection();
 
-    expect(await screen.findByTestId('milestone-handle-ms-1')).toHaveAttribute('aria-label', 'Reorder API live');
-    expect(screen.getByTestId('milestone-row-ms-1')).toHaveAttribute('draggable', 'true');
+    const handle = await screen.findByTestId('milestone-handle-ms-1');
+    expect(handle).toHaveAttribute('aria-label', 'Reorder API live');
+    expect(handle).toHaveAttribute('draggable', 'true');
+    expect(screen.getByTestId('milestone-row-ms-1')).not.toHaveAttribute('draggable');
   });
 
   it('renders an inert list for a read-only caller', async () => {

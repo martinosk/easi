@@ -32,6 +32,7 @@ function ScheduleConflictMarker({
         variant="transparent"
         color="orange"
         size="xs"
+        tabIndex={0}
         aria-label={label}
         data-testid={`milestone-schedule-conflict-${milestone.id}`}
       >
@@ -51,6 +52,7 @@ function ReorderHandle({ milestone, index, reorder }: Pick<MilestoneRowProps, 'm
       className={classes.handle}
       aria-label={`Reorder ${milestone.label}`}
       onKeyDown={reorder.handleKeyDown(index)}
+      {...reorder.dragHandleProps(index)}
       data-testid={`milestone-handle-${milestone.id}`}
     >
       <IconGripVertical size={14} />
@@ -67,7 +69,7 @@ function MilestoneRow({ milestone, index, reorder, conflictsWith, onEdit }: Mile
       data-testid={`milestone-row-${milestone.id}`}
       data-reorderable={reorder ? 'true' : undefined}
       data-drag-over={reorder?.overIndex === index ? 'true' : undefined}
-      {...reorder?.rowProps(index)}
+      {...reorder?.dropTargetProps(index)}
     >
       <ReorderHandle milestone={milestone} index={index} reorder={reorder} />
       <Text size="xs" c="dimmed" ff="monospace" className={classes.seq} data-testid={`milestone-seq-${milestone.id}`}>
