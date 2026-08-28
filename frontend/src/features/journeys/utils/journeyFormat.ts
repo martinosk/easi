@@ -26,3 +26,7 @@ export function milestoneWhenLabel(milestone: JourneyMilestone): string {
   if (milestone.status === 'done') return period ? `Done · ${period}` : 'Done';
   return period;
 }
+
+export function scheduleConflictLabel(milestone: JourneyMilestone, latestAbove: TargetPeriod): string {
+  return `Targeted for ${formatTargetPeriod(milestone.targetPeriod)} but listed after a milestone targeted for ${formatTargetPeriod(latestAbove)}`;
+}

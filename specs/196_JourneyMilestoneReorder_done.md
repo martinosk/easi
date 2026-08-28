@@ -1,6 +1,6 @@
 # 196 — Journey Milestone Reorder
 
-> **Status:** pending
+> **Status:** done
 > **Depends on:** 182 (journeys)
 > **Design doc:** [`docs/specs/capability-journeys.md`](../docs/specs/capability-journeys.md)
 > **Mockup:** [`196_JourneyMilestoneReorder_mockup.html`](196_JourneyMilestoneReorder_mockup.html)
@@ -81,12 +81,12 @@ Feature: Reordering journey milestones
 
 ## Acceptance Criteria
 
-- [ ] An architect can reorder an active journey's milestones; the new order is returned by every read surface (single journey, history, bulk query)
-- [ ] Rules 1–4 violations are rejected with clear errors; a valid reorder produces exactly one event and replay reconstructs the order
-- [ ] Add-after-reorder appends; remove-after-reorder compacts without disturbing the rest
-- [ ] The reorder affordance is HATEOAS-gated; read-only users receive none; the drawer milestone list exposes reordering only when the link is present
-- [ ] Every BDD scenario has at least one corresponding test; every business rule has a unit test
-- [ ] Every modified file scores 10.0 per `easi-codehealth`
+- [x] An architect can reorder an active journey's milestones; the new order is returned by every read surface (single journey, history, bulk query)
+- [x] Rules 1–4 violations are rejected with clear errors; a valid reorder produces exactly one event and replay reconstructs the order
+- [x] Add-after-reorder appends; remove-after-reorder compacts without disturbing the rest
+- [x] The reorder affordance is HATEOAS-gated; read-only users receive none; the drawer milestone list exposes reordering only when the link is present
+- [x] Every BDD scenario has at least one corresponding test; every business rule has a unit test
+- [x] Every modified file scores 10.0 per `easi-codehealth`
 
 ---
 
@@ -124,6 +124,14 @@ None.
 2. **Reorder is a distinct operation, not part of milestone update** — updating one milestone (182) and sequencing the list are different intents with different validation; overloading the update operation was rejected.
 3. **No-op rejection over silent acceptance** — accepting an unchanged order would either record a meaningless event (violating the discrete-event posture) or silently do nothing while reporting success; an explicit rejection keeps the contract honest.
 
+4. **Event is `JourneyMilestonesReordered`** (decided during implementation) — the mockup hint names it in the singular; the plural names what happened (the journey's milestones were reordered) and matches the full-permutation payload (`milestoneIds`). Replay validates the permutation against the current list and fails as a corrupted event otherwise.
+
+5. **Operation is `PUT /capability-journeys/{journeyId}/milestone-order`, link rel `x-reorder-milestones`** (decided during implementation) — a sibling resource of the milestone collection, so it cannot collide with `PUT /milestones/{milestoneId}`. Permutation violations map to 400 (omission, duplicate) or 404 (unknown id); the no-op rejection maps to 409 as a business-rule conflict.
+
+6. **Link only when there is something to reorder** (decided during implementation) — `x-reorder-milestones` is emitted for architects on active journeys with two or more milestones; a single-milestone list renders inert.
+
+7. **Reorder affordance is native drag-and-drop plus keyboard** (decided during implementation) — a grip handle per row is draggable and focusable; ArrowUp/ArrowDown on the handle moves the milestone one step. A move that would leave the order unchanged is not submitted, so the client never triggers the rule-4 rejection on its own. No drag-and-drop library was added.
+
 ---
 
 ## Trade-offs
@@ -131,15 +139,16 @@ None.
 | Decision | Trade-off | Mitigation |
 |----------|-----------|------------|
 | Full-list permutation | Concurrent milestone add/remove makes an in-flight reorder stale | Rule 1 validation rejects the stale list; the client refetches and reapplies |
+| Sequence is authoritative | The arranged order can contradict the milestones' target periods | Spec 205 marks such rows on read; the timeline (197) still places by period |
 | Explicit order in read models | Order must be maintained on add/remove projections | Append/compact semantics are unchanged from 182; only reorder rewrites positions |
 
 ---
 
 ## Checklist
 
-- [ ] Specification ready
-- [ ] Implementation done
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
-- [ ] API documentation updated
-- [ ] User sign-off
+- [x] Specification ready
+- [x] Implementation done
+- [x] Unit tests implemented and passing
+- [x] Integration tests implemented if relevant
+- [x] API documentation updated
+- [x] User sign-off

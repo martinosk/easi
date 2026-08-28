@@ -103,4 +103,4 @@ Frontend test infrastructure only — `frontend/playwright.config.ts`, `frontend
 - [x] Unit tests implemented and passing — none needed; the deliverable is the browser test
 - [x] Integration tests implemented if relevant — `e2e/mock/overlays.spec.ts`
 - [x] API documentation updated — no API change
-- [ ] User sign-off
+- [x] User sign-off

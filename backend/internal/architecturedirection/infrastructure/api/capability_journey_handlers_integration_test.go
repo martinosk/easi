@@ -118,6 +118,7 @@ func subscribeCapabilityJourneyTestEvents(eventBus events.EventBus, readModel *r
 	eventBus.Subscribe(pl.JourneyMilestoneAdded, projector)
 	eventBus.Subscribe(pl.JourneyMilestoneUpdated, projector)
 	eventBus.Subscribe(pl.JourneyMilestoneRemoved, projector)
+	eventBus.Subscribe(pl.JourneyMilestonesReordered, projector)
 
 	referenceProjector := projectors.NewCapabilityJourneyReferenceProjector(readModel)
 	eventBus.Subscribe(cmPL.CapabilityCreated, referenceProjector)
@@ -149,6 +150,7 @@ func registerCapabilityJourneyTestCommands(commandBus cqrs.CommandBus, repo *rep
 	commandBus.Register("AddJourneyMilestone", handlers.NewAddJourneyMilestoneHandler(repo))
 	commandBus.Register("UpdateJourneyMilestone", handlers.NewUpdateJourneyMilestoneHandler(repo))
 	commandBus.Register("RemoveJourneyMilestone", handlers.NewRemoveJourneyMilestoneHandler(repo))
+	commandBus.Register("ReorderJourneyMilestones", handlers.NewReorderJourneyMilestonesHandler(repo))
 }
 
 func cleanupCapabilityJourneyTestData(db *sql.DB, capabilityIDs []string) {
@@ -516,4 +518,139 @@ func TestCapabilityJourneyIntegration_StaleReference_MarksStaleButJourneyRenders
 	require.NotNil(t, envelope.Journey)
 	assert.True(t, envelope.Journey.ToApplication.Stale)
 	assert.Equal(t, toApp, envelope.Journey.ToApplication.ComponentID, "the journey renders normally despite the stale reference")
+}
+
+const journeyMilestoneOrderPattern = "/api/v1/capability-journeys/{journeyId}/milestone-order"
+
+func addMilestoneReq(t *testing.T, h *CapabilityJourneyHandlers, journeyID, label string) readmodels.CapabilityJourneyDTO {
+	t.Helper()
+	body, _ := json.Marshal(AddJourneyMilestoneRequest{Label: label})
+	rec := runCapabilityJourneyRequest(
+		httptest.NewRequest(http.MethodPost, "/api/v1/capability-journeys/"+journeyID+"/milestones", bytes.NewReader(body)),
+		journeyMilestonesPattern, h.PostJourneyMilestone, architectActor())
+	require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
+	var journey readmodels.CapabilityJourneyDTO
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&journey))
+	return journey
+}
+
+func reorderMilestonesReq(h *CapabilityJourneyHandlers, journeyID string, order []string, actor sharedcontext.Actor) *httptest.ResponseRecorder {
+	body, _ := json.Marshal(ReorderJourneyMilestonesRequest{MilestoneIDs: order})
+	return runCapabilityJourneyRequest(
+		httptest.NewRequest(http.MethodPut, "/api/v1/capability-journeys/"+journeyID+"/milestone-order", bytes.NewReader(body)),
+		journeyMilestoneOrderPattern, h.PutJourneyMilestoneOrder, actor)
+}
+
+func milestoneLabels(milestones []readmodels.CapabilityJourneyMilestoneDTO) []string {
+	labels := make([]string, len(milestones))
+	for i, m := range milestones {
+		labels[i] = m.Label
+	}
+	return labels
+}
+
+func journeyWithThreeMilestones(t *testing.T, tc *capabilityJourneyTestContext) (string, readmodels.CapabilityJourneyDTO) {
+	t.Helper()
+	capID := uuid.New().String()
+	tc.trackCapability(capID)
+	captureRec := captureJourneyReq(tc.handlers, capID, CaptureJourneyRequest{
+		Kind: valueobjects.JourneyKindMigration, FromComponentIDs: []string{uuid.New().String()}, ToComponentID: uuid.New().String(),
+	}, architectActor())
+	require.Equal(t, http.StatusCreated, captureRec.Code, captureRec.Body.String())
+	var captured readmodels.CapabilityJourneyDTO
+	require.NoError(t, json.NewDecoder(captureRec.Body).Decode(&captured))
+	addMilestoneReq(t, tc.handlers, captured.ID, "Contract signed")
+	addMilestoneReq(t, tc.handlers, captured.ID, "Rollout")
+	return capID, addMilestoneReq(t, tc.handlers, captured.ID, "Pilot")
+}
+
+func TestCapabilityJourneyIntegration_ReorderMilestones_EveryReadSurfaceReturnsNewOrder(t *testing.T) {
+	tc, cleanup := setupCapabilityJourneyTestDB(t)
+	defer cleanup()
+	capID, journey := journeyWithThreeMilestones(t, tc)
+	require.Equal(t, []string{"Contract signed", "Rollout", "Pilot"}, milestoneLabels(journey.Milestones))
+	assert.Contains(t, journey.Links, "x-reorder-milestones")
+	ids := []string{journey.Milestones[0].ID, journey.Milestones[2].ID, journey.Milestones[1].ID}
+
+	reorderRec := reorderMilestonesReq(tc.handlers, journey.ID, ids, architectActor())
+	require.Equal(t, http.StatusOK, reorderRec.Code, reorderRec.Body.String())
+
+	var reordered readmodels.CapabilityJourneyDTO
+	require.NoError(t, json.NewDecoder(reorderRec.Body).Decode(&reordered))
+	assert.Equal(t, []string{"Contract signed", "Pilot", "Rollout"}, milestoneLabels(reordered.Milestones))
+
+	single := decodeJourneyEnvelope(t, getJourneyForCapabilityReq(tc.handlers, capID, architectActor()))
+	require.NotNil(t, single.Journey)
+	assert.Equal(t, []string{"Contract signed", "Pilot", "Rollout"}, milestoneLabels(single.Journey.Milestones))
+
+	historyRec := runCapabilityJourneyRequest(
+		httptest.NewRequest(http.MethodGet, "/api/v1/capabilities/"+capID+"/journey/history", nil),
+		"/api/v1/capabilities/{id}/journey/history", tc.handlers.GetJourneyHistory, architectActor())
+	require.Equal(t, http.StatusOK, historyRec.Code)
+	var history struct {
+		Data []readmodels.CapabilityJourneyDTO `json:"data"`
+	}
+	require.NoError(t, json.NewDecoder(historyRec.Body).Decode(&history))
+	require.Len(t, history.Data, 1)
+	assert.Equal(t, []string{"Contract signed", "Pilot", "Rollout"}, milestoneLabels(history.Data[0].Milestones))
+
+	bulkRec := bulkJourneysReq(tc.handlers, []string{capID}, architectActor())
+	require.Equal(t, http.StatusOK, bulkRec.Code)
+	var bulk struct {
+		Data []readmodels.CapabilityJourneyDTO `json:"data"`
+	}
+	require.NoError(t, json.NewDecoder(bulkRec.Body).Decode(&bulk))
+	require.Len(t, bulk.Data, 1)
+	assert.Equal(t, []string{"Contract signed", "Pilot", "Rollout"}, milestoneLabels(bulk.Data[0].Milestones))
+}
+
+func TestCapabilityJourneyIntegration_ReorderMilestones_AddAppendsAndRemoveCompacts_Rule5(t *testing.T) {
+	tc, cleanup := setupCapabilityJourneyTestDB(t)
+	defer cleanup()
+	_, journey := journeyWithThreeMilestones(t, tc)
+	ids := []string{journey.Milestones[2].ID, journey.Milestones[0].ID, journey.Milestones[1].ID}
+	require.Equal(t, http.StatusOK, reorderMilestonesReq(tc.handlers, journey.ID, ids, architectActor()).Code)
+
+	afterAdd := addMilestoneReq(t, tc.handlers, journey.ID, "Go live")
+	assert.Equal(t, []string{"Pilot", "Contract signed", "Rollout", "Go live"}, milestoneLabels(afterAdd.Milestones))
+
+	deleteRec := runCapabilityJourneyRequest(
+		httptest.NewRequest(http.MethodDelete, "/api/v1/capability-journeys/"+journey.ID+"/milestones/"+journey.Milestones[0].ID, nil),
+		"/api/v1/capability-journeys/{journeyId}/milestones/{milestoneId}", tc.handlers.DeleteJourneyMilestone, architectActor())
+	require.Equal(t, http.StatusNoContent, deleteRec.Code, deleteRec.Body.String())
+
+	bulkRec := bulkJourneysReq(tc.handlers, []string{journey.CapabilityID}, architectActor())
+	var bulk struct {
+		Data []readmodels.CapabilityJourneyDTO `json:"data"`
+	}
+	require.NoError(t, json.NewDecoder(bulkRec.Body).Decode(&bulk))
+	require.Len(t, bulk.Data, 1)
+	assert.Equal(t, []string{"Pilot", "Rollout", "Go live"}, milestoneLabels(bulk.Data[0].Milestones))
+}
+
+func TestCapabilityJourneyIntegration_ReorderMilestones_RejectsInvalidAndNoOpOrders_Rules1_4(t *testing.T) {
+	tc, cleanup := setupCapabilityJourneyTestDB(t)
+	defer cleanup()
+	_, journey := journeyWithThreeMilestones(t, tc)
+	m := journey.Milestones
+
+	assert.Equal(t, http.StatusBadRequest, reorderMilestonesReq(tc.handlers, journey.ID, []string{m[0].ID, m[1].ID}, architectActor()).Code, "omission")
+	assert.Equal(t, http.StatusBadRequest, reorderMilestonesReq(tc.handlers, journey.ID, []string{m[0].ID, m[1].ID, m[1].ID}, architectActor()).Code, "duplicate")
+	assert.Equal(t, http.StatusNotFound, reorderMilestonesReq(tc.handlers, journey.ID, []string{m[0].ID, m[1].ID, uuid.New().String()}, architectActor()).Code, "unknown id")
+	assert.Equal(t, http.StatusConflict, reorderMilestonesReq(tc.handlers, journey.ID, []string{m[0].ID, m[1].ID, m[2].ID}, architectActor()).Code, "no-op")
+
+	single := decodeJourneyEnvelope(t, getJourneyForCapabilityReq(tc.handlers, journey.CapabilityID, architectActor()))
+	assert.Equal(t, []string{"Contract signed", "Rollout", "Pilot"}, milestoneLabels(single.Journey.Milestones), "rejected reorders leave the order untouched")
+}
+
+func TestCapabilityJourneyIntegration_ReorderMilestones_ReadOnlyActorGetsNoAffordance_Rule6(t *testing.T) {
+	tc, cleanup := setupCapabilityJourneyTestDB(t)
+	defer cleanup()
+	capID, _ := journeyWithThreeMilestones(t, tc)
+
+	readOnly := decodeJourneyEnvelope(t, getJourneyForCapabilityReq(tc.handlers, capID, stakeholderActor()))
+
+	require.NotNil(t, readOnly.Journey)
+	require.Len(t, readOnly.Journey.Milestones, 3)
+	assert.NotContains(t, readOnly.Journey.Links, "x-reorder-milestones")
 }

@@ -163,3 +163,51 @@ func TestRemoveJourneyMilestoneHandler_ExistingMilestone_Removes(t *testing.T) {
 	require.Len(t, repo.saved, 1)
 	assert.Empty(t, repo.saved[0].Milestones())
 }
+
+func journeyWithMilestonesFixture(t *testing.T, labels ...string) (*aggregates.CapabilityJourney, []string) {
+	t.Helper()
+	j := plannedJourneyFixture(t)
+	ids := make([]string, len(labels))
+	for i, label := range labels {
+		ids[i] = uuid.New().String()
+		require.NoError(t, j.AddMilestone(aggregates.MilestoneFacts{
+			MilestoneID: ids[i],
+			Label:       label,
+			Status:      mustMilestoneStatus(t, valueobjects.MilestoneStatusPlanned),
+			Actor:       "a@example.com",
+		}))
+	}
+	j.MarkChangesAsCommitted()
+	return j, ids
+}
+
+func TestReorderJourneyMilestonesHandler_ValidPermutation_SavesReorderedJourney(t *testing.T) {
+	j, ids := journeyWithMilestonesFixture(t, "Contract signed", "Rollout", "Pilot")
+	repo := &mockCapabilityJourneyRepository{loaded: j}
+
+	_, err := NewReorderJourneyMilestonesHandler(repo).Handle(context.Background(), &commands.ReorderJourneyMilestones{
+		JourneyID:    j.ID(),
+		MilestoneIDs: []string{ids[0], ids[2], ids[1]},
+		Actor:        "a@example.com",
+	})
+
+	require.NoError(t, err)
+	require.Len(t, repo.saved, 1)
+	saved := repo.saved[0].Milestones()
+	assert.Equal(t, "Pilot", saved[1].Label())
+	assert.Equal(t, "Rollout", saved[2].Label())
+}
+
+func TestReorderJourneyMilestonesHandler_IncompleteOrder_Fails(t *testing.T) {
+	j, ids := journeyWithMilestonesFixture(t, "Contract signed", "Rollout", "Pilot")
+	repo := &mockCapabilityJourneyRepository{loaded: j}
+
+	_, err := NewReorderJourneyMilestonesHandler(repo).Handle(context.Background(), &commands.ReorderJourneyMilestones{
+		JourneyID:    j.ID(),
+		MilestoneIDs: []string{ids[0], ids[1]},
+		Actor:        "a@example.com",
+	})
+
+	assert.ErrorIs(t, err, aggregates.ErrJourneyMilestoneOrderIncomplete)
+	assert.Empty(t, repo.saved)
+}

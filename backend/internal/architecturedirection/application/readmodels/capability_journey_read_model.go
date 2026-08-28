@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/lib/pq"
 
@@ -198,6 +199,22 @@ func (rm *CapabilityJourneyReadModel) RemoveMilestone(ctx context.Context, journ
 			tenantID, journeyID, removedPosition,
 		)
 		return err
+	})
+}
+
+func (rm *CapabilityJourneyReadModel) ReorderMilestones(ctx context.Context, journeyID string, milestoneIDs []string) error {
+	return rm.withTx(ctx, func(tx *sql.Tx, tenantID string) error {
+		for position, milestoneID := range milestoneIDs {
+			if _, err := tx.ExecContext(ctx,
+				`UPDATE architecturedirection.capability_journey_milestones
+				 SET position = $1
+				 WHERE tenant_id = $2 AND journey_id = $3 AND milestone_id = $4`,
+				position, tenantID, journeyID, milestoneID,
+			); err != nil {
+				return fmt.Errorf("reorder milestone %s on journey %s: %w", milestoneID, journeyID, err)
+			}
+		}
+		return nil
 	})
 }
 

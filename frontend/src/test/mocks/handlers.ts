@@ -4,6 +4,7 @@ import {
   addCapability,
   addComponent,
   addRelation,
+  getBusinessDomains,
   getCapabilities,
   getCapability,
   getCapabilityRealizations,
@@ -441,8 +442,22 @@ export const handlers = [
 
   http.get(`${BASE_URL}/api/v1/business-domains`, () => {
     return HttpResponse.json({
-      data: [],
+      data: getBusinessDomains(),
       _links: { self: '/api/v1/business-domains' },
+    });
+  }),
+
+  http.get(`${BASE_URL}/api/v1/business-domains/:id/capabilities`, ({ params }) => {
+    return HttpResponse.json({
+      data: getCapabilities(),
+      _links: { self: `/api/v1/business-domains/${params.id}/capabilities` },
+    });
+  }),
+
+  http.get(`${BASE_URL}/api/v1/business-domains/:id/capability-realizations`, ({ params }) => {
+    return HttpResponse.json({
+      data: [],
+      _links: { self: `/api/v1/business-domains/${params.id}/capability-realizations` },
     });
   }),
 

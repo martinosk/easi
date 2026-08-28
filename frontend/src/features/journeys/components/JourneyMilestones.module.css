@@ -3,6 +3,34 @@
   align-items: center;
   gap: 10px;
   padding: 4px 0;
+  border: 1px solid transparent;
+  border-radius: var(--mantine-radius-sm);
+}
+
+.row[data-reorderable="true"] {
+  padding-inline: 4px;
+  cursor: grab;
+}
+
+.row[data-reorderable="true"]:hover {
+  background: var(--status-neutral-bg);
+  border-color: var(--status-neutral-line);
+}
+
+.row[data-drag-over="true"] {
+  border: 1px dashed var(--status-future);
+  background: var(--status-future-bg);
+}
+
+.handle {
+  cursor: grab;
+  flex: none;
+}
+
+.seq {
+  flex: none;
+  min-width: 1.5em;
+  text-align: right;
 }
 
 .dot {
@@ -12,15 +40,15 @@
   flex: none;
 }
 
-.dot[data-status='done'] {
+.dot[data-status="done"] {
   background: var(--status-positive);
 }
 
-.dot[data-status='in-flight'] {
+.dot[data-status="in-flight"] {
   background: var(--status-progress);
 }
 
-.dot[data-status='planned'] {
+.dot[data-status="planned"] {
   background: var(--status-neutral);
 }
 

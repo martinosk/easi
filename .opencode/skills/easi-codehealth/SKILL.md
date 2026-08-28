@@ -45,7 +45,7 @@ If a refactor worsens readability, cohesion, or domain fit (one-caller helpers c
 ### 5. Lead-developer review pass
 Re-read the full diff and the surrounding code. For every changed file, walk this checklist and act on every issue found:
 
-- **Naming.** Identifiers reveal intent in domain terms. No `data`, `info`, `process`, `handle`, `manager`, `helper`, `util`, bare boolean `flag`. Function names match what they do.
+- **Naming.** Identifiers reveal intent in domain terms. No `data`, `info`, `process`, `handle`, `manager`, `helper`, `util`, bare boolean `flag`. No storage/CRUD verbs (`upsert`, `insert`, `select`, `fetch`, `persist`) in domain-layer identifiers or in prose about the domain model — see `easi-domain-driven-design`, Ubiquitous Language. Function names match what they do.
 - **Abstraction level.** Statements within one function sit at the same level.
 - **Cohesion.** Each file/function/component does one thing.
 - **Coupling.** No new cross-context imports. No reaching through objects (`a.b.c.d`). Data fetched at the right layer.

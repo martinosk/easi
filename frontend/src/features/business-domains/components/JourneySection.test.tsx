@@ -279,3 +279,87 @@ describe('JourneySection — affordances by status and permission', () => {
     expect(screen.queryAllByRole('button')).toHaveLength(0);
   });
 });
+
+describe('JourneySection — milestone reorder affordance is HATEOAS-gated (spec 196)', () => {
+  const twoMilestones = [
+    { id: 'ms-1', label: 'API live', targetPeriod: null, status: 'planned' as const },
+    { id: 'ms-2', label: 'Routes migrated', targetPeriod: null, status: 'planned' as const },
+  ];
+
+  it('renders drag handles for a writer on an active journey with several milestones', async () => {
+    seedSpec182Db({ canWrite: true, journeys: [buildStubJourney({ status: 'in-flight', milestones: twoMilestones })] });
+    renderSection();
+
+    const handle = await screen.findByTestId('milestone-handle-ms-1');
+    expect(handle).toHaveAttribute('aria-label', 'Reorder API live');
+    expect(handle).toHaveAttribute('draggable', 'true');
+    expect(screen.getByTestId('milestone-row-ms-1')).not.toHaveAttribute('draggable');
+  });
+
+  it('renders an inert list for a read-only caller', async () => {
+    seedSpec182Db({
+      canWrite: false,
+      journeys: [buildStubJourney({ status: 'in-flight', milestones: twoMilestones })],
+    });
+    renderSection();
+
+    await screen.findByTestId('milestone-row-ms-1');
+    expect(screen.queryByTestId('milestone-handle-ms-1')).not.toBeInTheDocument();
+    expect(screen.getByTestId('milestone-row-ms-1')).not.toHaveAttribute('draggable');
+    expect(screen.getByTestId('milestone-seq-ms-2')).toHaveTextContent('2');
+  });
+
+  it('renders an inert list on a terminal journey even for a writer', async () => {
+    seedSpec182Db({ canWrite: true, journeys: [buildStubJourney({ status: 'done', milestones: twoMilestones })] });
+    renderSection();
+
+    await screen.findByTestId('milestone-row-ms-1');
+    expect(screen.queryByTestId('milestone-handle-ms-1')).not.toBeInTheDocument();
+  });
+});
+
+describe('JourneySection — milestone schedule conflict marker (spec 205)', () => {
+  it('marks a dated milestone listed below a later-targeted one and names that period', async () => {
+    seedSpec182Db({
+      canWrite: false,
+      journeys: [
+        buildStubJourney({
+          status: 'in-flight',
+          milestones: [
+            { id: 'ms-1', label: 'Seabook read-only', targetPeriod: { year: 2027, quarter: 1 }, status: 'planned' },
+            { id: 'ms-2', label: 'North Sea corridor', targetPeriod: { year: 2026, quarter: 4 }, status: 'in-flight' },
+            { id: 'ms-3', label: 'Retro', targetPeriod: null, status: 'planned' },
+          ],
+        }),
+      ],
+    });
+    renderSection();
+
+    const marker = await screen.findByTestId('milestone-schedule-conflict-ms-2');
+    expect(marker).toHaveAttribute(
+      'aria-label',
+      'Targeted for Q4 2026 but listed after a milestone targeted for Q1 2027',
+    );
+    expect(screen.queryByTestId('milestone-schedule-conflict-ms-1')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('milestone-schedule-conflict-ms-3')).not.toBeInTheDocument();
+  });
+
+  it('marks nothing when dated milestones are in period order', async () => {
+    seedSpec182Db({
+      canWrite: true,
+      journeys: [
+        buildStubJourney({
+          status: 'in-flight',
+          milestones: [
+            { id: 'ms-1', label: 'API live', targetPeriod: { year: 2025, quarter: 4 }, status: 'done' },
+            { id: 'ms-2', label: 'Routes migrated', targetPeriod: { year: 2026, quarter: 1 }, status: 'planned' },
+          ],
+        }),
+      ],
+    });
+    renderSection();
+
+    await screen.findByTestId('milestone-row-ms-2');
+    expect(screen.queryAllByTestId(/^milestone-schedule-conflict-/)).toHaveLength(0);
+  });
+});

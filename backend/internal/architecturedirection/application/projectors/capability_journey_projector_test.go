@@ -23,6 +23,7 @@ type mockCapabilityJourneyStore struct {
 	milestoneAdds   []capabilityJourneyMilestoneUpsert
 	milestoneEdits  []capabilityJourneyMilestoneUpsert
 	milestoneRemove []string
+	milestoneOrders []capabilityJourneyMilestoneOrder
 }
 
 type capabilityJourneyStatusUpdate struct {
@@ -86,6 +87,16 @@ func (m *mockCapabilityJourneyStore) AddMilestone(_ context.Context, p readmodel
 
 func (m *mockCapabilityJourneyStore) UpdateMilestone(_ context.Context, p readmodels.JourneyMilestoneUpsertParams) error {
 	m.milestoneEdits = append(m.milestoneEdits, capabilityJourneyMilestoneUpsert{p.JourneyID, p.MilestoneID, p.Label, p.TargetYear, p.TargetQuarter, p.Status})
+	return nil
+}
+
+type capabilityJourneyMilestoneOrder struct {
+	journeyID    string
+	milestoneIDs []string
+}
+
+func (m *mockCapabilityJourneyStore) ReorderMilestones(_ context.Context, journeyID string, milestoneIDs []string) error {
+	m.milestoneOrders = append(m.milestoneOrders, capabilityJourneyMilestoneOrder{journeyID, milestoneIDs})
 	return nil
 }
 
@@ -262,4 +273,18 @@ func TestCapabilityJourneyProjector_UnknownEvent_Ignored(t *testing.T) {
 
 	require.NoError(t, projector.ProjectEvent(context.Background(), "SomethingElseHappened", []byte(`{}`)))
 	assert.Empty(t, store.inserted)
+}
+
+func TestCapabilityJourneyProjector_JourneyMilestonesReordered_RewritesOrder(t *testing.T) {
+	store := &mockCapabilityJourneyStore{}
+	projector := NewCapabilityJourneyProjector(store)
+
+	journeyID := uuid.New().String()
+	order := []string{uuid.New().String(), uuid.New().String()}
+	evt := events.NewJourneyMilestonesReordered(events.JourneyMilestonesReorderedFields{
+		ID: journeyID, MilestoneIDs: order, ReorderedBy: "a@example.com",
+	})
+	require.NoError(t, projector.Handle(context.Background(), evt))
+
+	require.Equal(t, []capabilityJourneyMilestoneOrder{{journeyID, order}}, store.milestoneOrders)
 }

@@ -15,4 +15,5 @@ export const journeyMutationEffects = {
   addMilestone: journeyEffects,
   updateMilestone: journeyEffects,
   removeMilestone: journeyEffects,
+  reorderMilestones: journeyEffects,
 };

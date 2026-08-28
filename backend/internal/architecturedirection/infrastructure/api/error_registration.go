@@ -37,6 +37,7 @@ func init() {
 	registry.RegisterConflict(readmodels.ErrStandardApplicationAlreadyExists, "A standard application already exists for this enterprise capability")
 	registry.RegisterConflict(readmodels.ErrRealizationRolesAggregateConflict, "A different realization roles aggregate is already registered for this capability")
 	registry.RegisterConflict(aggregates.ErrJourneyFrozen, "This journey is terminal and can no longer be edited")
+	registry.RegisterConflict(aggregates.ErrJourneyMilestoneOrderUnchanged, "The milestone order is unchanged")
 	registry.RegisterConflict(readmodels.ErrActiveCapabilityJourneyExists, "An active journey already exists for this capability")
 
 	registry.RegisterValidation(valueobjects.ErrInvalidTimeGrade, "Grade must be one of Invest, Tolerate, Migrate, Eliminate")
@@ -66,5 +67,7 @@ func init() {
 	registry.RegisterValidation(valueobjects.ErrResultingCapabilityNameTooLong, "Resulting name cannot exceed 200 characters")
 	registry.RegisterValidation(entities.ErrMilestoneLabelRequired, "Milestone label is required")
 	registry.RegisterValidation(entities.ErrMilestoneLabelTooLong, "Milestone label cannot exceed 200 characters")
+	registry.RegisterValidation(aggregates.ErrJourneyMilestoneOrderIncomplete, "The milestone order must list every milestone of the journey exactly once")
+	registry.RegisterValidation(aggregates.ErrJourneyMilestoneOrderDuplicate, "The milestone order must not repeat a milestone")
 	registry.RegisterValidation(handlers.ErrTargetPeriodRequiresBoth, "Target period requires both year and quarter, or neither")
 }

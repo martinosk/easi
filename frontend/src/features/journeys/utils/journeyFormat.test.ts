@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import { buildJourneyMilestone } from '../../../test/helpers/entityBuilders';
 import type { CapabilityJourney, JourneyMilestone } from '../types';
-import { formatTargetPeriod, journeyKindLabel, journeyStatusLabel, milestoneWhenLabel } from './journeyFormat';
+import {
+  formatTargetPeriod,
+  journeyKindLabel,
+  journeyStatusLabel,
+  milestoneWhenLabel,
+  scheduleConflictLabel,
+} from './journeyFormat';
 
 function journey(overrides: Partial<CapabilityJourney> = {}): CapabilityJourney {
   return {
@@ -95,5 +102,15 @@ describe('milestoneWhenLabel — mockup-literal wording', () => {
 
   it('renders a pending milestone without a period as empty', () => {
     expect(milestoneWhenLabel(milestone({ status: 'planned' }))).toBe('');
+  });
+});
+
+describe('scheduleConflictLabel', () => {
+  it('names both periods in reading order', () => {
+    const milestone = buildJourneyMilestone({ targetPeriod: { year: 2026, quarter: 4 } });
+
+    expect(scheduleConflictLabel(milestone, { year: 2027, quarter: 1 })).toBe(
+      'Targeted for Q4 2026 but listed after a milestone targeted for Q1 2027',
+    );
   });
 });

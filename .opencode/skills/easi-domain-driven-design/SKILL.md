@@ -15,6 +15,19 @@ Model software around the business domain. Collaborate with domain experts to bu
 - Code, documentation, and communication all use the same domain terminology
 - If the domain expert calls it an "enrollment," the code calls it `Enrollment`, not `Registration`
 - Language inconsistencies signal a modeling problem
+- **Domain code speaks the domain, never the database.** Aggregates, entities, value objects, domain events, domain services — and any prose or review comment describing them — never use storage or CRUD vocabulary. Storage verbs belong only in repositories, read models, projectors, and migrations.
+
+| Storage / CRUD word | Domain verb instead (EASI examples) |
+|---|---|
+| upsert, insert, create row | add, capture, plan, record, place |
+| update, set, patch | rename, reschedule, mark done, change sources, advance, reorder |
+| delete, drop, remove row | remove, retire, abandon, complete |
+| get, fetch, load, select, query | an accessor named after the fact: `Status()`, `Milestones()` |
+| save, persist, flush, commit | never in domain code — the repository saves |
+
+- `apply*` event handlers inside an aggregate follow the same rule: `applyMilestoneRecorded`, not `applyMilestoneUpsert`. The event is past-tense domain language; the handler reproduces the fact it states.
+- `Update` / `Set` are storage words unless the domain expert actually says them; prefer the specific verb. Existing names are renamed when the file is touched (`easi-boyscouting`), not in a sweep.
+- Speak the same way about the model: "the journey records a milestone", not "the aggregate upserts a milestone".
 
 ### Bounded Contexts
 - Each context owns its own domain model with clear boundaries

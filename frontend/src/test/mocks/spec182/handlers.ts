@@ -2,14 +2,15 @@ import { HttpResponse, http } from 'msw';
 import { toCapabilityId, toComponentId } from '../../../api/types';
 import type {
   AddJourneyMilestoneRequest,
+  CapabilityJourney,
   CaptureJourneyRequest,
   ChangeJourneySourceApplicationsRequest,
   JourneyMilestone,
+  ReorderJourneyMilestonesRequest,
   UpdateJourneyDetailsRequest,
   UpdateJourneyMilestoneRequest,
   UpdateJourneyProgressRequest,
 } from '../../../features/journeys/types';
-import type { CapabilityJourney } from '../../../features/journeys/types';
 import { getCapability, getComponent } from '../db';
 import {
   addJourney,
@@ -67,6 +68,7 @@ function journeyDto(journey: StubJourney): CapabilityJourney {
     links['x-progress'] = link(`${base}/progress`, 'PUT');
     links['x-change-sources'] = link(`${base}/source-applications`, 'PUT');
     links['x-add-milestone'] = link(`${base}/milestones`, 'POST');
+    if (journey.milestones.length > 1) links['x-reorder-milestones'] = link(`${base}/milestone-order`, 'PUT');
   }
 
   return {
@@ -270,5 +272,26 @@ export const spec182Handlers = [
     journey.milestones = journey.milestones.filter((m) => m.id !== params.milestoneId);
     journey.updatedAt = new Date().toISOString();
     return new HttpResponse(null, { status: 204 });
+  }),
+  http.put(`${BASE_URL}/api/v1/capability-journeys/:journeyId/milestone-order`, async ({ params, request }) => {
+    const journey = findJourney(params.journeyId as string);
+    if (!journey) return new HttpResponse(null, { status: 404 });
+    const body = (await request.json()) as ReorderJourneyMilestonesRequest;
+    const current = journey.milestones.map((m) => m.id);
+    if (body.milestoneIds.length !== current.length) {
+      return HttpResponse.json({ error: 'milestone order incomplete' }, { status: 400 });
+    }
+    const seen = new Set<string>();
+    for (const id of body.milestoneIds) {
+      if (seen.has(id)) return HttpResponse.json({ error: 'duplicate milestone id' }, { status: 400 });
+      if (!current.includes(id)) return HttpResponse.json({ error: 'milestone not found' }, { status: 404 });
+      seen.add(id);
+    }
+    if (body.milestoneIds.every((id, i) => id === current[i])) {
+      return HttpResponse.json({ error: 'milestone order unchanged' }, { status: 409 });
+    }
+    journey.milestones = body.milestoneIds.map((id) => journey.milestones.find((m) => m.id === id) as StubMilestone);
+    journey.updatedAt = new Date().toISOString();
+    return HttpResponse.json(journeyDto(journey));
   }),
 ];

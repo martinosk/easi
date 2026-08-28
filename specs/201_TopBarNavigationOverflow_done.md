@@ -149,4 +149,4 @@ Frontend only — `frontend/src/components/layout/` (AppNavigation, UserMenu), `
 - [x] Unit tests implemented and passing — `AppNavigation`, `navLayout`, `UserAdminTabs`, `UserMenu`, `ChatButton`, `ChangeRoleModal` verified green; `UsersPage`/`InvitationsPage` tests switched to render with the router (tabs use `useNavigate`) and are to be re-run manually
 - [x] Integration tests implemented if relevant — none needed, frontend-only
 - [x] API documentation updated — no API change
-- [ ] User sign-off
+- [x] User sign-off

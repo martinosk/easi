@@ -71,6 +71,7 @@ export interface CapabilityJourney {
     'x-progress'?: HATEOASLink;
     'x-change-sources'?: HATEOASLink;
     'x-add-milestone'?: HATEOASLink;
+    'x-reorder-milestones'?: HATEOASLink;
   };
 }
 
@@ -135,4 +136,8 @@ export interface UpdateJourneyMilestoneRequest {
   label: string;
   targetPeriod?: TargetPeriodInput | null;
   status: MilestoneStatus;
+}
+
+export interface ReorderJourneyMilestonesRequest {
+  milestoneIds: string[];
 }

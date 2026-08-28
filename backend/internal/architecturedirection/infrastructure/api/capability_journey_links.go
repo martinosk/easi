@@ -8,10 +8,11 @@ import (
 )
 
 const (
-	journeySubPath         sharedAPI.ResourcePath = "/journey"
-	journeyHistorySubPath  sharedAPI.ResourcePath = "/journey/history"
-	capabilityJourneysPath sharedAPI.ResourcePath = "/capability-journeys"
-	journeyMilestonesPath  sharedAPI.ResourcePath = "/milestones"
+	journeySubPath            sharedAPI.ResourcePath = "/journey"
+	journeyHistorySubPath     sharedAPI.ResourcePath = "/journey/history"
+	capabilityJourneysPath    sharedAPI.ResourcePath = "/capability-journeys"
+	journeyMilestonesPath     sharedAPI.ResourcePath = "/milestones"
+	journeyMilestoneOrderPath sharedAPI.ResourcePath = "/milestone-order"
 )
 
 type CapabilityJourneyLinks struct {
@@ -50,6 +51,9 @@ func (h *CapabilityJourneyLinks) ItemLinks(journey *readmodels.CapabilityJourney
 	links["x-progress"] = h.Put(itemBase + "/progress")
 	links["x-change-sources"] = h.Put(itemBase + "/source-applications")
 	links["x-add-milestone"] = h.Post(itemBase + string(journeyMilestonesPath))
+	if len(journey.Milestones) > 1 {
+		links["x-reorder-milestones"] = h.Put(itemBase + string(journeyMilestoneOrderPath))
+	}
 	return links
 }
 

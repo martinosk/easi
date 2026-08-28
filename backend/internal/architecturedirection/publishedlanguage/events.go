@@ -27,5 +27,6 @@ const (
 	JourneyMilestoneAdded            = "JourneyMilestoneAdded"
 	JourneyMilestoneUpdated          = "JourneyMilestoneUpdated"
 	JourneyMilestoneRemoved          = "JourneyMilestoneRemoved"
+	JourneyMilestonesReordered       = "JourneyMilestonesReordered"
 	JourneySourceApplicationsChanged = "JourneySourceApplicationsChanged"
 )

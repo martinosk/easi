@@ -8,6 +8,10 @@ compatibility: opencode
 
 ---
 
+## Domain Vocabulary
+
+Domain-layer code (`domain/aggregates`, `domain/entities`, `domain/valueobjects`, `domain/events`, `domain/services`) uses the ubiquitous language, never storage vocabulary: no `upsert`, `insert`, `select`, `fetch`, `persist`, `save` in identifiers — including private `apply*` handlers. Storage verbs live in repositories, read models, projectors, and migrations only. Rules and word table: `easi-domain-driven-design`, Ubiquitous Language.
+
 ## Error Handling
 
 - Wrap with `fmt.Errorf("verb noun [id]: %w", err)` at every external boundary (DB, JSON, API). Always `%w`, never `%v`.
