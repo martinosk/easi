@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { toComponentId, toRealizationId } from '../../../api/types';
@@ -193,5 +193,81 @@ describe('JourneySection — change sources', () => {
 
     expect(await screen.findByTestId('change-sources-error')).toHaveTextContent(/exactly one/i);
     expect(screen.getByTestId('save-sources-btn')).toBeDisabled();
+  });
+});
+
+describe('JourneySection — milestone reorder (spec 196)', () => {
+  const threeMilestones = (): StubJourney['milestones'] => [
+    { id: 'ms-1', label: 'Contract signed', targetPeriod: null, status: 'done' },
+    { id: 'ms-2', label: 'Rollout', targetPeriod: null, status: 'planned' },
+    { id: 'ms-3', label: 'Pilot', targetPeriod: null, status: 'in-flight' },
+  ];
+
+  function labelsInOrder(): string[] {
+    return screen
+      .getAllByTestId(/^milestone-row-/)
+      .map((row) => within(row).getByText(/signed|Rollout|Pilot/).textContent ?? '');
+  }
+
+  it('moves a milestone up with the keyboard and re-renders the stored order', async () => {
+    seedActive({ status: 'in-flight', progress: 40, milestones: threeMilestones() });
+    const user = userEvent.setup();
+    renderSection();
+
+    const handle = await screen.findByTestId('milestone-handle-ms-3');
+    handle.focus();
+    await user.keyboard('{ArrowUp}');
+
+    await waitFor(() => expect(labelsInOrder()).toEqual(['Contract signed', 'Pilot', 'Rollout']));
+    expect(screen.getByTestId('milestone-seq-ms-3')).toHaveTextContent('2');
+    expect(screen.getByTestId('milestone-dot-ms-3')).toHaveAttribute('data-status', 'in-flight');
+  });
+
+  it('drops a dragged milestone onto another row and submits the full permutation', async () => {
+    seedActive({ status: 'in-flight', progress: 40, milestones: threeMilestones() });
+    renderSection();
+
+    const first = await screen.findByTestId('milestone-row-ms-1');
+    const last = screen.getByTestId('milestone-row-ms-3');
+    const dataTransfer = { effectAllowed: '', setData: vi.fn() };
+    fireEvent.dragStart(first, { dataTransfer });
+    fireEvent.dragOver(last, { dataTransfer });
+    expect(last).toHaveAttribute('data-drag-over', 'true');
+    fireEvent.drop(last, { dataTransfer });
+
+    await waitFor(() => expect(labelsInOrder()).toEqual(['Rollout', 'Pilot', 'Contract signed']));
+  });
+
+  it('does not submit when the keyboard move would leave the order unchanged', async () => {
+    seedActive({ status: 'in-flight', progress: 40, milestones: threeMilestones() });
+    const user = userEvent.setup();
+    renderSection();
+
+    const handle = await screen.findByTestId('milestone-handle-ms-1');
+    handle.focus();
+    await user.keyboard('{ArrowUp}');
+
+    expect(labelsInOrder()).toEqual(['Contract signed', 'Rollout', 'Pilot']);
+  });
+});
+
+describe('JourneySection — reorder clears a schedule conflict (spec 205)', () => {
+  it('removes the marker once the list is back in period order', async () => {
+    seedActive({
+      status: 'in-flight',
+      milestones: [
+        { id: 'ms-1', label: 'Seabook read-only', targetPeriod: { year: 2027, quarter: 1 }, status: 'planned' },
+        { id: 'ms-2', label: 'North Sea corridor', targetPeriod: { year: 2026, quarter: 4 }, status: 'in-flight' },
+      ],
+    });
+    const user = userEvent.setup();
+    renderSection();
+    await screen.findByTestId('milestone-schedule-conflict-ms-2');
+
+    screen.getByTestId('milestone-handle-ms-2').focus();
+    await user.keyboard('{ArrowUp}');
+
+    await waitFor(() => expect(screen.queryByTestId('milestone-schedule-conflict-ms-2')).not.toBeInTheDocument());
+    expect(screen.getByTestId('milestone-seq-ms-2')).toHaveTextContent('1');
   });
 });

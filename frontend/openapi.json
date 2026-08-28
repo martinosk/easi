@@ -3926,6 +3926,88 @@
                 }
             }
         },
+        "/capability-journeys/{journeyId}/milestone-order": {
+            "put": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Replaces the milestone sequence with the given full permutation of milestone IDs. Omissions, duplicates, unknown IDs, and an unchanged order are rejected.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capability-journeys"
+                ],
+                "summary": "Reorder an active journey's milestones",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Journey ID",
+                        "name": "journeyId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Ordered milestone IDs",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.ReorderJourneyMilestonesRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.CapabilityJourneyDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/capability-journeys/{journeyId}/milestones": {
             "post": {
                 "security": [
@@ -15930,6 +16012,17 @@
                 },
                 "role": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_architecturedirection_infrastructure_api.ReorderJourneyMilestonesRequest": {
+            "type": "object",
+            "properties": {
+                "milestoneIds": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },

@@ -219,6 +219,7 @@ func setupCapabilityJourneyRoutes(deps RoutesDeps) {
 	deps.CommandBus.Register("AddJourneyMilestone", handlers.NewAddJourneyMilestoneHandler(repo))
 	deps.CommandBus.Register("UpdateJourneyMilestone", handlers.NewUpdateJourneyMilestoneHandler(repo))
 	deps.CommandBus.Register("RemoveJourneyMilestone", handlers.NewRemoveJourneyMilestoneHandler(repo))
+	deps.CommandBus.Register("ReorderJourneyMilestones", handlers.NewReorderJourneyMilestonesHandler(repo))
 
 	links := NewCapabilityJourneyLinks(deps.HATEOAS)
 	httpHandlers := NewCapabilityJourneyHandlers(deps.CommandBus, readModel, links)
@@ -230,7 +231,7 @@ func subscribeCapabilityJourneyEvents(eventBus events.EventBus, rm *readmodels.C
 	subscribeMany(eventBus, projectors.NewCapabilityJourneyProjector(rm),
 		pl.JourneyPlanned, pl.JourneyStarted, pl.JourneyCompleted, pl.JourneyAbandoned,
 		pl.JourneyProgressUpdated, pl.JourneyDetailsUpdated, pl.JourneySourceApplicationsChanged,
-		pl.JourneyMilestoneAdded, pl.JourneyMilestoneUpdated, pl.JourneyMilestoneRemoved)
+		pl.JourneyMilestoneAdded, pl.JourneyMilestoneUpdated, pl.JourneyMilestoneRemoved, pl.JourneyMilestonesReordered)
 	subscribeMany(eventBus, projectors.NewCapabilityJourneyReferenceProjector(rm),
 		cmPL.CapabilityCreated, cmPL.CapabilityUpdated, cmPL.CapabilityDeleted,
 		cmPL.BusinessDomainCreated, cmPL.BusinessDomainUpdated, cmPL.BusinessDomainDeleted,
@@ -266,6 +267,7 @@ func registerCapabilityJourneyRoutes(r chi.Router, h *CapabilityJourneyHandlers,
 		r.Post("/milestones", h.PostJourneyMilestone)
 		r.Put("/milestones/{milestoneId}", h.PutJourneyMilestone)
 		r.Delete("/milestones/{milestoneId}", h.DeleteJourneyMilestone)
+		r.Put("/milestone-order", h.PutJourneyMilestoneOrder)
 	})
 }
 

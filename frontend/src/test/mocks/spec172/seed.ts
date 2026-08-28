@@ -1,5 +1,8 @@
-import { buildCapabilityAt, buildView } from '../../helpers/entityBuilders';
+import { toBusinessDomainId } from '../../../api/types';
+import { buildBusinessDomain, buildCapabilityAt, buildView } from '../../helpers/entityBuilders';
 import { seedDb } from '../db';
+import { buildStubJourney } from '../spec182/builders';
+import { seedSpec182Db } from '../spec182/store';
 import type { StubCapability } from './composition';
 import type { StubDirection, StubEnterpriseCapability } from './store';
 import { seedSpec172Db } from './store';
@@ -132,13 +135,46 @@ const devCapabilities: StubCapability[] = [
   },
 ];
 
+const devJourneys = [
+  buildStubJourney({
+    id: 'journey-account-management',
+    capabilityId: 'cap-account-creation',
+    capabilityName: 'Customer Account Creation',
+    status: 'in-flight',
+    progress: 35,
+    milestones: [
+      {
+        id: 'ms-api-live',
+        label: 'Phoenix booking API live',
+        targetPeriod: { year: 2025, quarter: 4 },
+        status: 'done',
+      },
+      {
+        id: 'ms-routes',
+        label: 'Channel & Baltic routes migrated',
+        targetPeriod: { year: 2026, quarter: 1 },
+        status: 'done',
+      },
+      {
+        id: 'ms-north-sea',
+        label: 'North Sea corridor migrated',
+        targetPeriod: { year: 2026, quarter: 4 },
+        status: 'in-flight',
+      },
+      { id: 'ms-readonly', label: 'Seabook read-only', targetPeriod: { year: 2027, quarter: 1 }, status: 'planned' },
+    ],
+  }),
+];
+
 export function seedDevData(): void {
+  seedSpec182Db({ journeys: devJourneys, canWrite: true });
   seedSpec172Db({
     enterpriseCapabilities: devEnterpriseCapabilities,
     directions: devDirections,
     capabilities: devCapabilities,
   });
   seedDb({
+    businessDomains: [buildBusinessDomain({ id: toBusinessDomainId('bd-access'), name: 'Access Domain' })],
     capabilities: devCapabilities.map((cap) =>
       buildCapabilityAt(cap.id, cap.name, cap.level, cap.parentId ?? undefined),
     ),

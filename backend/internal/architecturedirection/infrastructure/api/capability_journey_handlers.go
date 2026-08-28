@@ -87,6 +87,10 @@ type UpdateJourneyMilestoneRequest struct {
 
 func (req UpdateJourneyMilestoneRequest) targetPeriod() *TargetPeriodRequest { return req.TargetPeriod }
 
+type ReorderJourneyMilestonesRequest struct {
+	MilestoneIDs []string `json:"milestoneIds"`
+}
+
 // GetJourneyForCapability godoc
 // @Summary Get the active journey for a capability
 // @Description Returns the capability's active (planned or in-flight) journey, or null if none.
@@ -492,6 +496,29 @@ func (h *CapabilityJourneyHandlers) PutJourneyMilestone(w http.ResponseWriter, r
 			Status:        req.Status,
 			Actor:         actor.Email,
 		}
+	})
+}
+
+// PutJourneyMilestoneOrder godoc
+// @Summary Reorder an active journey's milestones
+// @Description Replaces the milestone sequence with the given full permutation of milestone IDs. Omissions, duplicates, unknown IDs, and an unchanged order are rejected.
+// @Tags capability-journeys
+// @Accept json
+// @Produce json
+// @Security CookieAuth
+// @Param journeyId path string true "Journey ID"
+// @Param body body ReorderJourneyMilestonesRequest true "Ordered milestone IDs"
+// @Success 200 {object} readmodels.CapabilityJourneyDTO
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 401 {object} sharedAPI.ErrorResponse
+// @Failure 403 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 409 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /capability-journeys/{journeyId}/milestone-order [put]
+func (h *CapabilityJourneyHandlers) PutJourneyMilestoneOrder(w http.ResponseWriter, r *http.Request) {
+	decodeJourneyMutation(h, w, r, http.StatusOK, func(journeyID string, req ReorderJourneyMilestonesRequest, actor sharedctx.Actor) cqrs.Command {
+		return &commands.ReorderJourneyMilestones{JourneyID: journeyID, MilestoneIDs: req.MilestoneIDs, Actor: actor.Email}
 	})
 }
 

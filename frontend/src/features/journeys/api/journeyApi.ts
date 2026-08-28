@@ -10,6 +10,7 @@ import type {
   CaptureJourneyRequest,
   ChangeJourneySourceApplicationsRequest,
   JourneyMilestone,
+  ReorderJourneyMilestonesRequest,
   UpdateJourneyDetailsRequest,
   UpdateJourneyMilestoneRequest,
   UpdateJourneyProgressRequest,
@@ -86,5 +87,13 @@ export const journeyApi = {
 
   async removeMilestone(milestone: JourneyMilestone): Promise<void> {
     await httpClient.delete(followLink(milestone, 'delete'));
+  },
+
+  async reorderMilestones(
+    journey: CapabilityJourney,
+    request: ReorderJourneyMilestonesRequest,
+  ): Promise<CapabilityJourney> {
+    const response = await httpClient.put<CapabilityJourney>(followLink(journey, 'x-reorder-milestones'), request);
+    return response.data;
   },
 };

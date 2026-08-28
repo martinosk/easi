@@ -682,3 +682,118 @@ func (unknownCapabilityJourneyEventForTest) AggregateID() string               {
 func (unknownCapabilityJourneyEventForTest) EventType() string                 { return "UnknownEvent" }
 func (unknownCapabilityJourneyEventForTest) EventData() map[string]interface{} { return nil }
 func (unknownCapabilityJourneyEventForTest) OccurredAt() time.Time             { return time.Time{} }
+
+func journeyWithThreeMilestones(t *testing.T) *CapabilityJourney {
+	t.Helper()
+	j := plannedJourney(t)
+	addPlannedMilestone(t, j, "m1", "Contract signed")
+	addPlannedMilestone(t, j, "m2", "Rollout")
+	addPlannedMilestone(t, j, "m3", "Pilot")
+	j.MarkChangesAsCommitted()
+	return j
+}
+
+func milestoneIDs(j *CapabilityJourney) []string {
+	ids := make([]string, len(j.Milestones()))
+	for i, m := range j.Milestones() {
+		ids[i] = m.ID()
+	}
+	return ids
+}
+
+func TestCapabilityJourney_ReorderMilestones_RecordsOneEventWithResultingOrder_Rules1_3(t *testing.T) {
+	j := journeyWithThreeMilestones(t)
+
+	err := j.ReorderMilestones([]string{"m1", "m3", "m2"}, journeyActor)
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{"m1", "m3", "m2"}, milestoneIDs(j))
+	assert.Equal(t, "Pilot", j.Milestones()[1].Label(), "labels travel with their milestone")
+	changes := j.GetUncommittedChanges()
+	require.Len(t, changes, 1)
+	evt, ok := changes[0].(events.JourneyMilestonesReordered)
+	require.True(t, ok)
+	assert.Equal(t, []string{"m1", "m3", "m2"}, evt.MilestoneIDs)
+	assert.Equal(t, journeyActor, evt.ReorderedBy)
+	assert.False(t, evt.OccurredOn.IsZero())
+}
+
+func TestCapabilityJourney_ReorderMilestones_RejectsIncompleteDuplicateOrUnknown_Rule1(t *testing.T) {
+	cases := []struct {
+		name  string
+		order []string
+		want  error
+	}{
+		{name: "omits one", order: []string{"m1", "m2"}, want: ErrJourneyMilestoneOrderIncomplete},
+		{name: "repeats one", order: []string{"m1", "m2", "m2"}, want: ErrJourneyMilestoneOrderDuplicate},
+		{name: "unknown id", order: []string{"m1", "m2", "m9"}, want: ErrJourneyMilestoneNotFound},
+		{name: "too many", order: []string{"m1", "m2", "m3", "m4"}, want: ErrJourneyMilestoneOrderIncomplete},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			j := journeyWithThreeMilestones(t)
+
+			err := j.ReorderMilestones(tc.order, journeyActor)
+
+			assert.ErrorIs(t, err, tc.want)
+			assert.Equal(t, []string{"m1", "m2", "m3"}, milestoneIDs(j))
+			assert.Empty(t, j.GetUncommittedChanges())
+		})
+	}
+}
+
+func TestCapabilityJourney_ReorderMilestones_TerminalJourneyRejected_Rule2(t *testing.T) {
+	j := journeyWithThreeMilestones(t)
+	require.NoError(t, j.Abandon(journeyActor))
+	j.MarkChangesAsCommitted()
+
+	err := j.ReorderMilestones([]string{"m3", "m2", "m1"}, journeyActor)
+
+	assert.ErrorIs(t, err, ErrJourneyFrozen)
+	assert.Empty(t, j.GetUncommittedChanges())
+}
+
+func TestCapabilityJourney_ReorderMilestones_NoOpRejected_Rule4(t *testing.T) {
+	j := journeyWithThreeMilestones(t)
+
+	err := j.ReorderMilestones([]string{"m1", "m2", "m3"}, journeyActor)
+
+	assert.ErrorIs(t, err, ErrJourneyMilestoneOrderUnchanged)
+	assert.Empty(t, j.GetUncommittedChanges())
+}
+
+func TestCapabilityJourney_ReorderMilestones_OrderStableUnderAddAndRemove_Rule5(t *testing.T) {
+	j := journeyWithThreeMilestones(t)
+	require.NoError(t, j.ReorderMilestones([]string{"m3", "m1", "m2"}, journeyActor))
+
+	addPlannedMilestone(t, j, "m4", "Go live")
+	assert.Equal(t, []string{"m3", "m1", "m2", "m4"}, milestoneIDs(j), "added milestone appends")
+
+	require.NoError(t, j.RemoveMilestone("m1", journeyActor))
+	assert.Equal(t, []string{"m3", "m2", "m4"}, milestoneIDs(j), "removal compacts without disturbing the rest")
+}
+
+func TestLoadCapabilityJourneyFromHistory_ReplaysReorder_Rule3(t *testing.T) {
+	j := plannedJourney(t)
+	addPlannedMilestone(t, j, "m1", "Contract signed")
+	addPlannedMilestone(t, j, "m2", "Rollout")
+	addPlannedMilestone(t, j, "m3", "Pilot")
+	require.NoError(t, j.ReorderMilestones([]string{"m1", "m3", "m2"}, journeyActor))
+
+	loaded, err := LoadCapabilityJourneyFromHistory(j.GetUncommittedChanges())
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{"m1", "m3", "m2"}, milestoneIDs(loaded))
+}
+
+func TestLoadCapabilityJourneyFromHistory_CorruptReorder_Fails(t *testing.T) {
+	j := plannedJourney(t)
+	addPlannedMilestone(t, j, "m1", "Contract signed")
+	history := append(j.GetUncommittedChanges(), events.NewJourneyMilestonesReordered(events.JourneyMilestonesReorderedFields{
+		ID: j.ID(), MilestoneIDs: []string{"ghost"}, ReorderedBy: journeyActor,
+	}))
+
+	_, err := LoadCapabilityJourneyFromHistory(history)
+
+	assert.ErrorIs(t, err, ErrCorruptedCapabilityJourneyEvent)
+}

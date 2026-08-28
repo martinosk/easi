@@ -1,4 +1,5 @@
 import type {
+  BusinessDomain,
   Capability,
   CapabilityId,
   CapabilityRealization,
@@ -19,6 +20,7 @@ import {
 } from '../helpers/entityBuilders';
 
 export interface MockDatabase {
+  businessDomains: BusinessDomain[];
   components: Component[];
   capabilities: Capability[];
   capabilityRealizations: CapabilityRealization[];
@@ -30,6 +32,7 @@ let db: MockDatabase = createEmptyDb();
 
 function createEmptyDb(): MockDatabase {
   return {
+    businessDomains: [],
     components: [],
     capabilities: [],
     capabilityRealizations: [],
@@ -44,6 +47,7 @@ export function resetDb(): void {
 }
 
 export function seedDb(data: Partial<MockDatabase>): void {
+  if (data.businessDomains) db.businessDomains = data.businessDomains;
   if (data.components) db.components = data.components;
   if (data.capabilities) db.capabilities = data.capabilities;
   if (data.capabilityRealizations) db.capabilityRealizations = data.capabilityRealizations;
@@ -134,4 +138,8 @@ export function addRelation(relation: Partial<Relation> = {}): Relation {
   const newRelation = buildRelation(relation);
   db.relations.push(newRelation);
   return newRelation;
+}
+
+export function getBusinessDomains(): BusinessDomain[] {
+  return db.businessDomains;
 }

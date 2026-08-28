@@ -21,6 +21,7 @@ type CapabilityJourneyStore interface {
 	AddMilestone(ctx context.Context, p readmodels.JourneyMilestoneUpsertParams) error
 	UpdateMilestone(ctx context.Context, p readmodels.JourneyMilestoneUpsertParams) error
 	RemoveMilestone(ctx context.Context, journeyID, milestoneID string) error
+	ReorderMilestones(ctx context.Context, journeyID string, milestoneIDs []string) error
 }
 
 type CapabilityJourneyProjector struct {
@@ -72,6 +73,9 @@ func (p *CapabilityJourneyProjector) ProjectEvent(ctx context.Context, eventType
 		},
 		pl.JourneyMilestoneRemoved: func(ctx context.Context, data []byte) error {
 			return handleProjection(ctx, data, p.applyJourneyMilestoneRemoved)
+		},
+		pl.JourneyMilestonesReordered: func(ctx context.Context, data []byte) error {
+			return handleProjection(ctx, data, p.applyJourneyMilestonesReordered)
 		},
 	}
 	if handler, exists := handlers[eventType]; exists {
@@ -150,6 +154,10 @@ func (p *CapabilityJourneyProjector) applyJourneyMilestoneUpdated(ctx context.Co
 
 func (p *CapabilityJourneyProjector) applyJourneyMilestoneRemoved(ctx context.Context, evt events.JourneyMilestoneRemoved) error {
 	return p.readModel.RemoveMilestone(ctx, evt.ID, evt.MilestoneID)
+}
+
+func (p *CapabilityJourneyProjector) applyJourneyMilestonesReordered(ctx context.Context, evt events.JourneyMilestonesReordered) error {
+	return p.readModel.ReorderMilestones(ctx, evt.ID, evt.MilestoneIDs)
 }
 
 func targetPeriodParts(tp *events.TargetPeriodData) (*int, *int) {

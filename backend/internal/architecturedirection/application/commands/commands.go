@@ -186,3 +186,11 @@ type RemoveJourneyMilestone struct {
 }
 
 func (c RemoveJourneyMilestone) CommandName() string { return "RemoveJourneyMilestone" }
+
+type ReorderJourneyMilestones struct {
+	JourneyID    string
+	MilestoneIDs []string
+	Actor        string
+}
+
+func (c ReorderJourneyMilestones) CommandName() string { return "ReorderJourneyMilestones" }

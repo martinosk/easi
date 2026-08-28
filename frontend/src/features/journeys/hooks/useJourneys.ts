@@ -10,6 +10,7 @@ import type {
   CaptureJourneyRequest,
   ChangeJourneySourceApplicationsRequest,
   JourneyMilestone,
+  ReorderJourneyMilestonesRequest,
   UpdateJourneyDetailsRequest,
   UpdateJourneyMilestoneRequest,
   UpdateJourneyProgressRequest,
@@ -152,5 +153,15 @@ export function useRemoveJourneyMilestone() {
     'removeMilestone',
     'Milestone removed',
     'Failed to remove milestone',
+  );
+}
+
+export function useReorderJourneyMilestones() {
+  return useJourneyMutation(
+    ({ journey, request }: { journey: CapabilityJourney; request: ReorderJourneyMilestonesRequest }) =>
+      journeyApi.reorderMilestones(journey, request),
+    'reorderMilestones',
+    'Milestones reordered',
+    'Failed to reorder milestones',
   );
 }

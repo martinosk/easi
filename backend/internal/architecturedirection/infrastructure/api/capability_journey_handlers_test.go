@@ -92,6 +92,7 @@ func capabilityJourneyRouter(h *CapabilityJourneyHandlers) chi.Router {
 	r.Post("/capability-journeys/{journeyId}/milestones", h.PostJourneyMilestone)
 	r.Put("/capability-journeys/{journeyId}/milestones/{milestoneId}", h.PutJourneyMilestone)
 	r.Delete("/capability-journeys/{journeyId}/milestones/{milestoneId}", h.DeleteJourneyMilestone)
+	r.Put("/capability-journeys/{journeyId}/milestone-order", h.PutJourneyMilestoneOrder)
 	return r
 }
 
@@ -384,17 +385,17 @@ func TestJourneyTransitions_DispatchesCommand_Returns200(t *testing.T) {
 	}
 }
 
-func TestJourneyMutationHandlers_DispatchCommand(t *testing.T) {
-	milestoneID := uuid.New().String()
-	newFrom := uuid.New().String()
-	cases := []struct {
-		name       string
-		method     string
-		pathSuffix string
-		body       any
-		wantStatus int
-		assertCmd  func(t *testing.T, journeyID string, cmd cqrs.Command)
-	}{
+type journeyMutationDispatchCase struct {
+	name       string
+	method     string
+	pathSuffix string
+	body       any
+	wantStatus int
+	assertCmd  func(t *testing.T, journeyID string, cmd cqrs.Command)
+}
+
+func journeyMutationDispatchCases(milestoneID, newFrom string) []journeyMutationDispatchCase {
+	return []journeyMutationDispatchCase{
 		{
 			name: "progress", method: http.MethodPut, pathSuffix: "progress",
 			body: UpdateJourneyProgressRequest{Progress: 60}, wantStatus: http.StatusOK,
@@ -444,8 +445,21 @@ func TestJourneyMutationHandlers_DispatchCommand(t *testing.T) {
 				assert.Equal(t, valueobjects.MilestoneStatusDone, c.Status)
 			},
 		},
+		{
+			name: "reorder milestones", method: http.MethodPut, pathSuffix: "milestone-order",
+			body: ReorderJourneyMilestonesRequest{MilestoneIDs: []string{milestoneID, newFrom}}, wantStatus: http.StatusOK,
+			assertCmd: func(t *testing.T, journeyID string, cmd cqrs.Command) {
+				c := cmd.(*commands.ReorderJourneyMilestones)
+				assert.Equal(t, journeyID, c.JourneyID)
+				assert.Equal(t, []string{milestoneID, newFrom}, c.MilestoneIDs)
+				assert.Equal(t, "user@example.com", c.Actor)
+			},
+		},
 	}
-	for _, tc := range cases {
+}
+
+func TestJourneyMutationHandlers_DispatchCommand(t *testing.T) {
+	for _, tc := range journeyMutationDispatchCases(uuid.New().String(), uuid.New().String()) {
 		t.Run(tc.name, func(t *testing.T) {
 			journeyID, bus, r := newMutableJourneyFixture(t)
 
@@ -475,4 +489,45 @@ func TestDeleteJourneyMilestone_DispatchesCommand_Returns204(t *testing.T) {
 	cmd := bus.dispatched[0].(*commands.RemoveJourneyMilestone)
 	assert.Equal(t, journeyID, cmd.JourneyID)
 	assert.Equal(t, milestoneID, cmd.MilestoneID)
+}
+
+func TestGetJourneyForCapability_ReorderLinkGatedByActorStatusAndMilestoneCount_Rule6(t *testing.T) {
+	twoMilestones := []readmodels.CapabilityJourneyMilestoneDTO{{ID: "m1", Label: "Pilot"}, {ID: "m2", Label: "Rollout"}}
+	cases := []struct {
+		name       string
+		status     string
+		milestones []readmodels.CapabilityJourneyMilestoneDTO
+		actor      sharedctx.Actor
+		wantLink   bool
+	}{
+		{name: "architect on active journey with two milestones", status: valueobjects.JourneyStatusInFlight, milestones: twoMilestones, actor: architectActor(), wantLink: true},
+		{name: "read-only actor gets no affordance", status: valueobjects.JourneyStatusInFlight, milestones: twoMilestones, actor: stakeholderActor(), wantLink: false},
+		{name: "terminal journey is frozen", status: valueobjects.JourneyStatusDone, milestones: twoMilestones, actor: architectActor(), wantLink: false},
+		{name: "single milestone has nothing to reorder", status: valueobjects.JourneyStatusPlanned, milestones: twoMilestones[:1], actor: architectActor(), wantLink: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			journey := plannedJourneyDTO()
+			journey.Status = tc.status
+			journey.Milestones = tc.milestones
+			h := setupCapabilityJourneyHandlers(&mockCommandBus{}, &mockCapabilityJourneyQueries{active: journey})
+			r := capabilityJourneyRouter(h)
+
+			req := withActor(httptest.NewRequest(http.MethodGet, "/capabilities/"+journey.CapabilityID+"/journey", nil), tc.actor)
+			rec := httptest.NewRecorder()
+			r.ServeHTTP(rec, req)
+
+			require.Equal(t, http.StatusOK, rec.Code)
+			var body struct {
+				Journey *readmodels.CapabilityJourneyDTO `json:"journey"`
+			}
+			require.NoError(t, json.NewDecoder(rec.Body).Decode(&body))
+			link, present := body.Journey.Links["x-reorder-milestones"]
+			assert.Equal(t, tc.wantLink, present)
+			if tc.wantLink {
+				assert.Equal(t, "/api/v1/capability-journeys/"+journey.ID+"/milestone-order", link.Href)
+				assert.Equal(t, http.MethodPut, link.Method)
+			}
+		})
+	}
 }

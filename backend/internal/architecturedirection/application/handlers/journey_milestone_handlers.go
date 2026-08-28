@@ -81,6 +81,16 @@ func NewRemoveJourneyMilestoneHandler(repo CapabilityJourneyRepository) cqrs.Com
 	}
 }
 
+func NewReorderJourneyMilestonesHandler(repo CapabilityJourneyRepository) cqrs.CommandHandler {
+	return &journeyMutationHandler[*commands.ReorderJourneyMilestones]{
+		repo:        repo,
+		journeyIDOf: func(c *commands.ReorderJourneyMilestones) string { return c.JourneyID },
+		apply: func(c *commands.ReorderJourneyMilestones, j *aggregates.CapabilityJourney) error {
+			return j.ReorderMilestones(c.MilestoneIDs, c.Actor)
+		},
+	}
+}
+
 type milestoneCommandFields struct {
 	milestoneID   string
 	label         string

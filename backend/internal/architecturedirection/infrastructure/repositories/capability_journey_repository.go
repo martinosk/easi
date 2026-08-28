@@ -38,6 +38,7 @@ var capabilityJourneyEventDeserializers = repository.NewEventDeserializers(
 		pl.JourneyMilestoneAdded:            repository.JSONDeserializer[events.JourneyMilestoneAdded],
 		pl.JourneyMilestoneUpdated:          repository.JSONDeserializer[events.JourneyMilestoneUpdated],
 		pl.JourneyMilestoneRemoved:          repository.JSONDeserializer[events.JourneyMilestoneRemoved],
+		pl.JourneyMilestonesReordered:       repository.JSONDeserializer[events.JourneyMilestonesReordered],
 		pl.JourneySourceApplicationsChanged: repository.JSONDeserializer[events.JourneySourceApplicationsChanged],
 	},
 )
