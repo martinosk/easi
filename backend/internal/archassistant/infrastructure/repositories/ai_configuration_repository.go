@@ -42,36 +42,34 @@ func (r *AIConfigurationRepository) GetByTenantID(ctx context.Context) (*aggrega
 }
 
 func (r *AIConfigurationRepository) Save(ctx context.Context, config *aggregates.AIConfiguration) error {
-	return r.db.WithTenantContext(ctx, func(conn *sql.Conn) error {
-		_, err := conn.ExecContext(ctx, `
-			INSERT INTO archassistant.ai_configurations
-				(id, tenant_id, provider, endpoint, api_key_encrypted, model, max_tokens, temperature, system_prompt_override, status, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-			ON CONFLICT (tenant_id) DO UPDATE SET
-				provider = EXCLUDED.provider,
-				endpoint = EXCLUDED.endpoint,
-				api_key_encrypted = EXCLUDED.api_key_encrypted,
-				model = EXCLUDED.model,
-				max_tokens = EXCLUDED.max_tokens,
-				temperature = EXCLUDED.temperature,
-				system_prompt_override = EXCLUDED.system_prompt_override,
-				status = EXCLUDED.status,
-				updated_at = EXCLUDED.updated_at
-		`,
-			config.ID(),
-			config.TenantID(),
-			config.Provider().Value(),
-			config.Endpoint().Value(),
-			config.APIKeyEncrypted().Value(),
-			config.Model().Value(),
-			config.MaxTokens().Value(),
-			config.Temperature().Value(),
-			nilIfEmpty(config.SystemPromptOverride()),
-			config.Status().Value(),
-			config.UpdatedAt(),
-		)
-		return err
-	})
+	_, err := r.db.ExecContext(ctx, `
+		INSERT INTO archassistant.ai_configurations
+			(id, tenant_id, provider, endpoint, api_key_encrypted, model, max_tokens, temperature, system_prompt_override, status, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		ON CONFLICT (tenant_id) DO UPDATE SET
+			provider = EXCLUDED.provider,
+			endpoint = EXCLUDED.endpoint,
+			api_key_encrypted = EXCLUDED.api_key_encrypted,
+			model = EXCLUDED.model,
+			max_tokens = EXCLUDED.max_tokens,
+			temperature = EXCLUDED.temperature,
+			system_prompt_override = EXCLUDED.system_prompt_override,
+			status = EXCLUDED.status,
+			updated_at = EXCLUDED.updated_at
+	`,
+		config.ID(),
+		config.TenantID(),
+		config.Provider().Value(),
+		config.Endpoint().Value(),
+		config.APIKeyEncrypted().Value(),
+		config.Model().Value(),
+		config.MaxTokens().Value(),
+		config.Temperature().Value(),
+		nilIfEmpty(config.SystemPromptOverride()),
+		config.Status().Value(),
+		config.UpdatedAt(),
+	)
+	return err
 }
 
 func nilIfEmpty(s *string) *string {

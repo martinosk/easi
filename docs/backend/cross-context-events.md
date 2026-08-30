@@ -72,6 +72,12 @@ func (p *Projector) ProjectEvent(ctx context.Context, eventType string, eventDat
 | `eaPL` | `enterprisearchitecture/publishedlanguage` |
 | `authPL` | `auth/publishedlanguage` |
 
+## Delivery Semantics
+
+`PostgresEventStore.SaveEvents` publishes to every subscriber on the same database transaction that inserts the event row, before that transaction commits (`backend/internal/infrastructure/eventstore/event_store.go`). A subscriber that returns an error — including one raised by a command it dispatches, which nests into the same transaction via `database.WithTx`/`TxFromContext` — rolls back the whole write: the event row, every cache write any subscriber made, and, when the producer itself joined a caller's transaction (as the merged create-tenant handler does via `TenantAwareDB.RunInTx`), the caller's own relational writes too. The caller gets the error back; nothing is left half-committed to retry against.
+
+This means every subscriber (projector, reactor, deletion handler) must stay **database-only**. No outbound HTTP call, no email, no file I/O, no LLM/AI-provider call, no long-running computation — any such side effect would now execute while holding the producing write's transaction open, and would not automatically retry or compensate on a later rollback. A subscriber that legitimately needs a non-database side effect belongs outside this synchronous path (e.g. dispatched from a projected read model after commit), not inside an event handler.
+
 ## Complete Event Constants Catalogue
 
 ### Architecture Modeling (`archPL`)

@@ -63,10 +63,18 @@ func setupPlatformTestDB(t *testing.T) (*platformTestContext, func()) {
 
 	cleanup := func() {
 		for _, id := range ctx.createdTenants {
-			db.Exec("DELETE FROM auth.invitations WHERE tenant_id = $1", id)
-			db.Exec("DELETE FROM auth.tenant_oidc_configs WHERE tenant_id = $1", id)
-			db.Exec("DELETE FROM auth.tenant_domains WHERE tenant_id = $1", id)
-			db.Exec("DELETE FROM auth.tenants WHERE id = $1", id)
+			tx, err := db.Begin()
+			if err != nil {
+				continue
+			}
+			tx.Exec(fmt.Sprintf("SET LOCAL app.current_tenant = '%s'", id))
+			tx.Exec("DELETE FROM auth.invitations WHERE tenant_id = $1", id)
+			tx.Exec("DELETE FROM auth.users WHERE tenant_id = $1", id)
+			tx.Exec("DELETE FROM infrastructure.events WHERE tenant_id = $1", id)
+			tx.Exec("DELETE FROM auth.tenant_oidc_configs WHERE tenant_id = $1", id)
+			tx.Exec("DELETE FROM auth.tenant_domains WHERE tenant_id = $1", id)
+			tx.Exec("DELETE FROM auth.tenants WHERE id = $1", id)
+			tx.Commit()
 		}
 		db.Close()
 	}
@@ -93,7 +101,7 @@ func setupPlatformHandlers(db *sql.DB) chi.Router {
 	eventBus := events.NewInMemoryEventBus()
 	evStore.SetEventBus(eventBus)
 
-	commandBus.Register("CreateTenant", handlers.NewCreateTenantHandler(tenantRepo, evStore))
+	commandBus.Register("CreateTenant", handlers.NewCreateTenantHandler(tenantRepo, evStore, tenantDB))
 
 	eventBus.Subscribe(authPL.TenantCreated, handlers.NewTenantCreatedReactor(commandBus))
 
@@ -240,13 +248,7 @@ func TestCreateTenant_Integration(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, domainCount)
 
-	var eventCount int
-	err = ctx.db.QueryRow(
-		"SELECT COUNT(*) FROM infrastructure.events WHERE tenant_id = $1 AND aggregate_id = $2 AND event_type = 'TenantCreated'",
-		tenantID, tenantID,
-	).Scan(&eventCount)
-	require.NoError(t, err)
-	assert.Equal(t, 1, eventCount)
+	assert.Equal(t, 1, ctx.countTenantEvents(t, tenantID, "TenantCreated"))
 
 	assert.Equal(t, 1, ctx.countTenantInvitations(t, tenantID, "admin@"+tenantID+".com", "admin"))
 }

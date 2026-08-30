@@ -6,6 +6,8 @@ import (
 	"errors"
 	"strings"
 	"time"
+
+	"easi/backend/internal/infrastructure/database"
 )
 
 var (
@@ -37,23 +39,31 @@ type TenantRecord struct {
 }
 
 func (r *TenantRepository) Create(ctx context.Context, record TenantRecord) error {
+	if tx, ok := database.TxFromContext(ctx); ok {
+		return r.createOn(ctx, tx, record)
+	}
+
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
 
+	if err := r.createOn(ctx, tx, record); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func (r *TenantRepository) createOn(ctx context.Context, tx *sql.Tx, record TenantRecord) error {
 	if err := ensureTenantAbsent(ctx, tx, record.ID); err != nil {
 		return err
 	}
 	if err := ensureDomainsAvailable(ctx, tx, record.Domains); err != nil {
 		return err
 	}
-	if err := insertTenant(ctx, tx, record); err != nil {
-		return err
-	}
-
-	return tx.Commit()
+	return insertTenant(ctx, tx, record)
 }
 
 func ensureTenantAbsent(ctx context.Context, tx *sql.Tx, id string) error {

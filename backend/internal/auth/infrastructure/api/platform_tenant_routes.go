@@ -16,24 +16,32 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func registerPlatformTenantRoutes(r chi.Router, rawDB *sql.DB, tenantDB *database.TenantAwareDB, commandBus cqrs.CommandBus, eventBus events.EventBus) {
-	tenantRepo := repositories.NewTenantRepository(rawDB)
+type PlatformTenantRoutesDeps struct {
+	Router     chi.Router
+	RawDB      *sql.DB
+	TenantDB   *database.TenantAwareDB
+	CommandBus cqrs.CommandBus
+	EventBus   events.EventBus
+}
 
-	tenantEventStore := eventstore.NewPostgresEventStore(tenantDB)
-	tenantEventStore.SetEventBus(eventBus)
+func registerPlatformTenantRoutes(deps PlatformTenantRoutesDeps) {
+	tenantRepo := repositories.NewTenantRepository(deps.RawDB)
 
-	createTenantHandler := handlers.NewCreateTenantHandler(tenantRepo, tenantEventStore)
-	commandBus.Register("CreateTenant", createTenantHandler)
+	tenantEventStore := eventstore.NewPostgresEventStore(deps.TenantDB)
+	tenantEventStore.SetEventBus(deps.EventBus)
+
+	createTenantHandler := handlers.NewCreateTenantHandler(tenantRepo, tenantEventStore, deps.TenantDB)
+	deps.CommandBus.Register("CreateTenant", createTenantHandler)
 
 	secretProvider := secrets.NewEnvSecretProvider("OIDC_CLIENT_SECRET")
 
-	tenantHandlers := NewPlatformTenantHandlers(commandBus, tenantRepo, secretProvider)
+	tenantHandlers := NewPlatformTenantHandlers(deps.CommandBus, tenantRepo, secretProvider)
 
 	platformAdminKey := os.Getenv("PLATFORM_ADMIN_API_KEY")
 
 	rateLimiter := middleware.NewRateLimiter(100, 60)
 
-	r.Route("/platform", func(r chi.Router) {
+	deps.Router.Route("/platform", func(r chi.Router) {
 		r.Use(middleware.RateLimitMiddleware(rateLimiter))
 		r.Use(PlatformAdminMiddleware(platformAdminKey))
 

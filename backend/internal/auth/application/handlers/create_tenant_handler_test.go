@@ -73,10 +73,16 @@ func validCreateTenantCommand() *commands.CreateTenant {
 	}
 }
 
+type inlineTxRunner struct{}
+
+func (inlineTxRunner) RunInTx(ctx context.Context, fn func(context.Context) error) error {
+	return fn(ctx)
+}
+
 func setupCreateTenantHandler() (*CreateTenantHandler, *recordingTenantStore, *fakeTenantEventStore) {
 	store := &recordingTenantStore{}
 	eventStore := &fakeTenantEventStore{}
-	return NewCreateTenantHandler(store, eventStore), store, eventStore
+	return NewCreateTenantHandler(store, eventStore, inlineTxRunner{}), store, eventStore
 }
 
 func TestCreateTenantHandler_PersistsTenantCreatedThroughTheEventStore(t *testing.T) {
@@ -116,7 +122,7 @@ func TestCreateTenantHandler_SavesEventsInTheTenantsOwnContext(t *testing.T) {
 func TestCreateTenantHandler_DoesNotSaveEventsWhenRelationalWriteFails(t *testing.T) {
 	store := &recordingTenantStore{err: errors.New("duplicate tenant")}
 	eventStore := &fakeTenantEventStore{}
-	handler := NewCreateTenantHandler(store, eventStore)
+	handler := NewCreateTenantHandler(store, eventStore, inlineTxRunner{})
 
 	_, err := handler.Handle(context.Background(), validCreateTenantCommand())
 
@@ -127,7 +133,7 @@ func TestCreateTenantHandler_DoesNotSaveEventsWhenRelationalWriteFails(t *testin
 func TestCreateTenantHandler_FailsWhenEventStoreCannotPersist(t *testing.T) {
 	store := &recordingTenantStore{}
 	eventStore := &fakeTenantEventStore{saveErr: errors.New("db unavailable")}
-	handler := NewCreateTenantHandler(store, eventStore)
+	handler := NewCreateTenantHandler(store, eventStore, inlineTxRunner{})
 
 	_, err := handler.Handle(context.Background(), validCreateTenantCommand())
 

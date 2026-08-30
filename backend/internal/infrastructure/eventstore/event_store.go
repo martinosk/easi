@@ -72,20 +72,33 @@ func (s *PostgresEventStore) SaveEvents(ctx context.Context, aggregateID string,
 		return fmt.Errorf("failed to get tenant from context: %w", err)
 	}
 
-	tx, err := s.db.BeginTxWithTenant(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
 	batch := saveBatch{
-		tx:              tx,
 		tenantID:        tenantID,
 		aggregateID:     aggregateID,
 		events:          events,
 		expectedVersion: expectedVersion,
 	}
 
+	if tx, ok := database.TxFromContext(ctx); ok {
+		batch.tx = tx
+		return s.saveOnTx(ctx, batch)
+	}
+
+	tx, err := s.db.BeginTxWithTenant(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	batch.tx = tx
+	if err := s.saveOnTx(ctx, batch); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func (s *PostgresEventStore) saveOnTx(ctx context.Context, batch saveBatch) error {
 	if err := s.checkVersionConflict(ctx, batch); err != nil {
 		return err
 	}
@@ -94,13 +107,7 @@ func (s *PostgresEventStore) SaveEvents(ctx context.Context, aggregateID string,
 		return err
 	}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
-	}
-
-	s.publishEventsIfAvailable(ctx, events)
-
-	return nil
+	return s.publishEvents(database.WithTx(ctx, batch.tx), batch.events)
 }
 
 func (s *PostgresEventStore) checkVersionConflict(ctx context.Context, batch saveBatch) error {
@@ -168,12 +175,14 @@ func (s *PostgresEventStore) insertEvents(ctx context.Context, batch saveBatch) 
 	return nil
 }
 
-func (s *PostgresEventStore) publishEventsIfAvailable(ctx context.Context, events []domain.DomainEvent) {
-	if s.eventBus != nil {
-		if err := s.eventBus.Publish(ctx, events); err != nil {
-			fmt.Printf("Warning: failed to publish events to event bus: %v\n", err)
-		}
+func (s *PostgresEventStore) publishEvents(ctx context.Context, events []domain.DomainEvent) error {
+	if s.eventBus == nil {
+		return nil
 	}
+	if err := s.eventBus.Publish(ctx, events); err != nil {
+		return fmt.Errorf("publish events for aggregate %s: %w", events[0].AggregateID(), err)
+	}
+	return nil
 }
 
 // GetEvents retrieves all events for an aggregate

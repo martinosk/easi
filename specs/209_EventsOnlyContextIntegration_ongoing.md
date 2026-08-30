@@ -6,6 +6,8 @@
 
 > **Amended 2026-08-30, user decision:** Platform is merged into Auth. Rule 9 and the Auth/Platform acceptance criteria's tenant caches (migrations 139/140, `TenantCacheProjector`, `auth.tenant_cache`/`tenant_domain_cache`/`tenant_oidc_cache`) are superseded — they existed only to satisfy the events-only rule against a context that published one event and owned three near-static tables. `TenantCreated` is now published by Auth itself; tenant, domain and OIDC reads are live in-context queries against `auth.tenants`, `auth.tenant_domains` and `auth.tenant_oidc_configs` (migration 149 moves the tables and drops the `platform` schema). This restores tenant suspension taking effect immediately at login and fixes the half-provisioned-tenant 404 on `POST /auth/invitations`. MetaModel and Arch Assistant now subscribe to `authPL.TenantCreated` instead of `platformPL.TenantCreated`. The target-graph table below is updated accordingly: the `platform` row is removed and `auth` has no outgoing published-language edges.
 
+> **Amended 2026-08-31, event-delivery foundation fix:** `PostgresEventStore.SaveEvents` previously committed its write and then swallowed any subscriber error into a `Warning:` log line, so a projector failure silently and permanently drifted a cache while the caller still saw success. `SaveEvents` now publishes to subscribers *before* committing, on the same transaction; a subscriber failure (including one raised by a command a subscriber dispatches) rolls back the whole write and returns the error to the caller. A context-carried transaction (`database.WithTx`/`TxFromContext`) lets nested repository and read-model writes join that same transaction instead of opening their own. The merged create-tenant handler now runs `TenantRepository.Create` and `SaveEvents` inside one transaction via `TenantAwareDB.RunInTx`, so a failing `TenantCreated` subscriber leaves no tenant row behind and a retry is not blocked by a 409.
+
 ---
 
 ## Problem Statement
@@ -171,7 +173,7 @@ valuestreams          → auth, capabilitymapping
 |----------|-----------|------------|
 | Many small caches | More projector code and tables | Uniform pattern, backfilled, integration-tested |
 | Auth caches tenant data | Eventual consistency for tenant changes; no RLS on the caches | Synchronous in-process bus; tenants are immutable after creation today; explicit tenant/domain filters on every query |
-| Tenant creation now runs every `TenantCreated` subscriber inline | A failing subscriber fails `POST /tenants` | Same strictness the synchronous first-admin invitation had; subscribers are idempotent projectors |
+| `PostgresEventStore.SaveEvents` publishes to subscribers before committing, joining the caller's transaction when one is already open | A failing subscriber (or a failing nested command it dispatches) rolls back the entire write - the event row, every cache write the subscriber chain made, and, for tenant creation, the relational tenant row too; the caller gets the error back and can retry once the fault is cleared, with no partial state left behind | Subscribers stay database-only (verified: no HTTP/file/LLM calls on any subscribed handler); the merged create-tenant handler runs `TenantRepository.Create` and `SaveEvents` in one transaction via `TenantAwareDB.RunInTx` |
 | OnePagers replicates subject fields | Duplicated data | Read-side only, fed by the same events the subject index already consumes |
 | `/tenants/{id}/invitations` moves | Ops scripts referencing it must change | No frontend caller; documented in release notes |
 

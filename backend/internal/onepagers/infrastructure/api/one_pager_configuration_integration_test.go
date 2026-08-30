@@ -156,6 +156,42 @@ func sessionCookies(t *testing.T, scsManager *scs.SessionManager, sessionManager
 	return cookies
 }
 
+func (ic *integrationContext) beginTenantScopedTx(t *testing.T) *sql.Tx {
+	t.Helper()
+
+	tx, err := ic.db.Begin()
+	require.NoError(t, err)
+
+	_, err = tx.Exec(fmt.Sprintf("SET LOCAL app.current_tenant = '%s'", ic.tenantID))
+	require.NoError(t, err)
+
+	return tx
+}
+
+func (ic *integrationContext) execAsTenant(t *testing.T, query string, args ...interface{}) error {
+	t.Helper()
+
+	tx := ic.beginTenantScopedTx(t)
+	defer func() { _ = tx.Rollback() }()
+
+	if _, err := tx.Exec(query, args...); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func (ic *integrationContext) countAsTenant(t *testing.T, query string, args ...interface{}) int {
+	t.Helper()
+
+	tx := ic.beginTenantScopedTx(t)
+	defer func() { _ = tx.Rollback() }()
+
+	var count int
+	require.NoError(t, tx.QueryRow(query, args...).Scan(&count))
+	return count
+}
+
 func (ic *integrationContext) do(t *testing.T, method, path string, body any) *httptest.ResponseRecorder {
 	t.Helper()
 	var reader io.Reader
@@ -207,10 +243,7 @@ func TestGetConfiguration_LazilyCreatesDefault_Integration(t *testing.T) {
 	second := ic.getConfiguration(t)
 	assert.Equal(t, dto.ID, second.ID)
 
-	var count int
-	require.NoError(t, ic.db.QueryRow(
-		"SELECT COUNT(*) FROM onepagers.one_pager_configurations WHERE tenant_id = $1", ic.tenantID,
-	).Scan(&count))
+	count := ic.countAsTenant(t, "SELECT COUNT(*) FROM onepagers.one_pager_configurations WHERE tenant_id = $1", ic.tenantID)
 	assert.Equal(t, 1, count)
 }
 
@@ -356,7 +389,7 @@ func TestUniqueConstraint_Backstop_Integration(t *testing.T) {
 
 	duplicate := uuid.New().String()
 	ic.createdIDs = append(ic.createdIDs, duplicate)
-	_, err := ic.db.Exec(
+	err := ic.execAsTenant(t,
 		`INSERT INTO onepagers.one_pager_configurations
 		(id, tenant_id, subject_type, configuration, version, created_at, modified_at, modified_by)
 		VALUES ($1, $2, $3, '{}', 1, NOW(), NOW(), 'test@example.com')`,

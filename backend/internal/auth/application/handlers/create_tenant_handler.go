@@ -19,13 +19,18 @@ type TenantStore interface {
 	Create(ctx context.Context, record repositories.TenantRecord) error
 }
 
+type TransactionRunner interface {
+	RunInTx(ctx context.Context, fn func(ctx context.Context) error) error
+}
+
 type CreateTenantHandler struct {
 	repository TenantStore
 	eventStore eventstore.EventStore
+	txRunner   TransactionRunner
 }
 
-func NewCreateTenantHandler(repository TenantStore, eventStore eventstore.EventStore) *CreateTenantHandler {
-	return &CreateTenantHandler{repository: repository, eventStore: eventStore}
+func NewCreateTenantHandler(repository TenantStore, eventStore eventstore.EventStore, txRunner TransactionRunner) *CreateTenantHandler {
+	return &CreateTenantHandler{repository: repository, eventStore: eventStore, txRunner: txRunner}
 }
 
 func (h *CreateTenantHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
@@ -46,11 +51,13 @@ func (h *CreateTenantHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqr
 
 	tenantCtx := sharedctx.WithTenant(ctx, registration.ID)
 
-	if err := h.repository.Create(tenantCtx, buildTenantRecord(registration)); err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	if err := h.saveTenantCreated(tenantCtx, registration.ID, tenant); err != nil {
+	err = h.txRunner.RunInTx(tenantCtx, func(txCtx context.Context) error {
+		if err := h.repository.Create(txCtx, buildTenantRecord(registration)); err != nil {
+			return err
+		}
+		return h.saveTenantCreated(txCtx, registration.ID, tenant)
+	})
+	if err != nil {
 		return cqrs.EmptyResult(), err
 	}
 

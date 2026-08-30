@@ -76,7 +76,13 @@ func SetupAuthRoutes(routeDeps AuthRoutesDeps) error {
 	authDeps := routeDeps.AuthDeps
 
 	registerTenantEventSubscriptions(routeDeps.EventBus, routeDeps.CommandBus)
-	registerPlatformTenantRoutes(r, db, routeDeps.TenantDB, routeDeps.CommandBus, routeDeps.EventBus)
+	registerPlatformTenantRoutes(PlatformTenantRoutesDeps{
+		Router:     r,
+		RawDB:      db,
+		TenantDB:   routeDeps.TenantDB,
+		CommandBus: routeDeps.CommandBus,
+		EventBus:   routeDeps.EventBus,
+	})
 
 	platformTenants := repositories.NewTenantRepository(db)
 	platformInvitations := NewPlatformInvitationHandlers(routeDeps.CommandBus, platformTenants)
