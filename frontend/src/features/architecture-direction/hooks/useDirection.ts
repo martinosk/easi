@@ -17,10 +17,13 @@ function getErrorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
-export function useDirectionForEnterpriseCapability(enterpriseCapabilityId: EnterpriseCapabilityId | undefined) {
+export function useDirectionForEnterpriseCapability(
+  enterpriseCapabilityId: EnterpriseCapabilityId | undefined,
+  href?: string,
+) {
   return useQuery({
-    queryKey: directionQueryKeys.byEnterpriseCapability(enterpriseCapabilityId ?? ''),
-    queryFn: () => directionApi.getForEnterpriseCapability(enterpriseCapabilityId!),
+    queryKey: [...directionQueryKeys.byEnterpriseCapability(enterpriseCapabilityId ?? ''), href ?? 'derived-url'],
+    queryFn: () => directionApi.getForEnterpriseCapability(enterpriseCapabilityId!, href),
     enabled: !!enterpriseCapabilityId,
   });
 }

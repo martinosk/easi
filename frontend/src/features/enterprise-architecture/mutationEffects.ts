@@ -20,5 +20,6 @@ export const enterpriseCapabilitiesMutationEffects = {
     enterpriseCapabilitiesQueryKeys.lists(),
     maturityAnalysisQueryKeys.all,
     enterpriseCapabilitiesQueryKeys.maturityGap(enterpriseCapabilityId),
+    onePagersQueryKeys.completenessForSubjectType('enterprise-capability'),
   ],
 };

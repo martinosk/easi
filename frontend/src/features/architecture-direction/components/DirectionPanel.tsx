@@ -15,6 +15,7 @@ import { DirectionStatusBadge } from './DirectionStatusBadge';
 
 interface DirectionPanelProps {
   enterpriseCapabilityId: EnterpriseCapabilityId;
+  directionHref?: string;
 }
 
 const TYPE_LABELS: Record<Direction['type'], string> = {
@@ -29,8 +30,8 @@ const HORIZON_LABELS: Record<Direction['horizon'], string> = {
   later: 'Later',
 };
 
-export function DirectionPanel({ enterpriseCapabilityId }: DirectionPanelProps) {
-  const { data, isLoading, error } = useDirectionForEnterpriseCapability(enterpriseCapabilityId);
+export function DirectionPanel({ enterpriseCapabilityId, directionHref }: DirectionPanelProps) {
+  const { data, isLoading, error } = useDirectionForEnterpriseCapability(enterpriseCapabilityId, directionHref);
   const [isCapturing, setIsCapturing] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 

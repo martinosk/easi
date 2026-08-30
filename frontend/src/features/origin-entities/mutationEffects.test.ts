@@ -31,4 +31,8 @@ describe('origin entity mutation effects one-pager freshness', () => {
     expect(vendorsMutationEffects.update('entity-1')).toContainEqual(vendorsQueryKeys.detail('entity-1'));
     expect(internalTeamsMutationEffects.update('entity-1')).toContainEqual(internalTeamsQueryKeys.detail('entity-1'));
   });
+
+  it.each(cases)('update for %s invalidates the completeness for the subject type', (subjectType, update) => {
+    expect(update('entity-1')).toContainEqual(onePagersQueryKeys.completenessForSubjectType(subjectType));
+  });
 });

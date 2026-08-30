@@ -23,6 +23,7 @@ export const componentsMutationEffects = {
     businessDomainsQueryKeys.all,
     auditQueryKeys.history(componentId),
     ...onePagerFreshness(componentId),
+    onePagersQueryKeys.completenessForSubjectType('application'),
   ],
 
   delete: (componentId: string) => [

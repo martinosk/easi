@@ -22,4 +22,10 @@ describe('componentsMutationEffects one-pager freshness', () => {
   it('update still invalidates the component detail', () => {
     expect(componentsMutationEffects.update('comp-1')).toContainEqual(componentsQueryKeys.detail('comp-1'));
   });
+
+  it('update invalidates the completeness for applications', () => {
+    expect(componentsMutationEffects.update('comp-1')).toContainEqual(
+      onePagersQueryKeys.completenessForSubjectType('application'),
+    );
+  });
 });

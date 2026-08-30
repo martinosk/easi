@@ -34,6 +34,7 @@ function createOriginEntityMutationEffects(entityQueryKeys: OriginEntityQueryKey
       auditQueryKeys.history(id),
       onePagersQueryKeys.onePager(subjectType, id),
       onePagerQualityQueryKeys.lists(),
+      onePagersQueryKeys.completenessForSubjectType(subjectType),
     ],
 
     delete: (id: string) => [
