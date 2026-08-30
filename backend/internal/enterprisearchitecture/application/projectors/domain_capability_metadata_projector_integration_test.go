@@ -21,6 +21,12 @@ import (
 
 const testTenant = "projector-test-tenant"
 
+type fixedBusinessDomainNameReader string
+
+func (r fixedBusinessDomainNameReader) Name(_ context.Context, _ string) (string, error) {
+	return string(r), nil
+}
+
 func setupProjectorTest(t *testing.T) (context.Context, *DomainCapabilityMetadataProjector, *readmodels.DomainCapabilityMetadataReadModel, *sql.DB) {
 	t.Helper()
 
@@ -29,9 +35,7 @@ func setupProjectorTest(t *testing.T) (context.Context, *DomainCapabilityMetadat
 
 	tenantDB := database.NewTenantAwareDB(db)
 	metadataRM := readmodels.NewDomainCapabilityMetadataReadModel(tenantDB)
-	projector := NewDomainCapabilityMetadataProjector(metadataRM, func(_ context.Context, _ string) (string, error) {
-		return "Test Domain", nil
-	})
+	projector := NewDomainCapabilityMetadataProjector(metadataRM, fixedBusinessDomainNameReader("Test Domain"))
 
 	ctx := sharedctx.WithTenant(context.Background(), valueobjects.MustNewTenantID(testTenant))
 

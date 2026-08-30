@@ -5,7 +5,6 @@ import (
 
 	archPL "easi/backend/internal/architecturemodeling/publishedlanguage"
 	"easi/backend/internal/architectureviews/application/handlers"
-	"easi/backend/internal/architectureviews/application/ports"
 	"easi/backend/internal/architectureviews/application/projectors"
 	"easi/backend/internal/architectureviews/application/readmodels"
 	"easi/backend/internal/architectureviews/infrastructure/repositories"
@@ -24,7 +23,17 @@ type AuthMiddleware interface {
 	RequirePermission(permission authPL.Permission) func(http.Handler) http.Handler
 }
 
-func SubscribeEvents(eventBus events.EventBus, commandBus *cqrs.InMemoryCommandBus, db *database.TenantAwareDB) {
+type RouteConfig struct {
+	Router         chi.Router
+	CommandBus     *cqrs.InMemoryCommandBus
+	EventStore     eventstore.EventStore
+	EventBus       events.EventBus
+	DB             *database.TenantAwareDB
+	HATEOAS        *sharedAPI.HATEOASLinks
+	AuthMiddleware AuthMiddleware
+}
+
+func subscribeEvents(eventBus events.EventBus, commandBus *cqrs.InMemoryCommandBus, db *database.TenantAwareDB) {
 	viewReadModel := readmodels.NewArchitectureViewReadModel(db)
 	viewProjector := projectors.NewArchitectureViewProjector(viewReadModel)
 
@@ -43,7 +52,7 @@ func SubscribeEvents(eventBus events.EventBus, commandBus *cqrs.InMemoryCommandB
 	eventBus.Subscribe(archPL.ComponentRelationDeleted, relationDeletedHandler)
 }
 
-func RegisterCommands(commandBus *cqrs.InMemoryCommandBus, eventStore eventstore.EventStore, db *database.TenantAwareDB, userRoleChecker ports.UserRoleChecker) {
+func registerCommands(commandBus *cqrs.InMemoryCommandBus, eventStore eventstore.EventStore, db *database.TenantAwareDB) {
 	viewRepo := repositories.NewArchitectureViewRepository(eventStore)
 	layoutRepo := repositories.NewViewLayoutRepository(db)
 	viewReadModel := readmodels.NewArchitectureViewReadModel(db)
@@ -61,7 +70,7 @@ func RegisterCommands(commandBus *cqrs.InMemoryCommandBus, eventStore eventstore
 	commandBus.Register("UpdateViewColorScheme", handlers.NewUpdateViewColorSchemeHandler(layoutRepo))
 	commandBus.Register("UpdateElementColor", handlers.NewUpdateElementColorHandler(layoutRepo))
 	commandBus.Register("ClearElementColor", handlers.NewClearElementColorHandler(layoutRepo))
-	commandBus.Register("ChangeViewVisibility", handlers.NewChangeViewVisibilityHandler(viewRepo, userRoleChecker))
+	commandBus.Register("ChangeViewVisibility", handlers.NewChangeViewVisibilityHandler(viewRepo))
 }
 
 type HTTPHandlers struct {
@@ -71,7 +80,7 @@ type HTTPHandlers struct {
 	color     *ViewColorHandlers
 }
 
-func NewHTTPHandlers(commandBus *cqrs.InMemoryCommandBus, db *database.TenantAwareDB, hateoas *sharedAPI.HATEOASLinks) *HTTPHandlers {
+func newHTTPHandlers(commandBus *cqrs.InMemoryCommandBus, db *database.TenantAwareDB, hateoas *sharedAPI.HATEOASLinks) *HTTPHandlers {
 	viewReadModel := readmodels.NewArchitectureViewReadModel(db)
 	layoutRepo := repositories.NewViewLayoutRepository(db)
 	links := NewViewLinks(hateoas)
@@ -83,7 +92,7 @@ func NewHTTPHandlers(commandBus *cqrs.InMemoryCommandBus, db *database.TenantAwa
 	}
 }
 
-func RegisterRoutes(r chi.Router, h *HTTPHandlers, authMiddleware AuthMiddleware) {
+func registerRoutes(r chi.Router, h *HTTPHandlers, authMiddleware AuthMiddleware) {
 	r.Route("/views", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequirePermission(authPL.PermViewsRead))
@@ -122,4 +131,14 @@ func RegisterRoutes(r chi.Router, h *HTTPHandlers, authMiddleware AuthMiddleware
 			r.Delete("/{id}/origin-entities/{originEntityId}", h.element.RemoveOriginEntityFromView)
 		})
 	})
+}
+
+func SetupArchitectureViewsRoutes(cfg RouteConfig) error {
+	subscribeEvents(cfg.EventBus, cfg.CommandBus, cfg.DB)
+	registerCommands(cfg.CommandBus, cfg.EventStore, cfg.DB)
+
+	handlers := newHTTPHandlers(cfg.CommandBus, cfg.DB, cfg.HATEOAS)
+	registerRoutes(cfg.Router, handlers, cfg.AuthMiddleware)
+
+	return nil
 }

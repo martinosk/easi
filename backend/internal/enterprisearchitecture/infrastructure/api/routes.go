@@ -33,14 +33,15 @@ type routeRepositories struct {
 }
 
 type routeReadModels struct {
-	capability       *readmodels.EnterpriseCapabilityReadModel
-	importance       *readmodels.EnterpriseStrategicImportanceReadModel
-	metadata         *readmodels.DomainCapabilityMetadataReadModel
-	timeSuggestion   *readmodels.TimeSuggestionReadModel
-	pillarCache      *readmodels.StrategyPillarCacheReadModel
-	realizationCache *readmodels.EARealizationCacheReadModel
-	importanceCache  *readmodels.EAImportanceCacheReadModel
-	fitScoreCache    *readmodels.EAFitScoreCacheReadModel
+	capability          *readmodels.EnterpriseCapabilityReadModel
+	importance          *readmodels.EnterpriseStrategicImportanceReadModel
+	metadata            *readmodels.DomainCapabilityMetadataReadModel
+	timeSuggestion      *readmodels.TimeSuggestionReadModel
+	pillarCache         *readmodels.StrategyPillarCacheReadModel
+	realizationCache    *readmodels.EARealizationCacheReadModel
+	importanceCache     *readmodels.EAImportanceCacheReadModel
+	fitScoreCache       *readmodels.EAFitScoreCacheReadModel
+	businessDomainNames *readmodels.BusinessDomainNameCacheReadModel
 }
 
 type routeHTTPHandlers struct {
@@ -49,21 +50,20 @@ type routeHTTPHandlers struct {
 }
 
 type EnterpriseArchRoutesDeps struct {
-	Router              chi.Router
-	CommandBus          *cqrs.InMemoryCommandBus
-	EventStore          eventstore.EventStore
-	EventBus            events.EventBus
-	DB                  *database.TenantAwareDB
-	AuthMiddleware      AuthMiddleware
-	SessionProvider     authPL.SessionProvider
-	BusinessDomainNames projectors.BusinessDomainNameLookup
+	Router          chi.Router
+	CommandBus      *cqrs.InMemoryCommandBus
+	EventStore      eventstore.EventStore
+	EventBus        events.EventBus
+	DB              *database.TenantAwareDB
+	AuthMiddleware  AuthMiddleware
+	SessionProvider authPL.SessionProvider
 }
 
 func SetupEnterpriseArchitectureRoutes(deps EnterpriseArchRoutesDeps) error {
 	repos := initializeRepositories(deps.EventStore)
 	rm := initializeReadModels(deps.DB)
 
-	setupEventSubscriptions(deps.EventBus, rm, deps.BusinessDomainNames)
+	setupEventSubscriptions(deps.EventBus, rm)
 	setupCommandHandlers(deps.CommandBus, repos, rm)
 
 	httpHandlers := initializeHTTPHandlers(deps.CommandBus, rm, deps.SessionProvider)
@@ -86,25 +86,27 @@ func initializeReadModels(db *database.TenantAwareDB) *routeReadModels {
 	capability := readmodels.NewEnterpriseCapabilityReadModel(db)
 	metadata := readmodels.NewDomainCapabilityMetadataReadModel(db)
 	return &routeReadModels{
-		capability:       capability,
-		importance:       readmodels.NewEnterpriseStrategicImportanceReadModel(db),
-		metadata:         metadata,
-		timeSuggestion:   readmodels.NewTimeSuggestionReadModel(db, pillarsGateway),
-		pillarCache:      pillarCache,
-		realizationCache: readmodels.NewEARealizationCacheReadModel(db),
-		importanceCache:  readmodels.NewEAImportanceCacheReadModel(db),
-		fitScoreCache:    readmodels.NewEAFitScoreCacheReadModel(db),
+		capability:          capability,
+		importance:          readmodels.NewEnterpriseStrategicImportanceReadModel(db),
+		metadata:            metadata,
+		timeSuggestion:      readmodels.NewTimeSuggestionReadModel(db, pillarsGateway),
+		pillarCache:         pillarCache,
+		realizationCache:    readmodels.NewEARealizationCacheReadModel(db),
+		importanceCache:     readmodels.NewEAImportanceCacheReadModel(db),
+		fitScoreCache:       readmodels.NewEAFitScoreCacheReadModel(db),
+		businessDomainNames: readmodels.NewBusinessDomainNameCacheReadModel(db),
 	}
 }
 
-func setupEventSubscriptions(eventBus events.EventBus, rm *routeReadModels, businessDomainNames projectors.BusinessDomainNameLookup) {
+func setupEventSubscriptions(eventBus events.EventBus, rm *routeReadModels) {
 	capabilityProjector := projectors.NewEnterpriseCapabilityProjector(rm.capability)
 	importanceProjector := projectors.NewEnterpriseStrategicImportanceProjector(rm.importance)
-	metadataProjector := projectors.NewDomainCapabilityMetadataProjector(rm.metadata, businessDomainNames)
+	metadataProjector := projectors.NewDomainCapabilityMetadataProjector(rm.metadata, rm.businessDomainNames)
 	pillarCacheProjector := projectors.NewStrategyPillarCacheProjector(rm.pillarCache)
 	realizationCacheProjector := projectors.NewEARealizationCacheProjector(rm.realizationCache)
 	importanceCacheProjector := projectors.NewEAImportanceCacheProjector(rm.importanceCache)
 	fitScoreCacheProjector := projectors.NewEAFitScoreCacheProjector(rm.fitScoreCache)
+	businessDomainNameCacheProjector := projectors.NewBusinessDomainNameCacheProjector(rm.businessDomainNames)
 
 	subscribeCapabilityEvents(eventBus, capabilityProjector)
 	subscribeImportanceEvents(eventBus, importanceProjector)
@@ -113,6 +115,7 @@ func setupEventSubscriptions(eventBus events.EventBus, rm *routeReadModels, busi
 	subscribeRealizationCacheEvents(eventBus, realizationCacheProjector)
 	subscribeImportanceCacheEvents(eventBus, importanceCacheProjector)
 	subscribeFitScoreCacheEvents(eventBus, fitScoreCacheProjector)
+	subscribeBusinessDomainNameCacheEvents(eventBus, businessDomainNameCacheProjector)
 }
 
 func subscribeCapabilityEvents(eventBus events.EventBus, projector *projectors.EnterpriseCapabilityProjector) {
@@ -188,6 +191,17 @@ func subscribeFitScoreCacheEvents(eventBus events.EventBus, projector *projector
 	eventTypes := []string{
 		cmPL.ApplicationFitScoreSet,
 		cmPL.ApplicationFitScoreRemoved,
+	}
+	for _, eventType := range eventTypes {
+		eventBus.Subscribe(eventType, projector)
+	}
+}
+
+func subscribeBusinessDomainNameCacheEvents(eventBus events.EventBus, projector *projectors.BusinessDomainNameCacheProjector) {
+	eventTypes := []string{
+		cmPL.BusinessDomainCreated,
+		cmPL.BusinessDomainUpdated,
+		cmPL.BusinessDomainDeleted,
 	}
 	for _, eventType := range eventTypes {
 		eventBus.Subscribe(eventType, projector)

@@ -6,7 +6,6 @@ import (
 	"easi/backend/internal/architecturedirection/application/readmodels"
 	appservices "easi/backend/internal/architecturedirection/application/services"
 	domainservices "easi/backend/internal/architecturedirection/domain/services"
-	"easi/backend/internal/infrastructure/database"
 )
 
 type EnterpriseCapabilityLookup interface {
@@ -31,14 +30,6 @@ func (p directionSourcesProvider) ActiveDirectionSources(ctx context.Context) ([
 		}
 	}
 	return out, nil
-}
-
-func NewCompositionService(db *database.TenantAwareDB) *appservices.CompositionService {
-	return appservices.NewCompositionService(
-		directionSourcesProvider{readModel: readmodels.NewDirectionReadModel(db)},
-		readmodels.NewCapabilityNodeCacheReadModel(db),
-		readmodels.NewEnterpriseCapabilityCacheReadModel(db),
-	)
 }
 
 type sourceEligibilityService struct {

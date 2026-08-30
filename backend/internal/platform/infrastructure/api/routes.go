@@ -9,7 +9,9 @@ import (
 	"easi/backend/internal/platform/application/handlers"
 	"easi/backend/internal/platform/infrastructure/repositories"
 	"easi/backend/internal/platform/infrastructure/secrets"
+	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
+	"easi/backend/internal/shared/events"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -19,12 +21,13 @@ type PlatformRoutesDeps struct {
 	RawDB      *sql.DB
 	TenantDB   *database.TenantAwareDB
 	CommandBus *cqrs.InMemoryCommandBus
+	EventBus   events.EventBus
 }
 
 func SetupPlatformRoutes(deps PlatformRoutesDeps) error {
 	tenantRepo := repositories.NewTenantRepository(deps.RawDB)
 
-	createTenantHandler := handlers.NewCreateTenantHandler(tenantRepo, deps.CommandBus)
+	createTenantHandler := handlers.NewCreateTenantHandler(tenantRepo, deps.EventBus)
 	deps.CommandBus.Register("CreateTenant", createTenantHandler)
 
 	secretProvider := secrets.NewEnvSecretProvider("OIDC_CLIENT_SECRET")
@@ -37,12 +40,11 @@ func SetupPlatformRoutes(deps PlatformRoutesDeps) error {
 
 	deps.Router.Route("/platform", func(r chi.Router) {
 		r.Use(middleware.RateLimitMiddleware(rateLimiter))
-		r.Use(PlatformAdminMiddleware(platformAdminKey))
+		r.Use(sharedAPI.PlatformAdminMiddleware(platformAdminKey))
 
 		r.Post("/tenants", tenantHandlers.CreateTenant)
 		r.Get("/tenants", tenantHandlers.ListTenants)
 		r.Get("/tenants/{id}", tenantHandlers.GetTenantByID)
-		r.Post("/tenants/{id}/invitations", tenantHandlers.CreateTenantInvitation)
 	})
 
 	return nil

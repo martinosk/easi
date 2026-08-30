@@ -24,6 +24,7 @@ type SubjectIndexRecord struct {
 	LastUpdatedAt  time.Time
 	RequiredCount  int
 	FilledCount    int
+	Attributes     SubjectAttributes
 }
 
 type CompletenessCounts struct {

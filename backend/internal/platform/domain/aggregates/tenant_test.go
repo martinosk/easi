@@ -21,7 +21,7 @@ func TestNewTenant_Valid(t *testing.T) {
 		"openid email profile",
 	)
 
-	tenant, err := NewTenant(tenantID, name, domains, oidcConfig, "john.doe@acme.com")
+	tenant, err := NewTenant(TenantRegistration{ID: tenantID, Name: name, Domains: domains, OIDCConfig: oidcConfig, FirstAdminEmail: "john.doe@acme.com"})
 
 	require.NoError(t, err)
 	assert.Equal(t, "acme", tenant.ID())
@@ -43,7 +43,7 @@ func TestNewTenant_RaisesTenantCreatedEvent(t *testing.T) {
 		"openid email profile",
 	)
 
-	tenant, err := NewTenant(tenantID, name, domains, oidcConfig, "admin@acme.com")
+	tenant, err := NewTenant(TenantRegistration{ID: tenantID, Name: name, Domains: domains, OIDCConfig: oidcConfig, FirstAdminEmail: "admin@acme.com"})
 
 	require.NoError(t, err)
 	events := tenant.GetUncommittedChanges()
@@ -62,7 +62,7 @@ func TestNewTenant_InvalidFirstAdminEmail(t *testing.T) {
 		"openid email profile",
 	)
 
-	_, err := NewTenant(tenantID, name, domains, oidcConfig, "")
+	_, err := NewTenant(TenantRegistration{ID: tenantID, Name: name, Domains: domains, OIDCConfig: oidcConfig, FirstAdminEmail: ""})
 
 	assert.Error(t, err)
 	assert.Equal(t, ErrFirstAdminEmailRequired, err)
@@ -79,7 +79,7 @@ func TestNewTenant_FirstAdminEmailDomainMustMatch(t *testing.T) {
 		"openid email profile",
 	)
 
-	_, err := NewTenant(tenantID, name, domains, oidcConfig, "john@otherdomain.com")
+	_, err := NewTenant(TenantRegistration{ID: tenantID, Name: name, Domains: domains, OIDCConfig: oidcConfig, FirstAdminEmail: "john@otherdomain.com"})
 
 	assert.Error(t, err)
 	assert.Equal(t, ErrFirstAdminEmailDomainMismatch, err)
@@ -96,7 +96,7 @@ func TestLoadTenantFromHistory(t *testing.T) {
 		"openid email profile",
 	)
 
-	originalTenant, _ := NewTenant(tenantID, name, domains, oidcConfig, "admin@acme.com")
+	originalTenant, _ := NewTenant(TenantRegistration{ID: tenantID, Name: name, Domains: domains, OIDCConfig: oidcConfig, FirstAdminEmail: "admin@acme.com"})
 	events := originalTenant.GetUncommittedChanges()
 
 	loadedTenant, err := LoadTenantFromHistory(events)
@@ -105,4 +105,26 @@ func TestLoadTenantFromHistory(t *testing.T) {
 	assert.Equal(t, "acme", loadedTenant.ID())
 	assert.Equal(t, name.Value(), loadedTenant.Name().Value())
 	assert.Equal(t, valueobjects.TenantStatusActive, loadedTenant.Status())
+}
+
+func TestNewTenant_TenantCreatedCarriesOIDCConfiguration(t *testing.T) {
+	tenantID, _ := sharedvo.NewTenantID("acme")
+	name, _ := valueobjects.NewTenantName("Acme Corporation")
+	domains, _ := valueobjects.NewEmailDomainList([]string{"acme.com"})
+	oidcConfig, _ := valueobjects.NewOIDCConfig(
+		"https://login.microsoftonline.com/xxx/v2.0/.well-known/openid-configuration",
+		"client-id",
+		valueobjects.OIDCAuthMethodPrivateKeyJWT,
+		"openid email profile",
+	)
+
+	tenant, err := NewTenant(TenantRegistration{ID: tenantID, Name: name, Domains: domains, OIDCConfig: oidcConfig, FirstAdminEmail: "admin@acme.com"})
+
+	require.NoError(t, err)
+	data := tenant.GetUncommittedChanges()[0].EventData()
+	assert.Equal(t, "https://login.microsoftonline.com/xxx/v2.0/.well-known/openid-configuration", data["discoveryUrl"])
+	assert.Equal(t, "", data["issuerUrl"])
+	assert.Equal(t, "client-id", data["clientId"])
+	assert.Equal(t, "private_key_jwt", data["authMethod"])
+	assert.Equal(t, "openid email profile", data["scopes"])
 }

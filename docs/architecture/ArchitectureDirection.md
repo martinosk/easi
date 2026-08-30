@@ -50,8 +50,8 @@ Govern what the architecture group intends to do with each enterprise capability
 
 **Events** (from other contexts):
 - From **Enterprise Architecture**: `EnterpriseCapabilityCreated/Updated/Deleted/TargetMaturitySet` → enterprise capability cache; `EnterpriseCapabilityDeleted` → reject the active direction
-- From **Capability Mapping**: `Capability*` and `BusinessDomain*` → capability node cache (hierarchy, effective domain, maturity), reference-name cache, stale-source detection; `SystemRealizationDeleted` → remove TIME assessment and realisation role
-- From **Architecture Modeling**: `ApplicationComponent*` → reference-name cache, stale standard applications
+- From **Capability Mapping**: `Capability*` and `BusinessDomain*` → capability node cache (hierarchy, effective domain, maturity, existence), reference-name cache (domain existence and names; rows removed on `BusinessDomainDeleted`), stale-source detection; `SystemLinkedToCapability`, `SystemRealizationDeleted` → realisation cache of direct realisations (the lookup behind TIME assessments and realisation roles); `SystemRealizationDeleted` → remove TIME assessment and realisation role
+- From **Architecture Modeling**: `ApplicationComponent*` → reference-name cache (component existence and names; rows removed on `ApplicationComponentDeleted`), stale standard applications
 - From **Auth**: `UserCreated` → assessor / planner display names
 
 ### Collaborators
@@ -60,8 +60,7 @@ Govern what the architecture group intends to do with each enterprise capability
 - **Architecture Modeling**: supplier of application identity
 
 ### Relationship Types
-- **Customer-Supplier** with Enterprise Architecture, Capability Mapping and Architecture Modeling (events into local caches)
-- **Declared composition-root bridges** (query-time, see `backend/internal/architecture_bridges_test.go`): capability / business-domain existence, direct realisation lookup and effective-domain check from Capability Mapping; component existence from Architecture Modeling
+- **Customer-Supplier** with Enterprise Architecture, Capability Mapping and Architecture Modeling (events into local, backfilled caches; every existence and realisation check reads a local cache — spec 209)
 
 ## Outbound Communication
 
@@ -70,8 +69,8 @@ Govern what the architecture group intends to do with each enterprise capability
 **Events** (published to event bus): `DirectionDrafted/Proposed/Agreed/Rejected/NarrativeUpdated/HorizonChanged/PlacementsChanged/SourceCapabilitiesChanged`, `StandardApplicationSet`, `TimeAssessmentRecorded/Removed`, `RealizationRoleAssigned/Cleared`, `Journey*` and `JourneyMilestone*`
 
 ### Collaborators
-- **OnePagers** reads composition through a declared bridge for the enterprise-capability relation field
 - **Arch Assistant** calls the public API through loopback tools contributed by this context's published language
+- No other context consumes composition; the enterprise-capability one-pager no longer shows it (spec 209)
 
 ## Ubiquitous Language
 
@@ -89,6 +88,8 @@ Govern what the architecture group intends to do with each enterprise capability
 | **Capability Journey** | Execution plan for a direction: kind, target period, milestones, progress, status |
 | **Capability Node Cache** | Local copy of the capability tree (level, parent, L1 ancestor, effective domain, maturity) fed by Capability Mapping events |
 | **Enterprise Capability Cache** | Local copy of enterprise capability identity, activity and target maturity fed by Enterprise Architecture events |
+| **Reference-Name Cache** | Local copy of component and business-domain identity and names fed by Architecture Modeling and Capability Mapping events; answers existence checks |
+| **Realisation Cache** | Local copy of direct capability–application realisations fed by Capability Mapping events; answers the direct-realisation lookup |
 
 ## Business Decisions
 
@@ -120,7 +121,7 @@ Govern what the architecture group intends to do with each enterprise capability
 - `application/services/` — composition service (composition, counts, preview, source candidates, direction status)
 - `application/readmodels/` — direction, standard application, TIME, realisation role, journey read models; capability node cache; enterprise capability cache; maturity analysis
 - `application/projectors/` — projectors for own events, cache projectors for Capability Mapping and Enterprise Architecture events, stale-reference projectors
-- `infrastructure/api/` — routes, handlers, composition wiring (`NewCompositionService` is the constructor OnePagers' bridge uses)
+- `infrastructure/api/` — routes, handlers, composition wiring; `SetupRoutes` needs only shared infrastructure (router, buses, database, HATEOAS, auth middleware)
 
 ### Persistence
-Schema `architecturedirection`; tables include `directions`, `direction_source_capabilities`, `standard_applications`, `time_assessments`, `realization_roles`, `capability_journeys`, `reference_name_cache`, `capability_domain_cache`, `capability_node_cache`, `enterprise_capability_cache`. Migrations 137/138 add and backfill the two spec-207 caches.
+Schema `architecturedirection`; tables include `directions`, `direction_source_capabilities`, `standard_applications`, `time_assessments`, `realization_roles`, `capability_journeys`, `reference_name_cache`, `capability_domain_cache`, `capability_node_cache`, `enterprise_capability_cache`, `realization_cache`. Migrations 137/138 add and backfill the two spec-207 caches; 145/146 add and backfill the realisation cache, reconcile the reference-name cache and make `maturity_value` non-null (spec 209).

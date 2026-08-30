@@ -11,7 +11,58 @@ import (
 	"easi/backend/internal/capabilitymapping/infrastructure/adapters"
 	"easi/backend/internal/capabilitymapping/infrastructure/metamodel"
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
+	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
+	mmPL "easi/backend/internal/metamodel/publishedlanguage"
+	"easi/backend/internal/shared/events"
 )
+
+func subscribePillarCacheEvents(eventBus *events.InMemoryEventBus, projector *projectors.StrategyPillarCacheProjector) {
+	for _, eventType := range []string{
+		mmPL.MetaModelConfigurationCreated, mmPL.StrategyPillarAdded, mmPL.StrategyPillarUpdated,
+		mmPL.StrategyPillarRemoved, mmPL.PillarFitConfigurationUpdated,
+	} {
+		eventBus.Subscribe(eventType, projector)
+	}
+}
+
+func subscribeStrategicRealizationEvents(eventBus *events.InMemoryEventBus, projector *projectors.RealizationProjector) {
+	for _, eventType := range []string{
+		cmPL.SystemLinkedToCapability, cmPL.SystemRealizationUpdated, cmPL.SystemRealizationDeleted,
+		cmPL.CapabilityRealizationsInherited, cmPL.CapabilityRealizationsUninherited,
+	} {
+		eventBus.Subscribe(eventType, projector)
+	}
+}
+
+func subscribeStrategyImportanceEvents(eventBus *events.InMemoryEventBus, projector *projectors.StrategyImportanceProjector) {
+	for _, eventType := range []string{cmPL.StrategyImportanceSet, cmPL.StrategyImportanceUpdated, cmPL.StrategyImportanceRemoved} {
+		eventBus.Subscribe(eventType, projector)
+	}
+}
+
+func subscribeApplicationFitScoreEvents(eventBus *events.InMemoryEventBus, projector *projectors.ApplicationFitScoreProjector) {
+	for _, eventType := range []string{cmPL.ApplicationFitScoreSet, cmPL.ApplicationFitScoreUpdated, cmPL.ApplicationFitScoreRemoved} {
+		eventBus.Subscribe(eventType, projector)
+	}
+}
+
+func subscribeImportanceChangeEffectiveEvents(eventBus *events.InMemoryEventBus, projector *projectors.ImportanceChangeEffectiveProjector) {
+	for _, eventType := range []string{cmPL.StrategyImportanceSet, cmPL.StrategyImportanceUpdated, cmPL.StrategyImportanceRemoved} {
+		eventBus.Subscribe(eventType, projector)
+	}
+}
+
+func subscribeHierarchyChangeEffectiveEvents(eventBus *events.InMemoryEventBus, projector *projectors.HierarchyChangeEffectiveProjector) {
+	for _, eventType := range []string{cmPL.CapabilityParentChanged, cmPL.CapabilityDeleted} {
+		eventBus.Subscribe(eventType, projector)
+	}
+}
+
+func subscribeDomainAssignmentEffectiveEvents(eventBus *events.InMemoryEventBus, projector *projectors.DomainAssignmentEffectiveProjector) {
+	for _, eventType := range []string{cmPL.CapabilityAssignedToDomain, cmPL.CapabilityUnassignedFromDomain} {
+		eventBus.Subscribe(eventType, projector)
+	}
+}
 
 type StrategicAnalysisFixtures struct {
 	tc                    *TestContext
@@ -22,6 +73,7 @@ type StrategicAnalysisFixtures struct {
 	capabilityReadModel   *readmodels.CapabilityReadModel
 	domainAssignmentRM    *readmodels.DomainCapabilityAssignmentReadModel
 	componentCacheRM      *readmodels.ComponentCacheReadModel
+	strategyPillarCacheRM *readmodels.StrategyPillarCacheReadModel
 }
 
 func NewStrategicAnalysisFixtures(tc *TestContext) *StrategicAnalysisFixtures {
@@ -33,30 +85,26 @@ func NewStrategicAnalysisFixtures(tc *TestContext) *StrategicAnalysisFixtures {
 	domainAssignmentRM := readmodels.NewDomainCapabilityAssignmentReadModel(tc.TenantDB)
 	componentCacheRM := readmodels.NewComponentCacheReadModel(tc.TenantDB)
 	domainRM := readmodels.NewBusinessDomainReadModel(tc.TenantDB)
+	strategyPillarCacheRM := readmodels.NewStrategyPillarCacheReadModel(tc.TenantDB)
 
-	pillarsGateway := metamodel.NewDirectStrategyPillarsGateway(tc.TenantDB)
+	pillarsGateway := metamodel.NewLocalStrategyPillarsGateway(strategyPillarCacheRM)
 
 	realizationRepo := repositories.NewRealizationRepository(tc.EventStore)
 	capabilityRepo := repositories.NewCapabilityRepository(tc.EventStore)
 	importanceRepo := repositories.NewStrategyImportanceRepository(tc.EventStore)
 	fitScoreRepo := repositories.NewApplicationFitScoreRepository(tc.EventStore)
 
+	pillarCacheProjector := projectors.NewStrategyPillarCacheProjector(strategyPillarCacheRM)
+	subscribePillarCacheEvents(tc.EventBus, pillarCacheProjector)
+
 	realizationProjector := projectors.NewRealizationProjector(realizationRM, componentCacheRM)
-	tc.EventBus.Subscribe("SystemLinkedToCapability", realizationProjector)
-	tc.EventBus.Subscribe("SystemRealizationUpdated", realizationProjector)
-	tc.EventBus.Subscribe("SystemRealizationDeleted", realizationProjector)
-	tc.EventBus.Subscribe("CapabilityRealizationsInherited", realizationProjector)
-	tc.EventBus.Subscribe("CapabilityRealizationsUninherited", realizationProjector)
+	subscribeStrategicRealizationEvents(tc.EventBus, realizationProjector)
 
 	importanceProjector := projectors.NewStrategyImportanceProjector(importanceRM, domainRM, capabilityRM, pillarsGateway)
-	tc.EventBus.Subscribe("StrategyImportanceSet", importanceProjector)
-	tc.EventBus.Subscribe("StrategyImportanceUpdated", importanceProjector)
-	tc.EventBus.Subscribe("StrategyImportanceRemoved", importanceProjector)
+	subscribeStrategyImportanceEvents(tc.EventBus, importanceProjector)
 
 	fitScoreProjector := projectors.NewApplicationFitScoreProjector(fitScoreRM, componentCacheRM, pillarsGateway)
-	tc.EventBus.Subscribe("ApplicationFitScoreSet", fitScoreProjector)
-	tc.EventBus.Subscribe("ApplicationFitScoreUpdated", fitScoreProjector)
-	tc.EventBus.Subscribe("ApplicationFitScoreRemoved", fitScoreProjector)
+	subscribeApplicationFitScoreEvents(tc.EventBus, fitScoreProjector)
 
 	capabilityLookupAdapter := adapters.NewCapabilityLookupAdapter(capabilityRM)
 	ratingLookupAdapter := adapters.NewRatingLookupAdapter(importanceRM)
@@ -66,18 +114,14 @@ func NewStrategicAnalysisFixtures(tc *TestContext) *StrategicAnalysisFixtures {
 	recomputer := projectors.NewEffectiveImportanceRecomputer(effectiveImportanceRM, ratingResolver, hierarchyService, nil)
 
 	importanceChangeProjector := projectors.NewImportanceChangeEffectiveProjector(recomputer, importanceRM)
-	tc.EventBus.Subscribe("StrategyImportanceSet", importanceChangeProjector)
-	tc.EventBus.Subscribe("StrategyImportanceUpdated", importanceChangeProjector)
-	tc.EventBus.Subscribe("StrategyImportanceRemoved", importanceChangeProjector)
+	subscribeImportanceChangeEffectiveEvents(tc.EventBus, importanceChangeProjector)
 
 	hierarchyChangeProjector := projectors.NewHierarchyChangeEffectiveProjector(recomputer, effectiveImportanceRM)
-	tc.EventBus.Subscribe("CapabilityParentChanged", hierarchyChangeProjector)
-	tc.EventBus.Subscribe("CapabilityDeleted", hierarchyChangeProjector)
+	subscribeHierarchyChangeEffectiveEvents(tc.EventBus, hierarchyChangeProjector)
 
 	ancestryChecker := projectors.NewDomainAncestryChecker(hierarchyService, domainAssignmentRM)
 	domainAssignmentEffectiveProjector := projectors.NewDomainAssignmentEffectiveProjector(recomputer, ancestryChecker, pillarsGateway)
-	tc.EventBus.Subscribe("CapabilityAssignedToDomain", domainAssignmentEffectiveProjector)
-	tc.EventBus.Subscribe("CapabilityUnassignedFromDomain", domainAssignmentEffectiveProjector)
+	subscribeDomainAssignmentEffectiveEvents(tc.EventBus, domainAssignmentEffectiveProjector)
 
 	tc.CommandBus.Register("LinkSystemToCapability", capHandlers.NewLinkSystemToCapabilityHandler(realizationRepo, capabilityRepo, capabilityRM, componentCacheRM))
 	tc.CommandBus.Register("UpdateSystemRealization", capHandlers.NewUpdateSystemRealizationHandler(realizationRepo))
@@ -112,6 +156,7 @@ func NewStrategicAnalysisFixtures(tc *TestContext) *StrategicAnalysisFixtures {
 		capabilityReadModel:   capabilityRM,
 		domainAssignmentRM:    domainAssignmentRM,
 		componentCacheRM:      componentCacheRM,
+		strategyPillarCacheRM: strategyPillarCacheRM,
 	}
 }
 
@@ -167,4 +212,8 @@ func (f *StrategicAnalysisFixtures) FitScoreReadModel() *readmodels.ApplicationF
 
 func (f *StrategicAnalysisFixtures) EffectiveImportanceReadModel() *readmodels.EffectiveCapabilityImportanceReadModel {
 	return f.effectiveImportanceRM
+}
+
+func (f *StrategicAnalysisFixtures) StrategyPillarCacheReadModel() *readmodels.StrategyPillarCacheReadModel {
+	return f.strategyPillarCacheRM
 }

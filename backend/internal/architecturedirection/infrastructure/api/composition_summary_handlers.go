@@ -47,7 +47,7 @@ func NewCompositionSummaryHandlers(compositions CompositionSummarySource, capabi
 
 // GetCompositionSummaries godoc
 // @Summary List composition summaries of all enterprise capabilities
-// @Description One summary per active enterprise capability: source, included, carved-out and domain counts derived from the active direction, plus the direction status. Enterprise capabilities without an active direction report zero counts.
+// @Description One summary per active enterprise capability: source, included, carved-out and domain counts derived from the active direction, plus the direction status. Enterprise capabilities without an active direction report zero counts. Every item links to its enterprise capability, its composition and its direction.
 // @Tags architecturedirection
 // @Produce json
 // @Success 200 {object} CompositionSummariesResponse
@@ -96,6 +96,7 @@ func (h *CompositionSummaryHandlers) summary(ecID string, counts domainservices.
 		Links: types.Links{
 			"x-enterprise-capability": h.hateoas.Get(base),
 			"x-composition":           h.hateoas.Get(base + "/composition"),
+			"x-direction":             h.hateoas.Get(base + "/direction"),
 		},
 	}
 }

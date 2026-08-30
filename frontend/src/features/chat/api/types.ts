@@ -1,3 +1,5 @@
+import type { HATEOASLinks } from '../../../api/types';
+
 export interface Conversation {
   id: string;
   title: string;
@@ -43,5 +45,5 @@ export interface ToolCall {
 
 export interface AssistantStatus {
   configured: boolean;
-  _links: Record<string, { href: string; method: string } | undefined>;
+  _links: HATEOASLinks;
 }

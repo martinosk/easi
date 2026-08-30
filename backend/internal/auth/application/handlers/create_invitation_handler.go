@@ -2,21 +2,25 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
 
 	"easi/backend/internal/auth/application/commands"
 	"easi/backend/internal/auth/domain/aggregates"
 	"easi/backend/internal/auth/domain/valueobjects"
-	"easi/backend/internal/auth/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
-type CreateInvitationHandler struct {
-	repository *repositories.InvitationRepository
+type InvitationStore interface {
+	Save(ctx context.Context, invitation *aggregates.Invitation) error
 }
 
-func NewCreateInvitationHandler(repository *repositories.InvitationRepository) *CreateInvitationHandler {
+type CreateInvitationHandler struct {
+	repository InvitationStore
+}
+
+func NewCreateInvitationHandler(repository InvitationStore) *CreateInvitationHandler {
 	return &CreateInvitationHandler{
 		repository: repository,
 	}
@@ -28,31 +32,40 @@ func (h *CreateInvitationHandler) Handle(ctx context.Context, cmd cqrs.Command) 
 		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
-	email, err := valueobjects.NewEmail(command.Email)
+	id, err := storeInvitation(ctx, h.repository, *command)
 	if err != nil {
 		return cqrs.EmptyResult(), err
+	}
+
+	return cqrs.NewResult(id), nil
+}
+
+func storeInvitation(ctx context.Context, store InvitationStore, command commands.CreateInvitation) (string, error) {
+	email, err := valueobjects.NewEmail(command.Email)
+	if err != nil {
+		return "", err
 	}
 
 	role, err := valueobjects.RoleFromString(command.Role)
 	if err != nil {
-		return cqrs.EmptyResult(), err
+		return "", err
 	}
 
 	inviterInfo, err := parseInviterInfo(command.InviterID, command.InviterEmail)
 	if err != nil {
-		return cqrs.EmptyResult(), err
+		return "", err
 	}
 
 	invitation, err := aggregates.NewInvitation(email, role, inviterInfo)
 	if err != nil {
-		return cqrs.EmptyResult(), err
+		return "", err
 	}
 
-	if err := h.repository.Save(ctx, invitation); err != nil {
-		return cqrs.EmptyResult(), err
+	if err := store.Save(ctx, invitation); err != nil {
+		return "", fmt.Errorf("save invitation for %s: %w", command.Email, err)
 	}
 
-	return cqrs.NewResult(invitation.ID()), nil
+	return invitation.ID(), nil
 }
 
 func parseInviterInfo(inviterID, inviterEmail string) (*valueobjects.InviterInfo, error) {

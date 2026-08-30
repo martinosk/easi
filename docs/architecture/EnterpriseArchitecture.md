@@ -53,12 +53,11 @@ Which domain capabilities compose an enterprise capability is **not** decided he
 
 **Events** (from other contexts):
 - From **MetaModel**: `MetaModelConfigurationCreated`, `StrategyPillarAdded/Updated/Removed`, `PillarFitConfigurationUpdated` → strategy pillar cache
-- From **Capability Mapping**: `Capability*`, `CapabilityAssignedToDomain/UnassignedFromDomain`, `BusinessDomainUpdated` → domain capability metadata cache (used by TIME suggestions); `SystemLinkedToCapability`, `SystemRealizationDeleted` → realisation cache; `EffectiveImportanceRecalculated` → importance cache; `ApplicationFitScoreSet/Removed` → fit score cache
+- From **Capability Mapping**: `Capability*`, `CapabilityAssignedToDomain/UnassignedFromDomain`, `BusinessDomainUpdated` → domain capability metadata cache (used by TIME suggestions); `BusinessDomainCreated/Updated/Deleted` → business-domain name cache (names at assignment time); `SystemLinkedToCapability`, `SystemRealizationDeleted` → realisation cache; `EffectiveImportanceRecalculated` → importance cache; `ApplicationFitScoreSet/Removed` → fit score cache
 - From **Architecture Modeling**: `ApplicationComponentUpdated` → component names in the realisation cache
 
 ### Relationship Types
-- **Customer-Supplier** with MetaModel and Capability Mapping (events into local caches)
-- **Declared composition-root bridge** (query-time): business-domain name from Capability Mapping at assignment time — see `backend/internal/architecture_bridges_test.go`
+- **Customer-Supplier** with MetaModel, Capability Mapping and Architecture Modeling (events into local, backfilled caches; no query-time reads — spec 209)
 
 ## Outbound Communication
 
@@ -70,7 +69,7 @@ Which domain capabilities compose an enterprise capability is **not** decided he
 
 ### Collaborators
 - **Architecture Direction** caches enterprise capability identity and target maturity from these events and rejects the active direction when an enterprise capability is deleted
-- **OnePagers** indexes enterprise capabilities as one-pager subjects and reads built-in fields through a declared bridge
+- **OnePagers** indexes enterprise capabilities as one-pager subjects and caches their built-in fields from these events
 - **Arch Assistant** calls the public API through loopback tools contributed by this context's published language
 
 ## Ubiquitous Language

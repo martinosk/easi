@@ -1,3 +1,4 @@
+import { hasLink } from '../../../utils/hateoas';
 import { useUserStore } from '../../../store/userStore';
 import { useAssistantStatus } from './useAssistantStatus';
 
@@ -8,12 +9,11 @@ export interface AssistantAvailability {
 
 export function useAssistantAvailability(): AssistantAvailability {
   const sessionLinks = useUserStore((state) => state.sessionLinks);
-  const mayUseAssistant = Boolean(sessionLinks?.['x-assistant']);
-  const { data: status } = useAssistantStatus(mayUseAssistant);
-  const configured = status?.configured === true;
+  const mayCheckAssistantStatus = Boolean(sessionLinks?.['x-assistant-status']);
+  const { data: status } = useAssistantStatus(mayCheckAssistantStatus);
 
   return {
-    assistantAvailable: mayUseAssistant && configured,
-    assistantWriteAvailable: Boolean(sessionLinks?.['x-assistant-write']) && configured,
+    assistantAvailable: hasLink(status, 'x-conversations'),
+    assistantWriteAvailable: hasLink(status, 'x-conversations-write'),
   };
 }

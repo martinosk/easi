@@ -4,7 +4,9 @@ import (
 	"context"
 	"net/http"
 
+	authPL "easi/backend/internal/auth/publishedlanguage"
 	sharedAPI "easi/backend/internal/shared/api"
+	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/types"
 )
 
@@ -28,7 +30,7 @@ func NewAssistantStatusHandlers(status ConfigurationStatus, hateoas *sharedAPI.H
 
 // GetStatus godoc
 // @Summary Get assistant availability
-// @Description Reports whether the tenant's AI assistant is configured and ready to use. The session advertises the assistant entry point on permission alone; this resource says whether the assistant can actually be used.
+// @Description Reports whether the tenant's AI assistant is configured and ready to use. The session advertises the assistant entry point on permission alone; this resource says whether the assistant can actually be used. When configured it links x-conversations, and additionally x-conversations-write when the actor can write at least one subject the assistant can act on.
 // @Tags assistant
 // @Produce json
 // @Success 200 {object} AssistantStatusResponse
@@ -46,6 +48,16 @@ func (h *AssistantStatusHandlers) GetStatus(w http.ResponseWriter, r *http.Reque
 	links := types.Links{"self": h.hateoas.Get("/assistant/status")}
 	if configured {
 		links["x-conversations"] = h.hateoas.Get("/assistant/conversations")
+		actor, _ := sharedctx.GetActor(r.Context())
+		if canWriteAnySubject(actor) {
+			links["x-conversations-write"] = h.hateoas.Get("/assistant/conversations")
+		}
 	}
 	sharedAPI.RespondJSON(w, http.StatusOK, AssistantStatusResponse{Configured: configured, Links: links})
+}
+
+func canWriteAnySubject(actor sharedctx.Actor) bool {
+	return actor.HasPermission(authPL.PermCapabilitiesWrite.String()) ||
+		actor.HasPermission(authPL.PermEnterpriseArchWrite.String()) ||
+		actor.HasPermission(authPL.PermComponentsWrite.String())
 }

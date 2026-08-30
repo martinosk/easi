@@ -35,16 +35,48 @@ type OnePagersRoutesDeps struct {
 	Hateoas         *sharedAPI.HATEOASLinks
 	AuthMiddleware  AuthMiddleware
 	SessionProvider authPL.SessionProvider
-	Subjects        ports.SubjectExistenceChecker
-	BuiltInFields   map[string]ports.BuiltInFieldSource
-	MaturityScale   ports.MaturityScaleSource
 	SubjectAudit    ports.SubjectAuditReader
+}
+
+type subjectCaches struct {
+	index     *readmodels.OnePagerSubjectIndexReadModel
+	relations *readmodels.SubjectRelationCacheReadModel
+	domains   *readmodels.BusinessDomainNameCacheReadModel
+	maturity  *readmodels.MaturityScaleCacheReadModel
+}
+
+func newSubjectCaches(db *database.TenantAwareDB) subjectCaches {
+	return subjectCaches{
+		index:     readmodels.NewOnePagerSubjectIndexReadModel(db),
+		relations: readmodels.NewSubjectRelationCacheReadModel(db),
+		domains:   readmodels.NewBusinessDomainNameCacheReadModel(db),
+		maturity:  readmodels.NewMaturityScaleCacheReadModel(db),
+	}
+}
+
+func (c subjectCaches) subscribeProjectors(bus events.EventBus, index *projectors.SubjectIndexProjector) {
+	relationProjector := projectors.NewSubjectRelationProjector(c.relations, c.domains)
+	for _, eventType := range projectors.SubjectRelationEventTypes() {
+		bus.Subscribe(eventType, relationProjector)
+	}
+
+	maturityProjector := projectors.NewMaturityScaleProjector(c.maturity)
+	for _, eventType := range projectors.MaturityScaleEventTypes() {
+		bus.Subscribe(eventType, maturityProjector)
+	}
+
+	for _, eventType := range projectors.SubjectIndexEventTypes() {
+		bus.Subscribe(eventType, index)
+	}
 }
 
 func SetupOnePagersRoutes(deps OnePagersRoutesDeps) error {
 	if deps.SubjectAudit == nil {
 		deps.SubjectAudit = adapters.NewSubjectAuditAdapter(deps.DB)
 	}
+	caches := newSubjectCaches(deps.DB)
+	builtInFields := adapters.NewBuiltInFieldSources(caches.index, caches.relations)
+
 	repo := repositories.NewOnePagerConfigurationRepository(deps.EventStore)
 	readModel := readmodels.NewOnePagerConfigurationReadModel(deps.DB)
 
@@ -68,21 +100,22 @@ func SetupOnePagersRoutes(deps OnePagersRoutesDeps) error {
 		deps.EventBus.Subscribe(eventType, deletionReactor)
 	}
 
-	subjectIndexReadModel := readmodels.NewOnePagerSubjectIndexReadModel(deps.DB)
-	completenessCounter := queries.NewCompletenessIndicators(readModel, factsReadModel, deps.BuiltInFields)
-	subjectIndexProjector := projectors.NewSubjectIndexProjector(subjectIndexReadModel, completenessCounter, deps.SubjectAudit, readModel)
-	for _, eventType := range projectors.SubjectIndexEventTypes() {
-		deps.EventBus.Subscribe(eventType, subjectIndexProjector)
-	}
+	completenessCounter := queries.NewCompletenessIndicators(readModel, factsReadModel, builtInFields)
+	caches.subscribeProjectors(deps.EventBus, projectors.NewSubjectIndexProjector(caches.index, completenessCounter, deps.SubjectAudit, readModel))
 
-	registerFactsCommands(deps, factsRepo, readModel, factsReadModel)
+	registerFactsCommands(deps.CommandBus, factsCommandWiring{
+		repo:     factsRepo,
+		configs:  readModel,
+		facts:    factsReadModel,
+		subjects: adapters.NewSubjectExistenceChecker(caches.index),
+	})
 
 	links := NewOnePagerLinks(deps.Hateoas)
 	configHandlers := NewOnePagerConfigurationHandlers(deps.CommandBus, readModel, links, deps.SessionProvider)
 	impactPreviewQuery := queries.NewImpactPreviewQuery(queries.ImpactPreviewDeps{
 		Configurations: readModel,
 		Facts:          factsReadModel,
-		Subjects:       deps.BuiltInFields,
+		Subjects:       builtInFields,
 	})
 	impactPreviewHandlers := NewImpactPreviewHandlers(impactPreviewQuery, links)
 	registerRoutes(deps.Router, configHandlers, impactPreviewHandlers, deps.AuthMiddleware)
@@ -97,31 +130,33 @@ func SetupOnePagersRoutes(deps OnePagersRoutesDeps) error {
 	onePagerQuery := queries.NewOnePagerQuery(queries.OnePagerQueryDeps{
 		Configurations: readModel,
 		Facts:          factsReadModel,
-		Subjects:       deps.BuiltInFields,
-		MaturityScale:  deps.MaturityScale,
+		Subjects:       builtInFields,
+		MaturityScale:  adapters.NewMaturityScaleSource(caches.maturity),
 	})
 	viewHandlers := NewOnePagerViewHandlers(onePagerQuery, links)
 	registerSubjectRoutes(deps.Router, subjectHandlers{
 		view:         viewHandlers,
 		facts:        factsHandlers,
-		completeness: NewOnePagerCompletenessHandlers(subjectIndexReadModel, completenessCounter, links),
+		completeness: NewOnePagerCompletenessHandlers(caches.index, completenessCounter, links),
 	}, deps.AuthMiddleware)
 
-	qualityHandlers := NewOnePagerQualityHandlers(subjectIndexReadModel, links)
+	qualityHandlers := NewOnePagerQualityHandlers(caches.index, links)
 	deps.Router.Get("/one-pager-quality", qualityHandlers.GetQualityList)
 
 	return nil
 }
 
-func registerFactsCommands(
-	deps OnePagersRoutesDeps,
-	factsRepo *repositories.OnePagerFactsRepository,
-	configReadModel *readmodels.OnePagerConfigurationReadModel,
-	factsReadModel *readmodels.OnePagerFactsReadModel,
-) {
-	deps.CommandBus.Register("RecordFieldValue", handlers.NewRecordFieldValueHandler(factsRepo, configReadModel, factsReadModel, deps.Subjects))
-	deps.CommandBus.Register("ClearFieldValue", handlers.NewClearFieldValueHandler(factsRepo, configReadModel, factsReadModel))
-	deps.CommandBus.Register("ArchiveOnePagerFacts", handlers.NewArchiveOnePagerFactsHandler(factsRepo))
+type factsCommandWiring struct {
+	repo     *repositories.OnePagerFactsRepository
+	configs  *readmodels.OnePagerConfigurationReadModel
+	facts    *readmodels.OnePagerFactsReadModel
+	subjects ports.SubjectExistenceChecker
+}
+
+func registerFactsCommands(commandBus *cqrs.InMemoryCommandBus, wiring factsCommandWiring) {
+	commandBus.Register("RecordFieldValue", handlers.NewRecordFieldValueHandler(wiring.repo, wiring.configs, wiring.facts, wiring.subjects))
+	commandBus.Register("ClearFieldValue", handlers.NewClearFieldValueHandler(wiring.repo, wiring.configs, wiring.facts))
+	commandBus.Register("ArchiveOnePagerFacts", handlers.NewArchiveOnePagerFactsHandler(wiring.repo))
 }
 
 type subjectRoutePermissions struct {

@@ -5,7 +5,6 @@ import (
 	"errors"
 
 	"easi/backend/internal/architectureviews/application/commands"
-	"easi/backend/internal/architectureviews/application/ports"
 	"easi/backend/internal/architectureviews/domain/aggregates"
 	"easi/backend/internal/architectureviews/domain/valueobjects"
 	"easi/backend/internal/architectureviews/infrastructure/repositories"
@@ -16,17 +15,14 @@ import (
 var ErrNotAuthorizedToChangeVisibility = errors.New("not authorized to change view visibility")
 
 type ChangeViewVisibilityHandler struct {
-	viewRepository  *repositories.ArchitectureViewRepository
-	userRoleChecker ports.UserRoleChecker
+	viewRepository *repositories.ArchitectureViewRepository
 }
 
 func NewChangeViewVisibilityHandler(
 	viewRepository *repositories.ArchitectureViewRepository,
-	userRoleChecker ports.UserRoleChecker,
 ) *ChangeViewVisibilityHandler {
 	return &ChangeViewVisibilityHandler{
-		viewRepository:  viewRepository,
-		userRoleChecker: userRoleChecker,
+		viewRepository: viewRepository,
 	}
 }
 
@@ -47,12 +43,9 @@ func (h *ChangeViewVisibilityHandler) Handle(ctx context.Context, cmd cqrs.Comma
 	}
 
 	ownership := newOwnershipContext(view, actor)
-	canEdit, err := h.canActorEditView(ctx, ownership)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
+	canEdit := canActorEditView(ownership)
 
-	if err := h.applyVisibilityChange(view, command.IsPrivate, ownership, canEdit); err != nil {
+	if err := applyVisibilityChange(view, command.IsPrivate, ownership, canEdit); err != nil {
 		return cqrs.EmptyResult(), err
 	}
 
@@ -66,6 +59,7 @@ func (h *ChangeViewVisibilityHandler) Handle(ctx context.Context, cmd cqrs.Comma
 type ownershipContext struct {
 	actorID    string
 	actorEmail string
+	actorRole  sharedctx.Role
 	hasNoOwner bool
 	isOwner    bool
 }
@@ -75,6 +69,7 @@ func newOwnershipContext(view *aggregates.ArchitectureView, actor sharedctx.Acto
 	return ownershipContext{
 		actorID:    actor.ID,
 		actorEmail: actor.Email,
+		actorRole:  actor.Role,
 		hasNoOwner: hasNoOwner,
 		isOwner:    !hasNoOwner && view.Owner().UserID() == actor.ID,
 	}
@@ -85,26 +80,21 @@ func (o ownershipContext) actorAsOwner() valueobjects.ViewOwner {
 	return owner
 }
 
-func (h *ChangeViewVisibilityHandler) canActorEditView(ctx context.Context, ownership ownershipContext) (bool, error) {
+func canActorEditView(ownership ownershipContext) bool {
 	if ownership.hasNoOwner || ownership.isOwner {
-		return true, nil
+		return true
 	}
-
-	isAdmin, err := h.isActorAdmin(ctx, ownership.actorID)
-	if err != nil {
-		return false, err
-	}
-	return isAdmin, nil
+	return ownership.actorRole == sharedctx.RoleAdmin
 }
 
-func (h *ChangeViewVisibilityHandler) applyVisibilityChange(view *aggregates.ArchitectureView, makePrivate bool, ownership ownershipContext, canEdit bool) error {
+func applyVisibilityChange(view *aggregates.ArchitectureView, makePrivate bool, ownership ownershipContext, canEdit bool) error {
 	if makePrivate {
-		return h.makeViewPrivate(view, ownership, canEdit)
+		return makeViewPrivate(view, ownership, canEdit)
 	}
-	return h.makeViewPublic(view, ownership, canEdit)
+	return makeViewPublic(view, ownership, canEdit)
 }
 
-func (h *ChangeViewVisibilityHandler) makeViewPrivate(view *aggregates.ArchitectureView, ownership ownershipContext, canEdit bool) error {
+func makeViewPrivate(view *aggregates.ArchitectureView, ownership ownershipContext, canEdit bool) error {
 	if !canEdit {
 		return aggregates.ErrOnlyOwnerCanMakePrivate
 	}
@@ -118,7 +108,7 @@ func (h *ChangeViewVisibilityHandler) makeViewPrivate(view *aggregates.Architect
 	return view.MakePrivate()
 }
 
-func (h *ChangeViewVisibilityHandler) makeViewPublic(view *aggregates.ArchitectureView, ownership ownershipContext, canEdit bool) error {
+func makeViewPublic(view *aggregates.ArchitectureView, ownership ownershipContext, canEdit bool) error {
 	if !canEdit {
 		return ErrNotAuthorizedToChangeVisibility
 	}
@@ -129,8 +119,4 @@ func (h *ChangeViewVisibilityHandler) makeViewPublic(view *aggregates.Architectu
 	}
 
 	return view.MakePublic(newOwner)
-}
-
-func (h *ChangeViewVisibilityHandler) isActorAdmin(ctx context.Context, actorID string) (bool, error) {
-	return h.userRoleChecker.IsAdmin(ctx, actorID)
 }

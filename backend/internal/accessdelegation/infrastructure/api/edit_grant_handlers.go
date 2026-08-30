@@ -8,11 +8,11 @@ import (
 	"net/http"
 
 	"easi/backend/internal/accessdelegation/application/commands"
-	"easi/backend/internal/accessdelegation/application/ports"
 	"easi/backend/internal/accessdelegation/application/readmodels"
 	"easi/backend/internal/accessdelegation/application/services"
 	"easi/backend/internal/accessdelegation/domain/valueobjects"
 	adPL "easi/backend/internal/accessdelegation/publishedlanguage"
+	authPL "easi/backend/internal/auth/publishedlanguage"
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
@@ -22,6 +22,8 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+const granteeInviteeRole = "stakeholder"
+
 type EditGrantReader interface {
 	HasActiveGrant(ctx context.Context, granteeEmail, artifactType, artifactID string) (bool, error)
 	GetByID(ctx context.Context, id string) (*readmodels.EditGrantDTO, error)
@@ -30,15 +32,11 @@ type EditGrantReader interface {
 }
 
 type EditGrantHandlerDeps struct {
-	CommandBus    cqrs.CommandBus
-	ReadModel     EditGrantReader
-	Hateoas       *EditGrantLinks
-	NameResolver  services.ArtifactNameResolver
-	UserLookup    ports.UserEmailLookup
-	InvChecker    ports.InvitationChecker
-	DomainChecker ports.DomainAllowlistChecker
-	Invitations   ports.InvitationRequester
-	EventBus      *events.InMemoryEventBus
+	CommandBus   cqrs.CommandBus
+	ReadModel    EditGrantReader
+	Hateoas      *EditGrantLinks
+	NameResolver services.ArtifactNameResolver
+	EventBus     *events.InMemoryEventBus
 }
 
 type EditGrantHandlers struct {
@@ -361,63 +359,36 @@ func (h *EditGrantHandlers) enrichSingleGrant(ctx context.Context, grant *readmo
 }
 
 func (h *EditGrantHandlers) autoInviteIfNeeded(ctx context.Context, granteeEmail string, actor sharedctx.Actor) bool {
-	if !h.canAutoInvite() {
+	cmd := &authPL.EnsureInvitation{
+		Email:        granteeEmail,
+		Role:         granteeInviteeRole,
+		InviterID:    actor.ID,
+		InviterEmail: actor.Email,
+	}
+
+	result, err := h.deps.CommandBus.Dispatch(ctx, cmd)
+	if err != nil {
+		log.Printf("[WARN] edit-grant auto-invite: ensure invitation for %s: %v", granteeEmail, err)
+		return false
+	}
+	if result.CreatedID == "" {
 		return false
 	}
 
-	if h.granteeAlreadyExists(ctx, granteeEmail) {
-		return false
-	}
-
-	if !h.isDomainAllowed(ctx, granteeEmail) {
-		return false
-	}
-
-	return h.requestInvitation(ctx, granteeEmail, actor)
-}
-
-func (h *EditGrantHandlers) canAutoInvite() bool {
-	return h.deps.UserLookup != nil && h.deps.InvChecker != nil && h.deps.Invitations != nil
-}
-
-func (h *EditGrantHandlers) granteeAlreadyExists(ctx context.Context, email string) bool {
-	exists, err := h.deps.UserLookup.ExistsByEmail(ctx, email)
-	if err == nil && exists {
-		return true
-	}
-
-	hasPending, err := h.deps.InvChecker.HasPendingByEmail(ctx, email)
-	return err == nil && hasPending
-}
-
-func (h *EditGrantHandlers) isDomainAllowed(ctx context.Context, email string) bool {
-	if h.deps.DomainChecker == nil {
-		return true
-	}
-	allowed, err := h.deps.DomainChecker.IsDomainAllowed(ctx, email)
-	return err == nil && allowed
-}
-
-func (h *EditGrantHandlers) requestInvitation(ctx context.Context, granteeEmail string, actor sharedctx.Actor) bool {
-	request := ports.InvitationRequest{GranteeEmail: granteeEmail, GrantorID: actor.ID, GrantorEmail: actor.Email}
-	if err := h.deps.Invitations.RequestInvitation(ctx, request); err != nil {
-		log.Printf("[WARN] edit-grant auto-invite: request invitation for %s: %v", granteeEmail, err)
-		return false
-	}
-	h.publishNonUserGrantEvent(ctx, request)
+	log.Printf("[AUDIT] invitation-auto-created email=%s inviter=%s reason=edit-grant", granteeEmail, actor.Email)
+	h.publishNonUserGrantEvent(ctx, granteeEmail, actor)
 	return true
 }
 
-func (h *EditGrantHandlers) publishNonUserGrantEvent(ctx context.Context, request ports.InvitationRequest) {
+func (h *EditGrantHandlers) publishNonUserGrantEvent(ctx context.Context, granteeEmail string, actor sharedctx.Actor) {
 	if h.deps.EventBus == nil {
 		return
 	}
-	eventData := map[string]interface{}{
-		"granteeEmail": request.GranteeEmail,
-		"grantorId":    request.GrantorID,
-		"grantorEmail": request.GrantorEmail,
-	}
-	data, _ := json.Marshal(eventData)
+	data, _ := json.Marshal(map[string]interface{}{
+		"granteeEmail": granteeEmail,
+		"grantorId":    actor.ID,
+		"grantorEmail": actor.Email,
+	})
 	event := domain.NewGenericDomainEvent("", adPL.EditGrantForNonUserCreated, data, domain.NewBaseEvent("").OccurredAt())
 	_ = h.deps.EventBus.Publish(ctx, []domain.DomainEvent{event})
 }

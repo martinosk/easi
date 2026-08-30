@@ -27,39 +27,42 @@ type Tenant struct {
 	createdAt       time.Time
 }
 
-func NewTenant(
-	id sharedvo.TenantID,
-	name valueobjects.TenantName,
-	domains []valueobjects.EmailDomain,
-	oidcConfig valueobjects.OIDCConfig,
-	firstAdminEmail string,
-) (*Tenant, error) {
-	firstAdminEmail = strings.TrimSpace(firstAdminEmail)
+type TenantRegistration struct {
+	ID              sharedvo.TenantID
+	Name            valueobjects.TenantName
+	Domains         []valueobjects.EmailDomain
+	OIDCConfig      valueobjects.OIDCConfig
+	FirstAdminEmail string
+}
+
+func NewTenant(registration TenantRegistration) (*Tenant, error) {
+	firstAdminEmail := strings.TrimSpace(registration.FirstAdminEmail)
 	if firstAdminEmail == "" {
 		return nil, ErrFirstAdminEmailRequired
 	}
 
-	if !emailDomainMatchesTenantDomains(firstAdminEmail, domains) {
+	if !emailDomainMatchesTenantDomains(firstAdminEmail, registration.Domains) {
 		return nil, ErrFirstAdminEmailDomainMismatch
 	}
 
 	tenant := &Tenant{
-		AggregateRoot: domain.NewAggregateRootWithID(id.Value()),
-		oidcConfig:    oidcConfig,
+		AggregateRoot: domain.NewAggregateRootWithID(registration.ID.Value()),
+		oidcConfig:    registration.OIDCConfig,
 	}
 
-	domainStrings := make([]string, len(domains))
-	for i, d := range domains {
-		domainStrings[i] = d.Value()
-	}
-
-	event := events.NewTenantCreated(
-		id.Value(),
-		name.Value(),
-		valueobjects.TenantStatusActive.Value(),
-		domainStrings,
-		firstAdminEmail,
-	)
+	event := events.NewTenantCreated(events.TenantDetails{
+		ID:              registration.ID.Value(),
+		Name:            registration.Name.Value(),
+		Status:          valueobjects.TenantStatusActive.Value(),
+		Domains:         registration.DomainNames(),
+		FirstAdminEmail: firstAdminEmail,
+		OIDC: events.TenantOIDC{
+			DiscoveryURL: registration.OIDCConfig.DiscoveryURL(),
+			ClientID:     registration.OIDCConfig.ClientID(),
+			AuthMethod:   string(registration.OIDCConfig.AuthMethod()),
+			Scopes:       registration.OIDCConfig.Scopes(),
+		},
+	})
 
 	if err := tenant.apply(event); err != nil {
 		return nil, err
@@ -67,6 +70,14 @@ func NewTenant(
 	tenant.RaiseEvent(event)
 
 	return tenant, nil
+}
+
+func (r TenantRegistration) DomainNames() []string {
+	names := make([]string, len(r.Domains))
+	for i, d := range r.Domains {
+		names[i] = d.Value()
+	}
+	return names
 }
 
 func LoadTenantFromHistory(evts []domain.DomainEvent) (*Tenant, error) {

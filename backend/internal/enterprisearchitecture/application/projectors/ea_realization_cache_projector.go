@@ -70,7 +70,7 @@ type systemLinkedToCapabilityEvent struct {
 }
 
 func (p *EARealizationCacheProjector) handleSystemLinkedToCapability(ctx context.Context, eventData []byte) error {
-	event, err := decodeRealizationEvent[systemLinkedToCapabilityEvent]("SystemLinkedToCapability", eventData)
+	event, err := decodeRealizationEvent[systemLinkedToCapabilityEvent](cmPL.SystemLinkedToCapability, eventData)
 	if err != nil {
 		return err
 	}
@@ -109,7 +109,7 @@ func handleIdentifiedEvent(ctx context.Context, eventData []byte, action identif
 
 func (p *EARealizationCacheProjector) handleSystemRealizationDeleted(ctx context.Context, eventData []byte) error {
 	return handleIdentifiedEvent(ctx, eventData, identifiedEventAction{
-		eventName:          "SystemRealizationDeleted",
+		eventName:          cmPL.SystemRealizationDeleted,
 		failureDescription: "delete for realization",
 		run:                p.readModel.Delete,
 	})
@@ -117,7 +117,7 @@ func (p *EARealizationCacheProjector) handleSystemRealizationDeleted(ctx context
 
 func (p *EARealizationCacheProjector) handleCapabilityDeleted(ctx context.Context, eventData []byte) error {
 	return handleIdentifiedEvent(ctx, eventData, identifiedEventAction{
-		eventName:          "CapabilityDeleted",
+		eventName:          cmPL.CapabilityDeleted,
 		failureDescription: "delete by capability",
 		run:                p.readModel.DeleteByCapabilityID,
 	})
@@ -129,7 +129,7 @@ type applicationComponentUpdatedEvent struct {
 }
 
 func (p *EARealizationCacheProjector) handleApplicationComponentUpdated(ctx context.Context, eventData []byte) error {
-	event, err := decodeRealizationEvent[applicationComponentUpdatedEvent]("ApplicationComponentUpdated", eventData)
+	event, err := decodeRealizationEvent[applicationComponentUpdatedEvent](amPL.ApplicationComponentUpdated, eventData)
 	if err != nil {
 		return err
 	}

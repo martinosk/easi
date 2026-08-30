@@ -30,8 +30,7 @@ export interface SessionLinks {
   logout: string;
   user: string;
   tenant: string;
-  'x-assistant'?: string;
-  'x-assistant-write'?: string;
+  'x-assistant-status'?: string;
   'x-one-pager-quality'?: string;
   [key: string]: string | undefined;
 }

@@ -8,14 +8,12 @@ import (
 	"net/http"
 	"time"
 
-	authPL "easi/backend/internal/auth/publishedlanguage"
 	"easi/backend/internal/platform/application/commands"
 	"easi/backend/internal/platform/domain/aggregates"
 	"easi/backend/internal/platform/domain/valueobjects"
 	"easi/backend/internal/platform/infrastructure/repositories"
 	"easi/backend/internal/platform/infrastructure/secrets"
 	sharedAPI "easi/backend/internal/shared/api"
-	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 
@@ -263,76 +261,6 @@ func (h *TenantHandlers) mapRecordToResponse(ctx context.Context, record *reposi
 		},
 		Warnings: warnings,
 	}
-}
-
-type CreateInvitationRequest struct {
-	Email string `json:"email"`
-	Role  string `json:"role"`
-}
-
-// CreateTenantInvitation godoc
-// @Summary Create an invitation for a tenant
-// @Description Creates an admin invitation for an existing tenant
-// @Tags tenants
-// @Accept json
-// @Produce json
-// @Param id path string true "Tenant ID"
-// @Param request body CreateInvitationRequest true "Invitation details"
-// @Success 201 {object} map[string]string "Invitation created"
-// @Failure 400 {object} sharedAPI.ErrorResponse "Invalid request"
-// @Failure 404 {object} sharedAPI.ErrorResponse "Tenant not found"
-// @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
-// @Router /platform/tenants/{id}/invitations [post]
-func (h *TenantHandlers) CreateTenantInvitation(w http.ResponseWriter, r *http.Request) {
-	tenantID := chi.URLParam(r, "id")
-
-	exists, err := h.repository.ExistsByID(r.Context(), tenantID)
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to check tenant")
-		return
-	}
-	if !exists {
-		sharedAPI.RespondError(w, http.StatusNotFound, nil, "Tenant not found")
-		return
-	}
-
-	var req CreateInvitationRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
-		return
-	}
-
-	if req.Email == "" {
-		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "Email is required")
-		return
-	}
-	if req.Role == "" {
-		req.Role = "admin"
-	}
-
-	tenantIDVO, err := sharedvo.NewTenantID(tenantID)
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid tenant ID")
-		return
-	}
-	tenantCtx := sharedctx.WithTenant(r.Context(), tenantIDVO)
-
-	cmd := &authPL.CreateInvitation{
-		Email: req.Email,
-		Role:  req.Role,
-	}
-
-	if _, err := h.commandBus.Dispatch(tenantCtx, cmd); err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to create invitation")
-		return
-	}
-
-	sharedAPI.RespondJSON(w, http.StatusCreated, map[string]string{
-		"message": "Invitation created for " + req.Email,
-		"tenant":  tenantID,
-		"email":   req.Email,
-		"role":    req.Role,
-	})
 }
 
 var tenantErrorStatusMap = map[error]int{

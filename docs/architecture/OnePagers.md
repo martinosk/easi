@@ -43,18 +43,18 @@ Deliver the One-Pager — a stakeholder-facing fact sheet for a single subject e
 - Facts read (subject's read permission)
 - Composed one-pager read `GET /api/v1/one-pagers/{subjectType}/{subjectID}` (subject's read permission): subject header plus built-in and custom fields interleaved in the configured display order
 
-**Events consumed** (supplier published language; each archives the subject's facts):
-`CapabilityDeleted` (capabilitymapping), `EnterpriseCapabilityDeleted` (enterprisearchitecture), `ApplicationComponentDeleted`, `AcquiredEntityDeleted`, `VendorDeleted`, `InternalTeamDeleted` (architecturemodeling)
+**Events consumed** (supplier published language, projected into OnePagers' own caches — spec 209):
+- Subject lifecycle and attributes → `one_pager_subject_index` (name, existence, completeness counters, and `built_in_fields`: the subject's **complete** published attribute set, keyed by the supplier's attribute names): `Capability*` incl. `CapabilityMetadataUpdated` and expert events (capabilitymapping); `EnterpriseCapability*` (enterprisearchitecture); `ApplicationComponent*` incl. expert events, `AcquiredEntity*`, `Vendor*`, `InternalTeam*` (architecturemodeling). Deletion events also archive the subject's facts.
+- Relations → `subject_relation_cache` (+ `business_domain_name_cache` for domain labels): `SystemLinkedToCapability`, `SystemRealizationDeleted`, `CapabilityDependencyCreated/Deleted`, `CapabilityAssignedToDomain/UnassignedFromDomain`, `CapabilityParentChanged`, `BusinessDomain*` (capabilitymapping); `ComponentRelation*`, `OriginLink*` (architecturemodeling). Expert names travel on the expert events, so no user cache exists.
+- Rendering semantics → `maturity_scale_cache`: `MaturityScaleConfigUpdated/Reset`, `MetaModelConfigurationCreated` (metamodel)
+
+Every cache is backfilled by migration 148 from the suppliers' tables. Adding a built-in field over an attribute a supplier already publishes is a catalog change only; a genuinely new supplier attribute ships with a supplier event change and an OnePagers backfill.
 
 ## Outbound Communication
 
 **Events published**: none — the context has no published language; its event types are internal aggregate mechanics. Machine-enforced by the boundary test, which asserts the `publishedlanguage` package does not exist.
 
-**Queries made** (Customer/Supplier, query-time, through consumer-defined ports in `/backend/internal/onepagers/application/ports` with adapters at the composition root `/backend/internal/infrastructure/api`):
-- `BuiltInFieldSource` (one per subject type) wrapping the supplier read contracts: `CapabilityReadModel`, `EnterpriseCapabilityReadModel`, `ApplicationComponentReadModel`, `AcquiredEntityReadModel`, `VendorReadModel`, `InternalTeamReadModel`
-- Relation built-in fields (spec 188) resolve, in the same `BuiltInFieldSource` adapters and only for *included* relation entries, through the supplier relation read contracts: `RealizationReadModel` (`GetByCapabilityID`/`GetByComponentID`), `DependencyReadModel` (`GetOutgoing`), `DomainCapabilityAssignmentReadModel` (`GetByCapabilityID`), `CapabilityReadModel` (`GetChildren` + batched `GetByIDs` name resolution), `ApplicationComponentReadModel` (batched `GetByIDs` name resolution), `BuiltByRelationshipReadModel`/`PurchasedFromRelationshipReadModel`/`AcquiredViaRelationshipReadModel` (forward `GetByComponentID` and reverse `GetByTeamID`/`GetByVendorID`/`GetByEntityID`), `ComponentRelationReadModel` (`GetBySourceID`), and the enterprise `CompositionService` (`CompositionForEC`) for `Included Capabilities`
-- `MaturityScaleSource` wrapping the metamodel configuration read model — **metamodel is the upstream supplier of rendering semantics** (tenant maturity-scale sections)
-- `SubjectExistenceChecker` wrapping the six supplier read models (facts creation guard)
+**Queries made**: none. The ports in `/backend/internal/onepagers/application/ports` (`BuiltInFieldSource` per subject type, `MaturityScaleSource`, `SubjectExistenceChecker`) are implemented inside the context over its own caches; the catalog-entry → published-attribute binding lives only in those adapters. The enterprise-capability one-pager no longer has an `included-capabilities` field.
 
 ## Business Rules
 
@@ -69,17 +69,17 @@ Deliver the One-Pager — a stakeholder-facing fact sheet for a single subject e
 9. One facts aggregate per subject, created on first recorded value after a subject-existence check through the subject port
 10. Every Field Value is a typed, constructor-validated VO persisted as a Value Envelope; validation against the current configuration happens in the command handler
 11. Subject deletion archives the facts aggregate in its own stream and removes its read-model rows; archived facts reject further writes
-12. The composed read assembles at query time with a constant query count: one configuration read, one facts read, one subject read through the port, at most one metamodel semantics read, plus — per *included* relation built-in — at most one bounded edge read and one batched counterpart-name lookup (`id IN (…)`, never per-edge), so the total stays independent of the number of related entities and of the number of configured fields
+12. The composed read assembles at query time from OnePagers' own tables with a constant query count: one configuration read, one facts read, one subject-index read, at most one maturity-scale read, plus — per *included* relation built-in — one bounded relation-cache read joined to the subject index for names, so the total stays independent of the number of related entities and of the number of configured fields
 13. Retired fields never render on the one-pager; values referencing retired selection options render flagged, never invalid
 14. The composed read is authorized with the subject's own read permission; a missing configuration falls back to the catalog default without persisting
 
 ## Design Constraints
 
-1. Catalog as code: each entry binds to exactly one field of a supplier's published read contract, and the composition adapter is the only place that binding exists; per-subject-type catalog-contract integration tests fail the build on supplier drift
+1. Catalog as code: each entry binds to exactly one attribute of the subject's cached published attribute set, and the in-context adapter is the only place that binding exists; per-subject-type adapter tests fail the build on drift
 2. One aggregate per (tenant, subject type) keeps the configuration consistency boundary small
 3. Reuses `PermMetaModelRead`/`PermMetaModelWrite` for configuration because the required grant matrix is identical to the metamodel settings gate; the composed read inherits the subject's read permission so it can never reveal more than the subject's own detail endpoint
 4. Configuration reads are frequent, writes rare: the frontend caches with `staleTime: Infinity` and invalidates on mutation
-5. Query-time composition with no denormalized one-pager cache: supplier names and values are always fresh; the cache-projector precedent is the escape hatch if profiling demands it
+5. Event-fed, backfilled caches of supplier data (spec 209): the composed read never touches another context; freshness follows the synchronous in-process event bus
 
 ## Open Questions
 
@@ -90,7 +90,7 @@ Deliver the One-Pager — a stakeholder-facing fact sheet for a single subject e
 
 - **Zero cross-context imports**: machine-enforced by `/backend/internal/onepagers/architecture_boundary_test.go` — only `internal/shared`, other contexts' `publishedlanguage` packages, and shared eventstore/database infrastructure are importable
 - **No published language**: the context publishes nothing; consumers of its data go through its REST API only
-- **Catalog binding integrity**: every catalog entry resolves against its supplier read contract, enforced by per-subject-type catalog-contract integration tests at `/backend/internal/infrastructure/api`
+- **Catalog binding integrity**: every catalog entry resolves against the cached published attribute set, enforced by per-subject-type adapter tests inside the context; the composition root wires nothing for OnePagers (`TestCompositionRootOnlyRegistersRoutes`)
 
 ## Architecture Notes
 

@@ -117,8 +117,6 @@ export function buildEnterpriseCapabilityDto(ec: StubEnterpriseCapability): Ente
       self: link(base, 'GET'),
       edit: link(base, 'PUT'),
       delete: link(base, 'DELETE'),
-      'x-direction': link(`${base}/direction`, 'GET'),
-      'x-composition': link(`${base}/composition`, 'GET'),
     },
   };
 }
@@ -139,6 +137,7 @@ export function buildCompositionSummary(ec: StubEnterpriseCapability): Compositi
     _links: {
       'x-enterprise-capability': link(base, 'GET'),
       'x-composition': link(`${base}/composition`, 'GET'),
+      'x-direction': link(`${base}/direction`, 'GET'),
     },
   };
 }

@@ -17,6 +17,7 @@ type CapabilityNodeDTO struct {
 	L1CapabilityID     string
 	BusinessDomainID   string
 	BusinessDomainName string
+	MaturityValue      int
 }
 
 type ParentL1Update struct {
@@ -42,18 +43,19 @@ func NewCapabilityNodeCacheReadModel(db *database.TenantAwareDB) *CapabilityNode
 func (rm *CapabilityNodeCacheReadModel) Insert(ctx context.Context, dto CapabilityNodeDTO) error {
 	return rm.execForTenant(ctx,
 		`INSERT INTO architecturedirection.capability_node_cache
-		 (tenant_id, capability_id, capability_name, capability_level, parent_id, l1_capability_id, business_domain_id, business_domain_name)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		 (tenant_id, capability_id, capability_name, capability_level, parent_id, l1_capability_id, business_domain_id, business_domain_name, maturity_value)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		 ON CONFLICT (tenant_id, capability_id) DO UPDATE SET
 		 capability_name = EXCLUDED.capability_name,
 		 capability_level = EXCLUDED.capability_level,
 		 parent_id = EXCLUDED.parent_id,
 		 l1_capability_id = EXCLUDED.l1_capability_id,
 		 business_domain_id = EXCLUDED.business_domain_id,
-		 business_domain_name = EXCLUDED.business_domain_name`,
+		 business_domain_name = EXCLUDED.business_domain_name,
+		 maturity_value = EXCLUDED.maturity_value`,
 		dto.CapabilityID, dto.CapabilityName, dto.CapabilityLevel,
 		nullIfEmpty(dto.ParentID), dto.L1CapabilityID,
-		nullIfEmpty(dto.BusinessDomainID), nullIfEmpty(dto.BusinessDomainName),
+		nullIfEmpty(dto.BusinessDomainID), nullIfEmpty(dto.BusinessDomainName), dto.MaturityValue,
 	)
 }
 
@@ -74,10 +76,10 @@ func (rm *CapabilityNodeCacheReadModel) GetByID(ctx context.Context, capabilityI
 	var notFound bool
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		err := tx.QueryRowContext(ctx,
-			`SELECT capability_id, capability_name, capability_level, parent_id, l1_capability_id, business_domain_id, business_domain_name
+			`SELECT capability_id, capability_name, capability_level, parent_id, l1_capability_id, business_domain_id, business_domain_name, maturity_value
 			 FROM architecturedirection.capability_node_cache WHERE tenant_id = $1 AND capability_id = $2`,
 			tenantID.Value(), capabilityID,
-		).Scan(&dto.CapabilityID, &dto.CapabilityName, &dto.CapabilityLevel, &parentID, &dto.L1CapabilityID, &businessDomainID, &businessDomainName)
+		).Scan(&dto.CapabilityID, &dto.CapabilityName, &dto.CapabilityLevel, &parentID, &dto.L1CapabilityID, &businessDomainID, &businessDomainName, &dto.MaturityValue)
 		if err == sql.ErrNoRows {
 			notFound = true
 			return nil

@@ -95,8 +95,12 @@ func buildToolCatalogTestRouter(t *testing.T) chi.Router {
 		t.Fatalf("metamodel routes: %v", err)
 	}
 
-	viewHandlers := viewsAPI.NewHTTPHandlers(commandBus, nil, hateoas)
-	viewsAPI.RegisterRoutes(r, viewHandlers, auth)
+	if err := viewsAPI.SetupArchitectureViewsRoutes(viewsAPI.RouteConfig{
+		Router: r, CommandBus: commandBus, EventStore: es, EventBus: eventBus,
+		HATEOAS: hateoas, AuthMiddleware: auth,
+	}); err != nil {
+		t.Fatalf("architecture views routes: %v", err)
+	}
 
 	return r
 }

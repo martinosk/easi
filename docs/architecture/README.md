@@ -16,15 +16,21 @@ All locations are relative to `/backend/internal/`.
 | Architecture Direction | Core | Govern directions, standard applications, TIME assessments and journeys; own composition and maturity analysis derived from direction sources | `architecturedirection/` | [Canvas](./ArchitectureDirection.md) |
 | Value Streams | Core | Model value streams with stages and map business capabilities to each stage | `valuestreams/` | — |
 | Access Delegation | Supporting | Manage temporary edit grants for specific users on specific artifacts | `accessdelegation/` | — |
-| Releases | Generic | Track and communicate platform releases and version history | `releases/` | [Canvas](./Releases.md) |
-| Arch Assistant | Supporting | AI-powered conversational assistant for exploring and modifying enterprise architecture | `archassistant/` | [Canvas](./ArchAssistant.md) |
+| Importing | Supporting | Import components, capabilities and value streams from files through the owning contexts' published commands | `importing/` | — |
 | OnePagers | Supporting | Configure per-subject-type one-pager fact sheets, record facts, render one-pagers, report completeness | `onepagers/` | [Canvas](./OnePagers.md) |
+| Arch Assistant | Supporting | AI-powered conversational assistant for exploring and modifying enterprise architecture | `archassistant/` | [Canvas](./ArchAssistant.md) |
+| Auth | Generic | Identity, roles, permissions, invitations and sessions; caches tenant domains and OIDC configuration from Platform | `auth/` | — |
+| Platform | Generic | Tenant provisioning (tenants, domains, OIDC configuration); depends on no other context | `platform/` | — |
+| Audit | Generic | Audit log and artifact-creator lookups over the event store | `audit/` | — |
+| Releases | Generic | Track and communicate platform releases and version history | `releases/` | [Canvas](./Releases.md) |
 
-Not bounded contexts: `auth/` (identity, roles, invitations, sessions) and `platform/` (tenant provisioning) are supporting packages every context may depend on; `shared/` is the shared kernel (including `shared/agenttools`, the tool contract every context implements for Arch Assistant); `infrastructure/` holds database, event store and the composition root.
+`shared/` is the shared kernel (API helpers, CQRS/event buses, context, `shared/agenttools` — the tool contract every context implements for Arch Assistant) and imports no context. `infrastructure/` holds the database, the event store and the composition root, whose only job is to register each context's routes.
 
 ---
 
 ## Context Map
+
+Arrows point in **dependency direction** (importer → imported, i.e. downstream → upstream). This is exactly the graph `TestContextDependencyGraphIsAcyclic` checks: an edge exists iff a file of the tail context imports the head context's `publishedlanguage`. Every context except Platform also imports Auth's published language for permission constants; those edges are omitted below for readability, and Auth's own upstream is only Platform.
 
 ```mermaid
 flowchart LR
@@ -41,89 +47,79 @@ flowchart LR
     OP[OnePagers]
     IM[Importing]
     AA[Arch Assistant]
+    AUD[Audit]
 
-    AM -->|Component CRUD| CM
-    AM -->|Component CRUD| ADR
-    AM -->|ComponentDeleted, RelationDeleted| AV
-    AM -->|Component/Vendor/AcquiredEntity/InternalTeam Deleted| ACD
-    AM -->|Component/Vendor/AcquiredEntity/InternalTeam lifecycle| OP
+    AU -->|TenantCreated → tenant, domain and OIDC caches, first-admin invitation| PL
+    MM -->|TenantCreated → default configuration| PL
+    AA -->|TenantCreated → default AI configuration| PL
 
-    MM -->|Pillar and fit config, ConfigurationCreated| CM
-    MM -->|Pillar and fit config| EA
-    MM -->|Maturity scale config| CM
+    CM -->|component lifecycle → component cache| AM
+    CM -->|pillar, fit and maturity-scale configuration → caches| MM
+    CM -->|UserCreated → user names| AU
 
-    CM -->|Capability lifecycle, domain assignments, realizations, fit, importance| EA
-    CM -->|Capability and domain lifecycle| ADR
-    CM -->|CapabilityDeleted, BusinessDomainDeleted| ACD
-    CM -->|Capability lifecycle| VS
-    CM -->|Capability lifecycle| OP
+    AV -->|ComponentDeleted, RelationDeleted → view cleanup| AM
 
-    EA -->|EnterpriseCapability lifecycle, target maturity| ADR
-    EA -->|EnterpriseCapability lifecycle| OP
+    EA -->|capability, domain, realization, fit, importance lifecycle → caches| CM
+    EA -->|ApplicationComponentUpdated → realization names| AM
+    EA -->|pillar configuration → cache| MM
 
-    AV -->|ViewDeleted| ACD
-    AU -->|UserCreated| CM
-    AU -->|UserCreated| ADR
-    PL -->|TenantCreated| MM
-    PL -->|TenantCreated| AA
+    ADR -->|capability, domain, realization lifecycle → node, reference and realization caches| CM
+    ADR -->|component lifecycle → reference cache| AM
+    ADR -->|enterprise capability lifecycle, target maturity → cache| EA
+    ADR -->|UserCreated → user names| AU
 
-    ACD -.->|bridge: users, invitations, allowed domains, invitation request| AU
-    ADR -.->|bridge: existence checks, direct realization| CM
-    ADR -.->|bridge: component existence| AM
-    EA -.->|bridge: domain name at assignment| CM
-    OP -.->|bridge: built-in fields, relations, subjects| AM
-    OP -.->|bridge: built-in fields, relations, subjects| CM
-    OP -.->|bridge: built-in fields, subjects| EA
-    OP -.->|bridge: composition| ADR
-    OP -.->|bridge: maturity scale| MM
-    IM -.->|bridge: import gateways| AM
-    IM -.->|bridge: import gateways| CM
-    IM -.->|bridge: import gateways| VS
-    AA -.->|loopback HTTP via tools| AM
-    AA -.->|loopback HTTP via tools| CM
-    AA -.->|loopback HTTP via tools| EA
-    AA -.->|loopback HTTP via tools| ADR
-    AA -.->|loopback HTTP via tools| VS
-    AA -.->|loopback HTTP via tools| MM
+    VS -->|capability lifecycle → cache| CM
+
+    ACD -->|capability, domain lifecycle → artifact names, grant revocation| CM
+    ACD -->|component, vendor, acquired-entity, team lifecycle → artifact names, grant revocation| AM
+    ACD -->|view lifecycle → artifact names, grant revocation| AV
+    ACD -->|command EnsureInvitation| AU
+
+    OP -->|subject lifecycle, fields, relations → subject index and caches| AM
+    OP -->|subject lifecycle, fields, relations → subject index and caches| CM
+    OP -->|subject lifecycle, fields → subject index| EA
+    OP -->|maturity scale configuration → cache| MM
+    OP -->|UserCreated → expert names| AU
+
+    IM -->|published import commands| AM
+    IM -->|published import commands| CM
+    IM -->|published import commands| VS
+
+    AA -->|agent tool specs, loopback HTTP| AM
+    AA -->|agent tool specs, loopback HTTP| CM
+    AA -->|agent tool specs, loopback HTTP| EA
+    AA -->|agent tool specs, loopback HTTP| ADR
+    AA -->|agent tool specs, loopback HTTP| VS
+    AA -->|agent tool specs, loopback HTTP| MM
+    AA -->|agent tool specs, loopback HTTP| AV
+
+    AUD -->|permissions| AU
 ```
-
-Solid arrows are published-language events (upstream → downstream). Dotted arrows are declared composition-root bridges (consumer → supplier) — synchronous reads or calls wired in `backend/internal/infrastructure/api/*_bridges.go` and adapter files, each declared in `backend/internal/architecture_bridges_test.go`. Arch Assistant reaches other contexts only through the public HTTP API.
 
 ### Relationship Types
 
-| Upstream | Downstream | Relationship | Integration Pattern |
-|----------|-----------|--------------|---------------------|
-| Architecture Modeling | Architecture Views | Customer-Supplier | Event-driven (component/relation deletions) |
-| Architecture Modeling | Capability Mapping | Customer-Supplier | Event-driven (component CRUD into local cache) |
-| Architecture Modeling | Access Delegation | Customer-Supplier | Event-driven (artifact deletion revokes grants) + declared bridge (artifact names) |
-| Architecture Modeling | Architecture Direction | Customer-Supplier | Event-driven (component CRUD for stale detection) + declared bridge (component existence) |
-| Architecture Modeling | OnePagers | Customer-Supplier | Event-driven (subject index) + declared bridge (built-in fields, relations, subject existence) |
-| MetaModel | Capability Mapping | Published Language | Event-driven (pillar/maturity config) + local gateway |
-| MetaModel | Enterprise Architecture | Published Language | Event-driven (pillar config into local cache) |
-| MetaModel | OnePagers | Published Language | Declared bridge (maturity scale sections) |
-| Capability Mapping | Enterprise Architecture | Customer-Supplier | Event-driven (capability lifecycle, realizations, fit, importance into local caches) + declared bridge (domain name at assignment) |
-| Capability Mapping | Architecture Direction | Customer-Supplier | Event-driven (capability/domain lifecycle into node and name caches) + declared bridge (existence, direct realization, effective domain) |
-| Capability Mapping | Access Delegation | Customer-Supplier | Event-driven (artifact deletion revokes grants) + declared bridge (artifact names) |
-| Capability Mapping | Value Streams | Customer-Supplier | Event-driven (capability lifecycle via local cache projector) |
-| Capability Mapping | OnePagers | Customer-Supplier | Event-driven (subject index) + declared bridge |
-| Enterprise Architecture | Architecture Direction | Customer-Supplier | Event-driven (enterprise capability lifecycle and target maturity into local cache; deletion rejects the direction) |
-| Enterprise Architecture | OnePagers | Customer-Supplier | Event-driven (subject index) + declared bridge |
-| Architecture Direction | OnePagers | Customer-Supplier | Declared bridge (enterprise capability composition for the relation field) |
-| Architecture Views | Access Delegation | Customer-Supplier | Event-driven (view deletion revokes grants) + declared bridge (view names) |
-| Auth | Access Delegation | Customer-Supplier | Declared bridge (user existence, pending invitations, allowed domains, invitation request for non-users) |
-| Auth | Architecture Views | Customer-Supplier | Declared bridge (user role check for view visibility) |
-| Auth | Capability Mapping, Architecture Direction | Customer-Supplier | Event-driven (`UserCreated` into name caches) |
-| Platform | MetaModel, Arch Assistant | Customer-Supplier | Event-driven (`TenantCreated` provisions defaults) |
-| Architecture Modeling, Capability Mapping, Value Streams | Importing | Open Host Service | Declared bridge (import gateways) |
+| Upstream | Downstream | Relationship | Integration |
+|----------|-----------|--------------|-------------|
+| Platform | Auth, MetaModel, Arch Assistant | Customer-Supplier | `TenantCreated` into local caches and defaults; Auth invites the first admin by reacting to it |
+| Auth | every other context | Published Language | Permission constants and the auth middleware contract; `UserCreated` into name caches (Capability Mapping, Architecture Direction, OnePagers); `EnsureInvitation` command (Access Delegation) |
+| Architecture Modeling | Capability Mapping, Architecture Views, Enterprise Architecture, Architecture Direction, Access Delegation, OnePagers | Customer-Supplier | Component / vendor / acquired-entity / team lifecycle events into local caches |
+| MetaModel | Capability Mapping, Enterprise Architecture, OnePagers | Published Language | Pillar, fit and maturity-scale configuration events into local caches |
+| Capability Mapping | Enterprise Architecture, Architecture Direction, Value Streams, Access Delegation, OnePagers | Customer-Supplier | Capability, domain, realization, dependency, fit and importance lifecycle events into local caches |
+| Enterprise Architecture | Architecture Direction, OnePagers | Customer-Supplier | Enterprise capability lifecycle and target maturity into local caches; deletion rejects the active direction |
+| Architecture Views | Access Delegation | Customer-Supplier | View lifecycle into the artifact name cache; deletion revokes grants |
+| Architecture Modeling, Capability Mapping, Value Streams | Importing | Open Host Service | Published import commands dispatched through the command bus |
 | Any context with a public API | Arch Assistant | Open Host Service | Loopback HTTP (agent tool execution); tools are declared in each context's published language against the `shared/agenttools` contract |
 
 ---
 
 ## Cross-Context Integration
 
-Each publishing bounded context exposes a `publishedlanguage/events.go` package containing typed string constants — the contract between upstream and downstream contexts. Consuming contexts import only these constants, never domain event structs (ACL pattern).
+A context depends on another context **only** through the supplier's published language:
 
-For published language catalogues, event subscription details, the composition-root bridge registry and implementation conventions, see [/docs/backend/cross-context-events.md](/docs/backend/cross-context-events.md) and the individual canvas files above.
+1. **Published events** — typed string constants in `publishedlanguage/events.go`; consumers subscribe inside their own route setup and project into local, backfilled caches. Consumers never import domain event structs (ACL pattern).
+2. **Published commands** — command structs in `publishedlanguage/` (e.g. `authPL.EnsureInvitation`, `capabilitymappingPL.CreateCapability`), aliased by the supplier internally and dispatched by the consumer through the command bus. A result carries at most the created ID.
+
+No context reads another context's read models, services or tables — in code or in the database. For the event catalogue and every subscription per context, see [/docs/backend/cross-context-events.md](/docs/backend/cross-context-events.md) and the individual canvas files above.
 
 ---
 
@@ -131,15 +127,17 @@ For published language catalogues, event subscription details, the composition-r
 
 Each bounded context has:
 - **Own Event Store**: Separate event streams in PostgreSQL
-- **Own Read Models**: Denormalized projections for query performance
+- **Own Read Models**: Denormalized projections for query performance, including local caches of upstream reference data
 - **Own Aggregates**: Independent transactional boundaries
 - **Own API**: REST Level 3 with context-specific endpoints
 - **Tenant Isolation**: Multi-tenancy at context level (except Releases)
 
-**No Shared Databases**: Contexts communicate via events and declared bridges, never direct database access. `TestSQLSchemaOwnership` enforces that each context queries only its own schema.
+**No shared databases — enforced.** `TestSQLSchemaOwnership` fails on any runtime SQL that references another context's schema; there is no allowlist. `TestNewMigrationsCrossSchemasOnlyInBackfills` allows a migration to read another schema only when its filename contains `backfill` — the one-time seeding of a cache.
 
-**No Circular Dependencies — enforced.** The dependency graph has two kinds of edges: a context importing another context's `publishedlanguage`, and a declared composition-root bridge (consumer → supplier). `TestContextDependencyGraphIsAcyclic` in `backend/internal/architecture_bridges_test.go` rejects any cycle; `TestEveryCompositionRootBridgeIsDeclaredExactly`, `TestRouterOnlyRegistersRoutes`, `TestNoStaleBridgeDeclarations`, `TestNonContextPackagesImportOnlyPublishedLanguage` and `TestProductionCodeDoesNotImportTestSupport` reject any composition-root file that reaches two contexts without a declaration, a declaration that does not match the file's imports, a `router.go` that imports anything but a context's `infrastructure/api`, and any `shared/` or `infrastructure/` package importing a context's internals. There is no allowlist for cycles.
+**No composition-root bridges — enforced.** `TestCompositionRootOnlyRegistersRoutes` allows files under `infrastructure/api/` to import from a context only its `infrastructure/api` package; `TestSharedAndInfrastructureImportNoContext` forbids `shared/` and `infrastructure/` from importing any context; `TestNoCrossBoundedContextImports` forbids a context from importing anything of another context but its `publishedlanguage`; `TestPublishedLanguageContractsPurity` keeps published languages free of internal imports; `TestProductionCodeDoesNotImportTestSupport` keeps test support out of production code.
 
-**Local Caches over Shared State — preferred.** When a downstream context needs reference data over time (names, hierarchy, maturity), it maintains a local cache projector populated by upstream events and backfilled by migration, rather than querying the upstream context at read time. Query-time reads at write-time validation or display enrichment are acceptable when declared as bridges; the registry makes every remaining one visible.
+**No circular dependencies — enforced.** `TestContextDependencyGraphIsAcyclic` builds the graph from published-language imports alone and rejects any cycle, printing the offending edges and files. Because direction is the import direction, it cannot be mis-declared.
+
+**Local caches, always backfilled.** Every cache of upstream data is maintained by a projector on the upstream's published events and seeded by a `*backfill*` migration, so a deployment never starts with an empty cache. Actor identity and role come from the request context, never from Auth's read models.
 
 **Event subscriptions are wired inside the consuming context**, never in the composition root.

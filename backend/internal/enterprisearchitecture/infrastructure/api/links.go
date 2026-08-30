@@ -18,8 +18,6 @@ func (h *EnterpriseArchLinks) EnterpriseCapabilityLinksForActor(id string, actor
 	links := sharedAPI.Links{
 		"self":                   h.Get(p),
 		"x-strategic-importance": h.Get(p + "/strategic-importance"),
-		"x-direction":            h.Get(p + "/direction"),
-		"x-composition":          h.Get(p + "/composition"),
 		"x-one-pager":            h.Get("/one-pagers/enterprise-capability/" + id),
 	}
 	if actor.CanWrite("enterprise-arch") {

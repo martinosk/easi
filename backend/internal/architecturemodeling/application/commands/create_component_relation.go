@@ -1,13 +1,5 @@
 package commands
 
-type CreateComponentRelation struct {
-	SourceComponentID string
-	TargetComponentID string
-	RelationType      string
-	Name              string
-	Description       string
-}
+import "easi/backend/internal/architecturemodeling/publishedlanguage"
 
-func (c CreateComponentRelation) CommandName() string {
-	return "CreateComponentRelation"
-}
+type CreateComponentRelation = publishedlanguage.CreateComponentRelation

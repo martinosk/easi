@@ -27,9 +27,9 @@ describe('useAssistantAvailability', () => {
     useUserStore.setState({ sessionLinks: null });
   });
 
-  it('offers the assistant when the session carries the link and the assistant is configured', async () => {
+  it('offers the assistant when the session carries the status link and the assistant is configured', async () => {
     seedAssistantStatus({ configured: true });
-    signInWith({ 'x-assistant': '/api/v1/assistant/conversations' });
+    signInWith({ 'x-assistant-status': '/api/v1/assistant/status' });
 
     const { result } = renderAvailability(createTestQueryClient());
 
@@ -38,7 +38,7 @@ describe('useAssistantAvailability', () => {
 
   it('does not offer the assistant when the tenant has not configured it', async () => {
     seedAssistantStatus({ configured: false });
-    signInWith({ 'x-assistant': '/api/v1/assistant/conversations' });
+    signInWith({ 'x-assistant-status': '/api/v1/assistant/status' });
     const client = createTestQueryClient();
 
     const { result } = renderAvailability(client);
@@ -47,7 +47,7 @@ describe('useAssistantAvailability', () => {
     expect(result.current.assistantAvailable).toBe(false);
   });
 
-  it('does not request the status when the session lacks the assistant permission link', () => {
+  it('does not request the status when the session lacks the assistant status link', () => {
     seedAssistantStatus({ configured: true });
     signInWith({});
     const client = createTestQueryClient();
@@ -58,21 +58,18 @@ describe('useAssistantAvailability', () => {
     expect(client.getQueryState(chatQueryKeys.status())?.fetchStatus).not.toBe('fetching');
   });
 
-  it('reports write availability only when the write link is present', async () => {
-    seedAssistantStatus({ configured: true });
-    signInWith({
-      'x-assistant': '/api/v1/assistant/conversations',
-      'x-assistant-write': '/api/v1/assistant/conversations',
-    });
+  it('reports write availability only when the status carries the write link', async () => {
+    seedAssistantStatus({ configured: true, canWrite: true });
+    signInWith({ 'x-assistant-status': '/api/v1/assistant/status' });
 
     const { result } = renderAvailability(createTestQueryClient());
 
     await waitFor(() => expect(result.current.assistantWriteAvailable).toBe(true));
   });
 
-  it('withholds write availability when the write link is absent', async () => {
-    seedAssistantStatus({ configured: true });
-    signInWith({ 'x-assistant': '/api/v1/assistant/conversations' });
+  it('withholds write availability when the status lacks the write link', async () => {
+    seedAssistantStatus({ configured: true, canWrite: false });
+    signInWith({ 'x-assistant-status': '/api/v1/assistant/status' });
 
     const { result } = renderAvailability(createTestQueryClient());
 

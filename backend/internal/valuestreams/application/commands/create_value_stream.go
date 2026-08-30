@@ -1,10 +1,5 @@
 package commands
 
-type CreateValueStream struct {
-	Name        string
-	Description string
-}
+import "easi/backend/internal/valuestreams/publishedlanguage"
 
-func (c CreateValueStream) CommandName() string {
-	return "CreateValueStream"
-}
+type CreateValueStream = publishedlanguage.CreateValueStream

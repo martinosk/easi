@@ -224,6 +224,7 @@ Every event subscription that crosses a bounded context boundary is documented b
 | `CapabilityParentChanged` | `DomainCapabilityMetadataProjector`, `EnterpriseCapabilityLinkProjector` | same + `subscribeLinkEvents()` | Recalculate L1 ancestry; recompute blocking relationships for subtree |
 | `CapabilityAssignedToDomain` | `DomainCapabilityMetadataProjector` | `subscribeCapabilityMappingEvents()` | Update business domain for L1 subtree, recalculate enterprise domain counts |
 | `CapabilityUnassignedFromDomain` | `DomainCapabilityMetadataProjector` | same | Clear business domain for L1 subtree, recalculate counts |
+| `BusinessDomainCreated` / `Updated` / `Deleted` | `BusinessDomainNameCacheProjector` | same | Business-domain name cache read by the metadata projector at assignment time (spec 209) |
 
 **MetaModel** (`mmPL`):
 
@@ -269,6 +270,14 @@ Every event subscription that crosses a bounded context boundary is documented b
 |-------|-----------|----------|---------|
 | `ViewDeleted` | `ArtifactDeletionProjector` (view) | same | Revoke all edit grants for deleted view |
 
+**Artifact name cache** (spec 209) — `ArtifactNameCacheProjector`, wired in `registerArtifactNameSubscriptions()`:
+
+| Supplier | Events | Purpose |
+|----------|--------|---------|
+| Capability Mapping | `CapabilityCreated/Updated/Deleted`, `BusinessDomainCreated/Updated/Deleted` | Display names of capability and business-domain grant artifacts |
+| Architecture Modeling | `ApplicationComponentCreated/Updated/Deleted`, `VendorCreated/Updated/Deleted`, `AcquiredEntityCreated/Updated/Deleted`, `InternalTeamCreated/Updated/Deleted` | Display names of component, vendor, acquired-entity and team grant artifacts |
+| Architecture Views | `ViewCreated`, `ViewRenamed`, `ViewDeleted` | Display names of view grant artifacts |
+
 ### Arch Assistant consumes from:
 
 **Platform** (`platformPL`):
@@ -277,7 +286,16 @@ Every event subscription that crosses a bounded context boundary is documented b
 |-------|---------|----------|---------|
 | `TenantCreated` | `TenantCreatedHandler` | `archassistant/infrastructure/api/routes.go` `SetupArchAssistantRoutes()` | Provision default AI configuration for the new tenant |
 
-Auth consumes no cross-context events. Access Delegation asks Auth to invite a grantee without an account through its `InvitationRequester` port (a declared bridge, spec 206); `EditGrantForNonUserCreated` is still published for audit.
+### Auth consumes from:
+
+**Platform** (`platformPL`):
+
+| Event | Projector/Handler | Wired In | Purpose |
+|-------|-------------------|----------|---------|
+| `TenantCreated` | `TenantCacheProjector` | `auth/infrastructure/api/routes.go` | Cache tenant, its e-mail domains and its OIDC configuration for login-by-domain, OIDC lookup and the invitation domain allowlist (spec 209) |
+| `TenantCreated` | `TenantCreatedReactor` | same | Create the first-admin invitation for the new tenant |
+
+Access Delegation invites a grantee without an account by dispatching Auth's published command `EnsureInvitation` (see [Published Commands](#published-commands)); `EditGrantForNonUserCreated` is published when an invitation was created, for audit.
 
 ### Architecture Direction consumes from:
 
@@ -292,7 +310,9 @@ Auth consumes no cross-context events. Access Delegation asks Auth to invite a g
 
 | Event | Projector | Wired In | Purpose |
 |-------|-----------|----------|---------|
-| `CapabilityCreated` / `Updated` / `Deleted` / `ParentChanged` / `LevelChanged` / `AssignedToDomain` / `UnassignedFromDomain` / `MetadataUpdated`, `BusinessDomainUpdated` | `CapabilityNodeCacheProjector` | `subscribeCacheEvents()` | Local capability tree with L1 ancestor, effective business domain and maturity, used by composition, source eligibility and maturity analysis |
+| `CapabilityCreated` / `Updated` / `Deleted` / `ParentChanged` / `LevelChanged` / `AssignedToDomain` / `UnassignedFromDomain` / `MetadataUpdated`, `BusinessDomainUpdated` | `CapabilityNodeCacheProjector` | `subscribeCacheEvents()` | Local capability tree with L1 ancestor, effective business domain and maturity, used by composition, source eligibility, maturity analysis and capability existence / effective-domain checks |
+| `SystemLinkedToCapability`, `SystemRealizationDeleted` | `RealizationCacheProjector` | `subscribeReferenceCacheEvents()` | Direct-realization cache behind TIME assessments and realization roles (spec 209) |
+| `BusinessDomainDeleted` | `ReferenceCacheProjector` | same | Remove the domain from the reference-name cache so existence checks fail (spec 209) |
 
 **Capability Mapping** (`cmPL`):
 
@@ -312,7 +332,22 @@ Auth consumes no cross-context events. Access Delegation asks Auth to invite a g
 |-------|-----------|----------|---------|
 | `ApplicationComponentCreated` | `StaleApplicationProjector` | `architecturedirection/infrastructure/api/routes.go` `subscribeStandardApplicationEvents()` | Cache application component name |
 | `ApplicationComponentUpdated` | `StaleApplicationProjector` | same | Update cached application component name |
-| `ApplicationComponentDeleted` | `StaleApplicationProjector` | same | Mark standard applications as stale when component is deleted |
+| `ApplicationComponentDeleted` | `StaleApplicationProjector`, `ReferenceCacheProjector` | same, `subscribeReferenceCacheEvents()` | Mark standard applications as stale; remove the component from the reference-name cache so existence checks fail (spec 209) |
+
+### OnePagers consumes from:
+
+All subscriptions are wired in `onepagers/infrastructure/api/routes.go` `SetupOnePagersRoutes()`; every cache is backfilled by migration 148 (spec 209).
+
+| Supplier | Events | Projector | Cache | Purpose |
+|----------|--------|-----------|-------|---------|
+| Architecture Modeling (`archPL`) | `ApplicationComponentCreated/Updated/Deleted`, `ApplicationComponentExpertAdded/Removed`, `AcquiredEntityCreated/Updated/Deleted`, `VendorCreated/Updated/Deleted`, `InternalTeamCreated/Updated/Deleted` | `SubjectIndexProjector` | `one_pager_subject_index` (name, existence, completeness counters, `built_in_fields` = the complete published attribute set) | Subject header, built-in field values, subject existence, completeness |
+| Capability Mapping (`cmPL`) | `CapabilityCreated/Updated/Deleted`, `CapabilityMetadataUpdated`, `CapabilityExpertAdded/Removed` | `SubjectIndexProjector` | same | same |
+| Enterprise Architecture (`eaPL`) | `EnterpriseCapabilityCreated/Updated/Deleted` | `SubjectIndexProjector` | same | same |
+| Capability Mapping (`cmPL`) | `SystemLinkedToCapability`, `SystemRealizationDeleted`, `CapabilityDependencyCreated/Deleted`, `CapabilityAssignedToDomain/UnassignedFromDomain`, `CapabilityParentChanged`, `BusinessDomainCreated/Updated/Deleted` | `SubjectRelationProjector` | `subject_relation_cache`, `business_domain_name_cache` | Relation built-in fields (realizations, dependencies, domains, parent/children) and domain labels |
+| Architecture Modeling (`archPL`) | `ComponentRelationCreated/Updated/Deleted`, `OriginLinkSet/Replaced/Cleared/Deleted` | `SubjectRelationProjector` | `subject_relation_cache` | Relation built-in fields (component relations, built-by / purchased-from / acquired-via and their reverse entries) |
+| MetaModel (`mmPL`) | `MetaModelConfigurationCreated`, `MaturityScaleConfigUpdated/Reset` | `MaturityScaleProjector` | `maturity_scale_cache` | Maturity-scale sections for rendering maturity fields |
+
+Expert names arrive on the expert events themselves (`expertName`, `expertRole`, `contactInfo`), so no user cache is needed.
 
 ## Adding a New Cross-Context Event
 
@@ -332,26 +367,27 @@ When adding a new deletable artifact type:
 - [ ] Subscribe `ArtifactDeletionProjector` in Access Delegation for grant cleanup
 - [ ] Verify all downstream read models that reference the artifact are cleaned up
 
-## Composition-Root Bridges (Query-Time Integration)
+## Published Commands
 
-Some cross-context dependencies are synchronous: the composition root (`backend/internal/infrastructure/api/`) constructs an adapter over one context's read model or service and passes it into another context's port. Each such file is a **bridge** and must be declared in `declaredBridges` in `backend/internal/architecture_bridges_test.go` with every consumer → supplier edge and a reason. The tests enforce:
+The second and only other integration channel (spec 209): a supplier declares a command struct with `CommandName()` in its `publishedlanguage` package, aliases it internally (`type CreateInvitation = publishedlanguage.CreateInvitation`) and registers its handler under that name; a consumer imports the published struct and dispatches it through the shared command bus. A result carries at most the created ID. Command handlers never return supplier read-model data.
 
-- `router.go` imports only a context's `infrastructure/api` package — all wiring lives in `*_bridges.go` / adapter files.
-- A composition-root file reaching two or more contexts must be declared, and the declaration must name exactly the contexts the file imports. A file reaching one context belongs inside that context.
-- The graph of published-language imports plus declared bridges is acyclic.
-- `shared/` and `infrastructure/` packages import only a context's `publishedlanguage`; production code never imports `internal/testing`.
+| Supplier | Command | Consumer | Purpose |
+|----------|---------|----------|---------|
+| Auth | `CreateInvitation` | Auth's own `TenantCreatedReactor` | First-admin invitation on tenant creation |
+| Auth | `EnsureInvitation` | Access Delegation | Invite a grantee without an account; no-op when the e-mail has a user or a pending invitation; error when the domain is not allowed; `CreatedID` set only when an invitation was created |
+| Architecture Modeling | `CreateApplicationComponent`, `CreateComponentRelation` | Importing | Import gateway |
+| Capability Mapping | `CreateCapability`, `UpdateCapabilityMetadata`, `LinkSystemToCapability`, `AssignCapabilityToDomain` | Importing | Import gateway |
+| Value Streams | `CreateValueStream`, `AddStage`, `AddStageCapability` | Importing | Import gateway |
 
-Declared bridges today (consumer → supplier):
+## Integration Rules (spec 209)
 
-| File | Consumer | Suppliers | Purpose |
-|------|----------|-----------|---------|
-| `accessdelegation_bridges.go` | Access Delegation | Capability Mapping, Architecture Modeling, Architecture Views, Auth | Artifact display names; user existence, pending invitations, allowed domains and invitation requests for grantees without an account |
-| `architecturedirection_bridges.go` | Architecture Direction | Capability Mapping, Architecture Modeling | Capability / domain / component existence, direct realization lookup, effective-domain check |
-| `architectureviews_bridges.go` | Architecture Views | Auth | User role check for view visibility |
-| `enterprisearchitecture_bridges.go` | Enterprise Architecture | Capability Mapping | Business-domain name at capability assignment time |
-| `importing_bridges.go` | Importing | Architecture Modeling, Capability Mapping, Value Streams | Import gateways |
-| `onepager_builtin_field_adapters.go` | OnePagers | Architecture Modeling, Capability Mapping, Enterprise Architecture, MetaModel | Built-in field values and maturity scale sections |
-| `onepager_relation_adapters.go` | OnePagers | Architecture Modeling, Capability Mapping, Enterprise Architecture, Architecture Direction | Relation fields, including enterprise capability composition |
-| `onepager_subject_adapters.go` | OnePagers | Architecture Modeling, Capability Mapping, Enterprise Architecture | Subject existence |
+A context depends on another context only through that context's published language — its events (above) and its published commands. Nothing else crosses a boundary:
 
-Prefer the local cache projector pattern for data that must stay consistent over time; a bridge is acceptable for write-time validation and display enrichment. A bridge may never close a cycle — the fix is to move the derived read to the context that owns its inputs (as spec 207 did for composition) or to serve the data from its owner (as spec 208 did for one-pager completeness).
+- **No composition-root bridges.** `TestCompositionRootOnlyRegistersRoutes`: every production file under `backend/internal/infrastructure/api/` imports from a context only its `infrastructure/api` package; the router passes shared infrastructure and registers routes. Cross-context wiring, adapters and lookups do not exist.
+- **No cross-schema SQL.** `TestSQLSchemaOwnership` fails on any runtime SQL referencing another context's schema — there is no allowlist. `TestNewMigrationsCrossSchemasOnlyInBackfills` lets a migration read another schema only when its filename contains `backfill`.
+- **`shared/` and `infrastructure/` import no context** (`TestSharedAndInfrastructureImportNoContext`); a context imports only another context's `publishedlanguage` (`TestNoCrossBoundedContextImports`); published languages import only the standard library (`TestPublishedLanguageContractsPurity`).
+- **The dependency graph is the import graph and it is acyclic** (`TestContextDependencyGraphIsAcyclic`).
+- **Every cache of upstream data is backfilled** by a `*backfill*` migration from the supplier's tables and kept current by a projector on the supplier's published events, wired inside the consuming context.
+- **Actor identity and role come from the request context**, never from Auth's read models.
+
+When a context needs another context's data at request time, the fix is a local cache fed by the supplier's events (as Access Delegation, Architecture Direction, Enterprise Architecture, OnePagers and Auth do), or moving the derived read to the context that owns its inputs (as spec 207 did for composition), or serving the data from its owner (as spec 208 did for one-pager completeness).

@@ -66,6 +66,10 @@ func TestGetCompositionSummaries_OneRowPerEnterpriseCapability(t *testing.T) {
 		HasActiveDirection: true, DirectionStatus: "agreed", Links: byID["ec-1"].Links,
 	}, byID["ec-1"])
 	assert.Equal(t, "/api/v1/enterprise-capabilities/ec-1/composition", byID["ec-1"].Links["x-composition"].Href)
+	assert.Equal(t, http.MethodGet, byID["ec-1"].Links["x-composition"].Method)
+	assert.Equal(t, "/api/v1/enterprise-capabilities/ec-1/direction", byID["ec-1"].Links["x-direction"].Href)
+	assert.Equal(t, http.MethodGet, byID["ec-1"].Links["x-direction"].Method)
+	assert.Equal(t, "/api/v1/enterprise-capabilities/ec-2/direction", byID["ec-2"].Links["x-direction"].Href)
 	assert.False(t, byID["ec-2"].HasActiveDirection)
 	assert.Equal(t, 0, byID["ec-2"].IncludedCount)
 	assert.Equal(t, "/api/v1/enterprise-capability-compositions", body.Links["self"].Href)

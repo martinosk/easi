@@ -8,6 +8,7 @@ import (
 	"easi/backend/internal/importing/application/ports"
 	"easi/backend/internal/importing/domain/aggregates"
 	"easi/backend/internal/importing/domain/valueobjects"
+	vsPL "easi/backend/internal/valuestreams/publishedlanguage"
 )
 
 type ImportSaga struct {
@@ -65,7 +66,10 @@ func (s *ImportSaga) Execute(ctx context.Context, data aggregates.ParsedData, bu
 
 func (s *ImportSaga) createComponents(ctx context.Context, data aggregates.ParsedData, state *sagaState, result *aggregates.ImportResult) {
 	for _, comp := range data.Components {
-		createdID, err := s.components.CreateComponent(ctx, comp.Name, comp.Description)
+		createdID, err := s.components.CreateComponent(ctx, amPL.CreateApplicationComponent{
+			Name:        comp.Name,
+			Description: comp.Description,
+		})
 		if err != nil {
 			result.Errors = append(result.Errors, valueobjects.NewImportError(comp.SourceID, comp.Name, err.Error(), "skipped"))
 			continue
@@ -87,7 +91,7 @@ func (s *ImportSaga) createCapabilities(ctx context.Context, data aggregates.Par
 			if parentSourceID, hasParent := parentMap[sourceID]; hasParent {
 				parentID = string(state.sourceToCapabilityID[parentSourceID])
 			}
-			createdID, err := s.capabilities.CreateCapability(ctx, cmPL.CreateCapabilityInput{
+			createdID, err := s.capabilities.CreateCapability(ctx, cmPL.CreateCapability{
 				Name:        cap.Name,
 				Description: cap.Description,
 				ParentID:    parentID,
@@ -109,7 +113,11 @@ func (s *ImportSaga) assignCapabilityMetadata(ctx context.Context, eaOwner strin
 		return
 	}
 	for _, capID := range state.createdCapabilityIDs {
-		if err := s.capabilities.UpdateMetadata(ctx, string(capID), eaOwner, "Active"); err != nil {
+		if err := s.capabilities.UpdateMetadata(ctx, cmPL.UpdateCapabilityMetadata{
+			ID:      string(capID),
+			EAOwner: eaOwner,
+			Status:  "Active",
+		}); err != nil {
 			result.Errors = append(result.Errors, valueobjects.NewImportError(string(capID), "", "failed to assign EA Owner: "+err.Error(), "warning"))
 		}
 	}
@@ -117,14 +125,20 @@ func (s *ImportSaga) assignCapabilityMetadata(ctx context.Context, eaOwner strin
 
 func (s *ImportSaga) createValueStreams(ctx context.Context, data aggregates.ParsedData, state *sagaState, result *aggregates.ImportResult) {
 	for _, vs := range data.ValueStreams {
-		vsID, err := s.valueStreams.CreateValueStream(ctx, vs.Name, vs.Description)
+		vsID, err := s.valueStreams.CreateValueStream(ctx, vsPL.CreateValueStream{
+			Name:        vs.Name,
+			Description: vs.Description,
+		})
 		if err != nil {
 			result.Errors = append(result.Errors, valueobjects.NewImportError(vs.SourceID, vs.Name, err.Error(), "skipped"))
 			continue
 		}
 		state.sourceToValueStreamID[vs.SourceID] = mappedValueStreamID(vsID)
 
-		stageID, err := s.valueStreams.AddStage(ctx, vsID, "Main Flow", "")
+		stageID, err := s.valueStreams.AddStage(ctx, vsPL.AddStage{
+			ValueStreamID: vsID,
+			Name:          "Main Flow",
+		})
 		if err != nil {
 			result.Errors = append(result.Errors, valueobjects.NewImportError(vs.SourceID, vs.Name, "failed to create default stage: "+err.Error(), "warning"))
 			continue
@@ -145,7 +159,7 @@ func (s *ImportSaga) createRealizations(ctx context.Context, data aggregates.Par
 			continue
 		}
 		notes := buildNotes(rel.Name, rel.Documentation)
-		_, err := s.capabilities.LinkSystem(ctx, cmPL.LinkSystemInput{
+		_, err := s.capabilities.LinkSystem(ctx, cmPL.LinkSystemToCapability{
 			CapabilityID:     string(capabilityID),
 			ComponentID:      string(componentID),
 			RealizationLevel: "full",
@@ -174,12 +188,12 @@ func (s *ImportSaga) createComponentRelations(ctx context.Context, data aggregat
 			relationType = "Serves"
 		}
 		notes := buildNotes(rel.Name, rel.Documentation)
-		_, err := s.components.CreateRelation(ctx, amPL.CreateRelationInput{
-			SourceID:     string(sourceComponentID),
-			TargetID:     string(targetComponentID),
-			RelationType: relationType,
-			Name:         rel.Name,
-			Description:  notes,
+		_, err := s.components.CreateRelation(ctx, amPL.CreateComponentRelation{
+			SourceComponentID: string(sourceComponentID),
+			TargetComponentID: string(targetComponentID),
+			RelationType:      relationType,
+			Name:              rel.Name,
+			Description:       notes,
 		})
 		if err != nil {
 			result.Errors = append(result.Errors, valueobjects.NewImportError(rel.SourceID, rel.Name, err.Error(), "skipped"))
@@ -203,7 +217,10 @@ func (s *ImportSaga) assignDomains(params domainAssignmentParams) {
 	}
 	parentMap := buildParentMap(params.data.Relationships)
 	for _, capID := range findL1CapabilityIDs(params.data.Capabilities, parentMap, params.state.sourceToCapabilityID) {
-		if err := s.capabilities.AssignToDomain(params.ctx, string(capID), params.businessDomainID); err != nil {
+		if err := s.capabilities.AssignToDomain(params.ctx, cmPL.AssignCapabilityToDomain{
+			CapabilityID:     string(capID),
+			BusinessDomainID: params.businessDomainID,
+		}); err != nil {
 			params.result.Errors = append(params.result.Errors, valueobjects.NewImportError(string(capID), "", err.Error(), "skipped"))
 			continue
 		}
@@ -235,12 +252,11 @@ func (s *ImportSaga) mapCapabilitiesToStages(ctx context.Context, data aggregate
 		if !state.hasStageMappingRefs(rel) {
 			continue
 		}
-		if err := s.valueStreams.MapCapabilityToStage(
-			ctx,
-			string(state.sourceToValueStreamID[rel.TargetRef]),
-			string(state.sourceToStageID[rel.TargetRef]),
-			string(state.sourceToCapabilityID[rel.SourceRef]),
-		); err != nil {
+		if err := s.valueStreams.MapCapabilityToStage(ctx, vsPL.AddStageCapability{
+			ValueStreamID: string(state.sourceToValueStreamID[rel.TargetRef]),
+			StageID:       string(state.sourceToStageID[rel.TargetRef]),
+			CapabilityID:  string(state.sourceToCapabilityID[rel.SourceRef]),
+		}); err != nil {
 			result.Errors = append(result.Errors, valueobjects.NewImportError(rel.SourceID, rel.Name, err.Error(), "skipped"))
 			continue
 		}

@@ -5,6 +5,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -15,17 +16,13 @@ import (
 	"testing"
 	"time"
 
-	authHandlers "easi/backend/internal/auth/application/handlers"
-	authProjectors "easi/backend/internal/auth/application/projectors"
-	authReadmodels "easi/backend/internal/auth/application/readmodels"
-	authRepositories "easi/backend/internal/auth/infrastructure/repositories"
-	"easi/backend/internal/infrastructure/database"
-	"easi/backend/internal/infrastructure/eventstore"
 	"easi/backend/internal/platform/application/handlers"
 	"easi/backend/internal/platform/infrastructure/repositories"
 	"easi/backend/internal/platform/infrastructure/secrets"
+	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
+	domain "easi/backend/internal/shared/eventsourcing"
 
 	"github.com/go-chi/chi/v5"
 	_ "github.com/lib/pq"
@@ -72,7 +69,6 @@ func setupPlatformTestDB(t *testing.T) (*platformTestContext, func()) {
 
 	cleanup := func() {
 		for _, id := range ctx.createdTenants {
-			db.Exec("DELETE FROM auth.invitations WHERE tenant_id = $1", id)
 			db.Exec("DELETE FROM platform.tenant_oidc_configs WHERE tenant_id = $1", id)
 			db.Exec("DELETE FROM platform.tenant_domains WHERE tenant_id = $1", id)
 			db.Exec("DELETE FROM platform.tenants WHERE id = $1", id)
@@ -85,47 +81,43 @@ func setupPlatformTestDB(t *testing.T) (*platformTestContext, func()) {
 
 func setupPlatformTest(t *testing.T) (*platformTestContext, chi.Router, func()) {
 	ctx, cleanup := setupPlatformTestDB(t)
-	_, router := setupPlatformHandlers(ctx.db)
+	router, _ := setupPlatformHandlers(ctx.db)
 	return ctx, router, cleanup
+}
+
+type publishedEventRecorder struct {
+	events []domain.DomainEvent
+}
+
+func (r *publishedEventRecorder) Handle(_ context.Context, event domain.DomainEvent) error {
+	r.events = append(r.events, event)
+	return nil
 }
 
 func (ctx *platformTestContext) trackTenant(id string) {
 	ctx.createdTenants = append(ctx.createdTenants, id)
 }
 
-func setupPlatformHandlers(db *sql.DB) (*TenantHandlers, chi.Router) {
+func setupPlatformHandlers(db *sql.DB) (chi.Router, *publishedEventRecorder) {
 	commandBus := cqrs.NewInMemoryCommandBus()
 	tenantRepo := repositories.NewTenantRepository(db)
-	tenantDB := database.NewTenantAwareDB(db)
-	evStore := eventstore.NewPostgresEventStore(tenantDB)
 
 	eventBus := events.NewInMemoryEventBus()
-	evStore.SetEventBus(eventBus)
+	recorder := &publishedEventRecorder{}
+	eventBus.Subscribe("TenantCreated", recorder)
 
-	invitationReadModel := authReadmodels.NewInvitationReadModel(tenantDB)
-	invitationProjector := authProjectors.NewInvitationProjector(invitationReadModel)
-	eventBus.Subscribe("InvitationCreated", invitationProjector)
-	eventBus.Subscribe("InvitationAccepted", invitationProjector)
-	eventBus.Subscribe("InvitationRevoked", invitationProjector)
-	eventBus.Subscribe("InvitationExpired", invitationProjector)
-
-	invitationRepo := authRepositories.NewInvitationRepository(evStore)
-	createInvitationHandler := authHandlers.NewCreateInvitationHandler(invitationRepo)
-	commandBus.Register("CreateInvitation", createInvitationHandler)
-
-	createTenantHandler := handlers.NewCreateTenantHandler(tenantRepo, commandBus)
-	commandBus.Register("CreateTenant", createTenantHandler)
+	commandBus.Register("CreateTenant", handlers.NewCreateTenantHandler(tenantRepo, eventBus))
 
 	secretProvider := secrets.NewEnvSecretProvider("OIDC_CLIENT_SECRET")
 	tenantHandlers := NewTenantHandlers(commandBus, tenantRepo, secretProvider)
 
 	r := chi.NewRouter()
-	r.Use(PlatformAdminMiddleware("test-api-key"))
+	r.Use(sharedAPI.PlatformAdminMiddleware("test-api-key"))
 	r.Post("/tenants", tenantHandlers.CreateTenant)
 	r.Get("/tenants", tenantHandlers.ListTenants)
 	r.Get("/tenants/{id}", tenantHandlers.GetTenantByID)
 
-	return tenantHandlers, r
+	return r, recorder
 }
 
 func (ctx *platformTestContext) getOK(t *testing.T, url string, router chi.Router, out interface{}) {
@@ -183,8 +175,9 @@ func (ctx *platformTestContext) makeRequest(method, url string, body []byte, rou
 }
 
 func TestCreateTenant_Integration(t *testing.T) {
-	ctx, router, cleanup := setupPlatformTest(t)
+	ctx, cleanup := setupPlatformTestDB(t)
 	defer cleanup()
+	router, recorder := setupPlatformHandlers(ctx.db)
 
 	tenantID := fmt.Sprintf("acme-%d", time.Now().UnixNano()%10000)
 	ctx.trackTenant(tenantID)
@@ -231,16 +224,13 @@ func TestCreateTenant_Integration(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, domainCount)
 
-	var invitationCount int
-	tx, err := ctx.db.Begin()
-	require.NoError(t, err)
-	_, err = tx.Exec(fmt.Sprintf("SET LOCAL app.current_tenant = '%s'", tenantID))
-	require.NoError(t, err)
-	err = tx.QueryRow("SELECT COUNT(*) FROM auth.invitations WHERE tenant_id = $1 AND email = $2 AND role = 'admin'",
-		tenantID, "admin@"+tenantID+".com").Scan(&invitationCount)
-	require.NoError(t, err)
-	tx.Rollback()
-	assert.Equal(t, 1, invitationCount)
+	require.Len(t, recorder.events, 1)
+	published := recorder.events[0].EventData()
+	assert.Equal(t, tenantID, published["id"])
+	assert.Equal(t, "admin@"+tenantID+".com", published["firstAdminEmail"])
+	assert.Equal(t, "client-id", published["clientId"])
+	assert.Equal(t, "client_secret", published["authMethod"])
+	assert.Equal(t, "openid email profile", published["scopes"])
 }
 
 func TestCreateTenant_DuplicateID_Integration(t *testing.T) {

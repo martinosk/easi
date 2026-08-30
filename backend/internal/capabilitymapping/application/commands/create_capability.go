@@ -1,12 +1,5 @@
 package commands
 
-type CreateCapability struct {
-	Name        string
-	Description string
-	ParentID    string
-	Level       string
-}
+import "easi/backend/internal/capabilitymapping/publishedlanguage"
 
-func (c CreateCapability) CommandName() string {
-	return "CreateCapability"
-}
+type CreateCapability = publishedlanguage.CreateCapability

@@ -11,8 +11,6 @@ import (
 	"easi/backend/internal/auth/domain/valueobjects"
 	"easi/backend/internal/auth/infrastructure/session"
 	sharedAPI "easi/backend/internal/shared/api"
-	sharedctx "easi/backend/internal/shared/context"
-	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 )
 
 type UserDTO struct {
@@ -111,9 +109,7 @@ func (h *SessionHandlers) GetCurrentSession(w http.ResponseWriter, r *http.Reque
 
 	permissions := valueobjects.PermissionsToStrings(role.Permissions())
 
-	tenantID, _ := sharedvo.NewTenantID(authSession.TenantID())
-	ctxWithTenant := sharedctx.WithTenant(r.Context(), tenantID)
-	links := h.buildSessionLinks(ctxWithTenant, user.ID, role)
+	links := h.buildSessionLinks(user.ID, role)
 
 	response := CurrentSessionResponse{
 		ID: authSession.TenantID(),
@@ -135,7 +131,7 @@ func (h *SessionHandlers) GetCurrentSession(w http.ResponseWriter, r *http.Reque
 	sharedAPI.RespondJSON(w, http.StatusOK, response)
 }
 
-func (h *SessionHandlers) buildSessionLinks(ctx context.Context, userID uuid.UUID, role valueobjects.Role) map[string]string {
+func (h *SessionHandlers) buildSessionLinks(userID uuid.UUID, role valueobjects.Role) map[string]string {
 	links := map[string]string{
 		"self":   "/api/v1/auth/sessions/current",
 		"logout": "/api/v1/auth/sessions/current",
@@ -144,10 +140,7 @@ func (h *SessionHandlers) buildSessionLinks(ctx context.Context, userID uuid.UUI
 	}
 
 	if role.HasPermission(valueobjects.PermAssistantUse) {
-		links["x-assistant"] = "/api/v1/assistant/conversations"
-		if canWriteAnySubject(role) {
-			links["x-assistant-write"] = "/api/v1/assistant/conversations"
-		}
+		links["x-assistant-status"] = "/api/v1/assistant/status"
 	}
 
 	if canReadAnySubject(role) {
@@ -155,12 +148,6 @@ func (h *SessionHandlers) buildSessionLinks(ctx context.Context, userID uuid.UUI
 	}
 
 	return links
-}
-
-func canWriteAnySubject(role valueobjects.Role) bool {
-	return role.HasPermission(valueobjects.PermCapabilitiesWrite) ||
-		role.HasPermission(valueobjects.PermEnterpriseArchWrite) ||
-		role.HasPermission(valueobjects.PermComponentsWrite)
 }
 
 func canReadAnySubject(role valueobjects.Role) bool {

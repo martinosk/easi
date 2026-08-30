@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -12,12 +13,14 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"easi/backend/internal/accessdelegation/application/commands"
-	"easi/backend/internal/accessdelegation/application/ports"
 	"easi/backend/internal/accessdelegation/application/readmodels"
+	adPL "easi/backend/internal/accessdelegation/publishedlanguage"
+	authPL "easi/backend/internal/auth/publishedlanguage"
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
+	domain "easi/backend/internal/shared/eventsourcing"
 )
 
 type recordingEditGrantReader struct {
@@ -25,178 +28,166 @@ type recordingEditGrantReader struct {
 	grantByID           *readmodels.EditGrantDTO
 }
 
-func (r *recordingEditGrantReader) HasActiveGrant(ctx context.Context, granteeEmail, artifactType, artifactID string) (bool, error) {
+func (r *recordingEditGrantReader) HasActiveGrant(_ context.Context, granteeEmail, _, _ string) (bool, error) {
 	r.hasActiveGrantEmail = granteeEmail
 	return false, nil
 }
 
-func (r *recordingEditGrantReader) GetByID(ctx context.Context, id string) (*readmodels.EditGrantDTO, error) {
+func (r *recordingEditGrantReader) GetByID(_ context.Context, _ string) (*readmodels.EditGrantDTO, error) {
 	return r.grantByID, nil
 }
 
-func (r *recordingEditGrantReader) GetByGranteeEmail(ctx context.Context, email string) ([]readmodels.EditGrantDTO, error) {
+func (r *recordingEditGrantReader) GetByGranteeEmail(_ context.Context, _ string) ([]readmodels.EditGrantDTO, error) {
 	return nil, nil
 }
 
-func (r *recordingEditGrantReader) GetActiveForArtifact(ctx context.Context, artifactType, artifactID string) ([]readmodels.EditGrantDTO, error) {
+func (r *recordingEditGrantReader) GetActiveForArtifact(_ context.Context, _, _ string) ([]readmodels.EditGrantDTO, error) {
 	return nil, nil
 }
 
-type recordingGrantCommandBus struct {
+type recordingCommandHandler struct {
 	dispatched []cqrs.Command
+	result     cqrs.CommandResult
+	err        error
 }
 
-func (b *recordingGrantCommandBus) Dispatch(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
-	b.dispatched = append(b.dispatched, cmd)
-	return cqrs.NewResult("grant-1"), nil
+func (h *recordingCommandHandler) Handle(_ context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
+	h.dispatched = append(h.dispatched, cmd)
+	return h.result, h.err
 }
 
-func (b *recordingGrantCommandBus) Register(commandName string, handler cqrs.CommandHandler) {}
-
-type recordingUserLookup struct {
-	queriedEmail string
+type grantTestHarness struct {
+	handlers          *EditGrantHandlers
+	grants            *recordingCommandHandler
+	invitations       *recordingCommandHandler
+	reader            *recordingEditGrantReader
+	nonUserGrantCount int
 }
 
-func (l *recordingUserLookup) ExistsByEmail(ctx context.Context, email string) (bool, error) {
-	l.queriedEmail = email
-	return false, nil
+func newGrantTestHarness(invitationResult cqrs.CommandResult, invitationErr error) *grantTestHarness {
+	harness := &grantTestHarness{
+		grants:      &recordingCommandHandler{result: cqrs.NewResult("grant-1")},
+		invitations: &recordingCommandHandler{result: invitationResult, err: invitationErr},
+		reader: &recordingEditGrantReader{
+			grantByID: &readmodels.EditGrantDTO{
+				ID:           "grant-1",
+				GrantorID:    "grantor-1",
+				GranteeEmail: "newcomer@dfds.com",
+				ArtifactType: "capability",
+				ArtifactID:   "cap-1",
+				Status:       "active",
+			},
+		},
+	}
+
+	commandBus := cqrs.NewInMemoryCommandBus()
+	commandBus.Register("CreateEditGrant", harness.grants)
+	commandBus.Register(authPL.EnsureInvitation{}.CommandName(), harness.invitations)
+
+	eventBus := events.NewInMemoryEventBus()
+	eventBus.Subscribe(adPL.EditGrantForNonUserCreated, events.EventHandlerFunc(func(_ context.Context, _ domain.DomainEvent) error {
+		harness.nonUserGrantCount++
+		return nil
+	}))
+
+	harness.handlers = NewEditGrantHandlers(EditGrantHandlerDeps{
+		CommandBus: commandBus,
+		ReadModel:  harness.reader,
+		Hateoas:    NewEditGrantLinks(sharedAPI.NewHATEOASLinks("/api/v1")),
+		EventBus:   eventBus,
+	})
+	return harness
 }
 
-type recordingInvitationChecker struct {
-	queriedEmail string
+func (h *grantTestHarness) createGrant(t *testing.T, granteeEmail string) *httptest.ResponseRecorder {
+	t.Helper()
+	body, err := json.Marshal(map[string]string{
+		"granteeEmail": granteeEmail,
+		"artifactType": "capability",
+		"artifactId":   "cap-1",
+		"reason":       "vacation cover",
+	})
+	require.NoError(t, err)
+
+	actor := sharedctx.NewActor("grantor-1", "grantor@dfds.com", sharedctx.RoleAdmin)
+	req := httptest.NewRequest(http.MethodPost, "/edit-grants", bytes.NewReader(body))
+	req = req.WithContext(sharedctx.WithActor(req.Context(), actor))
+	rec := httptest.NewRecorder()
+
+	h.handlers.CreateEditGrant(rec, req)
+	return rec
 }
 
-func (c *recordingInvitationChecker) HasPendingByEmail(ctx context.Context, email string) (bool, error) {
-	c.queriedEmail = email
-	return false, nil
+func decodeGrant(t *testing.T, rec *httptest.ResponseRecorder) readmodels.EditGrantDTO {
+	t.Helper()
+	var grant readmodels.EditGrantDTO
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &grant))
+	return grant
 }
 
 func TestCreateEditGrant_MixedCaseGranteeEmail_NormalizedEverywhere(t *testing.T) {
-	reader := &recordingEditGrantReader{
-		grantByID: &readmodels.EditGrantDTO{
-			ID:           "grant-1",
-			GrantorID:    "grantor-1",
-			GranteeEmail: "udicr@dfds.com",
-			ArtifactType: "capability",
-			ArtifactID:   "cap-1",
-			Status:       "active",
-		},
-	}
-	commandBus := &recordingGrantCommandBus{}
-	userLookup := &recordingUserLookup{}
-	invChecker := &recordingInvitationChecker{}
+	harness := newGrantTestHarness(cqrs.NewResult("invitation-1"), nil)
 
-	handlers := NewEditGrantHandlers(EditGrantHandlerDeps{
-		CommandBus:  commandBus,
-		ReadModel:   reader,
-		Hateoas:     NewEditGrantLinks(sharedAPI.NewHATEOASLinks("/api/v1")),
-		UserLookup:  userLookup,
-		InvChecker:  invChecker,
-		Invitations: &recordingInvitationRequester{},
-		EventBus:    events.NewInMemoryEventBus(),
-	})
-
-	body, err := json.Marshal(map[string]string{
-		"granteeEmail": "UdiCr@DFDS.com",
-		"artifactType": "capability",
-		"artifactId":   "cap-1",
-		"reason":       "vacation cover",
-	})
-	require.NoError(t, err)
-
-	actor := sharedctx.NewActor("grantor-1", "grantor@dfds.com", sharedctx.RoleAdmin)
-	req := httptest.NewRequest(http.MethodPost, "/edit-grants", bytes.NewReader(body))
-	req = req.WithContext(sharedctx.WithActor(req.Context(), actor))
-	rec := httptest.NewRecorder()
-
-	handlers.CreateEditGrant(rec, req)
+	rec := harness.createGrant(t, "UdiCr@DFDS.com")
 
 	require.Equal(t, http.StatusCreated, rec.Code)
-	assert.Equal(t, "udicr@dfds.com", reader.hasActiveGrantEmail)
-	assert.Equal(t, "udicr@dfds.com", userLookup.queriedEmail)
-	assert.Equal(t, "udicr@dfds.com", invChecker.queriedEmail)
+	assert.Equal(t, "udicr@dfds.com", harness.reader.hasActiveGrantEmail)
 
-	require.Len(t, commandBus.dispatched, 1)
-	cmd, ok := commandBus.dispatched[0].(*commands.CreateEditGrant)
+	require.Len(t, harness.grants.dispatched, 1)
+	grantCmd, ok := harness.grants.dispatched[0].(*commands.CreateEditGrant)
 	require.True(t, ok)
-	assert.Equal(t, "udicr@dfds.com", cmd.GranteeEmail)
+	assert.Equal(t, "udicr@dfds.com", grantCmd.GranteeEmail)
+
+	require.Len(t, harness.invitations.dispatched, 1)
+	inviteCmd, ok := harness.invitations.dispatched[0].(*authPL.EnsureInvitation)
+	require.True(t, ok)
+	assert.Equal(t, "udicr@dfds.com", inviteCmd.Email)
 }
 
 func TestCreateEditGrant_InvalidGranteeEmail_ReturnsBadRequest(t *testing.T) {
-	handlers := NewEditGrantHandlers(EditGrantHandlerDeps{
-		CommandBus: &recordingGrantCommandBus{},
-		ReadModel:  &recordingEditGrantReader{},
-	})
+	harness := newGrantTestHarness(cqrs.EmptyResult(), nil)
 
-	body, err := json.Marshal(map[string]string{
-		"granteeEmail": "not-an-email",
-		"artifactType": "capability",
-		"artifactId":   "cap-1",
-	})
-	require.NoError(t, err)
-
-	actor := sharedctx.NewActor("grantor-1", "grantor@dfds.com", sharedctx.RoleAdmin)
-	req := httptest.NewRequest(http.MethodPost, "/edit-grants", bytes.NewReader(body))
-	req = req.WithContext(sharedctx.WithActor(req.Context(), actor))
-	rec := httptest.NewRecorder()
-
-	handlers.CreateEditGrant(rec, req)
+	rec := harness.createGrant(t, "not-an-email")
 
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	assert.Empty(t, harness.invitations.dispatched)
 }
 
-type recordingInvitationRequester struct {
-	requests []ports.InvitationRequest
-}
+func TestCreateEditGrant_GranteeWithoutAccount_EnsuresStakeholderInvitation(t *testing.T) {
+	harness := newGrantTestHarness(cqrs.NewResult("invitation-1"), nil)
 
-func (r *recordingInvitationRequester) RequestInvitation(ctx context.Context, request ports.InvitationRequest) error {
-	r.requests = append(r.requests, request)
-	return nil
-}
-
-func TestCreateEditGrant_GranteeWithoutAccount_RequestsInvitation(t *testing.T) {
-	reader := &recordingEditGrantReader{
-		grantByID: &readmodels.EditGrantDTO{
-			ID:           "grant-1",
-			GrantorID:    "grantor-1",
-			GranteeEmail: "newcomer@dfds.com",
-			ArtifactType: "capability",
-			ArtifactID:   "cap-1",
-			Status:       "active",
-		},
-	}
-	invitations := &recordingInvitationRequester{}
-
-	handlers := NewEditGrantHandlers(EditGrantHandlerDeps{
-		CommandBus:  &recordingGrantCommandBus{},
-		ReadModel:   reader,
-		Hateoas:     NewEditGrantLinks(sharedAPI.NewHATEOASLinks("/api/v1")),
-		UserLookup:  &recordingUserLookup{},
-		InvChecker:  &recordingInvitationChecker{},
-		Invitations: invitations,
-		EventBus:    events.NewInMemoryEventBus(),
-	})
-
-	body, err := json.Marshal(map[string]string{
-		"granteeEmail": "Newcomer@DFDS.com",
-		"artifactType": "capability",
-		"artifactId":   "cap-1",
-		"reason":       "vacation cover",
-	})
-	require.NoError(t, err)
-
-	actor := sharedctx.NewActor("grantor-1", "grantor@dfds.com", sharedctx.RoleAdmin)
-	req := httptest.NewRequest(http.MethodPost, "/edit-grants", bytes.NewReader(body))
-	req = req.WithContext(sharedctx.WithActor(req.Context(), actor))
-	rec := httptest.NewRecorder()
-
-	handlers.CreateEditGrant(rec, req)
+	rec := harness.createGrant(t, "Newcomer@DFDS.com")
 
 	require.Equal(t, http.StatusCreated, rec.Code)
-	require.Len(t, invitations.requests, 1)
-	assert.Equal(t, ports.InvitationRequest{
-		GranteeEmail: "newcomer@dfds.com",
-		GrantorID:    "grantor-1",
-		GrantorEmail: "grantor@dfds.com",
-	}, invitations.requests[0])
+	require.Len(t, harness.invitations.dispatched, 1)
+	assert.Equal(t, &authPL.EnsureInvitation{
+		Email:        "newcomer@dfds.com",
+		Role:         "stakeholder",
+		InviterID:    "grantor-1",
+		InviterEmail: "grantor@dfds.com",
+	}, harness.invitations.dispatched[0])
+	assert.True(t, decodeGrant(t, rec).InvitationCreated)
+	assert.Equal(t, 1, harness.nonUserGrantCount)
+}
+
+func TestCreateEditGrant_GranteeAlreadyKnown_ReportsNoInvitation(t *testing.T) {
+	harness := newGrantTestHarness(cqrs.EmptyResult(), nil)
+
+	rec := harness.createGrant(t, "existing@dfds.com")
+
+	require.Equal(t, http.StatusCreated, rec.Code)
+	require.Len(t, harness.invitations.dispatched, 1)
+	assert.False(t, decodeGrant(t, rec).InvitationCreated)
+	assert.Zero(t, harness.nonUserGrantCount)
+}
+
+func TestCreateEditGrant_InvitationRejected_StillCreatesGrant(t *testing.T) {
+	harness := newGrantTestHarness(cqrs.EmptyResult(), errors.New("email domain is not allowed"))
+
+	rec := harness.createGrant(t, "outsider@example.com")
+
+	require.Equal(t, http.StatusCreated, rec.Code)
+	require.Len(t, harness.grants.dispatched, 1)
+	assert.False(t, decodeGrant(t, rec).InvitationCreated)
+	assert.Zero(t, harness.nonUserGrantCount)
 }

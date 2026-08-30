@@ -39,18 +39,23 @@ func NewOnePagerSubjectIndexReadModel(db *database.TenantAwareDB) *OnePagerSubje
 }
 
 func (rm *OnePagerSubjectIndexReadModel) Upsert(ctx context.Context, record SubjectIndexRecord) error {
+	attributes, err := record.Attributes.encode()
+	if err != nil {
+		return err
+	}
 	return rm.exec(ctx,
 		fmt.Sprintf("upsert subject index row for %s %s", record.SubjectType, record.SubjectID),
 		`INSERT INTO onepagers.one_pager_subject_index
-		(tenant_id, subject_type, subject_id, name, creator_actor_id, creator_email, created_at, last_updated_at, required_count, filled_count)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		(tenant_id, subject_type, subject_id, name, creator_actor_id, creator_email, created_at, last_updated_at, required_count, filled_count, built_in_fields)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb)
 		ON CONFLICT (tenant_id, subject_type, subject_id) DO UPDATE
 		SET name = EXCLUDED.name, creator_actor_id = EXCLUDED.creator_actor_id, creator_email = EXCLUDED.creator_email,
 			created_at = EXCLUDED.created_at, last_updated_at = EXCLUDED.last_updated_at,
-			required_count = EXCLUDED.required_count, filled_count = EXCLUDED.filled_count`,
+			required_count = EXCLUDED.required_count, filled_count = EXCLUDED.filled_count,
+			built_in_fields = onepagers.one_pager_subject_index.built_in_fields || EXCLUDED.built_in_fields`,
 		record.SubjectType, record.SubjectID, record.Name,
 		record.CreatorActorID, record.CreatorEmail, record.CreatedAt, record.LastUpdatedAt,
-		record.RequiredCount, record.FilledCount,
+		record.RequiredCount, record.FilledCount, attributes,
 	)
 }
 

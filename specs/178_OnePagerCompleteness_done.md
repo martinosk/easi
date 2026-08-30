@@ -6,6 +6,7 @@
 ---
 
 > **Amended by spec 208 (2026-08-29):** the per-row `onePagerComplete` indicator on subject list responses (design decision 4) is replaced by `GET /one-pagers/{subjectType}/completeness`, served by OnePagers; Architecture Modeling, Capability Mapping and Enterprise Architecture no longer decorate their lists.
+> **Amended by spec 209 (2026-08-30):** built-in field values, relation fields and the maturity scale are served from OnePagers' own event-fed caches; the enterprise-capability one-pager no longer has an `included-capabilities` field.
 
 ## Problem Statement
 

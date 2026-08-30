@@ -83,6 +83,22 @@ func setupAuthTestDB(t *testing.T) (*authTestContext, func()) {
 	`, tenantID, dexBaseURL)
 	require.NoError(t, err)
 
+	_, err = db.Exec(`
+		INSERT INTO auth.tenant_cache (tenant_id, name, status) VALUES ($1, $2, 'active')
+	`, tenantID, "ACME Test Corp")
+	require.NoError(t, err)
+
+	_, err = db.Exec(`
+		INSERT INTO auth.tenant_domain_cache (domain, tenant_id) VALUES ($1, $2)
+	`, testDomain, tenantID)
+	require.NoError(t, err)
+
+	_, err = db.Exec(`
+		INSERT INTO auth.tenant_oidc_cache (tenant_id, discovery_url, client_id, auth_method, scopes)
+		VALUES ($1, $2, 'easi-test', 'client_secret', 'openid email profile offline_access')
+	`, tenantID, dexBaseURL)
+	require.NoError(t, err)
+
 	ctx := &authTestContext{
 		db:         db,
 		testID:     testID,
@@ -92,6 +108,9 @@ func setupAuthTestDB(t *testing.T) (*authTestContext, func()) {
 	}
 
 	cleanup := func() {
+		db.Exec("DELETE FROM auth.tenant_oidc_cache WHERE tenant_id = $1", tenantID)
+		db.Exec("DELETE FROM auth.tenant_domain_cache WHERE tenant_id = $1", tenantID)
+		db.Exec("DELETE FROM auth.tenant_cache WHERE tenant_id = $1", tenantID)
 		db.Exec("DELETE FROM platform.tenant_oidc_configs WHERE tenant_id = $1", tenantID)
 		db.Exec("DELETE FROM platform.tenant_domains WHERE tenant_id = $1", tenantID)
 		db.Exec("DELETE FROM platform.tenants WHERE id = $1", tenantID)

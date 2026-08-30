@@ -267,7 +267,7 @@ func TestSetStrategicImportance_InvalidValue_Returns400(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestGetEnterpriseCapabilityByID_LinksDirectionAndComposition(t *testing.T) {
+func TestGetEnterpriseCapabilityByID_LinksExcludeDirectionAndComposition(t *testing.T) {
 	th := newTestHarness()
 
 	capID := uuid.New().String()
@@ -291,8 +291,8 @@ func TestGetEnterpriseCapabilityByID_LinksDirectionAndComposition(t *testing.T) 
 
 	links, ok := response["_links"].(map[string]any)
 	require.True(t, ok)
-	assert.Contains(t, links, "x-direction")
-	assert.Contains(t, links, "x-composition")
+	assert.NotContains(t, links, "x-direction", "composition is served by Architecture Direction (spec 209)")
+	assert.NotContains(t, links, "x-composition", "composition is served by Architecture Direction (spec 209)")
 	assert.NotContains(t, links, "x-links")
 	assert.NotContains(t, links, "x-create-link")
 }

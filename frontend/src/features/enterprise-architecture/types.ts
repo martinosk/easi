@@ -22,8 +22,6 @@ export interface EnterpriseCapability {
     edit?: HATEOASLink;
     delete?: HATEOASLink;
     'x-strategic-importance'?: HATEOASLink;
-    'x-direction'?: HATEOASLink;
-    'x-composition'?: HATEOASLink;
   };
 }
 
@@ -84,6 +82,7 @@ export interface CompositionSummary {
   _links: HATEOASLinks & {
     'x-enterprise-capability'?: HATEOASLink;
     'x-composition'?: HATEOASLink;
+    'x-direction'?: HATEOASLink;
   };
 }
 

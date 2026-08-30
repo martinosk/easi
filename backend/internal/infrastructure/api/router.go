@@ -9,10 +9,13 @@ import (
 	"easi/backend/docs"
 	accessdelegationAPI "easi/backend/internal/accessdelegation/infrastructure/api"
 	archAssistantAPI "easi/backend/internal/archassistant/infrastructure/api"
+	directionAPI "easi/backend/internal/architecturedirection/infrastructure/api"
 	architectureAPI "easi/backend/internal/architecturemodeling/infrastructure/api"
 	viewsAPI "easi/backend/internal/architectureviews/infrastructure/api"
+	auditAPI "easi/backend/internal/audit/infrastructure/api"
 	authAPI "easi/backend/internal/auth/infrastructure/api"
 	capabilityAPI "easi/backend/internal/capabilitymapping/infrastructure/api"
+	enterpriseArchAPI "easi/backend/internal/enterprisearchitecture/infrastructure/api"
 	importingAPI "easi/backend/internal/importing/infrastructure/api"
 	"easi/backend/internal/infrastructure/api/middleware"
 	"easi/backend/internal/infrastructure/database"
@@ -22,7 +25,6 @@ import (
 	platformAPI "easi/backend/internal/platform/infrastructure/api"
 	releasesAPI "easi/backend/internal/releases/infrastructure/api"
 	sharedAPI "easi/backend/internal/shared/api"
-	"easi/backend/internal/shared/audit"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
 	valuestreamsAPI "easi/backend/internal/valuestreams/infrastructure/api"
@@ -150,12 +152,26 @@ func registerPublicRoutes(r chi.Router, deps routerDependencies) {
 		RawDB:      deps.db.DB(),
 		TenantDB:   deps.db,
 		CommandBus: deps.commandBus,
+		EventBus:   deps.eventBus,
 	}), "platform routes")
-	mustSetup(authAPI.SetupAuthRoutes(r, deps.db.DB(), deps.authDeps), "auth routes")
+	mustSetup(authAPI.SetupAuthRoutes(authAPI.AuthRoutesDeps{
+		Router:     r,
+		RawDB:      deps.db.DB(),
+		CommandBus: deps.commandBus,
+		EventBus:   deps.eventBus,
+		AuthDeps:   deps.authDeps,
+	}), "auth routes")
 }
 
 func registerTenantRoutes(r chi.Router, deps routerDependencies) {
-	adDeps, err := accessdelegationAPI.SetupAccessDelegationRoutes(accessDelegationRoutesDeps(deps))
+	adDeps, err := accessdelegationAPI.SetupAccessDelegationRoutes(accessdelegationAPI.AccessDelegationRoutesDeps{
+		CommandBus:     deps.commandBus,
+		EventStore:     deps.eventStore,
+		EventBus:       deps.eventBus,
+		DB:             deps.db,
+		HATEOAS:        deps.hateoas,
+		AuthMiddleware: deps.authDeps.AuthMiddleware,
+	})
 	mustSetup(err, "access delegation routes")
 	r.Use(middleware.EditGrantEnrichment(adDeps.GrantResolver))
 	adDeps.RegisterRoutes(r)
@@ -178,10 +194,15 @@ func setupModelingRoutes(r chi.Router, deps routerDependencies) {
 		AuthMiddleware: deps.authDeps.AuthMiddleware,
 	}), "architecture modeling routes")
 
-	viewsAPI.SubscribeEvents(deps.eventBus, deps.commandBus, deps.db)
-	registerViewCommands(deps)
-	viewHandlers := viewsAPI.NewHTTPHandlers(deps.commandBus, deps.db, deps.hateoas)
-	viewsAPI.RegisterRoutes(r, viewHandlers, deps.authDeps.AuthMiddleware)
+	mustSetup(viewsAPI.SetupArchitectureViewsRoutes(viewsAPI.RouteConfig{
+		Router:         r,
+		CommandBus:     deps.commandBus,
+		EventStore:     deps.eventStore,
+		EventBus:       deps.eventBus,
+		DB:             deps.db,
+		HATEOAS:        deps.hateoas,
+		AuthMiddleware: deps.authDeps.AuthMiddleware,
+	}), "architecture views routes")
 
 	mustSetup(capabilityAPI.SetupCapabilityMappingRoutes(&capabilityAPI.RouteConfig{
 		Router:          r,
@@ -208,8 +229,24 @@ func setupValueStreamsRoutes(r chi.Router, deps routerDependencies) {
 }
 
 func setupDomainRoutes(r chi.Router, deps routerDependencies) {
-	setupEnterpriseArchitectureRoutes(r, deps)
-	setupArchitectureDirectionRoutes(r, deps)
+	mustSetup(enterpriseArchAPI.SetupEnterpriseArchitectureRoutes(enterpriseArchAPI.EnterpriseArchRoutesDeps{
+		Router:          r,
+		CommandBus:      deps.commandBus,
+		EventStore:      deps.eventStore,
+		EventBus:        deps.eventBus,
+		DB:              deps.db,
+		AuthMiddleware:  deps.authDeps.AuthMiddleware,
+		SessionProvider: deps.authDeps.SessionManager,
+	}), "enterprise architecture routes")
+	mustSetup(directionAPI.SetupRoutes(directionAPI.RoutesDeps{
+		Router:         r,
+		CommandBus:     deps.commandBus,
+		EventStore:     deps.eventStore,
+		EventBus:       deps.eventBus,
+		DB:             deps.db,
+		HATEOAS:        deps.hateoas,
+		AuthMiddleware: deps.authDeps.AuthMiddleware,
+	}), "architecture direction routes")
 
 	mustSetup(metamodelAPI.SetupMetaModelRoutes(metamodelAPI.MetaModelRoutesDeps{
 		Router:          r,
@@ -231,17 +268,20 @@ func setupDomainRoutes(r chi.Router, deps routerDependencies) {
 		Hateoas:         deps.hateoas,
 		AuthMiddleware:  deps.authDeps.AuthMiddleware,
 		SessionProvider: deps.authDeps.SessionManager,
-		Subjects:        newOnePagerSubjectExistenceAdapter(deps.db),
-		BuiltInFields:   newOnePagerBuiltInFieldSources(deps.db),
-		MaturityScale:   newOnePagerMaturityScaleAdapter(deps.db),
 	}), "one-pagers routes")
 }
 
 func setupSupportRoutes(r chi.Router, deps routerDependencies) {
 	mustSetup(releasesAPI.SetupReleasesRoutes(r, deps.db.DB()), "releases routes")
-	mustSetup(importingAPI.SetupImportingRoutes(r, importingRoutesDeps(deps)), "importing routes")
+	mustSetup(importingAPI.SetupImportingRoutes(r, importingAPI.ImportingRoutesDeps{
+		CommandBus:       deps.commandBus,
+		EventStore:       deps.eventStore,
+		EventBus:         deps.eventBus,
+		DB:               deps.db,
+		ExecutionContext: deps.appContext,
+	}), "importing routes")
 	sharedAPI.SetupReferenceRoutes(r)
-	mustSetup(audit.SetupAuditRoutes(audit.AuditRoutesDeps{
+	mustSetup(auditAPI.SetupAuditRoutes(auditAPI.AuditRoutesDeps{
 		Router:         r,
 		DB:             deps.db,
 		Hateoas:        deps.hateoas,

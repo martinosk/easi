@@ -1,12 +1,5 @@
 package commands
 
-type LinkSystemToCapability struct {
-	CapabilityID     string
-	ComponentID      string
-	RealizationLevel string
-	Notes            string
-}
+import "easi/backend/internal/capabilitymapping/publishedlanguage"
 
-func (c LinkSystemToCapability) CommandName() string {
-	return "LinkSystemToCapability"
-}
+type LinkSystemToCapability = publishedlanguage.LinkSystemToCapability

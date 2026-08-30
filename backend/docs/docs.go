@@ -335,7 +335,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_shared_audit.ArtifactCreatorsResponse"
+                            "$ref": "#/definitions/internal_audit_infrastructure_api.ArtifactCreatorsResponse"
                         }
                     },
                     "401": {
@@ -768,7 +768,7 @@ const docTemplate = `{
                         "CookieAuth": []
                     }
                 ],
-                "description": "Reports whether the tenant's AI assistant is configured and ready to use. The session advertises the assistant entry point on permission alone; this resource says whether the assistant can actually be used.",
+                "description": "Reports whether the tenant's AI assistant is configured and ready to use. The session advertises the assistant entry point on permission alone; this resource says whether the assistant can actually be used. When configured it links x-conversations, and additionally x-conversations-write when the actor can write at least one subject the assistant can act on.",
                 "produces": [
                     "application/json"
                 ],
@@ -845,7 +845,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_shared_audit.AuditHistoryResponse"
+                            "$ref": "#/definitions/internal_audit_infrastructure_api.AuditHistoryResponse"
                         }
                     },
                     "400": {
@@ -931,6 +931,67 @@ const docTemplate = `{
                     },
                     "502": {
                         "description": "Token exchange with IdP failed",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/invitations": {
+            "post": {
+                "description": "Creates an invitation in the named tenant. Guarded by the platform admin API key.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "invitations"
+                ],
+                "summary": "Invite a user into a tenant",
+                "parameters": [
+                    {
+                        "description": "Tenant, email and role",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_auth_infrastructure_api.PlatformInvitationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created invitation",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body, tenant ID or email",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid platform admin API key",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Tenant not found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
@@ -7594,7 +7655,7 @@ const docTemplate = `{
                         "CookieAuth": []
                     }
                 ],
-                "description": "One summary per active enterprise capability: source, included, carved-out and domain counts derived from the active direction, plus the direction status. Enterprise capabilities without an active direction report zero counts.",
+                "description": "One summary per active enterprise capability: source, included, carved-out and domain counts derived from the active direction, plus the direction status. Enterprise capabilities without an active direction report zero counts. Every item links to its enterprise capability, its composition and its direction.",
                 "produces": [
                     "application/json"
                 ],
@@ -10784,68 +10845,6 @@ const docTemplate = `{
                         "description": "Tenant details",
                         "schema": {
                             "$ref": "#/definitions/internal_platform_infrastructure_api.TenantResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Tenant not found",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/platform/tenants/{id}/invitations": {
-            "post": {
-                "description": "Creates an admin invitation for an existing tenant",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "tenants"
-                ],
-                "summary": "Create an invitation for a tenant",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Tenant ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Invitation details",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_platform_infrastructure_api.CreateInvitationRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Invitation created",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "404": {
@@ -14932,6 +14931,50 @@ const docTemplate = `{
                 }
             }
         },
+        "easi_backend_internal_audit_application_readmodels.ArtifactCreator": {
+            "type": "object",
+            "properties": {
+                "aggregateId": {
+                    "type": "string"
+                },
+                "creatorId": {
+                    "type": "string"
+                }
+            }
+        },
+        "easi_backend_internal_audit_application_readmodels.AuditEntry": {
+            "type": "object",
+            "properties": {
+                "actorEmail": {
+                    "type": "string"
+                },
+                "actorId": {
+                    "type": "string"
+                },
+                "aggregateId": {
+                    "type": "string"
+                },
+                "displayName": {
+                    "type": "string"
+                },
+                "eventData": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "eventId": {
+                    "type": "integer"
+                },
+                "eventType": {
+                    "type": "string"
+                },
+                "occurredAt": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
         "easi_backend_internal_auth_application_readmodels.InvitationDTO": {
             "type": "object",
             "properties": {
@@ -16871,6 +16914,52 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_audit_infrastructure_api.ArtifactCreatorsResponse": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_audit_application_readmodels.ArtifactCreator"
+                    }
+                }
+            }
+        },
+        "internal_audit_infrastructure_api.AuditHistoryResponse": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "entries": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_audit_application_readmodels.AuditEntry"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/internal_audit_infrastructure_api.PaginationInfo"
+                }
+            }
+        },
+        "internal_audit_infrastructure_api.PaginationInfo": {
+            "type": "object",
+            "properties": {
+                "hasMore": {
+                    "type": "boolean"
+                },
+                "nextCursor": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_auth_infrastructure_api.CreateInvitationRequest": {
             "type": "object",
             "properties": {
@@ -16969,6 +17058,20 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "id": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_auth_infrastructure_api.PlatformInvitationRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "tenantId": {
                     "type": "string"
                 }
             }
@@ -18438,17 +18541,6 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_platform_infrastructure_api.CreateInvitationRequest": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "role": {
-                    "type": "string"
-                }
-            }
-        },
         "internal_platform_infrastructure_api.CreateTenantRequest": {
             "type": "object",
             "properties": {
@@ -18654,96 +18746,6 @@ const docTemplate = `{
                     }
                 },
                 "title": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_shared_audit.ArtifactCreator": {
-            "type": "object",
-            "properties": {
-                "aggregateId": {
-                    "type": "string"
-                },
-                "creatorId": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_shared_audit.ArtifactCreatorsResponse": {
-            "type": "object",
-            "properties": {
-                "_links": {
-                    "type": "object",
-                    "additionalProperties": {}
-                },
-                "data": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/internal_shared_audit.ArtifactCreator"
-                    }
-                }
-            }
-        },
-        "internal_shared_audit.AuditEntry": {
-            "type": "object",
-            "properties": {
-                "actorEmail": {
-                    "type": "string"
-                },
-                "actorId": {
-                    "type": "string"
-                },
-                "aggregateId": {
-                    "type": "string"
-                },
-                "displayName": {
-                    "type": "string"
-                },
-                "eventData": {
-                    "type": "object",
-                    "additionalProperties": true
-                },
-                "eventId": {
-                    "type": "integer"
-                },
-                "eventType": {
-                    "type": "string"
-                },
-                "occurredAt": {
-                    "type": "string"
-                },
-                "version": {
-                    "type": "integer"
-                }
-            }
-        },
-        "internal_shared_audit.AuditHistoryResponse": {
-            "type": "object",
-            "properties": {
-                "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "entries": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/internal_shared_audit.AuditEntry"
-                    }
-                },
-                "pagination": {
-                    "$ref": "#/definitions/internal_shared_audit.PaginationInfo"
-                }
-            }
-        },
-        "internal_shared_audit.PaginationInfo": {
-            "type": "object",
-            "properties": {
-                "hasMore": {
-                    "type": "boolean"
-                },
-                "nextCursor": {
                     "type": "string"
                 }
             }

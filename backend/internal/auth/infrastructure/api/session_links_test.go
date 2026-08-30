@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"testing"
 
 	"easi/backend/internal/auth/domain/valueobjects"
@@ -26,7 +25,7 @@ func TestBuildSessionLinks_OnePagerQualityEntryPoint(t *testing.T) {
 	handlers := &SessionHandlers{}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			links := handlers.buildSessionLinks(context.Background(), uuid.New(), tc.role)
+			links := handlers.buildSessionLinks(uuid.New(), tc.role)
 			link, ok := links["x-one-pager-quality"]
 			assert.Equal(t, tc.present, ok)
 			if tc.present {
@@ -36,31 +35,25 @@ func TestBuildSessionLinks_OnePagerQualityEntryPoint(t *testing.T) {
 	}
 }
 
-func TestBuildSessionLinks_AssistantEntryPoints(t *testing.T) {
+func TestBuildSessionLinks_AssistantStatusEntryPoint(t *testing.T) {
 	cases := []struct {
-		name         string
-		role         valueobjects.Role
-		assistant    bool
-		writeVariant bool
+		name    string
+		role    valueobjects.Role
+		present bool
 	}{
-		{"admin gets assistant and write link", valueobjects.RoleAdmin, true, true},
-		{"architect gets assistant and write link", valueobjects.RoleArchitect, true, true},
-		{"stakeholder gets assistant without write link", valueobjects.RoleStakeholder, true, false},
+		{"admin gets assistant status link", valueobjects.RoleAdmin, true},
+		{"architect gets assistant status link", valueobjects.RoleArchitect, true},
+		{"stakeholder gets assistant status link", valueobjects.RoleStakeholder, true},
 	}
 
 	handlers := &SessionHandlers{}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			links := handlers.buildSessionLinks(context.Background(), uuid.New(), tc.role)
-			link, ok := links["x-assistant"]
-			assert.Equal(t, tc.assistant, ok)
-			if tc.assistant {
-				assert.Equal(t, "/api/v1/assistant/conversations", link)
-			}
-			writeLink, ok := links["x-assistant-write"]
-			assert.Equal(t, tc.writeVariant, ok)
-			if tc.writeVariant {
-				assert.Equal(t, "/api/v1/assistant/conversations", writeLink)
+			links := handlers.buildSessionLinks(uuid.New(), tc.role)
+			link, ok := links["x-assistant-status"]
+			assert.Equal(t, tc.present, ok)
+			if tc.present {
+				assert.Equal(t, "/api/v1/assistant/status", link)
 			}
 		})
 	}
@@ -69,7 +62,8 @@ func TestBuildSessionLinks_AssistantEntryPoints(t *testing.T) {
 func TestBuildSessionLinks_NoAssistantPermission_NoAssistantLinks(t *testing.T) {
 	noPermissions, _ := valueobjects.RoleFromString("nobody")
 	handlers := &SessionHandlers{}
-	links := handlers.buildSessionLinks(context.Background(), uuid.New(), noPermissions)
+	links := handlers.buildSessionLinks(uuid.New(), noPermissions)
+	assert.NotContains(t, links, "x-assistant-status")
 	assert.NotContains(t, links, "x-assistant")
 	assert.NotContains(t, links, "x-assistant-write")
 }

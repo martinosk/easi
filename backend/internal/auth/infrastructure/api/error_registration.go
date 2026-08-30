@@ -37,6 +37,7 @@ func init() {
 	registry.RegisterValidation(valueobjects.ErrInvalidRole, "Invalid role")
 	registry.RegisterValidation(valueobjects.ErrInvalidEmailFormat, "Invalid email format")
 	registry.RegisterValidation(valueobjects.ErrEmailEmpty, "Email cannot be empty")
+	registry.RegisterValidation(handlers.ErrEmailDomainNotAllowed, "Email domain is not registered to this tenant")
 
 	registry.Register(sharedAPI.ErrorRegistration{Error: repositories.ErrTenantInactive, Category: sharedAPI.CategoryForbidden, Message: "Tenant is not active"})
 	registry.Register(sharedAPI.ErrorRegistration{Error: services.ErrUserDisabled, Category: sharedAPI.CategoryForbidden, Message: "User account is disabled"})

@@ -79,17 +79,17 @@ Enable enterprise architects to create, manage, and customize visual representat
 - `DefaultViewChanged` - User's default view changed
 - `ViewVisibilityChanged` - View visibility updated
 
-**Queries** (to other contexts):
-- To **Architecture Modeling**: Read `ApplicationComponentReadModel` to get component details for display in views
+**Queries** (to other contexts): none — views hold component references only; component details are joined by the frontend from Architecture Modeling's own API
 
 ### Collaborators
 - **Frontend UI**: Consumes events for real-time view updates
-- **Architecture Modeling Context**: Queries for component details to enrich view data
+- **Architecture Modeling Context**: Upstream supplier of `ApplicationComponentDeleted` / `ComponentRelationDeleted` for view cleanup
+- **Access Delegation**: Downstream consumer of view lifecycle events (artifact names, grant revocation)
 
 ### Integration Pattern
 - **Event-driven integration** for view lifecycle and membership changes (publish to event bus)
-- **Query-based integration** for component details (read from Architecture Modeling read models)
-- **Event subscription** for upstream component changes (maintain consistency)
+- **Event subscription** for upstream component deletions (maintain consistency)
+- **Actor role from the request context** decides visibility changes — no read of Auth's users
 
 ## Ubiquitous Language
 

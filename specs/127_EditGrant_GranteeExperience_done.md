@@ -1,6 +1,7 @@
 # 127 - Edit Grant: Grantee Experience
 
 **Status:** done
+**Amended by:** 209 (Events-Only Context Integration) — the auto-invitation for a grantee without an account is requested through Auth's published `EnsureInvitation` command; Access Delegation no longer reads Auth's users, invitations or allowed domains
 **Depends on:** [126_EditGrants_AccessDelegation](126_EditGrants_AccessDelegation_done.md), [068_InvitationSystem](068_InvitationSystem_done.md)
 
 ## User Need
