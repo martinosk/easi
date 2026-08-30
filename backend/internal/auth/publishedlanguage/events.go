@@ -10,4 +10,6 @@ const (
 	InvitationAccepted = "InvitationAccepted"
 	InvitationRevoked  = "InvitationRevoked"
 	InvitationExpired  = "InvitationExpired"
+
+	TenantCreated = "TenantCreated"
 )

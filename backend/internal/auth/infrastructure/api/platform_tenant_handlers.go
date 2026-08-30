@@ -8,11 +8,11 @@ import (
 	"net/http"
 	"time"
 
-	"easi/backend/internal/platform/application/commands"
-	"easi/backend/internal/platform/domain/aggregates"
-	"easi/backend/internal/platform/domain/valueobjects"
-	"easi/backend/internal/platform/infrastructure/repositories"
-	"easi/backend/internal/platform/infrastructure/secrets"
+	"easi/backend/internal/auth/application/commands"
+	"easi/backend/internal/auth/domain/aggregates"
+	"easi/backend/internal/auth/domain/valueobjects"
+	"easi/backend/internal/auth/infrastructure/repositories"
+	"easi/backend/internal/auth/infrastructure/secrets"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
@@ -20,14 +20,14 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-type TenantHandlers struct {
-	commandBus     *cqrs.InMemoryCommandBus
+type PlatformTenantHandlers struct {
+	commandBus     cqrs.CommandBus
 	repository     *repositories.TenantRepository
 	secretProvider secrets.SecretProvider
 }
 
-func NewTenantHandlers(commandBus *cqrs.InMemoryCommandBus, repository *repositories.TenantRepository, secretProvider secrets.SecretProvider) *TenantHandlers {
-	return &TenantHandlers{
+func NewPlatformTenantHandlers(commandBus cqrs.CommandBus, repository *repositories.TenantRepository, secretProvider secrets.SecretProvider) *PlatformTenantHandlers {
+	return &PlatformTenantHandlers{
 		commandBus:     commandBus,
 		repository:     repository,
 		secretProvider: secretProvider,
@@ -114,7 +114,7 @@ type TenantListItem struct {
 // @Failure 409 {object} sharedAPI.ErrorResponse "Tenant or domain already exists"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
 // @Router /platform/tenants [post]
-func (h *TenantHandlers) CreateTenant(w http.ResponseWriter, r *http.Request) {
+func (h *PlatformTenantHandlers) CreateTenant(w http.ResponseWriter, r *http.Request) {
 	var req CreateTenantRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
@@ -166,7 +166,7 @@ func (h *TenantHandlers) CreateTenant(w http.ResponseWriter, r *http.Request) {
 // @Failure 404 {object} sharedAPI.ErrorResponse "Tenant not found"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
 // @Router /platform/tenants/{id} [get]
-func (h *TenantHandlers) GetTenantByID(w http.ResponseWriter, r *http.Request) {
+func (h *PlatformTenantHandlers) GetTenantByID(w http.ResponseWriter, r *http.Request) {
 	tenantID := chi.URLParam(r, "id")
 
 	record, err := h.repository.GetByID(r.Context(), tenantID)
@@ -201,7 +201,7 @@ func (h *TenantHandlers) GetTenantByID(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} sharedAPI.CollectionResponse{data=[]TenantListItem} "List of tenants"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
 // @Router /platform/tenants [get]
-func (h *TenantHandlers) ListTenants(w http.ResponseWriter, r *http.Request) {
+func (h *PlatformTenantHandlers) ListTenants(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
 	domain := r.URL.Query().Get("domain")
 
@@ -230,7 +230,7 @@ func (h *TenantHandlers) ListTenants(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (h *TenantHandlers) mapRecordToResponse(ctx context.Context, record *repositories.TenantRecord) TenantResponse {
+func (h *PlatformTenantHandlers) mapRecordToResponse(ctx context.Context, record *repositories.TenantRecord) TenantResponse {
 	secretProvisioned := h.secretProvider.IsProvisioned(ctx, record.ID)
 
 	var warnings []string

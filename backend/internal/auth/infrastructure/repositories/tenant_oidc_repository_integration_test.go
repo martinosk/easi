@@ -23,9 +23,9 @@ func openOIDCCacheTestDB(t *testing.T) *sql.DB {
 	require.NoError(t, err)
 	require.NoError(t, db.Ping())
 	t.Cleanup(func() {
-		_, _ = db.Exec("DELETE FROM auth.tenant_domain_cache WHERE tenant_id = $1", oidcCacheTestTenant)
-		_, _ = db.Exec("DELETE FROM auth.tenant_oidc_cache WHERE tenant_id = $1", oidcCacheTestTenant)
-		_, _ = db.Exec("DELETE FROM auth.tenant_cache WHERE tenant_id = $1", oidcCacheTestTenant)
+		_, _ = db.Exec("DELETE FROM auth.tenant_oidc_configs WHERE tenant_id = $1", oidcCacheTestTenant)
+		_, _ = db.Exec("DELETE FROM auth.tenant_domains WHERE tenant_id = $1", oidcCacheTestTenant)
+		_, _ = db.Exec("DELETE FROM auth.tenants WHERE id = $1", oidcCacheTestTenant)
 		_ = db.Close()
 	})
 	return db
@@ -38,13 +38,13 @@ func seedCachedTenant(t *testing.T, db *sql.DB, status string) {
 		_, err := db.Exec(query, args...)
 		require.NoError(t, err)
 	}
-	exec(`INSERT INTO auth.tenant_cache (tenant_id, name, status) VALUES ($1, 'OIDC Test', $2)`, oidcCacheTestTenant, status)
-	exec(`INSERT INTO auth.tenant_domain_cache (domain, tenant_id) VALUES ('auth-oidc-test.com', $1)`, oidcCacheTestTenant)
-	exec(`INSERT INTO auth.tenant_oidc_cache (tenant_id, discovery_url, issuer_url, client_id, auth_method, scopes)
+	exec(`INSERT INTO auth.tenants (id, name, status) VALUES ($1, 'OIDC Test', $2)`, oidcCacheTestTenant, status)
+	exec(`INSERT INTO auth.tenant_domains (domain, tenant_id) VALUES ('auth-oidc-test.com', $1)`, oidcCacheTestTenant)
+	exec(`INSERT INTO auth.tenant_oidc_configs (tenant_id, discovery_url, issuer_url, client_id, auth_method, scopes)
 	      VALUES ($1, 'https://login.example.com/v2.0/.well-known/openid-configuration', 'https://login.example.com/v2.0', 'client-id', 'client_secret', 'openid email profile')`, oidcCacheTestTenant)
 }
 
-func TestTenantOIDCRepository_ResolvesConfigurationFromAuthCacheByEmailDomain(t *testing.T) {
+func TestTenantOIDCRepository_ResolvesConfigurationFromAuthTablesByEmailDomain(t *testing.T) {
 	db := openOIDCCacheTestDB(t)
 	seedCachedTenant(t, db, "active")
 
@@ -59,7 +59,7 @@ func TestTenantOIDCRepository_ResolvesConfigurationFromAuthCacheByEmailDomain(t 
 	assert.Equal(t, "openid email profile", config.Scopes)
 }
 
-func TestTenantOIDCRepository_ResolvesConfigurationFromAuthCacheByTenantID(t *testing.T) {
+func TestTenantOIDCRepository_ResolvesConfigurationFromAuthTablesByTenantID(t *testing.T) {
 	db := openOIDCCacheTestDB(t)
 	seedCachedTenant(t, db, "active")
 

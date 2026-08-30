@@ -42,15 +42,15 @@ Manage configurable meta-model elements that control how the architecture modeli
 - `ResetMaturityScale` - Restore maturity scale to default configuration
 
 **Events** (from other contexts):
-- From **Platform**:
+- From **Auth**:
   - `TenantCreated` - Provision default meta-model configuration for new tenant
 
 ### Collaborators
 - **Frontend UI**: Source of configuration commands
-- **Platform Context**: Publishes tenant lifecycle events
+- **Auth Context**: Publishes tenant lifecycle events
 
 ### Relationship Types
-- **Customer-Supplier** with Platform: MetaModel is downstream, conforms to Platform's tenant model
+- **Customer-Supplier** with Auth: MetaModel is downstream, conforms to Auth's tenant model
 
 ## Outbound Communication
 
@@ -158,6 +158,6 @@ Manage configurable meta-model elements that control how the architecture modeli
 - Optimistic locking via version field
 
 ### Cross-Context Integration
-- **Downstream of Platform**: Subscribes to `TenantCreated`
+- **Downstream of Auth**: Subscribes to `TenantCreated`
 - **Upstream to CapabilityMapping**: Provides configuration via read models/API
 - **Published Language**: Well-defined DTOs for configuration data

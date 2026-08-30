@@ -10,7 +10,6 @@ import (
 	"easi/backend/internal/archassistant/infrastructure/repositories"
 	authPL "easi/backend/internal/auth/publishedlanguage"
 	"easi/backend/internal/infrastructure/database"
-	platformPL "easi/backend/internal/platform/publishedlanguage"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/events"
 
@@ -32,7 +31,7 @@ type ArchAssistantRoutesDeps struct {
 
 func SetupArchAssistantRoutes(deps ArchAssistantRoutesDeps) error {
 	aiConfigRepo := repositories.NewAIConfigurationRepository(deps.DB)
-	deps.EventBus.Subscribe(platformPL.TenantCreated, handlers.NewTenantCreatedHandler(aiConfigRepo))
+	deps.EventBus.Subscribe(authPL.TenantCreated, handlers.NewTenantCreatedHandler(aiConfigRepo))
 	configHandlers := NewAIConfigHandlers(aiConfigRepo)
 	statusHandlers := NewAssistantStatusHandlers(adapters.NewAIConfigStatusAdapter(deps.DB), deps.HATEOAS)
 	deps.Router.With(deps.AuthMiddleware.RequirePermission(authPL.PermAssistantUse)).Get("/assistant/status", statusHandlers.GetStatus)

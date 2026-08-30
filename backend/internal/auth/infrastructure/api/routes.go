@@ -18,7 +18,6 @@ import (
 	sharedMiddleware "easi/backend/internal/infrastructure/api/middleware"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
-	platformPL "easi/backend/internal/platform/publishedlanguage"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/config"
 	"easi/backend/internal/shared/cqrs"
@@ -65,6 +64,7 @@ func SetupAuthDependencies(db *sql.DB) (*AuthDependencies, error) {
 type AuthRoutesDeps struct {
 	Router     chi.Router
 	RawDB      *sql.DB
+	TenantDB   *database.TenantAwareDB
 	CommandBus cqrs.CommandBus
 	EventBus   events.EventBus
 	AuthDeps   *AuthDependencies
@@ -75,10 +75,11 @@ func SetupAuthRoutes(routeDeps AuthRoutesDeps) error {
 	db := routeDeps.RawDB
 	authDeps := routeDeps.AuthDeps
 
-	tenantCache := readmodels.NewTenantCacheReadModel(db)
-	registerTenantEventSubscriptions(routeDeps.EventBus, routeDeps.CommandBus, tenantCache)
+	registerTenantEventSubscriptions(routeDeps.EventBus, routeDeps.CommandBus)
+	registerPlatformTenantRoutes(r, db, routeDeps.TenantDB, routeDeps.CommandBus, routeDeps.EventBus)
 
-	platformInvitations := NewPlatformInvitationHandlers(routeDeps.CommandBus, tenantCache)
+	platformTenants := repositories.NewTenantRepository(db)
+	platformInvitations := NewPlatformInvitationHandlers(routeDeps.CommandBus, platformTenants)
 	platformAdminKey := os.Getenv("PLATFORM_ADMIN_API_KEY")
 
 	if config.IsAuthBypassed() {
@@ -135,16 +136,15 @@ func SetupAuthRoutes(routeDeps AuthRoutesDeps) error {
 	return nil
 }
 
-func registerTenantEventSubscriptions(eventBus events.EventBus, commandBus cqrs.CommandBus, cache *readmodels.TenantCacheReadModel) {
-	eventBus.Subscribe(platformPL.TenantCreated, projectors.NewTenantCacheProjector(cache))
-	eventBus.Subscribe(platformPL.TenantCreated, handlers.NewTenantCreatedReactor(commandBus))
+func registerTenantEventSubscriptions(eventBus events.EventBus, commandBus cqrs.CommandBus) {
+	eventBus.Subscribe(authPL.TenantCreated, handlers.NewTenantCreatedReactor(commandBus))
 }
 
 func registerPlatformInvitationRoute(r chi.Router, platformAdminKey string, h *PlatformInvitationHandlers) {
 	rateLimiter := sharedMiddleware.NewRateLimiter(100, 60)
 	r.Group(func(r chi.Router) {
 		r.Use(sharedMiddleware.RateLimitMiddleware(rateLimiter))
-		r.Use(sharedAPI.PlatformAdminMiddleware(platformAdminKey))
+		r.Use(PlatformAdminMiddleware(platformAdminKey))
 		r.Post("/invitations", h.CreateInvitation)
 	})
 }

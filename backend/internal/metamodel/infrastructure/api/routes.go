@@ -11,7 +11,6 @@ import (
 	"easi/backend/internal/metamodel/application/readmodels"
 	"easi/backend/internal/metamodel/infrastructure/repositories"
 	mmPL "easi/backend/internal/metamodel/publishedlanguage"
-	platformPL "easi/backend/internal/platform/publishedlanguage"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
@@ -70,7 +69,7 @@ func SetupMetaModelRoutes(deps MetaModelRoutesDeps) error {
 	deps.CommandBus.Register("UpdatePillarFitConfiguration", updatePillarFitConfigHandler)
 
 	tenantCreatedHandler := handlers.NewTenantCreatedHandler(deps.CommandBus)
-	deps.EventBus.Subscribe(platformPL.TenantCreated, tenantCreatedHandler)
+	deps.EventBus.Subscribe(authPL.TenantCreated, tenantCreatedHandler)
 
 	links := NewMetaModelLinks(deps.Hateoas)
 	metaModelHandlers := NewMetaModelHandlers(deps.CommandBus, configReadModel, links, deps.SessionProvider)

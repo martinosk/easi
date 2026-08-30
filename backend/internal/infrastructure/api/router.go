@@ -22,7 +22,6 @@ import (
 	"easi/backend/internal/infrastructure/eventstore"
 	metamodelAPI "easi/backend/internal/metamodel/infrastructure/api"
 	onepagersAPI "easi/backend/internal/onepagers/infrastructure/api"
-	platformAPI "easi/backend/internal/platform/infrastructure/api"
 	releasesAPI "easi/backend/internal/releases/infrastructure/api"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
@@ -147,16 +146,10 @@ func registerAPIRoutes(r chi.Router, deps routerDependencies) {
 }
 
 func registerPublicRoutes(r chi.Router, deps routerDependencies) {
-	mustSetup(platformAPI.SetupPlatformRoutes(platformAPI.PlatformRoutesDeps{
-		Router:     r,
-		RawDB:      deps.db.DB(),
-		TenantDB:   deps.db,
-		CommandBus: deps.commandBus,
-		EventBus:   deps.eventBus,
-	}), "platform routes")
 	mustSetup(authAPI.SetupAuthRoutes(authAPI.AuthRoutesDeps{
 		Router:     r,
 		RawDB:      deps.db.DB(),
+		TenantDB:   deps.db,
 		CommandBus: deps.commandBus,
 		EventBus:   deps.eventBus,
 		AuthDeps:   deps.authDeps,

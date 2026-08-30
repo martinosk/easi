@@ -17,7 +17,7 @@ import (
 const defaultInvitationRole = "admin"
 
 type TenantCatalog interface {
-	Exists(ctx context.Context, tenantID string) (bool, error)
+	ExistsByID(ctx context.Context, tenantID string) (bool, error)
 }
 
 type PlatformInvitationHandlers struct {
@@ -59,7 +59,7 @@ func (h *PlatformInvitationHandlers) CreateInvitation(w http.ResponseWriter, r *
 		return
 	}
 
-	known, err := h.tenants.Exists(r.Context(), tenantID.Value())
+	known, err := h.tenants.ExistsByID(r.Context(), tenantID.Value())
 	if err != nil {
 		h.errorHandler.HandleError(w, err, "Failed to look up tenant")
 		return

@@ -71,7 +71,6 @@ func (p *Projector) ProjectEvent(ctx context.Context, eventType string, eventDat
 | `adirPL` | `architecturedirection/publishedlanguage` |
 | `eaPL` | `enterprisearchitecture/publishedlanguage` |
 | `authPL` | `auth/publishedlanguage` |
-| `platformPL` | `platform/publishedlanguage` |
 
 ## Complete Event Constants Catalogue
 
@@ -268,13 +267,7 @@ const (
     InvitationAccepted = "InvitationAccepted"
     InvitationRevoked  = "InvitationRevoked"
     InvitationExpired  = "InvitationExpired"
-)
-```
 
-### Platform (`platformPL`)
-
-```go
-const (
     TenantCreated = "TenantCreated"
 )
 ```
@@ -382,20 +375,13 @@ Every event subscription that crosses a bounded context boundary is documented b
 
 ### Arch Assistant consumes from:
 
-**Platform** (`platformPL`):
+**Auth** (`authPL`):
 
 | Event | Handler | Wired In | Purpose |
 |-------|---------|----------|---------|
 | `TenantCreated` | `TenantCreatedHandler` | `archassistant/infrastructure/api/routes.go` `SetupArchAssistantRoutes()` | Provision default AI configuration for the new tenant |
 
-### Auth consumes from:
-
-**Platform** (`platformPL`):
-
-| Event | Projector/Handler | Wired In | Purpose |
-|-------|-------------------|----------|---------|
-| `TenantCreated` | `TenantCacheProjector` | `auth/infrastructure/api/routes.go` | Cache tenant, its e-mail domains and its OIDC configuration for login-by-domain, OIDC lookup and the invitation domain allowlist (spec 209) |
-| `TenantCreated` | `TenantCreatedReactor` | same | Create the first-admin invitation for the new tenant |
+Auth publishes `TenantCreated` itself (Platform was merged into Auth, spec 209 amendment 2026-08-30) and reacts to it in-context with `TenantCreatedReactor` to create the first-admin invitation; tenant, domain and OIDC reads are live queries against `auth.tenants`, `auth.tenant_domains` and `auth.tenant_oidc_configs`.
 
 Access Delegation invites a grantee without an account by dispatching Auth's published command `EnsureInvitation` (see [Published Commands](#published-commands)); `EditGrantForNonUserCreated` is published when an invitation was created, for audit.
 

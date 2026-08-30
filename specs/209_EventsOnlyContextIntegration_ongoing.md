@@ -4,6 +4,8 @@
 > **Depends on:** 206 (Composition-Root Dependency Guard), 207 (Direction-Derived Reads Owned by Direction), 208 (One-Pager Completeness Served by OnePagers)
 > **Amends:** 206 (rule 9 and design decision 8 — declared bridges are no longer permitted), 207 (Architecture Direction bridges), 178/189 (OnePagers built-in and relation fields), 134 (Architecture Guard Tests), 039 (tenant provisioning), 127 (edit-grant auto-invitation)
 
+> **Amended 2026-08-30, user decision:** Platform is merged into Auth. Rule 9 and the Auth/Platform acceptance criteria's tenant caches (migrations 139/140, `TenantCacheProjector`, `auth.tenant_cache`/`tenant_domain_cache`/`tenant_oidc_cache`) are superseded — they existed only to satisfy the events-only rule against a context that published one event and owned three near-static tables. `TenantCreated` is now published by Auth itself; tenant, domain and OIDC reads are live in-context queries against `auth.tenants`, `auth.tenant_domains` and `auth.tenant_oidc_configs` (migration 149 moves the tables and drops the `platform` schema). This restores tenant suspension taking effect immediately at login and fixes the half-provisioned-tenant 404 on `POST /auth/invitations`. MetaModel and Arch Assistant now subscribe to `authPL.TenantCreated` instead of `platformPL.TenantCreated`. The target-graph table below is updated accordingly: the `platform` row is removed and `auth` has no outgoing published-language edges.
+
 ---
 
 ## Problem Statement
@@ -132,18 +134,17 @@ Migrations 139–148 as listed in the acceptance criteria; every table tenant-sc
 
 ```
 accessdelegation      → architecturemodeling, architectureviews, capabilitymapping, auth
-archassistant         → architecturedirection, architecturemodeling, architectureviews, auth, capabilitymapping, enterprisearchitecture, metamodel, platform, valuestreams
+archassistant         → architecturedirection, architecturemodeling, architectureviews, auth, capabilitymapping, enterprisearchitecture, metamodel, valuestreams
 architecturedirection → architecturemodeling, auth, capabilitymapping, enterprisearchitecture
 architecturemodeling  → auth
 architectureviews     → architecturemodeling, auth
 audit                 → auth
-auth                  → platform
+auth                  → (none)
 capabilitymapping     → architecturemodeling, auth, metamodel
 enterprisearchitecture→ architecturemodeling, auth, capabilitymapping, metamodel
 importing             → architecturemodeling, capabilitymapping, valuestreams
 metamodel             → auth
 onepagers             → architecturemodeling, auth, capabilitymapping, enterprisearchitecture, metamodel
-platform              → (none)
 releases              → (none)
 valuestreams          → auth, capabilitymapping
 ```

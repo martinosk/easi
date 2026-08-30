@@ -129,8 +129,8 @@ func TestParseCreateTenantRequest(t *testing.T) {
 	assert.Equal(t, "john.doe@acme.com", parsed.FirstAdminEmail)
 }
 
-func TestTenantHandlers_CreateTenant_InvalidJSON(t *testing.T) {
-	handlers := &TenantHandlers{}
+func TestPlatformTenantHandlers_CreateTenant_InvalidJSON(t *testing.T) {
+	handlers := &PlatformTenantHandlers{}
 
 	req := httptest.NewRequest("POST", "/api/platform/v1/tenants", bytes.NewBufferString("invalid json"))
 	req.Header.Set("Content-Type", "application/json")

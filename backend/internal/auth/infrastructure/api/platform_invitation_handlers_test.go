@@ -22,7 +22,7 @@ type stubTenantCatalog struct {
 	err   error
 }
 
-func (c stubTenantCatalog) Exists(_ context.Context, _ string) (bool, error) {
+func (c stubTenantCatalog) ExistsByID(_ context.Context, _ string) (bool, error) {
 	return c.known, c.err
 }
 

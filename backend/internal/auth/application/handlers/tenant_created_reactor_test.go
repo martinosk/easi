@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"easi/backend/internal/auth/application/commands"
-	platformPL "easi/backend/internal/platform/publishedlanguage"
+	authPL "easi/backend/internal/auth/publishedlanguage"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
 	domain "easi/backend/internal/shared/eventsourcing"
@@ -44,7 +44,7 @@ func (e supplierEvent) EventData() map[string]interface{} { return e.data }
 func tenantCreated(firstAdminEmail string) domain.DomainEvent {
 	return supplierEvent{
 		aggregateID: "acme",
-		eventType:   platformPL.TenantCreated,
+		eventType:   authPL.TenantCreated,
 		data: map[string]interface{}{
 			"id":              "acme",
 			"name":            "Acme Corporation",

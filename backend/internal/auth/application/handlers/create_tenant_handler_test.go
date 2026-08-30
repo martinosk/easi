@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"easi/backend/internal/platform/application/commands"
-	"easi/backend/internal/platform/infrastructure/repositories"
+	"easi/backend/internal/auth/application/commands"
+	"easi/backend/internal/auth/infrastructure/repositories"
 	sharedctx "easi/backend/internal/shared/context"
 	domain "easi/backend/internal/shared/eventsourcing"
 

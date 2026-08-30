@@ -9,11 +9,10 @@ import (
 
 var (
 	ErrDomainNotFound = errors.New("domain not registered")
-	ErrTenantNotFound = errors.New("tenant not found")
 	ErrTenantInactive = errors.New("tenant is not active")
 )
 
-const tenantOIDCColumns = `t.tenant_id, t.status, oc.discovery_url, oc.issuer_url, oc.client_id, oc.auth_method, oc.scopes`
+const tenantOIDCColumns = `t.id, t.status, oc.discovery_url, oc.issuer_url, oc.client_id, oc.auth_method, oc.scopes`
 
 type TenantOIDCConfig struct {
 	TenantID     string
@@ -35,9 +34,9 @@ func NewTenantOIDCRepository(db *sql.DB) *TenantOIDCRepository {
 func (r *TenantOIDCRepository) GetByEmailDomain(ctx context.Context, emailDomain string) (*TenantOIDCConfig, error) {
 	row := r.db.QueryRowContext(ctx,
 		`SELECT `+tenantOIDCColumns+`
-		 FROM auth.tenant_domain_cache td
-		 JOIN auth.tenant_cache t ON td.tenant_id = t.tenant_id
-		 JOIN auth.tenant_oidc_cache oc ON t.tenant_id = oc.tenant_id
+		 FROM auth.tenant_domains td
+		 JOIN auth.tenants t ON td.tenant_id = t.id
+		 JOIN auth.tenant_oidc_configs oc ON t.id = oc.tenant_id
 		 WHERE td.domain = $1`,
 		emailDomain,
 	)
@@ -52,9 +51,9 @@ func (r *TenantOIDCRepository) GetByEmailDomain(ctx context.Context, emailDomain
 func (r *TenantOIDCRepository) GetByTenantID(ctx context.Context, tenantID string) (*TenantOIDCConfig, error) {
 	row := r.db.QueryRowContext(ctx,
 		`SELECT `+tenantOIDCColumns+`
-		 FROM auth.tenant_cache t
-		 JOIN auth.tenant_oidc_cache oc ON t.tenant_id = oc.tenant_id
-		 WHERE t.tenant_id = $1`,
+		 FROM auth.tenants t
+		 JOIN auth.tenant_oidc_configs oc ON t.id = oc.tenant_id
+		 WHERE t.id = $1`,
 		tenantID,
 	)
 

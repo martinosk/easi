@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"easi/backend/internal/platform/domain/events"
-	"easi/backend/internal/platform/domain/valueobjects"
+	"easi/backend/internal/auth/domain/events"
+	"easi/backend/internal/auth/domain/valueobjects"
 	domain "easi/backend/internal/shared/eventsourcing"
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 )

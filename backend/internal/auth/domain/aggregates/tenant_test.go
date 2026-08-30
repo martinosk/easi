@@ -3,7 +3,7 @@ package aggregates
 import (
 	"testing"
 
-	"easi/backend/internal/platform/domain/valueobjects"
+	"easi/backend/internal/auth/domain/valueobjects"
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 
 	"github.com/stretchr/testify/assert"

@@ -19,8 +19,7 @@ All locations are relative to `/backend/internal/`.
 | Importing | Supporting | Import components, capabilities and value streams from files through the owning contexts' published commands | `importing/` | — |
 | OnePagers | Supporting | Configure per-subject-type one-pager fact sheets, record facts, render one-pagers, report completeness | `onepagers/` | [Canvas](./OnePagers.md) |
 | Arch Assistant | Supporting | AI-powered conversational assistant for exploring and modifying enterprise architecture | `archassistant/` | [Canvas](./ArchAssistant.md) |
-| Auth | Generic | Identity, roles, permissions, invitations and sessions; caches tenant domains and OIDC configuration from Platform | `auth/` | — |
-| Platform | Generic | Tenant provisioning (tenants, domains, OIDC configuration); depends on no other context | `platform/` | — |
+| Auth | Generic | Identity, roles, permissions, invitations, sessions and tenant provisioning (tenants, domains, OIDC configuration); depends on no other context | `auth/` | — |
 | Audit | Generic | Audit log and artifact-creator lookups over the event store | `audit/` | — |
 | Releases | Generic | Track and communicate platform releases and version history | `releases/` | [Canvas](./Releases.md) |
 
@@ -30,7 +29,7 @@ All locations are relative to `/backend/internal/`.
 
 ## Context Map
 
-Arrows point in **dependency direction** (importer → imported, i.e. downstream → upstream). This is exactly the graph `TestContextDependencyGraphIsAcyclic` checks: an edge exists iff a file of the tail context imports the head context's `publishedlanguage`. Every context except Platform also imports Auth's published language for permission constants; those edges are omitted below for readability, and Auth's own upstream is only Platform.
+Arrows point in **dependency direction** (importer → imported, i.e. downstream → upstream). This is exactly the graph `TestContextDependencyGraphIsAcyclic` checks: an edge exists iff a file of the tail context imports the head context's `publishedlanguage`. Every context also imports Auth's published language for permission constants; those edges are omitted below for readability, and Auth itself has no upstream — it is a root of the graph.
 
 ```mermaid
 flowchart LR
@@ -42,7 +41,6 @@ flowchart LR
     ADR[Architecture Direction]
     ACD[Access Delegation]
     AU[Auth]
-    PL[Platform]
     VS[Value Streams]
     OP[OnePagers]
     IM[Importing]
@@ -50,9 +48,8 @@ flowchart LR
     AUD[Audit]
     RL[Releases]
 
-    AU -->|TenantCreated → tenant, domain and OIDC caches, first-admin invitation| PL
-    MM -->|TenantCreated → default configuration| PL
-    AA -->|TenantCreated → default AI configuration| PL
+    MM -->|TenantCreated → default configuration| AU
+    AA -->|TenantCreated → default AI configuration| AU
 
     CM -->|component lifecycle → component cache| AM
     CM -->|pillar, fit and maturity-scale configuration → caches| MM
@@ -101,8 +98,7 @@ flowchart LR
 
 | Upstream | Downstream | Relationship | Integration |
 |----------|-----------|--------------|-------------|
-| Platform | Auth, MetaModel, Arch Assistant | Customer-Supplier | `TenantCreated` into local caches and defaults; Auth invites the first admin by reacting to it |
-| Auth | every other context | Published Language | Permission constants and the auth middleware contract; `UserCreated` into name caches (Capability Mapping, Architecture Direction, OnePagers); `EnsureInvitation` command (Access Delegation) |
+| Auth | every other context | Published Language | Permission constants and the auth middleware contract; `UserCreated` into name caches (Capability Mapping, Architecture Direction, OnePagers); `TenantCreated` into local defaults (MetaModel, Arch Assistant) and Auth's own first-admin invitation; `EnsureInvitation` command (Access Delegation) |
 | Architecture Modeling | Capability Mapping, Architecture Views, Enterprise Architecture, Architecture Direction, Access Delegation, OnePagers | Customer-Supplier | Component / vendor / acquired-entity / team lifecycle events into local caches |
 | MetaModel | Capability Mapping, Enterprise Architecture, OnePagers | Published Language | Pillar, fit and maturity-scale configuration events into local caches |
 | Capability Mapping | Enterprise Architecture, Architecture Direction, Value Streams, Access Delegation, OnePagers | Customer-Supplier | Capability, domain, realization, dependency, fit and importance lifecycle events into local caches |

@@ -41,7 +41,7 @@ BEGIN
         'infrastructure', 'shared', 'architecturemodeling', 'architectureviews',
         'architecturedirection',
         'capabilitymapping', 'enterprisearchitecture', 'viewlayouts', 'importing',
-        'platform', 'auth', 'accessdelegation', 'metamodel', 'releases', 'valuestreams',
+        'auth', 'accessdelegation', 'metamodel', 'releases', 'valuestreams',
         'archassistant'
     ]
     LOOP

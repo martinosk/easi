@@ -11,21 +11,17 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 	"time"
 
-	authHandlers "easi/backend/internal/auth/application/handlers"
-	authProjectors "easi/backend/internal/auth/application/projectors"
-	authReadmodels "easi/backend/internal/auth/application/readmodels"
-	authRepositories "easi/backend/internal/auth/infrastructure/repositories"
+	"easi/backend/internal/auth/application/handlers"
+	"easi/backend/internal/auth/application/projectors"
+	"easi/backend/internal/auth/application/readmodels"
+	"easi/backend/internal/auth/infrastructure/repositories"
+	"easi/backend/internal/auth/infrastructure/secrets"
+	authPL "easi/backend/internal/auth/publishedlanguage"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
-	"easi/backend/internal/platform/application/handlers"
-	"easi/backend/internal/platform/infrastructure/repositories"
-	"easi/backend/internal/platform/infrastructure/secrets"
-	platformPL "easi/backend/internal/platform/publishedlanguage"
-	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
 
@@ -39,13 +35,6 @@ type platformTestContext struct {
 	db             *sql.DB
 	testID         string
 	createdTenants []string
-}
-
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
 }
 
 func setupPlatformTestDB(t *testing.T) (*platformTestContext, func()) {
@@ -75,12 +64,9 @@ func setupPlatformTestDB(t *testing.T) (*platformTestContext, func()) {
 	cleanup := func() {
 		for _, id := range ctx.createdTenants {
 			db.Exec("DELETE FROM auth.invitations WHERE tenant_id = $1", id)
-			db.Exec("DELETE FROM auth.tenant_oidc_cache WHERE tenant_id = $1", id)
-			db.Exec("DELETE FROM auth.tenant_domain_cache WHERE tenant_id = $1", id)
-			db.Exec("DELETE FROM auth.tenant_cache WHERE tenant_id = $1", id)
-			db.Exec("DELETE FROM platform.tenant_oidc_configs WHERE tenant_id = $1", id)
-			db.Exec("DELETE FROM platform.tenant_domains WHERE tenant_id = $1", id)
-			db.Exec("DELETE FROM platform.tenants WHERE id = $1", id)
+			db.Exec("DELETE FROM auth.tenant_oidc_configs WHERE tenant_id = $1", id)
+			db.Exec("DELETE FROM auth.tenant_domains WHERE tenant_id = $1", id)
+			db.Exec("DELETE FROM auth.tenants WHERE id = $1", id)
 		}
 		db.Close()
 	}
@@ -109,25 +95,23 @@ func setupPlatformHandlers(db *sql.DB) chi.Router {
 
 	commandBus.Register("CreateTenant", handlers.NewCreateTenantHandler(tenantRepo, evStore))
 
-	tenantCache := authReadmodels.NewTenantCacheReadModel(db)
-	eventBus.Subscribe(platformPL.TenantCreated, authProjectors.NewTenantCacheProjector(tenantCache))
-	eventBus.Subscribe(platformPL.TenantCreated, authHandlers.NewTenantCreatedReactor(commandBus))
+	eventBus.Subscribe(authPL.TenantCreated, handlers.NewTenantCreatedReactor(commandBus))
 
-	invitationReadModel := authReadmodels.NewInvitationReadModel(tenantDB)
-	invitationProjector := authProjectors.NewInvitationProjector(invitationReadModel)
+	invitationReadModel := readmodels.NewInvitationReadModel(tenantDB)
+	invitationProjector := projectors.NewInvitationProjector(invitationReadModel)
 	eventBus.Subscribe("InvitationCreated", invitationProjector)
 	eventBus.Subscribe("InvitationAccepted", invitationProjector)
 	eventBus.Subscribe("InvitationRevoked", invitationProjector)
 	eventBus.Subscribe("InvitationExpired", invitationProjector)
 
-	invitationRepo := authRepositories.NewInvitationRepository(evStore)
-	commandBus.Register("CreateInvitation", authHandlers.NewCreateInvitationHandler(invitationRepo))
+	invitationRepo := repositories.NewInvitationRepository(evStore)
+	commandBus.Register("CreateInvitation", handlers.NewCreateInvitationHandler(invitationRepo))
 
 	secretProvider := secrets.NewEnvSecretProvider("OIDC_CLIENT_SECRET")
-	tenantHandlers := NewTenantHandlers(commandBus, tenantRepo, secretProvider)
+	tenantHandlers := NewPlatformTenantHandlers(commandBus, tenantRepo, secretProvider)
 
 	r := chi.NewRouter()
-	r.Use(sharedAPI.PlatformAdminMiddleware("test-api-key"))
+	r.Use(PlatformAdminMiddleware("test-api-key"))
 	r.Post("/tenants", tenantHandlers.CreateTenant)
 	r.Get("/tenants", tenantHandlers.ListTenants)
 	r.Get("/tenants/{id}", tenantHandlers.GetTenantByID)
@@ -247,12 +231,12 @@ func TestCreateTenant_Integration(t *testing.T) {
 	assert.Contains(t, response.Links["self"].Href, tenantID)
 
 	var exists bool
-	err = ctx.db.QueryRow("SELECT EXISTS(SELECT 1 FROM platform.tenants WHERE id = $1)", tenantID).Scan(&exists)
+	err = ctx.db.QueryRow("SELECT EXISTS(SELECT 1 FROM auth.tenants WHERE id = $1)", tenantID).Scan(&exists)
 	require.NoError(t, err)
 	assert.True(t, exists)
 
 	var domainCount int
-	err = ctx.db.QueryRow("SELECT COUNT(*) FROM platform.tenant_domains WHERE tenant_id = $1", tenantID).Scan(&domainCount)
+	err = ctx.db.QueryRow("SELECT COUNT(*) FROM auth.tenant_domains WHERE tenant_id = $1", tenantID).Scan(&domainCount)
 	require.NoError(t, err)
 	assert.Equal(t, 1, domainCount)
 
