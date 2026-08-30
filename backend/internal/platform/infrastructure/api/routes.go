@@ -6,6 +6,7 @@ import (
 
 	"easi/backend/internal/infrastructure/api/middleware"
 	"easi/backend/internal/infrastructure/database"
+	"easi/backend/internal/infrastructure/eventstore"
 	"easi/backend/internal/platform/application/handlers"
 	"easi/backend/internal/platform/infrastructure/repositories"
 	"easi/backend/internal/platform/infrastructure/secrets"
@@ -27,7 +28,10 @@ type PlatformRoutesDeps struct {
 func SetupPlatformRoutes(deps PlatformRoutesDeps) error {
 	tenantRepo := repositories.NewTenantRepository(deps.RawDB)
 
-	createTenantHandler := handlers.NewCreateTenantHandler(tenantRepo, deps.EventBus)
+	tenantEventStore := eventstore.NewPostgresEventStore(deps.TenantDB)
+	tenantEventStore.SetEventBus(deps.EventBus)
+
+	createTenantHandler := handlers.NewCreateTenantHandler(tenantRepo, tenantEventStore)
 	deps.CommandBus.Register("CreateTenant", createTenantHandler)
 
 	secretProvider := secrets.NewEnvSecretProvider("OIDC_CLIENT_SECRET")

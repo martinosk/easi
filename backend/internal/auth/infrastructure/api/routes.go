@@ -15,6 +15,7 @@ import (
 	"easi/backend/internal/auth/infrastructure/repositories"
 	"easi/backend/internal/auth/infrastructure/session"
 	authPL "easi/backend/internal/auth/publishedlanguage"
+	sharedMiddleware "easi/backend/internal/infrastructure/api/middleware"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
 	platformPL "easi/backend/internal/platform/publishedlanguage"
@@ -140,7 +141,9 @@ func registerTenantEventSubscriptions(eventBus events.EventBus, commandBus cqrs.
 }
 
 func registerPlatformInvitationRoute(r chi.Router, platformAdminKey string, h *PlatformInvitationHandlers) {
+	rateLimiter := sharedMiddleware.NewRateLimiter(100, 60)
 	r.Group(func(r chi.Router) {
+		r.Use(sharedMiddleware.RateLimitMiddleware(rateLimiter))
 		r.Use(sharedAPI.PlatformAdminMiddleware(platformAdminKey))
 		r.Post("/invitations", h.CreateInvitation)
 	})

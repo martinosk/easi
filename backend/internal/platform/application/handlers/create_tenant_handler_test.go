@@ -8,7 +8,6 @@ import (
 	"easi/backend/internal/platform/application/commands"
 	"easi/backend/internal/platform/infrastructure/repositories"
 	sharedctx "easi/backend/internal/shared/context"
-	"easi/backend/internal/shared/events"
 	domain "easi/backend/internal/shared/eventsourcing"
 
 	"github.com/stretchr/testify/assert"
@@ -28,17 +27,37 @@ func (s *recordingTenantStore) Create(_ context.Context, record repositories.Ten
 	return nil
 }
 
-type recordingSubscriber struct {
-	events   []domain.DomainEvent
-	tenantID string
+type savedTenantEvents struct {
+	aggregateID     string
+	events          []domain.DomainEvent
+	expectedVersion int
+	tenantID        string
 }
 
-func (s *recordingSubscriber) Handle(ctx context.Context, event domain.DomainEvent) error {
-	s.events = append(s.events, event)
-	if tenant, err := sharedctx.GetTenant(ctx); err == nil {
-		s.tenantID = tenant.Value()
+type fakeTenantEventStore struct {
+	saved   []savedTenantEvents
+	saveErr error
+}
+
+func (s *fakeTenantEventStore) SaveEvents(ctx context.Context, aggregateID string, evts []domain.DomainEvent, expectedVersion int) error {
+	if s.saveErr != nil {
+		return s.saveErr
 	}
+	tenantID := ""
+	if tenant, err := sharedctx.GetTenant(ctx); err == nil {
+		tenantID = tenant.Value()
+	}
+	s.saved = append(s.saved, savedTenantEvents{
+		aggregateID:     aggregateID,
+		events:          evts,
+		expectedVersion: expectedVersion,
+		tenantID:        tenantID,
+	})
 	return nil
+}
+
+func (s *fakeTenantEventStore) GetEvents(_ context.Context, _ string) ([]domain.DomainEvent, error) {
+	return nil, nil
 }
 
 func validCreateTenantCommand() *commands.CreateTenant {
@@ -54,25 +73,28 @@ func validCreateTenantCommand() *commands.CreateTenant {
 	}
 }
 
-func setupCreateTenantHandler() (*CreateTenantHandler, *recordingTenantStore, *recordingSubscriber) {
+func setupCreateTenantHandler() (*CreateTenantHandler, *recordingTenantStore, *fakeTenantEventStore) {
 	store := &recordingTenantStore{}
-	subscriber := &recordingSubscriber{}
-	eventBus := events.NewInMemoryEventBus()
-	eventBus.Subscribe("TenantCreated", subscriber)
-	return NewCreateTenantHandler(store, eventBus), store, subscriber
+	eventStore := &fakeTenantEventStore{}
+	return NewCreateTenantHandler(store, eventStore), store, eventStore
 }
 
-func TestCreateTenantHandler_PublishesTenantCreatedWithOIDCConfiguration(t *testing.T) {
-	handler, store, subscriber := setupCreateTenantHandler()
+func TestCreateTenantHandler_PersistsTenantCreatedThroughTheEventStore(t *testing.T) {
+	handler, store, eventStore := setupCreateTenantHandler()
 
 	result, err := handler.Handle(context.Background(), validCreateTenantCommand())
 
 	require.NoError(t, err)
 	assert.Equal(t, "acme", result.CreatedID)
 	require.Len(t, store.records, 1)
-	require.Len(t, subscriber.events, 1)
+	require.Len(t, eventStore.saved, 1)
 
-	data := subscriber.events[0].EventData()
+	saved := eventStore.saved[0]
+	assert.Equal(t, "acme", saved.aggregateID)
+	assert.Equal(t, 0, saved.expectedVersion)
+	require.Len(t, saved.events, 1)
+
+	data := saved.events[0].EventData()
 	assert.Equal(t, "acme", data["id"])
 	assert.Equal(t, "admin@acme.com", data["firstAdminEmail"])
 	assert.Equal(t, "https://login.example.com/v2.0/.well-known/openid-configuration", data["discoveryUrl"])
@@ -81,24 +103,34 @@ func TestCreateTenantHandler_PublishesTenantCreatedWithOIDCConfiguration(t *test
 	assert.Equal(t, "openid email profile", data["scopes"])
 }
 
-func TestCreateTenantHandler_PublishesInTheTenantsOwnContext(t *testing.T) {
-	handler, _, subscriber := setupCreateTenantHandler()
+func TestCreateTenantHandler_SavesEventsInTheTenantsOwnContext(t *testing.T) {
+	handler, _, eventStore := setupCreateTenantHandler()
 
 	_, err := handler.Handle(context.Background(), validCreateTenantCommand())
 
 	require.NoError(t, err)
-	assert.Equal(t, "acme", subscriber.tenantID)
+	require.Len(t, eventStore.saved, 1)
+	assert.Equal(t, "acme", eventStore.saved[0].tenantID)
 }
 
-func TestCreateTenantHandler_DoesNotPublishWhenPersistenceFails(t *testing.T) {
-	subscriber := &recordingSubscriber{}
-	eventBus := events.NewInMemoryEventBus()
-	eventBus.Subscribe("TenantCreated", subscriber)
+func TestCreateTenantHandler_DoesNotSaveEventsWhenRelationalWriteFails(t *testing.T) {
 	store := &recordingTenantStore{err: errors.New("duplicate tenant")}
-	handler := NewCreateTenantHandler(store, eventBus)
+	eventStore := &fakeTenantEventStore{}
+	handler := NewCreateTenantHandler(store, eventStore)
 
 	_, err := handler.Handle(context.Background(), validCreateTenantCommand())
 
 	require.Error(t, err)
-	assert.Empty(t, subscriber.events)
+	assert.Empty(t, eventStore.saved)
+}
+
+func TestCreateTenantHandler_FailsWhenEventStoreCannotPersist(t *testing.T) {
+	store := &recordingTenantStore{}
+	eventStore := &fakeTenantEventStore{saveErr: errors.New("db unavailable")}
+	handler := NewCreateTenantHandler(store, eventStore)
+
+	_, err := handler.Handle(context.Background(), validCreateTenantCommand())
+
+	require.Error(t, err)
+	require.Len(t, store.records, 1)
 }

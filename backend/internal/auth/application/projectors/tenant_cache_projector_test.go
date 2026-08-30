@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"easi/backend/internal/auth/application/readmodels"
-	platformEvents "easi/backend/internal/platform/domain/events"
+	platformPL "easi/backend/internal/platform/publishedlanguage"
+	domain "easi/backend/internal/shared/eventsourcing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,21 +27,33 @@ func (c *fakeTenantCache) Save(_ context.Context, entry readmodels.TenantCacheEn
 	return nil
 }
 
-func tenantCreatedEvent() platformEvents.TenantCreated {
-	return platformEvents.NewTenantCreated(platformEvents.TenantDetails{
-		ID:              "acme",
-		Name:            "Acme Corporation",
-		Status:          "active",
-		Domains:         []string{"acme.com", "acme.co.uk"},
-		FirstAdminEmail: "admin@acme.com",
-		OIDC: platformEvents.TenantOIDC{
-			DiscoveryURL: "https://login.example.com/v2.0/.well-known/openid-configuration",
-			IssuerURL:    "https://login.example.com/v2.0",
-			ClientID:     "client-id",
-			AuthMethod:   "client_secret",
-			Scopes:       "openid email profile",
+type supplierEvent struct {
+	aggregateID string
+	eventType   string
+	data        map[string]interface{}
+}
+
+func (e supplierEvent) AggregateID() string               { return e.aggregateID }
+func (e supplierEvent) EventType() string                 { return e.eventType }
+func (e supplierEvent) OccurredAt() time.Time             { return time.Now() }
+func (e supplierEvent) EventData() map[string]interface{} { return e.data }
+
+func tenantCreatedEvent() domain.DomainEvent {
+	return supplierEvent{
+		aggregateID: "acme",
+		eventType:   platformPL.TenantCreated,
+		data: map[string]interface{}{
+			"id":              "acme",
+			"name":            "Acme Corporation",
+			"status":          "active",
+			"domains":         []string{"acme.com", "acme.co.uk"},
+			"firstAdminEmail": "admin@acme.com",
+			"discoveryUrl":    "https://login.example.com/v2.0/.well-known/openid-configuration",
+			"clientId":        "client-id",
+			"authMethod":      "client_secret",
+			"scopes":          "openid email profile",
 		},
-	})
+	}
 }
 
 func TestTenantCacheProjector_StoresTenantDomainsAndOIDCConfiguration(t *testing.T) {
@@ -56,7 +70,6 @@ func TestTenantCacheProjector_StoresTenantDomainsAndOIDCConfiguration(t *testing
 	assert.Equal(t, "active", entry.Status)
 	assert.Equal(t, []string{"acme.com", "acme.co.uk"}, entry.Domains)
 	assert.Equal(t, "https://login.example.com/v2.0/.well-known/openid-configuration", entry.DiscoveryURL)
-	assert.Equal(t, "https://login.example.com/v2.0", entry.IssuerURL)
 	assert.Equal(t, "client-id", entry.ClientID)
 	assert.Equal(t, "client_secret", entry.AuthMethod)
 	assert.Equal(t, "openid email profile", entry.Scopes)

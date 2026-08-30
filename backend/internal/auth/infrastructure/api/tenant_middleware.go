@@ -20,10 +20,6 @@ type UserRoleLookup interface {
 	GetRoleByUserID(ctx context.Context, userID string) (string, error)
 }
 
-func TenantMiddleware() func(http.Handler) http.Handler {
-	return TenantMiddlewareWithSession(nil, nil)
-}
-
 func TenantMiddlewareWithSession(sessionManager *session.SessionManager, userRoleLookup UserRoleLookup) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -206,27 +202,4 @@ func logTenantContext(r *http.Request, tenantID sharedvo.TenantID) {
 		middleware.RequestClientIP(r),
 		r.UserAgent(),
 	)
-}
-
-func RequireTenant() func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			_, err := sharedctx.GetTenant(r.Context())
-			if err != nil {
-				log.Printf("Request missing tenant context: %v", err)
-				http.Error(w, "Tenant context required", http.StatusBadRequest)
-				return
-			}
-
-			next.ServeHTTP(w, r)
-		})
-	}
-}
-
-func ExtractTenantID(ctx context.Context) (string, error) {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return "", fmt.Errorf("tenant context not found: %w", err)
-	}
-	return tenantID.Value(), nil
 }

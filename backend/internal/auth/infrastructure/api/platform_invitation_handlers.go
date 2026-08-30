@@ -78,7 +78,6 @@ func (h *PlatformInvitationHandlers) CreateInvitation(w http.ResponseWriter, r *
 		return
 	}
 
-	w.Header().Set("Location", "/api/v1/invitations/"+result.CreatedID)
 	sharedAPI.RespondJSON(w, http.StatusCreated, map[string]string{
 		"id":       result.CreatedID,
 		"tenantId": tenantID.Value(),

@@ -28,7 +28,6 @@ type tenantCreatedEventData struct {
 	Status       string   `json:"status"`
 	Domains      []string `json:"domains"`
 	DiscoveryURL string   `json:"discoveryUrl"`
-	IssuerURL    string   `json:"issuerUrl"`
 	ClientID     string   `json:"clientId"`
 	AuthMethod   string   `json:"authMethod"`
 	Scopes       string   `json:"scopes"`
@@ -55,7 +54,6 @@ func (p *TenantCacheProjector) Handle(ctx context.Context, event domain.DomainEv
 		Status:       data.Status,
 		Domains:      data.Domains,
 		DiscoveryURL: data.DiscoveryURL,
-		IssuerURL:    data.IssuerURL,
 		ClientID:     data.ClientID,
 		AuthMethod:   data.AuthMethod,
 		Scopes:       data.Scopes,

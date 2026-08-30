@@ -123,7 +123,8 @@ func TestNewTenant_TenantCreatedCarriesOIDCConfiguration(t *testing.T) {
 	require.NoError(t, err)
 	data := tenant.GetUncommittedChanges()[0].EventData()
 	assert.Equal(t, "https://login.microsoftonline.com/xxx/v2.0/.well-known/openid-configuration", data["discoveryUrl"])
-	assert.Equal(t, "", data["issuerUrl"])
+	_, hasIssuerURL := data["issuerUrl"]
+	assert.False(t, hasIssuerURL)
 	assert.Equal(t, "client-id", data["clientId"])
 	assert.Equal(t, "private_key_jwt", data["authMethod"])
 	assert.Equal(t, "openid email profile", data["scopes"])

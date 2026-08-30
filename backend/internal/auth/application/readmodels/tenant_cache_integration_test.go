@@ -47,7 +47,6 @@ func cachedTestTenant() TenantCacheEntry {
 		Status:       "active",
 		Domains:      []string{"auth-cache-test.com"},
 		DiscoveryURL: "https://login.example.com/v2.0/.well-known/openid-configuration",
-		IssuerURL:    "https://login.example.com/v2.0",
 		ClientID:     "client-id",
 		AuthMethod:   "client_secret",
 		Scopes:       "openid email profile",

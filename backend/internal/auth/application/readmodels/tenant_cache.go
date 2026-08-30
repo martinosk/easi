@@ -12,7 +12,6 @@ type TenantCacheEntry struct {
 	Status       string
 	Domains      []string
 	DiscoveryURL string
-	IssuerURL    string
 	ClientID     string
 	AuthMethod   string
 	Scopes       string
@@ -79,15 +78,14 @@ func upsertTenantDomains(ctx context.Context, tx *sql.Tx, entry TenantCacheEntry
 
 func upsertTenantOIDC(ctx context.Context, tx *sql.Tx, entry TenantCacheEntry) error {
 	_, err := tx.ExecContext(ctx,
-		`INSERT INTO auth.tenant_oidc_cache (tenant_id, discovery_url, issuer_url, client_id, auth_method, scopes)
-		 VALUES ($1, $2, $3, $4, $5, $6)
+		`INSERT INTO auth.tenant_oidc_cache (tenant_id, discovery_url, client_id, auth_method, scopes)
+		 VALUES ($1, $2, $3, $4, $5)
 		 ON CONFLICT (tenant_id) DO UPDATE SET
 		     discovery_url = EXCLUDED.discovery_url,
-		     issuer_url = EXCLUDED.issuer_url,
 		     client_id = EXCLUDED.client_id,
 		     auth_method = EXCLUDED.auth_method,
 		     scopes = EXCLUDED.scopes`,
-		entry.TenantID, entry.DiscoveryURL, nullIfEmpty(entry.IssuerURL),
+		entry.TenantID, entry.DiscoveryURL,
 		entry.ClientID, entry.AuthMethod, entry.Scopes,
 	)
 	if err != nil {
@@ -106,11 +104,4 @@ func (rm *TenantCacheReadModel) Exists(ctx context.Context, tenantID string) (bo
 		return false, fmt.Errorf("look up cached tenant %s: %w", tenantID, err)
 	}
 	return exists, nil
-}
-
-func nullIfEmpty(value string) interface{} {
-	if value == "" {
-		return nil
-	}
-	return value
 }

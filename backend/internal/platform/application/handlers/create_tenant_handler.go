@@ -5,14 +5,13 @@ import (
 	"fmt"
 	"time"
 
+	"easi/backend/internal/infrastructure/eventstore"
 	"easi/backend/internal/platform/application/commands"
 	"easi/backend/internal/platform/domain/aggregates"
 	"easi/backend/internal/platform/domain/valueobjects"
 	"easi/backend/internal/platform/infrastructure/repositories"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
-	"easi/backend/internal/shared/events"
-	domain "easi/backend/internal/shared/eventsourcing"
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 )
 
@@ -22,11 +21,11 @@ type TenantStore interface {
 
 type CreateTenantHandler struct {
 	repository TenantStore
-	eventBus   events.EventBus
+	eventStore eventstore.EventStore
 }
 
-func NewCreateTenantHandler(repository TenantStore, eventBus events.EventBus) *CreateTenantHandler {
-	return &CreateTenantHandler{repository: repository, eventBus: eventBus}
+func NewCreateTenantHandler(repository TenantStore, eventStore eventstore.EventStore) *CreateTenantHandler {
+	return &CreateTenantHandler{repository: repository, eventStore: eventStore}
 }
 
 func (h *CreateTenantHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
@@ -45,11 +44,13 @@ func (h *CreateTenantHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqr
 		return cqrs.EmptyResult(), err
 	}
 
-	if err := h.repository.Create(ctx, buildTenantRecord(registration)); err != nil {
+	tenantCtx := sharedctx.WithTenant(ctx, registration.ID)
+
+	if err := h.repository.Create(tenantCtx, buildTenantRecord(registration)); err != nil {
 		return cqrs.EmptyResult(), err
 	}
 
-	if err := h.publishTenantCreated(ctx, registration.ID, tenant.GetUncommittedChanges()); err != nil {
+	if err := h.saveTenantCreated(tenantCtx, registration.ID, tenant); err != nil {
 		return cqrs.EmptyResult(), err
 	}
 
@@ -108,9 +109,13 @@ func buildTenantRecord(registration aggregates.TenantRegistration) repositories.
 	}
 }
 
-func (h *CreateTenantHandler) publishTenantCreated(ctx context.Context, tenantID sharedvo.TenantID, evts []domain.DomainEvent) error {
-	if err := h.eventBus.Publish(sharedctx.WithTenant(ctx, tenantID), evts); err != nil {
-		return fmt.Errorf("publish TenantCreated %s: %w", tenantID.Value(), err)
+func (h *CreateTenantHandler) saveTenantCreated(ctx context.Context, tenantID sharedvo.TenantID, tenant *aggregates.Tenant) error {
+	changes := tenant.GetUncommittedChanges()
+	expectedVersion := tenant.Version() - len(changes)
+
+	if err := h.eventStore.SaveEvents(ctx, tenantID.Value(), changes, expectedVersion); err != nil {
+		return fmt.Errorf("save TenantCreated %s: %w", tenantID.Value(), err)
 	}
+	tenant.MarkChangesAsCommitted()
 	return nil
 }

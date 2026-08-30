@@ -3,11 +3,13 @@ package handlers
 import (
 	"context"
 	"testing"
+	"time"
 
 	"easi/backend/internal/auth/application/commands"
-	platformEvents "easi/backend/internal/platform/domain/events"
+	platformPL "easi/backend/internal/platform/publishedlanguage"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
+	domain "easi/backend/internal/shared/eventsourcing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -28,14 +30,29 @@ func (b *recordingCommandBus) Dispatch(ctx context.Context, cmd cqrs.Command) (c
 	return cqrs.NewResult("invitation-1"), nil
 }
 
-func tenantCreated(firstAdminEmail string) platformEvents.TenantCreated {
-	return platformEvents.NewTenantCreated(platformEvents.TenantDetails{
-		ID:              "acme",
-		Name:            "Acme Corporation",
-		Status:          "active",
-		Domains:         []string{"acme.com"},
-		FirstAdminEmail: firstAdminEmail,
-	})
+type supplierEvent struct {
+	aggregateID string
+	eventType   string
+	data        map[string]interface{}
+}
+
+func (e supplierEvent) AggregateID() string               { return e.aggregateID }
+func (e supplierEvent) EventType() string                 { return e.eventType }
+func (e supplierEvent) OccurredAt() time.Time             { return time.Now() }
+func (e supplierEvent) EventData() map[string]interface{} { return e.data }
+
+func tenantCreated(firstAdminEmail string) domain.DomainEvent {
+	return supplierEvent{
+		aggregateID: "acme",
+		eventType:   platformPL.TenantCreated,
+		data: map[string]interface{}{
+			"id":              "acme",
+			"name":            "Acme Corporation",
+			"status":          "active",
+			"domains":         []string{"acme.com"},
+			"firstAdminEmail": firstAdminEmail,
+		},
+	}
 }
 
 func TestTenantCreatedReactor_InvitesFirstAdminInTenantContext(t *testing.T) {

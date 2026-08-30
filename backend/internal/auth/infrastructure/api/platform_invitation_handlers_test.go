@@ -73,7 +73,7 @@ func TestPlatformInvitationHandlers_CreatesInvitationInTheNamedTenant(t *testing
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
 	assert.Equal(t, "invitation-42", body["id"])
 	assert.Equal(t, "acme", body["tenantId"])
-	assert.Equal(t, "/api/v1/invitations/invitation-42", w.Header().Get("Location"))
+	assert.Empty(t, w.Header().Get("Location"))
 }
 
 func TestPlatformInvitationHandlers_DefaultsRoleToAdmin(t *testing.T) {

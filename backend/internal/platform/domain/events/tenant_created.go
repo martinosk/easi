@@ -7,7 +7,6 @@ import (
 
 type TenantOIDC struct {
 	DiscoveryURL string
-	IssuerURL    string
 	ClientID     string
 	AuthMethod   string
 	Scopes       string
@@ -21,7 +20,6 @@ type TenantCreated struct {
 	Domains         []string  `json:"domains"`
 	FirstAdminEmail string    `json:"firstAdminEmail"`
 	DiscoveryURL    string    `json:"discoveryUrl"`
-	IssuerURL       string    `json:"issuerUrl"`
 	ClientID        string    `json:"clientId"`
 	AuthMethod      string    `json:"authMethod"`
 	Scopes          string    `json:"scopes"`
@@ -46,7 +44,6 @@ func NewTenantCreated(details TenantDetails) TenantCreated {
 		Domains:         details.Domains,
 		FirstAdminEmail: details.FirstAdminEmail,
 		DiscoveryURL:    details.OIDC.DiscoveryURL,
-		IssuerURL:       details.OIDC.IssuerURL,
 		ClientID:        details.OIDC.ClientID,
 		AuthMethod:      details.OIDC.AuthMethod,
 		Scopes:          details.OIDC.Scopes,
@@ -66,7 +63,6 @@ func (e TenantCreated) EventData() map[string]interface{} {
 		"domains":         e.Domains,
 		"firstAdminEmail": e.FirstAdminEmail,
 		"discoveryUrl":    e.DiscoveryURL,
-		"issuerUrl":       e.IssuerURL,
 		"clientId":        e.ClientID,
 		"authMethod":      e.AuthMethod,
 		"scopes":          e.Scopes,
