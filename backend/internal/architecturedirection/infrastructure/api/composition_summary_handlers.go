@@ -5,18 +5,14 @@ import (
 	"net/http"
 	"sort"
 
+	appservices "easi/backend/internal/architecturedirection/application/services"
 	domainservices "easi/backend/internal/architecturedirection/domain/services"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/types"
 )
 
 type CompositionSummarySource interface {
-	CountsForAll(ctx context.Context) (map[string]domainservices.CompositionCounts, error)
-	DirectionStatusByEC(ctx context.Context) (map[string]string, error)
-}
-
-type EnterpriseCapabilityNames interface {
-	ActiveEnterpriseCapabilityNames(ctx context.Context) (map[string]string, error)
+	SummariesForAll(ctx context.Context) (appservices.CompositionSummaries, error)
 }
 
 type CompositionSummaryDTO struct {
@@ -37,12 +33,11 @@ type CompositionSummariesResponse struct {
 
 type CompositionSummaryHandlers struct {
 	compositions CompositionSummarySource
-	capabilities EnterpriseCapabilityNames
 	hateoas      *sharedAPI.HATEOASLinks
 }
 
-func NewCompositionSummaryHandlers(compositions CompositionSummarySource, capabilities EnterpriseCapabilityNames, hateoas *sharedAPI.HATEOASLinks) *CompositionSummaryHandlers {
-	return &CompositionSummaryHandlers{compositions: compositions, capabilities: capabilities, hateoas: hateoas}
+func NewCompositionSummaryHandlers(compositions CompositionSummarySource, hateoas *sharedAPI.HATEOASLinks) *CompositionSummaryHandlers {
+	return &CompositionSummaryHandlers{compositions: compositions, hateoas: hateoas}
 }
 
 // GetCompositionSummaries godoc
@@ -57,24 +52,14 @@ func NewCompositionSummaryHandlers(compositions CompositionSummarySource, capabi
 // @Security CookieAuth
 // @Router /enterprise-capability-compositions [get]
 func (h *CompositionSummaryHandlers) GetCompositionSummaries(w http.ResponseWriter, r *http.Request) {
-	names, err := h.capabilities.ActiveEnterpriseCapabilityNames(r.Context())
+	summaries, err := h.compositions.SummariesForAll(r.Context())
 	if err != nil {
 		sharedAPI.HandleError(w, err)
 		return
 	}
-	counts, err := h.compositions.CountsForAll(r.Context())
-	if err != nil {
-		sharedAPI.HandleError(w, err)
-		return
-	}
-	statuses, err := h.compositions.DirectionStatusByEC(r.Context())
-	if err != nil {
-		sharedAPI.HandleError(w, err)
-		return
-	}
-	data := make([]CompositionSummaryDTO, 0, len(names))
-	for ecID := range names {
-		data = append(data, h.summary(ecID, counts[ecID], statuses[ecID]))
+	data := make([]CompositionSummaryDTO, 0, len(summaries.EnterpriseCapabilityIDs))
+	for _, ecID := range summaries.EnterpriseCapabilityIDs {
+		data = append(data, h.summary(ecID, summaries.Counts[ecID], summaries.Statuses[ecID]))
 	}
 	sort.Slice(data, func(i, j int) bool { return data[i].EnterpriseCapabilityID < data[j].EnterpriseCapabilityID })
 	sharedAPI.RespondJSON(w, http.StatusOK, CompositionSummariesResponse{

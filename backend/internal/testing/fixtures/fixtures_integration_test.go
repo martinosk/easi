@@ -65,6 +65,46 @@ func TestApplicationFixtures_CreateComponent(t *testing.T) {
 	assert.Equal(t, "CRM System", component.Name)
 }
 
+func TestTestContext_Cleanup_RemovesArchitectureDirectionCacheRows(t *testing.T) {
+	tc := NewTestContext(t)
+	id := "ad-cache-cleanup-" + tc.TenantID.Value()
+	tc.TrackID(id)
+	tc.setTenantContext()
+
+	_, err := tc.DB.Exec(
+		`INSERT INTO architecturedirection.capability_node_cache (tenant_id, capability_id, capability_name, capability_level, l1_capability_id, maturity_value) VALUES ($1, $2, 'Cleanup Test', 'L1', $2, 12)`,
+		tc.TenantID.Value(), id,
+	)
+	require.NoError(t, err)
+	_, err = tc.DB.Exec(
+		`INSERT INTO architecturedirection.enterprise_capability_cache (tenant_id, id, name, active) VALUES ($1, $2, 'Cleanup Test', true)`,
+		tc.TenantID.Value(), id,
+	)
+	require.NoError(t, err)
+	_, err = tc.DB.Exec(
+		`INSERT INTO architecturedirection.realization_cache (tenant_id, realization_id, capability_id, component_id) VALUES ($1, $2, $2, $2)`,
+		tc.TenantID.Value(), id,
+	)
+	require.NoError(t, err)
+	_, err = tc.DB.Exec(
+		`INSERT INTO architecturedirection.reference_name_cache (tenant_id, entity_type, entity_id, name) VALUES ($1, 'application', $2, 'Cleanup Test')`,
+		tc.TenantID.Value(), id,
+	)
+	require.NoError(t, err)
+
+	tc.cleanup()
+
+	var count int
+	require.NoError(t, tc.DB.QueryRow(`SELECT COUNT(*) FROM architecturedirection.capability_node_cache WHERE capability_id = $1`, id).Scan(&count))
+	assert.Zero(t, count, "capability_node_cache row must be cleaned up")
+	require.NoError(t, tc.DB.QueryRow(`SELECT COUNT(*) FROM architecturedirection.enterprise_capability_cache WHERE id = $1`, id).Scan(&count))
+	assert.Zero(t, count, "enterprise_capability_cache row must be cleaned up")
+	require.NoError(t, tc.DB.QueryRow(`SELECT COUNT(*) FROM architecturedirection.realization_cache WHERE realization_id = $1`, id).Scan(&count))
+	assert.Zero(t, count, "realization_cache row must be cleaned up")
+	require.NoError(t, tc.DB.QueryRow(`SELECT COUNT(*) FROM architecturedirection.reference_name_cache WHERE entity_id = $1`, id).Scan(&count))
+	assert.Zero(t, count, "reference_name_cache row must be cleaned up")
+}
+
 func TestCombinedFixtures_FullScenario(t *testing.T) {
 	tc := NewTestContext(t)
 	cf := NewCapabilityFixtures(tc)

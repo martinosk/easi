@@ -90,6 +90,13 @@ type compositionInputs struct {
 	directions   []domainservices.ActiveDirectionSources
 	capabilities []domainservices.CapabilityNode
 	statusByEC   map[string]string
+	ecNames      map[string]string
+}
+
+type CompositionSummaries struct {
+	EnterpriseCapabilityIDs []string
+	Counts                  map[string]domainservices.CompositionCounts
+	Statuses                map[string]string
 }
 
 func (s *CompositionService) CompositionForEC(ctx context.Context, ecID string) (CompositionResult, error) {
@@ -107,25 +114,22 @@ func (s *CompositionService) CompositionForEC(ctx context.Context, ecID string) 
 	}, nil
 }
 
-func (s *CompositionService) CountsForAll(ctx context.Context) (map[string]domainservices.CompositionCounts, error) {
+func (s *CompositionService) SummariesForAll(ctx context.Context) (CompositionSummaries, error) {
 	inputs, err := s.loadInputs(ctx)
 	if err != nil {
-		return nil, err
+		return CompositionSummaries{}, err
 	}
+	index := domainservices.BuildCapabilityIndex(inputs.capabilities)
 	counts := make(map[string]domainservices.CompositionCounts, len(inputs.directions))
 	for _, d := range inputs.directions {
-		resolved := domainservices.ResolveComposition(d.EnterpriseCapabilityID, inputs.directions, inputs.capabilities)
+		resolved := domainservices.ResolveCompositionWithIndex(d.EnterpriseCapabilityID, inputs.directions, index)
 		counts[d.EnterpriseCapabilityID] = domainservices.CountComposition(len(d.SourceCapabilityIDs), resolved)
 	}
-	return counts, nil
-}
-
-func (s *CompositionService) DirectionStatusByEC(ctx context.Context) (map[string]string, error) {
-	inputs, err := s.loadInputs(ctx)
-	if err != nil {
-		return nil, err
+	ecIDs := make([]string, 0, len(inputs.ecNames))
+	for ecID := range inputs.ecNames {
+		ecIDs = append(ecIDs, ecID)
 	}
-	return inputs.statusByEC, nil
+	return CompositionSummaries{EnterpriseCapabilityIDs: ecIDs, Counts: counts, Statuses: inputs.statusByEC}, nil
 }
 
 func (s *CompositionService) IncludedCapabilityIDsByEC(ctx context.Context) (map[string][]string, error) {
@@ -249,7 +253,7 @@ func (s *CompositionService) loadInputs(ctx context.Context) (compositionInputs,
 		})
 		statusByEC[d.EnterpriseCapabilityID] = d.Status
 	}
-	return compositionInputs{directions: active, capabilities: capabilities, statusByEC: statusByEC}, nil
+	return compositionInputs{directions: active, capabilities: capabilities, statusByEC: statusByEC, ecNames: ecNames}, nil
 }
 
 func evaluateEligibility(capabilityID, ecID string, others []domainservices.ActiveDirectionSources) SourceEligibility {

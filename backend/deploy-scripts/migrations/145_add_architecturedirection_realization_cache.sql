@@ -4,10 +4,11 @@
 --              request-time read of Capability Mapping's realization read model. Also repairs
 --              capability_node_cache.maturity_value, which was nullable and never written on
 --              CapabilityCreated, so maturity analysis failed to scan rows created after
---              migration 137.
+--              migration 137. Capability Mapping's true default maturity is Genesis (12), so the
+--              NULL rows left behind by the old projector are backfilled to 12, not 0.
 
-UPDATE architecturedirection.capability_node_cache SET maturity_value = 0 WHERE maturity_value IS NULL;
-ALTER TABLE architecturedirection.capability_node_cache ALTER COLUMN maturity_value SET DEFAULT 0;
+UPDATE architecturedirection.capability_node_cache SET maturity_value = 12 WHERE maturity_value IS NULL;
+ALTER TABLE architecturedirection.capability_node_cache ALTER COLUMN maturity_value SET DEFAULT 12;
 ALTER TABLE architecturedirection.capability_node_cache ALTER COLUMN maturity_value SET NOT NULL;
 
 CREATE TABLE IF NOT EXISTS architecturedirection.realization_cache (

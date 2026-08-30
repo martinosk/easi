@@ -41,4 +41,5 @@ var capabilityEventDeserializers = repository.NewEventDeserializers(
 		"CapabilityRealizationsUninherited": repository.JSONDeserializer[events.CapabilityRealizationsUninherited],
 	},
 	CapabilityMetadataUpdatedV1ToV2Upcaster{},
+	CapabilityCreatedMaturityUpcaster{},
 )

@@ -35,7 +35,10 @@ func TestBackfillMigration_PopulatesDirectionCachesFromUpstreamTables(t *testing
 	exec(`INSERT INTO capabilitymapping.capabilities (id, tenant_id, name, level, parent_id, maturity_value, created_at) VALUES
 		('l1', $1, 'Finance Ops', 'L1', NULL, 40, NOW()),
 		('l2', $1, 'Billing', 'L2', 'l1', 55, NOW()),
-		('l3', $1, 'Invoicing', 'L3', 'l2', 70, NOW())`, cacheTestTenant)
+		('l3', $1, 'Invoicing', 'L3', 'l2', 70, NOW()),
+		('orphan-l2', $1, 'Orphan Billing', 'L2', NULL, 20, NOW()),
+		('weird-root', $1, 'Weird Root', 'L2', NULL, 5, NOW()),
+		('weird-child', $1, 'Weird Child', 'L3', 'weird-root', 6, NOW())`, cacheTestTenant)
 	exec(`INSERT INTO capabilitymapping.domain_capability_assignments (assignment_id, tenant_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_level, assigned_at)
 		VALUES ('a-1', $1, 'bd-1', 'Finance', 'l1', 'Finance Ops', 'L1', NOW())`, cacheTestTenant)
 	exec(`INSERT INTO enterprisearchitecture.enterprise_capabilities (id, tenant_id, name, category, active, target_maturity, created_at)
@@ -67,10 +70,32 @@ func TestBackfillMigration_PopulatesDirectionCachesFromUpstreamTables(t *testing
 	require.NotNil(t, ec.TargetMaturity)
 	assert.Equal(t, 80, *ec.TargetMaturity)
 
+	orphan, err := nodes.GetByID(ctx, "orphan-l2")
+	require.NoError(t, err)
+	require.NotNil(t, orphan, "a capability with no parent and no L1 level must still get a cache row")
+	assert.Equal(t, "orphan-l2", orphan.L1CapabilityID, "an unreachable node is its own l1 (172 R2 / projector semantics)")
+	assert.Empty(t, orphan.BusinessDomainID)
+
+	weirdRoot, err := nodes.GetByID(ctx, "weird-root")
+	require.NoError(t, err)
+	require.NotNil(t, weirdRoot, "a chain rooted at a non-L1 level must still get a cache row")
+	assert.Equal(t, "weird-root", weirdRoot.L1CapabilityID)
+
+	weirdChild, err := nodes.GetByID(ctx, "weird-child")
+	require.NoError(t, err)
+	require.NotNil(t, weirdChild)
+	assert.Equal(t, "weird-root", weirdChild.L1CapabilityID, "descendants of a non-L1-rooted chain inherit that root as their l1")
+
+	var sourceCount int
+	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM capabilitymapping.capabilities WHERE tenant_id = $1`, cacheTestTenant).Scan(&sourceCount))
+	var cachedCount int
+	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM architecturedirection.capability_node_cache WHERE tenant_id = $1`, cacheTestTenant).Scan(&cachedCount))
+	assert.Equal(t, sourceCount, cachedCount, "every source capability must get a cache row, reachable from an L1 or not")
+
 	exec(string(sqlBytes))
 	var rows int
 	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM architecturedirection.capability_node_cache WHERE tenant_id = $1`, cacheTestTenant).Scan(&rows))
-	assert.Equal(t, 3, rows, "backfill is idempotent")
+	assert.Equal(t, sourceCount, rows, "backfill is idempotent")
 }
 
 const referenceRealizationBackfillMigration = "146_backfill_architecturedirection_reference_and_realization_caches.sql"

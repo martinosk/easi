@@ -13,7 +13,7 @@ import (
 type EnterpriseCapabilityCacheStore interface {
 	Insert(ctx context.Context, dto readmodels.EnterpriseCapabilityCacheDTO) error
 	UpdateDetails(ctx context.Context, dto readmodels.EnterpriseCapabilityCacheDTO) error
-	Delete(ctx context.Context, id string) error
+	Deactivate(ctx context.Context, id string) error
 	UpdateTargetMaturity(ctx context.Context, id string, targetMaturity int) error
 }
 
@@ -70,8 +70,8 @@ func (p *EnterpriseCapabilityCacheProjector) projectUpdated(ctx context.Context,
 }
 
 func (p *EnterpriseCapabilityCacheProjector) projectDeleted(ctx context.Context, event enterpriseCapabilityCacheEvent) error {
-	if err := p.cache.Delete(ctx, event.ID); err != nil {
-		return fmt.Errorf("remove cached enterprise capability %s: %w", event.ID, err)
+	if err := p.cache.Deactivate(ctx, event.ID); err != nil {
+		return fmt.Errorf("deactivate cached enterprise capability %s: %w", event.ID, err)
 	}
 	return nil
 }

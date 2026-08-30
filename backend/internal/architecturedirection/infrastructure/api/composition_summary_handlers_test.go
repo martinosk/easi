@@ -10,45 +10,28 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"easi/backend/internal/architecturedirection/application/readmodels"
+	appservices "easi/backend/internal/architecturedirection/application/services"
 	domainservices "easi/backend/internal/architecturedirection/domain/services"
 	sharedAPI "easi/backend/internal/shared/api"
 )
 
-type fakeCompositionCounts struct {
-	counts map[string]domainservices.CompositionCounts
-	status map[string]string
+type fakeCompositionSummaries struct {
+	summaries appservices.CompositionSummaries
+	loadCalls int
 }
 
-func (f *fakeCompositionCounts) CountsForAll(_ context.Context) (map[string]domainservices.CompositionCounts, error) {
-	return f.counts, nil
-}
-
-func (f *fakeCompositionCounts) DirectionStatusByEC(_ context.Context) (map[string]string, error) {
-	return f.status, nil
-}
-
-type fakeECNames struct {
-	names map[string]string
-}
-
-func (f *fakeECNames) ActiveEnterpriseCapabilityNames(_ context.Context) (map[string]string, error) {
-	return f.names, nil
-}
-
-func (f *fakeECNames) GetByID(_ context.Context, id string) (*readmodels.EnterpriseCapabilityCacheDTO, error) {
-	if _, ok := f.names[id]; !ok {
-		return nil, nil
-	}
-	return &readmodels.EnterpriseCapabilityCacheDTO{ID: id, Name: f.names[id], Active: true}, nil
+func (f *fakeCompositionSummaries) SummariesForAll(_ context.Context) (appservices.CompositionSummaries, error) {
+	f.loadCalls++
+	return f.summaries, nil
 }
 
 func TestGetCompositionSummaries_OneRowPerEnterpriseCapability(t *testing.T) {
-	counts := &fakeCompositionCounts{
-		counts: map[string]domainservices.CompositionCounts{"ec-1": {SourceCount: 2, IncludedCount: 5, CarvedOutCount: 1, DomainCount: 2}},
-		status: map[string]string{"ec-1": "agreed"},
-	}
-	handlers := NewCompositionSummaryHandlers(counts, &fakeECNames{names: map[string]string{"ec-1": "Payments", "ec-2": "Identity"}}, sharedAPI.NewHATEOASLinks("/api/v1"))
+	source := &fakeCompositionSummaries{summaries: appservices.CompositionSummaries{
+		EnterpriseCapabilityIDs: []string{"ec-1", "ec-2"},
+		Counts:                  map[string]domainservices.CompositionCounts{"ec-1": {SourceCount: 2, IncludedCount: 5, CarvedOutCount: 1, DomainCount: 2}},
+		Statuses:                map[string]string{"ec-1": "agreed"},
+	}}
+	handlers := NewCompositionSummaryHandlers(source, sharedAPI.NewHATEOASLinks("/api/v1"))
 
 	rec := httptest.NewRecorder()
 	handlers.GetCompositionSummaries(rec, httptest.NewRequest(http.MethodGet, "/enterprise-capability-compositions", nil))
@@ -73,4 +56,5 @@ func TestGetCompositionSummaries_OneRowPerEnterpriseCapability(t *testing.T) {
 	assert.False(t, byID["ec-2"].HasActiveDirection)
 	assert.Equal(t, 0, byID["ec-2"].IncludedCount)
 	assert.Equal(t, "/api/v1/enterprise-capability-compositions", body.Links["self"].Href)
+	assert.Equal(t, 1, source.loadCalls, "the handler must load composition inputs exactly once per request")
 }

@@ -1,29 +1,33 @@
 package events
 
 import (
-	domain "easi/backend/internal/shared/eventsourcing"
 	"time"
+
+	"easi/backend/internal/capabilitymapping/domain/valueobjects"
+	domain "easi/backend/internal/shared/eventsourcing"
 )
 
 type CapabilityCreated struct {
 	domain.BaseEvent
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	ParentID    string    `json:"parentId"`
-	Level       string    `json:"level"`
-	CreatedAt   time.Time `json:"createdAt"`
+	ID            string    `json:"id"`
+	Name          string    `json:"name"`
+	Description   string    `json:"description"`
+	ParentID      string    `json:"parentId"`
+	Level         string    `json:"level"`
+	MaturityValue int       `json:"maturityValue"`
+	CreatedAt     time.Time `json:"createdAt"`
 }
 
 func NewCapabilityCreated(id, name, description, parentID, level string) CapabilityCreated {
 	return CapabilityCreated{
-		BaseEvent:   domain.NewBaseEvent(id),
-		ID:          id,
-		Name:        name,
-		Description: description,
-		ParentID:    parentID,
-		Level:       level,
-		CreatedAt:   time.Now().UTC(),
+		BaseEvent:     domain.NewBaseEvent(id),
+		ID:            id,
+		Name:          name,
+		Description:   description,
+		ParentID:      parentID,
+		Level:         level,
+		MaturityValue: valueobjects.DefaultMaturityValue,
+		CreatedAt:     time.Now().UTC(),
 	}
 }
 
@@ -33,12 +37,13 @@ func (e CapabilityCreated) EventType() string {
 
 func (e CapabilityCreated) EventData() map[string]interface{} {
 	return map[string]interface{}{
-		"id":          e.ID,
-		"name":        e.Name,
-		"description": e.Description,
-		"parentId":    e.ParentID,
-		"level":       e.Level,
-		"createdAt":   e.CreatedAt,
+		"id":            e.ID,
+		"name":          e.Name,
+		"description":   e.Description,
+		"parentId":      e.ParentID,
+		"level":         e.Level,
+		"maturityValue": e.MaturityValue,
+		"createdAt":     e.CreatedAt,
 	}
 }
 

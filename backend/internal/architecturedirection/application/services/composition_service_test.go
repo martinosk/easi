@@ -13,25 +13,31 @@ import (
 type fakeDirectionSources struct {
 	items []DirectionSources
 	err   error
+	calls int
 }
 
 func (f *fakeDirectionSources) ActiveDirectionSources(_ context.Context) ([]DirectionSources, error) {
+	f.calls++
 	return f.items, f.err
 }
 
 type fakeCapabilityNodes struct {
 	nodes []domainservices.CapabilityNode
+	calls int
 }
 
 func (f *fakeCapabilityNodes) AllCapabilityNodes(_ context.Context) ([]domainservices.CapabilityNode, error) {
+	f.calls++
 	return f.nodes, nil
 }
 
 type fakeECNames struct {
 	active map[string]string
+	calls  int
 }
 
 func (f *fakeECNames) ActiveEnterpriseCapabilityNames(_ context.Context) (map[string]string, error) {
+	f.calls++
 	return f.active, nil
 }
 
@@ -114,13 +120,42 @@ func twoECsWithCarveOut() *CompositionService {
 	)
 }
 
-func TestCountsForAll_SinglePassAcrossECs(t *testing.T) {
-	counts, err := twoECsWithCarveOut().CountsForAll(context.Background())
+func TestSummariesForAll_SinglePassAcrossECs(t *testing.T) {
+	summaries, err := twoECsWithCarveOut().SummariesForAll(context.Background())
 
 	require.NoError(t, err)
-	assert.Equal(t, 1, counts["ec-1"].IncludedCount, "cap-2 is carved out of ec-1 by ec-2")
-	assert.Equal(t, 1, counts["ec-1"].DomainCount)
-	assert.Equal(t, 2, counts["ec-2"].IncludedCount)
+	assert.Equal(t, 1, summaries.Counts["ec-1"].IncludedCount, "cap-2 is carved out of ec-1 by ec-2")
+	assert.Equal(t, 1, summaries.Counts["ec-1"].DomainCount)
+	assert.Equal(t, 2, summaries.Counts["ec-2"].IncludedCount)
+	assert.ElementsMatch(t, []string{"ec-1", "ec-2"}, summaries.EnterpriseCapabilityIDs)
+	assert.Equal(t, "agreed", summaries.Statuses["ec-1"])
+}
+
+func TestSummariesForAll_IncludesActiveECsWithoutADirection(t *testing.T) {
+	svc := newService(nil, nil, map[string]string{"ec-1": "CRM", "ec-2": "Identity"})
+
+	summaries, err := svc.SummariesForAll(context.Background())
+
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"ec-1", "ec-2"}, summaries.EnterpriseCapabilityIDs)
+	assert.Empty(t, summaries.Counts["ec-1"])
+	assert.Empty(t, summaries.Statuses["ec-1"])
+}
+
+func TestSummariesForAll_LoadsEachInputExactlyOnce(t *testing.T) {
+	directions := &fakeDirectionSources{items: []DirectionSources{
+		{EnterpriseCapabilityID: "ec-1", Status: "draft", SourceCapabilityIDs: []string{"cap-1"}},
+	}}
+	nodes := &fakeCapabilityNodes{nodes: []domainservices.CapabilityNode{node("cap-1", "", "", "")}}
+	ecNames := &fakeECNames{active: map[string]string{"ec-1": "CRM"}}
+	svc := NewCompositionService(directions, nodes, ecNames)
+
+	_, err := svc.SummariesForAll(context.Background())
+
+	require.NoError(t, err)
+	assert.Equal(t, 1, directions.calls, "composition summaries must load direction sources exactly once")
+	assert.Equal(t, 1, nodes.calls, "composition summaries must load capability nodes exactly once")
+	assert.Equal(t, 1, ecNames.calls, "composition summaries must load enterprise capability names exactly once")
 }
 
 func TestIncludedCapabilityIDsByEC_ExcludesCarvedOutNodes(t *testing.T) {

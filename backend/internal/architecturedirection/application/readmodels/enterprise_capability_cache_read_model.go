@@ -41,9 +41,9 @@ func (rm *EnterpriseCapabilityCacheReadModel) UpdateDetails(ctx context.Context,
 	)
 }
 
-func (rm *EnterpriseCapabilityCacheReadModel) Delete(ctx context.Context, id string) error {
+func (rm *EnterpriseCapabilityCacheReadModel) Deactivate(ctx context.Context, id string) error {
 	return rm.execForTenant(ctx,
-		`DELETE FROM architecturedirection.enterprise_capability_cache WHERE tenant_id = $1 AND id = $2`,
+		`UPDATE architecturedirection.enterprise_capability_cache SET active = false WHERE tenant_id = $1 AND id = $2`,
 		id,
 	)
 }

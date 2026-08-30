@@ -189,3 +189,45 @@ func TestCompositionCounts_NilDomainExcludedFromDomainCount(t *testing.T) {
 	counts := CountComposition(2, resolved)
 	assert.Equal(t, 1, counts.DomainCount)
 }
+
+func TestResolveCompositionWithIndex_MatchesResolveComposition(t *testing.T) {
+	directions := []ActiveDirectionSources{
+		direction("ec-crm", "CRM", "cap-identity"),
+		direction("ec-pay", "Take Payment", "cap-fraud"),
+	}
+	capabilities := []CapabilityNode{
+		capInDomain("cap-identity", "", "dom-1", "Customer"),
+		capInDomain("cap-consent", "cap-identity", "dom-1", "Customer"),
+		capInDomain("cap-fraud", "cap-identity", "dom-2", "Payments"),
+	}
+
+	index := BuildCapabilityIndex(capabilities)
+
+	assert.Equal(t,
+		ResolveComposition("ec-crm", directions, capabilities),
+		ResolveCompositionWithIndex("ec-crm", directions, index),
+	)
+}
+
+func TestBuildCapabilityIndex_IsReusableAcrossMultipleTargets(t *testing.T) {
+	directions := []ActiveDirectionSources{
+		direction("ec-1", "One", "cap-1"),
+		direction("ec-2", "Two", "cap-2"),
+	}
+	capabilities := []CapabilityNode{cap("cap-1", ""), cap("cap-2", "")}
+	index := BuildCapabilityIndex(capabilities)
+
+	firstResolved := ResolveCompositionWithIndex("ec-1", directions, index)
+	secondResolved := ResolveCompositionWithIndex("ec-2", directions, index)
+
+	assert.Equal(t, []string{"cap-1"}, idsOf(firstResolved))
+	assert.Equal(t, []string{"cap-2"}, idsOf(secondResolved))
+}
+
+func idsOf(resolved []ResolvedCapability) []string {
+	ids := make([]string, len(resolved))
+	for i, r := range resolved {
+		ids[i] = r.Node.ID
+	}
+	return ids
+}

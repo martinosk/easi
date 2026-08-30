@@ -37,6 +37,8 @@ func (p *CapabilityNodeCacheProjector) Handle(ctx context.Context, event domain.
 	return dispatchReferenceEvent(ctx, event, p.ProjectEvent)
 }
 
+const defaultCapabilityMaturityValue = 12
+
 type capabilityNodeEvent struct {
 	ID               string `json:"id"`
 	Name             string `json:"name"`
@@ -46,7 +48,14 @@ type capabilityNodeEvent struct {
 	NewParentID      string `json:"newParentId"`
 	NewLevel         string `json:"newLevel"`
 	BusinessDomainID string `json:"businessDomainId"`
-	MaturityValue    int    `json:"maturityValue"`
+	MaturityValue    *int   `json:"maturityValue"`
+}
+
+func (e capabilityNodeEvent) maturityValueOrDefault() int {
+	if e.MaturityValue == nil {
+		return defaultCapabilityMaturityValue
+	}
+	return *e.MaturityValue
 }
 
 type nodeEventHandler func(ctx context.Context, event capabilityNodeEvent) error
@@ -80,7 +89,7 @@ func (p *CapabilityNodeCacheProjector) ProjectEvent(ctx context.Context, eventTy
 func (p *CapabilityNodeCacheProjector) projectCreated(ctx context.Context, event capabilityNodeEvent) error {
 	node := readmodels.CapabilityNodeDTO{
 		CapabilityID: event.ID, CapabilityName: event.Name, CapabilityLevel: event.Level,
-		ParentID: event.ParentID, L1CapabilityID: event.ID,
+		ParentID: event.ParentID, L1CapabilityID: event.ID, MaturityValue: event.maturityValueOrDefault(),
 	}
 	if event.Level != "L1" && event.ParentID != "" {
 		parent, err := p.cache.GetByID(ctx, event.ParentID)
@@ -141,6 +150,9 @@ func (p *CapabilityNodeCacheProjector) applyDomainToL1Subtree(ctx context.Contex
 	if err != nil {
 		return err
 	}
+	if node != nil && node.CapabilityLevel != "L1" {
+		return nil
+	}
 	if node != nil {
 		if err := p.cache.UpdateBusinessDomainForL1Subtree(ctx, node.L1CapabilityID, domain); err != nil {
 			return err
@@ -150,7 +162,7 @@ func (p *CapabilityNodeCacheProjector) applyDomainToL1Subtree(ctx context.Contex
 }
 
 func (p *CapabilityNodeCacheProjector) projectMetadataUpdated(ctx context.Context, event capabilityNodeEvent) error {
-	return p.cache.UpdateMaturityValue(ctx, event.ID, event.MaturityValue)
+	return p.cache.UpdateMaturityValue(ctx, event.ID, event.maturityValueOrDefault())
 }
 
 func (p *CapabilityNodeCacheProjector) projectBusinessDomainUpdated(ctx context.Context, event capabilityNodeEvent) error {

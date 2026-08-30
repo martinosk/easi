@@ -3,12 +3,13 @@ package contracts
 import "time"
 
 type CapabilityCreatedPayload struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	ParentID    string    `json:"parentId"`
-	Level       string    `json:"level"`
-	CreatedAt   time.Time `json:"createdAt"`
+	ID            string    `json:"id"`
+	Name          string    `json:"name"`
+	Description   string    `json:"description"`
+	ParentID      string    `json:"parentId"`
+	Level         string    `json:"level"`
+	MaturityValue int       `json:"maturityValue"`
+	CreatedAt     time.Time `json:"createdAt"`
 }
 
 type CapabilityUpdatedPayload struct {

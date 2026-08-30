@@ -102,12 +102,12 @@ func TestCapabilityNodeCacheProjector_CreatedChild_InheritsL1AndDomainFromParent
 	})
 	projector := NewCapabilityNodeCacheProjector(cache, domainNameLookup(nil))
 
-	projectNodeEvent(t, projector, cmPL.CapabilityCreated, map[string]any{"id": "l2", "name": "Billing", "parentId": "l1", "level": "L2"})
+	projectNodeEvent(t, projector, cmPL.CapabilityCreated, map[string]any{"id": "l2", "name": "Billing", "parentId": "l1", "level": "L2", "maturityValue": 12})
 
 	require.Len(t, cache.inserted, 1)
 	assert.Equal(t, readmodels.CapabilityNodeDTO{
 		CapabilityID: "l2", CapabilityName: "Billing", CapabilityLevel: "L2", ParentID: "l1",
-		L1CapabilityID: "l1", BusinessDomainID: "bd-1", BusinessDomainName: "Finance",
+		L1CapabilityID: "l1", BusinessDomainID: "bd-1", BusinessDomainName: "Finance", MaturityValue: 12,
 	}, cache.inserted[0])
 }
 
@@ -115,11 +115,31 @@ func TestCapabilityNodeCacheProjector_CreatedL1_IsItsOwnL1(t *testing.T) {
 	cache := newRecordingNodeCache()
 	projector := NewCapabilityNodeCacheProjector(cache, domainNameLookup(nil))
 
-	projectNodeEvent(t, projector, cmPL.CapabilityCreated, map[string]any{"id": "l1", "name": "Finance Ops", "level": "L1"})
+	projectNodeEvent(t, projector, cmPL.CapabilityCreated, map[string]any{"id": "l1", "name": "Finance Ops", "level": "L1", "maturityValue": 12})
 
 	require.Len(t, cache.inserted, 1)
 	assert.Equal(t, "l1", cache.inserted[0].L1CapabilityID)
 	assert.Empty(t, cache.inserted[0].BusinessDomainID)
+}
+
+func TestCapabilityNodeCacheProjector_Created_WithMaturityValue_UsesProvidedValue(t *testing.T) {
+	cache := newRecordingNodeCache()
+	projector := NewCapabilityNodeCacheProjector(cache, domainNameLookup(nil))
+
+	projectNodeEvent(t, projector, cmPL.CapabilityCreated, map[string]any{"id": "l1", "name": "Finance Ops", "level": "L1", "maturityValue": 62})
+
+	require.Len(t, cache.inserted, 1)
+	assert.Equal(t, 62, cache.inserted[0].MaturityValue)
+}
+
+func TestCapabilityNodeCacheProjector_Created_MissingMaturityValue_DefaultsToGenesis(t *testing.T) {
+	cache := newRecordingNodeCache()
+	projector := NewCapabilityNodeCacheProjector(cache, domainNameLookup(nil))
+
+	projectNodeEvent(t, projector, cmPL.CapabilityCreated, map[string]any{"id": "l1", "name": "Finance Ops", "level": "L1"})
+
+	require.Len(t, cache.inserted, 1)
+	assert.Equal(t, 12, cache.inserted[0].MaturityValue, "a CapabilityCreated event published before this field existed must default to Genesis (12), not zero")
 }
 
 func TestCapabilityNodeCacheProjector_Updated_RenamesExistingNode(t *testing.T) {
@@ -182,6 +202,18 @@ func TestCapabilityNodeCacheProjector_AssignedToDomain_PropagatesNamedDomainToL1
 	require.Len(t, cache.subtreeDomains, 1)
 	assert.Equal(t, subtreeDomainUpdate{L1CapabilityID: "l1", Domain: readmodels.BusinessDomainRef{ID: "bd-1", Name: "Finance"}}, cache.subtreeDomains[0])
 	assert.Equal(t, []string{"l1"}, cache.recalculatedFrom)
+}
+
+func TestCapabilityNodeCacheProjector_AssignedToDomain_NonL1Node_IsSkipped(t *testing.T) {
+	cache := newRecordingNodeCache(readmodels.CapabilityNodeDTO{
+		CapabilityID: "l2", CapabilityLevel: "L2", ParentID: "l1", L1CapabilityID: "l1",
+	})
+	projector := NewCapabilityNodeCacheProjector(cache, domainNameLookup(map[string]string{"bd-1": "Finance"}))
+
+	projectNodeEvent(t, projector, cmPL.CapabilityAssignedToDomain, map[string]any{"id": "a-1", "businessDomainId": "bd-1", "capabilityId": "l2"})
+
+	assert.Empty(t, cache.subtreeDomains, "only L1 capabilities can be assigned to a business domain (R14); a non-L1 event is a corrupted invariant and must not propagate")
+	assert.Empty(t, cache.recalculatedFrom)
 }
 
 func TestCapabilityNodeCacheProjector_UnassignedFromDomain_ClearsDomainOnL1Subtree(t *testing.T) {

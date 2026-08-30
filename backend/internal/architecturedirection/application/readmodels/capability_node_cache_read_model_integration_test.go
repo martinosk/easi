@@ -99,10 +99,11 @@ func TestEnterpriseCapabilityCache_RoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{"ec-1": "Payments & Billing"}, names)
 
-	require.NoError(t, cache.Delete(ctx, "ec-1"))
-	deleted, err := cache.GetByID(ctx, "ec-1")
+	require.NoError(t, cache.Deactivate(ctx, "ec-1"))
+	deactivated, err := cache.GetByID(ctx, "ec-1")
 	require.NoError(t, err)
-	assert.Nil(t, deleted)
+	require.NotNil(t, deactivated, "deactivation must keep the row so existence checks still find it (409, not 404)")
+	assert.False(t, deactivated.Active)
 }
 
 type stubIncludedCapabilities struct {

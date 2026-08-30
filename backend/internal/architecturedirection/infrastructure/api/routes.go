@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	"easi/backend/internal/architecturedirection/application/commands"
 	"easi/backend/internal/architecturedirection/application/handlers"
 	"easi/backend/internal/architecturedirection/application/projectors"
 	"easi/backend/internal/architecturedirection/application/readmodels"
@@ -69,7 +70,7 @@ func SetupRoutes(deps RoutesDeps) error {
 	registerRoutes(deps.Router, httpHandlers, previewHandlers, deps.AuthMiddleware)
 	registerCompositionRoutes(deps.Router, compositionReadHandlers{
 		composition: NewCompositionHandlers(composition, ecCache, deps.HATEOAS),
-		summaries:   NewCompositionSummaryHandlers(composition, ecCache, deps.HATEOAS),
+		summaries:   NewCompositionSummaryHandlers(composition, deps.HATEOAS),
 		maturity:    NewMaturityAnalysisHandlers(readmodels.NewMaturityAnalysisReadModel(deps.DB, composition), deps.HATEOAS),
 	}, deps.AuthMiddleware)
 
@@ -85,7 +86,7 @@ func setupStandardApplicationRoutes(deps RoutesDeps, refs *services.ReferenceChe
 	repo := repositories.NewStandardApplicationRepository(deps.EventStore)
 
 	subscribeStandardApplicationEvents(deps.EventBus, readModel)
-	deps.CommandBus.Register("SetStandardApplication", handlers.NewSetStandardApplicationHandler(repo, readModel, refs))
+	deps.CommandBus.Register(commands.SetStandardApplication{}.CommandName(), handlers.NewSetStandardApplicationHandler(repo, readModel, refs))
 
 	links := NewStandardApplicationLinks(deps.HATEOAS)
 	httpHandlers := NewStandardApplicationHandlers(deps.CommandBus, readModel, links)

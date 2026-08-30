@@ -95,7 +95,7 @@ Feature: Composition, source candidates and maturity analysis served by Architec
 - [x] `GET /enterprise-capability-compositions` returns one summary per enterprise capability (`enterpriseCapabilityId`, `sourceCount`, `includedCount`, `domainCount`, `hasActiveDirection`, `directionStatus`) under the same read permission as the composition view.
 - [x] The enterprise capability list and detail DTOs no longer contain `includedCapabilityCount` or `domainCount`; the frontend table and detail panel show the counts from the composition summaries / composition meta.
 - [x] Capturing a direction with a source already claimed by another active direction returns 409 with the conflicting capability and enterprise capability — verified by the existing handler test, now exercising Architecture Direction's local eligibility.
-- [x] Architecture Direction's `capability_node_cache` is maintained by a projector for `CapabilityCreated/Updated/Deleted/ParentChanged/LevelChanged/AssignedToDomain/UnassignedFromDomain/MetadataUpdated` and `BusinessDomainCreated/Updated`, with projector unit tests per event and an integration test for hierarchy recalculation.
+- [x] Architecture Direction's `capability_node_cache` is maintained by a projector for `CapabilityCreated/Updated/Deleted/ParentChanged/LevelChanged/AssignedToDomain/UnassignedFromDomain/MetadataUpdated` and `BusinessDomainUpdated` — mirroring EA's proven metadata cache projector, which likewise reacts to `BusinessDomainUpdated` only (a domain's name can change after creation; nothing needs projecting at the moment it is created, before any capability is assigned to it) — with projector unit tests per event and an integration test for hierarchy recalculation.
 - [x] Architecture Direction's `enterprise_capability_cache` is maintained by a projector for `EnterpriseCapabilityCreated/Updated/Deleted/TargetMaturitySet`, with projector unit tests.
 - [x] Backfill migrations populate both caches from `capabilitymapping.*` and `enterprisearchitecture.enterprise_capabilities` idempotently; an integration test runs the backfill against seeded source tables and asserts the cache contents.
 - [x] `enterprisearchitecture` contains no reference to Architecture Direction and no composition, eligibility or maturity-analysis code; `go test ./...` and the spec 206 dependency guard show no EA → AD edge.
@@ -126,7 +126,7 @@ Moved without change: composition, source candidates, maturity analysis, maturit
 
 ### Persistence
 
-Two tables in the `architecturedirection` schema with the standard tenant RLS policy, plus two idempotent backfill migrations (`INSERT … SELECT … ON CONFLICT DO UPDATE`) from `capabilitymapping.capabilities`, `capabilitymapping.domain_capability_assignments`, `capabilitymapping.business_domains` and `enterprisearchitecture.enterprise_capabilities`. The legacy `link_count`/`domain_count` columns on `enterprisearchitecture.enterprise_capabilities` stay (forward-only migrations) and remain unused.
+Two tables in the `architecturedirection` schema with the standard tenant RLS policy, plus two idempotent backfill migrations (`INSERT … SELECT … ON CONFLICT DO UPDATE`) from `capabilitymapping.capabilities`, `capabilitymapping.domain_capability_assignments`, `capabilitymapping.business_domains` and `enterprisearchitecture.enterprise_capabilities`. The legacy `link_count`/`domain_count` columns on `enterprisearchitecture.enterprise_capabilities` were already dropped by migration 120 (spec 172); there is nothing left to migrate off of them.
 
 ### Frontend
 

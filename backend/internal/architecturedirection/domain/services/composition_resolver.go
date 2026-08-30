@@ -50,15 +50,28 @@ type traversal struct {
 	resolved      []ResolvedCapability
 }
 
+type CapabilityIndex struct {
+	capByID  map[string]CapabilityNode
+	children map[string][]string
+}
+
+func BuildCapabilityIndex(capabilities []CapabilityNode) CapabilityIndex {
+	return CapabilityIndex{capByID: indexByID(capabilities), children: indexChildren(capabilities)}
+}
+
 func ResolveComposition(targetECID string, directions []ActiveDirectionSources, capabilities []CapabilityNode) []ResolvedCapability {
+	return ResolveCompositionWithIndex(targetECID, directions, BuildCapabilityIndex(capabilities))
+}
+
+func ResolveCompositionWithIndex(targetECID string, directions []ActiveDirectionSources, index CapabilityIndex) []ResolvedCapability {
 	target, ok := findDirection(directions, targetECID)
 	if !ok {
 		return nil
 	}
 
 	t := &traversal{
-		capByID:       indexByID(capabilities),
-		children:      indexChildren(capabilities),
+		capByID:       index.capByID,
+		children:      index.children,
 		targetSources: toSet(target.SourceCapabilityIDs),
 		ownedByOther:  ownershipByOtherEC(directions, targetECID),
 		visited:       make(map[string]struct{}),
