@@ -69,6 +69,9 @@ func (p *Projector) ProjectEvent(ctx context.Context, eventType string, eventDat
 | `adPL` | `accessdelegation/publishedlanguage` |
 | `vsPL` | `valuestreams/publishedlanguage` |
 | `adirPL` | `architecturedirection/publishedlanguage` |
+| `eaPL` | `enterprisearchitecture/publishedlanguage` |
+| `authPL` | `auth/publishedlanguage` |
+| `platformPL` | `platform/publishedlanguage` |
 
 ## Complete Event Constants Catalogue
 
@@ -76,13 +79,33 @@ func (p *Projector) ProjectEvent(ctx context.Context, eventType string, eventDat
 
 ```go
 const (
-    ApplicationComponentCreated = "ApplicationComponentCreated"
-    ApplicationComponentUpdated = "ApplicationComponentUpdated"
-    ApplicationComponentDeleted = "ApplicationComponentDeleted"
-    ComponentRelationDeleted    = "ComponentRelationDeleted"
-    AcquiredEntityDeleted       = "AcquiredEntityDeleted"
-    VendorDeleted               = "VendorDeleted"
-    InternalTeamDeleted         = "InternalTeamDeleted"
+    ApplicationComponentCreated       = "ApplicationComponentCreated"
+    ApplicationComponentUpdated       = "ApplicationComponentUpdated"
+    ApplicationComponentDeleted       = "ApplicationComponentDeleted"
+    ApplicationComponentExpertAdded   = "ApplicationComponentExpertAdded"
+    ApplicationComponentExpertRemoved = "ApplicationComponentExpertRemoved"
+
+    ComponentRelationCreated = "ComponentRelationCreated"
+    ComponentRelationUpdated = "ComponentRelationUpdated"
+    ComponentRelationDeleted = "ComponentRelationDeleted"
+
+    AcquiredEntityCreated = "AcquiredEntityCreated"
+    AcquiredEntityUpdated = "AcquiredEntityUpdated"
+    AcquiredEntityDeleted = "AcquiredEntityDeleted"
+
+    VendorCreated = "VendorCreated"
+    VendorUpdated = "VendorUpdated"
+    VendorDeleted = "VendorDeleted"
+
+    InternalTeamCreated = "InternalTeamCreated"
+    InternalTeamUpdated = "InternalTeamUpdated"
+    InternalTeamDeleted = "InternalTeamDeleted"
+
+    OriginLinkSet          = "OriginLinkSet"
+    OriginLinkReplaced     = "OriginLinkReplaced"
+    OriginLinkNotesUpdated = "OriginLinkNotesUpdated"
+    OriginLinkCleared      = "OriginLinkCleared"
+    OriginLinkDeleted      = "OriginLinkDeleted"
 )
 ```
 
@@ -102,7 +125,7 @@ const (
 
 ### Capability Mapping (`cmPL`)
 
-Cross-context constants live in `events.go`; intra-context constants live in `internal_events.go`.
+Cross-context constants live in `events.go`; intra-context constants live in `internal_events.go` — both are listed below since spec 209 added cross-context consumers (OnePagers) for several events that were originally intra-context only.
 
 ```go
 const (
@@ -114,14 +137,30 @@ const (
     CapabilityLevelChanged         = "CapabilityLevelChanged"
     CapabilityAssignedToDomain     = "CapabilityAssignedToDomain"
     CapabilityUnassignedFromDomain = "CapabilityUnassignedFromDomain"
-    SystemLinkedToCapability       = "SystemLinkedToCapability"
-    SystemRealizationDeleted       = "SystemRealizationDeleted"
-    BusinessDomainCreated          = "BusinessDomainCreated"
-    BusinessDomainUpdated          = "BusinessDomainUpdated"
-    BusinessDomainDeleted          = "BusinessDomainDeleted"
+
+    SystemLinkedToCapability = "SystemLinkedToCapability"
+    SystemRealizationDeleted = "SystemRealizationDeleted"
+
+    BusinessDomainCreated = "BusinessDomainCreated"
+    BusinessDomainUpdated = "BusinessDomainUpdated"
+    BusinessDomainDeleted = "BusinessDomainDeleted"
+
     EffectiveImportanceRecalculated = "EffectiveImportanceRecalculated"
     ApplicationFitScoreSet          = "ApplicationFitScoreSet"
+    ApplicationFitScoreUpdated      = "ApplicationFitScoreUpdated"
     ApplicationFitScoreRemoved      = "ApplicationFitScoreRemoved"
+
+    CapabilityExpertAdded             = "CapabilityExpertAdded"
+    CapabilityExpertRemoved           = "CapabilityExpertRemoved"
+    CapabilityTagAdded                = "CapabilityTagAdded"
+    CapabilityDependencyCreated       = "CapabilityDependencyCreated"
+    CapabilityDependencyDeleted       = "CapabilityDependencyDeleted"
+    SystemRealizationUpdated          = "SystemRealizationUpdated"
+    CapabilityRealizationsInherited   = "CapabilityRealizationsInherited"
+    CapabilityRealizationsUninherited = "CapabilityRealizationsUninherited"
+    StrategyImportanceSet             = "StrategyImportanceSet"
+    StrategyImportanceUpdated         = "StrategyImportanceUpdated"
+    StrategyImportanceRemoved         = "StrategyImportanceRemoved"
 )
 ```
 
@@ -129,7 +168,13 @@ const (
 
 ```go
 const (
-    ViewDeleted = "ViewDeleted"
+    ViewCreated              = "ViewCreated"
+    ViewRenamed              = "ViewRenamed"
+    ViewDeleted              = "ViewDeleted"
+    ViewVisibilityChanged    = "ViewVisibilityChanged"
+    DefaultViewChanged       = "DefaultViewChanged"
+    ComponentAddedToView     = "ComponentAddedToView"
+    ComponentRemovedFromView = "ComponentRemovedFromView"
 )
 ```
 
@@ -174,6 +219,63 @@ const (
     DirectionSourceCapabilitiesChanged = "DirectionSourceCapabilitiesChanged"
 
     StandardApplicationSet = "StandardApplicationSet"
+
+    TimeAssessmentRecorded = "TimeAssessmentRecorded"
+    TimeAssessmentRemoved  = "TimeAssessmentRemoved"
+
+    RealizationRoleAssigned = "RealizationRoleAssigned"
+    RealizationRoleCleared  = "RealizationRoleCleared"
+
+    JourneyPlanned                   = "JourneyPlanned"
+    JourneyStarted                   = "JourneyStarted"
+    JourneyCompleted                 = "JourneyCompleted"
+    JourneyAbandoned                 = "JourneyAbandoned"
+    JourneyProgressUpdated           = "JourneyProgressUpdated"
+    JourneyDetailsUpdated            = "JourneyDetailsUpdated"
+    JourneyMilestoneAdded            = "JourneyMilestoneAdded"
+    JourneyMilestoneUpdated          = "JourneyMilestoneUpdated"
+    JourneyMilestoneRemoved          = "JourneyMilestoneRemoved"
+    JourneyMilestonesReordered       = "JourneyMilestonesReordered"
+    JourneySourceApplicationsChanged = "JourneySourceApplicationsChanged"
+)
+```
+
+### Enterprise Architecture (`eaPL`)
+
+```go
+const (
+    EnterpriseCapabilityCreated           = "EnterpriseCapabilityCreated"
+    EnterpriseCapabilityUpdated           = "EnterpriseCapabilityUpdated"
+    EnterpriseCapabilityDeleted           = "EnterpriseCapabilityDeleted"
+    EnterpriseCapabilityTargetMaturitySet = "EnterpriseCapabilityTargetMaturitySet"
+
+    EnterpriseStrategicImportanceSet     = "EnterpriseStrategicImportanceSet"
+    EnterpriseStrategicImportanceUpdated = "EnterpriseStrategicImportanceUpdated"
+    EnterpriseStrategicImportanceRemoved = "EnterpriseStrategicImportanceRemoved"
+)
+```
+
+### Auth (`authPL`)
+
+```go
+const (
+    UserCreated     = "UserCreated"
+    UserRoleChanged = "UserRoleChanged"
+    UserDisabled    = "UserDisabled"
+    UserEnabled     = "UserEnabled"
+
+    InvitationCreated  = "InvitationCreated"
+    InvitationAccepted = "InvitationAccepted"
+    InvitationRevoked  = "InvitationRevoked"
+    InvitationExpired  = "InvitationExpired"
+)
+```
+
+### Platform (`platformPL`)
+
+```go
+const (
+    TenantCreated = "TenantCreated"
 )
 ```
 
@@ -341,10 +443,10 @@ All subscriptions are wired in `onepagers/infrastructure/api/routes.go` `SetupOn
 | Supplier | Events | Projector | Cache | Purpose |
 |----------|--------|-----------|-------|---------|
 | Architecture Modeling (`archPL`) | `ApplicationComponentCreated/Updated/Deleted`, `ApplicationComponentExpertAdded/Removed`, `AcquiredEntityCreated/Updated/Deleted`, `VendorCreated/Updated/Deleted`, `InternalTeamCreated/Updated/Deleted` | `SubjectIndexProjector` | `one_pager_subject_index` (name, existence, completeness counters, `built_in_fields` = the complete published attribute set) | Subject header, built-in field values, subject existence, completeness |
-| Capability Mapping (`cmPL`) | `CapabilityCreated/Updated/Deleted`, `CapabilityMetadataUpdated`, `CapabilityExpertAdded/Removed` | `SubjectIndexProjector` | same | same |
-| Enterprise Architecture (`eaPL`) | `EnterpriseCapabilityCreated/Updated/Deleted` | `SubjectIndexProjector` | same | same |
-| Capability Mapping (`cmPL`) | `SystemLinkedToCapability`, `SystemRealizationDeleted`, `CapabilityDependencyCreated/Deleted`, `CapabilityAssignedToDomain/UnassignedFromDomain`, `CapabilityParentChanged`, `BusinessDomainCreated/Updated/Deleted` | `SubjectRelationProjector` | `subject_relation_cache`, `business_domain_name_cache` | Relation built-in fields (realizations, dependencies, domains, parent/children) and domain labels |
-| Architecture Modeling (`archPL`) | `ComponentRelationCreated/Updated/Deleted`, `OriginLinkSet/Replaced/Cleared/Deleted` | `SubjectRelationProjector` | `subject_relation_cache` | Relation built-in fields (component relations, built-by / purchased-from / acquired-via and their reverse entries) |
+| Capability Mapping (`cmPL`) | `CapabilityCreated/Updated/Deleted`, `CapabilityMetadataUpdated`, `CapabilityExpertAdded/Removed`, `CapabilityParentChanged`, `CapabilityLevelChanged` | `SubjectIndexProjector` | same | same, plus `parentId` / `level` built-in attributes |
+| Enterprise Architecture (`eaPL`) | `EnterpriseCapabilityCreated/Updated/Deleted`, `EnterpriseCapabilityTargetMaturitySet` | `SubjectIndexProjector` | same | same, plus `targetMaturity` built-in attribute |
+| Capability Mapping (`cmPL`) | `CapabilityCreated`, `SystemLinkedToCapability`, `SystemRealizationDeleted`, `CapabilityRealizationsInherited/Uninherited`, `CapabilityDependencyCreated/Deleted`, `CapabilityAssignedToDomain/UnassignedFromDomain`, `CapabilityParentChanged`, `BusinessDomainCreated/Updated/Deleted` | `SubjectRelationProjector` | `subject_relation_cache`, `business_domain_name_cache` | Relation built-in fields (realizations, dependencies, domains, parent/children) and domain labels |
+| Architecture Modeling (`archPL`) | `ComponentRelationCreated/Deleted`, `OriginLinkSet/Replaced/Cleared/Deleted` | `SubjectRelationProjector` | `subject_relation_cache` | Relation built-in fields (component relations, built-by / purchased-from / acquired-via and their reverse entries) |
 | MetaModel (`mmPL`) | `MetaModelConfigurationCreated`, `MaturityScaleConfigUpdated/Reset` | `MaturityScaleProjector` | `maturity_scale_cache` | Maturity-scale sections for rendering maturity fields |
 
 Expert names arrive on the expert events themselves (`expertName`, `expertRole`, `contactInfo`), so no user cache is needed.

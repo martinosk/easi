@@ -37,19 +37,19 @@ import (
 )
 
 var schemaQualifiedPatterns = []*regexp.Regexp{
-	regexp.MustCompile(`(?i)\bFROM\s+(\w+)\.(\w+)`),
-	regexp.MustCompile(`(?i)\bJOIN\s+(\w+)\.(\w+)`),
-	regexp.MustCompile(`(?i)\bINSERT\s+INTO\s+(\w+)\.(\w+)`),
-	regexp.MustCompile(`(?i)\bUPDATE\s+(\w+)\.(\w+)`),
-	regexp.MustCompile(`(?i)\bDELETE\s+FROM\s+(\w+)\.(\w+)`),
+	regexp.MustCompile(`(?i)\bFROM\s+"?(\w+)"?\."?(\w+)"?`),
+	regexp.MustCompile(`(?i)\bJOIN\s+"?(\w+)"?\."?(\w+)"?`),
+	regexp.MustCompile(`(?i)\bINSERT\s+INTO\s+"?(\w+)"?\."?(\w+)"?`),
+	regexp.MustCompile(`(?i)\bUPDATE\s+"?(\w+)"?\."?(\w+)"?`),
+	regexp.MustCompile(`(?i)\bDELETE\s+FROM\s+"?(\w+)"?\."?(\w+)"?`),
 }
 
 var unqualifiedPatterns = []*regexp.Regexp{
-	regexp.MustCompile(`(?i)\bFROM\s+([a-zA-Z_]\w*)`),
-	regexp.MustCompile(`(?i)\bJOIN\s+([a-zA-Z_]\w*)`),
-	regexp.MustCompile(`(?i)\bINSERT\s+INTO\s+([a-zA-Z_]\w*)`),
-	regexp.MustCompile(`(?i)\bUPDATE\s+([a-zA-Z_]\w*)`),
-	regexp.MustCompile(`(?i)\bDELETE\s+FROM\s+([a-zA-Z_]\w*)`),
+	regexp.MustCompile(`(?i)\bFROM\s+"?([a-zA-Z_]\w*)"?`),
+	regexp.MustCompile(`(?i)\bJOIN\s+"?([a-zA-Z_]\w*)"?`),
+	regexp.MustCompile(`(?i)\bINSERT\s+INTO\s+"?([a-zA-Z_]\w*)"?`),
+	regexp.MustCompile(`(?i)\bUPDATE\s+"?([a-zA-Z_]\w*)"?`),
+	regexp.MustCompile(`(?i)\bDELETE\s+FROM\s+"?([a-zA-Z_]\w*)"?`),
 }
 
 var ctePattern = regexp.MustCompile(`(?i)\bWITH\s+(?:RECURSIVE\s+)?(\w+)\s+AS\s*\(`)
@@ -434,6 +434,39 @@ func TestSQLSchemaOwnership(t *testing.T) {
 	}
 	for _, v := range scan.violations {
 		t.Errorf("SQL OWNERSHIP VIOLATION: %s — %s", v.relPath, v.message)
+	}
+}
+
+func TestSQLAnalyzerQualifiedTablesHandlesQuotedIdentifiers(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+		want schemaTableRef
+	}{
+		{name: "BareIdentifiers", sql: `SELECT * FROM auth.users`, want: schemaTableRef{schema: "auth", table: "users"}},
+		{name: "BothIdentifiersQuoted", sql: `SELECT * FROM "auth"."users"`, want: schemaTableRef{schema: "auth", table: "users"}},
+		{name: "SchemaUnquotedTableQuoted", sql: `SELECT * FROM auth."users"`, want: schemaTableRef{schema: "auth", table: "users"}},
+		{name: "SchemaQuotedTableUnquoted", sql: `SELECT * FROM "auth".users`, want: schemaTableRef{schema: "auth", table: "users"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := (sqlAnalyzer{sql: tt.sql}).qualifiedTables()
+			if len(got) != 1 || got[0] != tt.want {
+				t.Errorf("qualifiedTables() = %v, want [%v]", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCheckCrossBCAccessDetectsQuotedCrossSchemaReference(t *testing.T) {
+	fc := fileContext{relPath: "capabilitymapping/infrastructure/repositories/example.go", ownerBC: "capabilitymapping"}
+	refs := (sqlAnalyzer{sql: `SELECT * FROM "auth"."users"`}).qualifiedTables()
+
+	violations := checkCrossBCAccess(refs, fc)
+
+	if len(violations) != 1 {
+		t.Fatalf("expected 1 violation for quoted cross-schema reference, got %d: %v", len(violations), violations)
 	}
 }
 

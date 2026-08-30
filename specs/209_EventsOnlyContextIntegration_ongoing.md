@@ -144,6 +144,7 @@ importing             → architecturemodeling, capabilitymapping, valuestreams
 metamodel             → auth
 onepagers             → architecturemodeling, auth, capabilitymapping, enterprisearchitecture, metamodel
 platform              → (none)
+releases              → (none)
 valuestreams          → auth, capabilitymapping
 ```
 

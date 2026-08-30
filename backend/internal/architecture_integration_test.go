@@ -375,12 +375,9 @@ func isBackfill(name string) bool {
 	return strings.Contains(name, "backfill")
 }
 
-func mustStayInOneSchema(name string) bool {
+func isEventsOnlyMigration(name string) bool {
 	number, numbered := migrationNumber(name)
-	if !numbered || number < firstEventsOnlyMigration {
-		return false
-	}
-	return !isBackfill(name)
+	return numbered && number >= firstEventsOnlyMigration
 }
 
 func schemaNamesOrFail(t *testing.T) []string {
@@ -401,12 +398,65 @@ func schemaNamesOrFail(t *testing.T) []string {
 var sqlLineComment = regexp.MustCompile(`--[^\n]*`)
 
 func referencedSchemas(sql string, schemas []string) []string {
-	pattern := regexp.MustCompile(`\b(` + strings.Join(schemas, "|") + `)\.[a-z_]+\b`)
+	pattern := regexp.MustCompile(`\b(` + strings.Join(schemas, "|") + `)"?\."?[a-z_]+"?`)
 	found := contextSet{}
 	for _, match := range pattern.FindAllStringSubmatch(sqlLineComment.ReplaceAllString(sql, ""), -1) {
 		found[contextName(match[1])] = true
 	}
 	return found.names()
+}
+
+var permanentSchemaObjectPattern = regexp.MustCompile(`(?i)\bCREATE\s+(?:OR\s+REPLACE\s+)?(?:MATERIALIZED\s+VIEW|VIEW|FUNCTION|TRIGGER)\b`)
+
+func permanentSchemaObjects(sql string) []string {
+	return permanentSchemaObjectPattern.FindAllString(sqlLineComment.ReplaceAllString(sql, ""), -1)
+}
+
+func TestReferencedSchemasHandlesQuotedIdentifiers(t *testing.T) {
+	schemas := []string{"auth", "capabilitymapping"}
+	tests := []struct {
+		name string
+		sql  string
+		want []string
+	}{
+		{name: "BareIdentifiers", sql: `SELECT * FROM auth.users`, want: []string{"auth"}},
+		{name: "BothIdentifiersQuoted", sql: `SELECT * FROM "auth"."users"`, want: []string{"auth"}},
+		{name: "SchemaUnquotedTableQuoted", sql: `SELECT * FROM auth."users"`, want: []string{"auth"}},
+		{name: "SchemaQuotedTableUnquoted", sql: `SELECT * FROM "auth".users`, want: []string{"auth"}},
+		{name: "TwoSchemasOneQuoted", sql: `INSERT INTO capabilitymapping.capabilities SELECT * FROM "auth"."users"`, want: []string{"auth", "capabilitymapping"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := referencedSchemas(tt.sql, schemas)
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("referencedSchemas() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPermanentSchemaObjectsDetectsViewsFunctionsAndTriggers(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+		want int
+	}{
+		{name: "PlainInsertSelectIsNotFlagged", sql: `INSERT INTO auth.tenant_cache (id) SELECT id FROM platform.tenants ON CONFLICT (id) DO UPDATE SET id = EXCLUDED.id;`, want: 0},
+		{name: "CreateView", sql: `CREATE VIEW auth.combined AS SELECT * FROM platform.tenants;`, want: 1},
+		{name: "CreateOrReplaceView", sql: `CREATE OR REPLACE VIEW auth.combined AS SELECT * FROM platform.tenants;`, want: 1},
+		{name: "CreateMaterializedView", sql: `CREATE MATERIALIZED VIEW auth.combined AS SELECT * FROM platform.tenants;`, want: 1},
+		{name: "CreateFunction", sql: `CREATE FUNCTION auth.sync_tenant() RETURNS trigger AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;`, want: 1},
+		{name: "CreateTrigger", sql: `CREATE TRIGGER sync_tenant AFTER INSERT ON platform.tenants FOR EACH ROW EXECUTE FUNCTION auth.sync_tenant();`, want: 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := permanentSchemaObjects(tt.sql); len(got) != tt.want {
+				t.Errorf("permanentSchemaObjects() = %v, want %d matches", got, tt.want)
+			}
+		})
+	}
 }
 
 func TestNewMigrationsCrossSchemasOnlyInBackfills(t *testing.T) {
@@ -417,12 +467,18 @@ func TestNewMigrationsCrossSchemasOnlyInBackfills(t *testing.T) {
 	schemas := schemaNamesOrFail(t)
 	for _, path := range files {
 		name := filepath.Base(path)
-		if !mustStayInOneSchema(name) {
+		if !isEventsOnlyMigration(name) {
 			continue
 		}
 		content, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatalf("failed to read %s: %v", name, err)
+		}
+		if isBackfill(name) {
+			for _, stmt := range permanentSchemaObjects(string(content)) {
+				t.Errorf("BACKFILL CREATES PERMANENT OBJECT: %s declares %q — a backfill may only seed data with INSERT/UPDATE, never create a permanent view, function or trigger (spec 209)", name, stmt)
+			}
+			continue
 		}
 		if referenced := referencedSchemas(string(content), schemas); len(referenced) > 1 {
 			t.Errorf("CROSS-SCHEMA MIGRATION: %s references schemas %v — only *backfill*.sql migrations may read another context's schema (spec 209)", name, referenced)

@@ -48,6 +48,7 @@ flowchart LR
     IM[Importing]
     AA[Arch Assistant]
     AUD[Audit]
+    RL[Releases]
 
     AU -->|TenantCreated → tenant, domain and OIDC caches, first-admin invitation| PL
     MM -->|TenantCreated → default configuration| PL
@@ -136,7 +137,7 @@ Each bounded context has:
 
 **No composition-root bridges — enforced.** `TestCompositionRootOnlyRegistersRoutes` allows files under `infrastructure/api/` to import from a context only its `infrastructure/api` package; `TestSharedAndInfrastructureImportNoContext` forbids `shared/` and `infrastructure/` from importing any context; `TestNoCrossBoundedContextImports` forbids a context from importing anything of another context but its `publishedlanguage`; `TestPublishedLanguageContractsPurity` keeps published languages free of internal imports; `TestProductionCodeDoesNotImportTestSupport` keeps test support out of production code.
 
-**No circular dependencies — enforced.** `TestContextDependencyGraphIsAcyclic` builds the graph from published-language imports alone and rejects any cycle, printing the offending edges and files. Because direction is the import direction, it cannot be mis-declared.
+**No circular dependencies — enforced.** `TestContextDependencyGraphIsAcyclic` builds the graph from published-language imports alone and rejects any cycle, printing the offending edges and files. Edges are derived from imports, so they cannot be mis-declared the way a hand-maintained dependency list could be; a subscription wired through a bare string (a bus `Subscribe`/`Register` call not backed by an import of the supplier's `publishedlanguage`) is outside what this graph can see and relies on convention, not construction.
 
 **Local caches, always backfilled.** Every cache of upstream data is maintained by a projector on the upstream's published events and seeded by a `*backfill*` migration, so a deployment never starts with an empty cache. Actor identity and role come from the request context, never from Auth's read models.
 
