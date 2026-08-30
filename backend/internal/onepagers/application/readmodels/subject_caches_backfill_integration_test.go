@@ -5,9 +5,11 @@ package readmodels_test
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/onepagers/application/readmodels"
@@ -34,8 +36,11 @@ var backfilledTables = []string{
 	"capabilitymapping.domain_capability_assignments",
 	"capabilitymapping.business_domains",
 	"architecturemodeling.application_components",
+	"architecturemodeling.component_relations",
 	"architecturemodeling.built_by_relationships",
 	"architecturemodeling.internal_teams",
+	"architecturemodeling.acquired_entities",
+	"architecturemodeling.vendors",
 	"metamodel.meta_model_configurations",
 }
 
@@ -182,6 +187,75 @@ func TestBackfillMigration_SeedsRelationsInBothDirections(t *testing.T) {
 	require.Len(t, team, 1)
 	assert.Equal(t, "app-1", team[0].RelatedID)
 	assert.Equal(t, "Billing Service", team[0].Label)
+}
+
+func TestBackfillMigration_SeedsParallelComponentRelationsWithoutCollapsingThem(t *testing.T) {
+	f := newBackfillFixture(t)
+	f.seedSuppliers()
+	f.exec(`INSERT INTO architecturemodeling.application_components (id, tenant_id, name, description, created_at, is_deleted)
+		VALUES ('app-2', $1, 'Invoicing Service', 'Handles invoices', NOW(), FALSE)`, f.tenant)
+	f.exec(`INSERT INTO onepagers.one_pager_subject_index
+		(tenant_id, subject_type, subject_id, name, creator_actor_id, creator_email, created_at, last_updated_at)
+		VALUES ($1, 'application', 'app-2', 'Invoicing Service', '', '', NOW(), NOW())`, f.tenant)
+	f.exec(`INSERT INTO architecturemodeling.component_relations (id, tenant_id, source_component_id, target_component_id, relation_type, created_at, is_deleted)
+		VALUES ('cr-1', $1, 'app-1', 'app-2', 'sync', NOW(), FALSE)`, f.tenant)
+	f.exec(`INSERT INTO architecturemodeling.component_relations (id, tenant_id, source_component_id, target_component_id, relation_type, created_at, is_deleted)
+		VALUES ('cr-2', $1, 'app-1', 'app-2', 'async', NOW(), FALSE)`, f.tenant)
+
+	f.runBackfill()
+
+	var rows int
+	require.NoError(t, f.db.QueryRow(
+		`SELECT COUNT(*) FROM onepagers.subject_relation_cache
+		WHERE tenant_id = $1 AND subject_type = 'application' AND subject_id = 'app-1' AND entry_id = 'component-relations'`,
+		f.tenant).Scan(&rows))
+	assert.Equal(t, 2, rows, "both parallel component relations to the same target must survive the backfill")
+
+	references := f.references(subjectKey("application", "app-1"), "component-relations")
+	assert.Len(t, references, 1, "the read-time query still renders the shared target once")
+	assert.Equal(t, "app-2", references[0].RelatedID)
+}
+
+func TestBackfillMigration_AcquiredEntityAndVendorAttributesMatchProjectorEncoding(t *testing.T) {
+	f := newBackfillFixture(t)
+	f.seedSuppliers()
+	acquisitionDate := time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC)
+	f.exec(`INSERT INTO architecturemodeling.acquired_entities (id, tenant_id, name, acquisition_date, integration_status, notes, created_at, is_deleted)
+		VALUES ('ae-1', $1, 'Acme', $2, 'In Progress', 'Bought in Q1', NOW(), FALSE)`, f.tenant, acquisitionDate)
+	f.exec(`INSERT INTO architecturemodeling.vendors (id, tenant_id, name, implementation_partner, notes, created_at, is_deleted)
+		VALUES ('v-1', $1, 'Contoso', 'Contoso Consulting', 'Preferred', NOW(), FALSE)`, f.tenant)
+	for _, subject := range []struct{ subjectType, id, name string }{
+		{"acquired-entity", "ae-1", "Acme"},
+		{"vendor", "v-1", "Contoso"},
+	} {
+		f.exec(`INSERT INTO onepagers.one_pager_subject_index
+			(tenant_id, subject_type, subject_id, name, creator_actor_id, creator_email, created_at, last_updated_at)
+			VALUES ($1, $2, $3, $4, '', '', NOW(), NOW())`, f.tenant, subject.subjectType, subject.id, subject.name)
+	}
+
+	f.runBackfill()
+
+	acquired := f.attributes(subjectKey("acquired-entity", "ae-1"))
+	assert.JSONEq(t, `"In Progress"`, string(acquired["integrationStatus"]))
+	assert.JSONEq(t, `"Bought in Q1"`, string(acquired["notes"]))
+
+	var decodedFromBackfill time.Time
+	require.NoError(t, json.Unmarshal(acquired["acquisitionDate"], &decodedFromBackfill))
+
+	projectorWritten := readmodels.SubjectAttributes{}
+	require.NoError(t, projectorWritten.Set("acquisitionDate", acquisitionDate))
+	projectorRaw, _ := projectorWritten.Raw("acquisitionDate")
+	var decodedFromProjector time.Time
+	require.NoError(t, json.Unmarshal(projectorRaw, &decodedFromProjector))
+
+	assert.True(t, decodedFromBackfill.Equal(decodedFromProjector),
+		"a date written by the backfill's to_char and a date written by the Go projector's RFC3339 encoding must decode to the same instant")
+	assert.JSONEq(t, string(projectorRaw), string(acquired["acquisitionDate"]),
+		"the backfill's to_char encoding must match Go's RFC3339 encoding byte-for-byte")
+
+	vendor := f.attributes(subjectKey("vendor", "v-1"))
+	assert.JSONEq(t, `"Contoso Consulting"`, string(vendor["implementationPartner"]))
+	assert.JSONEq(t, `"Preferred"`, string(vendor["notes"]))
 }
 
 func TestBackfillMigration_SeedsBusinessDomainNamesAndMaturityScale(t *testing.T) {

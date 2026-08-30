@@ -46,6 +46,7 @@ func (e AcquiredEntityUpdated) EventData() map[string]interface{} {
 		"integrationStatus": e.IntegrationStatus,
 		"notes":             e.Notes,
 		"updatedAt":         e.UpdatedAt,
+		"acquisitionDate":   nil,
 	}
 	if e.AcquisitionDate != nil {
 		data["acquisitionDate"] = *e.AcquisitionDate

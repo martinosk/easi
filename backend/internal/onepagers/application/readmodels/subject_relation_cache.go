@@ -52,8 +52,8 @@ func (rm *SubjectRelationCacheReadModel) Save(ctx context.Context, subject Subje
 		`INSERT INTO onepagers.subject_relation_cache
 		(tenant_id, subject_type, subject_id, entry_id, related_type, related_id, related_name, edge_id)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		ON CONFLICT (tenant_id, subject_type, subject_id, entry_id, related_id) DO UPDATE
-		SET related_type = EXCLUDED.related_type, related_name = EXCLUDED.related_name, edge_id = EXCLUDED.edge_id`,
+		ON CONFLICT (tenant_id, subject_type, subject_id, entry_id, related_id, edge_id) DO UPDATE
+		SET related_type = EXCLUDED.related_type, related_name = EXCLUDED.related_name`,
 		subject.SubjectType, subject.SubjectID, entry.EntryID,
 		entry.RelatedType, entry.RelatedID, entry.RelatedName, entry.EdgeID,
 	)
@@ -126,13 +126,18 @@ func (rm *SubjectRelationCacheReadModel) RenameRelated(ctx context.Context, targ
 	)
 }
 
-const relationReferenceSelect = `SELECT r.subject_id, r.entry_id, r.related_type, r.related_id,
-	COALESCE(NULLIF(i.name, ''), r.related_name) AS label
-FROM onepagers.subject_relation_cache r
-LEFT JOIN onepagers.one_pager_subject_index i
-	ON i.tenant_id = r.tenant_id AND i.subject_type = r.related_type AND i.subject_id = r.related_id
-WHERE r.tenant_id = $1 AND r.subject_type = $2 AND r.subject_id = ANY($3) AND r.entry_id = ANY($4)
-ORDER BY r.subject_id, r.entry_id, label, r.related_id`
+const relationReferenceSelect = `WITH deduped AS (
+	SELECT DISTINCT ON (r.subject_id, r.entry_id, r.related_id)
+		r.subject_id, r.entry_id, r.related_type, r.related_id,
+		COALESCE(NULLIF(i.name, ''), r.related_name) AS label
+	FROM onepagers.subject_relation_cache r
+	LEFT JOIN onepagers.one_pager_subject_index i
+		ON i.tenant_id = r.tenant_id AND i.subject_type = r.related_type AND i.subject_id = r.related_id
+	WHERE r.tenant_id = $1 AND r.subject_type = $2 AND r.subject_id = ANY($3) AND r.entry_id = ANY($4)
+	ORDER BY r.subject_id, r.entry_id, r.related_id, r.edge_id
+)
+SELECT subject_id, entry_id, related_type, related_id, label FROM deduped
+ORDER BY subject_id, entry_id, label, related_id`
 
 func (rm *SubjectRelationCacheReadModel) References(ctx context.Context, query RelationQuery) (map[string][]RelationReference, error) {
 	references := map[string][]RelationReference{}
@@ -168,6 +173,52 @@ func scanRelationReferences(rows *sql.Rows, references map[string][]RelationRefe
 		references[reference.SubjectID] = append(references[reference.SubjectID], reference)
 	}
 	return rows.Err()
+}
+
+func (rm *SubjectRelationCacheReadModel) SubjectsByEdge(ctx context.Context, edgeID string) ([]SubjectKey, error) {
+	if edgeID == "" {
+		return nil, nil
+	}
+	return rm.distinctSubjects(ctx,
+		fmt.Sprintf("list subjects referencing edge %s", edgeID),
+		`SELECT DISTINCT subject_type, subject_id FROM onepagers.subject_relation_cache WHERE tenant_id = $1 AND edge_id = $2`,
+		edgeID,
+	)
+}
+
+func (rm *SubjectRelationCacheReadModel) SubjectsByRelated(ctx context.Context, target RelationTarget) ([]SubjectKey, error) {
+	return rm.distinctSubjects(ctx,
+		fmt.Sprintf("list subjects referencing %s %s", target.EntryID, target.RelatedID),
+		`SELECT DISTINCT subject_type, subject_id FROM onepagers.subject_relation_cache WHERE tenant_id = $1 AND entry_id = $2 AND related_id = $3`,
+		target.EntryID, target.RelatedID,
+	)
+}
+
+func (rm *SubjectRelationCacheReadModel) distinctSubjects(ctx context.Context, description, query string, args ...any) ([]SubjectKey, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var subjects []SubjectKey
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		rows, queryErr := tx.QueryContext(ctx, query, append([]any{tenantID.Value()}, args...)...)
+		if queryErr != nil {
+			return queryErr
+		}
+		defer func() { _ = rows.Close() }()
+		for rows.Next() {
+			var key SubjectKey
+			if err := rows.Scan(&key.SubjectType, &key.SubjectID); err != nil {
+				return err
+			}
+			subjects = append(subjects, key)
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", description, err)
+	}
+	return subjects, nil
 }
 
 func (rm *SubjectRelationCacheReadModel) CountSubjectsWithEntry(ctx context.Context, subjectType, entryID string) (int, error) {

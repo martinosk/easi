@@ -39,6 +39,9 @@ func NewOnePagerSubjectIndexReadModel(db *database.TenantAwareDB) *OnePagerSubje
 }
 
 func (rm *OnePagerSubjectIndexReadModel) Upsert(ctx context.Context, record SubjectIndexRecord) error {
+	if record.Attributes == nil {
+		record.Attributes = SubjectAttributes{}
+	}
 	attributes, err := record.Attributes.encode()
 	if err != nil {
 		return err
@@ -97,6 +100,44 @@ func (rm *OnePagerSubjectIndexReadModel) ApplyCompleteness(ctx context.Context, 
 		WHERE idx.tenant_id = $1 AND idx.subject_type = $2 AND idx.subject_id = filled.subject_id`,
 		subjectType, required, pq.Array(subjectIDs), pq.Array(filledCounts),
 	)
+}
+
+type SubjectCompleteness struct {
+	SubjectID string
+	Required  int
+	Filled    int
+}
+
+func (rm *OnePagerSubjectIndexReadModel) CompletenessFor(ctx context.Context, subjectType string) ([]SubjectCompleteness, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var rows []SubjectCompleteness
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		result, queryErr := tx.QueryContext(ctx,
+			`SELECT subject_id, required_count, filled_count FROM onepagers.one_pager_subject_index
+			WHERE tenant_id = $1 AND subject_type = $2`,
+			tenantID.Value(), subjectType,
+		)
+		if queryErr != nil {
+			return queryErr
+		}
+		defer func() { _ = result.Close() }()
+		for result.Next() {
+			var row SubjectCompleteness
+			if err := result.Scan(&row.SubjectID, &row.Required, &row.Filled); err != nil {
+				return err
+			}
+			rows = append(rows, row)
+		}
+		return result.Err()
+	})
+	if err != nil {
+		return nil, fmt.Errorf("query completeness for %s subjects: %w", subjectType, err)
+	}
+	return rows, nil
 }
 
 func (rm *OnePagerSubjectIndexReadModel) SubjectIDs(ctx context.Context, subjectType string) ([]string, error) {

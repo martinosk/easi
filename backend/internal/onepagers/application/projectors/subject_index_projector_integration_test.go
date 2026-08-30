@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	amEvents "easi/backend/internal/architecturemodeling/domain/events"
 	amPL "easi/backend/internal/architecturemodeling/publishedlanguage"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/onepagers/application/ports"
@@ -17,6 +18,7 @@ import (
 	"easi/backend/internal/onepagers/application/readmodels"
 	"easi/backend/internal/onepagers/infrastructure/adapters"
 	sharedctx "easi/backend/internal/shared/context"
+	domain "easi/backend/internal/shared/eventsourcing"
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 
 	"github.com/google/uuid"
@@ -114,18 +116,37 @@ func (f *indexProjectorFixture) project(eventType string, at time.Time, payload 
 	require.NoError(f.t, f.projector.ProjectEvent(f.ctx, eventType, at, data))
 }
 
+func (f *indexProjectorFixture) projectDomainEvent(event domain.DomainEvent, at time.Time) {
+	f.t.Helper()
+	data, err := json.Marshal(event.EventData())
+	require.NoError(f.t, err)
+	require.NoError(f.t, f.projector.ProjectEvent(f.ctx, event.EventType(), at, data))
+}
+
 func (f *indexProjectorFixture) row() (readmodels.SubjectIndexRecord, bool) {
+	return f.rowFor("application", f.appID)
+}
+
+func (f *indexProjectorFixture) rowFor(subjectType, subjectID string) (readmodels.SubjectIndexRecord, bool) {
 	f.t.Helper()
 	page, _, err := f.index.Page(f.ctx, readmodels.SubjectIndexQuery{
-		SubjectTypes: []string{"application"}, Sort: readmodels.SortName, Order: readmodels.OrderAsc, Limit: 50,
+		SubjectTypes: []string{subjectType}, Sort: readmodels.SortName, Order: readmodels.OrderAsc, Limit: 50,
 	})
 	require.NoError(f.t, err)
 	for _, record := range page {
-		if record.SubjectID == f.appID {
+		if record.SubjectID == subjectID {
 			return record, true
 		}
 	}
 	return readmodels.SubjectIndexRecord{}, false
+}
+
+func acquisitionDateConfigDocument(required bool) readmodels.ConfigurationDocument {
+	return readmodels.ConfigurationDocument{
+		CustomFields:  []readmodels.CustomFieldRecord{},
+		BuiltInFields: []readmodels.BuiltInFieldRecord{{ID: "acquisition-date", Required: required}},
+		DisplayOrder:  []readmodels.FieldRefRecord{{Kind: "builtIn", ID: "acquisition-date"}},
+	}
 }
 
 func TestSubjectIndexProjector_EndToEnd_OverOwnedCaches(t *testing.T) {
@@ -157,6 +178,46 @@ func TestSubjectIndexProjector_EndToEnd_OverOwnedCaches(t *testing.T) {
 	f.project(amPL.ApplicationComponentDeleted, created.Add(3*time.Hour), map[string]any{"id": f.appID})
 	_, found = f.row()
 	assert.False(t, found, "deleted subject no longer appears")
+}
+
+func TestSubjectIndexProjector_Created_ComputesCompletenessFromTheJustWrittenAttributes(t *testing.T) {
+	f := newIndexProjectorFixture(t)
+	created := time.Date(2026, 1, 2, 8, 0, 0, 0, time.UTC)
+	f.seedCreationEvent("creator-1", "creator@dfds.com", created)
+	f.seedConfig(true)
+
+	f.project(amPL.ApplicationComponentCreated, created, map[string]any{"id": f.appID, "name": "Billing", "description": "Handles payments"})
+
+	row, found := f.row()
+	require.True(t, found, "created subject appears as a row")
+	assert.Equal(t, 1, row.RequiredCount)
+	assert.Equal(t, 1, row.FilledCount, "the required field recorded at creation time is already counted as filled")
+	assert.Equal(t, readmodels.SignalComplete, row.Signal(), "a required field already filled at creation time must be scored complete immediately")
+}
+
+func TestSubjectIndexProjector_ClearingAcquisitionDate_IsReflectedImmediately(t *testing.T) {
+	f := newIndexProjectorFixture(t)
+	entityID := "ae-1"
+	at := time.Date(2026, 1, 2, 8, 0, 0, 0, time.UTC)
+	acquired := time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC)
+
+	configID := uuid.NewString()
+	require.NoError(t, f.configs.Insert(f.ctx, readmodels.ConfigurationRecord{
+		ID: configID, SubjectType: "acquired-entity", Document: acquisitionDateConfigDocument(true), Version: 1,
+		CreatedAt: time.Now().UTC(), ModifiedAt: time.Now().UTC(), ModifiedBy: "admin",
+	}))
+
+	f.projectDomainEvent(amEvents.NewAcquiredEntityCreated(entityID, "Acme", &acquired, "In Progress", "n"), at)
+	row, found := f.rowFor("acquired-entity", entityID)
+	require.True(t, found)
+	assert.Equal(t, readmodels.SignalComplete, row.Signal(), "the recorded acquisition date satisfies the required field")
+
+	f.projectDomainEvent(amEvents.NewAcquiredEntityUpdated(entityID, "Acme", nil, "In Progress", "n"), at.Add(time.Hour))
+
+	row, found = f.rowFor("acquired-entity", entityID)
+	require.True(t, found)
+	assert.Equal(t, 0, row.FilledCount, "a cleared required field must no longer be counted as filled")
+	assert.Equal(t, readmodels.SignalIncomplete, row.Signal(), "clearing the required date must not leave the stale value cached as filled")
 }
 
 func TestSubjectIndexProjector_ExpertsAccumulateInTheAttributeCache(t *testing.T) {

@@ -10,38 +10,31 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"easi/backend/internal/onepagers/application/readmodels"
 	sharedAPI "easi/backend/internal/shared/api"
 )
 
-type fakeSubjectIDs struct {
-	ids map[string][]string
+type fakeSubjectCompleteness struct {
+	rows map[string][]readmodels.SubjectCompleteness
 }
 
-func (f *fakeSubjectIDs) SubjectIDs(_ context.Context, subjectType string) ([]string, error) {
-	return f.ids[subjectType], nil
-}
-
-type fakeCompletenessIndicators struct {
-	indicators map[string]bool
-	applies    bool
-	gotIDs     []string
-}
-
-func (f *fakeCompletenessIndicators) ForSubjects(_ context.Context, _ string, subjectIDs []string) (map[string]bool, bool, error) {
-	f.gotIDs = subjectIDs
-	return f.indicators, f.applies, nil
+func (f *fakeSubjectCompleteness) CompletenessFor(_ context.Context, subjectType string) ([]readmodels.SubjectCompleteness, error) {
+	return f.rows[subjectType], nil
 }
 
 func TestGetCompleteness_ReportsEverySubjectOfTheType(t *testing.T) {
-	subjects := &fakeSubjectIDs{ids: map[string][]string{"application": {"app-1", "app-2"}}}
-	indicators := &fakeCompletenessIndicators{indicators: map[string]bool{"app-1": true, "app-2": false}, applies: true}
-	handlers := NewOnePagerCompletenessHandlers(subjects, indicators, NewOnePagerLinks(sharedAPI.NewHATEOASLinks("/api/v1")))
+	source := &fakeSubjectCompleteness{rows: map[string][]readmodels.SubjectCompleteness{
+		"application": {
+			{SubjectID: "app-1", Required: 2, Filled: 2},
+			{SubjectID: "app-2", Required: 2, Filled: 1},
+		},
+	}}
+	handlers := NewOnePagerCompletenessHandlers(source, NewOnePagerLinks(sharedAPI.NewHATEOASLinks("/api/v1")))
 
 	rec := httptest.NewRecorder()
 	handlers.GetCompleteness("application")(rec, httptest.NewRequest(http.MethodGet, "/one-pagers/application/completeness", nil))
 
 	require.Equal(t, http.StatusOK, rec.Code)
-	assert.Equal(t, []string{"app-1", "app-2"}, indicators.gotIDs)
 	var body OnePagerCompletenessResponse
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
 	assert.Equal(t, []OnePagerCompletenessDTO{{SubjectID: "app-1", Complete: true}, {SubjectID: "app-2", Complete: false}}, body.Data)
@@ -49,9 +42,10 @@ func TestGetCompleteness_ReportsEverySubjectOfTheType(t *testing.T) {
 }
 
 func TestGetCompleteness_EmptyWhenNoRequiredFields(t *testing.T) {
-	subjects := &fakeSubjectIDs{ids: map[string][]string{"vendor": {"v-1"}}}
-	indicators := &fakeCompletenessIndicators{applies: false}
-	handlers := NewOnePagerCompletenessHandlers(subjects, indicators, NewOnePagerLinks(sharedAPI.NewHATEOASLinks("/api/v1")))
+	source := &fakeSubjectCompleteness{rows: map[string][]readmodels.SubjectCompleteness{
+		"vendor": {{SubjectID: "v-1", Required: 0, Filled: 0}},
+	}}
+	handlers := NewOnePagerCompletenessHandlers(source, NewOnePagerLinks(sharedAPI.NewHATEOASLinks("/api/v1")))
 
 	rec := httptest.NewRecorder()
 	handlers.GetCompleteness("vendor")(rec, httptest.NewRequest(http.MethodGet, "/one-pagers/vendor/completeness", nil))

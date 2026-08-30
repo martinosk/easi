@@ -13,7 +13,9 @@ import (
 	capPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/onepagers/application/projectors"
+	"easi/backend/internal/onepagers/application/queries"
 	"easi/backend/internal/onepagers/application/readmodels"
+	"easi/backend/internal/onepagers/infrastructure/adapters"
 	sharedctx "easi/backend/internal/shared/context"
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 
@@ -29,6 +31,7 @@ type relationCacheFixture struct {
 	tenant    string
 	index     *readmodels.OnePagerSubjectIndexReadModel
 	relations *readmodels.SubjectRelationCacheReadModel
+	configs   *readmodels.OnePagerConfigurationReadModel
 	projector *projectors.SubjectRelationProjector
 }
 
@@ -47,6 +50,7 @@ func newRelationCacheFixture(t *testing.T) *relationCacheFixture {
 			"onepagers.subject_relation_cache",
 			"onepagers.business_domain_name_cache",
 			"onepagers.one_pager_subject_index",
+			"onepagers.one_pager_configurations",
 		} {
 			_, _ = db.Exec("DELETE FROM "+table+" WHERE tenant_id = $1", tenant)
 		}
@@ -56,11 +60,43 @@ func newRelationCacheFixture(t *testing.T) *relationCacheFixture {
 	tenantDB := database.NewTenantAwareDB(db)
 	index := readmodels.NewOnePagerSubjectIndexReadModel(tenantDB)
 	relations := readmodels.NewSubjectRelationCacheReadModel(tenantDB)
+	configs := readmodels.NewOnePagerConfigurationReadModel(tenantDB)
+	counter := queries.NewCompletenessIndicators(configs, readmodels.NewOnePagerFactsReadModel(tenantDB),
+		adapters.NewOnePagerBuiltInFieldSources(tenantDB))
+	indexProjector := projectors.NewSubjectIndexProjector(index, counter, adapters.NewSubjectAuditAdapter(tenantDB), configs)
 	return &relationCacheFixture{
 		t: t, ctx: sharedctx.WithTenant(context.Background(), tenantID), tenant: tenant,
-		index: index, relations: relations,
-		projector: projectors.NewSubjectRelationProjector(relations, readmodels.NewBusinessDomainNameCacheReadModel(tenantDB)),
+		index: index, relations: relations, configs: configs,
+		projector: projectors.NewSubjectRelationProjector(relations, readmodels.NewBusinessDomainNameCacheReadModel(tenantDB), indexProjector),
 	}
+}
+
+func (f *relationCacheFixture) requireBuiltIn(subjectType, entryID string) {
+	f.t.Helper()
+	require.NoError(f.t, f.configs.Insert(f.ctx, readmodels.ConfigurationRecord{
+		ID:          uuid.NewString(),
+		SubjectType: subjectType,
+		Document: readmodels.ConfigurationDocument{
+			CustomFields:  []readmodels.CustomFieldRecord{},
+			BuiltInFields: []readmodels.BuiltInFieldRecord{{ID: entryID, Required: true}},
+			DisplayOrder:  []readmodels.FieldRefRecord{{Kind: "builtIn", ID: entryID}},
+		},
+		Version: 1, CreatedAt: time.Now().UTC(), ModifiedAt: time.Now().UTC(), ModifiedBy: "admin",
+	}))
+}
+
+func (f *relationCacheFixture) rowFor(subject readmodels.SubjectKey) (readmodels.SubjectIndexRecord, bool) {
+	f.t.Helper()
+	page, _, err := f.index.Page(f.ctx, readmodels.SubjectIndexQuery{
+		SubjectTypes: []string{subject.SubjectType}, Sort: readmodels.SortName, Order: readmodels.OrderAsc, Limit: 50,
+	})
+	require.NoError(f.t, err)
+	for _, record := range page {
+		if record.SubjectID == subject.SubjectID {
+			return record, true
+		}
+	}
+	return readmodels.SubjectIndexRecord{}, false
 }
 
 func (f *relationCacheFixture) seedSubject(subject readmodels.SubjectKey, name string) {
@@ -179,6 +215,65 @@ func TestSubjectRelationCache_ReparentingMovesTheChild(t *testing.T) {
 	assert.Equal(t, "cap-3", parent[0].RelatedID)
 	assert.Empty(t, f.references(subjectKey("capability", "cap-1"), "child-capabilities"))
 	require.Len(t, f.references(subjectKey("capability", "cap-3"), "child-capabilities"), 1)
+}
+
+func TestSubjectRelationCache_ParallelEdgesSurviveIndependentDeletion(t *testing.T) {
+	f := newRelationCacheFixture(t)
+	f.seedSubject(subjectKey("capability", "cap-1"), "Billing")
+	f.seedSubject(subjectKey("capability", "cap-2"), "Compliance")
+
+	f.project(capPL.CapabilityDependencyCreated, map[string]any{"id": "dep-1", "sourceCapabilityId": "cap-1", "targetCapabilityId": "cap-2"})
+	f.project(capPL.CapabilityDependencyCreated, map[string]any{"id": "dep-2", "sourceCapabilityId": "cap-1", "targetCapabilityId": "cap-2"})
+
+	f.project(capPL.CapabilityDependencyDeleted, map[string]any{"id": "dep-2"})
+
+	references := f.references(subjectKey("capability", "cap-1"), "depends-on")
+	require.Len(t, references, 1, "dep-1 is a separate, still-live edge and must keep rendering")
+	assert.Equal(t, "cap-2", references[0].RelatedID)
+
+	f.project(capPL.CapabilityDependencyDeleted, map[string]any{"id": "dep-1"})
+	assert.Empty(t, f.references(subjectKey("capability", "cap-1"), "depends-on"), "both parallel edges are now gone")
+}
+
+func TestSubjectRelationCache_ReferencesDeduplicateParallelEdgesToTheSameTarget(t *testing.T) {
+	f := newRelationCacheFixture(t)
+	f.seedSubject(subjectKey("application", "app-1"), "Billing Service")
+	f.seedSubject(subjectKey("application", "app-2"), "Invoicing Service")
+
+	require.NoError(t, f.relations.Save(f.ctx,
+		subjectKey("application", "app-1"),
+		readmodels.RelationEntry{EntryID: "component-relations", RelatedType: "application", RelatedID: "app-2", EdgeID: "cr-1"},
+	))
+	require.NoError(t, f.relations.Save(f.ctx,
+		subjectKey("application", "app-1"),
+		readmodels.RelationEntry{EntryID: "component-relations", RelatedType: "application", RelatedID: "app-2", EdgeID: "cr-2"},
+	))
+
+	references := f.references(subjectKey("application", "app-1"), "component-relations")
+	require.Len(t, references, 1, "two parallel edges to the same target render once")
+	assert.Equal(t, "app-2", references[0].RelatedID)
+}
+
+func TestSubjectRelationCache_CreatingAndDeletingARequiredRelation_FlipsStoredCompleteness(t *testing.T) {
+	f := newRelationCacheFixture(t)
+	f.seedSubject(subjectKey("capability", "cap-1"), "Billing")
+	f.seedSubject(subjectKey("capability", "cap-2"), "Compliance")
+	f.requireBuiltIn("capability", "depends-on")
+
+	f.project(capPL.CapabilityDependencyCreated, map[string]any{"id": "dep-1", "sourceCapabilityId": "cap-1", "targetCapabilityId": "cap-2"})
+
+	row, found := f.rowFor(subjectKey("capability", "cap-1"))
+	require.True(t, found)
+	assert.Equal(t, 1, row.RequiredCount)
+	assert.Equal(t, 1, row.FilledCount, "the newly created required relation must flip the stored counters immediately")
+	assert.Equal(t, readmodels.SignalComplete, row.Signal())
+
+	f.project(capPL.CapabilityDependencyDeleted, map[string]any{"id": "dep-1"})
+
+	row, found = f.rowFor(subjectKey("capability", "cap-1"))
+	require.True(t, found)
+	assert.Equal(t, 0, row.FilledCount, "deleting the only relation must flip the stored counters back")
+	assert.Equal(t, readmodels.SignalIncomplete, row.Signal())
 }
 
 func TestSubjectRelationCache_UninheritingRemovesOnlyTheNamedCapabilities(t *testing.T) {

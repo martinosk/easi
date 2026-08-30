@@ -165,9 +165,13 @@ func TestSubjectIndexProjector_Created_InsertsRow(t *testing.T) {
 	assert.Equal(t, readmodels.SubjectIndexRecord{
 		SubjectType: "capability", SubjectID: "cap-1", Name: "Billing",
 		CreatorActorID: "user-1", CreatorEmail: "a@dfds.com",
-		CreatedAt: created, LastUpdatedAt: created, RequiredCount: 2, FilledCount: 1,
+		CreatedAt: created, LastUpdatedAt: created,
 		Attributes: cachedAttributes(t, map[string]any{}),
-	}, store.upserts[0])
+	}, store.upserts[0], "counts are not known until the row's attributes are committed")
+
+	require.Len(t, store.recomputes, 1)
+	assert.Equal(t, appliedCompleteness{subjectType: "capability", required: 2, filled: map[string]int{"cap-1": 1}}, store.recomputes[0],
+		"completeness is computed and applied only after the row exists")
 }
 
 func TestSubjectIndexProjector_Deleted_RemovesRow(t *testing.T) {

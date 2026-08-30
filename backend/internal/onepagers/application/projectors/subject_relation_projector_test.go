@@ -43,6 +43,8 @@ type fakeRelationStore struct {
 	deletedEdgeSubset []edgeSubjectDeletion
 	deletedSubjects   []readmodels.SubjectKey
 	renamed           []renamedRelated
+	subjectsByEdge    map[string][]readmodels.SubjectKey
+	subjectsByRelated map[readmodels.RelationTarget][]readmodels.SubjectKey
 }
 
 func (f *fakeRelationStore) Save(_ context.Context, subject readmodels.SubjectKey, entry readmodels.RelationEntry) error {
@@ -80,6 +82,37 @@ func (f *fakeRelationStore) RenameRelated(_ context.Context, target readmodels.R
 	return nil
 }
 
+func (f *fakeRelationStore) SubjectsByEdge(_ context.Context, edgeID string) ([]readmodels.SubjectKey, error) {
+	return f.subjectsByEdge[edgeID], nil
+}
+
+func (f *fakeRelationStore) SubjectsByRelated(_ context.Context, target readmodels.RelationTarget) ([]readmodels.SubjectKey, error) {
+	return f.subjectsByRelated[target], nil
+}
+
+type recomputedCompleteness struct {
+	subjectType string
+	subjectIDs  []string
+}
+
+type fakeCompletenessRecomputer struct {
+	calls []recomputedCompleteness
+}
+
+func (f *fakeCompletenessRecomputer) Recompute(_ context.Context, subjectType string, subjectIDs []string) error {
+	f.calls = append(f.calls, recomputedCompleteness{subjectType: subjectType, subjectIDs: subjectIDs})
+	return nil
+}
+
+func (f *fakeCompletenessRecomputer) subjectIDsFor(subjectType string) []string {
+	for _, call := range f.calls {
+		if call.subjectType == subjectType {
+			return call.subjectIDs
+		}
+	}
+	return nil
+}
+
 type fakeBusinessDomainNames struct {
 	names   map[string]string
 	deleted []string
@@ -103,18 +136,20 @@ func (f *fakeBusinessDomainNames) Name(_ context.Context, businessDomainID strin
 }
 
 type relationHarness struct {
-	t         *testing.T
-	relations *fakeRelationStore
-	domains   *fakeBusinessDomainNames
-	projector *projectors.SubjectRelationProjector
+	t            *testing.T
+	relations    *fakeRelationStore
+	domains      *fakeBusinessDomainNames
+	completeness *fakeCompletenessRecomputer
+	projector    *projectors.SubjectRelationProjector
 }
 
 func newRelationHarness(t *testing.T) *relationHarness {
 	relations := &fakeRelationStore{}
 	domains := &fakeBusinessDomainNames{}
+	completeness := &fakeCompletenessRecomputer{}
 	return &relationHarness{
-		t: t, relations: relations, domains: domains,
-		projector: projectors.NewSubjectRelationProjector(relations, domains),
+		t: t, relations: relations, domains: domains, completeness: completeness,
+		projector: projectors.NewSubjectRelationProjector(relations, domains, completeness),
 	}
 }
 
@@ -411,6 +446,91 @@ func TestSubjectRelationProjector_UnknownEvent_NoOp(t *testing.T) {
 	assert.Empty(t, h.relations.replaced)
 	assert.Empty(t, h.relations.deletedEdges)
 	assert.Empty(t, h.relations.deletedSubjects)
+}
+
+func TestSubjectRelationProjector_RealizationLinked_RecomputesBothSubjects(t *testing.T) {
+	h := newRelationHarness(t)
+
+	h.project(capPL.SystemLinkedToCapability, map[string]any{"id": "r-1", "capabilityId": "cap-1", "componentId": "app-9"})
+
+	assert.ElementsMatch(t, []string{"cap-1"}, h.completeness.subjectIDsFor("capability"))
+	assert.ElementsMatch(t, []string{"app-9"}, h.completeness.subjectIDsFor("application"))
+}
+
+func TestSubjectRelationProjector_DependencyCreated_RecomputesSourceCapability(t *testing.T) {
+	h := newRelationHarness(t)
+
+	h.project(capPL.CapabilityDependencyCreated, map[string]any{"id": "d-1", "sourceCapabilityId": "cap-1", "targetCapabilityId": "cap-2"})
+
+	assert.Equal(t, []string{"cap-1"}, h.completeness.subjectIDsFor("capability"))
+}
+
+func TestSubjectRelationProjector_EdgeDeleted_RecomputesSubjectsThatReferencedTheEdge(t *testing.T) {
+	h := newRelationHarness(t)
+	h.relations.subjectsByEdge = map[string][]readmodels.SubjectKey{
+		"edge-1": {subjectKey("capability", "cap-1"), subjectKey("capability", "cap-2")},
+	}
+
+	h.project(capPL.CapabilityDependencyDeleted, map[string]any{"id": "edge-1"})
+
+	assert.ElementsMatch(t, []string{"cap-1", "cap-2"}, h.completeness.subjectIDsFor("capability"))
+}
+
+func TestSubjectRelationProjector_EdgeDeleted_LooksUpAffectedSubjectsBeforeDeleting(t *testing.T) {
+	h := newRelationHarness(t)
+	h.relations.subjectsByEdge = map[string][]readmodels.SubjectKey{"edge-1": {subjectKey("capability", "cap-1")}}
+
+	h.project(capPL.SystemRealizationDeleted, map[string]any{"id": "edge-1"})
+
+	assert.Equal(t, []string{"edge-1"}, h.relations.deletedEdges)
+	assert.Equal(t, []string{"cap-1"}, h.completeness.subjectIDsFor("capability"))
+}
+
+func TestSubjectRelationProjector_BusinessDomainDeleted_RecomputesFormerlyAssignedCapabilities(t *testing.T) {
+	h := newRelationHarness(t)
+	target := readmodels.RelationTarget{EntryID: "business-domains", RelatedID: "bd-1"}
+	h.relations.subjectsByRelated = map[readmodels.RelationTarget][]readmodels.SubjectKey{
+		target: {subjectKey("capability", "cap-1")},
+	}
+
+	h.project(capPL.BusinessDomainDeleted, map[string]any{"id": "bd-1"})
+
+	assert.Equal(t, []string{"cap-1"}, h.completeness.subjectIDsFor("capability"))
+}
+
+func TestSubjectRelationProjector_BusinessDomainRenamed_DoesNotRecompute(t *testing.T) {
+	h := newRelationHarness(t)
+
+	h.project(capPL.BusinessDomainUpdated, map[string]any{"id": "bd-1", "name": "Finance & Risk"})
+
+	assert.Empty(t, h.completeness.calls, "renaming a related entity never changes a required field's filled state")
+}
+
+func TestSubjectRelationProjector_ParentChanged_RecomputesCapabilityAndBothParents(t *testing.T) {
+	h := newRelationHarness(t)
+	target := readmodels.RelationTarget{EntryID: "child-capabilities", RelatedID: "cap-2"}
+	h.relations.subjectsByRelated = map[readmodels.RelationTarget][]readmodels.SubjectKey{
+		target: {subjectKey("capability", "cap-1")},
+	}
+
+	h.project(capPL.CapabilityParentChanged, map[string]any{"capabilityId": "cap-2", "oldParentId": "cap-1", "newParentId": "cap-3"})
+
+	assert.ElementsMatch(t, []string{"cap-2", "cap-1", "cap-3"}, h.completeness.subjectIDsFor("capability"))
+}
+
+func TestSubjectRelationProjector_OriginLinkReplaced_RecomputesApplicationAndBothEntities(t *testing.T) {
+	h := newRelationHarness(t)
+	target := readmodels.RelationTarget{EntryID: "purchased-applications", RelatedID: "app-1"}
+	h.relations.subjectsByRelated = map[readmodels.RelationTarget][]readmodels.SubjectKey{
+		target: {subjectKey("vendor", "v-1")},
+	}
+
+	h.project(amPL.OriginLinkReplaced, map[string]any{
+		"componentId": "app-1", "originType": "purchased-from", "oldEntityId": "v-1", "newEntityId": "v-2",
+	})
+
+	assert.Equal(t, []string{"app-1"}, h.completeness.subjectIDsFor("application"))
+	assert.ElementsMatch(t, []string{"v-1", "v-2"}, h.completeness.subjectIDsFor("vendor"))
 }
 
 func TestSubjectRelationEventTypes_CoverEveryCachedRelation(t *testing.T) {

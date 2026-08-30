@@ -55,7 +55,7 @@ func newSubjectCaches(db *database.TenantAwareDB) subjectCaches {
 }
 
 func (c subjectCaches) subscribeProjectors(bus events.EventBus, index *projectors.SubjectIndexProjector) {
-	relationProjector := projectors.NewSubjectRelationProjector(c.relations, c.domains)
+	relationProjector := projectors.NewSubjectRelationProjector(c.relations, c.domains, index)
 	for _, eventType := range projectors.SubjectRelationEventTypes() {
 		bus.Subscribe(eventType, relationProjector)
 	}
@@ -137,7 +137,7 @@ func SetupOnePagersRoutes(deps OnePagersRoutesDeps) error {
 	registerSubjectRoutes(deps.Router, subjectHandlers{
 		view:         viewHandlers,
 		facts:        factsHandlers,
-		completeness: NewOnePagerCompletenessHandlers(caches.index, completenessCounter, links),
+		completeness: NewOnePagerCompletenessHandlers(caches.index, links),
 	}, deps.AuthMiddleware)
 
 	qualityHandlers := NewOnePagerQualityHandlers(caches.index, links)

@@ -107,25 +107,23 @@ INSERT INTO onepagers.subject_relation_cache
 SELECT r.tenant_id, 'capability', r.capability_id, 'realizing-applications', 'application', r.component_id, '',
        COALESCE(NULLIF(r.source_realization_id, ''), r.id)
 FROM capabilitymapping.capability_realizations r
-ON CONFLICT (tenant_id, subject_type, subject_id, entry_id, related_id) DO UPDATE
-SET related_type = EXCLUDED.related_type, related_name = EXCLUDED.related_name, edge_id = EXCLUDED.edge_id;
+ON CONFLICT (tenant_id, subject_type, subject_id, entry_id, related_id, edge_id) DO UPDATE
+SET related_type = EXCLUDED.related_type, related_name = EXCLUDED.related_name;
 
 INSERT INTO onepagers.subject_relation_cache
     (tenant_id, subject_type, subject_id, entry_id, related_type, related_id, related_name, edge_id)
 SELECT r.tenant_id, 'application', r.component_id, 'realized-capabilities', 'capability', r.capability_id, '',
        COALESCE(NULLIF(r.source_realization_id, ''), r.id)
 FROM capabilitymapping.capability_realizations r
-ON CONFLICT (tenant_id, subject_type, subject_id, entry_id, related_id) DO UPDATE
-SET related_type = EXCLUDED.related_type, related_name = EXCLUDED.related_name, edge_id = EXCLUDED.edge_id;
+ON CONFLICT (tenant_id, subject_type, subject_id, entry_id, related_id, edge_id) DO UPDATE
+SET related_type = EXCLUDED.related_type, related_name = EXCLUDED.related_name;
 
 INSERT INTO onepagers.subject_relation_cache
     (tenant_id, subject_type, subject_id, entry_id, related_type, related_id, related_name, edge_id)
-SELECT DISTINCT ON (d.tenant_id, d.source_capability_id, d.target_capability_id)
-       d.tenant_id, 'capability', d.source_capability_id, 'depends-on', 'capability', d.target_capability_id, '', d.id
+SELECT d.tenant_id, 'capability', d.source_capability_id, 'depends-on', 'capability', d.target_capability_id, '', d.id
 FROM capabilitymapping.capability_dependencies d
-ORDER BY d.tenant_id, d.source_capability_id, d.target_capability_id, d.created_at
-ON CONFLICT (tenant_id, subject_type, subject_id, entry_id, related_id) DO UPDATE
-SET related_type = EXCLUDED.related_type, related_name = EXCLUDED.related_name, edge_id = EXCLUDED.edge_id;
+ON CONFLICT (tenant_id, subject_type, subject_id, entry_id, related_id, edge_id) DO UPDATE
+SET related_type = EXCLUDED.related_type, related_name = EXCLUDED.related_name;
 
 INSERT INTO onepagers.subject_relation_cache
     (tenant_id, subject_type, subject_id, entry_id, related_type, related_id, related_name, edge_id)
@@ -134,82 +132,80 @@ SELECT a.tenant_id, 'capability', a.capability_id, 'business-domains', '', a.bus
 FROM capabilitymapping.domain_capability_assignments a
 LEFT JOIN capabilitymapping.business_domains d
        ON d.tenant_id = a.tenant_id AND d.id = a.business_domain_id
-ON CONFLICT (tenant_id, subject_type, subject_id, entry_id, related_id) DO UPDATE
-SET related_type = EXCLUDED.related_type, related_name = EXCLUDED.related_name, edge_id = EXCLUDED.edge_id;
+ON CONFLICT (tenant_id, subject_type, subject_id, entry_id, related_id, edge_id) DO UPDATE
+SET related_type = EXCLUDED.related_type, related_name = EXCLUDED.related_name;
 
 INSERT INTO onepagers.subject_relation_cache
     (tenant_id, subject_type, subject_id, entry_id, related_type, related_id, related_name, edge_id)
 SELECT c.tenant_id, 'capability', c.id, 'parent-capability', 'capability', c.parent_id, '', ''
 FROM capabilitymapping.capabilities c
 WHERE c.parent_id IS NOT NULL AND c.parent_id <> ''
-ON CONFLICT (tenant_id, subject_type, subject_id, entry_id, related_id) DO UPDATE
-SET related_type = EXCLUDED.related_type, related_name = EXCLUDED.related_name, edge_id = EXCLUDED.edge_id;
+ON CONFLICT (tenant_id, subject_type, subject_id, entry_id, related_id, edge_id) DO UPDATE
+SET related_type = EXCLUDED.related_type, related_name = EXCLUDED.related_name;
 
 INSERT INTO onepagers.subject_relation_cache
     (tenant_id, subject_type, subject_id, entry_id, related_type, related_id, related_name, edge_id)
 SELECT c.tenant_id, 'capability', c.parent_id, 'child-capabilities', 'capability', c.id, '', ''
 FROM capabilitymapping.capabilities c
 WHERE c.parent_id IS NOT NULL AND c.parent_id <> ''
-ON CONFLICT (tenant_id, subject_type, subject_id, entry_id, related_id) DO UPDATE
-SET related_type = EXCLUDED.related_type, related_name = EXCLUDED.related_name, edge_id = EXCLUDED.edge_id;
+ON CONFLICT (tenant_id, subject_type, subject_id, entry_id, related_id, edge_id) DO UPDATE
+SET related_type = EXCLUDED.related_type, related_name = EXCLUDED.related_name;
 
 INSERT INTO onepagers.subject_relation_cache
     (tenant_id, subject_type, subject_id, entry_id, related_type, related_id, related_name, edge_id)
 SELECT r.tenant_id, 'application', r.component_id, 'built-by', 'internal-team', r.internal_team_id, '', r.id
 FROM architecturemodeling.built_by_relationships r
 WHERE COALESCE(r.is_deleted, FALSE) = FALSE
-ON CONFLICT (tenant_id, subject_type, subject_id, entry_id, related_id) DO UPDATE
-SET related_type = EXCLUDED.related_type, related_name = EXCLUDED.related_name, edge_id = EXCLUDED.edge_id;
+ON CONFLICT (tenant_id, subject_type, subject_id, entry_id, related_id, edge_id) DO UPDATE
+SET related_type = EXCLUDED.related_type, related_name = EXCLUDED.related_name;
 
 INSERT INTO onepagers.subject_relation_cache
     (tenant_id, subject_type, subject_id, entry_id, related_type, related_id, related_name, edge_id)
 SELECT r.tenant_id, 'internal-team', r.internal_team_id, 'built-applications', 'application', r.component_id, '', r.id
 FROM architecturemodeling.built_by_relationships r
 WHERE COALESCE(r.is_deleted, FALSE) = FALSE
-ON CONFLICT (tenant_id, subject_type, subject_id, entry_id, related_id) DO UPDATE
-SET related_type = EXCLUDED.related_type, related_name = EXCLUDED.related_name, edge_id = EXCLUDED.edge_id;
+ON CONFLICT (tenant_id, subject_type, subject_id, entry_id, related_id, edge_id) DO UPDATE
+SET related_type = EXCLUDED.related_type, related_name = EXCLUDED.related_name;
 
 INSERT INTO onepagers.subject_relation_cache
     (tenant_id, subject_type, subject_id, entry_id, related_type, related_id, related_name, edge_id)
 SELECT r.tenant_id, 'application', r.component_id, 'purchased-from', 'vendor', r.vendor_id, '', r.id
 FROM architecturemodeling.purchased_from_relationships r
 WHERE COALESCE(r.is_deleted, FALSE) = FALSE
-ON CONFLICT (tenant_id, subject_type, subject_id, entry_id, related_id) DO UPDATE
-SET related_type = EXCLUDED.related_type, related_name = EXCLUDED.related_name, edge_id = EXCLUDED.edge_id;
+ON CONFLICT (tenant_id, subject_type, subject_id, entry_id, related_id, edge_id) DO UPDATE
+SET related_type = EXCLUDED.related_type, related_name = EXCLUDED.related_name;
 
 INSERT INTO onepagers.subject_relation_cache
     (tenant_id, subject_type, subject_id, entry_id, related_type, related_id, related_name, edge_id)
 SELECT r.tenant_id, 'vendor', r.vendor_id, 'purchased-applications', 'application', r.component_id, '', r.id
 FROM architecturemodeling.purchased_from_relationships r
 WHERE COALESCE(r.is_deleted, FALSE) = FALSE
-ON CONFLICT (tenant_id, subject_type, subject_id, entry_id, related_id) DO UPDATE
-SET related_type = EXCLUDED.related_type, related_name = EXCLUDED.related_name, edge_id = EXCLUDED.edge_id;
+ON CONFLICT (tenant_id, subject_type, subject_id, entry_id, related_id, edge_id) DO UPDATE
+SET related_type = EXCLUDED.related_type, related_name = EXCLUDED.related_name;
 
 INSERT INTO onepagers.subject_relation_cache
     (tenant_id, subject_type, subject_id, entry_id, related_type, related_id, related_name, edge_id)
 SELECT r.tenant_id, 'application', r.component_id, 'acquired-via', 'acquired-entity', r.acquired_entity_id, '', r.id
 FROM architecturemodeling.acquired_via_relationships r
 WHERE COALESCE(r.is_deleted, FALSE) = FALSE
-ON CONFLICT (tenant_id, subject_type, subject_id, entry_id, related_id) DO UPDATE
-SET related_type = EXCLUDED.related_type, related_name = EXCLUDED.related_name, edge_id = EXCLUDED.edge_id;
+ON CONFLICT (tenant_id, subject_type, subject_id, entry_id, related_id, edge_id) DO UPDATE
+SET related_type = EXCLUDED.related_type, related_name = EXCLUDED.related_name;
 
 INSERT INTO onepagers.subject_relation_cache
     (tenant_id, subject_type, subject_id, entry_id, related_type, related_id, related_name, edge_id)
 SELECT r.tenant_id, 'acquired-entity', r.acquired_entity_id, 'acquired-applications', 'application', r.component_id, '', r.id
 FROM architecturemodeling.acquired_via_relationships r
 WHERE COALESCE(r.is_deleted, FALSE) = FALSE
-ON CONFLICT (tenant_id, subject_type, subject_id, entry_id, related_id) DO UPDATE
-SET related_type = EXCLUDED.related_type, related_name = EXCLUDED.related_name, edge_id = EXCLUDED.edge_id;
+ON CONFLICT (tenant_id, subject_type, subject_id, entry_id, related_id, edge_id) DO UPDATE
+SET related_type = EXCLUDED.related_type, related_name = EXCLUDED.related_name;
 
 INSERT INTO onepagers.subject_relation_cache
     (tenant_id, subject_type, subject_id, entry_id, related_type, related_id, related_name, edge_id)
-SELECT DISTINCT ON (cr.tenant_id, cr.source_component_id, cr.target_component_id)
-       cr.tenant_id, 'application', cr.source_component_id, 'component-relations', 'application', cr.target_component_id, '', cr.id
+SELECT cr.tenant_id, 'application', cr.source_component_id, 'component-relations', 'application', cr.target_component_id, '', cr.id
 FROM architecturemodeling.component_relations cr
 WHERE COALESCE(cr.is_deleted, FALSE) = FALSE
-ORDER BY cr.tenant_id, cr.source_component_id, cr.target_component_id, cr.created_at
-ON CONFLICT (tenant_id, subject_type, subject_id, entry_id, related_id) DO UPDATE
-SET related_type = EXCLUDED.related_type, related_name = EXCLUDED.related_name, edge_id = EXCLUDED.edge_id;
+ON CONFLICT (tenant_id, subject_type, subject_id, entry_id, related_id, edge_id) DO UPDATE
+SET related_type = EXCLUDED.related_type, related_name = EXCLUDED.related_name;
 
 -- ============================================================================
 -- Maturity scale

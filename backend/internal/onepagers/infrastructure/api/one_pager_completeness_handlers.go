@@ -4,16 +4,13 @@ import (
 	"context"
 	"net/http"
 
+	"easi/backend/internal/onepagers/application/readmodels"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/types"
 )
 
-type SubjectIDsSource interface {
-	SubjectIDs(ctx context.Context, subjectType string) ([]string, error)
-}
-
-type CompletenessIndicatorsSource interface {
-	ForSubjects(ctx context.Context, subjectType string, subjectIDs []string) (map[string]bool, bool, error)
+type SubjectCompletenessSource interface {
+	CompletenessFor(ctx context.Context, subjectType string) ([]readmodels.SubjectCompleteness, error)
 }
 
 type OnePagerCompletenessDTO struct {
@@ -27,13 +24,12 @@ type OnePagerCompletenessResponse struct {
 }
 
 type OnePagerCompletenessHandlers struct {
-	subjects   SubjectIDsSource
-	indicators CompletenessIndicatorsSource
-	links      *OnePagerLinks
+	index SubjectCompletenessSource
+	links *OnePagerLinks
 }
 
-func NewOnePagerCompletenessHandlers(subjects SubjectIDsSource, indicators CompletenessIndicatorsSource, links *OnePagerLinks) *OnePagerCompletenessHandlers {
-	return &OnePagerCompletenessHandlers{subjects: subjects, indicators: indicators, links: links}
+func NewOnePagerCompletenessHandlers(index SubjectCompletenessSource, links *OnePagerLinks) *OnePagerCompletenessHandlers {
+	return &OnePagerCompletenessHandlers{index: index, links: links}
 }
 
 // GetCompleteness godoc
@@ -63,20 +59,16 @@ func (h *OnePagerCompletenessHandlers) GetCompleteness(subjectType string) http.
 }
 
 func (h *OnePagerCompletenessHandlers) completeness(ctx context.Context, subjectType string) ([]OnePagerCompletenessDTO, error) {
-	subjectIDs, err := h.subjects.SubjectIDs(ctx, subjectType)
+	rows, err := h.index.CompletenessFor(ctx, subjectType)
 	if err != nil {
 		return nil, err
 	}
-	indicators, applies, err := h.indicators.ForSubjects(ctx, subjectType, subjectIDs)
-	if err != nil {
-		return nil, err
-	}
-	data := make([]OnePagerCompletenessDTO, 0, len(subjectIDs))
-	if !applies {
-		return data, nil
-	}
-	for _, subjectID := range subjectIDs {
-		data = append(data, OnePagerCompletenessDTO{SubjectID: subjectID, Complete: indicators[subjectID]})
+	data := make([]OnePagerCompletenessDTO, 0, len(rows))
+	for _, row := range rows {
+		if row.Required == 0 {
+			continue
+		}
+		data = append(data, OnePagerCompletenessDTO{SubjectID: row.SubjectID, Complete: row.Filled >= row.Required})
 	}
 	return data, nil
 }

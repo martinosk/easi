@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/onepagers/application/ports"
 	"easi/backend/internal/onepagers/application/readmodels"
 )
@@ -15,10 +14,6 @@ type MaturityScaleCache interface {
 
 type maturityScaleSource struct {
 	cache MaturityScaleCache
-}
-
-func NewOnePagerMaturityScaleSource(db *database.TenantAwareDB) ports.MaturityScaleSource {
-	return NewMaturityScaleSource(readmodels.NewMaturityScaleCacheReadModel(db))
 }
 
 func NewMaturityScaleSource(cache MaturityScaleCache) ports.MaturityScaleSource {

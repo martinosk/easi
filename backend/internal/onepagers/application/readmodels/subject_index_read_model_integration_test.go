@@ -195,6 +195,43 @@ func TestSubjectIndex_CompletenessOrderingIncompleteFirst(t *testing.T) {
 	assert.Equal(t, readmodels.SignalNotApplicable, all[3].Signal())
 }
 
+func TestSubjectIndex_UpsertWithNilAttributes_DoesNotCorruptBuiltInFields(t *testing.T) {
+	f := newIndexFixture(t)
+	require.NoError(t, f.rm.Upsert(f.ctx, readmodels.SubjectIndexRecord{
+		SubjectType: "application", SubjectID: "app-1", Name: "Alpha",
+		CreatedAt: f.baseTime, LastUpdatedAt: f.baseTime,
+	}))
+
+	attributes := readmodels.SubjectAttributes{}
+	require.NoError(t, attributes.Set("description", "Handles payments"))
+	require.NoError(t, f.rm.MergeAttributes(f.ctx, readmodels.SubjectKey{SubjectType: "application", SubjectID: "app-1"}, attributes))
+
+	row, err := f.rm.AttributeRow(f.ctx, readmodels.SubjectKey{SubjectType: "application", SubjectID: "app-1"})
+	require.NoError(t, err, "a nil Attributes map on Upsert must not turn built_in_fields into a JSON null that later merges corrupt")
+	require.NotNil(t, row)
+	assert.JSONEq(t, `"Handles payments"`, string(row.Attributes["description"]))
+}
+
+func TestSubjectIndex_CompletenessForReadsStoredCounters(t *testing.T) {
+	f := newIndexFixture(t)
+	f.seed(seedRow{subjectType: "application", subjectID: "app-1", name: "Alpha", email: "a@x.com", required: 2, filled: 2})
+	f.seed(seedRow{subjectType: "application", subjectID: "app-2", name: "Beta", email: "b@x.com", required: 2, filled: 1})
+	f.seed(seedRow{subjectType: "application", subjectID: "app-3", name: "Gamma", email: "g@x.com"})
+	f.seed(seedRow{subjectType: "vendor", subjectID: "ven-1", name: "Ven", email: "v@x.com", required: 1, filled: 1})
+
+	rows, err := f.rm.CompletenessFor(f.ctx, "application")
+
+	require.NoError(t, err)
+	bySubjectID := map[string]readmodels.SubjectCompleteness{}
+	for _, row := range rows {
+		bySubjectID[row.SubjectID] = row
+	}
+	require.Len(t, bySubjectID, 3)
+	assert.Equal(t, readmodels.SubjectCompleteness{SubjectID: "app-1", Required: 2, Filled: 2}, bySubjectID["app-1"])
+	assert.Equal(t, readmodels.SubjectCompleteness{SubjectID: "app-2", Required: 2, Filled: 1}, bySubjectID["app-2"])
+	assert.Equal(t, readmodels.SubjectCompleteness{SubjectID: "app-3", Required: 0, Filled: 0}, bySubjectID["app-3"])
+}
+
 func TestSubjectIndex_SubjectTypeFilterScopesResults(t *testing.T) {
 	f := newIndexFixture(t)
 	f.seed(seedRow{subjectType: "application", subjectID: "app-1", name: "App", email: "a@x.com"})

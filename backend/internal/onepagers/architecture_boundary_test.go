@@ -1,6 +1,8 @@
 package onepagers_test
 
 import (
+	"go/ast"
+	"go/build/constraint"
 	"go/parser"
 	"go/token"
 	"io/fs"
@@ -37,8 +39,56 @@ func isIntegrationTaggedFile(path string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	firstLine := strings.SplitN(string(content), "\n", 2)[0]
-	return strings.Contains(firstLine, "//go:build integration"), nil
+	compiles, err := compilesWithoutIntegrationTag(content)
+	if err != nil {
+		return false, err
+	}
+	return !compiles, nil
+}
+
+func compilesWithoutIntegrationTag(content []byte) (bool, error) {
+	fset := token.NewFileSet()
+	node, err := parser.ParseFile(fset, "", content, parser.PackageClauseOnly|parser.ParseComments)
+	if err != nil {
+		return false, err
+	}
+	return evalBuildConstraintsBeforePackageClause(node), nil
+}
+
+func evalBuildConstraintsBeforePackageClause(node *ast.File) bool {
+	for _, group := range node.Comments {
+		if group.Pos() >= node.Package {
+			break
+		}
+		if !evalCommentGroup(group) {
+			return false
+		}
+	}
+	return true
+}
+
+func evalCommentGroup(group *ast.CommentGroup) bool {
+	for _, comment := range group.List {
+		if compiles, ok := evalBuildConstraint(comment); ok && !compiles {
+			return false
+		}
+	}
+	return true
+}
+
+func evalBuildConstraint(comment *ast.Comment) (compiles bool, isConstraint bool) {
+	if !constraint.IsGoBuild(comment.Text) {
+		return false, false
+	}
+	expr, err := constraint.Parse(comment.Text)
+	if err != nil {
+		return false, false
+	}
+	return expr.Eval(noDefaultBuildTagsSet), true
+}
+
+func noDefaultBuildTagsSet(string) bool {
+	return false
 }
 
 func forbiddenImports(path string) ([]string, error) {

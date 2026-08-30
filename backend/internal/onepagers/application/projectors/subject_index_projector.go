@@ -179,16 +179,11 @@ func (p *SubjectIndexProjector) onCreated(ctx context.Context, event projectedEv
 		return fmt.Errorf("read creation audit for %s %s: %w", subject.SubjectType, subject.SubjectID, err)
 	}
 
-	counts, err := p.countsFor(ctx, subject)
-	if err != nil {
-		return err
-	}
-
 	createdAt := event.occurredAt
 	if audit.Found {
 		createdAt = audit.CreatedAt
 	}
-	return p.store.Upsert(ctx, readmodels.SubjectIndexRecord{
+	if err := p.store.Upsert(ctx, readmodels.SubjectIndexRecord{
 		SubjectType:    subject.SubjectType,
 		SubjectID:      subject.SubjectID,
 		Name:           created.Name,
@@ -196,10 +191,12 @@ func (p *SubjectIndexProjector) onCreated(ctx context.Context, event projectedEv
 		CreatorEmail:   audit.ActorEmail,
 		CreatedAt:      createdAt,
 		LastUpdatedAt:  event.occurredAt,
-		RequiredCount:  counts.Required,
-		FilledCount:    counts.Filled,
 		Attributes:     attributes,
-	})
+	}); err != nil {
+		return err
+	}
+
+	return p.recompute(ctx, subject.SubjectType, []string{subject.SubjectID})
 }
 
 func (p *SubjectIndexProjector) onDeleted(ctx context.Context, event projectedEvent) error {
@@ -303,6 +300,10 @@ func (p *SubjectIndexProjector) onConfigurationChanged(ctx context.Context, even
 		return fmt.Errorf("list %s subjects for completeness recompute: %w", config.SubjectType, err)
 	}
 	return p.recompute(ctx, config.SubjectType, subjectIDs)
+}
+
+func (p *SubjectIndexProjector) Recompute(ctx context.Context, subjectType string, subjectIDs []string) error {
+	return p.recompute(ctx, subjectType, subjectIDs)
 }
 
 func (p *SubjectIndexProjector) recompute(ctx context.Context, subjectType string, subjectIDs []string) error {

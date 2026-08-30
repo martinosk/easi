@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS onepagers.subject_relation_cache (
     related_id VARCHAR(255) NOT NULL,
     related_name TEXT NOT NULL DEFAULT '',
     edge_id VARCHAR(255) NOT NULL DEFAULT '',
-    PRIMARY KEY (tenant_id, subject_type, subject_id, entry_id, related_id)
+    PRIMARY KEY (tenant_id, subject_type, subject_id, entry_id, related_id, edge_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_onepagers_subject_relation_cache_edge
