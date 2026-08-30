@@ -57,7 +57,7 @@ func setupOriginTestHandlers(db *sql.DB) *originTestContext {
 	componentRepo := repositories.NewApplicationComponentRepository(eventStore)
 	createComponentHandler := handlers.NewCreateApplicationComponentHandler(componentRepo)
 	commandBus.Register("CreateApplicationComponent", createComponentHandler)
-	componentHandlers := NewComponentHandlers(commandBus, componentReadModel, links, nil)
+	componentHandlers := NewComponentHandlers(commandBus, componentReadModel, links)
 
 	acquiredViaReadModel := readmodels.NewAcquiredViaRelationshipReadModel(tenantDB)
 	purchasedFromReadModel := readmodels.NewPurchasedFromRelationshipReadModel(tenantDB)

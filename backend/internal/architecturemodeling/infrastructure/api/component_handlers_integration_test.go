@@ -185,7 +185,7 @@ func setupHandlers(db *sql.DB) (*ComponentHandlers, *readmodels.ApplicationCompo
 	commandBus.Register("DeleteComponentRelation", deleteRelationHandler)
 
 	// Setup HTTP handlers
-	componentHandlers := NewComponentHandlers(commandBus, readModel, links, nil)
+	componentHandlers := NewComponentHandlers(commandBus, readModel, links)
 
 	return componentHandlers, readModel
 }
