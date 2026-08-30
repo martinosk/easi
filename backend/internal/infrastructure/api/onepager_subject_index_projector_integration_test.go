@@ -15,6 +15,7 @@ import (
 	opProjectors "easi/backend/internal/onepagers/application/projectors"
 	opQueries "easi/backend/internal/onepagers/application/queries"
 	opReadModels "easi/backend/internal/onepagers/application/readmodels"
+	opAdapters "easi/backend/internal/onepagers/infrastructure/adapters"
 	sharedctx "easi/backend/internal/shared/context"
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 
@@ -60,7 +61,7 @@ func newIndexProjectorHarness(t *testing.T) *indexProjectorHarness {
 	store := opReadModels.NewOnePagerSubjectIndexReadModel(tenantDB)
 	configs := opReadModels.NewOnePagerConfigurationReadModel(tenantDB)
 	counter := opQueries.NewCompletenessIndicators(configs, opReadModels.NewOnePagerFactsReadModel(tenantDB), newOnePagerBuiltInFieldSources(tenantDB))
-	projector := opProjectors.NewSubjectIndexProjector(store, counter, newOnePagerAuditAdapter(tenantDB), configs)
+	projector := opProjectors.NewSubjectIndexProjector(store, counter, opAdapters.NewSubjectAuditAdapter(tenantDB), configs)
 
 	return &indexProjectorHarness{
 		t: t, db: db, tenantDB: tenantDB, ctx: ctx, tenant: tenant, appID: "app-e2e",

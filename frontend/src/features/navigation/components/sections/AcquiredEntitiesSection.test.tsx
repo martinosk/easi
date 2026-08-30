@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from '../../../../test/helpers';
+import { seedOnePagerCompleteness } from '../../../../test/mocks/onePagerCompleteness';
 const render = (ui: ReactElement) => renderWithProviders(ui, { withRouter: false });
 import { describe, expect, it, vi } from 'vitest';
 import type {
@@ -282,25 +283,27 @@ describe('AcquiredEntitiesSection', () => {
   });
 
   describe('one-pager completeness indicator', () => {
-    it('should show the indicator when onePagerComplete is false', () => {
-      const entity = createMockEntity({ id: 'ae-123' as AcquiredEntityId, onePagerComplete: false });
-      render(<AcquiredEntitiesSection {...defaultProps} acquiredEntities={[entity]} />);
+    it('shows the indicator only for subjects the completeness collection reports as incomplete', async () => {
+      seedOnePagerCompleteness('acquired-entity', [
+        { subjectId: 'ae-123', complete: false },
+        { subjectId: 'ae-456', complete: true },
+      ]);
+      render(
+        <AcquiredEntitiesSection
+          {...defaultProps}
+          acquiredEntities={[createMockEntity({ id: 'ae-123' as AcquiredEntityId }), createMockEntity({ id: 'ae-456' as AcquiredEntityId, name: 'Other' })]}
+        />,
+      );
 
-      expect(screen.getByTestId('one-pager-incomplete-ae-123')).toBeInTheDocument();
+      expect(await screen.findByTestId('one-pager-incomplete-ae-123')).toBeInTheDocument();
+      expect(screen.queryByTestId('one-pager-incomplete-ae-456')).not.toBeInTheDocument();
     });
 
-    it('should not show the indicator when onePagerComplete is true', () => {
-      const entity = createMockEntity({ id: 'ae-123' as AcquiredEntityId, onePagerComplete: true });
-      render(<AcquiredEntitiesSection {...defaultProps} acquiredEntities={[entity]} />);
+    it('shows no indicator when the subject type has no required field', async () => {
+      seedOnePagerCompleteness('acquired-entity', []);
+      render(<AcquiredEntitiesSection {...defaultProps} acquiredEntities={[createMockEntity({ id: 'ae-123' as AcquiredEntityId })]} />);
 
-      expect(screen.queryByTestId('one-pager-incomplete-ae-123')).not.toBeInTheDocument();
-    });
-
-    it('should not show the indicator when onePagerComplete is absent', () => {
-      const entity = createMockEntity({ id: 'ae-123' as AcquiredEntityId });
-      render(<AcquiredEntitiesSection {...defaultProps} acquiredEntities={[entity]} />);
-
-      expect(screen.queryByTestId('one-pager-incomplete-ae-123')).not.toBeInTheDocument();
+      await waitFor(() => expect(screen.queryByTestId('one-pager-incomplete-ae-123')).not.toBeInTheDocument());
     });
   });
 

@@ -7,6 +7,7 @@ import { CapabilityTree } from '../../../capabilities/components/CapabilityTree'
 import type { CapabilityTreeNode } from '../../../capabilities/hooks/useCapabilityTree';
 import { buildCapabilityTree } from '../../../capabilities/hooks/useCapabilityTree';
 import { OnePagerIncompleteIndicator } from '../../../one-pagers/components/OnePagerIncompleteIndicator';
+import { useOnePagerCompleteness } from '../../../one-pagers/hooks/useOnePagerCompleteness';
 import type { TreeSelectedItem } from '../../hooks/useTreeMultiSelect';
 import type { TreeMultiSelectProps } from '../../types';
 import { hasCustomColor } from '../../utils/treeUtils';
@@ -72,6 +73,7 @@ export const CapabilitiesSection: React.FC<CapabilitiesSectionProps> = ({
   multiSelect,
 }) => {
   const [visibleItems, setVisibleItems] = useState<TreeSelectedItem[]>([]);
+  const { data: onePagerCompleteness } = useOnePagerCompleteness('capability');
   const effectiveCapabilitiesInView = useMemo(
     () => capabilitiesInView ?? defaultCapabilitiesInView(currentView),
     [capabilitiesInView, currentView],
@@ -130,7 +132,7 @@ export const CapabilitiesSection: React.FC<CapabilitiesSectionProps> = ({
     return (
       <>
         <MaturityDot capability={capability} colorScheme={colorScheme} />
-        <OnePagerIncompleteIndicator id={capability.id} onePagerComplete={capability.onePagerComplete} />
+        <OnePagerIncompleteIndicator id={capability.id} complete={onePagerCompleteness?.get(capability.id)} />
         {hasCustomColor(currentView?.colorScheme, viewCapability?.customColor) && (
           <Tooltip label="Custom colour in this view" withArrow>
             <span

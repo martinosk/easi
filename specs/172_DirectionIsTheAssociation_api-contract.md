@@ -7,6 +7,8 @@
 
 ## Revision Log
 
+- **2026-08-29 — Amended by spec 207.** Composition read view, source-candidates search and maturity analysis are served by `architecturedirection` (same URLs and shapes); `includedCapabilityCount`/`domainCount` are removed from the EC DTO and served by `GET /enterprise-capability-compositions`. O5 still holds: composition is computed per request from Architecture Direction's own caches.
+
 - **2026-06-11 — Backend implemented; open items §7 resolved.**
   - **O1:** `pagination.cursor` stays an empty-string placeholder; `hasMore` is computed by limit lookahead. The cursor format remains undecided until the client needs paging.
   - **O2:** the acting architect is recorded as an `actor` field on the `DirectionSourceCapabilitiesChanged` payload only; `BaseEvent` is unchanged. Historic events deserialize with an empty actor.

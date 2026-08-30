@@ -4,9 +4,10 @@ import (
 	"context"
 	"testing"
 
+	amPL "easi/backend/internal/architecturemodeling/publishedlanguage"
+	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/importing/application/saga"
 	"easi/backend/internal/importing/domain/aggregates"
-	"easi/backend/internal/importing/publishedlanguage"
 )
 
 type metadataUpdateCall struct {
@@ -42,7 +43,7 @@ func (s *fakeEntityStore) create(name string) (string, error) {
 
 type fakeComponentGateway struct {
 	fakeEntityStore
-	relationCalls []publishedlanguage.CreateRelationInput
+	relationCalls []amPL.CreateRelationInput
 }
 
 func newFakeComponentGateway() *fakeComponentGateway {
@@ -53,7 +54,7 @@ func (f *fakeComponentGateway) CreateComponent(_ context.Context, name, _ string
 	return f.create(name)
 }
 
-func (f *fakeComponentGateway) CreateRelation(_ context.Context, in publishedlanguage.CreateRelationInput) (string, error) {
+func (f *fakeComponentGateway) CreateRelation(_ context.Context, in amPL.CreateRelationInput) (string, error) {
 	f.relationCalls = append(f.relationCalls, in)
 	if f.err != nil {
 		return "", f.err
@@ -63,9 +64,9 @@ func (f *fakeComponentGateway) CreateRelation(_ context.Context, in publishedlan
 
 type fakeCapabilityGateway struct {
 	fakeEntityStore
-	createCalls     []publishedlanguage.CreateCapabilityInput
+	createCalls     []cmPL.CreateCapabilityInput
 	metadataCalls   []metadataUpdateCall
-	linkSystemCalls []publishedlanguage.LinkSystemInput
+	linkSystemCalls []cmPL.LinkSystemInput
 	linkErrByKey    map[string]error
 }
 
@@ -76,7 +77,7 @@ func newFakeCapabilityGateway() *fakeCapabilityGateway {
 	}
 }
 
-func (f *fakeCapabilityGateway) CreateCapability(_ context.Context, in publishedlanguage.CreateCapabilityInput) (string, error) {
+func (f *fakeCapabilityGateway) CreateCapability(_ context.Context, in cmPL.CreateCapabilityInput) (string, error) {
 	f.createCalls = append(f.createCalls, in)
 	return f.create(in.Name)
 }
@@ -86,7 +87,7 @@ func (f *fakeCapabilityGateway) UpdateMetadata(_ context.Context, id, eaOwner, s
 	return f.err
 }
 
-func (f *fakeCapabilityGateway) LinkSystem(_ context.Context, in publishedlanguage.LinkSystemInput) (string, error) {
+func (f *fakeCapabilityGateway) LinkSystem(_ context.Context, in cmPL.LinkSystemInput) (string, error) {
 	f.linkSystemCalls = append(f.linkSystemCalls, in)
 	key := in.ComponentID + "-" + in.CapabilityID
 	if err, ok := f.linkErrByKey[key]; ok {

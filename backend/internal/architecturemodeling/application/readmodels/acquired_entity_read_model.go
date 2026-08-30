@@ -21,7 +21,6 @@ type AcquiredEntityDTO struct {
 	Notes             string              `json:"notes,omitempty"`
 	CreatedAt         time.Time           `json:"createdAt"`
 	UpdatedAt         *time.Time          `json:"updatedAt,omitempty"`
-	OnePagerComplete  *bool               `json:"onePagerComplete,omitempty"`
 	Links             types.Links         `json:"_links,omitempty"`
 	XRelated          []types.RelatedLink `json:"-"`
 }

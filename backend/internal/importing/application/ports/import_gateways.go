@@ -3,18 +3,19 @@ package ports
 import (
 	"context"
 
-	"easi/backend/internal/importing/publishedlanguage"
+	amPL "easi/backend/internal/architecturemodeling/publishedlanguage"
+	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 )
 
 type ComponentGateway interface {
 	CreateComponent(ctx context.Context, name, description string) (string, error)
-	CreateRelation(ctx context.Context, input publishedlanguage.CreateRelationInput) (string, error)
+	CreateRelation(ctx context.Context, input amPL.CreateRelationInput) (string, error)
 }
 
 type CapabilityGateway interface {
-	CreateCapability(ctx context.Context, input publishedlanguage.CreateCapabilityInput) (string, error)
+	CreateCapability(ctx context.Context, input cmPL.CreateCapabilityInput) (string, error)
 	UpdateMetadata(ctx context.Context, id, eaOwner, status string) error
-	LinkSystem(ctx context.Context, input publishedlanguage.LinkSystemInput) (string, error)
+	LinkSystem(ctx context.Context, input cmPL.LinkSystemInput) (string, error)
 	AssignToDomain(ctx context.Context, capabilityID, businessDomainID string) error
 }
 

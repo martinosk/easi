@@ -15,21 +15,18 @@ type VendorHandlers struct {
 	readModel        *readmodels.VendorReadModel
 	paginationHelper *sharedAPI.PaginationHelper
 	hateoas          *ArchitectureModelingLinks
-	completeness     OnePagerCompletenessSource
 }
 
 func NewVendorHandlers(
 	commandBus cqrs.CommandBus,
 	readModel *readmodels.VendorReadModel,
 	hateoas *ArchitectureModelingLinks,
-	completeness OnePagerCompletenessSource,
 ) *VendorHandlers {
 	return &VendorHandlers{
 		commandBus:       commandBus,
 		readModel:        readModel,
 		paginationHelper: sharedAPI.NewPaginationHelper("/api/v1/vendors"),
 		hateoas:          hateoas,
-		completeness:     completeness,
 	}
 }
 
@@ -115,11 +112,6 @@ func (h *VendorHandlers) GetAllVendors(w http.ResponseWriter, r *http.Request) {
 	vendors, hasMore, err := h.readModel.GetAllPaginated(r.Context(), params.Limit, afterID, afterName)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve vendors")
-		return
-	}
-
-	if err := decorateVendorsOnePagerCompleteness(r.Context(), h.completeness, vendors); err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to evaluate one-pager completeness")
 		return
 	}
 

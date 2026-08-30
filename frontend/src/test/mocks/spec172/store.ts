@@ -3,6 +3,7 @@ import type { Direction, DirectionStatus, ECDirectionResponse } from '../../../f
 import type {
   CompositionDomainGroup,
   CompositionResponse,
+  CompositionSummary,
   EnterpriseCapability,
   IncludedCapabilityItem,
 } from '../../../features/enterprise-architecture/types';
@@ -103,9 +104,6 @@ export function allActiveDirections(): ActiveDirection[] {
 const link = (href: string, method: string) => ({ href, method: method as never });
 
 export function buildEnterpriseCapabilityDto(ec: StubEnterpriseCapability): EnterpriseCapability {
-  const composition = resolveComposition(ec.id, allActiveDirections(), db.capabilities);
-  const included = composition.filter((c) => c.role !== 'carved-out');
-  const domainCount = new Set(included.map((c) => c.businessDomainId).filter(Boolean)).size;
   const base = `/api/v1/enterprise-capabilities/${ec.id}`;
   return {
     id: toEnterpriseCapabilityId(ec.id),
@@ -114,8 +112,6 @@ export function buildEnterpriseCapabilityDto(ec: StubEnterpriseCapability): Ente
     category: ec.category ?? '',
     active: ec.active,
     targetMaturity: ec.targetMaturity,
-    includedCapabilityCount: included.length,
-    domainCount,
     createdAt: ec.createdAt,
     _links: {
       self: link(base, 'GET'),
@@ -125,6 +121,30 @@ export function buildEnterpriseCapabilityDto(ec: StubEnterpriseCapability): Ente
       'x-composition': link(`${base}/composition`, 'GET'),
     },
   };
+}
+
+export function buildCompositionSummary(ec: StubEnterpriseCapability): CompositionSummary {
+  const direction = getActiveDirection(ec.id);
+  const resolved = direction ? resolveComposition(ec.id, allActiveDirections(), db.capabilities) : [];
+  const included = resolved.filter((c) => c.role !== 'carved-out');
+  const base = `/api/v1/enterprise-capabilities/${ec.id}`;
+  return {
+    enterpriseCapabilityId: ec.id,
+    sourceCount: direction?.sourceCapabilityIds.length ?? 0,
+    includedCount: included.length,
+    carvedOutCount: resolved.length - included.length,
+    domainCount: new Set(included.map((c) => c.businessDomainId).filter(Boolean)).size,
+    hasActiveDirection: !!direction,
+    directionStatus: direction?.status,
+    _links: {
+      'x-enterprise-capability': link(base, 'GET'),
+      'x-composition': link(`${base}/composition`, 'GET'),
+    },
+  };
+}
+
+export function buildCompositionSummaries(): CompositionSummary[] {
+  return db.enterpriseCapabilities.filter((ec) => ec.active).map(buildCompositionSummary);
 }
 
 function includedItem(

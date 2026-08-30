@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from '../../../../test/helpers';
+import { seedOnePagerCompleteness } from '../../../../test/mocks/onePagerCompleteness';
 const render = (ui: ReactElement) => renderWithProviders(ui, { withRouter: false });
 import { describe, expect, it, vi } from 'vitest';
 import type { ComponentId, HATEOASLinks, InternalTeam, InternalTeamId, ViewId } from '../../../../api/types';
@@ -248,25 +249,27 @@ describe('InternalTeamsSection', () => {
   });
 
   describe('one-pager completeness indicator', () => {
-    it('should show the indicator when onePagerComplete is false', () => {
-      const team = createMockTeam({ id: 'it-123' as InternalTeamId, onePagerComplete: false });
-      render(<InternalTeamsSection {...defaultProps} internalTeams={[team]} />);
+    it('shows the indicator only for subjects the completeness collection reports as incomplete', async () => {
+      seedOnePagerCompleteness('internal-team', [
+        { subjectId: 'it-123', complete: false },
+        { subjectId: 'it-456', complete: true },
+      ]);
+      render(
+        <InternalTeamsSection
+          {...defaultProps}
+          internalTeams={[createMockTeam({ id: 'it-123' as InternalTeamId }), createMockTeam({ id: 'it-456' as InternalTeamId, name: 'Other' })]}
+        />,
+      );
 
-      expect(screen.getByTestId('one-pager-incomplete-it-123')).toBeInTheDocument();
+      expect(await screen.findByTestId('one-pager-incomplete-it-123')).toBeInTheDocument();
+      expect(screen.queryByTestId('one-pager-incomplete-it-456')).not.toBeInTheDocument();
     });
 
-    it('should not show the indicator when onePagerComplete is true', () => {
-      const team = createMockTeam({ id: 'it-123' as InternalTeamId, onePagerComplete: true });
-      render(<InternalTeamsSection {...defaultProps} internalTeams={[team]} />);
+    it('shows no indicator when the subject type has no required field', async () => {
+      seedOnePagerCompleteness('internal-team', []);
+      render(<InternalTeamsSection {...defaultProps} internalTeams={[createMockTeam({ id: 'it-123' as InternalTeamId })]} />);
 
-      expect(screen.queryByTestId('one-pager-incomplete-it-123')).not.toBeInTheDocument();
-    });
-
-    it('should not show the indicator when onePagerComplete is absent', () => {
-      const team = createMockTeam({ id: 'it-123' as InternalTeamId });
-      render(<InternalTeamsSection {...defaultProps} internalTeams={[team]} />);
-
-      expect(screen.queryByTestId('one-pager-incomplete-it-123')).not.toBeInTheDocument();
+      await waitFor(() => expect(screen.queryByTestId('one-pager-incomplete-it-123')).not.toBeInTheDocument());
     });
   });
 

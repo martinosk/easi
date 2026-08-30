@@ -16,21 +16,18 @@ type AcquiredEntityHandlers struct {
 	readModel        *readmodels.AcquiredEntityReadModel
 	paginationHelper *sharedAPI.PaginationHelper
 	hateoas          *ArchitectureModelingLinks
-	completeness     OnePagerCompletenessSource
 }
 
 func NewAcquiredEntityHandlers(
 	commandBus cqrs.CommandBus,
 	readModel *readmodels.AcquiredEntityReadModel,
 	hateoas *ArchitectureModelingLinks,
-	completeness OnePagerCompletenessSource,
 ) *AcquiredEntityHandlers {
 	return &AcquiredEntityHandlers{
 		commandBus:       commandBus,
 		readModel:        readModel,
 		paginationHelper: sharedAPI.NewPaginationHelper("/api/v1/acquired-entities"),
 		hateoas:          hateoas,
-		completeness:     completeness,
 	}
 }
 
@@ -129,11 +126,6 @@ func (h *AcquiredEntityHandlers) GetAllAcquiredEntities(w http.ResponseWriter, r
 	entities, hasMore, err := h.readModel.GetAllPaginated(r.Context(), params.Limit, afterID, afterName)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve acquired entities")
-		return
-	}
-
-	if err := decorateAcquiredEntitiesOnePagerCompleteness(r.Context(), h.completeness, entities); err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to evaluate one-pager completeness")
 		return
 	}
 

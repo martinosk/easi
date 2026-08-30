@@ -37,6 +37,7 @@ type EditGrantHandlerDeps struct {
 	UserLookup    ports.UserEmailLookup
 	InvChecker    ports.InvitationChecker
 	DomainChecker ports.DomainAllowlistChecker
+	Invitations   ports.InvitationRequester
 	EventBus      *events.InMemoryEventBus
 }
 
@@ -372,11 +373,11 @@ func (h *EditGrantHandlers) autoInviteIfNeeded(ctx context.Context, granteeEmail
 		return false
 	}
 
-	return h.publishAutoInviteEvent(ctx, granteeEmail, actor)
+	return h.requestInvitation(ctx, granteeEmail, actor)
 }
 
 func (h *EditGrantHandlers) canAutoInvite() bool {
-	return h.deps.UserLookup != nil && h.deps.InvChecker != nil && h.deps.EventBus != nil
+	return h.deps.UserLookup != nil && h.deps.InvChecker != nil && h.deps.Invitations != nil
 }
 
 func (h *EditGrantHandlers) granteeAlreadyExists(ctx context.Context, email string) bool {
@@ -397,14 +398,26 @@ func (h *EditGrantHandlers) isDomainAllowed(ctx context.Context, email string) b
 	return err == nil && allowed
 }
 
-func (h *EditGrantHandlers) publishAutoInviteEvent(ctx context.Context, granteeEmail string, actor sharedctx.Actor) bool {
+func (h *EditGrantHandlers) requestInvitation(ctx context.Context, granteeEmail string, actor sharedctx.Actor) bool {
+	request := ports.InvitationRequest{GranteeEmail: granteeEmail, GrantorID: actor.ID, GrantorEmail: actor.Email}
+	if err := h.deps.Invitations.RequestInvitation(ctx, request); err != nil {
+		log.Printf("[WARN] edit-grant auto-invite: request invitation for %s: %v", granteeEmail, err)
+		return false
+	}
+	h.publishNonUserGrantEvent(ctx, request)
+	return true
+}
+
+func (h *EditGrantHandlers) publishNonUserGrantEvent(ctx context.Context, request ports.InvitationRequest) {
+	if h.deps.EventBus == nil {
+		return
+	}
 	eventData := map[string]interface{}{
-		"granteeEmail": granteeEmail,
-		"grantorId":    actor.ID,
-		"grantorEmail": actor.Email,
+		"granteeEmail": request.GranteeEmail,
+		"grantorId":    request.GrantorID,
+		"grantorEmail": request.GrantorEmail,
 	}
 	data, _ := json.Marshal(eventData)
 	event := domain.NewGenericDomainEvent("", adPL.EditGrantForNonUserCreated, data, domain.NewBaseEvent("").OccurredAt())
 	_ = h.deps.EventBus.Publish(ctx, []domain.DomainEvent{event})
-	return true
 }

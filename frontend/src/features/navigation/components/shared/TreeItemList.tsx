@@ -1,10 +1,13 @@
 import { UnstyledButton } from '@mantine/core';
 import React from 'react';
 import { OnePagerIncompleteIndicator } from '../../../one-pagers/components/OnePagerIncompleteIndicator';
+import { useOnePagerCompleteness } from '../../../one-pagers/hooks/useOnePagerCompleteness';
+import type { OnePagerSubjectType } from '../../../one-pagers/types';
 import classes from './TreeItem.module.css';
 
 interface TreeItemProps<T> {
   item: T;
+  onePagerComplete?: boolean;
   isSelected: boolean;
   isInView: boolean;
   icon: React.ReactNode;
@@ -16,7 +19,7 @@ interface TreeItemProps<T> {
   onDragStart?: (e: React.DragEvent) => void;
 }
 
-function TreeItem<T extends { onePagerComplete?: boolean }>({
+function TreeItem<T>({
   isSelected,
   isInView,
   icon,
@@ -24,6 +27,7 @@ function TreeItem<T extends { onePagerComplete?: boolean }>({
   title,
   dragDataKey,
   item,
+  onePagerComplete,
   onSelect,
   onContextMenu,
   onDragStart,
@@ -51,13 +55,14 @@ function TreeItem<T extends { onePagerComplete?: boolean }>({
     >
       <span className={classes.icon}>{icon}</span>
       <span className={classes.label}>{label}</span>
-      <OnePagerIncompleteIndicator id={item.id} onePagerComplete={item.onePagerComplete} />
+      <OnePagerIncompleteIndicator id={item.id} complete={onePagerComplete} />
     </UnstyledButton>
   );
 }
 
-interface TreeItemListProps<T extends { id: string; name: string; onePagerComplete?: boolean }> {
+interface TreeItemListProps<T extends { id: string; name: string }> {
   items: T[];
+  subjectType: OnePagerSubjectType;
   emptyMessage: string;
   icon: React.ReactNode;
   dragDataKey: string;
@@ -70,8 +75,9 @@ interface TreeItemListProps<T extends { id: string; name: string; onePagerComple
   onDragStart?: (e: React.DragEvent, item: T) => void;
 }
 
-export function TreeItemList<T extends { id: string; name: string; onePagerComplete?: boolean }>({
+export function TreeItemList<T extends { id: string; name: string }>({
   items,
+  subjectType,
   emptyMessage,
   icon,
   dragDataKey,
@@ -83,6 +89,8 @@ export function TreeItemList<T extends { id: string; name: string; onePagerCompl
   onContextMenu,
   onDragStart,
 }: TreeItemListProps<T>): React.ReactElement {
+  const { data: completeness } = useOnePagerCompleteness(subjectType);
+
   return (
     <div className={classes.list}>
       {items.length === 0 ? (
@@ -94,6 +102,7 @@ export function TreeItemList<T extends { id: string; name: string; onePagerCompl
             <TreeItem
               key={item.id}
               item={item}
+              onePagerComplete={completeness?.get(item.id)}
               isSelected={isSelected(item)}
               isInView={itemIsInView}
               icon={icon}

@@ -62,26 +62,6 @@ func (h *EnterpriseArchLinks) EnterpriseStrategicImportanceCollectionLinks(ecID 
 	}
 }
 
-func (h *EnterpriseArchLinks) MaturityAnalysisCandidateLinks(ecID string) sharedAPI.Links {
-	return sharedAPI.Links{
-		"self":           h.Get("/enterprise-capabilities/" + ecID),
-		"x-maturity-gap": h.Get("/enterprise-capabilities/" + ecID + "/maturity-gap"),
-	}
-}
-
-func (h *EnterpriseArchLinks) MaturityAnalysisCollectionLinks() sharedAPI.Links {
-	return sharedAPI.Links{"self": h.Get("/enterprise-capabilities/maturity-analysis")}
-}
-
-func (h *EnterpriseArchLinks) MaturityGapDetailLinks(ecID string) sharedAPI.Links {
-	p := "/enterprise-capabilities/" + ecID
-	return sharedAPI.Links{
-		"self":                  h.Get(p + "/maturity-gap"),
-		"up":                    h.Get(p),
-		"x-set-target-maturity": h.Put(p + "/target-maturity"),
-	}
-}
-
 func (h *EnterpriseArchLinks) TimeSuggestionsCollectionLinks() sharedAPI.Links {
 	return sharedAPI.Links{"self": h.Get("/time-suggestions")}
 }

@@ -1,8 +1,12 @@
 import { ActionIcon, Group, Paper, Table } from '@mantine/core';
 import React from 'react';
 import { OnePagerIncompleteIndicator } from '../../one-pagers/components/OnePagerIncompleteIndicator';
+import { useOnePagerCompleteness } from '../../one-pagers/hooks/useOnePagerCompleteness';
+import { useCompositionSummaries } from '../hooks/useCompositionSummaries';
 import type { EnterpriseCapability } from '../types';
 import classes from './EnterpriseCapabilitiesTable.module.css';
+
+const EMPTY_COUNT = '—';
 
 interface EnterpriseCapabilitiesTableProps {
   capabilities: EnterpriseCapability[];
@@ -27,6 +31,8 @@ function DeleteIcon() {
 
 export const EnterpriseCapabilitiesTable = React.memo<EnterpriseCapabilitiesTableProps>(
   ({ capabilities, onSelect, onDelete, selectedId }) => {
+    const { data: summaries } = useCompositionSummaries();
+    const { data: onePagerCompleteness } = useOnePagerCompleteness('enterprise-capability');
     const hasAnyDeletable = capabilities.some((cap) => cap._links?.delete);
 
     const handleKeyDown = (e: React.KeyboardEvent, capability: EnterpriseCapability) => {
@@ -49,53 +55,59 @@ export const EnterpriseCapabilitiesTable = React.memo<EnterpriseCapabilitiesTabl
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {capabilities.map((capability) => (
-              <Table.Tr
-                key={capability.id}
-                data-testid={`capability-row-${capability.id}`}
-                data-selected={selectedId === capability.id || undefined}
-                className={classes.row}
-                onClick={() => onSelect(capability)}
-                onKeyDown={(e) => handleKeyDown(e, capability)}
-                tabIndex={0}
-                role="button"
-                aria-label={`Select enterprise capability ${capability.name}`}
-              >
-                <Table.Td fw={500}>
-                  <Group gap="xs" wrap="nowrap">
-                    {capability.name}
-                    <OnePagerIncompleteIndicator id={capability.id} onePagerComplete={capability.onePagerComplete} />
-                  </Group>
-                </Table.Td>
-                <Table.Td c="dimmed">{capability.category || '-'}</Table.Td>
-                <Table.Td fw={600} c="blue.6">
-                  {capability.includedCapabilityCount}
-                </Table.Td>
-                <Table.Td fw={600} c="blue.6">
-                  {capability.domainCount}
-                </Table.Td>
-                {hasAnyDeletable && (
-                  <Table.Td ta="right">
-                    {capability._links?.delete && (
-                      <ActionIcon
-                        variant="subtle"
-                        color="red"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDelete(capability);
-                        }}
-                        title="Delete capability"
-                        data-testid={`delete-capability-${capability.id}`}
-                        aria-label="Delete capability"
-                      >
-                        <DeleteIcon />
-                      </ActionIcon>
-                    )}
+            {capabilities.map((capability) => {
+              const summary = summaries?.get(capability.id);
+              return (
+                <Table.Tr
+                  key={capability.id}
+                  data-testid={`capability-row-${capability.id}`}
+                  data-selected={selectedId === capability.id || undefined}
+                  className={classes.row}
+                  onClick={() => onSelect(capability)}
+                  onKeyDown={(e) => handleKeyDown(e, capability)}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`Select enterprise capability ${capability.name}`}
+                >
+                  <Table.Td fw={500}>
+                    <Group gap="xs" wrap="nowrap">
+                      {capability.name}
+                      <OnePagerIncompleteIndicator
+                        id={capability.id}
+                        complete={onePagerCompleteness?.get(capability.id)}
+                      />
+                    </Group>
                   </Table.Td>
-                )}
-              </Table.Tr>
-            ))}
+                  <Table.Td c="dimmed">{capability.category || '-'}</Table.Td>
+                  <Table.Td fw={600} c="blue.6" data-testid={`included-count-${capability.id}`}>
+                    {summary ? summary.includedCount : EMPTY_COUNT}
+                  </Table.Td>
+                  <Table.Td fw={600} c="blue.6" data-testid={`domain-count-${capability.id}`}>
+                    {summary ? summary.domainCount : EMPTY_COUNT}
+                  </Table.Td>
+                  {hasAnyDeletable && (
+                    <Table.Td ta="right">
+                      {capability._links?.delete && (
+                        <ActionIcon
+                          variant="subtle"
+                          color="red"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDelete(capability);
+                          }}
+                          title="Delete capability"
+                          data-testid={`delete-capability-${capability.id}`}
+                          aria-label="Delete capability"
+                        >
+                          <DeleteIcon />
+                        </ActionIcon>
+                      )}
+                    </Table.Td>
+                  )}
+                </Table.Tr>
+              );
+            })}
           </Table.Tbody>
         </Table>
       </Paper>

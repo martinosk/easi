@@ -22,7 +22,11 @@ interface OriginEntityQueryKeys {
 
 function createOriginEntityMutationEffects(entityQueryKeys: OriginEntityQueryKeys, subjectType: OnePagerSubjectType) {
   return {
-    create: () => [entityQueryKeys.lists(), artifactCreatorsQueryKeys.all],
+    create: () => [
+      entityQueryKeys.lists(),
+      artifactCreatorsQueryKeys.all,
+      onePagersQueryKeys.completenessForSubjectType(subjectType),
+    ],
 
     update: (id: string) => [
       entityQueryKeys.lists(),
@@ -39,6 +43,7 @@ function createOriginEntityMutationEffects(entityQueryKeys: OriginEntityQueryKey
       componentsQueryKeys.details(),
       originRelationshipsQueryKeys.lists(),
       viewsQueryKeys.all,
+      onePagersQueryKeys.completenessForSubjectType(subjectType),
     ],
 
     linkComponent: (entityId: string, componentId: string) => [

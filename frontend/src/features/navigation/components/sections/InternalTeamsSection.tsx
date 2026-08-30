@@ -108,6 +108,7 @@ export const InternalTeamsSection: React.FC<InternalTeamsSectionProps> = ({
     >
       <TreeSearchInput value={search} onChange={setSearch} placeholder="Search internal teams..." />
       <TreeItemList
+        subjectType="internal-team"
         items={filteredTeams}
         emptyMessage={emptyMessage}
         icon={<IconUsers size={16} stroke={1.75} />}

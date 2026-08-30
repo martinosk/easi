@@ -3,11 +3,11 @@ import classes from './OnePagerIncompleteIndicator.module.css';
 
 interface OnePagerIncompleteIndicatorProps {
   id: string;
-  onePagerComplete?: boolean;
+  complete?: boolean;
 }
 
-export function OnePagerIncompleteIndicator({ id, onePagerComplete }: OnePagerIncompleteIndicatorProps) {
-  if (onePagerComplete !== false) {
+export function OnePagerIncompleteIndicator({ id, complete }: OnePagerIncompleteIndicatorProps) {
+  if (complete !== false) {
     return null;
   }
 

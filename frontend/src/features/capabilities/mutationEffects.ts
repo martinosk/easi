@@ -20,6 +20,7 @@ export const capabilitiesMutationEffects = {
     ...(context.businessDomainId ? [businessDomainsQueryKeys.capabilities(context.businessDomainId)] : []),
     maturityAnalysisQueryKeys.unlinked(),
     artifactCreatorsQueryKeys.all,
+    onePagersQueryKeys.completenessForSubjectType('capability'),
   ],
 
   update: (capabilityId: string) => [
@@ -38,6 +39,7 @@ export const capabilitiesMutationEffects = {
     businessDomainsQueryKeys.lists(),
     maturityAnalysisQueryKeys.unlinked(),
     valueStreamsQueryKeys.all,
+    onePagersQueryKeys.completenessForSubjectType('capability'),
   ],
 
   cascadeDelete: (context: { id: string; parentId?: string; domainId?: string; deleteApplications: boolean }) => [
@@ -53,7 +55,14 @@ export const capabilitiesMutationEffects = {
     valueStreamsQueryKeys.all,
     artifactCreatorsQueryKeys.all,
     auditQueryKeys.history(context.id),
-    ...(context.deleteApplications ? [componentsQueryKeys.lists(), componentsQueryKeys.details()] : []),
+    onePagersQueryKeys.completenessForSubjectType('capability'),
+    ...(context.deleteApplications
+      ? [
+          componentsQueryKeys.lists(),
+          componentsQueryKeys.details(),
+          onePagersQueryKeys.completenessForSubjectType('application'),
+        ]
+      : []),
   ],
 
   assignToDomain: (context: { capabilityId: string; domainId: string }) => [

@@ -7,15 +7,17 @@ import type { EnterpriseCapability } from '../types';
 import classes from './EnterpriseCapabilityDetailPanel.module.css';
 import { IncludedCapabilitiesSection } from './IncludedCapabilitiesSection';
 
+const EMPTY_COUNT = '—';
+
 interface EnterpriseCapabilityDetailPanelProps {
   capability: EnterpriseCapability;
   onClose: () => void;
 }
 
-function StatPair({ label, value }: { label: string; value: number | string }) {
+function StatPair({ label, value, testId }: { label: string; value: number | string; testId: string }) {
   return (
     <Stack gap={2}>
-      <Text size="xl" fw={700} c="blue.7">
+      <Text size="xl" fw={700} c="blue.7" data-testid={testId}>
         {value}
       </Text>
       <Text size="xs" c="dimmed">
@@ -29,8 +31,6 @@ export function EnterpriseCapabilityDetailPanel({ capability, onClose }: Enterpr
   const compositionQuery = useComposition(capability.id);
 
   const meta = compositionQuery.data?.meta;
-  const includedCount = meta?.includedCount ?? capability.includedCapabilityCount;
-  const domainCount = meta?.domainCount ?? capability.domainCount;
 
   return (
     <Paper shadow="sm" radius="lg" p="xl" className={classes.panel}>
@@ -56,8 +56,12 @@ export function EnterpriseCapabilityDetailPanel({ capability, onClose }: Enterpr
         <Box>
           <Divider />
           <Group gap={48} py="md">
-            <StatPair label="Included capabilities" value={includedCount} />
-            <StatPair label="Domains" value={domainCount || '—'} />
+            <StatPair
+              label="Included capabilities"
+              value={meta?.includedCount ?? EMPTY_COUNT}
+              testId="stat-included-capabilities"
+            />
+            <StatPair label="Domains" value={meta?.domainCount || EMPTY_COUNT} testId="stat-domains" />
           </Group>
           <Divider />
         </Box>
@@ -68,10 +72,7 @@ export function EnterpriseCapabilityDetailPanel({ capability, onClose }: Enterpr
 
         <OnePagerActionButton subject={capability} subjectType="enterprise-capability" subjectId={capability.id} />
 
-        <IncludedCapabilitiesSection
-          composition={compositionQuery.data}
-          isLoading={compositionQuery.isLoading}
-        />
+        <IncludedCapabilitiesSection composition={compositionQuery.data} isLoading={compositionQuery.isLoading} />
       </Stack>
     </Paper>
   );

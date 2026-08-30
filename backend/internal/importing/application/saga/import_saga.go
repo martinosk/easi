@@ -3,10 +3,11 @@ package saga
 import (
 	"context"
 
+	amPL "easi/backend/internal/architecturemodeling/publishedlanguage"
+	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/importing/application/ports"
 	"easi/backend/internal/importing/domain/aggregates"
 	"easi/backend/internal/importing/domain/valueobjects"
-	"easi/backend/internal/importing/publishedlanguage"
 )
 
 type ImportSaga struct {
@@ -86,7 +87,7 @@ func (s *ImportSaga) createCapabilities(ctx context.Context, data aggregates.Par
 			if parentSourceID, hasParent := parentMap[sourceID]; hasParent {
 				parentID = string(state.sourceToCapabilityID[parentSourceID])
 			}
-			createdID, err := s.capabilities.CreateCapability(ctx, publishedlanguage.CreateCapabilityInput{
+			createdID, err := s.capabilities.CreateCapability(ctx, cmPL.CreateCapabilityInput{
 				Name:        cap.Name,
 				Description: cap.Description,
 				ParentID:    parentID,
@@ -144,7 +145,7 @@ func (s *ImportSaga) createRealizations(ctx context.Context, data aggregates.Par
 			continue
 		}
 		notes := buildNotes(rel.Name, rel.Documentation)
-		_, err := s.capabilities.LinkSystem(ctx, publishedlanguage.LinkSystemInput{
+		_, err := s.capabilities.LinkSystem(ctx, cmPL.LinkSystemInput{
 			CapabilityID:     string(capabilityID),
 			ComponentID:      string(componentID),
 			RealizationLevel: "full",
@@ -173,7 +174,7 @@ func (s *ImportSaga) createComponentRelations(ctx context.Context, data aggregat
 			relationType = "Serves"
 		}
 		notes := buildNotes(rel.Name, rel.Documentation)
-		_, err := s.components.CreateRelation(ctx, publishedlanguage.CreateRelationInput{
+		_, err := s.components.CreateRelation(ctx, amPL.CreateRelationInput{
 			SourceID:     string(sourceComponentID),
 			TargetID:     string(targetComponentID),
 			RelationType: relationType,

@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"easi/backend/internal/accessdelegation/application/commands"
+	"easi/backend/internal/accessdelegation/application/ports"
 	"easi/backend/internal/accessdelegation/application/readmodels"
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
@@ -86,12 +87,13 @@ func TestCreateEditGrant_MixedCaseGranteeEmail_NormalizedEverywhere(t *testing.T
 	invChecker := &recordingInvitationChecker{}
 
 	handlers := NewEditGrantHandlers(EditGrantHandlerDeps{
-		CommandBus: commandBus,
-		ReadModel:  reader,
-		Hateoas:    NewEditGrantLinks(sharedAPI.NewHATEOASLinks("/api/v1")),
-		UserLookup: userLookup,
-		InvChecker: invChecker,
-		EventBus:   events.NewInMemoryEventBus(),
+		CommandBus:  commandBus,
+		ReadModel:   reader,
+		Hateoas:     NewEditGrantLinks(sharedAPI.NewHATEOASLinks("/api/v1")),
+		UserLookup:  userLookup,
+		InvChecker:  invChecker,
+		Invitations: &recordingInvitationRequester{},
+		EventBus:    events.NewInMemoryEventBus(),
 	})
 
 	body, err := json.Marshal(map[string]string{
@@ -141,4 +143,60 @@ func TestCreateEditGrant_InvalidGranteeEmail_ReturnsBadRequest(t *testing.T) {
 	handlers.CreateEditGrant(rec, req)
 
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+type recordingInvitationRequester struct {
+	requests []ports.InvitationRequest
+}
+
+func (r *recordingInvitationRequester) RequestInvitation(ctx context.Context, request ports.InvitationRequest) error {
+	r.requests = append(r.requests, request)
+	return nil
+}
+
+func TestCreateEditGrant_GranteeWithoutAccount_RequestsInvitation(t *testing.T) {
+	reader := &recordingEditGrantReader{
+		grantByID: &readmodels.EditGrantDTO{
+			ID:           "grant-1",
+			GrantorID:    "grantor-1",
+			GranteeEmail: "newcomer@dfds.com",
+			ArtifactType: "capability",
+			ArtifactID:   "cap-1",
+			Status:       "active",
+		},
+	}
+	invitations := &recordingInvitationRequester{}
+
+	handlers := NewEditGrantHandlers(EditGrantHandlerDeps{
+		CommandBus:  &recordingGrantCommandBus{},
+		ReadModel:   reader,
+		Hateoas:     NewEditGrantLinks(sharedAPI.NewHATEOASLinks("/api/v1")),
+		UserLookup:  &recordingUserLookup{},
+		InvChecker:  &recordingInvitationChecker{},
+		Invitations: invitations,
+		EventBus:    events.NewInMemoryEventBus(),
+	})
+
+	body, err := json.Marshal(map[string]string{
+		"granteeEmail": "Newcomer@DFDS.com",
+		"artifactType": "capability",
+		"artifactId":   "cap-1",
+		"reason":       "vacation cover",
+	})
+	require.NoError(t, err)
+
+	actor := sharedctx.NewActor("grantor-1", "grantor@dfds.com", sharedctx.RoleAdmin)
+	req := httptest.NewRequest(http.MethodPost, "/edit-grants", bytes.NewReader(body))
+	req = req.WithContext(sharedctx.WithActor(req.Context(), actor))
+	rec := httptest.NewRecorder()
+
+	handlers.CreateEditGrant(rec, req)
+
+	require.Equal(t, http.StatusCreated, rec.Code)
+	require.Len(t, invitations.requests, 1)
+	assert.Equal(t, ports.InvitationRequest{
+		GranteeEmail: "newcomer@dfds.com",
+		GrantorID:    "grantor-1",
+		GrantorEmail: "grantor@dfds.com",
+	}, invitations.requests[0])
 }

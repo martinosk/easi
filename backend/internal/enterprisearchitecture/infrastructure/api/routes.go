@@ -9,7 +9,6 @@ import (
 	"easi/backend/internal/enterprisearchitecture/application/handlers"
 	"easi/backend/internal/enterprisearchitecture/application/projectors"
 	"easi/backend/internal/enterprisearchitecture/application/readmodels"
-	appservices "easi/backend/internal/enterprisearchitecture/application/services"
 	"easi/backend/internal/enterprisearchitecture/infrastructure/metamodel"
 	"easi/backend/internal/enterprisearchitecture/infrastructure/repositories"
 	eaPL "easi/backend/internal/enterprisearchitecture/publishedlanguage"
@@ -37,46 +36,41 @@ type routeReadModels struct {
 	capability       *readmodels.EnterpriseCapabilityReadModel
 	importance       *readmodels.EnterpriseStrategicImportanceReadModel
 	metadata         *readmodels.DomainCapabilityMetadataReadModel
-	maturityAnalysis *readmodels.MaturityAnalysisReadModel
 	timeSuggestion   *readmodels.TimeSuggestionReadModel
 	pillarCache      *readmodels.StrategyPillarCacheReadModel
 	realizationCache *readmodels.EARealizationCacheReadModel
 	importanceCache  *readmodels.EAImportanceCacheReadModel
 	fitScoreCache    *readmodels.EAFitScoreCacheReadModel
-	composition      *appservices.CompositionService
 }
 
 type routeHTTPHandlers struct {
 	enterpriseCapability *EnterpriseCapabilityHandlers
-	composition          *CompositionHandlers
 	timeSuggestions      *TimeSuggestionsHandlers
 }
 
 type EnterpriseArchRoutesDeps struct {
-	Router               chi.Router
-	CommandBus           *cqrs.InMemoryCommandBus
-	EventStore           eventstore.EventStore
-	EventBus             events.EventBus
-	DB                   *database.TenantAwareDB
-	AuthMiddleware       AuthMiddleware
-	SessionProvider      authPL.SessionProvider
-	DirectionSources     appservices.DirectionSourcesProvider
-	BusinessDomainNames  projectors.BusinessDomainNameLookup
-	OnePagerCompleteness OnePagerCompletenessSource
+	Router              chi.Router
+	CommandBus          *cqrs.InMemoryCommandBus
+	EventStore          eventstore.EventStore
+	EventBus            events.EventBus
+	DB                  *database.TenantAwareDB
+	AuthMiddleware      AuthMiddleware
+	SessionProvider     authPL.SessionProvider
+	BusinessDomainNames projectors.BusinessDomainNameLookup
 }
 
-func SetupEnterpriseArchitectureRoutes(deps EnterpriseArchRoutesDeps) (*appservices.CompositionService, error) {
+func SetupEnterpriseArchitectureRoutes(deps EnterpriseArchRoutesDeps) error {
 	repos := initializeRepositories(deps.EventStore)
-	rm := initializeReadModels(deps.DB, deps.DirectionSources)
+	rm := initializeReadModels(deps.DB)
 
 	setupEventSubscriptions(deps.EventBus, rm, deps.BusinessDomainNames)
 	setupCommandHandlers(deps.CommandBus, repos, rm)
 
-	httpHandlers := initializeHTTPHandlers(deps.CommandBus, rm, deps.SessionProvider, deps.OnePagerCompleteness)
+	httpHandlers := initializeHTTPHandlers(deps.CommandBus, rm, deps.SessionProvider)
 	rateLimiter := middleware.NewRateLimiter(100, 60)
 	registerRoutes(deps.Router, httpHandlers, deps.AuthMiddleware, rateLimiter)
 
-	return rm.composition, nil
+	return nil
 }
 
 func initializeRepositories(eventStore eventstore.EventStore) *routeRepositories {
@@ -86,23 +80,20 @@ func initializeRepositories(eventStore eventstore.EventStore) *routeRepositories
 	}
 }
 
-func initializeReadModels(db *database.TenantAwareDB, directionSources appservices.DirectionSourcesProvider) *routeReadModels {
+func initializeReadModels(db *database.TenantAwareDB) *routeReadModels {
 	pillarCache := readmodels.NewStrategyPillarCacheReadModel(db)
 	pillarsGateway := metamodel.NewLocalStrategyPillarsGateway(pillarCache)
 	capability := readmodels.NewEnterpriseCapabilityReadModel(db)
 	metadata := readmodels.NewDomainCapabilityMetadataReadModel(db)
-	composition := appservices.NewCompositionService(directionSources, metadata, capability)
 	return &routeReadModels{
 		capability:       capability,
 		importance:       readmodels.NewEnterpriseStrategicImportanceReadModel(db),
 		metadata:         metadata,
-		maturityAnalysis: readmodels.NewMaturityAnalysisReadModel(db, composition),
 		timeSuggestion:   readmodels.NewTimeSuggestionReadModel(db, pillarsGateway),
 		pillarCache:      pillarCache,
 		realizationCache: readmodels.NewEARealizationCacheReadModel(db),
 		importanceCache:  readmodels.NewEAImportanceCacheReadModel(db),
 		fitScoreCache:    readmodels.NewEAFitScoreCacheReadModel(db),
-		composition:      composition,
 	}
 }
 
@@ -214,18 +205,14 @@ func setupCommandHandlers(commandBus *cqrs.InMemoryCommandBus, repos *routeRepos
 	commandBus.Register("RemoveEnterpriseStrategicImportance", handlers.NewRemoveEnterpriseStrategicImportanceHandler(repos.importance))
 }
 
-func initializeHTTPHandlers(commandBus *cqrs.InMemoryCommandBus, rm *routeReadModels, sessionProvider authPL.SessionProvider, onePagerCompleteness OnePagerCompletenessSource) *routeHTTPHandlers {
+func initializeHTTPHandlers(commandBus *cqrs.InMemoryCommandBus, rm *routeReadModels, sessionProvider authPL.SessionProvider) *routeHTTPHandlers {
 	readModels := &EnterpriseCapabilityReadModels{
-		Capability:           rm.capability,
-		Composition:          rm.composition,
-		Importance:           rm.importance,
-		MaturityAnalysis:     rm.maturityAnalysis,
-		OnePagerCompleteness: onePagerCompleteness,
+		Capability: rm.capability,
+		Importance: rm.importance,
 	}
 	links := NewEnterpriseArchLinks(sharedAPI.NewHATEOASLinks(""))
 	return &routeHTTPHandlers{
 		enterpriseCapability: NewEnterpriseCapabilityHandlers(commandBus, readModels, sessionProvider),
-		composition:          NewCompositionHandlers(rm.composition, rm.capability, links),
 		timeSuggestions:      NewTimeSuggestionsHandlers(rm.timeSuggestion, links),
 	}
 }
@@ -241,11 +228,8 @@ func registerEnterpriseCapabilityRoutes(r chi.Router, handlers *routeHTTPHandler
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequirePermission(authPL.PermEnterpriseArchRead))
 			r.Get("/", h.GetAllEnterpriseCapabilities)
-			r.Get("/maturity-analysis", h.GetMaturityAnalysisCandidates)
 			r.Get("/{id}", h.GetEnterpriseCapabilityByID)
-			r.Get("/{id}/composition", handlers.composition.GetComposition)
 			r.Get("/{id}/strategic-importance", h.GetStrategicImportance)
-			r.Get("/{id}/maturity-gap", h.GetMaturityGapDetail)
 		})
 
 		r.Group(func(r chi.Router) {
@@ -266,10 +250,6 @@ func registerEnterpriseCapabilityRoutes(r chi.Router, handlers *routeHTTPHandler
 		})
 	})
 
-	r.Group(func(r chi.Router) {
-		r.Use(authMiddleware.RequirePermission(authPL.PermEnterpriseArchRead))
-		r.Get("/capabilities/source-candidates", handlers.composition.GetSourceCandidates)
-	})
 }
 
 func registerTimeSuggestionsRoutes(r chi.Router, h *TimeSuggestionsHandlers, authMiddleware AuthMiddleware) {

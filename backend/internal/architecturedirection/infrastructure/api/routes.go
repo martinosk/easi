@@ -1,11 +1,13 @@
 package api
 
 import (
+	"context"
 	"net/http"
 
 	"easi/backend/internal/architecturedirection/application/handlers"
 	"easi/backend/internal/architecturedirection/application/projectors"
 	"easi/backend/internal/architecturedirection/application/readmodels"
+	appservices "easi/backend/internal/architecturedirection/application/services"
 	"easi/backend/internal/architecturedirection/domain/services"
 	"easi/backend/internal/architecturedirection/infrastructure/repositories"
 	pl "easi/backend/internal/architecturedirection/publishedlanguage"
@@ -34,10 +36,8 @@ type RoutesDeps struct {
 	DB                 *database.TenantAwareDB
 	HATEOAS            *sharedAPI.HATEOASLinks
 	AuthMiddleware     AuthMiddleware
-	ReferenceChecker   *services.ReferenceChecker
-	SourceEligibility  services.SourceEligibility
-	CompositionPreview CompositionPreviewProvider
-	DirectRealization  services.DirectRealizationLookup
+	PhysicalCapabilityExists services.ExistenceCheck
+	DirectRealization        services.DirectRealizationLookup
 
 	CapabilityExists              services.CapabilityExists
 	ComponentExists               services.ComponentExists
@@ -48,37 +48,47 @@ type RoutesDeps struct {
 func SetupRoutes(deps RoutesDeps) error {
 	readModel := readmodels.NewDirectionReadModel(deps.DB)
 	repo := repositories.NewDirectionRepository(deps.EventStore)
+	nodeCache := readmodels.NewCapabilityNodeCacheReadModel(deps.DB)
+	ecCache := readmodels.NewEnterpriseCapabilityCacheReadModel(deps.DB)
+	composition := appservices.NewCompositionService(directionSourcesProvider{readModel: readModel}, nodeCache, ecCache)
 
 	subscribeEvents(deps.EventBus, readModel)
+	subscribeCacheEvents(deps.EventBus, nodeCache, ecCache)
 	deps.EventBus.Subscribe(eaPL.EnterpriseCapabilityDeleted,
 		projectors.NewEnterpriseCapabilityDeletedReactor(readModel, deps.CommandBus))
+	refs := referenceChecker(deps.PhysicalCapabilityExists, ecCache)
 	registerCommandHandlers(commandHandlerDeps{
 		commandBus:  deps.CommandBus,
 		repo:        repo,
 		readModel:   readModel,
-		refs:        deps.ReferenceChecker,
-		eligibility: deps.SourceEligibility,
+		refs:        refs,
+		eligibility: sourceEligibilityService{composition: composition},
 	})
 
 	links := NewDirectionLinks(deps.HATEOAS)
 	httpHandlers := NewDirectionHandlers(deps.CommandBus, readModel, links)
-	previewHandlers := NewCompositionPreviewHandlers(deps.CompositionPreview, deps.HATEOAS)
+	previewHandlers := NewCompositionPreviewHandlers(compositionPreviewService{composition: composition, capabilities: ecCache}, deps.HATEOAS)
 
 	registerRoutes(deps.Router, httpHandlers, previewHandlers, deps.AuthMiddleware)
+	registerCompositionRoutes(deps.Router, compositionReadHandlers{
+		composition: NewCompositionHandlers(composition, ecCache, deps.HATEOAS),
+		summaries:   NewCompositionSummaryHandlers(composition, ecCache, deps.HATEOAS),
+		maturity:    NewMaturityAnalysisHandlers(readmodels.NewMaturityAnalysisReadModel(deps.DB, composition), deps.HATEOAS),
+	}, deps.AuthMiddleware)
 
-	setupStandardApplicationRoutes(deps)
+	setupStandardApplicationRoutes(deps, refs)
 	setupTimeAssessmentRoutes(deps)
 	setupRealizationRoleRoutes(deps)
 	setupCapabilityJourneyRoutes(deps)
 	return nil
 }
 
-func setupStandardApplicationRoutes(deps RoutesDeps) {
+func setupStandardApplicationRoutes(deps RoutesDeps, refs *services.ReferenceChecker) {
 	readModel := readmodels.NewStandardApplicationReadModel(deps.DB)
 	repo := repositories.NewStandardApplicationRepository(deps.EventStore)
 
 	subscribeStandardApplicationEvents(deps.EventBus, readModel)
-	deps.CommandBus.Register("SetStandardApplication", handlers.NewSetStandardApplicationHandler(repo, readModel, deps.ReferenceChecker))
+	deps.CommandBus.Register("SetStandardApplication", handlers.NewSetStandardApplicationHandler(repo, readModel, refs))
 
 	links := NewStandardApplicationLinks(deps.HATEOAS)
 	httpHandlers := NewStandardApplicationHandlers(deps.CommandBus, readModel, links)
@@ -325,5 +335,47 @@ func registerRoutes(r chi.Router, h *DirectionHandlers, preview *CompositionPrev
 			r.Post("/sources", h.AddDirectionSource)
 			r.Delete("/sources/{capabilityId}", h.RemoveDirectionSource)
 		})
+	})
+}
+
+func subscribeCacheEvents(eventBus events.EventBus, nodeCache *readmodels.CapabilityNodeCacheReadModel, ecCache *readmodels.EnterpriseCapabilityCacheReadModel) {
+	subscribeMany(eventBus, projectors.NewCapabilityNodeCacheProjector(nodeCache, nodeCache.BusinessDomainName),
+		cmPL.CapabilityCreated, cmPL.CapabilityUpdated, cmPL.CapabilityDeleted,
+		cmPL.CapabilityParentChanged, cmPL.CapabilityLevelChanged,
+		cmPL.CapabilityAssignedToDomain, cmPL.CapabilityUnassignedFromDomain,
+		cmPL.CapabilityMetadataUpdated, cmPL.BusinessDomainUpdated)
+	subscribeMany(eventBus, projectors.NewEnterpriseCapabilityCacheProjector(ecCache),
+		eaPL.EnterpriseCapabilityCreated, eaPL.EnterpriseCapabilityUpdated,
+		eaPL.EnterpriseCapabilityDeleted, eaPL.EnterpriseCapabilityTargetMaturitySet)
+}
+
+func referenceChecker(physicalCapabilityExists services.ExistenceCheck, ecCache *readmodels.EnterpriseCapabilityCacheReadModel) *services.ReferenceChecker {
+	return &services.ReferenceChecker{
+		PhysicalCapabilityExists: physicalCapabilityExists,
+		EnterpriseCapabilityExists: func(ctx context.Context, id string) (bool, error) {
+			capability, err := ecCache.GetByID(ctx, id)
+			return capability != nil, err
+		},
+		EnterpriseCapabilityIsActive: func(ctx context.Context, id string) (bool, error) {
+			capability, err := ecCache.GetByID(ctx, id)
+			return capability != nil && capability.Active, err
+		},
+	}
+}
+
+type compositionReadHandlers struct {
+	composition *CompositionHandlers
+	summaries   *CompositionSummaryHandlers
+	maturity    *MaturityAnalysisHandlers
+}
+
+func registerCompositionRoutes(r chi.Router, h compositionReadHandlers, authMiddleware AuthMiddleware) {
+	r.Group(func(r chi.Router) {
+		r.Use(authMiddleware.RequirePermission(authPL.PermEnterpriseArchRead))
+		r.Get("/enterprise-capabilities/maturity-analysis", h.maturity.GetMaturityAnalysisCandidates)
+		r.Get("/enterprise-capabilities/{id}/composition", h.composition.GetComposition)
+		r.Get("/enterprise-capabilities/{id}/maturity-gap", h.maturity.GetMaturityGapDetail)
+		r.Get("/enterprise-capability-compositions", h.summaries.GetCompositionSummaries)
+		r.Get("/capabilities/source-candidates", h.composition.GetSourceCandidates)
 	})
 }

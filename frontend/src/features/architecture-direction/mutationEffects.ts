@@ -1,5 +1,5 @@
 import { auditQueryKeys } from '../audit/queryKeys';
-import { enterpriseCapabilitiesQueryKeys } from '../enterprise-architecture/queryKeys';
+import { compositionSummariesQueryKeys, enterpriseCapabilitiesQueryKeys } from '../enterprise-architecture/queryKeys';
 import { onePagerQualityQueryKeys } from '../one-pager-quality/queryKeys';
 import { onePagersQueryKeys } from '../one-pagers/queryKeys';
 import { directionQueryKeys, realizationRoleQueryKeys, timeAssessmentQueryKeys } from './queryKeys';
@@ -10,6 +10,7 @@ function compositionEffects(enterpriseCapabilityId: string) {
     enterpriseCapabilitiesQueryKeys.composition(enterpriseCapabilityId),
     enterpriseCapabilitiesQueryKeys.detail(enterpriseCapabilityId),
     enterpriseCapabilitiesQueryKeys.lists(),
+    compositionSummariesQueryKeys.lists(),
     auditQueryKeys.history(enterpriseCapabilityId),
     onePagersQueryKeys.onePager('enterprise-capability', enterpriseCapabilityId),
     onePagerQualityQueryKeys.lists(),

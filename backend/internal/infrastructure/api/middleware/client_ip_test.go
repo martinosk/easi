@@ -90,7 +90,7 @@ func TestClientIP_ResolvesAddressOfTheClosestUntrustedHop(t *testing.T) {
 func TestIsLoopback_TrueForLoopbackConnection(t *testing.T) {
 	req := newForwardedRequest("127.0.0.1:54321", nil)
 
-	assert.True(t, isLoopback(req))
+	assert.True(t, IsLoopback(req))
 }
 
 func TestIsLoopback_IgnoresSpoofedForwardingHeaders(t *testing.T) {
@@ -103,6 +103,6 @@ func TestIsLoopback_IgnoresSpoofedForwardingHeaders(t *testing.T) {
 		"True-Client-IP":  "127.0.0.1",
 	})
 
-	assert.False(t, throughClientIPMiddleware(req, isLoopback),
+	assert.False(t, throughClientIPMiddleware(req, IsLoopback),
 		"forwarding headers must not satisfy the agent-token loopback check")
 }

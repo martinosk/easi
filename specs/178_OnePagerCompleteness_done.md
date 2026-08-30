@@ -5,6 +5,8 @@
 
 ---
 
+> **Amended by spec 208 (2026-08-29):** the per-row `onePagerComplete` indicator on subject list responses (design decision 4) is replaced by `GET /one-pagers/{subjectType}/completeness`, served by OnePagers; Architecture Modeling, Capability Mapping and Enterprise Architecture no longer decorate their lists.
+
 ## Problem Statement
 
 One-pager configurations evolve: tenant admins add custom fields and, over time, make them

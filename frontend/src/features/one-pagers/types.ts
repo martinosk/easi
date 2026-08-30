@@ -15,6 +15,18 @@ export const ONE_PAGER_SUBJECT_TYPES = [
 
 export type OnePagerSubjectType = (typeof ONE_PAGER_SUBJECT_TYPES)[number];
 
+export interface OnePagerCompletenessEntry {
+  subjectId: string;
+  complete: boolean;
+}
+
+export interface OnePagerCompletenessResponse {
+  data: OnePagerCompletenessEntry[];
+  _links: HATEOASLinks & {
+    self: HATEOASLink;
+  };
+}
+
 export const ONE_PAGER_FIELD_TYPES = onePagerFieldTypeValues;
 
 export type OnePagerFieldType = (typeof ONE_PAGER_FIELD_TYPES)[number];

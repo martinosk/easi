@@ -8,6 +8,8 @@ import type {
   DefineCustomFieldRequest,
   FieldValue,
   ImpactPreviewFieldKind,
+  OnePagerCompletenessEntry,
+  OnePagerCompletenessResponse,
   OnePagerConfiguration,
   OnePagerFacts,
   OnePagerImpactPreview,
@@ -86,6 +88,13 @@ export const onePagersApi = {
     }
     const response = await httpClient.get<OnePagerImpactPreview>(url);
     return response.data;
+  },
+
+  async getCompleteness(subjectType: OnePagerSubjectType): Promise<OnePagerCompletenessEntry[]> {
+    const response = await httpClient.get<OnePagerCompletenessResponse>(
+      `/api/v1/one-pagers/${subjectType}/completeness`,
+    );
+    return response.data.data;
   },
 
   async getFacts(subjectType: OnePagerSubjectType, subjectId: string): Promise<OnePagerFacts> {

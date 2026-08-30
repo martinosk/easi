@@ -36,15 +36,10 @@ type TenantRepository interface {
 	GetByID(ctx context.Context, tenantID string) (*TenantDTO, error)
 }
 
-type AIConfigStatusChecker interface {
-	IsConfigured(ctx context.Context) (bool, error)
-}
-
 type SessionHandlers struct {
-	sessionManager        *session.SessionManager
-	userRepo              UserRepository
-	tenantRepo            TenantRepository
-	aiConfigStatusChecker AIConfigStatusChecker
+	sessionManager *session.SessionManager
+	userRepo       UserRepository
+	tenantRepo     TenantRepository
 }
 
 func NewSessionHandlers(
@@ -57,11 +52,6 @@ func NewSessionHandlers(
 		userRepo:       userRepo,
 		tenantRepo:     tenantRepo,
 	}
-}
-
-func (h *SessionHandlers) WithAIConfigStatusChecker(checker AIConfigStatusChecker) *SessionHandlers {
-	h.aiConfigStatusChecker = checker
-	return h
 }
 
 type CurrentSessionResponse struct {
@@ -153,12 +143,10 @@ func (h *SessionHandlers) buildSessionLinks(ctx context.Context, userID uuid.UUI
 		"tenant": "/api/v1/tenants/current",
 	}
 
-	if role.HasPermission(valueobjects.PermAssistantUse) && h.aiConfigStatusChecker != nil {
-		if configured, err := h.aiConfigStatusChecker.IsConfigured(ctx); err == nil && configured {
-			links["x-assistant"] = "/api/v1/assistant/conversations"
-			if canWriteAnySubject(role) {
-				links["x-assistant-write"] = "/api/v1/assistant/conversations"
-			}
+	if role.HasPermission(valueobjects.PermAssistantUse) {
+		links["x-assistant"] = "/api/v1/assistant/conversations"
+		if canWriteAnySubject(role) {
+			links["x-assistant-write"] = "/api/v1/assistant/conversations"
 		}
 	}
 

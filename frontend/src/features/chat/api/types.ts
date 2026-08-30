@@ -40,3 +40,8 @@ export interface ToolCall {
   status: 'running' | 'completed';
   resultPreview?: string;
 }
+
+export interface AssistantStatus {
+  configured: boolean;
+  _links: Record<string, { href: string; method: string } | undefined>;
+}

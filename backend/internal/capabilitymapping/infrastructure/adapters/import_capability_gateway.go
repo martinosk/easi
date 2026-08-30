@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"easi/backend/internal/capabilitymapping/application/commands"
-	"easi/backend/internal/importing/publishedlanguage"
+	"easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/shared/cqrs"
 )
 

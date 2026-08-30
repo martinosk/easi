@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	"easi/backend/internal/archassistant/infrastructure/toolimpls"
-	pl "easi/backend/internal/archassistant/publishedlanguage"
 	directionAPI "easi/backend/internal/architecturedirection/infrastructure/api"
 	architectureAPI "easi/backend/internal/architecturemodeling/infrastructure/api"
 	viewsAPI "easi/backend/internal/architectureviews/infrastructure/api"
@@ -20,6 +19,7 @@ import (
 	capabilityAPI "easi/backend/internal/capabilitymapping/infrastructure/api"
 	enterpriseArchAPI "easi/backend/internal/enterprisearchitecture/infrastructure/api"
 	metamodelAPI "easi/backend/internal/metamodel/infrastructure/api"
+	pl "easi/backend/internal/shared/agenttools"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
@@ -74,7 +74,7 @@ func buildToolCatalogTestRouter(t *testing.T) chi.Router {
 		t.Fatalf("value streams routes: %v", err)
 	}
 
-	if _, err := enterpriseArchAPI.SetupEnterpriseArchitectureRoutes(enterpriseArchAPI.EnterpriseArchRoutesDeps{
+	if err := enterpriseArchAPI.SetupEnterpriseArchitectureRoutes(enterpriseArchAPI.EnterpriseArchRoutesDeps{
 		Router: r, CommandBus: commandBus, EventStore: es, EventBus: eventBus,
 		AuthMiddleware: auth,
 	}); err != nil {

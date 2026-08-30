@@ -11,8 +11,6 @@ import (
 
 	"easi/backend/internal/enterprisearchitecture/application/handlers"
 	"easi/backend/internal/enterprisearchitecture/application/readmodels"
-	appservices "easi/backend/internal/enterprisearchitecture/application/services"
-	domainservices "easi/backend/internal/enterprisearchitecture/domain/services"
 	"easi/backend/internal/enterprisearchitecture/domain/valueobjects"
 	"easi/backend/internal/shared/cqrs"
 
@@ -75,18 +73,6 @@ func (m *mockCapabilityReadModel) GetAll(ctx context.Context) ([]readmodels.Ente
 	return caps, nil
 }
 
-type mockCompositionCounts struct {
-	countsByEC map[string]domainservices.CompositionCounts
-}
-
-func (m *mockCompositionCounts) CompositionForEC(ctx context.Context, enterpriseCapabilityID string) (appservices.CompositionResult, error) {
-	return appservices.CompositionResult{Counts: m.countsByEC[enterpriseCapabilityID]}, nil
-}
-
-func (m *mockCompositionCounts) CountsForAll(ctx context.Context) (map[string]domainservices.CompositionCounts, error) {
-	return m.countsByEC, nil
-}
-
 type mockImportanceReadModel struct{}
 
 func (m *mockImportanceReadModel) GetByID(ctx context.Context, id string) (*readmodels.EnterpriseStrategicImportanceDTO, error) {
@@ -97,20 +83,9 @@ func (m *mockImportanceReadModel) GetByEnterpriseCapabilityID(ctx context.Contex
 	return nil, nil
 }
 
-type mockMaturityAnalysisReadModel struct{}
-
-func (m *mockMaturityAnalysisReadModel) GetMaturityAnalysisCandidates(ctx context.Context, sortBy string) ([]readmodels.MaturityAnalysisCandidateDTO, readmodels.MaturityAnalysisSummaryDTO, error) {
-	return nil, readmodels.MaturityAnalysisSummaryDTO{}, nil
-}
-
-func (m *mockMaturityAnalysisReadModel) GetMaturityGapDetail(ctx context.Context, enterpriseCapabilityID string) (*readmodels.MaturityGapDetailDTO, error) {
-	return nil, nil
-}
-
 type testHarness struct {
 	commandBus      *mockCommandBus
 	capabilityRM    *mockCapabilityReadModel
-	compositionRM   *mockCompositionCounts
 	importanceRM    *mockImportanceReadModel
 	sessionProvider *mockSessionProvider
 	handlers        *EnterpriseCapabilityHandlers
@@ -119,21 +94,17 @@ type testHarness struct {
 func newTestHarness() *testHarness {
 	commandBus := &mockCommandBus{}
 	capabilityRM := newMockCapabilityReadModel()
-	compositionRM := &mockCompositionCounts{countsByEC: map[string]domainservices.CompositionCounts{}}
 	importanceRM := &mockImportanceReadModel{}
 	sessionProvider := &mockSessionProvider{email: "test@example.com"}
 
 	rm := &EnterpriseCapabilityReadModels{
-		Capability:       capabilityRM,
-		Composition:      compositionRM,
-		Importance:       importanceRM,
-		MaturityAnalysis: &mockMaturityAnalysisReadModel{},
+		Capability: capabilityRM,
+		Importance: importanceRM,
 	}
 
 	return &testHarness{
 		commandBus:      commandBus,
 		capabilityRM:    capabilityRM,
-		compositionRM:   compositionRM,
 		importanceRM:    importanceRM,
 		sessionProvider: sessionProvider,
 		handlers:        NewEnterpriseCapabilityHandlers(commandBus, rm, sessionProvider),
@@ -296,7 +267,7 @@ func TestSetStrategicImportance_InvalidValue_Returns400(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestGetEnterpriseCapabilityByID_CountsDerivedFromComposition(t *testing.T) {
+func TestGetEnterpriseCapabilityByID_LinksDirectionAndComposition(t *testing.T) {
 	th := newTestHarness()
 
 	capID := uuid.New().String()
@@ -305,7 +276,6 @@ func TestGetEnterpriseCapabilityByID_CountsDerivedFromComposition(t *testing.T) 
 		Name:   "Customer Identity",
 		Active: true,
 	}
-	th.compositionRM.countsByEC[capID] = domainservices.CompositionCounts{IncludedCount: 4, DomainCount: 2}
 
 	r := requestSpec{method: http.MethodGet, path: "/enterprise-capabilities/" + capID, id: capID}.build()
 	w := httptest.NewRecorder()
@@ -315,8 +285,8 @@ func TestGetEnterpriseCapabilityByID_CountsDerivedFromComposition(t *testing.T) 
 	require.Equal(t, http.StatusOK, w.Code)
 	var response map[string]any
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
-	assert.Equal(t, float64(4), response["includedCapabilityCount"])
-	assert.Equal(t, float64(2), response["domainCount"])
+	assert.NotContains(t, response, "includedCapabilityCount", "counts are served by Architecture Direction (spec 207)")
+	assert.NotContains(t, response, "domainCount", "counts are served by Architecture Direction (spec 207)")
 	assert.NotContains(t, response, "linkCount", "linkCount is removed by spec 172")
 
 	links, ok := response["_links"].(map[string]any)

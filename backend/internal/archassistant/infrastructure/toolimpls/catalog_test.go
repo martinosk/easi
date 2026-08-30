@@ -4,11 +4,11 @@ import (
 	"testing"
 
 	"easi/backend/internal/archassistant/infrastructure/toolimpls"
-	pl "easi/backend/internal/archassistant/publishedlanguage"
 	amPL "easi/backend/internal/architecturemodeling/publishedlanguage"
 	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	eaPL "easi/backend/internal/enterprisearchitecture/publishedlanguage"
 	mmPL "easi/backend/internal/metamodel/publishedlanguage"
+	pl "easi/backend/internal/shared/agenttools"
 	vsPL "easi/backend/internal/valuestreams/publishedlanguage"
 
 	"github.com/stretchr/testify/assert"
@@ -68,6 +68,6 @@ func TestContextOwnedCatalogs_ToolCounts(t *testing.T) {
 	assert.Len(t, amPL.AgentTools(), 26, "architecturemodeling")
 	assert.Len(t, cmPL.AgentTools(), 34, "capabilitymapping")
 	assert.Len(t, vsPL.AgentTools(), 9, "valuestreams")
-	assert.Len(t, eaPL.AgentTools(), 12, "enterprisearchitecture")
+	assert.Len(t, eaPL.AgentTools(), 8, "enterprisearchitecture")
 	assert.Len(t, mmPL.AgentTools(), 2, "metamodel")
 }

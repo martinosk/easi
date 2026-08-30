@@ -14,18 +14,15 @@ import (
 )
 
 type EnterpriseCapabilityDTO struct {
-	ID                      string      `json:"id"`
-	Name                    string      `json:"name"`
-	Description             string      `json:"description,omitempty"`
-	Category                string      `json:"category,omitempty"`
-	Active                  bool        `json:"active"`
-	TargetMaturity          *int        `json:"targetMaturity,omitempty"`
-	IncludedCapabilityCount int         `json:"includedCapabilityCount"`
-	DomainCount             int         `json:"domainCount"`
-	CreatedAt               time.Time   `json:"createdAt"`
-	UpdatedAt               *time.Time  `json:"updatedAt,omitempty"`
-	OnePagerComplete        *bool       `json:"onePagerComplete,omitempty"`
-	Links                   types.Links `json:"_links,omitempty"`
+	ID             string      `json:"id"`
+	Name           string      `json:"name"`
+	Description    string      `json:"description,omitempty"`
+	Category       string      `json:"category,omitempty"`
+	Active         bool        `json:"active"`
+	TargetMaturity *int        `json:"targetMaturity,omitempty"`
+	CreatedAt      time.Time   `json:"createdAt"`
+	UpdatedAt      *time.Time  `json:"updatedAt,omitempty"`
+	Links          types.Links `json:"_links,omitempty"`
 }
 
 type EnterpriseCapabilityReadModel struct {

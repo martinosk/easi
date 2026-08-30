@@ -13,6 +13,7 @@ import (
 	"easi/backend/internal/onepagers/application/readmodels"
 	opevents "easi/backend/internal/onepagers/domain/events"
 	"easi/backend/internal/onepagers/domain/valueobjects"
+	"easi/backend/internal/onepagers/infrastructure/adapters"
 	"easi/backend/internal/onepagers/infrastructure/repositories"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
@@ -41,6 +42,9 @@ type OnePagersRoutesDeps struct {
 }
 
 func SetupOnePagersRoutes(deps OnePagersRoutesDeps) error {
+	if deps.SubjectAudit == nil {
+		deps.SubjectAudit = adapters.NewSubjectAuditAdapter(deps.DB)
+	}
 	repo := repositories.NewOnePagerConfigurationRepository(deps.EventStore)
 	readModel := readmodels.NewOnePagerConfigurationReadModel(deps.DB)
 
@@ -97,7 +101,11 @@ func SetupOnePagersRoutes(deps OnePagersRoutesDeps) error {
 		MaturityScale:  deps.MaturityScale,
 	})
 	viewHandlers := NewOnePagerViewHandlers(onePagerQuery, links)
-	registerSubjectRoutes(deps.Router, viewHandlers, factsHandlers, deps.AuthMiddleware)
+	registerSubjectRoutes(deps.Router, subjectHandlers{
+		view:         viewHandlers,
+		facts:        factsHandlers,
+		completeness: NewOnePagerCompletenessHandlers(subjectIndexReadModel, completenessCounter, links),
+	}, deps.AuthMiddleware)
 
 	qualityHandlers := NewOnePagerQualityHandlers(subjectIndexReadModel, links)
 	deps.Router.Get("/one-pager-quality", qualityHandlers.GetQualityList)
@@ -130,9 +138,11 @@ var subjectPermissionsByType = map[string]subjectRoutePermissions{
 	"internal-team":         {read: authPL.PermComponentsRead, write: authPL.PermComponentsWrite},
 }
 
-func registerSubjectRoutes(router chi.Router, viewHandlers *OnePagerViewHandlers, factsHandlers *OnePagerFactsHandlers, authMiddleware AuthMiddleware) {
+func registerSubjectRoutes(router chi.Router, h subjectHandlers, authMiddleware AuthMiddleware) {
+	viewHandlers, factsHandlers := h.view, h.facts
 	for _, subjectType := range valueobjects.AllSubjectTypes() {
 		permissions := subjectPermissionsByType[subjectType.Value()]
+		router.With(authMiddleware.RequirePermission(permissions.read)).Get("/one-pagers/"+subjectType.Value()+"/completeness", h.completeness.GetCompleteness(subjectType.Value()))
 		router.Route("/one-pagers/"+subjectType.Value()+"/{subjectID}", func(r chi.Router) {
 			r.Group(func(r chi.Router) {
 				r.Use(authMiddleware.RequirePermission(permissions.read))
@@ -199,4 +209,10 @@ func registerRoutes(router chi.Router, h *OnePagerConfigurationHandlers, preview
 			r.Put("/display-order", h.ReorderFields)
 		})
 	})
+}
+
+type subjectHandlers struct {
+	view         *OnePagerViewHandlers
+	facts        *OnePagerFactsHandlers
+	completeness *OnePagerCompletenessHandlers
 }

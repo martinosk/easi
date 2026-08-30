@@ -15,11 +15,8 @@ export interface EnterpriseCapability {
   category: string;
   active: boolean;
   targetMaturity?: number;
-  includedCapabilityCount: number;
-  domainCount: number;
   createdAt: string;
   updatedAt?: string;
-  onePagerComplete?: boolean;
   _links: HATEOASLinks & {
     self: HATEOASLink;
     edit?: HATEOASLink;
@@ -73,6 +70,27 @@ export interface CompositionResponse {
     up?: HATEOASLink;
     'x-direction'?: HATEOASLink;
     'x-capture-direction'?: HATEOASLink;
+  };
+}
+
+export interface CompositionSummary {
+  enterpriseCapabilityId: string;
+  sourceCount: number;
+  includedCount: number;
+  carvedOutCount: number;
+  domainCount: number;
+  hasActiveDirection: boolean;
+  directionStatus?: string;
+  _links: HATEOASLinks & {
+    'x-enterprise-capability'?: HATEOASLink;
+    'x-composition'?: HATEOASLink;
+  };
+}
+
+export interface CompositionSummariesResponse {
+  data: CompositionSummary[];
+  _links: {
+    self: HATEOASLink;
   };
 }
 

@@ -17,8 +17,6 @@ function ec(overrides: Partial<EnterpriseCapability> = {}): EnterpriseCapability
     description: 'Customer relationship management',
     category: 'Customer Domain',
     active: true,
-    includedCapabilityCount: 2,
-    domainCount: 1,
     createdAt: '2026-01-01T00:00:00Z',
     _links: { self: { href: '/api/v1/enterprise-capabilities/ec-crm', method: 'GET' } },
     ...overrides,
@@ -95,11 +93,25 @@ describe('EnterpriseCapabilityDetailPanel', () => {
     seedSpec172Db({
       enterpriseCapabilities: [{ id: 'ec-crm', name: 'CRM', active: true, createdAt: '2026-01-01T00:00:00Z' }],
     });
-    renderWithProviders(
-      <EnterpriseCapabilityDetailPanel capability={ec({ includedCapabilityCount: 0 })} onClose={vi.fn()} />,
-    );
+    renderWithProviders(<EnterpriseCapabilityDetailPanel capability={ec()} onClose={vi.fn()} />);
 
     await waitFor(() => expect(screen.getByTestId('included-empty-state')).toBeInTheDocument());
+  });
+
+  it('shows the counts from the composition meta', async () => {
+    seedComposed();
+    renderWithProviders(<EnterpriseCapabilityDetailPanel capability={ec()} onClose={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByTestId('stat-included-capabilities')).toHaveTextContent('2'));
+    expect(screen.getByTestId('stat-domains')).toHaveTextContent('1');
+  });
+
+  it('shows a dash for both counts before the composition resolves', () => {
+    seedComposed();
+    renderWithProviders(<EnterpriseCapabilityDetailPanel capability={ec()} onClose={vi.fn()} />);
+
+    expect(screen.getByTestId('stat-included-capabilities')).toHaveTextContent('—');
+    expect(screen.getByTestId('stat-domains')).toHaveTextContent('—');
   });
 
   it('does not render any "Linked Capabilities" linking section', async () => {

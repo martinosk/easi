@@ -269,15 +269,30 @@ Every event subscription that crosses a bounded context boundary is documented b
 |-------|-----------|----------|---------|
 | `ViewDeleted` | `ArtifactDeletionProjector` (view) | same | Revoke all edit grants for deleted view |
 
-### Auth consumes from:
+### Arch Assistant consumes from:
 
-**Access Delegation** (`adPL`):
+**Platform** (`platformPL`):
+
+| Event | Handler | Wired In | Purpose |
+|-------|---------|----------|---------|
+| `TenantCreated` | `TenantCreatedHandler` | `archassistant/infrastructure/api/routes.go` `SetupArchAssistantRoutes()` | Provision default AI configuration for the new tenant |
+
+Auth consumes no cross-context events. Access Delegation asks Auth to invite a grantee without an account through its `InvitationRequester` port (a declared bridge, spec 206); `EditGrantForNonUserCreated` is still published for audit.
+
+### Architecture Direction consumes from:
+
+**Enterprise Architecture** (`eaPL`):
 
 | Event | Projector | Wired In | Purpose |
 |-------|-----------|----------|---------|
-| `EditGrantForNonUserCreated` | `InvitationAutoCreateProjector` | `infrastructure/api/router.go` `wireAutoInvitationProjector()` | Auto-create platform invitation for non-user grantee |
+| `EnterpriseCapabilityCreated` / `Updated` / `Deleted` / `TargetMaturitySet` | `EnterpriseCapabilityCacheProjector` | `architecturedirection/infrastructure/api/routes.go` `subscribeCacheEvents()` | Local enterprise capability cache for composition, existence checks and maturity analysis (spec 207) |
+| `EnterpriseCapabilityDeleted` | `EnterpriseCapabilityDeletedReactor` | `SetupRoutes()` | Reject the active direction of a deleted enterprise capability |
 
-### Architecture Direction consumes from:
+**Capability Mapping** (`cmPL`) — capability node cache (spec 207):
+
+| Event | Projector | Wired In | Purpose |
+|-------|-----------|----------|---------|
+| `CapabilityCreated` / `Updated` / `Deleted` / `ParentChanged` / `LevelChanged` / `AssignedToDomain` / `UnassignedFromDomain` / `MetadataUpdated`, `BusinessDomainUpdated` | `CapabilityNodeCacheProjector` | `subscribeCacheEvents()` | Local capability tree with L1 ancestor, effective business domain and maturity, used by composition, source eligibility and maturity analysis |
 
 **Capability Mapping** (`cmPL`):
 
@@ -317,13 +332,26 @@ When adding a new deletable artifact type:
 - [ ] Subscribe `ArtifactDeletionProjector` in Access Delegation for grant cleanup
 - [ ] Verify all downstream read models that reference the artifact are cleaned up
 
-## Query-Based Integration (Non-Event)
+## Composition-Root Bridges (Query-Time Integration)
 
-Some cross-context dependencies use synchronous queries rather than events:
+Some cross-context dependencies are synchronous: the composition root (`backend/internal/infrastructure/api/`) constructs an adapter over one context's read model or service and passes it into another context's port. Each such file is a **bridge** and must be declared in `declaredBridges` in `backend/internal/architecture_bridges_test.go` with every consumer → supplier edge and a reason. The tests enforce:
 
-| Consumer | Provider | Mechanism | Purpose |
-|----------|----------|-----------|---------|
-| Capability Mapping | Architecture Modeling | `ComponentGateway` (reads `ApplicationComponentReadModel`) | Look up component name during realization linking |
-| Access Delegation | Multiple contexts | `ArtifactNameResolver` (reads from multiple read models) | Resolve display names for edit grant artifacts |
+- `router.go` imports only a context's `infrastructure/api` package — all wiring lives in `*_bridges.go` / adapter files.
+- A composition-root file reaching two or more contexts must be declared, and the declaration must name exactly the contexts the file imports. A file reaching one context belongs inside that context.
+- The graph of published-language imports plus declared bridges is acyclic.
+- `shared/` and `infrastructure/` packages import only a context's `publishedlanguage`; production code never imports `internal/testing`.
 
-These query-based integrations are acceptable for validation-at-write-time and display enrichment. For data that must remain consistent over time (e.g., component names in realization read models), prefer the local cache projector pattern instead.
+Declared bridges today (consumer → supplier):
+
+| File | Consumer | Suppliers | Purpose |
+|------|----------|-----------|---------|
+| `accessdelegation_bridges.go` | Access Delegation | Capability Mapping, Architecture Modeling, Architecture Views, Auth | Artifact display names; user existence, pending invitations, allowed domains and invitation requests for grantees without an account |
+| `architecturedirection_bridges.go` | Architecture Direction | Capability Mapping, Architecture Modeling | Capability / domain / component existence, direct realization lookup, effective-domain check |
+| `architectureviews_bridges.go` | Architecture Views | Auth | User role check for view visibility |
+| `enterprisearchitecture_bridges.go` | Enterprise Architecture | Capability Mapping | Business-domain name at capability assignment time |
+| `importing_bridges.go` | Importing | Architecture Modeling, Capability Mapping, Value Streams | Import gateways |
+| `onepager_builtin_field_adapters.go` | OnePagers | Architecture Modeling, Capability Mapping, Enterprise Architecture, MetaModel | Built-in field values and maturity scale sections |
+| `onepager_relation_adapters.go` | OnePagers | Architecture Modeling, Capability Mapping, Enterprise Architecture, Architecture Direction | Relation fields, including enterprise capability composition |
+| `onepager_subject_adapters.go` | OnePagers | Architecture Modeling, Capability Mapping, Enterprise Architecture | Subject existence |
+
+Prefer the local cache projector pattern for data that must stay consistent over time; a bridge is acceptable for write-time validation and display enrichment. A bridge may never close a cycle — the fix is to move the derived read to the context that owns its inputs (as spec 207 did for composition) or to serve the data from its owner (as spec 208 did for one-pager completeness).

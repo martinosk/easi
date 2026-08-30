@@ -3,12 +3,12 @@ package api
 import (
 	"context"
 
-	adReadModels "easi/backend/internal/architecturedirection/application/readmodels"
+	adServices "easi/backend/internal/architecturedirection/application/services"
+	adDomainServices "easi/backend/internal/architecturedirection/domain/services"
+	directionAPI "easi/backend/internal/architecturedirection/infrastructure/api"
 	archReadModels "easi/backend/internal/architecturemodeling/application/readmodels"
 	capReadModels "easi/backend/internal/capabilitymapping/application/readmodels"
 	eaReadModels "easi/backend/internal/enterprisearchitecture/application/readmodels"
-	eaServices "easi/backend/internal/enterprisearchitecture/application/services"
-	eaDomainServices "easi/backend/internal/enterprisearchitecture/domain/services"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/onepagers/application/ports"
 )
@@ -23,13 +23,10 @@ type onePagerRelationModels struct {
 	purchasedFrom *archReadModels.PurchasedFromRelationshipReadModel
 	acquiredVia   *archReadModels.AcquiredViaRelationshipReadModel
 	componentRels *archReadModels.ComponentRelationReadModel
-	composition   *eaServices.CompositionService
+	composition   *adServices.CompositionService
 }
 
 func newOnePagerRelationModels(db *database.TenantAwareDB) onePagerRelationModels {
-	enterpriseCapabilities := eaReadModels.NewEnterpriseCapabilityReadModel(db)
-	directions := directionSourcesAdapter{readModel: adReadModels.NewDirectionReadModel(db)}
-	metadata := eaReadModels.NewDomainCapabilityMetadataReadModel(db)
 	return onePagerRelationModels{
 		capabilities:  capReadModels.NewCapabilityReadModel(db),
 		realizations:  capReadModels.NewRealizationReadModel(db),
@@ -40,7 +37,7 @@ func newOnePagerRelationModels(db *database.TenantAwareDB) onePagerRelationModel
 		purchasedFrom: archReadModels.NewPurchasedFromRelationshipReadModel(db),
 		acquiredVia:   archReadModels.NewAcquiredViaRelationshipReadModel(db),
 		componentRels: archReadModels.NewComponentRelationReadModel(db),
-		composition:   eaServices.NewCompositionService(directions, metadata, enterpriseCapabilities),
+		composition:   directionAPI.NewCompositionService(db),
 	}
 }
 
@@ -174,7 +171,7 @@ func (m onePagerRelationModels) includedCapabilities(ctx context.Context, dto *e
 	}
 	references := make([]ports.Reference, 0, len(result.Resolved))
 	for _, resolved := range result.Resolved {
-		if resolved.Role == eaDomainServices.RoleCarvedOut {
+		if resolved.Role == adDomainServices.RoleCarvedOut {
 			continue
 		}
 		references = append(references, ports.Reference{ID: resolved.Node.ID, Label: resolved.Node.Name, SubjectType: "capability"})

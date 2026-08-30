@@ -11,6 +11,9 @@ export const onePagersQueryKeys = {
   viewsForSubjectType: (subjectType: OnePagerSubjectType) => [...onePagersQueryKeys.views(), subjectType] as const,
   onePager: (subjectType: OnePagerSubjectType, subjectId: string) =>
     [...onePagersQueryKeys.viewsForSubjectType(subjectType), subjectId] as const,
+  completeness: () => [...onePagersQueryKeys.all, 'completeness'] as const,
+  completenessForSubjectType: (subjectType: OnePagerSubjectType) =>
+    [...onePagersQueryKeys.completeness(), subjectType] as const,
   impactPreviews: () => [...onePagersQueryKeys.all, 'impact-preview'] as const,
   impactPreview: (subjectType: OnePagerSubjectType, fieldId?: string, fieldKind: ImpactPreviewFieldKind = 'custom') =>
     [...onePagersQueryKeys.impactPreviews(), subjectType, fieldKind, fieldId ?? 'new-field'] as const,

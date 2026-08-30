@@ -37,6 +37,7 @@ type AccessDelegationRoutesDeps struct {
 	UserLookup     ports.UserEmailLookup
 	InvChecker     ports.InvitationChecker
 	DomainChecker  ports.DomainAllowlistChecker
+	Invitations    ports.InvitationRequester
 }
 
 type AccessDelegationDependencies struct {
@@ -68,6 +69,7 @@ func SetupAccessDelegationRoutes(deps AccessDelegationRoutesDeps) (*AccessDelega
 		UserLookup:    deps.UserLookup,
 		InvChecker:    deps.InvChecker,
 		DomainChecker: deps.DomainChecker,
+		Invitations:   deps.Invitations,
 		EventBus:      deps.EventBus,
 	})
 	rateLimiter := middleware.NewRateLimiter(100, 60)

@@ -7,12 +7,13 @@ import (
 	"testing"
 	"time"
 
+	amPL "easi/backend/internal/architecturemodeling/publishedlanguage"
+	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/importing/application/commands"
 	"easi/backend/internal/importing/application/parsers"
 	"easi/backend/internal/importing/application/ports"
 	"easi/backend/internal/importing/application/saga"
 	"easi/backend/internal/importing/infrastructure/repositories"
-	"easi/backend/internal/importing/publishedlanguage"
 )
 
 type stubComponentGateway struct {
@@ -26,13 +27,13 @@ func (s stubComponentGateway) CreateComponent(ctx context.Context, name, descrip
 	return "component-1", nil
 }
 
-func (s stubComponentGateway) CreateRelation(_ context.Context, _ publishedlanguage.CreateRelationInput) (string, error) {
+func (s stubComponentGateway) CreateRelation(_ context.Context, _ amPL.CreateRelationInput) (string, error) {
 	return "relation-1", nil
 }
 
 type stubCapabilityGateway struct{}
 
-func (s stubCapabilityGateway) CreateCapability(_ context.Context, _ publishedlanguage.CreateCapabilityInput) (string, error) {
+func (s stubCapabilityGateway) CreateCapability(_ context.Context, _ cmPL.CreateCapabilityInput) (string, error) {
 	return "capability-1", nil
 }
 
@@ -40,7 +41,7 @@ func (s stubCapabilityGateway) UpdateMetadata(_ context.Context, _, _, _ string)
 	return nil
 }
 
-func (s stubCapabilityGateway) LinkSystem(_ context.Context, _ publishedlanguage.LinkSystemInput) (string, error) {
+func (s stubCapabilityGateway) LinkSystem(_ context.Context, _ cmPL.LinkSystemInput) (string, error) {
 	return "link-1", nil
 }
 

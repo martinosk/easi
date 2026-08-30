@@ -1,11 +1,18 @@
-import { enterpriseCapabilitiesQueryKeys, maturityAnalysisQueryKeys } from './queryKeys';
+import { onePagersQueryKeys } from '../one-pagers/queryKeys';
+import { compositionSummariesQueryKeys, enterpriseCapabilitiesQueryKeys, maturityAnalysisQueryKeys } from './queryKeys';
 
 export const enterpriseCapabilitiesMutationEffects = {
-  create: () => [enterpriseCapabilitiesQueryKeys.lists()],
+  create: () => [
+    enterpriseCapabilitiesQueryKeys.lists(),
+    compositionSummariesQueryKeys.lists(),
+    onePagersQueryKeys.completenessForSubjectType('enterprise-capability'),
+  ],
 
   delete: (enterpriseCapabilityId: string) => [
     enterpriseCapabilitiesQueryKeys.lists(),
     enterpriseCapabilitiesQueryKeys.detail(enterpriseCapabilityId),
+    compositionSummariesQueryKeys.lists(),
+    onePagersQueryKeys.completenessForSubjectType('enterprise-capability'),
   ],
 
   setTargetMaturity: (enterpriseCapabilityId: string) => [

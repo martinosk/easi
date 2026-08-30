@@ -8,6 +8,7 @@ import (
 	capReadModels "easi/backend/internal/capabilitymapping/application/readmodels"
 	eaReadModels "easi/backend/internal/enterprisearchitecture/application/readmodels"
 	"easi/backend/internal/infrastructure/database"
+	"easi/backend/internal/onepagers/application/ports"
 )
 
 type subjectExistenceCheck func(ctx context.Context, id string) (bool, error)
@@ -16,7 +17,7 @@ type onePagerSubjectExistenceAdapter struct {
 	checks map[string]subjectExistenceCheck
 }
 
-func newOnePagerSubjectExistenceAdapter(db *database.TenantAwareDB) onePagerSubjectExistenceAdapter {
+func newOnePagerSubjectExistenceAdapter(db *database.TenantAwareDB) ports.SubjectExistenceChecker {
 	return onePagerSubjectExistenceAdapter{checks: map[string]subjectExistenceCheck{
 		"capability":            subjectExists(capReadModels.NewCapabilityReadModel(db).GetByID),
 		"enterprise-capability": subjectExists(eaReadModels.NewEnterpriseCapabilityReadModel(db).GetByID),
