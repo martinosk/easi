@@ -194,6 +194,16 @@ func (rm *SubjectRelationCacheReadModel) SubjectsByRelated(ctx context.Context, 
 	)
 }
 
+func (rm *SubjectRelationCacheReadModel) SubjectsPointingAt(ctx context.Context, target SubjectKey) ([]SubjectKey, error) {
+	return rm.distinctSubjects(ctx,
+		fmt.Sprintf("list subjects referencing %s %s", target.SubjectType, target.SubjectID),
+		`SELECT DISTINCT subject_type, subject_id FROM onepagers.subject_relation_cache
+		WHERE tenant_id = $1 AND related_type = $2 AND related_id = $3
+		AND NOT (subject_type = $2 AND subject_id = $3)`,
+		target.SubjectType, target.SubjectID,
+	)
+}
+
 func (rm *SubjectRelationCacheReadModel) distinctSubjects(ctx context.Context, description, query string, args ...any) ([]SubjectKey, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {

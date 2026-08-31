@@ -21,6 +21,7 @@ type SubjectRelationStore interface {
 	RenameRelated(ctx context.Context, target readmodels.RelationTarget, name string) error
 	SubjectsByEdge(ctx context.Context, edgeID string) ([]readmodels.SubjectKey, error)
 	SubjectsByRelated(ctx context.Context, target readmodels.RelationTarget) ([]readmodels.SubjectKey, error)
+	SubjectsPointingAt(ctx context.Context, target readmodels.SubjectKey) ([]readmodels.SubjectKey, error)
 }
 
 type BusinessDomainNameStore interface {
@@ -349,10 +350,15 @@ func (p *SubjectRelationProjector) applyOriginLink(ctx context.Context, originTy
 
 func subjectRelationsDeleted(subjectType string) relationHandler {
 	return func(p *SubjectRelationProjector, ctx context.Context, event relationEventPayload) ([]readmodels.SubjectKey, error) {
-		if err := p.relations.DeleteSubject(ctx, readmodels.SubjectKey{SubjectType: subjectType, SubjectID: event.ID}); err != nil {
+		subject := readmodels.SubjectKey{SubjectType: subjectType, SubjectID: event.ID}
+		affected, err := p.relations.SubjectsPointingAt(ctx, subject)
+		if err != nil {
 			return nil, err
 		}
-		return nil, nil
+		if err := p.relations.DeleteSubject(ctx, subject); err != nil {
+			return nil, err
+		}
+		return affected, nil
 	}
 }
 

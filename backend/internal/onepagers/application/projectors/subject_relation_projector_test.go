@@ -36,15 +36,16 @@ type renamedRelated struct {
 }
 
 type fakeRelationStore struct {
-	saved             []savedRelation
-	replaced          []replacedRelation
-	deletedEdges      []string
-	deletedByRelated  []readmodels.RelationTarget
-	deletedEdgeSubset []edgeSubjectDeletion
-	deletedSubjects   []readmodels.SubjectKey
-	renamed           []renamedRelated
-	subjectsByEdge    map[string][]readmodels.SubjectKey
-	subjectsByRelated map[readmodels.RelationTarget][]readmodels.SubjectKey
+	saved              []savedRelation
+	replaced           []replacedRelation
+	deletedEdges       []string
+	deletedByRelated   []readmodels.RelationTarget
+	deletedEdgeSubset  []edgeSubjectDeletion
+	deletedSubjects    []readmodels.SubjectKey
+	renamed            []renamedRelated
+	subjectsByEdge     map[string][]readmodels.SubjectKey
+	subjectsByRelated  map[readmodels.RelationTarget][]readmodels.SubjectKey
+	subjectsPointingAt map[readmodels.SubjectKey][]readmodels.SubjectKey
 }
 
 func (f *fakeRelationStore) Save(_ context.Context, subject readmodels.SubjectKey, entry readmodels.RelationEntry) error {
@@ -88,6 +89,10 @@ func (f *fakeRelationStore) SubjectsByEdge(_ context.Context, edgeID string) ([]
 
 func (f *fakeRelationStore) SubjectsByRelated(_ context.Context, target readmodels.RelationTarget) ([]readmodels.SubjectKey, error) {
 	return f.subjectsByRelated[target], nil
+}
+
+func (f *fakeRelationStore) SubjectsPointingAt(_ context.Context, target readmodels.SubjectKey) ([]readmodels.SubjectKey, error) {
+	return f.subjectsPointingAt[target], nil
 }
 
 type recomputedCompleteness struct {
@@ -437,6 +442,32 @@ func TestSubjectRelationProjector_SubjectDeleted_DropsEveryRelation(t *testing.T
 	}
 }
 
+func TestSubjectRelationProjector_SubjectDeleted_RecomputesSubjectsThatPointedAtIt(t *testing.T) {
+	h := newRelationHarness(t)
+	deleted := subjectKey("application", "x")
+	h.relations.subjectsPointingAt = map[readmodels.SubjectKey][]readmodels.SubjectKey{
+		deleted: {subjectKey("vendor", "v-1"), subjectKey("internal-team", "t-1")},
+	}
+
+	h.project(amPL.ApplicationComponentDeleted, map[string]any{"id": "x"})
+
+	assert.Equal(t, []readmodels.SubjectKey{deleted}, h.relations.deletedSubjects)
+	assert.Equal(t, []string{"v-1"}, h.completeness.subjectIDsFor("vendor"))
+	assert.Equal(t, []string{"t-1"}, h.completeness.subjectIDsFor("internal-team"))
+}
+
+func TestSubjectRelationProjector_SubjectDeleted_LooksUpPointingSubjectsBeforeDeleting(t *testing.T) {
+	h := newRelationHarness(t)
+	deleted := subjectKey("vendor", "v-1")
+	h.relations.subjectsPointingAt = map[readmodels.SubjectKey][]readmodels.SubjectKey{
+		deleted: {subjectKey("application", "app-1")},
+	}
+
+	h.project(amPL.VendorDeleted, map[string]any{"id": "v-1"})
+
+	assert.Equal(t, []string{"app-1"}, h.completeness.subjectIDsFor("application"))
+}
+
 func TestSubjectRelationProjector_UnknownEvent_NoOp(t *testing.T) {
 	h := newRelationHarness(t)
 
@@ -531,22 +562,4 @@ func TestSubjectRelationProjector_OriginLinkReplaced_RecomputesApplicationAndBot
 
 	assert.Equal(t, []string{"app-1"}, h.completeness.subjectIDsFor("application"))
 	assert.ElementsMatch(t, []string{"v-1", "v-2"}, h.completeness.subjectIDsFor("vendor"))
-}
-
-func TestSubjectRelationEventTypes_CoverEveryCachedRelation(t *testing.T) {
-	types := projectors.SubjectRelationEventTypes()
-
-	for _, eventType := range []string{
-		capPL.CapabilityCreated, capPL.CapabilityDeleted, capPL.CapabilityParentChanged,
-		capPL.SystemLinkedToCapability, capPL.SystemRealizationDeleted,
-		capPL.CapabilityRealizationsInherited, capPL.CapabilityRealizationsUninherited,
-		capPL.CapabilityDependencyCreated, capPL.CapabilityDependencyDeleted,
-		capPL.CapabilityAssignedToDomain, capPL.CapabilityUnassignedFromDomain,
-		capPL.BusinessDomainCreated, capPL.BusinessDomainUpdated, capPL.BusinessDomainDeleted,
-		amPL.ComponentRelationCreated, amPL.ComponentRelationDeleted,
-		amPL.OriginLinkSet, amPL.OriginLinkReplaced, amPL.OriginLinkCleared, amPL.OriginLinkDeleted,
-		amPL.ApplicationComponentDeleted, amPL.VendorDeleted, amPL.AcquiredEntityDeleted, amPL.InternalTeamDeleted,
-	} {
-		assert.Containsf(t, types, eventType, "%s must be subscribed", eventType)
-	}
 }

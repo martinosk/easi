@@ -276,6 +276,26 @@ func TestSubjectRelationCache_CreatingAndDeletingARequiredRelation_FlipsStoredCo
 	assert.Equal(t, readmodels.SignalIncomplete, row.Signal())
 }
 
+func TestSubjectRelationCache_DeletingASubjectRecomputesCompletenessOfSubjectsThatReferencedIt(t *testing.T) {
+	f := newRelationCacheFixture(t)
+	f.seedSubject(subjectKey("vendor", "v-1"), "Contoso")
+	f.seedSubject(subjectKey("application", "app-1"), "Billing Service")
+	f.requireBuiltIn("vendor", "purchased-applications")
+	f.project(amPL.OriginLinkSet, map[string]any{"componentId": "app-1", "originType": "purchased-from", "entityId": "v-1"})
+
+	row, found := f.rowFor(subjectKey("vendor", "v-1"))
+	require.True(t, found)
+	assert.Equal(t, 1, row.FilledCount, "the vendor's purchased-applications relation is filled once the origin link is set")
+	assert.Equal(t, readmodels.SignalComplete, row.Signal())
+
+	f.project(amPL.ApplicationComponentDeleted, map[string]any{"id": "app-1"})
+
+	row, found = f.rowFor(subjectKey("vendor", "v-1"))
+	require.True(t, found)
+	assert.Equal(t, 0, row.FilledCount, "deleting the application must clear the vendor's stored completeness for the relation that referenced it")
+	assert.Equal(t, readmodels.SignalIncomplete, row.Signal())
+}
+
 func TestSubjectRelationCache_UninheritingRemovesOnlyTheNamedCapabilities(t *testing.T) {
 	f := newRelationCacheFixture(t)
 	f.seedSubject(subjectKey("application", "app-1"), "Billing Service")
