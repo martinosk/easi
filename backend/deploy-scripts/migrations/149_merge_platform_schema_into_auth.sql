@@ -9,8 +9,4 @@ ALTER TABLE platform.tenants SET SCHEMA auth;
 ALTER TABLE platform.tenant_domains SET SCHEMA auth;
 ALTER TABLE platform.tenant_oidc_configs SET SCHEMA auth;
 
-DROP TABLE IF EXISTS auth.tenant_oidc_cache;
-DROP TABLE IF EXISTS auth.tenant_domain_cache;
-DROP TABLE IF EXISTS auth.tenant_cache;
-
 DROP SCHEMA platform;
