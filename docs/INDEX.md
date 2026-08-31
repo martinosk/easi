@@ -13,6 +13,7 @@ Quick reference for navigating EASI documentation.
 | Backend tests | [docs/backend/testing.md](backend/testing.md) |
 | Database migration | [docs/backend/database.md](backend/database.md) |
 | Frontend component | [docs/frontend/standard-patterns.md](frontend/standard-patterns.md) |
+| CodeScene architectural components | [docs/architecture/components.csv](architecture/components.csv) (generated — see [architecture README](architecture/README.md#codescene-components)) |
 
 ## By Bounded Context
 
