@@ -1,6 +1,6 @@
 # 209 — Events-Only Context Integration
 
-> **Status:** ongoing
+> **Status:** done
 > **Depends on:** 206 (Composition-Root Dependency Guard), 207 (Direction-Derived Reads Owned by Direction), 208 (One-Pager Completeness Served by OnePagers)
 > **Amends:** 206 (rule 9 and design decision 8 — declared bridges are no longer permitted), 207 (Architecture Direction bridges), 178/189 (OnePagers built-in and relation fields), 134 (Architecture Guard Tests), 039 (tenant provisioning), 127 (edit-grant auto-invitation)
 
@@ -186,4 +186,4 @@ valuestreams          → auth, capabilitymapping
 - [x] Unit tests implemented and passing
 - [x] Integration tests implemented if relevant
 - [x] API documentation updated
-- [ ] User sign-off
+- [x] User sign-off (2026-08-31)

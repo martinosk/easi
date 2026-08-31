@@ -1,6 +1,6 @@
 # 207 — Direction-Derived Reads Owned by Architecture Direction
 
-> **Status:** ongoing
+> **Status:** done
 > **Depends on:** 172 (Direction Is the Association), 136 (EA Read Model ACL Decoupling)
 > **Amends:** 172 (bounded-context ownership table), 178 is amended by 208
 > **Amended by:** 209 (Events-Only Context Integration) — the composition-root lookups into Capability Mapping and Architecture Modeling are replaced by Architecture Direction's own reference and realization caches
@@ -169,4 +169,4 @@ Enterprise capability table reads counts from the composition summaries collecti
 - [x] Unit tests implemented and passing
 - [x] Integration tests implemented if relevant
 - [x] API documentation updated
-- [ ] User sign-off
+- [x] User sign-off (2026-08-31)

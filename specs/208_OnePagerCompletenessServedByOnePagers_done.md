@@ -1,6 +1,6 @@
 # 208 — One-Pager Completeness Served by OnePagers
 
-> **Status:** ongoing
+> **Status:** done
 > **Depends on:** 178 (One-Pager Completeness), 189 (One-Pager Quality List)
 > **Amends:** 178 design decision 4 (page-scoped decoration of subject lists)
 
@@ -134,4 +134,4 @@ OnePagers ← AM/CM/EA events (unchanged). AM/CM/EA → OnePagers: **removed**.
 - [x] Unit tests implemented and passing
 - [x] Integration tests implemented if relevant
 - [x] API documentation updated
-- [ ] User sign-off
+- [x] User sign-off (2026-08-31)

@@ -1,6 +1,6 @@
 # 206 — Composition-Root Dependency Guard
 
-> **Status:** ongoing
+> **Status:** done
 > **Depends on:** 207 (Direction-Derived Reads Owned by Architecture Direction), 208 (One-Pager Completeness Served by OnePagers) — the guard is green only once both have landed
 > **Amends:** 134 (Architecture Guard Tests), 125/135 (Published Language)
 > **Amended by:** 209 (Events-Only Context Integration) — declared composition-root bridges are no longer permitted; rule 9 and design decision 8 are superseded
@@ -156,4 +156,4 @@ The chat entry point is shown when the session carries `x-assistant` and `GET /a
 - [x] Unit tests implemented and passing
 - [x] Integration tests implemented if relevant
 - [x] API documentation updated
-- [ ] User sign-off
+- [x] User sign-off (2026-08-31)
