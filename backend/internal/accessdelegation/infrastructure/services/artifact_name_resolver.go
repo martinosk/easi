@@ -21,12 +21,25 @@ func NewArtifactNameResolver(cache ArtifactNameCache) appservices.ArtifactNameRe
 }
 
 func (r *artifactNameResolver) ResolveName(ctx context.Context, artifactType, artifactID string) (string, error) {
-	names, err := r.cache.NamesByIDs(ctx, artifactType, []string{artifactID})
+	names, err := r.ResolveNames(ctx, artifactType, []string{artifactID})
 	if err != nil {
 		return deletedArtifactName, nil
 	}
-	if name := names[artifactID]; name != "" {
-		return name, nil
+	return names[artifactID], nil
+}
+
+func (r *artifactNameResolver) ResolveNames(ctx context.Context, artifactType string, artifactIDs []string) (map[string]string, error) {
+	cached, err := r.cache.NamesByIDs(ctx, artifactType, artifactIDs)
+	if err != nil {
+		cached = nil
 	}
-	return deletedArtifactName, nil
+	resolved := make(map[string]string, len(artifactIDs))
+	for _, artifactID := range artifactIDs {
+		if name := cached[artifactID]; name != "" {
+			resolved[artifactID] = name
+			continue
+		}
+		resolved[artifactID] = deletedArtifactName
+	}
+	return resolved, nil
 }

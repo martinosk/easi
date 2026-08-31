@@ -85,7 +85,7 @@ Feature: Composition-root dependency guard
 - [x] `TestContextDependencyGraphIsAcyclic` builds the graph from published-language imports plus declared bridges and fails with the printed cycle on any cycle; it passes on the codebase after 207 and 208.
 - [x] `AgentToolSpec`, `ParamSpec`, `AccessClass` and the param constructors live in `shared/agenttools`; no context imports `archassistant/publishedlanguage`.
 - [x] Import-gateway input types live in the published language of Architecture Modeling and Capability Mapping; neither imports `importing/publishedlanguage`.
-- [x] Access Delegation requests invitations for non-users through its own `InvitationRequester` port, implemented in the composition-root bridge (`accessdelegation_bridges.go`) by dispatching Auth's `CreateInvitation` command — Auth itself must not import the port; Auth no longer subscribes to `EditGrantForNonUserCreated` (the event is still published); the existing auto-invitation behaviour tests pass against the port.
+- [x] Access Delegation requests invitations for non-users through its own `InvitationRequester` port, implemented in the composition-root bridge (`accessdelegation_bridges.go`) by dispatching Auth's `CreateInvitation` command — Auth itself must not import the port; Auth no longer subscribes to `EditGrantForNonUserCreated`; the existing auto-invitation behaviour tests pass against the port. **Removed 2026-08-31** — `EditGrantForNonUserCreated` was never persisted to the event store (it was a direct in-process bus publish) and had zero subscribers; the auto-invitation behaviour lives entirely in the `EnsureInvitation` dispatch, so the event, its published-language constant, and the `EventBus` dependency it required were deleted.
 - [x] Auth's session links `x-assistant` / `x-assistant-write` depend on permission only; Arch Assistant exposes `GET /assistant/status` (`{ configured }`) to holders of the assistant permission; the frontend shows the chat entry point when the link is present and the status is configured; Auth has no dependency on Arch Assistant.
 - [x] Arch Assistant subscribes to `TenantCreated` inside its own route setup, not in the router.
 - [x] Every cross-context adapter in the composition root lives in a `*_bridges.go` file declared in the bridge registry; `router.go` constructs no adapters.
@@ -102,7 +102,7 @@ The rule and the tests live in `backend/internal` next to the existing architect
 
 ### Domain Model
 
-No aggregate changes. Access Delegation gains a consumer-defined port `InvitationRequester` invoked after a grant for a non-user is created; the published event `EditGrantForNonUserCreated` remains for audit and other consumers.
+No aggregate changes. Access Delegation gains a consumer-defined port `InvitationRequester` invoked after a grant for a non-user is created. **Removed 2026-08-31**: the published event `EditGrantForNonUserCreated` was deleted — it was never persisted and had no subscribers; the auto-invitation behaviour lives entirely in the `EnsureInvitation` dispatch.
 
 ### API Surface
 
@@ -145,7 +145,7 @@ The chat entry point is shown when the session carries `x-assistant` and `GET /a
 |----------|-----------|------------|
 | Declared direction can be mis-declared | A wrong declaration could hide a cycle | Declarations live beside the adapters in one reviewed file; the acyclicity test prints the full graph on failure |
 | `x-assistant` link no longer implies "configured" | One extra status request when the link is present | Tiny resource, cached; assistant-owned readiness is the more accurate contract |
-| Event `EditGrantForNonUserCreated` has no in-process subscriber | Audit-only event | Still published and documented; behaviour moves to the port with the same tests |
+| Event `EditGrantForNonUserCreated` has no in-process subscriber | Audit-only event | **Removed 2026-08-31** — the event was never persisted and had no subscribers; the auto-invitation behaviour lives in the `EnsureInvitation` dispatch |
 
 ---
 

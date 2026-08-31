@@ -5,9 +5,23 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/lib/pq"
+
+	archPL "easi/backend/internal/architecturemodeling/publishedlanguage"
+	viewsPL "easi/backend/internal/architectureviews/publishedlanguage"
+	capPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
 )
+
+var artifactCreatorEventTypes = []string{
+	archPL.ApplicationComponentCreated,
+	capPL.CapabilityCreated,
+	archPL.VendorCreated,
+	archPL.InternalTeamCreated,
+	archPL.AcquiredEntityCreated,
+	viewsPL.ViewCreated,
+}
 
 type ArtifactCreator struct {
 	AggregateID string `json:"aggregateId"`
@@ -40,15 +54,8 @@ func (rm *ArtifactCreatorReadModel) GetArtifactCreators(ctx context.Context) ([]
 			FROM infrastructure.events
 			WHERE tenant_id = $1
 			  AND version = 1
-			  AND event_type IN (
-			    'ApplicationComponentCreated',
-			    'CapabilityCreated',
-			    'VendorCreated',
-			    'InternalTeamCreated',
-			    'AcquiredEntityCreated',
-			    'ViewCreated'
-			  )
-		`, tenantID.Value())
+			  AND event_type = ANY($2)
+		`, tenantID.Value(), pq.Array(artifactCreatorEventTypes))
 		if err != nil {
 			return fmt.Errorf("failed to query artifact creators: %w", err)
 		}

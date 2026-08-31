@@ -60,7 +60,6 @@ func SetupAccessDelegationRoutes(deps AccessDelegationRoutesDeps) (*AccessDelega
 		ReadModel:    readModel,
 		Hateoas:      NewEditGrantLinks(deps.HATEOAS),
 		NameResolver: adServices.NewArtifactNameResolver(nameCache),
-		EventBus:     deps.EventBus,
 	})
 	rateLimiter := middleware.NewRateLimiter(100, 60)
 

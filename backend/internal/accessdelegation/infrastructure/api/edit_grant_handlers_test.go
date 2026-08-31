@@ -14,13 +14,10 @@ import (
 
 	"easi/backend/internal/accessdelegation/application/commands"
 	"easi/backend/internal/accessdelegation/application/readmodels"
-	adPL "easi/backend/internal/accessdelegation/publishedlanguage"
 	authPL "easi/backend/internal/auth/publishedlanguage"
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
-	"easi/backend/internal/shared/events"
-	domain "easi/backend/internal/shared/eventsourcing"
 )
 
 type recordingEditGrantReader struct {
@@ -57,11 +54,10 @@ func (h *recordingCommandHandler) Handle(_ context.Context, cmd cqrs.Command) (c
 }
 
 type grantTestHarness struct {
-	handlers          *EditGrantHandlers
-	grants            *recordingCommandHandler
-	invitations       *recordingCommandHandler
-	reader            *recordingEditGrantReader
-	nonUserGrantCount int
+	handlers    *EditGrantHandlers
+	grants      *recordingCommandHandler
+	invitations *recordingCommandHandler
+	reader      *recordingEditGrantReader
 }
 
 func newGrantTestHarness(invitationResult cqrs.CommandResult, invitationErr error) *grantTestHarness {
@@ -84,17 +80,10 @@ func newGrantTestHarness(invitationResult cqrs.CommandResult, invitationErr erro
 	commandBus.Register("CreateEditGrant", harness.grants)
 	commandBus.Register(authPL.EnsureInvitation{}.CommandName(), harness.invitations)
 
-	eventBus := events.NewInMemoryEventBus()
-	eventBus.Subscribe(adPL.EditGrantForNonUserCreated, events.EventHandlerFunc(func(_ context.Context, _ domain.DomainEvent) error {
-		harness.nonUserGrantCount++
-		return nil
-	}))
-
 	harness.handlers = NewEditGrantHandlers(EditGrantHandlerDeps{
 		CommandBus: commandBus,
 		ReadModel:  harness.reader,
 		Hateoas:    NewEditGrantLinks(sharedAPI.NewHATEOASLinks("/api/v1")),
-		EventBus:   eventBus,
 	})
 	return harness
 }
@@ -167,7 +156,6 @@ func TestCreateEditGrant_GranteeWithoutAccount_EnsuresStakeholderInvitation(t *t
 		InviterEmail: "grantor@dfds.com",
 	}, harness.invitations.dispatched[0])
 	assert.True(t, decodeGrant(t, rec).InvitationCreated)
-	assert.Equal(t, 1, harness.nonUserGrantCount)
 }
 
 func TestCreateEditGrant_GranteeAlreadyKnown_ReportsNoInvitation(t *testing.T) {
@@ -178,7 +166,6 @@ func TestCreateEditGrant_GranteeAlreadyKnown_ReportsNoInvitation(t *testing.T) {
 	require.Equal(t, http.StatusCreated, rec.Code)
 	require.Len(t, harness.invitations.dispatched, 1)
 	assert.False(t, decodeGrant(t, rec).InvitationCreated)
-	assert.Zero(t, harness.nonUserGrantCount)
 }
 
 func TestCreateEditGrant_InvitationRejected_StillCreatesGrant(t *testing.T) {
@@ -189,5 +176,4 @@ func TestCreateEditGrant_InvitationRejected_StillCreatesGrant(t *testing.T) {
 	require.Equal(t, http.StatusCreated, rec.Code)
 	require.Len(t, harness.grants.dispatched, 1)
 	assert.False(t, decodeGrant(t, rec).InvitationCreated)
-	assert.Zero(t, harness.nonUserGrantCount)
 }

@@ -11,13 +11,10 @@ import (
 	"easi/backend/internal/accessdelegation/application/readmodels"
 	"easi/backend/internal/accessdelegation/application/services"
 	"easi/backend/internal/accessdelegation/domain/valueobjects"
-	adPL "easi/backend/internal/accessdelegation/publishedlanguage"
 	authPL "easi/backend/internal/auth/publishedlanguage"
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
-	"easi/backend/internal/shared/events"
-	domain "easi/backend/internal/shared/eventsourcing"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -36,7 +33,6 @@ type EditGrantHandlerDeps struct {
 	ReadModel    EditGrantReader
 	Hateoas      *EditGrantLinks
 	NameResolver services.ArtifactNameResolver
-	EventBus     *events.InMemoryEventBus
 }
 
 type EditGrantHandlers struct {
@@ -343,10 +339,28 @@ func (h *EditGrantHandlers) enrichGrantsWithArtifactNames(ctx context.Context, g
 	if h.deps.NameResolver == nil {
 		return
 	}
-	for i := range grants {
-		name, _ := h.deps.NameResolver.ResolveName(ctx, grants[i].ArtifactType, grants[i].ArtifactID)
-		grants[i].ArtifactName = name
+	namesByType := make(map[string]map[string]string, len(grants))
+	for artifactType, artifactIDs := range groupArtifactIDsByType(grants) {
+		names, _ := h.deps.NameResolver.ResolveNames(ctx, artifactType, artifactIDs)
+		namesByType[artifactType] = names
 	}
+	for i := range grants {
+		grants[i].ArtifactName = namesByType[grants[i].ArtifactType][grants[i].ArtifactID]
+	}
+}
+
+func groupArtifactIDsByType(grants []readmodels.EditGrantDTO) map[string][]string {
+	idsByType := make(map[string][]string)
+	seen := make(map[string]bool, len(grants))
+	for i := range grants {
+		key := grants[i].ArtifactType + "\x00" + grants[i].ArtifactID
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		idsByType[grants[i].ArtifactType] = append(idsByType[grants[i].ArtifactType], grants[i].ArtifactID)
+	}
+	return idsByType
 }
 
 func (h *EditGrantHandlers) enrichSingleGrant(ctx context.Context, grant *readmodels.EditGrantDTO, actor sharedctx.Actor) {
@@ -376,19 +390,5 @@ func (h *EditGrantHandlers) autoInviteIfNeeded(ctx context.Context, granteeEmail
 	}
 
 	log.Printf("[AUDIT] invitation-auto-created email=%s inviter=%s reason=edit-grant", granteeEmail, actor.Email)
-	h.publishNonUserGrantEvent(ctx, granteeEmail, actor)
 	return true
-}
-
-func (h *EditGrantHandlers) publishNonUserGrantEvent(ctx context.Context, granteeEmail string, actor sharedctx.Actor) {
-	if h.deps.EventBus == nil {
-		return
-	}
-	data, _ := json.Marshal(map[string]interface{}{
-		"granteeEmail": granteeEmail,
-		"grantorId":    actor.ID,
-		"grantorEmail": actor.Email,
-	})
-	event := domain.NewGenericDomainEvent("", adPL.EditGrantForNonUserCreated, data, domain.NewBaseEvent("").OccurredAt())
-	_ = h.deps.EventBus.Publish(ctx, []domain.DomainEvent{event})
 }
