@@ -1,6 +1,6 @@
 # EASI Architecture
 
-Bounded Context Canvases for all contexts in the EASI platform. Each canvas follows the [DDD Crew Bounded Context Canvas](https://github.com/ddd-crew/bounded-context-canvas) template.
+Bounded Context Canvases for all contexts in the EASI platform. Each canvas follows the [DDD Crew Bounded Context Canvas](https://github.com/ddd-crew/bounded-context-canvas) template. The strategic plan-of-record — settled decisions, standing invariants, and the horizon plan with spec traceability — is [ROADMAP.md](./ROADMAP.md).
 
 ## Bounded Contexts
 

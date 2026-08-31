@@ -93,6 +93,12 @@ Non-trivial features must have an approved spec in `/specs/` before any code is 
 
 ---
 
+## Strategic Direction
+
+Bounded-context and capability evolution follows the strategy register in `docs/architecture/ROADMAP.md` — settled decisions (SD1–SD8), standing invariants, and the horizon plan. Every spec states its roadmap alignment; a design that contradicts a settled decision is a proposed amendment for a human, never a silent override.
+
+---
+
 ## Code Health
 
 Before claiming any code change is done, run the `easi-codehealth` skill on every modified and untracked file in the change set.

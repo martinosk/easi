@@ -6,6 +6,7 @@ Quick reference for navigating EASI documentation.
 
 | Working on... | Read this |
 |---------------|-----------|
+| Planning a feature or bounded-context change | [docs/architecture/ROADMAP.md](architecture/ROADMAP.md) |
 | Backend API endpoint | [docs/backend/api-standards.md](backend/api-standards.md) |
 | Backend event handling | [docs/backend/standard-patterns.md](backend/standard-patterns.md) |
 | Cross-context events / bridges | [docs/backend/cross-context-events.md](backend/cross-context-events.md) |
