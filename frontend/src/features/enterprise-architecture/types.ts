@@ -77,7 +77,7 @@ export interface CompositionSummary {
   includedCount: number;
   carvedOutCount: number;
   domainCount: number;
-  hasActiveDirection: boolean;
+  hasDirection: boolean;
   directionStatus?: string;
   _links: HATEOASLinks & {
     'x-enterprise-capability'?: HATEOASLink;

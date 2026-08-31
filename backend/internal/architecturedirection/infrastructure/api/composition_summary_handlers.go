@@ -21,7 +21,7 @@ type CompositionSummaryDTO struct {
 	IncludedCount          int         `json:"includedCount"`
 	CarvedOutCount         int         `json:"carvedOutCount"`
 	DomainCount            int         `json:"domainCount"`
-	HasActiveDirection     bool        `json:"hasActiveDirection"`
+	HasDirection           bool        `json:"hasDirection"`
 	DirectionStatus        string      `json:"directionStatus,omitempty"`
 	Links                  types.Links `json:"_links,omitempty"`
 }
@@ -76,7 +76,7 @@ func (h *CompositionSummaryHandlers) summary(ecID string, counts domainservices.
 		IncludedCount:          counts.IncludedCount,
 		CarvedOutCount:         counts.CarvedOutCount,
 		DomainCount:            counts.DomainCount,
-		HasActiveDirection:     status != "",
+		HasDirection:           status != "",
 		DirectionStatus:        status,
 		Links: types.Links{
 			"x-enterprise-capability": h.hateoas.Get(base),

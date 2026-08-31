@@ -180,7 +180,7 @@ describe('EnterpriseCapabilityDetailPanel', () => {
               includedCount: 5,
               carvedOutCount: 0,
               domainCount: 3,
-              hasActiveDirection: false,
+              hasDirection: false,
               _links: {
                 'x-composition': { href: '/api/v1/_custom/ec-crm/composition', method: 'GET' },
                 'x-direction': { href: '/api/v1/_custom/ec-crm/direction', method: 'GET' },

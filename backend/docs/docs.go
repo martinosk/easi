@@ -10754,7 +10754,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/internal_platform_infrastructure_api.TenantListItem"
+                                                "$ref": "#/definitions/internal_auth_infrastructure_api.TenantListItem"
                                             }
                                         }
                                     }
@@ -10789,7 +10789,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_platform_infrastructure_api.CreateTenantRequest"
+                            "$ref": "#/definitions/internal_auth_infrastructure_api.CreateTenantRequest"
                         }
                     }
                 ],
@@ -10797,7 +10797,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Tenant created successfully",
                         "schema": {
-                            "$ref": "#/definitions/internal_platform_infrastructure_api.TenantResponse"
+                            "$ref": "#/definitions/internal_auth_infrastructure_api.TenantResponse"
                         }
                     },
                     "400": {
@@ -10844,7 +10844,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Tenant details",
                         "schema": {
-                            "$ref": "#/definitions/internal_platform_infrastructure_api.TenantResponse"
+                            "$ref": "#/definitions/internal_auth_infrastructure_api.TenantResponse"
                         }
                     },
                     "404": {
@@ -16242,7 +16242,7 @@ const docTemplate = `{
                 "enterpriseCapabilityId": {
                     "type": "string"
                 },
-                "hasActiveDirection": {
+                "hasDirection": {
                     "type": "boolean"
                 },
                 "includedCount": {
@@ -16971,6 +16971,29 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_auth_infrastructure_api.CreateTenantRequest": {
+            "type": "object",
+            "properties": {
+                "domains": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "firstAdminEmail": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "oidcConfig": {
+                    "$ref": "#/definitions/internal_auth_infrastructure_api.OIDCConfigRequest"
+                }
+            }
+        },
         "internal_auth_infrastructure_api.CurrentSessionResponse": {
             "type": "object",
             "properties": {
@@ -17062,6 +17085,43 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_auth_infrastructure_api.OIDCConfigRequest": {
+            "type": "object",
+            "properties": {
+                "authMethod": {
+                    "type": "string"
+                },
+                "clientId": {
+                    "type": "string"
+                },
+                "discoveryUrl": {
+                    "type": "string"
+                },
+                "scopes": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_auth_infrastructure_api.OIDCConfigResponse": {
+            "type": "object",
+            "properties": {
+                "authMethod": {
+                    "type": "string"
+                },
+                "clientId": {
+                    "type": "string"
+                },
+                "discoveryUrl": {
+                    "type": "string"
+                },
+                "scopes": {
+                    "type": "string"
+                },
+                "secretProvisioned": {
+                    "type": "boolean"
+                }
+            }
+        },
         "internal_auth_infrastructure_api.PlatformInvitationRequest": {
             "type": "object",
             "properties": {
@@ -17095,6 +17155,73 @@ const docTemplate = `{
                     "additionalProperties": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "internal_auth_infrastructure_api.TenantListItem": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/easi_backend_internal_shared_api.Link"
+                    }
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "domains": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_auth_infrastructure_api.TenantResponse": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/easi_backend_internal_shared_api.Link"
+                    }
+                },
+                "_warnings": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "domains": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "oidcConfig": {
+                    "$ref": "#/definitions/internal_auth_infrastructure_api.OIDCConfigResponse"
+                },
+                "status": {
+                    "type": "string"
                 }
             }
         },
@@ -18538,133 +18665,6 @@ const docTemplate = `{
             "properties": {
                 "version": {
                     "type": "integer"
-                }
-            }
-        },
-        "internal_platform_infrastructure_api.CreateTenantRequest": {
-            "type": "object",
-            "properties": {
-                "domains": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "firstAdminEmail": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "oidcConfig": {
-                    "$ref": "#/definitions/internal_platform_infrastructure_api.OIDCConfigRequest"
-                }
-            }
-        },
-        "internal_platform_infrastructure_api.OIDCConfigRequest": {
-            "type": "object",
-            "properties": {
-                "authMethod": {
-                    "type": "string"
-                },
-                "clientId": {
-                    "type": "string"
-                },
-                "discoveryUrl": {
-                    "type": "string"
-                },
-                "scopes": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_platform_infrastructure_api.OIDCConfigResponse": {
-            "type": "object",
-            "properties": {
-                "authMethod": {
-                    "type": "string"
-                },
-                "clientId": {
-                    "type": "string"
-                },
-                "discoveryUrl": {
-                    "type": "string"
-                },
-                "scopes": {
-                    "type": "string"
-                },
-                "secretProvisioned": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "internal_platform_infrastructure_api.TenantListItem": {
-            "type": "object",
-            "properties": {
-                "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "$ref": "#/definitions/easi_backend_internal_shared_api.Link"
-                    }
-                },
-                "createdAt": {
-                    "type": "string"
-                },
-                "domains": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_platform_infrastructure_api.TenantResponse": {
-            "type": "object",
-            "properties": {
-                "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "$ref": "#/definitions/easi_backend_internal_shared_api.Link"
-                    }
-                },
-                "_warnings": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "createdAt": {
-                    "type": "string"
-                },
-                "domains": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "oidcConfig": {
-                    "$ref": "#/definitions/internal_platform_infrastructure_api.OIDCConfigResponse"
-                },
-                "status": {
-                    "type": "string"
                 }
             }
         },

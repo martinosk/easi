@@ -132,7 +132,7 @@ export function buildCompositionSummary(ec: StubEnterpriseCapability): Compositi
     includedCount: included.length,
     carvedOutCount: resolved.length - included.length,
     domainCount: new Set(included.map((c) => c.businessDomainId).filter(Boolean)).size,
-    hasActiveDirection: !!direction,
+    hasDirection: !!direction,
     directionStatus: direction?.status,
     _links: {
       'x-enterprise-capability': link(base, 'GET'),

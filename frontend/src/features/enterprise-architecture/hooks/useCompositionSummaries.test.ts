@@ -65,7 +65,7 @@ describe('useCompositionSummaries', () => {
       includedCount: 2,
       carvedOutCount: 0,
       domainCount: 1,
-      hasActiveDirection: true,
+      hasDirection: true,
       directionStatus: 'proposed',
     });
   });
@@ -81,7 +81,7 @@ describe('useCompositionSummaries', () => {
       includedCount: 0,
       carvedOutCount: 0,
       domainCount: 0,
-      hasActiveDirection: false,
+      hasDirection: false,
     });
   });
 });
