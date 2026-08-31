@@ -39,18 +39,26 @@ func NewOnePagerSubjectIndexReadModel(db *database.TenantAwareDB) *OnePagerSubje
 }
 
 func (rm *OnePagerSubjectIndexReadModel) Upsert(ctx context.Context, record SubjectIndexRecord) error {
+	if record.Attributes == nil {
+		record.Attributes = SubjectAttributes{}
+	}
+	attributes, err := record.Attributes.encode()
+	if err != nil {
+		return err
+	}
 	return rm.exec(ctx,
 		fmt.Sprintf("upsert subject index row for %s %s", record.SubjectType, record.SubjectID),
 		`INSERT INTO onepagers.one_pager_subject_index
-		(tenant_id, subject_type, subject_id, name, creator_actor_id, creator_email, created_at, last_updated_at, required_count, filled_count)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		(tenant_id, subject_type, subject_id, name, creator_actor_id, creator_email, created_at, last_updated_at, required_count, filled_count, built_in_fields)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb)
 		ON CONFLICT (tenant_id, subject_type, subject_id) DO UPDATE
 		SET name = EXCLUDED.name, creator_actor_id = EXCLUDED.creator_actor_id, creator_email = EXCLUDED.creator_email,
 			created_at = EXCLUDED.created_at, last_updated_at = EXCLUDED.last_updated_at,
-			required_count = EXCLUDED.required_count, filled_count = EXCLUDED.filled_count`,
+			required_count = EXCLUDED.required_count, filled_count = EXCLUDED.filled_count,
+			built_in_fields = onepagers.one_pager_subject_index.built_in_fields || EXCLUDED.built_in_fields`,
 		record.SubjectType, record.SubjectID, record.Name,
 		record.CreatorActorID, record.CreatorEmail, record.CreatedAt, record.LastUpdatedAt,
-		record.RequiredCount, record.FilledCount,
+		record.RequiredCount, record.FilledCount, attributes,
 	)
 }
 
@@ -92,6 +100,44 @@ func (rm *OnePagerSubjectIndexReadModel) ApplyCompleteness(ctx context.Context, 
 		WHERE idx.tenant_id = $1 AND idx.subject_type = $2 AND idx.subject_id = filled.subject_id`,
 		subjectType, required, pq.Array(subjectIDs), pq.Array(filledCounts),
 	)
+}
+
+type SubjectCompleteness struct {
+	SubjectID string
+	Required  int
+	Filled    int
+}
+
+func (rm *OnePagerSubjectIndexReadModel) CompletenessFor(ctx context.Context, subjectType string) ([]SubjectCompleteness, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var rows []SubjectCompleteness
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		result, queryErr := tx.QueryContext(ctx,
+			`SELECT subject_id, required_count, filled_count FROM onepagers.one_pager_subject_index
+			WHERE tenant_id = $1 AND subject_type = $2`,
+			tenantID.Value(), subjectType,
+		)
+		if queryErr != nil {
+			return queryErr
+		}
+		defer func() { _ = result.Close() }()
+		for result.Next() {
+			var row SubjectCompleteness
+			if err := result.Scan(&row.SubjectID, &row.Required, &row.Filled); err != nil {
+				return err
+			}
+			rows = append(rows, row)
+		}
+		return result.Err()
+	})
+	if err != nil {
+		return nil, fmt.Errorf("query completeness for %s subjects: %w", subjectType, err)
+	}
+	return rows, nil
 }
 
 func (rm *OnePagerSubjectIndexReadModel) SubjectIDs(ctx context.Context, subjectType string) ([]string, error) {

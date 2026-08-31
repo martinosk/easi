@@ -3,23 +3,25 @@ package ports
 import (
 	"context"
 
-	"easi/backend/internal/importing/publishedlanguage"
+	amPL "easi/backend/internal/architecturemodeling/publishedlanguage"
+	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
+	vsPL "easi/backend/internal/valuestreams/publishedlanguage"
 )
 
 type ComponentGateway interface {
-	CreateComponent(ctx context.Context, name, description string) (string, error)
-	CreateRelation(ctx context.Context, input publishedlanguage.CreateRelationInput) (string, error)
+	CreateComponent(ctx context.Context, cmd amPL.CreateApplicationComponent) (string, error)
+	CreateRelation(ctx context.Context, cmd amPL.CreateComponentRelation) (string, error)
 }
 
 type CapabilityGateway interface {
-	CreateCapability(ctx context.Context, input publishedlanguage.CreateCapabilityInput) (string, error)
-	UpdateMetadata(ctx context.Context, id, eaOwner, status string) error
-	LinkSystem(ctx context.Context, input publishedlanguage.LinkSystemInput) (string, error)
-	AssignToDomain(ctx context.Context, capabilityID, businessDomainID string) error
+	CreateCapability(ctx context.Context, cmd cmPL.CreateCapability) (string, error)
+	UpdateMetadata(ctx context.Context, cmd cmPL.UpdateCapabilityMetadata) error
+	LinkSystem(ctx context.Context, cmd cmPL.LinkSystemToCapability) (string, error)
+	AssignToDomain(ctx context.Context, cmd cmPL.AssignCapabilityToDomain) error
 }
 
 type ValueStreamGateway interface {
-	CreateValueStream(ctx context.Context, name, description string) (string, error)
-	AddStage(ctx context.Context, valueStreamID, name, description string) (string, error)
-	MapCapabilityToStage(ctx context.Context, valueStreamID, stageID, capabilityID string) error
+	CreateValueStream(ctx context.Context, cmd vsPL.CreateValueStream) (string, error)
+	AddStage(ctx context.Context, cmd vsPL.AddStage) (string, error)
+	MapCapabilityToStage(ctx context.Context, cmd vsPL.AddStageCapability) error
 }

@@ -15,6 +15,7 @@ import (
 	"easi/backend/internal/auth/infrastructure/repositories"
 	"easi/backend/internal/auth/infrastructure/session"
 	authPL "easi/backend/internal/auth/publishedlanguage"
+	sharedMiddleware "easi/backend/internal/infrastructure/api/middleware"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
 	sharedAPI "easi/backend/internal/shared/api"
@@ -60,9 +61,36 @@ func SetupAuthDependencies(db *sql.DB) (*AuthDependencies, error) {
 	}, nil
 }
 
-func SetupAuthRoutes(r chi.Router, db *sql.DB, deps *AuthDependencies, aiConfigChecker ...AIConfigStatusChecker) error {
+type AuthRoutesDeps struct {
+	Router     chi.Router
+	RawDB      *sql.DB
+	TenantDB   *database.TenantAwareDB
+	CommandBus cqrs.CommandBus
+	EventBus   events.EventBus
+	AuthDeps   *AuthDependencies
+}
+
+func SetupAuthRoutes(routeDeps AuthRoutesDeps) error {
+	r := routeDeps.Router
+	db := routeDeps.RawDB
+	authDeps := routeDeps.AuthDeps
+
+	registerTenantEventSubscriptions(routeDeps.EventBus, routeDeps.CommandBus)
+	registerPlatformTenantRoutes(PlatformTenantRoutesDeps{
+		Router:     r,
+		RawDB:      db,
+		TenantDB:   routeDeps.TenantDB,
+		CommandBus: routeDeps.CommandBus,
+		EventBus:   routeDeps.EventBus,
+	})
+
+	platformTenants := repositories.NewTenantRepository(db)
+	platformInvitations := NewPlatformInvitationHandlers(routeDeps.CommandBus, platformTenants)
+	platformAdminKey := os.Getenv("PLATFORM_ADMIN_API_KEY")
+
 	if config.IsAuthBypassed() {
 		r.Route("/auth", func(r chi.Router) {
+			registerPlatformInvitationRoute(r, platformAdminKey, platformInvitations)
 			r.Get("/sessions/current", handleBypassSession)
 			r.Delete("/sessions/current", func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusNoContent)
@@ -91,22 +119,20 @@ func SetupAuthRoutes(r chi.Router, db *sql.DB, deps *AuthDependencies, aiConfigC
 	}
 
 	tenantOIDCRepo := repositories.NewTenantOIDCRepository(db)
-	authHandlers := NewAuthHandlers(deps.SessionManager, tenantOIDCRepo, AuthHandlersConfig{
+	authHandlers := NewAuthHandlers(authDeps.SessionManager, tenantOIDCRepo, AuthHandlersConfig{
 		ClientSecret:   clientSecret,
 		RedirectURL:    redirectURL,
 		AllowedOrigins: allowedOrigins,
 	})
 
-	deps.AuthHandlers = authHandlers
+	authDeps.AuthHandlers = authHandlers
 
 	userRepo := NewUserRepositoryAdapter(repositories.NewUserRepository(db))
 	tenantRepo := NewTenantRepositoryAdapter(repositories.NewTenantRepository(db))
-	sessionHandlers := NewSessionHandlers(deps.SessionManager, userRepo, tenantRepo)
-	if len(aiConfigChecker) > 0 && aiConfigChecker[0] != nil {
-		sessionHandlers.WithAIConfigStatusChecker(aiConfigChecker[0])
-	}
+	sessionHandlers := NewSessionHandlers(authDeps.SessionManager, userRepo, tenantRepo)
 
 	r.Route("/auth", func(r chi.Router) {
+		registerPlatformInvitationRoute(r, platformAdminKey, platformInvitations)
 		r.Post("/sessions", authHandlers.PostSessions)
 		r.Get("/callback", authHandlers.GetCallback)
 		r.Get("/sessions/current", sessionHandlers.GetCurrentSession)
@@ -114,6 +140,19 @@ func SetupAuthRoutes(r chi.Router, db *sql.DB, deps *AuthDependencies, aiConfigC
 	})
 
 	return nil
+}
+
+func registerTenantEventSubscriptions(eventBus events.EventBus, commandBus cqrs.CommandBus) {
+	eventBus.Subscribe(authPL.TenantCreated, handlers.NewTenantCreatedReactor(commandBus))
+}
+
+func registerPlatformInvitationRoute(r chi.Router, platformAdminKey string, h *PlatformInvitationHandlers) {
+	rateLimiter := sharedMiddleware.NewRateLimiter(100, 60)
+	r.Group(func(r chi.Router) {
+		r.Use(sharedMiddleware.RateLimitMiddleware(rateLimiter))
+		r.Use(PlatformAdminMiddleware(platformAdminKey))
+		r.Post("/invitations", h.CreateInvitation)
+	})
 }
 
 func WireLoginService(deps *AuthDependencies, invDeps *InvitationDependencies) {
@@ -153,7 +192,11 @@ func SetupInvitationRoutes(deps InvitationRoutesDeps) (*InvitationDependencies, 
 	domainChecker := readmodels.NewTenantDomainChecker(deps.DB)
 	userAggregateRepo := repositories.NewUserAggregateRepository(deps.EventStore)
 
-	registerInvitationCommandHandlers(deps.CommandBus, invitationRepo, invitationReadModel)
+	registerInvitationCommandHandlers(deps.CommandBus, invitationRepo, invitationCommandDeps{
+		invitations: invitationReadModel,
+		users:       userReadModel,
+		domains:     domainChecker,
+	})
 	registerInvitationEventSubscriptions(deps.EventBus, invitationReadModel)
 
 	deps.AuthDeps.AuthMiddleware.WithUserReadModel(userReadModel)
@@ -231,10 +274,17 @@ func registerTenantRoutes(r chi.Router, authMiddleware *AuthMiddleware, h *Tenan
 	})
 }
 
-func registerInvitationCommandHandlers(commandBus cqrs.CommandBus, repo *repositories.InvitationRepository, readModel *readmodels.InvitationReadModel) {
+type invitationCommandDeps struct {
+	invitations *readmodels.InvitationReadModel
+	users       *readmodels.UserReadModel
+	domains     *readmodels.TenantDomainChecker
+}
+
+func registerInvitationCommandHandlers(commandBus cqrs.CommandBus, repo *repositories.InvitationRepository, deps invitationCommandDeps) {
 	commandBus.Register("CreateInvitation", handlers.NewCreateInvitationHandler(repo))
+	commandBus.Register("EnsureInvitation", handlers.NewEnsureInvitationHandler(repo, deps.users, deps.invitations, deps.domains))
 	commandBus.Register("RevokeInvitation", handlers.NewRevokeInvitationHandler(repo))
-	commandBus.Register("AcceptInvitation", handlers.NewAcceptInvitationHandler(repo, readModel))
+	commandBus.Register("AcceptInvitation", handlers.NewAcceptInvitationHandler(repo, deps.invitations))
 	commandBus.Register("MarkInvitationExpired", handlers.NewMarkInvitationExpiredHandler(repo))
 }
 

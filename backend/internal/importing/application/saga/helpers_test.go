@@ -4,14 +4,12 @@ import (
 	"context"
 	"testing"
 
+	amPL "easi/backend/internal/architecturemodeling/publishedlanguage"
+	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/importing/application/saga"
 	"easi/backend/internal/importing/domain/aggregates"
-	"easi/backend/internal/importing/publishedlanguage"
+	vsPL "easi/backend/internal/valuestreams/publishedlanguage"
 )
-
-type metadataUpdateCall struct {
-	ID, EAOwner, Status string
-}
 
 type fakeEntityStore struct {
 	prefix          string
@@ -42,30 +40,30 @@ func (s *fakeEntityStore) create(name string) (string, error) {
 
 type fakeComponentGateway struct {
 	fakeEntityStore
-	relationCalls []publishedlanguage.CreateRelationInput
+	relationCalls []amPL.CreateComponentRelation
 }
 
 func newFakeComponentGateway() *fakeComponentGateway {
 	return &fakeComponentGateway{fakeEntityStore: newFakeEntityStore("comp-")}
 }
 
-func (f *fakeComponentGateway) CreateComponent(_ context.Context, name, _ string) (string, error) {
-	return f.create(name)
+func (f *fakeComponentGateway) CreateComponent(_ context.Context, cmd amPL.CreateApplicationComponent) (string, error) {
+	return f.create(cmd.Name)
 }
 
-func (f *fakeComponentGateway) CreateRelation(_ context.Context, in publishedlanguage.CreateRelationInput) (string, error) {
-	f.relationCalls = append(f.relationCalls, in)
+func (f *fakeComponentGateway) CreateRelation(_ context.Context, cmd amPL.CreateComponentRelation) (string, error) {
+	f.relationCalls = append(f.relationCalls, cmd)
 	if f.err != nil {
 		return "", f.err
 	}
-	return "rel-" + in.SourceID + "-" + in.TargetID + "-" + in.RelationType, nil
+	return "rel-" + cmd.SourceComponentID + "-" + cmd.TargetComponentID + "-" + cmd.RelationType, nil
 }
 
 type fakeCapabilityGateway struct {
 	fakeEntityStore
-	createCalls     []publishedlanguage.CreateCapabilityInput
-	metadataCalls   []metadataUpdateCall
-	linkSystemCalls []publishedlanguage.LinkSystemInput
+	createCalls     []cmPL.CreateCapability
+	metadataCalls   []cmPL.UpdateCapabilityMetadata
+	linkSystemCalls []cmPL.LinkSystemToCapability
 	linkErrByKey    map[string]error
 }
 
@@ -76,19 +74,19 @@ func newFakeCapabilityGateway() *fakeCapabilityGateway {
 	}
 }
 
-func (f *fakeCapabilityGateway) CreateCapability(_ context.Context, in publishedlanguage.CreateCapabilityInput) (string, error) {
-	f.createCalls = append(f.createCalls, in)
-	return f.create(in.Name)
+func (f *fakeCapabilityGateway) CreateCapability(_ context.Context, cmd cmPL.CreateCapability) (string, error) {
+	f.createCalls = append(f.createCalls, cmd)
+	return f.create(cmd.Name)
 }
 
-func (f *fakeCapabilityGateway) UpdateMetadata(_ context.Context, id, eaOwner, status string) error {
-	f.metadataCalls = append(f.metadataCalls, metadataUpdateCall{ID: id, EAOwner: eaOwner, Status: status})
+func (f *fakeCapabilityGateway) UpdateMetadata(_ context.Context, cmd cmPL.UpdateCapabilityMetadata) error {
+	f.metadataCalls = append(f.metadataCalls, cmd)
 	return f.err
 }
 
-func (f *fakeCapabilityGateway) LinkSystem(_ context.Context, in publishedlanguage.LinkSystemInput) (string, error) {
-	f.linkSystemCalls = append(f.linkSystemCalls, in)
-	key := in.ComponentID + "-" + in.CapabilityID
+func (f *fakeCapabilityGateway) LinkSystem(_ context.Context, cmd cmPL.LinkSystemToCapability) (string, error) {
+	f.linkSystemCalls = append(f.linkSystemCalls, cmd)
+	key := cmd.ComponentID + "-" + cmd.CapabilityID
 	if err, ok := f.linkErrByKey[key]; ok {
 		return "", err
 	}
@@ -98,7 +96,7 @@ func (f *fakeCapabilityGateway) LinkSystem(_ context.Context, in publishedlangua
 	return "real-" + key, nil
 }
 
-func (f *fakeCapabilityGateway) AssignToDomain(_ context.Context, _, _ string) error {
+func (f *fakeCapabilityGateway) AssignToDomain(_ context.Context, _ cmPL.AssignCapabilityToDomain) error {
 	return f.err
 }
 
@@ -114,20 +112,20 @@ func newFakeValueStreamGateway() *fakeValueStreamGateway {
 	}
 }
 
-func (f *fakeValueStreamGateway) CreateValueStream(_ context.Context, name, _ string) (string, error) {
-	return f.create(name)
+func (f *fakeValueStreamGateway) CreateValueStream(_ context.Context, cmd vsPL.CreateValueStream) (string, error) {
+	return f.create(cmd.Name)
 }
 
-func (f *fakeValueStreamGateway) AddStage(_ context.Context, vsID, _, _ string) (string, error) {
+func (f *fakeValueStreamGateway) AddStage(_ context.Context, cmd vsPL.AddStage) (string, error) {
 	if f.err != nil {
 		return "", f.err
 	}
-	id := "stage-" + vsID
-	f.stageIDs[vsID] = id
+	id := "stage-" + cmd.ValueStreamID
+	f.stageIDs[cmd.ValueStreamID] = id
 	return id, nil
 }
 
-func (f *fakeValueStreamGateway) MapCapabilityToStage(_ context.Context, _, _, _ string) error {
+func (f *fakeValueStreamGateway) MapCapabilityToStage(_ context.Context, _ vsPL.AddStageCapability) error {
 	return f.err
 }
 

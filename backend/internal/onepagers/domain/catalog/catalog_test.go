@@ -27,7 +27,7 @@ func entryIDs(entries []Entry) []string {
 func TestEntriesFor_MatchesFullCatalogPerSubjectType(t *testing.T) {
 	cases := map[string][]string{
 		"capability":            {"name", "description", "maturity", "experts", "realizing-applications", "business-domains", "parent-capability", "child-capabilities", "depends-on"},
-		"enterprise-capability": {"name", "description", "category", "included-capabilities"},
+		"enterprise-capability": {"name", "description", "category"},
 		"application":           {"name", "description", "experts", "realized-capabilities", "built-by", "purchased-from", "acquired-via", "component-relations"},
 		"acquired-entity":       {"name", "acquisition-date", "integration-status", "acquired-applications"},
 		"vendor":                {"name", "implementation-partner", "notes", "purchased-applications"},
@@ -63,7 +63,6 @@ func TestEntriesFor_ExposesRelationLabelsPerSubjectType(t *testing.T) {
 			"child-capabilities":     "Child Capabilities",
 			"depends-on":             "Depends On",
 		},
-		"enterprise-capability": {"included-capabilities": "Included Capabilities"},
 		"application": {
 			"realized-capabilities": "Realized Capabilities",
 			"built-by":              "Built By",

@@ -9,7 +9,7 @@
 //   - */infrastructure/repository/*.go  — aggregate persistence (singular variant)
 //   - */infrastructure/eventstore/*.go  — event store implementations
 //   - */infrastructure/adapters/*.go    — infrastructure adapters
-//   - */infrastructure/metamodel/*.go   — cross-BC metamodel gateways
+//   - */infrastructure/metamodel/*.go   — local metamodel caches
 //
 // Intentionally excluded:
 //   - shared/, infrastructure/, testing/ — shared packages have no BC ownership
@@ -36,25 +36,20 @@ import (
 	"testing"
 )
 
-var allowedSchemaAccess = map[string]string{
-	"auth -> platform":               "tenant domain checking for authentication",
-	"capabilitymapping -> metamodel": "strategy pillar configuration gateway",
-}
-
 var schemaQualifiedPatterns = []*regexp.Regexp{
-	regexp.MustCompile(`(?i)\bFROM\s+(\w+)\.(\w+)`),
-	regexp.MustCompile(`(?i)\bJOIN\s+(\w+)\.(\w+)`),
-	regexp.MustCompile(`(?i)\bINSERT\s+INTO\s+(\w+)\.(\w+)`),
-	regexp.MustCompile(`(?i)\bUPDATE\s+(\w+)\.(\w+)`),
-	regexp.MustCompile(`(?i)\bDELETE\s+FROM\s+(\w+)\.(\w+)`),
+	regexp.MustCompile(`(?i)\bFROM\s+"?(\w+)"?\."?(\w+)"?`),
+	regexp.MustCompile(`(?i)\bJOIN\s+"?(\w+)"?\."?(\w+)"?`),
+	regexp.MustCompile(`(?i)\bINSERT\s+INTO\s+"?(\w+)"?\."?(\w+)"?`),
+	regexp.MustCompile(`(?i)\bUPDATE\s+"?(\w+)"?\."?(\w+)"?`),
+	regexp.MustCompile(`(?i)\bDELETE\s+FROM\s+"?(\w+)"?\."?(\w+)"?`),
 }
 
 var unqualifiedPatterns = []*regexp.Regexp{
-	regexp.MustCompile(`(?i)\bFROM\s+([a-zA-Z_]\w*)`),
-	regexp.MustCompile(`(?i)\bJOIN\s+([a-zA-Z_]\w*)`),
-	regexp.MustCompile(`(?i)\bINSERT\s+INTO\s+([a-zA-Z_]\w*)`),
-	regexp.MustCompile(`(?i)\bUPDATE\s+([a-zA-Z_]\w*)`),
-	regexp.MustCompile(`(?i)\bDELETE\s+FROM\s+([a-zA-Z_]\w*)`),
+	regexp.MustCompile(`(?i)\bFROM\s+"?([a-zA-Z_]\w*)"?`),
+	regexp.MustCompile(`(?i)\bJOIN\s+"?([a-zA-Z_]\w*)"?`),
+	regexp.MustCompile(`(?i)\bINSERT\s+INTO\s+"?([a-zA-Z_]\w*)"?`),
+	regexp.MustCompile(`(?i)\bUPDATE\s+"?([a-zA-Z_]\w*)"?`),
+	regexp.MustCompile(`(?i)\bDELETE\s+FROM\s+"?([a-zA-Z_]\w*)"?`),
 }
 
 var ctePattern = regexp.MustCompile(`(?i)\bWITH\s+(?:RECURSIVE\s+)?(\w+)\s+AS\s*\(`)
@@ -173,9 +168,8 @@ type sqlViolation struct {
 }
 
 type sqlScanResult struct {
-	violations           []sqlViolation
-	usedAllowlistEntries map[string]bool
-	errors               []string
+	violations []sqlViolation
+	errors     []string
 }
 
 type schemaOwnershipScanner struct {
@@ -204,10 +198,10 @@ func filterProductionFiles(paths []string) []string {
 	return result
 }
 
-func (s *schemaOwnershipScanner) checkFile(path string) ([]sqlViolation, map[string]bool, error) {
+func (s *schemaOwnershipScanner) checkFile(path string) ([]sqlViolation, error) {
 	relPath, err := filepath.Rel(s.internalDir, path)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	fc := fileContext{
@@ -215,79 +209,57 @@ func (s *schemaOwnershipScanner) checkFile(path string) ([]sqlViolation, map[str
 		ownerBC: strings.SplitN(filepath.ToSlash(relPath), "/", 2)[0],
 	}
 	if sharedPackages[fc.ownerBC] {
-		return nil, nil, nil
+		return nil, nil
 	}
 
 	fset := token.NewFileSet()
 	node, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	return s.findSchemaViolations(node, fc)
+	return findSchemaViolations(node, fc), nil
 }
 
-func (s *schemaOwnershipScanner) findSchemaViolations(node *ast.File, fc fileContext) ([]sqlViolation, map[string]bool, error) {
+func findSchemaViolations(node *ast.File, fc fileContext) []sqlViolation {
 	var violations []sqlViolation
-	usedEntries := make(map[string]bool)
-
 	for _, literal := range extractStringLiterals(node) {
 		analyzer := sqlAnalyzer{sql: literal}
-
 		for _, name := range analyzer.unqualifiedTables() {
 			violations = append(violations, sqlViolation{
 				relPath: fc.relPath,
 				message: "unqualified table reference '" + name + "' — must use schema.table format",
 			})
 		}
-
-		v, used := checkCrossBCAccess(analyzer.qualifiedTables(), fc)
-		violations = append(violations, v...)
-		for k := range used {
-			usedEntries[k] = true
-		}
+		violations = append(violations, checkCrossBCAccess(analyzer.qualifiedTables(), fc)...)
 	}
-
-	return violations, usedEntries, nil
+	return violations
 }
 
-func checkCrossBCAccess(refs []schemaTableRef, fc fileContext) ([]sqlViolation, map[string]bool) {
+func checkCrossBCAccess(refs []schemaTableRef, fc fileContext) []sqlViolation {
 	var violations []sqlViolation
-	usedEntries := make(map[string]bool)
 	ownedSchemas := map[string]bool{"infrastructure": true, "shared": true, fc.ownerBC: true}
-
 	for _, ref := range refs {
 		if ownedSchemas[ref.schema] {
 			continue
 		}
-
-		allowlistKey := fc.ownerBC + " -> " + ref.schema
-		if _, ok := allowedSchemaAccess[allowlistKey]; ok {
-			usedEntries[allowlistKey] = true
-			continue
-		}
-
 		violations = append(violations, sqlViolation{
 			relPath: fc.relPath,
-			message: "cross-BC schema access: references " + ref.schema + "." + ref.table + " (file is in " + fc.ownerBC + ")",
+			message: "cross-BC schema access: references " + ref.schema + "." + ref.table + " (file is in " + fc.ownerBC + ") — cache it from " + ref.schema + "'s published events (spec 209)",
 		})
 	}
-
-	return violations, usedEntries
+	return violations
 }
 
 func (s *schemaOwnershipScanner) scan(files []string) sqlScanResult {
-	result := sqlScanResult{usedAllowlistEntries: make(map[string]bool)}
+	var result sqlScanResult
 	for _, path := range files {
-		violations, usedEntries, err := s.checkFile(path)
+		violations, err := s.checkFile(path)
 		if err != nil {
 			result.errors = append(result.errors, path+": "+err.Error())
 			continue
 		}
 		result.violations = append(result.violations, violations...)
-		for k := range usedEntries {
-			result.usedAllowlistEntries[k] = true
-		}
 	}
 	return result
 }
@@ -463,14 +435,39 @@ func TestSQLSchemaOwnership(t *testing.T) {
 	for _, v := range scan.violations {
 		t.Errorf("SQL OWNERSHIP VIOLATION: %s — %s", v.relPath, v.message)
 	}
+}
 
-	t.Run("NoStaleSchemaAllowlistEntries", func(t *testing.T) {
-		for entry, reason := range allowedSchemaAccess {
-			if !scan.usedAllowlistEntries[entry] {
-				t.Errorf("STALE SCHEMA ALLOWLIST ENTRY: %q (reason: %s) — violation no longer exists, remove this entry", entry, reason)
+func TestSQLAnalyzerQualifiedTablesHandlesQuotedIdentifiers(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+		want schemaTableRef
+	}{
+		{name: "BareIdentifiers", sql: `SELECT * FROM auth.users`, want: schemaTableRef{schema: "auth", table: "users"}},
+		{name: "BothIdentifiersQuoted", sql: `SELECT * FROM "auth"."users"`, want: schemaTableRef{schema: "auth", table: "users"}},
+		{name: "SchemaUnquotedTableQuoted", sql: `SELECT * FROM auth."users"`, want: schemaTableRef{schema: "auth", table: "users"}},
+		{name: "SchemaQuotedTableUnquoted", sql: `SELECT * FROM "auth".users`, want: schemaTableRef{schema: "auth", table: "users"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := (sqlAnalyzer{sql: tt.sql}).qualifiedTables()
+			if len(got) != 1 || got[0] != tt.want {
+				t.Errorf("qualifiedTables() = %v, want [%v]", got, tt.want)
 			}
-		}
-	})
+		})
+	}
+}
+
+func TestCheckCrossBCAccessDetectsQuotedCrossSchemaReference(t *testing.T) {
+	fc := fileContext{relPath: "capabilitymapping/infrastructure/repositories/example.go", ownerBC: "capabilitymapping"}
+	refs := (sqlAnalyzer{sql: `SELECT * FROM "auth"."users"`}).qualifiedTables()
+
+	violations := checkCrossBCAccess(refs, fc)
+
+	if len(violations) != 1 {
+		t.Fatalf("expected 1 violation for quoted cross-schema reference, got %d: %v", len(violations), violations)
+	}
 }
 
 func TestNoSQLOutsideApprovedLocations(t *testing.T) {

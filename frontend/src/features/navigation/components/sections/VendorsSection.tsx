@@ -107,6 +107,7 @@ export const VendorsSection: React.FC<VendorsSectionProps> = ({
     >
       <TreeSearchInput value={search} onChange={setSearch} placeholder="Search vendors..." />
       <TreeItemList
+        subjectType="vendor"
         items={filteredVendors}
         emptyMessage={emptyMessage}
         icon={<IconBuildingStore size={16} stroke={1.75} />}

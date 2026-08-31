@@ -10,6 +10,7 @@ import (
 	"easi/backend/internal/capabilitymapping/domain/services"
 	"easi/backend/internal/capabilitymapping/infrastructure/adapters"
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
+	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 
 	"github.com/stretchr/testify/require"
 )
@@ -29,12 +30,12 @@ func NewCapabilityFixtures(tc *TestContext) *CapabilityFixtures {
 	deletionService := services.NewCapabilityDeletionService(childrenChecker)
 
 	projector := projectors.NewCapabilityProjector(capabilityReadModel, assignmentReadModel)
-	tc.EventBus.Subscribe("CapabilityCreated", projector)
-	tc.EventBus.Subscribe("CapabilityUpdated", projector)
-	tc.EventBus.Subscribe("CapabilityMetadataUpdated", projector)
-	tc.EventBus.Subscribe("CapabilityExpertAdded", projector)
-	tc.EventBus.Subscribe("CapabilityTagAdded", projector)
-	tc.EventBus.Subscribe("CapabilityDeleted", projector)
+	tc.EventBus.Subscribe(cmPL.CapabilityCreated, projector)
+	tc.EventBus.Subscribe(cmPL.CapabilityUpdated, projector)
+	tc.EventBus.Subscribe(cmPL.CapabilityMetadataUpdated, projector)
+	tc.EventBus.Subscribe(cmPL.CapabilityExpertAdded, projector)
+	tc.EventBus.Subscribe(cmPL.CapabilityTagAdded, projector)
+	tc.EventBus.Subscribe(cmPL.CapabilityDeleted, projector)
 
 	tc.CommandBus.Register("CreateCapability", handlers.NewCreateCapabilityHandler(capabilityRepo))
 	tc.CommandBus.Register("UpdateCapability", handlers.NewUpdateCapabilityHandler(capabilityRepo))

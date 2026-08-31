@@ -92,17 +92,16 @@ Enable enterprise architects to model business capabilities and map them to IT s
 - `CapabilityAssignedToDomain` (new) - L1 capability assigned to business domain
 - `CapabilityUnassignedFromDomain` (new) - L1 capability removed from business domain
 
-**Queries** (to other contexts):
-- To **Architecture Modeling**: Read `ApplicationComponentReadModel` to get system details for capability realization
+**Queries** (to other contexts): none — component names for realizations come from the local component cache fed by Architecture Modeling events; pillar, fit and maturity-scale configuration come from local caches fed by MetaModel events
 
 ### Collaborators
 - **Frontend UI**: Consumes events for real-time updates
-- **Architecture Modeling Context**: Queries for system details
+- **Architecture Modeling Context**: Upstream supplier of component lifecycle events into the component cache
+- **MetaModel Context**: Upstream supplier of configuration events into the strategy pillar and maturity scale caches
 
 ### Integration Pattern
 - **Event-driven integration** for capability changes
-- **Query-based integration** for system details (read from Architecture Modeling)
-- **Event subscription** for upstream system changes
+- **Event subscription** for upstream component and configuration changes into local, backfilled caches
 
 ## Ubiquitous Language
 

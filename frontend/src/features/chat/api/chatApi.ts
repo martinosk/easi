@@ -1,9 +1,20 @@
 import { httpClient } from '../../../api/core/httpClient';
-import type { Conversation, ConversationDetail, ConversationListResponse, SendMessageRequest } from './types';
+import type {
+  AssistantStatus,
+  Conversation,
+  ConversationDetail,
+  ConversationListResponse,
+  SendMessageRequest,
+} from './types';
 
 const BASE = '/api/v1/assistant/conversations';
 
 export const chatApi = {
+  async getStatus(): Promise<AssistantStatus> {
+    const response = await httpClient.get<AssistantStatus>('/api/v1/assistant/status');
+    return response.data;
+  },
+
   async createConversation(): Promise<Conversation> {
     const response = await httpClient.post<Conversation>(BASE);
     return response.data;

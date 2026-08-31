@@ -1,11 +1,5 @@
 package commands
 
-type AddStageCapability struct {
-	ValueStreamID string
-	StageID       string
-	CapabilityID  string
-}
+import "easi/backend/internal/valuestreams/publishedlanguage"
 
-func (c AddStageCapability) CommandName() string {
-	return "AddStageCapability"
-}
+type AddStageCapability = publishedlanguage.AddStageCapability

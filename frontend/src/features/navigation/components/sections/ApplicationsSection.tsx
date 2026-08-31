@@ -4,6 +4,7 @@ import React, { useMemo, useState } from 'react';
 import type { Component, View } from '../../../../api/types';
 import { TreeSearchInput } from '../../../../components/shared';
 import { OnePagerIncompleteIndicator } from '../../../one-pagers/components/OnePagerIncompleteIndicator';
+import { useOnePagerCompleteness } from '../../../one-pagers/hooks/useOnePagerCompleteness';
 import type { EditingState, TreeMultiSelectProps } from '../../types';
 import { hasCustomColor } from '../../utils/treeUtils';
 import classes from '../shared/TreeItem.module.css';
@@ -73,6 +74,7 @@ const EditingItem: React.FC<EditingItemProps> = ({
 
 interface ComponentItemProps {
   component: Component;
+  onePagerComplete?: boolean;
   isSelected: boolean;
   isInView: boolean;
   showColorIndicator: boolean;
@@ -84,6 +86,7 @@ interface ComponentItemProps {
 
 const ComponentItem: React.FC<ComponentItemProps> = ({
   component,
+  onePagerComplete,
   isSelected,
   isInView,
   showColorIndicator,
@@ -109,7 +112,7 @@ const ComponentItem: React.FC<ComponentItemProps> = ({
       <IconBox size={16} stroke={1.75} />
     </span>
     <span className={classes.label}>{component.name}</span>
-    <OnePagerIncompleteIndicator id={component.id} onePagerComplete={component.onePagerComplete} />
+    <OnePagerIncompleteIndicator id={component.id} complete={onePagerComplete} />
     {showColorIndicator && <ColorIndicator customColor={customColor} />}
   </UnstyledButton>
 );
@@ -160,6 +163,7 @@ export const ApplicationsSection: React.FC<ApplicationsSectionProps> = ({
   multiSelect,
 }) => {
   const [applicationSearch, setApplicationSearch] = useState('');
+  const { data: onePagerCompleteness } = useOnePagerCompleteness('application');
 
   const filteredComponents = useMemo(
     () => filterComponents(components, applicationSearch),
@@ -232,6 +236,7 @@ export const ApplicationsSection: React.FC<ApplicationsSectionProps> = ({
       <ComponentItem
         key={component.id}
         component={component}
+        onePagerComplete={onePagerCompleteness?.get(component.id)}
         isSelected={selectedNodeId === component.id || multiSelect.isMultiSelected(component.id)}
         isInView={effectiveComponentsInView.has(component.id)}
         showColorIndicator={hasCustomColor(currentView?.colorScheme, colorEntry?.customColor)}

@@ -58,54 +58,83 @@ func TestCapabilityMetadataUpdatedV1ToV2Upcaster_Upcast_V1Event(t *testing.T) {
 	}
 }
 
-func TestCapabilityMetadataUpdatedV1ToV2Upcaster_Upcast_V2Event(t *testing.T) {
+func TestCapabilityMetadataUpdatedV1ToV2Upcaster_Upcast_V2Event_PreservesMaturityValue(t *testing.T) {
 	upcaster := CapabilityMetadataUpdatedV1ToV2Upcaster{}
 
-	data := map[string]interface{}{
-		"id":             "test-id",
-		"strategyPillar": "Optimize",
-		"pillarWeight":   float64(3),
-		"maturityValue":  float64(42),
-		"ownershipModel": "Centralized",
-		"primaryOwner":   "John Doe",
-		"eaOwner":        "Jane Doe",
-		"status":         "Active",
+	tests := []struct {
+		name          string
+		maturityValue float64
+	}{
+		{"non-zero value", 42},
+		{"zero value", 0},
 	}
 
-	result := upcaster.Upcast(data)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := map[string]interface{}{
+				"id":             "test-id",
+				"strategyPillar": "Optimize",
+				"pillarWeight":   float64(3),
+				"maturityValue":  tt.maturityValue,
+				"ownershipModel": "Centralized",
+				"primaryOwner":   "John Doe",
+				"eaOwner":        "Jane Doe",
+				"status":         "Active",
+			}
 
-	maturityValue, ok := result["maturityValue"].(float64)
-	if !ok {
-		t.Fatal("Expected maturityValue to be preserved")
-	}
+			result := upcaster.Upcast(data)
 
-	if int(maturityValue) != 42 {
-		t.Errorf("Expected maturityValue 42, got %d", int(maturityValue))
+			maturityValue, ok := result["maturityValue"].(float64)
+			if !ok {
+				t.Fatal("Expected maturityValue to be preserved")
+			}
+			if maturityValue != tt.maturityValue {
+				t.Errorf("Expected maturityValue %v, got %v", tt.maturityValue, maturityValue)
+			}
+		})
 	}
 }
 
-func TestCapabilityMetadataUpdatedV1ToV2Upcaster_Upcast_V2EventWithZeroValue(t *testing.T) {
-	upcaster := CapabilityMetadataUpdatedV1ToV2Upcaster{}
+func TestCapabilityCreatedMaturityUpcaster_EventType(t *testing.T) {
+	upcaster := CapabilityCreatedMaturityUpcaster{}
+	if upcaster.EventType() != "CapabilityCreated" {
+		t.Errorf("Expected EventType to be 'CapabilityCreated', got '%s'", upcaster.EventType())
+	}
+}
 
-	data := map[string]interface{}{
-		"id":             "test-id",
-		"strategyPillar": "Optimize",
-		"pillarWeight":   float64(3),
-		"maturityValue":  float64(0),
-		"ownershipModel": "Centralized",
-		"primaryOwner":   "John Doe",
-		"eaOwner":        "Jane Doe",
-		"status":         "Active",
+func TestCapabilityCreatedMaturityUpcaster_Upcast(t *testing.T) {
+	tests := []struct {
+		name     string
+		data     map[string]interface{}
+		expected float64
+	}{
+		{
+			name: "missing field defaults to Genesis",
+			data: map[string]interface{}{
+				"id": "cap-1", "name": "Payments", "description": "", "parentId": "", "level": "L1",
+			},
+			expected: 12,
+		},
+		{
+			name:     "present field is preserved",
+			data:     map[string]interface{}{"id": "cap-1", "name": "Payments", "maturityValue": float64(62)},
+			expected: 62,
+		},
 	}
 
-	result := upcaster.Upcast(data)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			upcaster := CapabilityCreatedMaturityUpcaster{}
 
-	maturityValue, ok := result["maturityValue"].(float64)
-	if !ok {
-		t.Fatal("Expected maturityValue to be preserved even when zero")
-	}
+			result := upcaster.Upcast(tt.data)
 
-	if int(maturityValue) != 0 {
-		t.Errorf("Expected maturityValue 0, got %d", int(maturityValue))
+			maturityValue, ok := result["maturityValue"].(float64)
+			if !ok {
+				t.Fatal("Expected maturityValue to be present after upcast")
+			}
+			if maturityValue != tt.expected {
+				t.Errorf("Expected maturityValue %v, got %v", tt.expected, maturityValue)
+			}
+		})
 	}
 }

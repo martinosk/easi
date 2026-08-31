@@ -16,13 +16,13 @@ import { DirectionPanel } from './DirectionPanel';
 
 const mocked = vi.mocked(directionApi.getForEnterpriseCapability);
 
-function renderPanel(response: ECDirectionResponse) {
+function renderPanel(response: ECDirectionResponse, directionHref?: string) {
   mocked.mockResolvedValueOnce(response);
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <MantineProvider>
       <QueryClientProvider client={queryClient}>
-        <DirectionPanel enterpriseCapabilityId={toEnterpriseCapabilityId('ec-1')} />
+        <DirectionPanel enterpriseCapabilityId={toEnterpriseCapabilityId('ec-1')} directionHref={directionHref} />
       </QueryClientProvider>
     </MantineProvider>,
   );
@@ -178,5 +178,13 @@ describe('DirectionPanel', () => {
     expect(screen.queryByTestId('advance-to-proposed')).not.toBeInTheDocument();
     expect(screen.queryByTestId('advance-to-agreed')).not.toBeInTheDocument();
     expect(screen.getByTestId('reject-direction')).toBeInTheDocument();
+  });
+
+  it('fetches direction from the supplied directionHref instead of the default URL', async () => {
+    renderPanel({ direction: null, _links: {} }, '/api/v1/_custom/direction');
+
+    await waitFor(() => {
+      expect(mocked).toHaveBeenCalledWith(toEnterpriseCapabilityId('ec-1'), '/api/v1/_custom/direction');
+    });
   });
 });

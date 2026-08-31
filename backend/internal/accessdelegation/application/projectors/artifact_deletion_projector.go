@@ -6,18 +6,21 @@ import (
 	"fmt"
 
 	"easi/backend/internal/accessdelegation/application/commands"
-	"easi/backend/internal/accessdelegation/application/readmodels"
 	"easi/backend/internal/shared/cqrs"
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
+type ActiveGrantReader interface {
+	GetActiveGrantIDsForArtifact(ctx context.Context, artifactType, artifactID string) ([]string, error)
+}
+
 type ArtifactDeletionProjector struct {
-	readModel    *readmodels.EditGrantReadModel
+	readModel    ActiveGrantReader
 	commandBus   cqrs.CommandBus
 	artifactType string
 }
 
-func NewArtifactDeletionProjector(readModel *readmodels.EditGrantReadModel, commandBus cqrs.CommandBus, artifactType string) *ArtifactDeletionProjector {
+func NewArtifactDeletionProjector(readModel ActiveGrantReader, commandBus cqrs.CommandBus, artifactType string) *ArtifactDeletionProjector {
 	return &ArtifactDeletionProjector{
 		readModel:    readModel,
 		commandBus:   commandBus,

@@ -46,7 +46,7 @@ Provide an AI-powered conversational assistant that helps users explore and modi
 - `SendMessage` - User sends a message (triggers agent loop, returns SSE stream)
 
 **Events** (from other contexts):
-- From **Platform (Auth)**:
+- From **Auth**:
   - `TenantCreated` - Provisions a blank `AIConfiguration` for the new tenant
 
 ### Collaborators

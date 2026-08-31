@@ -335,7 +335,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_shared_audit.ArtifactCreatorsResponse"
+                            "$ref": "#/definitions/internal_audit_infrastructure_api.ArtifactCreatorsResponse"
                         }
                     },
                     "401": {
@@ -761,6 +761,49 @@ const docTemplate = `{
                 }
             }
         },
+        "/assistant/status": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Reports whether the tenant's AI assistant is configured and ready to use. The session advertises the assistant entry point on permission alone; this resource says whether the assistant can actually be used. When configured it links x-conversations, and additionally x-conversations-write when the actor can write at least one subject the assistant can act on.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "assistant"
+                ],
+                "summary": "Get assistant availability",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_archassistant_infrastructure_api.AssistantStatusResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/audit/{aggregateId}": {
             "get": {
                 "security": [
@@ -802,7 +845,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_shared_audit.AuditHistoryResponse"
+                            "$ref": "#/definitions/internal_audit_infrastructure_api.AuditHistoryResponse"
                         }
                     },
                     "400": {
@@ -888,6 +931,67 @@ const docTemplate = `{
                     },
                     "502": {
                         "description": "Token exchange with IdP failed",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/invitations": {
+            "post": {
+                "description": "Creates an invitation in the named tenant. Guarded by the platform admin API key.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "invitations"
+                ],
+                "summary": "Invite a user into a tenant",
+                "parameters": [
+                    {
+                        "description": "Tenant, email and role",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_auth_infrastructure_api.PlatformInvitationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created invitation",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body, tenant ID or email",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid platform admin API key",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Tenant not found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
@@ -2012,7 +2116,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "enterprisearchitecture"
+                    "architecturedirection"
                 ],
                 "summary": "Search domain capabilities as direction source candidates",
                 "parameters": [
@@ -2053,7 +2157,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_enterprisearchitecture_infrastructure_api.SourceCandidatesResponseDTO"
+                            "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.SourceCandidatesResponseDTO"
                         }
                     },
                     "400": {
@@ -6123,12 +6227,17 @@ const docTemplate = `{
         },
         "/enterprise-capabilities/maturity-analysis": {
             "get": {
-                "description": "Retrieves enterprise capabilities that have 2+ implementations with varying maturity levels",
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Retrieves enterprise capabilities whose included domain capabilities fall below the target maturity, derived from the active direction's composition",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "enterprise-capabilities"
+                    "architecturedirection"
                 ],
                 "summary": "Get enterprise capabilities with maturity gaps",
                 "parameters": [
@@ -6143,18 +6252,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "data": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.MaturityAnalysisCandidateDTO"
-                                    }
-                                },
-                                "summary": {
-                                    "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.MaturityAnalysisSummaryDTO"
-                                }
-                            }
+                            "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.MaturityAnalysisResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "500": {
@@ -6315,7 +6425,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "enterprisearchitecture"
+                    "architecturedirection"
                 ],
                 "summary": "Get the composition of an enterprise capability",
                 "parameters": [
@@ -6331,7 +6441,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_enterprisearchitecture_infrastructure_api.CompositionResponseDTO"
+                            "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.CompositionResponseDTO"
                         }
                     },
                     "401": {
@@ -6996,12 +7106,17 @@ const docTemplate = `{
         },
         "/enterprise-capabilities/{id}/maturity-gap": {
             "get": {
-                "description": "Retrieves detailed maturity gap analysis for a specific enterprise capability",
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Retrieves each included domain capability's current maturity versus the enterprise capability's target maturity",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "enterprise-capabilities"
+                    "architecturedirection"
                 ],
                 "summary": "Get detailed maturity gap analysis",
                 "parameters": [
@@ -7017,7 +7132,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.MaturityGapDetailDTO"
+                            "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.MaturityGapDetailDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "404": {
@@ -7508,6 +7635,49 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/enterprise-capability-compositions": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "One summary per active enterprise capability: source, included, carved-out and domain counts derived from the active direction, plus the direction status. Enterprise capabilities without an active direction report zero counts. Every item links to its enterprise capability, its composition and its direction.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "architecturedirection"
+                ],
+                "summary": "List composition summaries of all enterprise capabilities",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.CompositionSummariesResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
@@ -10108,6 +10278,66 @@ const docTemplate = `{
                 }
             }
         },
+        "/one-pagers/{subjectType}/completeness": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Returns, for each subject of the given type, whether all required one-pager fields are filled. The collection is empty when the subject type has no required field, in which case no indicator applies (spec 178 rule 10).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "one-pagers"
+                ],
+                "summary": "Get one-pager completeness for every subject of a type",
+                "parameters": [
+                    {
+                        "enum": [
+                            "capability",
+                            "enterprise-capability",
+                            "application",
+                            "acquired-entity",
+                            "vendor",
+                            "internal-team"
+                        ],
+                        "type": "string",
+                        "description": "Subject type",
+                        "name": "subjectType",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_onepagers_infrastructure_api.OnePagerCompletenessResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/one-pagers/{subjectType}/{subjectID}": {
             "get": {
                 "security": [
@@ -10524,7 +10754,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/internal_platform_infrastructure_api.TenantListItem"
+                                                "$ref": "#/definitions/internal_auth_infrastructure_api.TenantListItem"
                                             }
                                         }
                                     }
@@ -10559,7 +10789,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_platform_infrastructure_api.CreateTenantRequest"
+                            "$ref": "#/definitions/internal_auth_infrastructure_api.CreateTenantRequest"
                         }
                     }
                 ],
@@ -10567,7 +10797,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Tenant created successfully",
                         "schema": {
-                            "$ref": "#/definitions/internal_platform_infrastructure_api.TenantResponse"
+                            "$ref": "#/definitions/internal_auth_infrastructure_api.TenantResponse"
                         }
                     },
                     "400": {
@@ -10614,69 +10844,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Tenant details",
                         "schema": {
-                            "$ref": "#/definitions/internal_platform_infrastructure_api.TenantResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Tenant not found",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/platform/tenants/{id}/invitations": {
-            "post": {
-                "description": "Creates an admin invitation for an existing tenant",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "tenants"
-                ],
-                "summary": "Create an invitation for a tenant",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Tenant ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Invitation details",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_platform_infrastructure_api.CreateInvitationRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Invitation created",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                            "$ref": "#/definitions/internal_auth_infrastructure_api.TenantResponse"
                         }
                     },
                     "404": {
@@ -14040,6 +14208,64 @@ const docTemplate = `{
                 }
             }
         },
+        "easi_backend_internal_architecturedirection_application_readmodels.ImplementationDetailDTO": {
+            "type": "object",
+            "properties": {
+                "businessDomainId": {
+                    "type": "string"
+                },
+                "businessDomainName": {
+                    "type": "string"
+                },
+                "domainCapabilityId": {
+                    "type": "string"
+                },
+                "domainCapabilityName": {
+                    "type": "string"
+                },
+                "gap": {
+                    "type": "integer"
+                },
+                "maturitySection": {
+                    "type": "string"
+                },
+                "maturityValue": {
+                    "type": "integer"
+                },
+                "priority": {
+                    "type": "string"
+                }
+            }
+        },
+        "easi_backend_internal_architecturedirection_application_readmodels.InvestmentPrioritiesDTO": {
+            "type": "object",
+            "properties": {
+                "high": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.ImplementationDetailDTO"
+                    }
+                },
+                "low": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.ImplementationDetailDTO"
+                    }
+                },
+                "medium": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.ImplementationDetailDTO"
+                    }
+                },
+                "onTarget": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.ImplementationDetailDTO"
+                    }
+                }
+            }
+        },
         "easi_backend_internal_architecturedirection_application_readmodels.JourneyApplicationRefDTO": {
             "type": "object",
             "properties": {
@@ -14077,6 +14303,113 @@ const docTemplate = `{
                 },
                 "targetParentStale": {
                     "type": "boolean"
+                }
+            }
+        },
+        "easi_backend_internal_architecturedirection_application_readmodels.MaturityAnalysisCandidateDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "averageMaturity": {
+                    "type": "integer"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "domainCount": {
+                    "type": "integer"
+                },
+                "enterpriseCapabilityId": {
+                    "type": "string"
+                },
+                "enterpriseCapabilityName": {
+                    "type": "string"
+                },
+                "implementationCount": {
+                    "type": "integer"
+                },
+                "maturityDistribution": {
+                    "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.MaturityDistributionDTO"
+                },
+                "maxGap": {
+                    "type": "integer"
+                },
+                "maxMaturity": {
+                    "type": "integer"
+                },
+                "minMaturity": {
+                    "type": "integer"
+                },
+                "targetMaturity": {
+                    "type": "integer"
+                },
+                "targetMaturitySection": {
+                    "type": "string"
+                }
+            }
+        },
+        "easi_backend_internal_architecturedirection_application_readmodels.MaturityAnalysisSummaryDTO": {
+            "type": "object",
+            "properties": {
+                "averageGap": {
+                    "type": "integer"
+                },
+                "candidateCount": {
+                    "type": "integer"
+                },
+                "totalImplementations": {
+                    "type": "integer"
+                }
+            }
+        },
+        "easi_backend_internal_architecturedirection_application_readmodels.MaturityDistributionDTO": {
+            "type": "object",
+            "properties": {
+                "commodity": {
+                    "type": "integer"
+                },
+                "customBuild": {
+                    "type": "integer"
+                },
+                "genesis": {
+                    "type": "integer"
+                },
+                "product": {
+                    "type": "integer"
+                }
+            }
+        },
+        "easi_backend_internal_architecturedirection_application_readmodels.MaturityGapDetailDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "enterpriseCapabilityId": {
+                    "type": "string"
+                },
+                "enterpriseCapabilityName": {
+                    "type": "string"
+                },
+                "implementations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.ImplementationDetailDTO"
+                    }
+                },
+                "investmentPriorities": {
+                    "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.InvestmentPrioritiesDTO"
+                },
+                "targetMaturity": {
+                    "type": "integer"
+                },
+                "targetMaturitySection": {
+                    "type": "string"
                 }
             }
         },
@@ -14260,9 +14593,6 @@ const docTemplate = `{
                 "notes": {
                     "type": "string"
                 },
-                "onePagerComplete": {
-                    "type": "boolean"
-                },
                 "updatedAt": {
                     "type": "string"
                 }
@@ -14320,9 +14650,6 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
-                },
-                "onePagerComplete": {
-                    "type": "boolean"
                 }
             }
         },
@@ -14428,9 +14755,6 @@ const docTemplate = `{
                 "notes": {
                     "type": "string"
                 },
-                "onePagerComplete": {
-                    "type": "boolean"
-                },
                 "updatedAt": {
                     "type": "string"
                 }
@@ -14485,9 +14809,6 @@ const docTemplate = `{
                 },
                 "notes": {
                     "type": "string"
-                },
-                "onePagerComplete": {
-                    "type": "boolean"
                 },
                 "updatedAt": {
                     "type": "string"
@@ -14610,6 +14931,50 @@ const docTemplate = `{
                 }
             }
         },
+        "easi_backend_internal_audit_application_readmodels.ArtifactCreator": {
+            "type": "object",
+            "properties": {
+                "aggregateId": {
+                    "type": "string"
+                },
+                "creatorId": {
+                    "type": "string"
+                }
+            }
+        },
+        "easi_backend_internal_audit_application_readmodels.AuditEntry": {
+            "type": "object",
+            "properties": {
+                "actorEmail": {
+                    "type": "string"
+                },
+                "actorId": {
+                    "type": "string"
+                },
+                "aggregateId": {
+                    "type": "string"
+                },
+                "displayName": {
+                    "type": "string"
+                },
+                "eventData": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "eventId": {
+                    "type": "integer"
+                },
+                "eventType": {
+                    "type": "string"
+                },
+                "occurredAt": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
         "easi_backend_internal_auth_application_readmodels.InvitationDTO": {
             "type": "object",
             "properties": {
@@ -14715,9 +15080,6 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
-                },
-                "onePagerComplete": {
-                    "type": "boolean"
                 },
                 "ownershipModel": {
                     "type": "string"
@@ -14869,20 +15231,11 @@ const docTemplate = `{
                 "description": {
                     "type": "string"
                 },
-                "domainCount": {
-                    "type": "integer"
-                },
                 "id": {
                     "type": "string"
                 },
-                "includedCapabilityCount": {
-                    "type": "integer"
-                },
                 "name": {
                     "type": "string"
-                },
-                "onePagerComplete": {
-                    "type": "boolean"
                 },
                 "targetMaturity": {
                     "type": "integer"
@@ -14923,171 +15276,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updatedAt": {
-                    "type": "string"
-                }
-            }
-        },
-        "easi_backend_internal_enterprisearchitecture_application_readmodels.ImplementationDetailDTO": {
-            "type": "object",
-            "properties": {
-                "businessDomainId": {
-                    "type": "string"
-                },
-                "businessDomainName": {
-                    "type": "string"
-                },
-                "domainCapabilityId": {
-                    "type": "string"
-                },
-                "domainCapabilityName": {
-                    "type": "string"
-                },
-                "gap": {
-                    "type": "integer"
-                },
-                "maturitySection": {
-                    "type": "string"
-                },
-                "maturityValue": {
-                    "type": "integer"
-                },
-                "priority": {
-                    "type": "string"
-                }
-            }
-        },
-        "easi_backend_internal_enterprisearchitecture_application_readmodels.InvestmentPrioritiesDTO": {
-            "type": "object",
-            "properties": {
-                "high": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.ImplementationDetailDTO"
-                    }
-                },
-                "low": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.ImplementationDetailDTO"
-                    }
-                },
-                "medium": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.ImplementationDetailDTO"
-                    }
-                },
-                "onTarget": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.ImplementationDetailDTO"
-                    }
-                }
-            }
-        },
-        "easi_backend_internal_enterprisearchitecture_application_readmodels.MaturityAnalysisCandidateDTO": {
-            "type": "object",
-            "properties": {
-                "_links": {
-                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
-                },
-                "averageMaturity": {
-                    "type": "integer"
-                },
-                "category": {
-                    "type": "string"
-                },
-                "domainCount": {
-                    "type": "integer"
-                },
-                "enterpriseCapabilityId": {
-                    "type": "string"
-                },
-                "enterpriseCapabilityName": {
-                    "type": "string"
-                },
-                "implementationCount": {
-                    "type": "integer"
-                },
-                "maturityDistribution": {
-                    "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.MaturityDistributionDTO"
-                },
-                "maxGap": {
-                    "type": "integer"
-                },
-                "maxMaturity": {
-                    "type": "integer"
-                },
-                "minMaturity": {
-                    "type": "integer"
-                },
-                "targetMaturity": {
-                    "type": "integer"
-                },
-                "targetMaturitySection": {
-                    "type": "string"
-                }
-            }
-        },
-        "easi_backend_internal_enterprisearchitecture_application_readmodels.MaturityAnalysisSummaryDTO": {
-            "type": "object",
-            "properties": {
-                "averageGap": {
-                    "type": "integer"
-                },
-                "candidateCount": {
-                    "type": "integer"
-                },
-                "totalImplementations": {
-                    "type": "integer"
-                }
-            }
-        },
-        "easi_backend_internal_enterprisearchitecture_application_readmodels.MaturityDistributionDTO": {
-            "type": "object",
-            "properties": {
-                "commodity": {
-                    "type": "integer"
-                },
-                "customBuild": {
-                    "type": "integer"
-                },
-                "genesis": {
-                    "type": "integer"
-                },
-                "product": {
-                    "type": "integer"
-                }
-            }
-        },
-        "easi_backend_internal_enterprisearchitecture_application_readmodels.MaturityGapDetailDTO": {
-            "type": "object",
-            "properties": {
-                "_links": {
-                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
-                },
-                "category": {
-                    "type": "string"
-                },
-                "enterpriseCapabilityId": {
-                    "type": "string"
-                },
-                "enterpriseCapabilityName": {
-                    "type": "string"
-                },
-                "implementations": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.ImplementationDetailDTO"
-                    }
-                },
-                "investmentPriorities": {
-                    "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.InvestmentPrioritiesDTO"
-                },
-                "targetMaturity": {
-                    "type": "integer"
-                },
-                "targetMaturitySection": {
                     "type": "string"
                 }
             }
@@ -15655,6 +15843,17 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_archassistant_infrastructure_api.AssistantStatusResponse": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "configured": {
+                    "type": "boolean"
+                }
+            }
+        },
         "internal_archassistant_infrastructure_api.ConversationDetailResponse": {
             "type": "object",
             "properties": {
@@ -15912,6 +16111,40 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_architecturedirection_infrastructure_api.CompositionDomainGroupDTO": {
+            "type": "object",
+            "properties": {
+                "businessDomainId": {
+                    "type": "string"
+                },
+                "businessDomainName": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.IncludedCapabilityItemDTO"
+                    }
+                }
+            }
+        },
+        "internal_architecturedirection_infrastructure_api.CompositionMetaDTO": {
+            "type": "object",
+            "properties": {
+                "carvedOutCount": {
+                    "type": "integer"
+                },
+                "domainCount": {
+                    "type": "integer"
+                },
+                "includedCount": {
+                    "type": "integer"
+                },
+                "sourceCount": {
+                    "type": "integer"
+                }
+            }
+        },
         "internal_architecturedirection_infrastructure_api.CompositionPreviewMetaDTO": {
             "type": "object",
             "properties": {
@@ -15960,6 +16193,66 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_architecturedirection_infrastructure_api.CompositionResponseDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.CompositionDomainGroupDTO"
+                    }
+                },
+                "meta": {
+                    "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.CompositionMetaDTO"
+                }
+            }
+        },
+        "internal_architecturedirection_infrastructure_api.CompositionSummariesResponse": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.CompositionSummaryDTO"
+                    }
+                }
+            }
+        },
+        "internal_architecturedirection_infrastructure_api.CompositionSummaryDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "carvedOutCount": {
+                    "type": "integer"
+                },
+                "directionStatus": {
+                    "type": "string"
+                },
+                "domainCount": {
+                    "type": "integer"
+                },
+                "enterpriseCapabilityId": {
+                    "type": "string"
+                },
+                "hasDirection": {
+                    "type": "boolean"
+                },
+                "includedCount": {
+                    "type": "integer"
+                },
+                "sourceCount": {
+                    "type": "integer"
+                }
+            }
+        },
         "internal_architecturedirection_infrastructure_api.ConflictingECDTO": {
             "type": "object",
             "properties": {
@@ -15990,6 +16283,52 @@ const docTemplate = `{
                 },
                 "standard": {
                     "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.StandardApplicationDTO"
+                }
+            }
+        },
+        "internal_architecturedirection_infrastructure_api.IncludedCapabilityItemDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "businessDomainId": {
+                    "type": "string"
+                },
+                "businessDomainName": {
+                    "type": "string"
+                },
+                "capabilityId": {
+                    "type": "string"
+                },
+                "carvedOutBy": {
+                    "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.CarvedOutByDTO"
+                },
+                "level": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_architecturedirection_infrastructure_api.MaturityAnalysisResponse": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.MaturityAnalysisCandidateDTO"
+                    }
+                },
+                "summary": {
+                    "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.MaturityAnalysisSummaryDTO"
                 }
             }
         },
@@ -16038,6 +16377,72 @@ const docTemplate = `{
                 },
                 "narrative": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_architecturedirection_infrastructure_api.SourceCandidateDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "businessDomainId": {
+                    "type": "string"
+                },
+                "businessDomainName": {
+                    "type": "string"
+                },
+                "capabilityId": {
+                    "type": "string"
+                },
+                "conflictingEnterpriseCapability": {
+                    "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.ConflictingECDTO"
+                },
+                "eligible": {
+                    "type": "boolean"
+                },
+                "ineligibilityReason": {
+                    "type": "string"
+                },
+                "level": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parentId": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_architecturedirection_infrastructure_api.SourceCandidatesPaginationDTO": {
+            "type": "object",
+            "properties": {
+                "cursor": {
+                    "type": "string"
+                },
+                "hasMore": {
+                    "type": "boolean"
+                },
+                "limit": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_architecturedirection_infrastructure_api.SourceCandidatesResponseDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.SourceCandidateDTO"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.SourceCandidatesPaginationDTO"
                 }
             }
         },
@@ -16509,6 +16914,52 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_audit_infrastructure_api.ArtifactCreatorsResponse": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_audit_application_readmodels.ArtifactCreator"
+                    }
+                }
+            }
+        },
+        "internal_audit_infrastructure_api.AuditHistoryResponse": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "entries": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_audit_application_readmodels.AuditEntry"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/internal_audit_infrastructure_api.PaginationInfo"
+                }
+            }
+        },
+        "internal_audit_infrastructure_api.PaginationInfo": {
+            "type": "object",
+            "properties": {
+                "hasMore": {
+                    "type": "boolean"
+                },
+                "nextCursor": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_auth_infrastructure_api.CreateInvitationRequest": {
             "type": "object",
             "properties": {
@@ -16517,6 +16968,29 @@ const docTemplate = `{
                 },
                 "role": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_auth_infrastructure_api.CreateTenantRequest": {
+            "type": "object",
+            "properties": {
+                "domains": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "firstAdminEmail": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "oidcConfig": {
+                    "$ref": "#/definitions/internal_auth_infrastructure_api.OIDCConfigRequest"
                 }
             }
         },
@@ -16611,6 +17085,57 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_auth_infrastructure_api.OIDCConfigRequest": {
+            "type": "object",
+            "properties": {
+                "authMethod": {
+                    "type": "string"
+                },
+                "clientId": {
+                    "type": "string"
+                },
+                "discoveryUrl": {
+                    "type": "string"
+                },
+                "scopes": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_auth_infrastructure_api.OIDCConfigResponse": {
+            "type": "object",
+            "properties": {
+                "authMethod": {
+                    "type": "string"
+                },
+                "clientId": {
+                    "type": "string"
+                },
+                "discoveryUrl": {
+                    "type": "string"
+                },
+                "scopes": {
+                    "type": "string"
+                },
+                "secretProvisioned": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "internal_auth_infrastructure_api.PlatformInvitationRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "tenantId": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_auth_infrastructure_api.PostSessionsRequest": {
             "type": "object",
             "properties": {
@@ -16630,6 +17155,73 @@ const docTemplate = `{
                     "additionalProperties": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "internal_auth_infrastructure_api.TenantListItem": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/easi_backend_internal_shared_api.Link"
+                    }
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "domains": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_auth_infrastructure_api.TenantResponse": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/easi_backend_internal_shared_api.Link"
+                    }
+                },
+                "_warnings": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "domains": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "oidcConfig": {
+                    "$ref": "#/definitions/internal_auth_infrastructure_api.OIDCConfigResponse"
+                },
+                "status": {
+                    "type": "string"
                 }
             }
         },
@@ -17301,79 +17893,6 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_enterprisearchitecture_infrastructure_api.CarvedOutByDTO": {
-            "type": "object",
-            "properties": {
-                "enterpriseCapabilityId": {
-                    "type": "string"
-                },
-                "enterpriseCapabilityName": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_enterprisearchitecture_infrastructure_api.CompositionDomainGroupDTO": {
-            "type": "object",
-            "properties": {
-                "businessDomainId": {
-                    "type": "string"
-                },
-                "businessDomainName": {
-                    "type": "string"
-                },
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/internal_enterprisearchitecture_infrastructure_api.IncludedCapabilityItemDTO"
-                    }
-                }
-            }
-        },
-        "internal_enterprisearchitecture_infrastructure_api.CompositionMetaDTO": {
-            "type": "object",
-            "properties": {
-                "carvedOutCount": {
-                    "type": "integer"
-                },
-                "domainCount": {
-                    "type": "integer"
-                },
-                "includedCount": {
-                    "type": "integer"
-                },
-                "sourceCount": {
-                    "type": "integer"
-                }
-            }
-        },
-        "internal_enterprisearchitecture_infrastructure_api.CompositionResponseDTO": {
-            "type": "object",
-            "properties": {
-                "_links": {
-                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
-                },
-                "data": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/internal_enterprisearchitecture_infrastructure_api.CompositionDomainGroupDTO"
-                    }
-                },
-                "meta": {
-                    "$ref": "#/definitions/internal_enterprisearchitecture_infrastructure_api.CompositionMetaDTO"
-                }
-            }
-        },
-        "internal_enterprisearchitecture_infrastructure_api.ConflictingECDTO": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
         "internal_enterprisearchitecture_infrastructure_api.CreateEnterpriseCapabilityRequest": {
             "type": "object",
             "properties": {
@@ -17384,35 +17903,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_enterprisearchitecture_infrastructure_api.IncludedCapabilityItemDTO": {
-            "type": "object",
-            "properties": {
-                "_links": {
-                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
-                },
-                "businessDomainId": {
-                    "type": "string"
-                },
-                "businessDomainName": {
-                    "type": "string"
-                },
-                "capabilityId": {
-                    "type": "string"
-                },
-                "carvedOutBy": {
-                    "$ref": "#/definitions/internal_enterprisearchitecture_infrastructure_api.CarvedOutByDTO"
-                },
-                "level": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "role": {
                     "type": "string"
                 }
             }
@@ -17439,72 +17929,6 @@ const docTemplate = `{
             "properties": {
                 "targetMaturity": {
                     "type": "integer"
-                }
-            }
-        },
-        "internal_enterprisearchitecture_infrastructure_api.SourceCandidateDTO": {
-            "type": "object",
-            "properties": {
-                "_links": {
-                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
-                },
-                "businessDomainId": {
-                    "type": "string"
-                },
-                "businessDomainName": {
-                    "type": "string"
-                },
-                "capabilityId": {
-                    "type": "string"
-                },
-                "conflictingEnterpriseCapability": {
-                    "$ref": "#/definitions/internal_enterprisearchitecture_infrastructure_api.ConflictingECDTO"
-                },
-                "eligible": {
-                    "type": "boolean"
-                },
-                "ineligibilityReason": {
-                    "type": "string"
-                },
-                "level": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "parentId": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_enterprisearchitecture_infrastructure_api.SourceCandidatesPaginationDTO": {
-            "type": "object",
-            "properties": {
-                "cursor": {
-                    "type": "string"
-                },
-                "hasMore": {
-                    "type": "boolean"
-                },
-                "limit": {
-                    "type": "integer"
-                }
-            }
-        },
-        "internal_enterprisearchitecture_infrastructure_api.SourceCandidatesResponseDTO": {
-            "type": "object",
-            "properties": {
-                "_links": {
-                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
-                },
-                "data": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/internal_enterprisearchitecture_infrastructure_api.SourceCandidateDTO"
-                    }
-                },
-                "pagination": {
-                    "$ref": "#/definitions/internal_enterprisearchitecture_infrastructure_api.SourceCandidatesPaginationDTO"
                 }
             }
         },
@@ -17968,6 +18392,31 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_onepagers_infrastructure_api.OnePagerCompletenessDTO": {
+            "type": "object",
+            "properties": {
+                "complete": {
+                    "type": "boolean"
+                },
+                "subjectId": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_onepagers_infrastructure_api.OnePagerCompletenessResponse": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_onepagers_infrastructure_api.OnePagerCompletenessDTO"
+                    }
+                }
+            }
+        },
         "internal_onepagers_infrastructure_api.OnePagerConfigurationDTO": {
             "type": "object",
             "properties": {
@@ -18219,144 +18668,6 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_platform_infrastructure_api.CreateInvitationRequest": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "role": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_platform_infrastructure_api.CreateTenantRequest": {
-            "type": "object",
-            "properties": {
-                "domains": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "firstAdminEmail": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "oidcConfig": {
-                    "$ref": "#/definitions/internal_platform_infrastructure_api.OIDCConfigRequest"
-                }
-            }
-        },
-        "internal_platform_infrastructure_api.OIDCConfigRequest": {
-            "type": "object",
-            "properties": {
-                "authMethod": {
-                    "type": "string"
-                },
-                "clientId": {
-                    "type": "string"
-                },
-                "discoveryUrl": {
-                    "type": "string"
-                },
-                "scopes": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_platform_infrastructure_api.OIDCConfigResponse": {
-            "type": "object",
-            "properties": {
-                "authMethod": {
-                    "type": "string"
-                },
-                "clientId": {
-                    "type": "string"
-                },
-                "discoveryUrl": {
-                    "type": "string"
-                },
-                "scopes": {
-                    "type": "string"
-                },
-                "secretProvisioned": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "internal_platform_infrastructure_api.TenantListItem": {
-            "type": "object",
-            "properties": {
-                "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "$ref": "#/definitions/easi_backend_internal_shared_api.Link"
-                    }
-                },
-                "createdAt": {
-                    "type": "string"
-                },
-                "domains": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_platform_infrastructure_api.TenantResponse": {
-            "type": "object",
-            "properties": {
-                "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "$ref": "#/definitions/easi_backend_internal_shared_api.Link"
-                    }
-                },
-                "_warnings": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "createdAt": {
-                    "type": "string"
-                },
-                "domains": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "oidcConfig": {
-                    "$ref": "#/definitions/internal_platform_infrastructure_api.OIDCConfigResponse"
-                },
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
         "internal_releases_infrastructure_api.ReleaseResponse": {
             "type": "object",
             "properties": {
@@ -18435,96 +18746,6 @@ const docTemplate = `{
                     }
                 },
                 "title": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_shared_audit.ArtifactCreator": {
-            "type": "object",
-            "properties": {
-                "aggregateId": {
-                    "type": "string"
-                },
-                "creatorId": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_shared_audit.ArtifactCreatorsResponse": {
-            "type": "object",
-            "properties": {
-                "_links": {
-                    "type": "object",
-                    "additionalProperties": {}
-                },
-                "data": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/internal_shared_audit.ArtifactCreator"
-                    }
-                }
-            }
-        },
-        "internal_shared_audit.AuditEntry": {
-            "type": "object",
-            "properties": {
-                "actorEmail": {
-                    "type": "string"
-                },
-                "actorId": {
-                    "type": "string"
-                },
-                "aggregateId": {
-                    "type": "string"
-                },
-                "displayName": {
-                    "type": "string"
-                },
-                "eventData": {
-                    "type": "object",
-                    "additionalProperties": true
-                },
-                "eventId": {
-                    "type": "integer"
-                },
-                "eventType": {
-                    "type": "string"
-                },
-                "occurredAt": {
-                    "type": "string"
-                },
-                "version": {
-                    "type": "integer"
-                }
-            }
-        },
-        "internal_shared_audit.AuditHistoryResponse": {
-            "type": "object",
-            "properties": {
-                "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "entries": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/internal_shared_audit.AuditEntry"
-                    }
-                },
-                "pagination": {
-                    "$ref": "#/definitions/internal_shared_audit.PaginationInfo"
-                }
-            }
-        },
-        "internal_shared_audit.PaginationInfo": {
-            "type": "object",
-            "properties": {
-                "hasMore": {
-                    "type": "boolean"
-                },
-                "nextCursor": {
                     "type": "string"
                 }
             }

@@ -64,12 +64,6 @@ func (h *TenantHandlers) GetCurrentTenant(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	domains, err := h.tenantRepo.GetDomains(ctx, tenantID)
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve tenant domains")
-		return
-	}
-
 	user, err := h.userReadModel.GetByEmail(ctx, actor.Email)
 	if err != nil || user == nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to get user")
@@ -86,7 +80,7 @@ func (h *TenantHandlers) GetCurrentTenant(w http.ResponseWriter, r *http.Request
 	response := CurrentTenantResponse{
 		ID:      tenant.ID,
 		Name:    tenant.Name,
-		Domains: domains,
+		Domains: tenant.Domains,
 		Links:   h.tenantLinks(user.Role, permissions),
 	}
 

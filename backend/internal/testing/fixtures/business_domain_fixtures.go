@@ -10,6 +10,7 @@ import (
 	"easi/backend/internal/capabilitymapping/domain/services"
 	"easi/backend/internal/capabilitymapping/infrastructure/adapters"
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
+	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 
 	"github.com/stretchr/testify/require"
 )
@@ -31,15 +32,15 @@ func NewBusinessDomainFixtures(tc *TestContext) *BusinessDomainFixtures {
 	capabilityRepo := repositories.NewCapabilityRepository(tc.EventStore)
 
 	domainProjector := projectors.NewBusinessDomainProjector(domainReadModel)
-	tc.EventBus.Subscribe("BusinessDomainCreated", domainProjector)
-	tc.EventBus.Subscribe("BusinessDomainUpdated", domainProjector)
-	tc.EventBus.Subscribe("BusinessDomainDeleted", domainProjector)
-	tc.EventBus.Subscribe("CapabilityAssignedToDomain", domainProjector)
-	tc.EventBus.Subscribe("CapabilityUnassignedFromDomain", domainProjector)
+	tc.EventBus.Subscribe(cmPL.BusinessDomainCreated, domainProjector)
+	tc.EventBus.Subscribe(cmPL.BusinessDomainUpdated, domainProjector)
+	tc.EventBus.Subscribe(cmPL.BusinessDomainDeleted, domainProjector)
+	tc.EventBus.Subscribe(cmPL.CapabilityAssignedToDomain, domainProjector)
+	tc.EventBus.Subscribe(cmPL.CapabilityUnassignedFromDomain, domainProjector)
 
 	assignmentProjector := projectors.NewBusinessDomainAssignmentProjector(assignmentReadModel, domainReadModel, capabilityReadModel)
-	tc.EventBus.Subscribe("CapabilityAssignedToDomain", assignmentProjector)
-	tc.EventBus.Subscribe("CapabilityUnassignedFromDomain", assignmentProjector)
+	tc.EventBus.Subscribe(cmPL.CapabilityAssignedToDomain, assignmentProjector)
+	tc.EventBus.Subscribe(cmPL.CapabilityUnassignedFromDomain, assignmentProjector)
 
 	assignmentChecker := adapters.NewBusinessDomainAssignmentCheckerAdapter(assignmentReadModel)
 	deletionService := services.NewBusinessDomainDeletionService(assignmentChecker)

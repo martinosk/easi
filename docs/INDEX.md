@@ -8,7 +8,7 @@ Quick reference for navigating EASI documentation.
 |---------------|-----------|
 | Backend API endpoint | [docs/backend/api-standards.md](backend/api-standards.md) |
 | Backend event handling | [docs/backend/standard-patterns.md](backend/standard-patterns.md) |
-| Cross-context events | [docs/backend/cross-context-events.md](backend/cross-context-events.md) |
+| Cross-context events / bridges | [docs/backend/cross-context-events.md](backend/cross-context-events.md) |
 | Backend anti-patterns | [docs/backend/antipatterns.md](backend/antipatterns.md) |
 | Backend tests | [docs/backend/testing.md](backend/testing.md) |
 | Database migration | [docs/backend/database.md](backend/database.md) |
@@ -26,7 +26,7 @@ Quick reference for navigating EASI documentation.
 | MetaModel | [docs/architecture/MetaModel.md](architecture/MetaModel.md) | Supporting | Implemented |
 | AccessDelegation | [docs/architecture/README.md](architecture/README.md) | Supporting | Implemented |
 | ArchAssistant | [docs/architecture/ArchAssistant.md](architecture/ArchAssistant.md) | Supporting | Implemented |
-| ArchitectureDirection | [docs/architecture/README.md](architecture/README.md) | Core | Implemented |
+| ArchitectureDirection | [docs/architecture/ArchitectureDirection.md](architecture/ArchitectureDirection.md) | Core | Implemented |
 | OnePagers | [docs/architecture/OnePagers.md](architecture/OnePagers.md) | Supporting | Implemented |
 | Releases | [docs/architecture/Releases.md](architecture/Releases.md) | Generic | Implemented |
 

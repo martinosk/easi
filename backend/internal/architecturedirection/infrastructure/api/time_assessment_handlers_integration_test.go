@@ -28,9 +28,9 @@ import (
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedcontext "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
+	"easi/backend/internal/shared/events"
 	domain "easi/backend/internal/shared/eventsourcing"
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
-	"easi/backend/internal/shared/events"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"

@@ -1,11 +1,13 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
+import { HttpResponse, http } from 'msw';
 import type { ReactNode } from 'react';
 import React from 'react';
 import { describe, expect, it } from 'vitest';
 import { toEnterpriseCapabilityId } from '../../../api/types';
-import { createTestQueryClient } from '../../../test/helpers';
+import { createTestQueryClient, server } from '../../../test/helpers';
 import { seedSpec172Db } from '../../../test/mocks/spec172/store';
+import type { CompositionResponse } from '../types';
 import { useComposition } from './useComposition';
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -151,5 +153,23 @@ describe('useComposition', () => {
     const source = result.current.data!.data.flatMap((g) => g.items).find((i) => i.capabilityId === 'cap-a')!;
     expect(source.role).toBe('source');
     expect(source._links['x-exclude']).toBeUndefined();
+  });
+
+  it('fetches from a supplied href instead of the derived composition URL', async () => {
+    seedCarveOutScenario();
+    const linkedResponse: CompositionResponse = {
+      data: [],
+      meta: { sourceCount: 9, includedCount: 9, carvedOutCount: 0, domainCount: 9 },
+      _links: { self: { href: '/api/v1/_custom/composition', method: 'GET' } },
+    };
+    server.use(http.get('*/api/v1/_custom/composition', () => HttpResponse.json(linkedResponse)));
+
+    const { result } = renderHook(
+      () => useComposition(toEnterpriseCapabilityId('ec-crm'), '/api/v1/_custom/composition'),
+      { wrapper },
+    );
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data!.meta.sourceCount).toBe(9);
   });
 });

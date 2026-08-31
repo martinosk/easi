@@ -13,6 +13,7 @@ import { evaluateEligibility, resolveComposition } from './composition';
 import {
   addDirection,
   buildCompositionResponse,
+  buildCompositionSummaries,
   buildDirectionDto,
   buildEcDirectionResponse,
   buildEnterpriseCapabilityDto,
@@ -63,6 +64,13 @@ function newDirectionId(): string {
 }
 
 export const spec172Handlers = [
+  http.get(`${BASE_URL}/api/v1/enterprise-capability-compositions`, () => {
+    return HttpResponse.json({
+      data: buildCompositionSummaries(),
+      _links: { self: link('/api/v1/enterprise-capability-compositions', 'GET') },
+    });
+  }),
+
   http.get(`${BASE_URL}/api/v1/enterprise-capabilities`, () => {
     return HttpResponse.json({
       data: getStubEnterpriseCapabilities().map(buildEnterpriseCapabilityDto),

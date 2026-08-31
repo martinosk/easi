@@ -4,10 +4,10 @@ import (
 	"context"
 
 	"easi/backend/internal/importing/application/handlers"
-	"easi/backend/internal/importing/application/ports"
 	"easi/backend/internal/importing/application/projectors"
 	"easi/backend/internal/importing/application/readmodels"
 	"easi/backend/internal/importing/application/saga"
+	"easi/backend/internal/importing/infrastructure/adapters"
 	"easi/backend/internal/importing/infrastructure/repositories"
 	importPL "easi/backend/internal/importing/publishedlanguage"
 	"easi/backend/internal/infrastructure/database"
@@ -19,14 +19,11 @@ import (
 )
 
 type ImportingRoutesDeps struct {
-	CommandBus         *cqrs.InMemoryCommandBus
-	EventStore         eventstore.EventStore
-	EventBus           events.EventBus
-	DB                 *database.TenantAwareDB
-	ComponentGateway   ports.ComponentGateway
-	CapabilityGateway  ports.CapabilityGateway
-	ValueStreamGateway ports.ValueStreamGateway
-	ExecutionContext   context.Context
+	CommandBus       *cqrs.InMemoryCommandBus
+	EventStore       eventstore.EventStore
+	EventBus         events.EventBus
+	DB               *database.TenantAwareDB
+	ExecutionContext context.Context
 }
 
 func SetupImportingRoutes(r chi.Router, deps ImportingRoutesDeps) error {
@@ -42,7 +39,11 @@ func SetupImportingRoutes(r chi.Router, deps ImportingRoutesDeps) error {
 	deps.EventBus.Subscribe(importPL.ImportFailed, projector)
 	deps.EventBus.Subscribe(importPL.ImportSessionCancelled, projector)
 
-	importSaga := saga.New(deps.ComponentGateway, deps.CapabilityGateway, deps.ValueStreamGateway)
+	importSaga := saga.New(
+		adapters.NewImportComponentGateway(deps.CommandBus),
+		adapters.NewImportCapabilityGateway(deps.CommandBus),
+		adapters.NewImportValueStreamGateway(deps.CommandBus),
+	)
 
 	createHandler := handlers.NewCreateImportSessionHandler(repository)
 	confirmHandler := handlers.NewConfirmImportHandlerWithExecutionContext(

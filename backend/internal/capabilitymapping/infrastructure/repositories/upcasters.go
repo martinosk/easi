@@ -1,5 +1,7 @@
 package repositories
 
+import "easi/backend/internal/capabilitymapping/domain/valueobjects"
+
 type CapabilityMetadataUpdatedV1ToV2Upcaster struct{}
 
 func (u CapabilityMetadataUpdatedV1ToV2Upcaster) EventType() string {
@@ -17,6 +19,20 @@ func (u CapabilityMetadataUpdatedV1ToV2Upcaster) Upcast(data map[string]interfac
 
 	delete(data, "maturityLevel")
 
+	return data
+}
+
+type CapabilityCreatedMaturityUpcaster struct{}
+
+func (u CapabilityCreatedMaturityUpcaster) EventType() string {
+	return "CapabilityCreated"
+}
+
+func (u CapabilityCreatedMaturityUpcaster) Upcast(data map[string]interface{}) map[string]interface{} {
+	if _, hasValue := data["maturityValue"]; hasValue {
+		return data
+	}
+	data["maturityValue"] = float64(valueobjects.DefaultMaturityValue)
 	return data
 }
 

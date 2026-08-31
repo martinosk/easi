@@ -3,6 +3,8 @@
 package internal_test
 
 import (
+	"go/ast"
+	"go/build/constraint"
 	"go/parser"
 	"go/token"
 	"os"
@@ -39,8 +41,47 @@ func isProductionGoFile(info os.FileInfo, path string) bool {
 	if err != nil {
 		return true
 	}
-	firstLine := strings.SplitN(string(content), "\n", 2)[0]
-	return !strings.Contains(firstLine, "//go:build integration")
+	compiles, err := compilesWithoutIntegrationTag(content)
+	if err != nil {
+		return true
+	}
+	return compiles
+}
+
+func compilesWithoutIntegrationTag(content []byte) (bool, error) {
+	fset := token.NewFileSet()
+	node, err := parser.ParseFile(fset, "", content, parser.PackageClauseOnly|parser.ParseComments)
+	if err != nil {
+		return false, err
+	}
+	for _, group := range node.Comments {
+		if group.Pos() >= node.Package {
+			break
+		}
+		for _, comment := range group.List {
+			if compiles, ok := evalBuildConstraint(comment); !ok {
+				continue
+			} else if !compiles {
+				return false, nil
+			}
+		}
+	}
+	return true, nil
+}
+
+func evalBuildConstraint(comment *ast.Comment) (compiles bool, isConstraint bool) {
+	if !constraint.IsGoBuild(comment.Text) {
+		return false, false
+	}
+	expr, err := constraint.Parse(comment.Text)
+	if err != nil {
+		return false, false
+	}
+	return expr.Eval(noDefaultBuildTagsSet), true
+}
+
+func noDefaultBuildTagsSet(string) bool {
+	return false
 }
 
 func isAllowedCrossBCImport(ownerBC, importSuffix string) bool {
@@ -213,6 +254,52 @@ func TestNoCrossBoundedContextImports(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestIsProductionGoFileBuildTagClassification(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    bool
+	}{
+		{
+			name:    "GenuineIntegrationBuildTagIsExcluded",
+			content: "//go:build integration\n\npackage foo\n",
+			want:    false,
+		},
+		{
+			name:    "DecoyCommentMentioningTheStringIsIncluded",
+			content: "// this file mentions //go:build integration but is not a directive\n\npackage foo\n",
+			want:    true,
+		},
+		{
+			name:    "BuildTagAfterLicenseCommentBlockIsExcluded",
+			content: "// Copyright Example Corp\n// Licensed under the Example License\n\n//go:build integration\n\npackage foo\n",
+			want:    false,
+		},
+		{
+			name:    "NegatedIntegrationBuildTagIsIncluded",
+			content: "//go:build !integration\n\npackage foo\n",
+			want:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "sample.go")
+			if err := os.WriteFile(path, []byte(tt.content), 0o644); err != nil {
+				t.Fatalf("failed to write test file: %v", err)
+			}
+			info, err := os.Stat(path)
+			if err != nil {
+				t.Fatalf("failed to stat test file: %v", err)
+			}
+			if got := isProductionGoFile(info, path); got != tt.want {
+				t.Errorf("isProductionGoFile() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
 
 func TestPublishedLanguageContractsPurity(t *testing.T) {

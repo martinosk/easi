@@ -1,10 +1,5 @@
 package commands
 
-type CreateApplicationComponent struct {
-	Name        string
-	Description string
-}
+import "easi/backend/internal/architecturemodeling/publishedlanguage"
 
-func (c CreateApplicationComponent) CommandName() string {
-	return "CreateApplicationComponent"
-}
+type CreateApplicationComponent = publishedlanguage.CreateApplicationComponent

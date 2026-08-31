@@ -8,6 +8,7 @@ import (
 	"easi/backend/internal/architecturemodeling/application/projectors"
 	"easi/backend/internal/architecturemodeling/application/readmodels"
 	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
+	archPL "easi/backend/internal/architecturemodeling/publishedlanguage"
 
 	"github.com/stretchr/testify/require"
 )
@@ -26,14 +27,14 @@ func NewApplicationFixtures(tc *TestContext) *ApplicationFixtures {
 	relationRepo := repositories.NewComponentRelationRepository(tc.EventStore)
 
 	componentProjector := projectors.NewApplicationComponentProjector(componentReadModel)
-	tc.EventBus.Subscribe("ApplicationComponentCreated", componentProjector)
-	tc.EventBus.Subscribe("ApplicationComponentUpdated", componentProjector)
-	tc.EventBus.Subscribe("ApplicationComponentDeleted", componentProjector)
+	tc.EventBus.Subscribe(archPL.ApplicationComponentCreated, componentProjector)
+	tc.EventBus.Subscribe(archPL.ApplicationComponentUpdated, componentProjector)
+	tc.EventBus.Subscribe(archPL.ApplicationComponentDeleted, componentProjector)
 
 	relationProjector := projectors.NewComponentRelationProjector(relationReadModel)
-	tc.EventBus.Subscribe("ComponentRelationCreated", relationProjector)
-	tc.EventBus.Subscribe("ComponentRelationUpdated", relationProjector)
-	tc.EventBus.Subscribe("ComponentRelationDeleted", relationProjector)
+	tc.EventBus.Subscribe(archPL.ComponentRelationCreated, relationProjector)
+	tc.EventBus.Subscribe(archPL.ComponentRelationUpdated, relationProjector)
+	tc.EventBus.Subscribe(archPL.ComponentRelationDeleted, relationProjector)
 
 	createComponentHandler := handlers.NewCreateApplicationComponentHandler(componentRepo)
 	updateComponentHandler := handlers.NewUpdateApplicationComponentHandler(componentRepo)

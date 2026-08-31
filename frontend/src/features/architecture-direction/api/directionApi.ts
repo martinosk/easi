@@ -14,8 +14,8 @@ const path = (ecId: EnterpriseCapabilityId, suffix = '') =>
   `/api/v1/enterprise-capabilities/${ecId}/direction${suffix}`;
 
 export const directionApi = {
-  async getForEnterpriseCapability(id: EnterpriseCapabilityId): Promise<ECDirectionResponse> {
-    const response = await httpClient.get<ECDirectionResponse>(path(id));
+  async getForEnterpriseCapability(id: EnterpriseCapabilityId, href?: string): Promise<ECDirectionResponse> {
+    const response = await httpClient.get<ECDirectionResponse>(href ?? path(id));
     return response.data;
   },
 

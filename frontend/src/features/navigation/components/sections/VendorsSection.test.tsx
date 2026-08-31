@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from '../../../../test/helpers';
+import { seedOnePagerCompleteness } from '../../../../test/mocks/onePagerCompleteness';
 const render = (ui: ReactElement) => renderWithProviders(ui, { withRouter: false });
 import { describe, expect, it, vi } from 'vitest';
 import type { HATEOASLinks, Vendor, VendorId } from '../../../../api/types';
@@ -240,25 +241,27 @@ describe('VendorsSection', () => {
   });
 
   describe('one-pager completeness indicator', () => {
-    it('should show the indicator when onePagerComplete is false', () => {
-      const vendor = createMockVendor({ id: 'v-123' as VendorId, onePagerComplete: false });
-      render(<VendorsSection {...defaultProps} vendors={[vendor]} />);
+    it('shows the indicator only for subjects the completeness collection reports as incomplete', async () => {
+      seedOnePagerCompleteness('vendor', [
+        { subjectId: 'v-123', complete: false },
+        { subjectId: 'v-456', complete: true },
+      ]);
+      render(
+        <VendorsSection
+          {...defaultProps}
+          vendors={[createMockVendor({ id: 'v-123' as VendorId }), createMockVendor({ id: 'v-456' as VendorId, name: 'Other' })]}
+        />,
+      );
 
-      expect(screen.getByTestId('one-pager-incomplete-v-123')).toBeInTheDocument();
+      expect(await screen.findByTestId('one-pager-incomplete-v-123')).toBeInTheDocument();
+      expect(screen.queryByTestId('one-pager-incomplete-v-456')).not.toBeInTheDocument();
     });
 
-    it('should not show the indicator when onePagerComplete is true', () => {
-      const vendor = createMockVendor({ id: 'v-123' as VendorId, onePagerComplete: true });
-      render(<VendorsSection {...defaultProps} vendors={[vendor]} />);
+    it('shows no indicator when the subject type has no required field', async () => {
+      seedOnePagerCompleteness('vendor', []);
+      render(<VendorsSection {...defaultProps} vendors={[createMockVendor({ id: 'v-123' as VendorId })]} />);
 
-      expect(screen.queryByTestId('one-pager-incomplete-v-123')).not.toBeInTheDocument();
-    });
-
-    it('should not show the indicator when onePagerComplete is absent', () => {
-      const vendor = createMockVendor({ id: 'v-123' as VendorId });
-      render(<VendorsSection {...defaultProps} vendors={[vendor]} />);
-
-      expect(screen.queryByTestId('one-pager-incomplete-v-123')).not.toBeInTheDocument();
+      await waitFor(() => expect(screen.queryByTestId('one-pager-incomplete-v-123')).not.toBeInTheDocument());
     });
   });
 });

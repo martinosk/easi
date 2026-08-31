@@ -3,12 +3,15 @@ package api
 import (
 	"net/http"
 
+	"easi/backend/internal/archassistant/application/handlers"
 	"easi/backend/internal/archassistant/application/orchestrator"
 	"easi/backend/internal/archassistant/infrastructure/adapters"
 	"easi/backend/internal/archassistant/infrastructure/ratelimit"
 	"easi/backend/internal/archassistant/infrastructure/repositories"
 	authPL "easi/backend/internal/auth/publishedlanguage"
 	"easi/backend/internal/infrastructure/database"
+	sharedAPI "easi/backend/internal/shared/api"
+	"easi/backend/internal/shared/events"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -20,14 +23,18 @@ type AuthMiddleware interface {
 type ArchAssistantRoutesDeps struct {
 	Router          chi.Router
 	DB              *database.TenantAwareDB
+	EventBus        events.EventBus
+	HATEOAS         *sharedAPI.HATEOASLinks
 	AuthMiddleware  AuthMiddleware
-	RateLimiter     *ratelimit.Limiter
 	LoopbackBaseURL string
 }
 
 func SetupArchAssistantRoutes(deps ArchAssistantRoutesDeps) error {
 	aiConfigRepo := repositories.NewAIConfigurationRepository(deps.DB)
+	deps.EventBus.Subscribe(authPL.TenantCreated, handlers.NewTenantCreatedHandler(aiConfigRepo))
 	configHandlers := NewAIConfigHandlers(aiConfigRepo)
+	statusHandlers := NewAssistantStatusHandlers(adapters.NewAIConfigStatusAdapter(deps.DB), deps.HATEOAS)
+	deps.Router.With(deps.AuthMiddleware.RequirePermission(authPL.PermAssistantUse)).Get("/assistant/status", statusHandlers.GetStatus)
 
 	deps.Router.Route("/assistant-config", func(r chi.Router) {
 		r.Use(deps.AuthMiddleware.RequirePermission(authPL.PermMetaModelWrite))
@@ -42,7 +49,7 @@ func SetupArchAssistantRoutes(deps ArchAssistantRoutesDeps) error {
 	orch := orchestrator.New(convRepo, clientFactory)
 	convHandlers := NewConversationHandlers(ConversationHandlersDeps{
 		ConfigProvider:  configProvider,
-		RateLimiter:     deps.RateLimiter,
+		RateLimiter:     ratelimit.NewLimiter(),
 		Orchestrator:    orch,
 		ConvRepo:        convRepo,
 		LoopbackBaseURL: deps.LoopbackBaseURL,

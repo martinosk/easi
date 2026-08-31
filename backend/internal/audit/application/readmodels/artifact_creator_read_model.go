@@ -1,0 +1,80 @@
+package readmodels
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+
+	"github.com/lib/pq"
+
+	archPL "easi/backend/internal/architecturemodeling/publishedlanguage"
+	viewsPL "easi/backend/internal/architectureviews/publishedlanguage"
+	capPL "easi/backend/internal/capabilitymapping/publishedlanguage"
+	"easi/backend/internal/infrastructure/database"
+	sharedctx "easi/backend/internal/shared/context"
+)
+
+var artifactCreatorEventTypes = []string{
+	archPL.ApplicationComponentCreated,
+	capPL.CapabilityCreated,
+	archPL.VendorCreated,
+	archPL.InternalTeamCreated,
+	archPL.AcquiredEntityCreated,
+	viewsPL.ViewCreated,
+}
+
+type ArtifactCreator struct {
+	AggregateID string `json:"aggregateId"`
+	CreatorID   string `json:"creatorId"`
+}
+
+type ArtifactCreatorReader interface {
+	GetArtifactCreators(ctx context.Context) ([]ArtifactCreator, error)
+}
+
+type ArtifactCreatorReadModel struct {
+	db *database.TenantAwareDB
+}
+
+func NewArtifactCreatorReadModel(db *database.TenantAwareDB) *ArtifactCreatorReadModel {
+	return &ArtifactCreatorReadModel{db: db}
+}
+
+func (rm *ArtifactCreatorReadModel) GetArtifactCreators(ctx context.Context) ([]ArtifactCreator, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tenant from context: %w", err)
+	}
+
+	var creators []ArtifactCreator
+
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx, `
+			SELECT DISTINCT aggregate_id, actor_id
+			FROM infrastructure.events
+			WHERE tenant_id = $1
+			  AND version = 1
+			  AND event_type = ANY($2)
+		`, tenantID.Value(), pq.Array(artifactCreatorEventTypes))
+		if err != nil {
+			return fmt.Errorf("failed to query artifact creators: %w", err)
+		}
+		defer func() { _ = rows.Close() }()
+
+		for rows.Next() {
+			var creator ArtifactCreator
+			if err := rows.Scan(&creator.AggregateID, &creator.CreatorID); err != nil {
+				return fmt.Errorf("failed to scan artifact creator: %w", err)
+			}
+			creators = append(creators, creator)
+		}
+
+		return rows.Err()
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return creators, nil
+}

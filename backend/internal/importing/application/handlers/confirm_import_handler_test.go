@@ -7,58 +7,62 @@ import (
 	"testing"
 	"time"
 
+	amPL "easi/backend/internal/architecturemodeling/publishedlanguage"
+	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/importing/application/commands"
 	"easi/backend/internal/importing/application/parsers"
 	"easi/backend/internal/importing/application/ports"
 	"easi/backend/internal/importing/application/saga"
 	"easi/backend/internal/importing/infrastructure/repositories"
-	"easi/backend/internal/importing/publishedlanguage"
+	vsPL "easi/backend/internal/valuestreams/publishedlanguage"
 )
 
+type createComponentFunc func(ctx context.Context, cmd amPL.CreateApplicationComponent) (string, error)
+
 type stubComponentGateway struct {
-	createComponent func(ctx context.Context, name, description string) (string, error)
+	createComponent createComponentFunc
 }
 
-func (s stubComponentGateway) CreateComponent(ctx context.Context, name, description string) (string, error) {
+func (s stubComponentGateway) CreateComponent(ctx context.Context, cmd amPL.CreateApplicationComponent) (string, error) {
 	if s.createComponent != nil {
-		return s.createComponent(ctx, name, description)
+		return s.createComponent(ctx, cmd)
 	}
 	return "component-1", nil
 }
 
-func (s stubComponentGateway) CreateRelation(_ context.Context, _ publishedlanguage.CreateRelationInput) (string, error) {
+func (s stubComponentGateway) CreateRelation(_ context.Context, _ amPL.CreateComponentRelation) (string, error) {
 	return "relation-1", nil
 }
 
 type stubCapabilityGateway struct{}
 
-func (s stubCapabilityGateway) CreateCapability(_ context.Context, _ publishedlanguage.CreateCapabilityInput) (string, error) {
+func (s stubCapabilityGateway) CreateCapability(_ context.Context, _ cmPL.CreateCapability) (string, error) {
 	return "capability-1", nil
 }
 
-func (s stubCapabilityGateway) UpdateMetadata(_ context.Context, _, _, _ string) error {
+func (s stubCapabilityGateway) UpdateMetadata(_ context.Context, _ cmPL.UpdateCapabilityMetadata) error {
 	return nil
 }
 
-func (s stubCapabilityGateway) LinkSystem(_ context.Context, _ publishedlanguage.LinkSystemInput) (string, error) {
+func (s stubCapabilityGateway) LinkSystem(_ context.Context, _ cmPL.LinkSystemToCapability) (string, error) {
 	return "link-1", nil
 }
 
-func (s stubCapabilityGateway) AssignToDomain(_ context.Context, _, _ string) error {
+func (s stubCapabilityGateway) AssignToDomain(_ context.Context, _ cmPL.AssignCapabilityToDomain) error {
 	return nil
 }
 
 type stubValueStreamGateway struct{}
 
-func (s stubValueStreamGateway) CreateValueStream(_ context.Context, _, _ string) (string, error) {
+func (s stubValueStreamGateway) CreateValueStream(_ context.Context, _ vsPL.CreateValueStream) (string, error) {
 	return "valuestream-1", nil
 }
 
-func (s stubValueStreamGateway) AddStage(_ context.Context, _, _, _ string) (string, error) {
+func (s stubValueStreamGateway) AddStage(_ context.Context, _ vsPL.AddStage) (string, error) {
 	return "stage-1", nil
 }
 
-func (s stubValueStreamGateway) MapCapabilityToStage(_ context.Context, _, _, _ string) error {
+func (s stubValueStreamGateway) MapCapabilityToStage(_ context.Context, _ vsPL.AddStageCapability) error {
 	return nil
 }
 
@@ -84,13 +88,13 @@ func TestConfirmImportHandler_FailureScenarios(t *testing.T) {
 	scenarios := []struct {
 		name                 string
 		executionTimeout     time.Duration
-		createComponentFunc  func(context.Context, string, string) (string, error)
+		createComponent      createComponentFunc
 		expectedReasonSubstr string
 	}{
 		{
 			name:             "PanicMarksSessionFailed",
 			executionTimeout: 2 * time.Second,
-			createComponentFunc: func(_ context.Context, _, _ string) (string, error) {
+			createComponent: func(_ context.Context, _ amPL.CreateApplicationComponent) (string, error) {
 				panic("boom")
 			},
 			expectedReasonSubstr: "panic",
@@ -98,7 +102,7 @@ func TestConfirmImportHandler_FailureScenarios(t *testing.T) {
 		{
 			name:             "TimeoutMarksSessionFailed",
 			executionTimeout: 20 * time.Millisecond,
-			createComponentFunc: func(ctx context.Context, _, _ string) (string, error) {
+			createComponent: func(ctx context.Context, _ amPL.CreateApplicationComponent) (string, error) {
 				<-ctx.Done()
 				time.Sleep(50 * time.Millisecond)
 				return "", ctx.Err()
@@ -114,7 +118,7 @@ func TestConfirmImportHandler_FailureScenarios(t *testing.T) {
 			sessionID := createImportSessionForConfirmTests(t, repo)
 
 			componentGateway := stubComponentGateway{
-				createComponent: scenario.createComponentFunc,
+				createComponent: scenario.createComponent,
 			}
 			handler := newConfirmImportHandlerForTests(repo, componentGateway, context.Background(), scenario.executionTimeout)
 
@@ -142,7 +146,7 @@ func TestConfirmImportHandler_CancelledParentContextMarksSessionFailed(t *testin
 	cancelObserved := make(chan struct{}, 1)
 
 	componentGateway := stubComponentGateway{
-		createComponent: func(ctx context.Context, _, _ string) (string, error) {
+		createComponent: func(ctx context.Context, _ amPL.CreateApplicationComponent) (string, error) {
 			started <- struct{}{}
 			<-ctx.Done()
 			cancelObserved <- struct{}{}

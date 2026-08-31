@@ -70,11 +70,14 @@ func (m *mockMetadataStore) UpdateMaturityValue(ctx context.Context, capabilityI
 	return nil
 }
 
+type stubBusinessDomainNameReader struct{}
+
+func (stubBusinessDomainNameReader) Name(_ context.Context, businessDomainID string) (string, error) {
+	return "Domain " + businessDomainID, nil
+}
+
 func newMetadataProjectorWithMock(mock *mockMetadataStore) *DomainCapabilityMetadataProjector {
-	domainNames := func(_ context.Context, businessDomainID string) (string, error) {
-		return "Domain " + businessDomainID, nil
-	}
-	return NewDomainCapabilityMetadataProjector(mock, domainNames)
+	return NewDomainCapabilityMetadataProjector(mock, stubBusinessDomainNameReader{})
 }
 
 func TestMetadataProjector_AssignToDomain_ResolvesNameFromBusinessDomainLookup(t *testing.T) {

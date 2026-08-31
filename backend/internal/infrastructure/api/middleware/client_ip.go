@@ -35,3 +35,12 @@ func remoteAddrHost(r *http.Request) string {
 	}
 	return host
 }
+
+func IsLoopback(r *http.Request) bool {
+	ip := net.ParseIP(remoteAddrHost(r))
+	return ip != nil && ip.IsLoopback()
+}
+
+func RequestClientIP(r *http.Request) string {
+	return getClientIP(r)
+}

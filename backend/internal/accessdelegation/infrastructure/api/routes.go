@@ -2,7 +2,6 @@ package api
 
 import (
 	"easi/backend/internal/accessdelegation/application/handlers"
-	"easi/backend/internal/accessdelegation/application/ports"
 	"easi/backend/internal/accessdelegation/application/projectors"
 	"easi/backend/internal/accessdelegation/application/readmodels"
 	"easi/backend/internal/accessdelegation/infrastructure/repositories"
@@ -33,10 +32,6 @@ type AccessDelegationRoutesDeps struct {
 	DB             *database.TenantAwareDB
 	HATEOAS        *sharedAPI.HATEOASLinks
 	AuthMiddleware AuthMiddleware
-	NameLookups    adServices.ArtifactNameResolverDeps
-	UserLookup     ports.UserEmailLookup
-	InvChecker     ports.InvitationChecker
-	DomainChecker  ports.DomainAllowlistChecker
 }
 
 type AccessDelegationDependencies struct {
@@ -53,22 +48,18 @@ func (d *AccessDelegationDependencies) RegisterRoutes(r chi.Router) {
 func SetupAccessDelegationRoutes(deps AccessDelegationRoutesDeps) (*AccessDelegationDependencies, error) {
 	repo := repositories.NewEditGrantRepository(deps.EventStore)
 	readModel := readmodels.NewEditGrantReadModel(deps.DB)
+	nameCache := readmodels.NewArtifactNameCacheReadModel(deps.DB)
 
 	registerCommandHandlers(deps.CommandBus, repo)
 	registerEventSubscriptions(deps.EventBus, readModel)
 	registerArtifactDeletionSubscriptions(deps.EventBus, readModel, deps.CommandBus)
-
-	nameResolver := adServices.NewArtifactNameResolver(deps.NameLookups)
+	registerArtifactNameSubscriptions(deps.EventBus, nameCache)
 
 	httpHandlers := NewEditGrantHandlers(EditGrantHandlerDeps{
-		CommandBus:    deps.CommandBus,
-		ReadModel:     readModel,
-		Hateoas:       NewEditGrantLinks(deps.HATEOAS),
-		NameResolver:  nameResolver,
-		UserLookup:    deps.UserLookup,
-		InvChecker:    deps.InvChecker,
-		DomainChecker: deps.DomainChecker,
-		EventBus:      deps.EventBus,
+		CommandBus:   deps.CommandBus,
+		ReadModel:    readModel,
+		Hateoas:      NewEditGrantLinks(deps.HATEOAS),
+		NameResolver: adServices.NewArtifactNameResolver(nameCache),
 	})
 	rateLimiter := middleware.NewRateLimiter(100, 60)
 
@@ -93,21 +84,25 @@ func registerEventSubscriptions(eventBus *events.InMemoryEventBus, readModel *re
 }
 
 func registerArtifactDeletionSubscriptions(eventBus *events.InMemoryEventBus, readModel *readmodels.EditGrantReadModel, commandBus cqrs.CommandBus) {
-	capabilityDeletionProjector := projectors.NewArtifactDeletionProjector(readModel, commandBus, "capability")
-	componentDeletionProjector := projectors.NewArtifactDeletionProjector(readModel, commandBus, "component")
-	viewDeletionProjector := projectors.NewArtifactDeletionProjector(readModel, commandBus, "view")
-	domainDeletionProjector := projectors.NewArtifactDeletionProjector(readModel, commandBus, "domain")
-	acquiredEntityDeletionProjector := projectors.NewArtifactDeletionProjector(readModel, commandBus, "acquired_entity")
-	vendorDeletionProjector := projectors.NewArtifactDeletionProjector(readModel, commandBus, "vendor")
-	internalTeamDeletionProjector := projectors.NewArtifactDeletionProjector(readModel, commandBus, "internal_team")
+	deletionEvents := map[string]string{
+		capPL.CapabilityDeleted:            projectors.CapabilityArtifact,
+		archPL.ApplicationComponentDeleted: projectors.ComponentArtifact,
+		viewsPL.ViewDeleted:                projectors.ViewArtifact,
+		capPL.BusinessDomainDeleted:        projectors.DomainArtifact,
+		archPL.AcquiredEntityDeleted:       projectors.AcquiredEntityArtifact,
+		archPL.VendorDeleted:               projectors.VendorArtifact,
+		archPL.InternalTeamDeleted:         projectors.InternalTeamArtifact,
+	}
+	for eventType, artifactType := range deletionEvents {
+		eventBus.Subscribe(eventType, projectors.NewArtifactDeletionProjector(readModel, commandBus, artifactType))
+	}
+}
 
-	eventBus.Subscribe(capPL.CapabilityDeleted, capabilityDeletionProjector)
-	eventBus.Subscribe(archPL.ApplicationComponentDeleted, componentDeletionProjector)
-	eventBus.Subscribe(viewsPL.ViewDeleted, viewDeletionProjector)
-	eventBus.Subscribe(capPL.BusinessDomainDeleted, domainDeletionProjector)
-	eventBus.Subscribe(archPL.AcquiredEntityDeleted, acquiredEntityDeletionProjector)
-	eventBus.Subscribe(archPL.VendorDeleted, vendorDeletionProjector)
-	eventBus.Subscribe(archPL.InternalTeamDeleted, internalTeamDeletionProjector)
+func registerArtifactNameSubscriptions(eventBus *events.InMemoryEventBus, nameCache *readmodels.ArtifactNameCacheReadModel) {
+	projector := projectors.NewArtifactNameCacheProjector(nameCache)
+	for _, eventType := range projector.SubscribedEventTypes() {
+		eventBus.Subscribe(eventType, projector)
+	}
 }
 
 func registerRoutes(r chi.Router, h *EditGrantHandlers, authMiddleware AuthMiddleware, rateLimiter *middleware.RateLimiter) {

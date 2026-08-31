@@ -40,7 +40,6 @@ type CapabilityDTO struct {
 	Experts          []ExpertDTO         `json:"experts,omitempty"`
 	Tags             []string            `json:"tags,omitempty"`
 	CreatedAt        time.Time           `json:"createdAt"`
-	OnePagerComplete *bool               `json:"onePagerComplete,omitempty"`
 	Links            types.Links         `json:"_links,omitempty"`
 	XRelated         []types.RelatedLink `json:"-"`
 }

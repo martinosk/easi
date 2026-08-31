@@ -18,8 +18,6 @@ func (h *EnterpriseArchLinks) EnterpriseCapabilityLinksForActor(id string, actor
 	links := sharedAPI.Links{
 		"self":                   h.Get(p),
 		"x-strategic-importance": h.Get(p + "/strategic-importance"),
-		"x-direction":            h.Get(p + "/direction"),
-		"x-composition":          h.Get(p + "/composition"),
 		"x-one-pager":            h.Get("/one-pagers/enterprise-capability/" + id),
 	}
 	if actor.CanWrite("enterprise-arch") {
@@ -59,26 +57,6 @@ func (h *EnterpriseArchLinks) EnterpriseStrategicImportanceCollectionLinks(ecID 
 	return sharedAPI.Links{
 		"self":                    h.Get("/enterprise-capabilities/" + ecID + "/strategic-importance"),
 		"x-enterprise-capability": h.Get("/enterprise-capabilities/" + ecID),
-	}
-}
-
-func (h *EnterpriseArchLinks) MaturityAnalysisCandidateLinks(ecID string) sharedAPI.Links {
-	return sharedAPI.Links{
-		"self":           h.Get("/enterprise-capabilities/" + ecID),
-		"x-maturity-gap": h.Get("/enterprise-capabilities/" + ecID + "/maturity-gap"),
-	}
-}
-
-func (h *EnterpriseArchLinks) MaturityAnalysisCollectionLinks() sharedAPI.Links {
-	return sharedAPI.Links{"self": h.Get("/enterprise-capabilities/maturity-analysis")}
-}
-
-func (h *EnterpriseArchLinks) MaturityGapDetailLinks(ecID string) sharedAPI.Links {
-	p := "/enterprise-capabilities/" + ecID
-	return sharedAPI.Links{
-		"self":                  h.Get(p + "/maturity-gap"),
-		"up":                    h.Get(p),
-		"x-set-target-maturity": h.Put(p + "/target-maturity"),
 	}
 }
 

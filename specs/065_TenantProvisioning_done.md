@@ -1,6 +1,7 @@
 # 065 - Tenant Provisioning
 
 **Depends on:** None (first slice)
+**Amended by:** 209 (Events-Only Context Integration) — the first-admin invitation is created by Auth reacting to `TenantCreated` (which now carries the OIDC configuration); `POST /tenants/{id}/invitations` is replaced by `POST /auth/invitations`; Auth caches tenants, domains and OIDC configuration instead of reading `platform.*`
 
 ## Description
 Minimum viable tenant provisioning. Platform admin can create a new tenant with OIDC configuration, email domain, and first admin invitation.

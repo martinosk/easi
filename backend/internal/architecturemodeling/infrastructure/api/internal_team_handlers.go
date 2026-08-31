@@ -15,21 +15,18 @@ type InternalTeamHandlers struct {
 	readModel        *readmodels.InternalTeamReadModel
 	paginationHelper *sharedAPI.PaginationHelper
 	hateoas          *ArchitectureModelingLinks
-	completeness     OnePagerCompletenessSource
 }
 
 func NewInternalTeamHandlers(
 	commandBus cqrs.CommandBus,
 	readModel *readmodels.InternalTeamReadModel,
 	hateoas *ArchitectureModelingLinks,
-	completeness OnePagerCompletenessSource,
 ) *InternalTeamHandlers {
 	return &InternalTeamHandlers{
 		commandBus:       commandBus,
 		readModel:        readModel,
 		paginationHelper: sharedAPI.NewPaginationHelper("/api/v1/internal-teams"),
 		hateoas:          hateoas,
-		completeness:     completeness,
 	}
 }
 
@@ -118,11 +115,6 @@ func (h *InternalTeamHandlers) GetAllInternalTeams(w http.ResponseWriter, r *htt
 	teams, hasMore, err := h.readModel.GetAllPaginated(r.Context(), params.Limit, afterID, afterName)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve internal teams")
-		return
-	}
-
-	if err := decorateInternalTeamsOnePagerCompleteness(r.Context(), h.completeness, teams); err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to evaluate one-pager completeness")
 		return
 	}
 

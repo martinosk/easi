@@ -1,10 +1,5 @@
 package commands
 
-type AssignCapabilityToDomain struct {
-	BusinessDomainID string
-	CapabilityID     string
-}
+import "easi/backend/internal/capabilitymapping/publishedlanguage"
 
-func (c AssignCapabilityToDomain) CommandName() string {
-	return "AssignCapabilityToDomain"
-}
+type AssignCapabilityToDomain = publishedlanguage.AssignCapabilityToDomain

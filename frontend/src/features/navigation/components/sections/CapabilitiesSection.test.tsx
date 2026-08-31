@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from '../../../../test/helpers';
+import { seedOnePagerCompleteness } from '../../../../test/mocks/onePagerCompleteness';
 const render = (ui: ReactElement) => renderWithProviders(ui, { withRouter: false });
 import { describe, expect, it, vi } from 'vitest';
 import type { Capability, CapabilityId, HATEOASLinks } from '../../../../api/types';
@@ -261,22 +262,25 @@ describe('CapabilitiesSection', () => {
   });
 
   describe('one-pager completeness indicator', () => {
-    it('should show the indicator when onePagerComplete is false', () => {
-      renderWithCapabilities([createCapability({ id: 'cap-1' as CapabilityId, onePagerComplete: false })]);
+    it('shows the indicator only for capabilities the completeness collection reports as incomplete', async () => {
+      seedOnePagerCompleteness('capability', [
+        { subjectId: 'cap-1', complete: false },
+        { subjectId: 'cap-2', complete: true },
+      ]);
+      renderWithCapabilities([
+        createCapability({ id: 'cap-1' as CapabilityId }),
+        createCapability({ id: 'cap-2' as CapabilityId, name: 'Second' }),
+      ]);
 
-      expect(screen.getByTestId('one-pager-incomplete-cap-1')).toBeInTheDocument();
+      expect(await screen.findByTestId('one-pager-incomplete-cap-1')).toBeInTheDocument();
+      expect(screen.queryByTestId('one-pager-incomplete-cap-2')).not.toBeInTheDocument();
     });
 
-    it('should not show the indicator when onePagerComplete is true', () => {
-      renderWithCapabilities([createCapability({ id: 'cap-1' as CapabilityId, onePagerComplete: true })]);
-
-      expect(screen.queryByTestId('one-pager-incomplete-cap-1')).not.toBeInTheDocument();
-    });
-
-    it('should not show the indicator when onePagerComplete is absent', () => {
+    it('shows no indicator when the subject type has no required field', async () => {
+      seedOnePagerCompleteness('capability', []);
       renderWithCapabilities([createCapability({ id: 'cap-1' as CapabilityId })]);
 
-      expect(screen.queryByTestId('one-pager-incomplete-cap-1')).not.toBeInTheDocument();
+      await waitFor(() => expect(screen.queryByTestId('one-pager-incomplete-cap-1')).not.toBeInTheDocument());
     });
   });
 });

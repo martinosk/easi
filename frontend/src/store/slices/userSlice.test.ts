@@ -131,7 +131,7 @@ describe('userSlice', () => {
     await loadSession(store, {
       _links: {
         ...mockSessionResponse._links,
-        'x-assistant': '/api/v1/assistant/conversations',
+        'x-assistant-status': '/api/v1/assistant/status',
       },
     });
 
@@ -140,7 +140,7 @@ describe('userSlice', () => {
       logout: '/auth/sessions/current',
       user: '/api/v1/users/user-123',
       tenant: '/api/v1/tenants/current',
-      'x-assistant': '/api/v1/assistant/conversations',
+      'x-assistant-status': '/api/v1/assistant/status',
     });
   });
 
@@ -155,7 +155,7 @@ describe('userSlice', () => {
     await loadSession(store, {
       _links: {
         ...mockSessionResponse._links,
-        'x-assistant': '/api/v1/assistant/conversations',
+        'x-assistant-status': '/api/v1/assistant/status',
       },
     });
 

@@ -8,6 +8,11 @@ export const enterpriseCapabilitiesQueryKeys = {
   maturityGap: (id: string) => [...enterpriseCapabilitiesQueryKeys.detail(id), 'maturityGap'] as const,
 };
 
+export const compositionSummariesQueryKeys = {
+  all: ['enterpriseCapabilityCompositions'] as const,
+  lists: () => [...compositionSummariesQueryKeys.all, 'list'] as const,
+};
+
 export const maturityAnalysisQueryKeys = {
   all: ['maturityAnalysis'] as const,
   candidates: (sortBy?: string) => [...maturityAnalysisQueryKeys.all, 'candidates', sortBy] as const,

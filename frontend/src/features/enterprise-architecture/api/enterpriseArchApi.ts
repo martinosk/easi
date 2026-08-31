@@ -2,6 +2,8 @@ import { httpClient } from '../../../api/core/httpClient';
 import type { StrategicFitAnalysis } from '../../../api/types';
 import type {
   CompositionResponse,
+  CompositionSummariesResponse,
+  CompositionSummary,
   CreateEnterpriseCapabilityRequest,
   EnterpriseCapabilitiesListResponse,
   EnterpriseCapability,
@@ -44,9 +46,16 @@ export const enterpriseArchApi = {
     return response.data;
   },
 
-  async getComposition(id: EnterpriseCapabilityId): Promise<CompositionResponse> {
-    const response = await httpClient.get<CompositionResponse>(`/api/v1/enterprise-capabilities/${id}/composition`);
+  async getComposition(id: EnterpriseCapabilityId, href?: string): Promise<CompositionResponse> {
+    const response = await httpClient.get<CompositionResponse>(
+      href ?? `/api/v1/enterprise-capabilities/${id}/composition`,
+    );
     return response.data;
+  },
+
+  async getCompositionSummaries(): Promise<CompositionSummary[]> {
+    const response = await httpClient.get<CompositionSummariesResponse>('/api/v1/enterprise-capability-compositions');
+    return response.data.data;
   },
 
   async create(request: CreateEnterpriseCapabilityRequest): Promise<EnterpriseCapability> {

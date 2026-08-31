@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from '../../../../test/helpers';
+import { seedOnePagerCompleteness } from '../../../../test/mocks/onePagerCompleteness';
 const render = (ui: ReactElement) => renderWithProviders(ui, { withRouter: false });
 import { describe, expect, it, vi } from 'vitest';
 import type { Component, ComponentId, HATEOASLinks } from '../../../../api/types';
@@ -42,25 +43,32 @@ describe('ApplicationsSection', () => {
   };
 
   describe('one-pager completeness indicator', () => {
-    it('should show the indicator when onePagerComplete is false', () => {
-      const component = createMockComponent({ id: 'comp-123' as ComponentId, onePagerComplete: false });
-      render(<ApplicationsSection {...defaultProps} components={[component]} />);
+    it('shows the indicator only for applications the completeness collection reports as incomplete', async () => {
+      seedOnePagerCompleteness('application', [
+        { subjectId: 'comp-123', complete: false },
+        { subjectId: 'comp-456', complete: true },
+      ]);
+      render(
+        <ApplicationsSection
+          {...defaultProps}
+          components={[
+            createMockComponent({ id: 'comp-123' as ComponentId }),
+            createMockComponent({ id: 'comp-456' as ComponentId, name: 'Other System' }),
+          ]}
+        />,
+      );
 
-      expect(screen.getByTestId('one-pager-incomplete-comp-123')).toBeInTheDocument();
+      expect(await screen.findByTestId('one-pager-incomplete-comp-123')).toBeInTheDocument();
+      expect(screen.queryByTestId('one-pager-incomplete-comp-456')).not.toBeInTheDocument();
     });
 
-    it('should not show the indicator when onePagerComplete is true', () => {
-      const component = createMockComponent({ id: 'comp-123' as ComponentId, onePagerComplete: true });
-      render(<ApplicationsSection {...defaultProps} components={[component]} />);
+    it('shows no indicator when the subject type has no required field', async () => {
+      seedOnePagerCompleteness('application', []);
+      render(
+        <ApplicationsSection {...defaultProps} components={[createMockComponent({ id: 'comp-123' as ComponentId })]} />,
+      );
 
-      expect(screen.queryByTestId('one-pager-incomplete-comp-123')).not.toBeInTheDocument();
-    });
-
-    it('should not show the indicator when onePagerComplete is absent', () => {
-      const component = createMockComponent({ id: 'comp-123' as ComponentId });
-      render(<ApplicationsSection {...defaultProps} components={[component]} />);
-
-      expect(screen.queryByTestId('one-pager-incomplete-comp-123')).not.toBeInTheDocument();
+      await waitFor(() => expect(screen.queryByTestId('one-pager-incomplete-comp-123')).not.toBeInTheDocument());
     });
   });
 });

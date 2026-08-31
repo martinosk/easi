@@ -83,25 +83,19 @@ func (t *TenantAwareDB) WithTenantContext(ctx context.Context, fn func(*sql.Conn
 // This is the RECOMMENDED and CORRECT way to execute read queries with RLS
 // It ensures proper connection lifecycle management and prevents connection leaks
 func (t *TenantAwareDB) WithReadOnlyTx(ctx context.Context, fn func(*sql.Tx) error) error {
-	// Begin read-only transaction with tenant context already set
-	tx, err := t.BeginTxWithTenant(ctx, &sql.TxOptions{ReadOnly: true})
-	if err != nil {
-		return err
+	if tx, ok := TxFromContext(ctx); ok {
+		return fn(tx)
 	}
 
-	// Execute function
-	err = fn(tx)
-	if err != nil {
-		_ = tx.Rollback()
-		return err
-	}
-
-	// Commit to release connection back to pool
-	return tx.Commit()
+	return t.runInOwnTx(ctx, &sql.TxOptions{ReadOnly: true}, fn)
 }
 
 // ExecContext executes a query without returning any rows
 func (t *TenantAwareDB) ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
+	if tx, ok := TxFromContext(ctx); ok {
+		return tx.ExecContext(ctx, query, args...)
+	}
+
 	var result sql.Result
 	var execErr error
 
@@ -114,6 +108,30 @@ func (t *TenantAwareDB) ExecContext(ctx context.Context, query string, args ...i
 		return nil, err
 	}
 	return result, nil
+}
+
+func (t *TenantAwareDB) RunInTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	if _, ok := TxFromContext(ctx); ok {
+		return fn(ctx)
+	}
+
+	return t.runInOwnTx(ctx, nil, func(tx *sql.Tx) error {
+		return fn(WithTx(ctx, tx))
+	})
+}
+
+func (t *TenantAwareDB) runInOwnTx(ctx context.Context, opts *sql.TxOptions, fn func(*sql.Tx) error) error {
+	tx, err := t.BeginTxWithTenant(ctx, opts)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if err := fn(tx); err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
 // BeginTxWithTenant begins a transaction with tenant context set

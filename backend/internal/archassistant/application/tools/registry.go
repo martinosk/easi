@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	pl "easi/backend/internal/archassistant/publishedlanguage"
+	pl "easi/backend/internal/shared/agenttools"
 )
 
 type AccessClass = pl.AccessClass

@@ -1,7 +1,9 @@
 import '@testing-library/jest-dom/vitest';
 import { act, cleanup } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, beforeEach, expect } from 'vitest';
+import { resetAssistantStatus } from './mocks/assistantStatus';
 import { resetDb } from './mocks/db';
+import { resetOnePagerCompleteness } from './mocks/onePagerCompleteness';
 import { server } from './mocks/server';
 import { resetSpec172Db } from './mocks/spec172/store';
 import { resetSpec180Db } from './mocks/spec180/store';
@@ -65,7 +67,9 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
+  resetAssistantStatus();
   resetDb();
+  resetOnePagerCompleteness();
   resetSpec172Db();
   resetSpec180Db();
   resetSpec181Db();

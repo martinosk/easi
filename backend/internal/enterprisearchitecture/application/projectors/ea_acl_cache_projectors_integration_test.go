@@ -75,9 +75,7 @@ func setupACLCacheTest(t *testing.T) *aclCacheTestFixture {
 		realizationProjector: NewEARealizationCacheProjector(realizationRM),
 		importanceProjector:  NewEAImportanceCacheProjector(importanceRM),
 		fitScoreProjector:    NewEAFitScoreCacheProjector(fitScoreRM),
-		metadataProjector: NewDomainCapabilityMetadataProjector(metadataRM, func(_ context.Context, businessDomainID string) (string, error) {
-			return "Domain " + businessDomainID, nil
-		}),
+		metadataProjector: NewDomainCapabilityMetadataProjector(metadataRM, stubBusinessDomainNameReader{}),
 	}
 }
 

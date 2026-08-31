@@ -21,6 +21,9 @@ func NewInMemoryCommandBus() *InMemoryCommandBus {
 func (b *InMemoryCommandBus) Register(commandName string, handler CommandHandler) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if _, exists := b.handlers[commandName]; exists {
+		panic(fmt.Sprintf("cqrs: command %q is already registered", commandName))
+	}
 	b.handlers[commandName] = handler
 }
 

@@ -69,6 +69,14 @@ func (p *Projector) ProjectEvent(ctx context.Context, eventType string, eventDat
 | `adPL` | `accessdelegation/publishedlanguage` |
 | `vsPL` | `valuestreams/publishedlanguage` |
 | `adirPL` | `architecturedirection/publishedlanguage` |
+| `eaPL` | `enterprisearchitecture/publishedlanguage` |
+| `authPL` | `auth/publishedlanguage` |
+
+## Delivery Semantics
+
+`PostgresEventStore.SaveEvents` publishes to every subscriber on the same database transaction that inserts the event row, before that transaction commits (`backend/internal/infrastructure/eventstore/event_store.go`). A subscriber that returns an error — including one raised by a command it dispatches, which nests into the same transaction via `database.WithTx`/`TxFromContext` — rolls back the whole write: the event row, every cache write any subscriber made, and, when the producer itself joined a caller's transaction (as the merged create-tenant handler does via `TenantAwareDB.RunInTx`), the caller's own relational writes too. The caller gets the error back; nothing is left half-committed to retry against.
+
+This means every subscriber (projector, reactor, deletion handler) must stay **database-only**. No outbound HTTP call, no email, no file I/O, no LLM/AI-provider call, no long-running computation — any such side effect would now execute while holding the producing write's transaction open, and would not automatically retry or compensate on a later rollback. A subscriber that legitimately needs a non-database side effect belongs outside this synchronous path (e.g. dispatched from a projected read model after commit), not inside an event handler.
 
 ## Complete Event Constants Catalogue
 
@@ -76,13 +84,33 @@ func (p *Projector) ProjectEvent(ctx context.Context, eventType string, eventDat
 
 ```go
 const (
-    ApplicationComponentCreated = "ApplicationComponentCreated"
-    ApplicationComponentUpdated = "ApplicationComponentUpdated"
-    ApplicationComponentDeleted = "ApplicationComponentDeleted"
-    ComponentRelationDeleted    = "ComponentRelationDeleted"
-    AcquiredEntityDeleted       = "AcquiredEntityDeleted"
-    VendorDeleted               = "VendorDeleted"
-    InternalTeamDeleted         = "InternalTeamDeleted"
+    ApplicationComponentCreated       = "ApplicationComponentCreated"
+    ApplicationComponentUpdated       = "ApplicationComponentUpdated"
+    ApplicationComponentDeleted       = "ApplicationComponentDeleted"
+    ApplicationComponentExpertAdded   = "ApplicationComponentExpertAdded"
+    ApplicationComponentExpertRemoved = "ApplicationComponentExpertRemoved"
+
+    ComponentRelationCreated = "ComponentRelationCreated"
+    ComponentRelationUpdated = "ComponentRelationUpdated"
+    ComponentRelationDeleted = "ComponentRelationDeleted"
+
+    AcquiredEntityCreated = "AcquiredEntityCreated"
+    AcquiredEntityUpdated = "AcquiredEntityUpdated"
+    AcquiredEntityDeleted = "AcquiredEntityDeleted"
+
+    VendorCreated = "VendorCreated"
+    VendorUpdated = "VendorUpdated"
+    VendorDeleted = "VendorDeleted"
+
+    InternalTeamCreated = "InternalTeamCreated"
+    InternalTeamUpdated = "InternalTeamUpdated"
+    InternalTeamDeleted = "InternalTeamDeleted"
+
+    OriginLinkSet          = "OriginLinkSet"
+    OriginLinkReplaced     = "OriginLinkReplaced"
+    OriginLinkNotesUpdated = "OriginLinkNotesUpdated"
+    OriginLinkCleared      = "OriginLinkCleared"
+    OriginLinkDeleted      = "OriginLinkDeleted"
 )
 ```
 
@@ -102,7 +130,7 @@ const (
 
 ### Capability Mapping (`cmPL`)
 
-Cross-context constants live in `events.go`; intra-context constants live in `internal_events.go`.
+Cross-context constants live in `events.go`; intra-context constants live in `internal_events.go` — both are listed below since spec 209 added cross-context consumers (OnePagers) for several events that were originally intra-context only.
 
 ```go
 const (
@@ -114,14 +142,30 @@ const (
     CapabilityLevelChanged         = "CapabilityLevelChanged"
     CapabilityAssignedToDomain     = "CapabilityAssignedToDomain"
     CapabilityUnassignedFromDomain = "CapabilityUnassignedFromDomain"
-    SystemLinkedToCapability       = "SystemLinkedToCapability"
-    SystemRealizationDeleted       = "SystemRealizationDeleted"
-    BusinessDomainCreated          = "BusinessDomainCreated"
-    BusinessDomainUpdated          = "BusinessDomainUpdated"
-    BusinessDomainDeleted          = "BusinessDomainDeleted"
+
+    SystemLinkedToCapability = "SystemLinkedToCapability"
+    SystemRealizationDeleted = "SystemRealizationDeleted"
+
+    BusinessDomainCreated = "BusinessDomainCreated"
+    BusinessDomainUpdated = "BusinessDomainUpdated"
+    BusinessDomainDeleted = "BusinessDomainDeleted"
+
     EffectiveImportanceRecalculated = "EffectiveImportanceRecalculated"
     ApplicationFitScoreSet          = "ApplicationFitScoreSet"
+    ApplicationFitScoreUpdated      = "ApplicationFitScoreUpdated"
     ApplicationFitScoreRemoved      = "ApplicationFitScoreRemoved"
+
+    CapabilityExpertAdded             = "CapabilityExpertAdded"
+    CapabilityExpertRemoved           = "CapabilityExpertRemoved"
+    CapabilityTagAdded                = "CapabilityTagAdded"
+    CapabilityDependencyCreated       = "CapabilityDependencyCreated"
+    CapabilityDependencyDeleted       = "CapabilityDependencyDeleted"
+    SystemRealizationUpdated          = "SystemRealizationUpdated"
+    CapabilityRealizationsInherited   = "CapabilityRealizationsInherited"
+    CapabilityRealizationsUninherited = "CapabilityRealizationsUninherited"
+    StrategyImportanceSet             = "StrategyImportanceSet"
+    StrategyImportanceUpdated         = "StrategyImportanceUpdated"
+    StrategyImportanceRemoved         = "StrategyImportanceRemoved"
 )
 ```
 
@@ -129,7 +173,13 @@ const (
 
 ```go
 const (
-    ViewDeleted = "ViewDeleted"
+    ViewCreated              = "ViewCreated"
+    ViewRenamed              = "ViewRenamed"
+    ViewDeleted              = "ViewDeleted"
+    ViewVisibilityChanged    = "ViewVisibilityChanged"
+    DefaultViewChanged       = "DefaultViewChanged"
+    ComponentAddedToView     = "ComponentAddedToView"
+    ComponentRemovedFromView = "ComponentRemovedFromView"
 )
 ```
 
@@ -174,6 +224,57 @@ const (
     DirectionSourceCapabilitiesChanged = "DirectionSourceCapabilitiesChanged"
 
     StandardApplicationSet = "StandardApplicationSet"
+
+    TimeAssessmentRecorded = "TimeAssessmentRecorded"
+    TimeAssessmentRemoved  = "TimeAssessmentRemoved"
+
+    RealizationRoleAssigned = "RealizationRoleAssigned"
+    RealizationRoleCleared  = "RealizationRoleCleared"
+
+    JourneyPlanned                   = "JourneyPlanned"
+    JourneyStarted                   = "JourneyStarted"
+    JourneyCompleted                 = "JourneyCompleted"
+    JourneyAbandoned                 = "JourneyAbandoned"
+    JourneyProgressUpdated           = "JourneyProgressUpdated"
+    JourneyDetailsUpdated            = "JourneyDetailsUpdated"
+    JourneyMilestoneAdded            = "JourneyMilestoneAdded"
+    JourneyMilestoneUpdated          = "JourneyMilestoneUpdated"
+    JourneyMilestoneRemoved          = "JourneyMilestoneRemoved"
+    JourneyMilestonesReordered       = "JourneyMilestonesReordered"
+    JourneySourceApplicationsChanged = "JourneySourceApplicationsChanged"
+)
+```
+
+### Enterprise Architecture (`eaPL`)
+
+```go
+const (
+    EnterpriseCapabilityCreated           = "EnterpriseCapabilityCreated"
+    EnterpriseCapabilityUpdated           = "EnterpriseCapabilityUpdated"
+    EnterpriseCapabilityDeleted           = "EnterpriseCapabilityDeleted"
+    EnterpriseCapabilityTargetMaturitySet = "EnterpriseCapabilityTargetMaturitySet"
+
+    EnterpriseStrategicImportanceSet     = "EnterpriseStrategicImportanceSet"
+    EnterpriseStrategicImportanceUpdated = "EnterpriseStrategicImportanceUpdated"
+    EnterpriseStrategicImportanceRemoved = "EnterpriseStrategicImportanceRemoved"
+)
+```
+
+### Auth (`authPL`)
+
+```go
+const (
+    UserCreated     = "UserCreated"
+    UserRoleChanged = "UserRoleChanged"
+    UserDisabled    = "UserDisabled"
+    UserEnabled     = "UserEnabled"
+
+    InvitationCreated  = "InvitationCreated"
+    InvitationAccepted = "InvitationAccepted"
+    InvitationRevoked  = "InvitationRevoked"
+    InvitationExpired  = "InvitationExpired"
+
+    TenantCreated = "TenantCreated"
 )
 ```
 
@@ -224,6 +325,7 @@ Every event subscription that crosses a bounded context boundary is documented b
 | `CapabilityParentChanged` | `DomainCapabilityMetadataProjector`, `EnterpriseCapabilityLinkProjector` | same + `subscribeLinkEvents()` | Recalculate L1 ancestry; recompute blocking relationships for subtree |
 | `CapabilityAssignedToDomain` | `DomainCapabilityMetadataProjector` | `subscribeCapabilityMappingEvents()` | Update business domain for L1 subtree, recalculate enterprise domain counts |
 | `CapabilityUnassignedFromDomain` | `DomainCapabilityMetadataProjector` | same | Clear business domain for L1 subtree, recalculate counts |
+| `BusinessDomainCreated` / `Updated` / `Deleted` | `BusinessDomainNameCacheProjector` | same | Business-domain name cache read by the metadata projector at assignment time (spec 209) |
 
 **MetaModel** (`mmPL`):
 
@@ -269,15 +371,42 @@ Every event subscription that crosses a bounded context boundary is documented b
 |-------|-----------|----------|---------|
 | `ViewDeleted` | `ArtifactDeletionProjector` (view) | same | Revoke all edit grants for deleted view |
 
-### Auth consumes from:
+**Artifact name cache** (spec 209) — `ArtifactNameCacheProjector`, wired in `registerArtifactNameSubscriptions()`:
 
-**Access Delegation** (`adPL`):
+| Supplier | Events | Purpose |
+|----------|--------|---------|
+| Capability Mapping | `CapabilityCreated/Updated/Deleted`, `BusinessDomainCreated/Updated/Deleted` | Display names of capability and business-domain grant artifacts |
+| Architecture Modeling | `ApplicationComponentCreated/Updated/Deleted`, `VendorCreated/Updated/Deleted`, `AcquiredEntityCreated/Updated/Deleted`, `InternalTeamCreated/Updated/Deleted` | Display names of component, vendor, acquired-entity and team grant artifacts |
+| Architecture Views | `ViewCreated`, `ViewRenamed`, `ViewDeleted` | Display names of view grant artifacts |
+
+### Arch Assistant consumes from:
+
+**Auth** (`authPL`):
+
+| Event | Handler | Wired In | Purpose |
+|-------|---------|----------|---------|
+| `TenantCreated` | `TenantCreatedHandler` | `archassistant/infrastructure/api/routes.go` `SetupArchAssistantRoutes()` | Provision default AI configuration for the new tenant |
+
+Auth publishes `TenantCreated` itself (Platform was merged into Auth, spec 209 amendment 2026-08-30) and reacts to it in-context with `TenantCreatedReactor` to create the first-admin invitation; tenant, domain and OIDC reads are live queries against `auth.tenants`, `auth.tenant_domains` and `auth.tenant_oidc_configs`.
+
+Access Delegation invites a grantee without an account by dispatching Auth's published command `EnsureInvitation` (see [Published Commands](#published-commands)); `EditGrantForNonUserCreated` is published when an invitation was created, for audit.
+
+### Architecture Direction consumes from:
+
+**Enterprise Architecture** (`eaPL`):
 
 | Event | Projector | Wired In | Purpose |
 |-------|-----------|----------|---------|
-| `EditGrantForNonUserCreated` | `InvitationAutoCreateProjector` | `infrastructure/api/router.go` `wireAutoInvitationProjector()` | Auto-create platform invitation for non-user grantee |
+| `EnterpriseCapabilityCreated` / `Updated` / `Deleted` / `TargetMaturitySet` | `EnterpriseCapabilityCacheProjector` | `architecturedirection/infrastructure/api/routes.go` `subscribeCacheEvents()` | Local enterprise capability cache for composition, existence checks and maturity analysis (spec 207) |
+| `EnterpriseCapabilityDeleted` | `EnterpriseCapabilityDeletedReactor` | `SetupRoutes()` | Reject the active direction of a deleted enterprise capability |
 
-### Architecture Direction consumes from:
+**Capability Mapping** (`cmPL`) — capability node cache (spec 207):
+
+| Event | Projector | Wired In | Purpose |
+|-------|-----------|----------|---------|
+| `CapabilityCreated` / `Updated` / `Deleted` / `ParentChanged` / `LevelChanged` / `AssignedToDomain` / `UnassignedFromDomain` / `MetadataUpdated`, `BusinessDomainUpdated` | `CapabilityNodeCacheProjector` | `subscribeCacheEvents()` | Local capability tree with L1 ancestor, effective business domain and maturity, used by composition, source eligibility, maturity analysis and capability existence / effective-domain checks |
+| `SystemLinkedToCapability`, `SystemRealizationDeleted` | `RealizationCacheProjector` | `subscribeReferenceCacheEvents()` | Direct-realization cache behind TIME assessments and realization roles (spec 209) |
+| `BusinessDomainDeleted` | `ReferenceCacheProjector` | same | Remove the domain from the reference-name cache so existence checks fail (spec 209) |
 
 **Capability Mapping** (`cmPL`):
 
@@ -297,7 +426,22 @@ Every event subscription that crosses a bounded context boundary is documented b
 |-------|-----------|----------|---------|
 | `ApplicationComponentCreated` | `StaleApplicationProjector` | `architecturedirection/infrastructure/api/routes.go` `subscribeStandardApplicationEvents()` | Cache application component name |
 | `ApplicationComponentUpdated` | `StaleApplicationProjector` | same | Update cached application component name |
-| `ApplicationComponentDeleted` | `StaleApplicationProjector` | same | Mark standard applications as stale when component is deleted |
+| `ApplicationComponentDeleted` | `StaleApplicationProjector`, `ReferenceCacheProjector` | same, `subscribeReferenceCacheEvents()` | Mark standard applications as stale; remove the component from the reference-name cache so existence checks fail (spec 209) |
+
+### OnePagers consumes from:
+
+All subscriptions are wired in `onepagers/infrastructure/api/routes.go` `SetupOnePagersRoutes()`; every cache is backfilled by migration 148 (spec 209).
+
+| Supplier | Events | Projector | Cache | Purpose |
+|----------|--------|-----------|-------|---------|
+| Architecture Modeling (`archPL`) | `ApplicationComponentCreated/Updated/Deleted`, `ApplicationComponentExpertAdded/Removed`, `AcquiredEntityCreated/Updated/Deleted`, `VendorCreated/Updated/Deleted`, `InternalTeamCreated/Updated/Deleted` | `SubjectIndexProjector` | `one_pager_subject_index` (name, existence, completeness counters, `built_in_fields` = the complete published attribute set) | Subject header, built-in field values, subject existence, completeness |
+| Capability Mapping (`cmPL`) | `CapabilityCreated/Updated/Deleted`, `CapabilityMetadataUpdated`, `CapabilityExpertAdded/Removed`, `CapabilityParentChanged`, `CapabilityLevelChanged` | `SubjectIndexProjector` | same | same, plus `parentId` / `level` built-in attributes |
+| Enterprise Architecture (`eaPL`) | `EnterpriseCapabilityCreated/Updated/Deleted`, `EnterpriseCapabilityTargetMaturitySet` | `SubjectIndexProjector` | same | same, plus `targetMaturity` built-in attribute |
+| Capability Mapping (`cmPL`) | `CapabilityCreated`, `SystemLinkedToCapability`, `SystemRealizationDeleted`, `CapabilityRealizationsInherited/Uninherited`, `CapabilityDependencyCreated/Deleted`, `CapabilityAssignedToDomain/UnassignedFromDomain`, `CapabilityParentChanged`, `BusinessDomainCreated/Updated/Deleted` | `SubjectRelationProjector` | `subject_relation_cache`, `business_domain_name_cache` | Relation built-in fields (realizations, dependencies, domains, parent/children) and domain labels |
+| Architecture Modeling (`archPL`) | `ComponentRelationCreated/Deleted`, `OriginLinkSet/Replaced/Cleared/Deleted` | `SubjectRelationProjector` | `subject_relation_cache` | Relation built-in fields (component relations, built-by / purchased-from / acquired-via and their reverse entries) |
+| MetaModel (`mmPL`) | `MetaModelConfigurationCreated`, `MaturityScaleConfigUpdated/Reset` | `MaturityScaleProjector` | `maturity_scale_cache` | Maturity-scale sections for rendering maturity fields |
+
+Expert names arrive on the expert events themselves (`expertName`, `expertRole`, `contactInfo`), so no user cache is needed.
 
 ## Adding a New Cross-Context Event
 
@@ -317,13 +461,27 @@ When adding a new deletable artifact type:
 - [ ] Subscribe `ArtifactDeletionProjector` in Access Delegation for grant cleanup
 - [ ] Verify all downstream read models that reference the artifact are cleaned up
 
-## Query-Based Integration (Non-Event)
+## Published Commands
 
-Some cross-context dependencies use synchronous queries rather than events:
+The second and only other integration channel (spec 209): a supplier declares a command struct with `CommandName()` in its `publishedlanguage` package, aliases it internally (`type CreateInvitation = publishedlanguage.CreateInvitation`) and registers its handler under that name; a consumer imports the published struct and dispatches it through the shared command bus. A result carries at most the created ID. Command handlers never return supplier read-model data.
 
-| Consumer | Provider | Mechanism | Purpose |
-|----------|----------|-----------|---------|
-| Capability Mapping | Architecture Modeling | `ComponentGateway` (reads `ApplicationComponentReadModel`) | Look up component name during realization linking |
-| Access Delegation | Multiple contexts | `ArtifactNameResolver` (reads from multiple read models) | Resolve display names for edit grant artifacts |
+| Supplier | Command | Consumer | Purpose |
+|----------|---------|----------|---------|
+| Auth | `CreateInvitation` | Auth's own `TenantCreatedReactor` | First-admin invitation on tenant creation |
+| Auth | `EnsureInvitation` | Access Delegation | Invite a grantee without an account; no-op when the e-mail has a user or a pending invitation; error when the domain is not allowed; `CreatedID` set only when an invitation was created |
+| Architecture Modeling | `CreateApplicationComponent`, `CreateComponentRelation` | Importing | Import gateway |
+| Capability Mapping | `CreateCapability`, `UpdateCapabilityMetadata`, `LinkSystemToCapability`, `AssignCapabilityToDomain` | Importing | Import gateway |
+| Value Streams | `CreateValueStream`, `AddStage`, `AddStageCapability` | Importing | Import gateway |
 
-These query-based integrations are acceptable for validation-at-write-time and display enrichment. For data that must remain consistent over time (e.g., component names in realization read models), prefer the local cache projector pattern instead.
+## Integration Rules (spec 209)
+
+A context depends on another context only through that context's published language — its events (above) and its published commands. Nothing else crosses a boundary:
+
+- **No composition-root bridges.** `TestCompositionRootOnlyRegistersRoutes`: every production file under `backend/internal/infrastructure/api/` imports from a context only its `infrastructure/api` package; the router passes shared infrastructure and registers routes. Cross-context wiring, adapters and lookups do not exist.
+- **No cross-schema SQL.** `TestSQLSchemaOwnership` fails on any runtime SQL referencing another context's schema — there is no allowlist. `TestNewMigrationsCrossSchemasOnlyInBackfills` lets a migration read another schema only when its filename contains `backfill`.
+- **`shared/` and `infrastructure/` import no context** (`TestSharedAndInfrastructureImportNoContext`); a context imports only another context's `publishedlanguage` (`TestNoCrossBoundedContextImports`); published languages import only the standard library (`TestPublishedLanguageContractsPurity`).
+- **The dependency graph is the import graph and it is acyclic** (`TestContextDependencyGraphIsAcyclic`).
+- **Every cache of upstream data is backfilled** by a `*backfill*` migration from the supplier's tables and kept current by a projector on the supplier's published events, wired inside the consuming context.
+- **Actor identity and role come from the request context**, never from Auth's read models.
+
+When a context needs another context's data at request time, the fix is a local cache fed by the supplier's events (as Access Delegation, Architecture Direction, Enterprise Architecture, OnePagers and Auth do), or moving the derived read to the context that owns its inputs (as spec 207 did for composition), or serving the data from its owner (as spec 208 did for one-pager completeness).

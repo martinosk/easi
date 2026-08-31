@@ -24,14 +24,16 @@ type MetadataStore interface {
 	UpdateMaturityValue(ctx context.Context, capabilityID string, maturityValue int) error
 }
 
-type BusinessDomainNameLookup func(ctx context.Context, businessDomainID string) (string, error)
+type BusinessDomainNameReader interface {
+	Name(ctx context.Context, businessDomainID string) (string, error)
+}
 
 type DomainCapabilityMetadataProjector struct {
 	metadataReadModel MetadataStore
-	domainNames       BusinessDomainNameLookup
+	domainNames       BusinessDomainNameReader
 }
 
-func NewDomainCapabilityMetadataProjector(metadataReadModel MetadataStore, domainNames BusinessDomainNameLookup) *DomainCapabilityMetadataProjector {
+func NewDomainCapabilityMetadataProjector(metadataReadModel MetadataStore, domainNames BusinessDomainNameReader) *DomainCapabilityMetadataProjector {
 	return &DomainCapabilityMetadataProjector{metadataReadModel: metadataReadModel, domainNames: domainNames}
 }
 
@@ -191,7 +193,7 @@ type capabilityAssignedToDomainEvent struct {
 
 func (p *DomainCapabilityMetadataProjector) handleCapabilityAssignedToDomain(ctx context.Context, eventData []byte) error {
 	return handleProjection(ctx, eventData, func(ctx context.Context, event capabilityAssignedToDomainEvent) error {
-		domainName, err := p.domainNames(ctx, event.BusinessDomainID)
+		domainName, err := p.domainNames.Name(ctx, event.BusinessDomainID)
 		if err != nil {
 			return fmt.Errorf("project CapabilityAssignedToDomain lookup domain name for capability %s domain %s: %w", event.CapabilityID, event.BusinessDomainID, err)
 		}

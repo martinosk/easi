@@ -1,7 +1,8 @@
 import { screen, waitFor } from '@testing-library/react';
+import { HttpResponse, http } from 'msw';
 import { describe, expect, it, vi } from 'vitest';
 import { toEnterpriseCapabilityId } from '../../../api/types';
-import { renderWithProviders } from '../../../test/helpers';
+import { renderWithProviders, server } from '../../../test/helpers';
 import { seedSpec172Db } from '../../../test/mocks/spec172/store';
 import type { EnterpriseCapability } from '../types';
 import { EnterpriseCapabilityDetailPanel } from './EnterpriseCapabilityDetailPanel';
@@ -17,8 +18,6 @@ function ec(overrides: Partial<EnterpriseCapability> = {}): EnterpriseCapability
     description: 'Customer relationship management',
     category: 'Customer Domain',
     active: true,
-    includedCapabilityCount: 2,
-    domainCount: 1,
     createdAt: '2026-01-01T00:00:00Z',
     _links: { self: { href: '/api/v1/enterprise-capabilities/ec-crm', method: 'GET' } },
     ...overrides,
@@ -95,11 +94,47 @@ describe('EnterpriseCapabilityDetailPanel', () => {
     seedSpec172Db({
       enterpriseCapabilities: [{ id: 'ec-crm', name: 'CRM', active: true, createdAt: '2026-01-01T00:00:00Z' }],
     });
-    renderWithProviders(
-      <EnterpriseCapabilityDetailPanel capability={ec({ includedCapabilityCount: 0 })} onClose={vi.fn()} />,
-    );
+    renderWithProviders(<EnterpriseCapabilityDetailPanel capability={ec()} onClose={vi.fn()} />);
 
     await waitFor(() => expect(screen.getByTestId('included-empty-state')).toBeInTheDocument());
+  });
+
+  it('shows the counts from the composition meta', async () => {
+    seedComposed();
+    renderWithProviders(<EnterpriseCapabilityDetailPanel capability={ec()} onClose={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByTestId('stat-included-capabilities')).toHaveTextContent('2'));
+    expect(screen.getByTestId('stat-domains')).toHaveTextContent('1');
+  });
+
+  it('shows a dash for both counts before the composition resolves', () => {
+    seedComposed();
+    renderWithProviders(<EnterpriseCapabilityDetailPanel capability={ec()} onClose={vi.fn()} />);
+
+    expect(screen.getByTestId('stat-included-capabilities')).toHaveTextContent('—');
+    expect(screen.getByTestId('stat-domains')).toHaveTextContent('—');
+  });
+
+  it('shows a real zero domain count when included capabilities have no business domain', async () => {
+    seedSpec172Db({
+      enterpriseCapabilities: [{ id: 'ec-crm', name: 'CRM', active: true, createdAt: '2026-01-01T00:00:00Z' }],
+      directions: [
+        {
+          id: 'dir-crm',
+          enterpriseCapabilityId: 'ec-crm',
+          type: 'consolidate',
+          status: 'proposed',
+          horizon: 'next',
+          sourceCapabilityIds: ['cap-unassigned'],
+          createdAt: '2026-01-01T00:00:00Z',
+        },
+      ],
+      capabilities: [{ id: 'cap-unassigned', name: 'Unassigned Capability', level: 'L1', parentId: null }],
+    });
+    renderWithProviders(<EnterpriseCapabilityDetailPanel capability={ec()} onClose={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByTestId('stat-included-capabilities')).toHaveTextContent('1'));
+    expect(screen.getByTestId('stat-domains')).toHaveTextContent('0');
   });
 
   it('does not render any "Linked Capabilities" linking section', async () => {
@@ -129,5 +164,50 @@ describe('EnterpriseCapabilityDetailPanel', () => {
 
     await waitFor(() => expect(screen.getByText('Customer Identity Mgmt')).toBeInTheDocument());
     expect(screen.queryByRole('button', { name: 'One-Pager' })).not.toBeInTheDocument();
+  });
+
+  it('resolves composition and direction from the composition summary links rather than a hardcoded URL', async () => {
+    seedSpec172Db({
+      enterpriseCapabilities: [{ id: 'ec-crm', name: 'CRM', active: true, createdAt: '2026-01-01T00:00:00Z' }],
+    });
+    server.use(
+      http.get('*/api/v1/enterprise-capability-compositions', () =>
+        HttpResponse.json({
+          data: [
+            {
+              enterpriseCapabilityId: 'ec-crm',
+              sourceCount: 0,
+              includedCount: 5,
+              carvedOutCount: 0,
+              domainCount: 3,
+              hasDirection: false,
+              _links: {
+                'x-composition': { href: '/api/v1/_custom/ec-crm/composition', method: 'GET' },
+                'x-direction': { href: '/api/v1/_custom/ec-crm/direction', method: 'GET' },
+              },
+            },
+          ],
+          _links: { self: { href: '/api/v1/enterprise-capability-compositions', method: 'GET' } },
+        }),
+      ),
+      http.get('*/api/v1/_custom/ec-crm/composition', () =>
+        HttpResponse.json({
+          data: [],
+          meta: { sourceCount: 0, includedCount: 5, carvedOutCount: 0, domainCount: 3 },
+          _links: { self: { href: '/api/v1/_custom/ec-crm/composition', method: 'GET' } },
+        }),
+      ),
+      http.get('*/api/v1/_custom/ec-crm/direction', () =>
+        HttpResponse.json({
+          direction: null,
+          _links: { self: { href: '/api/v1/_custom/ec-crm/direction', method: 'GET' } },
+        }),
+      ),
+    );
+
+    renderWithProviders(<EnterpriseCapabilityDetailPanel capability={ec()} onClose={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByTestId('stat-included-capabilities')).toHaveTextContent('5'));
+    expect(screen.getByTestId('stat-domains')).toHaveTextContent('3');
   });
 });

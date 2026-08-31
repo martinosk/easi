@@ -1,3 +1,5 @@
+import type { HATEOASLinks } from '../../../api/types';
+
 export interface Conversation {
   id: string;
   title: string;
@@ -39,4 +41,9 @@ export interface ToolCall {
   name: string;
   status: 'running' | 'completed';
   resultPreview?: string;
+}
+
+export interface AssistantStatus {
+  configured: boolean;
+  _links: HATEOASLinks;
 }

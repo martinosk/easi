@@ -70,7 +70,7 @@ func newXRelatedFixture(db *sql.DB) *xRelatedFixture {
 	commandBus.Register("CreateComponentRelation", createRel)
 	commandBus.Register("DeleteComponentRelation", deleteRel)
 
-	componentHandlers := NewComponentHandlers(commandBus, componentReadM, links, nil)
+	componentHandlers := NewComponentHandlers(commandBus, componentReadM, links)
 	relationHandlers := NewRelationHandlers(commandBus, relationReadM, links)
 
 	return &xRelatedFixture{

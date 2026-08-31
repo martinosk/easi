@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import { assistantConfigApi } from '../../../api/assistant/assistantConfigApi';
 import type { TestConnectionRequest, UpdateAIConfigRequest } from '../../../api/assistant/types';
 import { invalidateFor } from '../../../lib/invalidateFor';
+import { assistantConfigMutationEffects } from '../mutationEffects';
 import { assistantConfigQueryKeys } from '../queryKeys';
 
 export function useAIConfiguration() {
@@ -19,7 +20,7 @@ export function useUpdateAIConfiguration() {
   return useMutation({
     mutationFn: (request: UpdateAIConfigRequest) => assistantConfigApi.updateConfig(request),
     onSuccess: () => {
-      invalidateFor(queryClient, [assistantConfigQueryKeys.config()]);
+      invalidateFor(queryClient, assistantConfigMutationEffects.update());
       toast.success('AI configuration saved successfully');
     },
     onError: (error: Error) => {

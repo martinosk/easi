@@ -8,6 +8,7 @@ import (
 
 	amPL "easi/backend/internal/architecturemodeling/publishedlanguage"
 	capPL "easi/backend/internal/capabilitymapping/publishedlanguage"
+	eaPL "easi/backend/internal/enterprisearchitecture/publishedlanguage"
 	"easi/backend/internal/onepagers/application/ports"
 	"easi/backend/internal/onepagers/application/projectors"
 	"easi/backend/internal/onepagers/application/readmodels"
@@ -23,12 +24,44 @@ type appliedCompleteness struct {
 	filled      map[string]int
 }
 
+type mergedAttributes struct {
+	subject    readmodels.SubjectKey
+	attributes readmodels.SubjectAttributes
+}
+
+type expertChange struct {
+	subject readmodels.SubjectKey
+	expert  readmodels.SubjectExpert
+	added   bool
+}
+
 type fakeIndexStore struct {
-	upserts    []readmodels.SubjectIndexRecord
-	deletes    []readmodels.SubjectKey
-	changes    []readmodels.SubjectChange
-	recomputes []appliedCompleteness
-	idsByType  map[string][]string
+	upserts       []readmodels.SubjectIndexRecord
+	deletes       []readmodels.SubjectKey
+	changes       []readmodels.SubjectChange
+	recomputes    []appliedCompleteness
+	merges        []mergedAttributes
+	expertChanges []expertChange
+	idsByType     map[string][]string
+}
+
+func (f *fakeIndexStore) MergeAttributes(_ context.Context, subject readmodels.SubjectKey, attributes readmodels.SubjectAttributes) error {
+	f.merges = append(f.merges, mergedAttributes{subject: subject, attributes: attributes})
+	return nil
+}
+
+func (f *fakeIndexStore) ApplyExpertChange(_ context.Context, subject readmodels.SubjectKey, expert readmodels.SubjectExpert, added bool) error {
+	f.expertChanges = append(f.expertChanges, expertChange{subject: subject, expert: expert, added: added})
+	return nil
+}
+
+func cachedAttributes(t *testing.T, values map[string]any) readmodels.SubjectAttributes {
+	t.Helper()
+	attributes := readmodels.SubjectAttributes{}
+	for key, value := range values {
+		require.NoError(t, attributes.Set(key, value))
+	}
+	return attributes
 }
 
 func (f *fakeIndexStore) Upsert(_ context.Context, record readmodels.SubjectIndexRecord) error {
@@ -132,8 +165,13 @@ func TestSubjectIndexProjector_Created_InsertsRow(t *testing.T) {
 	assert.Equal(t, readmodels.SubjectIndexRecord{
 		SubjectType: "capability", SubjectID: "cap-1", Name: "Billing",
 		CreatorActorID: "user-1", CreatorEmail: "a@dfds.com",
-		CreatedAt: created, LastUpdatedAt: created, RequiredCount: 2, FilledCount: 1,
-	}, store.upserts[0])
+		CreatedAt: created, LastUpdatedAt: created,
+		Attributes: cachedAttributes(t, map[string]any{}),
+	}, store.upserts[0], "counts are not known until the row's attributes are committed")
+
+	require.Len(t, store.recomputes, 1)
+	assert.Equal(t, appliedCompleteness{subjectType: "capability", required: 2, filled: map[string]int{"cap-1": 1}}, store.recomputes[0],
+		"completeness is computed and applied only after the row exists")
 }
 
 func TestSubjectIndexProjector_Deleted_RemovesRow(t *testing.T) {
@@ -253,4 +291,174 @@ func TestSubjectIndexProjector_UnknownEvent_NoOp(t *testing.T) {
 	assert.Empty(t, store.deletes)
 	assert.Empty(t, store.changes)
 	assert.Empty(t, store.recomputes)
+}
+
+func TestSubjectIndexProjector_Created_CachesEveryPublishedAttribute(t *testing.T) {
+	store := &fakeIndexStore{}
+	h := newHarness(t, projectorFakes{store: store})
+
+	h.project(capPL.CapabilityCreated, time.Now().UTC(), map[string]any{
+		"id": "cap-1", "name": "Billing", "description": "Invoices", "parentId": "cap-0", "level": "L2",
+		"createdAt": "2026-01-02T10:00:00Z",
+	})
+
+	require.Len(t, store.upserts, 1)
+	assert.Equal(t, cachedAttributes(t, map[string]any{
+		"description": "Invoices", "parentId": "cap-0", "level": "L2",
+	}), store.upserts[0].Attributes, "identity and envelope keys are stripped, every other published attribute is cached")
+}
+
+func TestSubjectIndexProjector_Updated_MergesEveryPublishedAttribute(t *testing.T) {
+	cases := []struct {
+		name      string
+		eventType string
+		payload   map[string]any
+		subject   readmodels.SubjectKey
+		want      map[string]any
+	}{
+		{
+			name:      "capability description",
+			eventType: capPL.CapabilityUpdated,
+			payload:   map[string]any{"id": "cap-1", "name": "Billing", "description": "Invoices"},
+			subject:   subjectKey("capability", "cap-1"),
+			want:      map[string]any{"description": "Invoices"},
+		},
+		{
+			name:      "capability metadata beyond the rendered catalogue",
+			eventType: capPL.CapabilityMetadataUpdated,
+			payload:   map[string]any{"id": "cap-1", "maturityValue": 62, "ownershipModel": "Shared", "eaOwner": "user-1", "status": "Active"},
+			subject:   subjectKey("capability", "cap-1"),
+			want:      map[string]any{"maturityValue": 62, "ownershipModel": "Shared", "eaOwner": "user-1", "status": "Active"},
+		},
+		{
+			name:      "enterprise capability",
+			eventType: eaPL.EnterpriseCapabilityUpdated,
+			payload:   map[string]any{"id": "ec-1", "name": "CX", "description": "Grouping", "category": "Front Office"},
+			subject:   subjectKey("enterprise-capability", "ec-1"),
+			want:      map[string]any{"description": "Grouping", "category": "Front Office"},
+		},
+		{
+			name:      "application description cleared",
+			eventType: amPL.ApplicationComponentUpdated,
+			payload:   map[string]any{"id": "app-9", "name": "Billing", "description": ""},
+			subject:   subjectKey("application", "app-9"),
+			want:      map[string]any{"description": ""},
+		},
+		{
+			name:      "acquired entity",
+			eventType: amPL.AcquiredEntityUpdated,
+			payload:   map[string]any{"id": "ae-1", "name": "Acme", "acquisitionDate": "2024-03-15T00:00:00Z", "integrationStatus": "In Progress", "notes": "n"},
+			subject:   subjectKey("acquired-entity", "ae-1"),
+			want:      map[string]any{"acquisitionDate": "2024-03-15T00:00:00Z", "integrationStatus": "In Progress", "notes": "n"},
+		},
+		{
+			name:      "vendor",
+			eventType: amPL.VendorUpdated,
+			payload:   map[string]any{"id": "v-1", "name": "Contoso", "implementationPartner": "Contoso Consulting", "notes": "Preferred"},
+			subject:   subjectKey("vendor", "v-1"),
+			want:      map[string]any{"implementationPartner": "Contoso Consulting", "notes": "Preferred"},
+		},
+		{
+			name:      "internal team",
+			eventType: amPL.InternalTeamUpdated,
+			payload:   map[string]any{"id": "t-1", "name": "Platform", "department": "Engineering", "contactPerson": "Carol"},
+			subject:   subjectKey("internal-team", "t-1"),
+			want:      map[string]any{"department": "Engineering", "contactPerson": "Carol"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			store := &fakeIndexStore{}
+			h := newHarness(t, projectorFakes{store: store})
+
+			h.project(tc.eventType, time.Now().UTC(), tc.payload)
+
+			require.Len(t, store.merges, 1)
+			assert.Equal(t, tc.subject, store.merges[0].subject)
+			assert.Equal(t, cachedAttributes(t, tc.want), store.merges[0].attributes)
+		})
+	}
+}
+
+func TestSubjectIndexProjector_AttributeOnlyEvents_LeaveTheQualityListRowUntouched(t *testing.T) {
+	cases := []struct {
+		eventType string
+		payload   map[string]any
+		subject   readmodels.SubjectKey
+		want      map[string]any
+	}{
+		{
+			eventType: capPL.CapabilityParentChanged,
+			payload:   map[string]any{"capabilityId": "cap-2", "oldParentId": "cap-1", "newParentId": "cap-3", "oldLevel": "L2", "newLevel": "L3"},
+			subject:   subjectKey("capability", "cap-2"),
+			want:      map[string]any{"parentId": "cap-3", "level": "L3"},
+		},
+		{
+			eventType: capPL.CapabilityLevelChanged,
+			payload:   map[string]any{"capabilityId": "cap-2", "oldLevel": "L2", "newLevel": "L3"},
+			subject:   subjectKey("capability", "cap-2"),
+			want:      map[string]any{"level": "L3"},
+		},
+		{
+			eventType: eaPL.EnterpriseCapabilityTargetMaturitySet,
+			payload:   map[string]any{"id": "ec-1", "targetMaturity": 80},
+			subject:   subjectKey("enterprise-capability", "ec-1"),
+			want:      map[string]any{"targetMaturity": 80},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.eventType, func(t *testing.T) {
+			store := &fakeIndexStore{}
+			h := newHarness(t, projectorFakes{store: store})
+
+			h.project(tc.eventType, time.Now().UTC(), tc.payload)
+
+			require.Len(t, store.merges, 1)
+			assert.Equal(t, tc.subject, store.merges[0].subject)
+			assert.Equal(t, cachedAttributes(t, tc.want), store.merges[0].attributes)
+			assert.Empty(t, store.changes, "an attribute-only event never re-dates or re-scores the row")
+		})
+	}
+}
+
+func TestSubjectIndexProjector_ExpertEvents_UpdateCachedExperts(t *testing.T) {
+	cases := []struct {
+		name      string
+		eventType string
+		payload   map[string]any
+		want      expertChange
+	}{
+		{
+			name:      "capability expert added",
+			eventType: capPL.CapabilityExpertAdded,
+			payload:   map[string]any{"capabilityId": "cap-1", "expertName": "Jane", "expertRole": "Owner", "contactInfo": "jane@dfds.com"},
+			want: expertChange{
+				subject: subjectKey("capability", "cap-1"), added: true,
+				expert: readmodels.SubjectExpert{Name: "Jane", Role: "Owner", Contact: "jane@dfds.com"},
+			},
+		},
+		{
+			name:      "application expert removed",
+			eventType: amPL.ApplicationComponentExpertRemoved,
+			payload:   map[string]any{"componentId": "app-9", "expertName": "Bob", "expertRole": "Lead", "contactInfo": "bob@dfds.com"},
+			want: expertChange{
+				subject: subjectKey("application", "app-9"), added: false,
+				expert: readmodels.SubjectExpert{Name: "Bob", Role: "Lead", Contact: "bob@dfds.com"},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			store := &fakeIndexStore{}
+			h := newHarness(t, projectorFakes{store: store})
+
+			h.project(tc.eventType, time.Now().UTC(), tc.payload)
+
+			assert.Equal(t, []expertChange{tc.want}, store.expertChanges)
+			assert.Empty(t, store.merges, "expert events change only the cached expert list")
+		})
+	}
 }

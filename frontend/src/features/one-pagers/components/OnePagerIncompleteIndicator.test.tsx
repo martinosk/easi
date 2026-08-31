@@ -10,27 +10,27 @@ function render(ui: ReactElement) {
 }
 
 describe('OnePagerIncompleteIndicator', () => {
-  it('renders nothing when onePagerComplete is true', () => {
-    render(<OnePagerIncompleteIndicator id="sub-1" onePagerComplete={true} />);
+  it('renders nothing when the subject is complete', () => {
+    render(<OnePagerIncompleteIndicator id="sub-1" complete={true} />);
 
     expect(screen.queryByTestId('one-pager-incomplete-sub-1')).not.toBeInTheDocument();
   });
 
-  it('renders nothing when onePagerComplete is undefined', () => {
+  it('renders nothing when the subject is absent from the completeness collection', () => {
     render(<OnePagerIncompleteIndicator id="sub-1" />);
 
     expect(screen.queryByTestId('one-pager-incomplete-sub-1')).not.toBeInTheDocument();
   });
 
-  it('renders a warning indicator when onePagerComplete is false', () => {
-    render(<OnePagerIncompleteIndicator id="sub-1" onePagerComplete={false} />);
+  it('renders a warning indicator when the subject is incomplete', () => {
+    render(<OnePagerIncompleteIndicator id="sub-1" complete={false} />);
 
     expect(screen.getByTestId('one-pager-incomplete-sub-1')).toBeInTheDocument();
   });
 
   it('shows the "One-pager incomplete" tooltip on hover', async () => {
     const user = userEvent.setup();
-    render(<OnePagerIncompleteIndicator id="sub-1" onePagerComplete={false} />);
+    render(<OnePagerIncompleteIndicator id="sub-1" complete={false} />);
 
     await user.hover(screen.getByTestId('one-pager-incomplete-sub-1'));
 

@@ -113,6 +113,7 @@ export const AcquiredEntitiesSection: React.FC<AcquiredEntitiesSectionProps> = (
     >
       <TreeSearchInput value={search} onChange={setSearch} placeholder="Search acquired entities..." />
       <TreeItemList
+        subjectType="acquired-entity"
         items={filteredEntities}
         emptyMessage={emptyMessage}
         icon={<IconBuildingSkyscraper size={16} stroke={1.75} />}

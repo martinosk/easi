@@ -22,6 +22,8 @@ type SubjectIndexStore interface {
 	ApplySubjectChange(ctx context.Context, change readmodels.SubjectChange) error
 	ApplyCompleteness(ctx context.Context, subjectType string, required int, filledBySubject map[string]int) error
 	SubjectIDs(ctx context.Context, subjectType string) ([]string, error)
+	MergeAttributes(ctx context.Context, subject readmodels.SubjectKey, attributes readmodels.SubjectAttributes) error
+	ApplyExpertChange(ctx context.Context, subject readmodels.SubjectKey, expert readmodels.SubjectExpert, added bool) error
 }
 
 type CompletenessCounter interface {
@@ -86,6 +88,7 @@ func SubjectIndexEventTypes() []string {
 	for eventType := range factsEventTypes {
 		types = append(types, eventType)
 	}
+	types = append(types, attributeOnlyEventTypes()...)
 	return append(types, opevents.ConfigurationEventTypes()...)
 }
 
@@ -97,15 +100,31 @@ func (p *SubjectIndexProjector) Handle(ctx context.Context, event domain.DomainE
 	return p.ProjectEvent(ctx, event.EventType(), event.OccurredAt(), eventData)
 }
 
+type projectedEvent struct {
+	subjectType string
+	eventType   string
+	occurredAt  time.Time
+	data        []byte
+}
+
+func (e projectedEvent) about(subjectType string) projectedEvent {
+	e.subjectType = subjectType
+	return e
+}
+
 func (p *SubjectIndexProjector) ProjectEvent(ctx context.Context, eventType string, occurredAt time.Time, eventData []byte) error {
+	event := projectedEvent{eventType: eventType, occurredAt: occurredAt, data: eventData}
+	if handled, err := p.onAttributesOnlyChanged(ctx, event); handled || err != nil {
+		return err
+	}
 	if subjectType, ok := subjectTypeByCreationEvent[eventType]; ok {
-		return p.onCreated(ctx, subjectType, occurredAt, eventData)
+		return p.onCreated(ctx, event.about(subjectType))
 	}
 	if subjectType, ok := subjectTypeByDeletionEvent[eventType]; ok {
-		return p.onDeleted(ctx, subjectType, eventData)
+		return p.onDeleted(ctx, event.about(subjectType))
 	}
 	if subjectType, ok := subjectTypeByUpdateEvent[eventType]; ok {
-		return p.onSubjectChanged(ctx, subjectType, occurredAt, eventData)
+		return p.onSubjectChanged(ctx, event.about(subjectType))
 	}
 	if _, ok := factsEventTypes[eventType]; ok {
 		return p.onFactsChanged(ctx, eventData)
@@ -143,68 +162,115 @@ type factsIdentity struct {
 	SubjectID   string `json:"subjectId"`
 }
 
-func (p *SubjectIndexProjector) onCreated(ctx context.Context, subjectType string, occurredAt time.Time, eventData []byte) error {
-	var event subjectIdentity
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		return fmt.Errorf("unmarshal %s creation event: %w", subjectType, err)
+func (p *SubjectIndexProjector) onCreated(ctx context.Context, event projectedEvent) error {
+	var created subjectIdentity
+	if err := json.Unmarshal(event.data, &created); err != nil {
+		return fmt.Errorf("unmarshal %s creation event: %w", event.subjectType, err)
 	}
+	subject := readmodels.SubjectKey{SubjectType: event.subjectType, SubjectID: created.ID}
 
-	audit, err := p.audit.Created(ctx, event.ID)
+	attributes, err := publishedAttributes(event.eventType, event.data)
 	if err != nil {
-		return fmt.Errorf("read creation audit for %s %s: %w", subjectType, event.ID, err)
+		return err
 	}
 
-	required, filled, err := p.counter.CountsForSubjects(ctx, subjectType, []string{event.ID})
+	audit, err := p.audit.Created(ctx, created.ID)
 	if err != nil {
-		return fmt.Errorf("compute completeness for created %s %s: %w", subjectType, event.ID, err)
+		return fmt.Errorf("read creation audit for %s %s: %w", subject.SubjectType, subject.SubjectID, err)
 	}
 
-	createdAt := occurredAt
+	createdAt := event.occurredAt
 	if audit.Found {
 		createdAt = audit.CreatedAt
 	}
-	return p.store.Upsert(ctx, readmodels.SubjectIndexRecord{
-		SubjectType:    subjectType,
-		SubjectID:      event.ID,
-		Name:           event.Name,
+	if err := p.store.Upsert(ctx, readmodels.SubjectIndexRecord{
+		SubjectType:    subject.SubjectType,
+		SubjectID:      subject.SubjectID,
+		Name:           created.Name,
 		CreatorActorID: audit.ActorID,
 		CreatorEmail:   audit.ActorEmail,
 		CreatedAt:      createdAt,
-		LastUpdatedAt:  occurredAt,
-		RequiredCount:  required,
-		FilledCount:    filled[event.ID],
-	})
+		LastUpdatedAt:  event.occurredAt,
+		Attributes:     attributes,
+	}); err != nil {
+		return err
+	}
+
+	return p.recompute(ctx, subject.SubjectType, []string{subject.SubjectID})
 }
 
-func (p *SubjectIndexProjector) onDeleted(ctx context.Context, subjectType string, eventData []byte) error {
-	var event subjectIdentity
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		return fmt.Errorf("unmarshal %s deletion event: %w", subjectType, err)
+func (p *SubjectIndexProjector) onDeleted(ctx context.Context, event projectedEvent) error {
+	var deleted subjectIdentity
+	if err := json.Unmarshal(event.data, &deleted); err != nil {
+		return fmt.Errorf("unmarshal %s deletion event: %w", event.subjectType, err)
 	}
-	return p.store.Delete(ctx, readmodels.SubjectKey{SubjectType: subjectType, SubjectID: event.ID})
+	return p.store.Delete(ctx, readmodels.SubjectKey{SubjectType: event.subjectType, SubjectID: deleted.ID})
 }
 
-func (p *SubjectIndexProjector) onSubjectChanged(ctx context.Context, subjectType string, occurredAt time.Time, eventData []byte) error {
-	var event subjectChangeIdentity
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		return fmt.Errorf("unmarshal %s update event: %w", subjectType, err)
+func (p *SubjectIndexProjector) onSubjectChanged(ctx context.Context, event projectedEvent) error {
+	var changed subjectChangeIdentity
+	if err := json.Unmarshal(event.data, &changed); err != nil {
+		return fmt.Errorf("unmarshal %s update event: %w", event.subjectType, err)
+	}
+	if changed.subjectID() == "" {
+		return fmt.Errorf("%s update event carries no subject id", event.subjectType)
 	}
 
-	subjectID := event.subjectID()
-	if subjectID == "" {
-		return fmt.Errorf("%s update event carries no subject id", subjectType)
+	subject := readmodels.SubjectKey{SubjectType: event.subjectType, SubjectID: changed.subjectID()}
+	if err := p.cacheChangedAttributes(ctx, subject, event); err != nil {
+		return err
 	}
 
-	required, filled, err := p.counter.CountsForSubjects(ctx, subjectType, []string{subjectID})
+	counts, err := p.countsFor(ctx, subject)
 	if err != nil {
-		return fmt.Errorf("compute completeness for updated %s %s: %w", subjectType, subjectID, err)
+		return err
 	}
 	return p.store.ApplySubjectChange(ctx, readmodels.SubjectChange{
-		Subject:    readmodels.SubjectKey{SubjectType: subjectType, SubjectID: subjectID},
-		Name:       event.Name,
-		Counts:     readmodels.CompletenessCounts{Required: required, Filled: filled[subjectID]},
-		OccurredAt: occurredAt,
+		Subject:    subject,
+		Name:       changed.Name,
+		Counts:     counts,
+		OccurredAt: event.occurredAt,
 	})
+}
+
+func (p *SubjectIndexProjector) countsFor(ctx context.Context, subject readmodels.SubjectKey) (readmodels.CompletenessCounts, error) {
+	required, filled, err := p.counter.CountsForSubjects(ctx, subject.SubjectType, []string{subject.SubjectID})
+	if err != nil {
+		return readmodels.CompletenessCounts{}, fmt.Errorf("compute completeness for %s %s: %w", subject.SubjectType, subject.SubjectID, err)
+	}
+	return readmodels.CompletenessCounts{Required: required, Filled: filled[subject.SubjectID]}, nil
+}
+
+func (p *SubjectIndexProjector) cacheChangedAttributes(ctx context.Context, subject readmodels.SubjectKey, event projectedEvent) error {
+	change, err := expertChange(event.eventType, event.data)
+	if err != nil {
+		return err
+	}
+	if change != nil {
+		return p.store.ApplyExpertChange(ctx, subject, change.expert, change.added)
+	}
+
+	attributes, err := publishedAttributes(event.eventType, event.data)
+	if err != nil {
+		return err
+	}
+	return p.store.MergeAttributes(ctx, subject, attributes)
+}
+
+func (p *SubjectIndexProjector) onAttributesOnlyChanged(ctx context.Context, event projectedEvent) (bool, error) {
+	subjectType, attributes, err := attributeOnlyChange(event.eventType, event.data)
+	if err != nil || subjectType == "" {
+		return subjectType != "", err
+	}
+
+	var changed subjectChangeIdentity
+	if err := json.Unmarshal(event.data, &changed); err != nil {
+		return true, fmt.Errorf("unmarshal %s subject identity: %w", event.eventType, err)
+	}
+	if changed.subjectID() == "" {
+		return true, fmt.Errorf("%s carries no subject id", event.eventType)
+	}
+	return true, p.store.MergeAttributes(ctx, readmodels.SubjectKey{SubjectType: subjectType, SubjectID: changed.subjectID()}, attributes)
 }
 
 func (p *SubjectIndexProjector) onFactsChanged(ctx context.Context, eventData []byte) error {
@@ -234,6 +300,10 @@ func (p *SubjectIndexProjector) onConfigurationChanged(ctx context.Context, even
 		return fmt.Errorf("list %s subjects for completeness recompute: %w", config.SubjectType, err)
 	}
 	return p.recompute(ctx, config.SubjectType, subjectIDs)
+}
+
+func (p *SubjectIndexProjector) Recompute(ctx context.Context, subjectType string, subjectIDs []string) error {
+	return p.recompute(ctx, subjectType, subjectIDs)
 }
 
 func (p *SubjectIndexProjector) recompute(ctx context.Context, subjectType string, subjectIDs []string) error {

@@ -1,15 +1,5 @@
 package commands
 
-type UpdateCapabilityMetadata struct {
-	ID             string
-	MaturityValue  int
-	MaturityLevel  string
-	OwnershipModel string
-	PrimaryOwner   string
-	EAOwner        string
-	Status         string
-}
+import "easi/backend/internal/capabilitymapping/publishedlanguage"
 
-func (c UpdateCapabilityMetadata) CommandName() string {
-	return "UpdateCapabilityMetadata"
-}
+type UpdateCapabilityMetadata = publishedlanguage.UpdateCapabilityMetadata

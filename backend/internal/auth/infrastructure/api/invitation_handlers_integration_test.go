@@ -82,6 +82,22 @@ func (ctx *invitationTestContext) trackID(id string) {
 	ctx.createdIDs = append(ctx.createdIDs, id)
 }
 
+func execAsTenant(t *testing.T, db *sql.DB, query string, args ...interface{}) {
+	t.Helper()
+
+	tx, err := db.Begin()
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback() }()
+
+	_, err = tx.Exec(fmt.Sprintf("SET LOCAL app.current_tenant = '%s'", testTenantID()))
+	require.NoError(t, err)
+
+	_, err = tx.Exec(query, args...)
+	require.NoError(t, err)
+
+	require.NoError(t, tx.Commit())
+}
+
 type testRequest struct {
 	method    string
 	url       string
@@ -203,11 +219,10 @@ func (f *loginServiceTestFixture) createInvitation(ctx context.Context, t *testi
 	return invitation.ID
 }
 
-func (f *loginServiceTestFixture) expireInvitation(ctx context.Context, t *testing.T, id string) {
-	_, err := f.db.ExecContext(ctx,
+func (f *loginServiceTestFixture) expireInvitation(_ context.Context, t *testing.T, id string) {
+	execAsTenant(t, f.db,
 		"UPDATE auth.invitations SET expires_at = $1 WHERE id = $2",
 		time.Now().UTC().Add(-1*time.Hour), id)
-	require.NoError(t, err)
 }
 
 func TestCreateInvitation_Integration(t *testing.T) {
@@ -375,11 +390,9 @@ func (ctx *invitationTestContext) createExpiredInvitation(t *testing.T, h *Invit
 	json.Unmarshal(wCreate.Body.Bytes(), &created)
 	ctx.trackID(created.ID)
 
-	tctx := tenantContext()
-	_, err := ctx.db.ExecContext(tctx,
+	execAsTenant(t, ctx.db,
 		"UPDATE auth.invitations SET expires_at = $1 WHERE id = $2",
 		time.Now().UTC().Add(-1*time.Hour), created.ID)
-	require.NoError(t, err)
 
 	return expiredInvitationFixture{invitationID: created.ID, email: email}
 }

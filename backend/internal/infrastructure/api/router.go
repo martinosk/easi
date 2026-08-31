@@ -8,30 +8,13 @@ import (
 
 	"easi/backend/docs"
 	accessdelegationAPI "easi/backend/internal/accessdelegation/infrastructure/api"
-	adServices "easi/backend/internal/accessdelegation/infrastructure/services"
-	adPL "easi/backend/internal/accessdelegation/publishedlanguage"
-	archAssistantHandlers "easi/backend/internal/archassistant/application/handlers"
-	archAssistantAdapters "easi/backend/internal/archassistant/infrastructure/adapters"
 	archAssistantAPI "easi/backend/internal/archassistant/infrastructure/api"
-	archAssistantRateLimit "easi/backend/internal/archassistant/infrastructure/ratelimit"
-	archAssistantRepos "easi/backend/internal/archassistant/infrastructure/repositories"
-	adReadModels "easi/backend/internal/architecturedirection/application/readmodels"
-	directionServices "easi/backend/internal/architecturedirection/domain/services"
 	directionAPI "easi/backend/internal/architecturedirection/infrastructure/api"
-	archReadModels "easi/backend/internal/architecturemodeling/application/readmodels"
-	archAdapters "easi/backend/internal/architecturemodeling/infrastructure/adapters"
 	architectureAPI "easi/backend/internal/architecturemodeling/infrastructure/api"
-	viewReadModels "easi/backend/internal/architectureviews/application/readmodels"
-	viewAdapters "easi/backend/internal/architectureviews/infrastructure/adapters"
 	viewsAPI "easi/backend/internal/architectureviews/infrastructure/api"
-	authProjectors "easi/backend/internal/auth/application/projectors"
-	authReadModels "easi/backend/internal/auth/application/readmodels"
-	authAdapters "easi/backend/internal/auth/infrastructure/adapters"
+	auditAPI "easi/backend/internal/audit/infrastructure/api"
 	authAPI "easi/backend/internal/auth/infrastructure/api"
-	capReadModels "easi/backend/internal/capabilitymapping/application/readmodels"
-	capAdapters "easi/backend/internal/capabilitymapping/infrastructure/adapters"
 	capabilityAPI "easi/backend/internal/capabilitymapping/infrastructure/api"
-	eaReadModels "easi/backend/internal/enterprisearchitecture/application/readmodels"
 	enterpriseArchAPI "easi/backend/internal/enterprisearchitecture/infrastructure/api"
 	importingAPI "easi/backend/internal/importing/infrastructure/api"
 	"easi/backend/internal/infrastructure/api/middleware"
@@ -39,14 +22,10 @@ import (
 	"easi/backend/internal/infrastructure/eventstore"
 	metamodelAPI "easi/backend/internal/metamodel/infrastructure/api"
 	onepagersAPI "easi/backend/internal/onepagers/infrastructure/api"
-	platformAPI "easi/backend/internal/platform/infrastructure/api"
-	platformPL "easi/backend/internal/platform/publishedlanguage"
 	releasesAPI "easi/backend/internal/releases/infrastructure/api"
 	sharedAPI "easi/backend/internal/shared/api"
-	"easi/backend/internal/shared/audit"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
-	vsAdapters "easi/backend/internal/valuestreams/infrastructure/adapters"
 	valuestreamsAPI "easi/backend/internal/valuestreams/infrastructure/api"
 
 	"github.com/go-chi/chi/v5"
@@ -67,16 +46,13 @@ func getEnv(key, defaultValue string) string {
 }
 
 type routerDependencies struct {
-	eventStore            eventstore.EventStore
-	db                    *database.TenantAwareDB
-	authDeps              *authAPI.AuthDependencies
-	commandBus            *cqrs.InMemoryCommandBus
-	eventBus              *events.InMemoryEventBus
-	hateoas               *sharedAPI.HATEOASLinks
-	userReadModel         *authReadModels.UserReadModel
-	aiConfigStatusChecker *archAssistantAdapters.AIConfigStatusAdapter
-	assistantRateLimiter  *archAssistantRateLimit.Limiter
-	appContext            context.Context
+	eventStore eventstore.EventStore
+	db         *database.TenantAwareDB
+	authDeps   *authAPI.AuthDependencies
+	commandBus *cqrs.InMemoryCommandBus
+	eventBus   *events.InMemoryEventBus
+	hateoas    *sharedAPI.HATEOASLinks
+	appContext context.Context
 }
 
 // NewRouter creates and configures the HTTP router
@@ -103,26 +79,19 @@ func initializeDependencies(appContext context.Context, eventStore eventstore.Ev
 
 	commandBus := cqrs.NewInMemoryCommandBus()
 	eventBus := events.NewInMemoryEventBus()
-	userReadModel := authReadModels.NewUserReadModel(db)
 
 	if pgStore, ok := eventStore.(*eventstore.PostgresEventStore); ok {
 		pgStore.SetEventBus(eventBus)
 	}
 
-	aiConfigStatusChecker := archAssistantAdapters.NewAIConfigStatusAdapter(db)
-	assistantRateLimiter := archAssistantRateLimit.NewLimiter()
-
 	return routerDependencies{
-		eventStore:            eventStore,
-		db:                    db,
-		authDeps:              authDeps,
-		commandBus:            commandBus,
-		eventBus:              eventBus,
-		hateoas:               sharedAPI.NewHATEOASLinks("/api/v1"),
-		userReadModel:         userReadModel,
-		aiConfigStatusChecker: aiConfigStatusChecker,
-		assistantRateLimiter:  assistantRateLimiter,
-		appContext:            appContext,
+		eventStore: eventStore,
+		db:         db,
+		authDeps:   authDeps,
+		commandBus: commandBus,
+		eventBus:   eventBus,
+		hateoas:    sharedAPI.NewHATEOASLinks("/api/v1"),
+		appContext: appContext,
 	}
 }
 
@@ -170,24 +139,33 @@ func registerAPIRoutes(r chi.Router, deps routerDependencies) {
 		registerPublicRoutes(r, deps)
 
 		r.Group(func(r chi.Router) {
-			r.Use(middleware.TenantMiddlewareWithSession(deps.authDeps.SessionManager, deps.userReadModel))
+			r.Use(authAPI.SessionTenantMiddleware(deps.authDeps.SessionManager, deps.db))
 			registerTenantRoutes(r, deps)
 		})
 	})
 }
 
 func registerPublicRoutes(r chi.Router, deps routerDependencies) {
-	mustSetup(platformAPI.SetupPlatformRoutes(platformAPI.PlatformRoutesDeps{
+	mustSetup(authAPI.SetupAuthRoutes(authAPI.AuthRoutesDeps{
 		Router:     r,
 		RawDB:      deps.db.DB(),
 		TenantDB:   deps.db,
 		CommandBus: deps.commandBus,
-	}), "platform routes")
-	mustSetup(authAPI.SetupAuthRoutes(r, deps.db.DB(), deps.authDeps, deps.aiConfigStatusChecker), "auth routes")
+		EventBus:   deps.eventBus,
+		AuthDeps:   deps.authDeps,
+	}), "auth routes")
 }
 
 func registerTenantRoutes(r chi.Router, deps routerDependencies) {
-	adDeps := setupAccessDelegation(deps)
+	adDeps, err := accessdelegationAPI.SetupAccessDelegationRoutes(accessdelegationAPI.AccessDelegationRoutesDeps{
+		CommandBus:     deps.commandBus,
+		EventStore:     deps.eventStore,
+		EventBus:       deps.eventBus,
+		DB:             deps.db,
+		HATEOAS:        deps.hateoas,
+		AuthMiddleware: deps.authDeps.AuthMiddleware,
+	})
+	mustSetup(err, "access delegation routes")
 	r.Use(middleware.EditGrantEnrichment(adDeps.GrantResolver))
 	adDeps.RegisterRoutes(r)
 	setupModelingRoutes(r, deps)
@@ -196,36 +174,9 @@ func registerTenantRoutes(r chi.Router, deps routerDependencies) {
 	setupSupportRoutes(r, deps)
 	setupArchAssistantRoutes(r, deps)
 	setupAuthRoutes(r, deps)
-	wireAutoInvitationProjector(deps)
-}
-
-func setupAccessDelegation(deps routerDependencies) *accessdelegationAPI.AccessDelegationDependencies {
-	adDeps, adErr := accessdelegationAPI.SetupAccessDelegationRoutes(accessdelegationAPI.AccessDelegationRoutesDeps{
-		CommandBus:     deps.commandBus,
-		EventStore:     deps.eventStore,
-		EventBus:       deps.eventBus,
-		DB:             deps.db,
-		HATEOAS:        deps.hateoas,
-		AuthMiddleware: deps.authDeps.AuthMiddleware,
-		NameLookups: adServices.ArtifactNameResolverDeps{
-			Capabilities:     capAdapters.NewCapabilityNameAdapter(capReadModels.NewCapabilityReadModel(deps.db)),
-			Components:       archAdapters.NewComponentNameAdapter(archReadModels.NewApplicationComponentReadModel(deps.db)),
-			Views:            viewAdapters.NewViewNameAdapter(viewReadModels.NewArchitectureViewReadModel(deps.db)),
-			Domains:          capAdapters.NewDomainNameAdapter(capReadModels.NewBusinessDomainReadModel(deps.db)),
-			Vendors:          archAdapters.NewVendorNameAdapter(archReadModels.NewVendorReadModel(deps.db)),
-			AcquiredEntities: archAdapters.NewAcquiredEntityNameAdapter(archReadModels.NewAcquiredEntityReadModel(deps.db)),
-			InternalTeams:    archAdapters.NewInternalTeamNameAdapter(archReadModels.NewInternalTeamReadModel(deps.db)),
-		},
-		UserLookup:    authAdapters.NewUserEmailLookupAdapter(deps.userReadModel),
-		InvChecker:    authAdapters.NewInvitationCheckerAdapter(authReadModels.NewInvitationReadModel(deps.db)),
-		DomainChecker: authAdapters.NewDomainAllowlistCheckerAdapter(authReadModels.NewTenantDomainChecker(deps.db)),
-	})
-	mustSetup(adErr, "access delegation routes")
-	return adDeps
 }
 
 func setupModelingRoutes(r chi.Router, deps routerDependencies) {
-	onePagerCompleteness := newOnePagerCompletenessIndicators(deps.db)
 	mustSetup(architectureAPI.SetupArchitectureModelingRoutes(architectureAPI.RouteConfig{
 		Router:         r,
 		CommandBus:     deps.commandBus,
@@ -234,30 +185,27 @@ func setupModelingRoutes(r chi.Router, deps routerDependencies) {
 		DB:             deps.db,
 		HATEOAS:        deps.hateoas,
 		AuthMiddleware: deps.authDeps.AuthMiddleware,
-		OnePagerCompleteness: architectureAPI.OnePagerCompletenessSources{
-			Components:       onePagerCompletenessFor(onePagerCompleteness, "application"),
-			AcquiredEntities: onePagerCompletenessFor(onePagerCompleteness, "acquired-entity"),
-			Vendors:          onePagerCompletenessFor(onePagerCompleteness, "vendor"),
-			InternalTeams:    onePagerCompletenessFor(onePagerCompleteness, "internal-team"),
-		},
 	}), "architecture modeling routes")
 
-	viewsAPI.SubscribeEvents(deps.eventBus, deps.commandBus, deps.db)
-	userRoleChecker := authAdapters.NewUserRoleCheckerAdapter(deps.userReadModel)
-	viewsAPI.RegisterCommands(deps.commandBus, deps.eventStore, deps.db, userRoleChecker)
-	viewHandlers := viewsAPI.NewHTTPHandlers(deps.commandBus, deps.db, deps.hateoas)
-	viewsAPI.RegisterRoutes(r, viewHandlers, deps.authDeps.AuthMiddleware)
+	mustSetup(viewsAPI.SetupArchitectureViewsRoutes(viewsAPI.RouteConfig{
+		Router:         r,
+		CommandBus:     deps.commandBus,
+		EventStore:     deps.eventStore,
+		EventBus:       deps.eventBus,
+		DB:             deps.db,
+		HATEOAS:        deps.hateoas,
+		AuthMiddleware: deps.authDeps.AuthMiddleware,
+	}), "architecture views routes")
 
 	mustSetup(capabilityAPI.SetupCapabilityMappingRoutes(&capabilityAPI.RouteConfig{
-		Router:               r,
-		CommandBus:           deps.commandBus,
-		EventStore:           deps.eventStore,
-		EventBus:             deps.eventBus,
-		DB:                   deps.db,
-		HATEOAS:              deps.hateoas,
-		SessionProvider:      deps.authDeps.SessionManager,
-		AuthMiddleware:       deps.authDeps.AuthMiddleware,
-		OnePagerCompleteness: onePagerCompletenessFor(onePagerCompleteness, "capability"),
+		Router:          r,
+		CommandBus:      deps.commandBus,
+		EventStore:      deps.eventStore,
+		EventBus:        deps.eventBus,
+		DB:              deps.db,
+		HATEOAS:         deps.hateoas,
+		SessionProvider: deps.authDeps.SessionManager,
+		AuthMiddleware:  deps.authDeps.AuthMiddleware,
 	}), "capability mapping routes")
 }
 
@@ -274,44 +222,23 @@ func setupValueStreamsRoutes(r chi.Router, deps routerDependencies) {
 }
 
 func setupDomainRoutes(r chi.Router, deps routerDependencies) {
-	directionReadModel := adReadModels.NewDirectionReadModel(deps.db)
-	compositionService, err := enterpriseArchAPI.SetupEnterpriseArchitectureRoutes(enterpriseArchAPI.EnterpriseArchRoutesDeps{
-		Router:               r,
-		CommandBus:           deps.commandBus,
-		EventStore:           deps.eventStore,
-		EventBus:             deps.eventBus,
-		DB:                   deps.db,
-		AuthMiddleware:       deps.authDeps.AuthMiddleware,
-		SessionProvider:      deps.authDeps.SessionManager,
-		DirectionSources:     directionSourcesAdapter{readModel: directionReadModel},
-		BusinessDomainNames:  businessDomainNameLookup(capReadModels.NewBusinessDomainReadModel(deps.db)),
-		OnePagerCompleteness: onePagerCompletenessFor(newOnePagerCompletenessIndicators(deps.db), "enterprise-capability"),
-	})
-	mustSetup(err, "enterprise architecture routes")
-
-	ecReadModel := eaReadModels.NewEnterpriseCapabilityReadModel(deps.db)
-	directionRefChecker := &directionServices.ReferenceChecker{
-		EnterpriseCapabilityExists:   existsByID(ecReadModel.GetByID),
-		EnterpriseCapabilityIsActive: enterpriseCapabilityIsActive(ecReadModel),
-		PhysicalCapabilityExists:     existsByID(capReadModels.NewCapabilityReadModel(deps.db).GetByID),
-	}
-
+	mustSetup(enterpriseArchAPI.SetupEnterpriseArchitectureRoutes(enterpriseArchAPI.EnterpriseArchRoutesDeps{
+		Router:          r,
+		CommandBus:      deps.commandBus,
+		EventStore:      deps.eventStore,
+		EventBus:        deps.eventBus,
+		DB:              deps.db,
+		AuthMiddleware:  deps.authDeps.AuthMiddleware,
+		SessionProvider: deps.authDeps.SessionManager,
+	}), "enterprise architecture routes")
 	mustSetup(directionAPI.SetupRoutes(directionAPI.RoutesDeps{
-		Router:                        r,
-		CommandBus:                    deps.commandBus,
-		EventStore:                    deps.eventStore,
-		EventBus:                      deps.eventBus,
-		DB:                            deps.db,
-		HATEOAS:                       deps.hateoas,
-		AuthMiddleware:                deps.authDeps.AuthMiddleware,
-		ReferenceChecker:              directionRefChecker,
-		SourceEligibility:             directionEligibilityAdapter{service: compositionService},
-		CompositionPreview:            compositionPreviewAdapter{service: compositionService, capabilities: ecReadModel},
-		DirectRealization:             directionServices.DirectRealizationLookup(capReadModels.NewRealizationReadModel(deps.db).GetDirectByCapabilityAndComponent),
-		CapabilityExists:              directionServices.CapabilityExists(existsByID(capReadModels.NewCapabilityReadModel(deps.db).GetByID)),
-		ComponentExists:               directionServices.ComponentExists(existsByID(archReadModels.NewApplicationComponentReadModel(deps.db).GetByID)),
-		DomainExists:                  directionServices.DomainExists(existsByID(capReadModels.NewBusinessDomainReadModel(deps.db).GetByID)),
-		CapabilityEffectivelyInDomain: capabilityEffectivelyInDomain(capReadModels.NewCMEffectiveBusinessDomainReadModel(deps.db)),
+		Router:         r,
+		CommandBus:     deps.commandBus,
+		EventStore:     deps.eventStore,
+		EventBus:       deps.eventBus,
+		DB:             deps.db,
+		HATEOAS:        deps.hateoas,
+		AuthMiddleware: deps.authDeps.AuthMiddleware,
 	}), "architecture direction routes")
 
 	mustSetup(metamodelAPI.SetupMetaModelRoutes(metamodelAPI.MetaModelRoutesDeps{
@@ -334,27 +261,20 @@ func setupDomainRoutes(r chi.Router, deps routerDependencies) {
 		Hateoas:         deps.hateoas,
 		AuthMiddleware:  deps.authDeps.AuthMiddleware,
 		SessionProvider: deps.authDeps.SessionManager,
-		Subjects:        newOnePagerSubjectExistenceAdapter(deps.db),
-		BuiltInFields:   newOnePagerBuiltInFieldSources(deps.db),
-		MaturityScale:   newOnePagerMaturityScaleAdapter(deps.db),
-		SubjectAudit:    newOnePagerAuditAdapter(deps.db),
 	}), "one-pagers routes")
 }
 
 func setupSupportRoutes(r chi.Router, deps routerDependencies) {
 	mustSetup(releasesAPI.SetupReleasesRoutes(r, deps.db.DB()), "releases routes")
 	mustSetup(importingAPI.SetupImportingRoutes(r, importingAPI.ImportingRoutesDeps{
-		CommandBus:         deps.commandBus,
-		EventStore:         deps.eventStore,
-		EventBus:           deps.eventBus,
-		DB:                 deps.db,
-		ComponentGateway:   archAdapters.NewImportComponentGateway(deps.commandBus),
-		CapabilityGateway:  capAdapters.NewImportCapabilityGateway(deps.commandBus),
-		ValueStreamGateway: vsAdapters.NewImportValueStreamGateway(deps.commandBus),
-		ExecutionContext:   deps.appContext,
+		CommandBus:       deps.commandBus,
+		EventStore:       deps.eventStore,
+		EventBus:         deps.eventBus,
+		DB:               deps.db,
+		ExecutionContext: deps.appContext,
 	}), "importing routes")
 	sharedAPI.SetupReferenceRoutes(r)
-	mustSetup(audit.SetupAuditRoutes(audit.AuditRoutesDeps{
+	mustSetup(auditAPI.SetupAuditRoutes(auditAPI.AuditRoutesDeps{
 		Router:         r,
 		DB:             deps.db,
 		Hateoas:        deps.hateoas,
@@ -391,19 +311,11 @@ func setupArchAssistantRoutes(r chi.Router, deps routerDependencies) {
 	mustSetup(archAssistantAPI.SetupArchAssistantRoutes(archAssistantAPI.ArchAssistantRoutesDeps{
 		Router:          r,
 		DB:              deps.db,
+		EventBus:        deps.eventBus,
+		HATEOAS:         deps.hateoas,
 		AuthMiddleware:  deps.authDeps.AuthMiddleware,
-		RateLimiter:     deps.assistantRateLimiter,
 		LoopbackBaseURL: "http://localhost:" + port + "/api/v1",
 	}), "arch assistant routes")
-
-	aiConfigRepo := archAssistantRepos.NewAIConfigurationRepository(deps.db)
-	tenantCreatedHandler := archAssistantHandlers.NewTenantCreatedHandler(aiConfigRepo)
-	deps.eventBus.Subscribe(platformPL.TenantCreated, tenantCreatedHandler)
-}
-
-func wireAutoInvitationProjector(deps routerDependencies) {
-	projector := authProjectors.NewInvitationAutoCreateProjector(deps.commandBus)
-	deps.eventBus.Subscribe(adPL.EditGrantForNonUserCreated, projector)
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
@@ -413,16 +325,6 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 
 func versionHandler(w http.ResponseWriter, r *http.Request) {
 	sharedAPI.RespondJSON(w, http.StatusOK, map[string]string{"version": appVersion})
-}
-
-func existsByID[T any](getByID func(context.Context, string) (*T, error)) directionServices.ExistenceCheck {
-	return func(ctx context.Context, id string) (bool, error) {
-		dto, err := getByID(ctx, id)
-		if err != nil {
-			return false, err
-		}
-		return dto != nil, nil
-	}
 }
 
 func mustSetup(err error, name string) {

@@ -1,11 +1,14 @@
 package api
 
 import (
+	"context"
 	"net/http"
 
+	"easi/backend/internal/architecturedirection/application/commands"
 	"easi/backend/internal/architecturedirection/application/handlers"
 	"easi/backend/internal/architecturedirection/application/projectors"
 	"easi/backend/internal/architecturedirection/application/readmodels"
+	appservices "easi/backend/internal/architecturedirection/application/services"
 	"easi/backend/internal/architecturedirection/domain/services"
 	"easi/backend/internal/architecturedirection/infrastructure/repositories"
 	pl "easi/backend/internal/architecturedirection/publishedlanguage"
@@ -27,58 +30,63 @@ type AuthMiddleware interface {
 }
 
 type RoutesDeps struct {
-	Router             chi.Router
-	CommandBus         *cqrs.InMemoryCommandBus
-	EventStore         eventstore.EventStore
-	EventBus           events.EventBus
-	DB                 *database.TenantAwareDB
-	HATEOAS            *sharedAPI.HATEOASLinks
-	AuthMiddleware     AuthMiddleware
-	ReferenceChecker   *services.ReferenceChecker
-	SourceEligibility  services.SourceEligibility
-	CompositionPreview CompositionPreviewProvider
-	DirectRealization  services.DirectRealizationLookup
-
-	CapabilityExists              services.CapabilityExists
-	ComponentExists               services.ComponentExists
-	DomainExists                  services.DomainExists
-	CapabilityEffectivelyInDomain services.CapabilityEffectivelyInDomain
+	Router         chi.Router
+	CommandBus     *cqrs.InMemoryCommandBus
+	EventStore     eventstore.EventStore
+	EventBus       events.EventBus
+	DB             *database.TenantAwareDB
+	HATEOAS        *sharedAPI.HATEOASLinks
+	AuthMiddleware AuthMiddleware
 }
 
 func SetupRoutes(deps RoutesDeps) error {
 	readModel := readmodels.NewDirectionReadModel(deps.DB)
 	repo := repositories.NewDirectionRepository(deps.EventStore)
+	nodeCache := readmodels.NewCapabilityNodeCacheReadModel(deps.DB)
+	ecCache := readmodels.NewEnterpriseCapabilityCacheReadModel(deps.DB)
+	referenceCache := readmodels.NewReferenceCacheReadModel(deps.DB)
+	realizationCache := readmodels.NewRealizationCacheReadModel(deps.DB)
+	lookups := newReferenceLookups(nodeCache, referenceCache, realizationCache)
+	composition := appservices.NewCompositionService(directionSourcesProvider{readModel: readModel}, nodeCache, ecCache)
 
 	subscribeEvents(deps.EventBus, readModel)
+	subscribeCacheEvents(deps.EventBus, nodeCache, ecCache)
+	subscribeReferenceCacheEvents(deps.EventBus, referenceCache, realizationCache)
 	deps.EventBus.Subscribe(eaPL.EnterpriseCapabilityDeleted,
 		projectors.NewEnterpriseCapabilityDeletedReactor(readModel, deps.CommandBus))
+	refs := referenceChecker(lookups.capabilityExists, ecCache)
 	registerCommandHandlers(commandHandlerDeps{
 		commandBus:  deps.CommandBus,
 		repo:        repo,
 		readModel:   readModel,
-		refs:        deps.ReferenceChecker,
-		eligibility: deps.SourceEligibility,
+		refs:        refs,
+		eligibility: sourceEligibilityService{composition: composition},
 	})
 
 	links := NewDirectionLinks(deps.HATEOAS)
 	httpHandlers := NewDirectionHandlers(deps.CommandBus, readModel, links)
-	previewHandlers := NewCompositionPreviewHandlers(deps.CompositionPreview, deps.HATEOAS)
+	previewHandlers := NewCompositionPreviewHandlers(compositionPreviewService{composition: composition, capabilities: ecCache}, deps.HATEOAS)
 
 	registerRoutes(deps.Router, httpHandlers, previewHandlers, deps.AuthMiddleware)
+	registerCompositionRoutes(deps.Router, compositionReadHandlers{
+		composition: NewCompositionHandlers(composition, ecCache, deps.HATEOAS),
+		summaries:   NewCompositionSummaryHandlers(composition, deps.HATEOAS),
+		maturity:    NewMaturityAnalysisHandlers(readmodels.NewMaturityAnalysisReadModel(deps.DB, composition), deps.HATEOAS),
+	}, deps.AuthMiddleware)
 
-	setupStandardApplicationRoutes(deps)
-	setupTimeAssessmentRoutes(deps)
-	setupRealizationRoleRoutes(deps)
-	setupCapabilityJourneyRoutes(deps)
+	setupStandardApplicationRoutes(deps, refs)
+	setupTimeAssessmentRoutes(deps, lookups.directRealization)
+	setupRealizationRoleRoutes(deps, lookups.directRealization)
+	setupCapabilityJourneyRoutes(deps, lookups)
 	return nil
 }
 
-func setupStandardApplicationRoutes(deps RoutesDeps) {
+func setupStandardApplicationRoutes(deps RoutesDeps, refs *services.ReferenceChecker) {
 	readModel := readmodels.NewStandardApplicationReadModel(deps.DB)
 	repo := repositories.NewStandardApplicationRepository(deps.EventStore)
 
 	subscribeStandardApplicationEvents(deps.EventBus, readModel)
-	deps.CommandBus.Register("SetStandardApplication", handlers.NewSetStandardApplicationHandler(repo, readModel, deps.ReferenceChecker))
+	deps.CommandBus.Register(commands.SetStandardApplication{}.CommandName(), handlers.NewSetStandardApplicationHandler(repo, readModel, refs))
 
 	links := NewStandardApplicationLinks(deps.HATEOAS)
 	httpHandlers := NewStandardApplicationHandlers(deps.CommandBus, readModel, links)
@@ -112,12 +120,12 @@ func registerStandardApplicationRoutes(r chi.Router, h *StandardApplicationHandl
 	})
 }
 
-func setupTimeAssessmentRoutes(deps RoutesDeps) {
+func setupTimeAssessmentRoutes(deps RoutesDeps, directRealization services.DirectRealizationLookup) {
 	readModel := readmodels.NewTimeAssessmentReadModel(deps.DB)
 	repo := repositories.NewTimeAssessmentRepository(deps.EventStore)
 
 	subscribeTimeAssessmentEvents(deps.EventBus, readModel)
-	deps.CommandBus.Register("AssessRealization", handlers.NewAssessRealizationHandler(repo, readModel, deps.DirectRealization))
+	deps.CommandBus.Register("AssessRealization", handlers.NewAssessRealizationHandler(repo, readModel, directRealization))
 	deps.CommandBus.Register("RemoveTimeAssessment", handlers.NewRemoveTimeAssessmentHandler(repo, readModel))
 	deps.EventBus.Subscribe(cmPL.SystemRealizationDeleted, projectors.NewTimeAssessmentDeletionReactor(readModel, deps.CommandBus))
 
@@ -174,12 +182,12 @@ func registerPairResourceRoutes(r chi.Router, pattern string, authMiddleware Aut
 	})
 }
 
-func setupRealizationRoleRoutes(deps RoutesDeps) {
+func setupRealizationRoleRoutes(deps RoutesDeps, directRealization services.DirectRealizationLookup) {
 	readModel := readmodels.NewRealizationRoleReadModel(deps.DB)
 	repo := repositories.NewRealizationRolesRepository(deps.EventStore)
 
 	subscribeRealizationRoleEvents(deps.EventBus, readModel)
-	deps.CommandBus.Register("AssignRealizationRole", handlers.NewAssignRealizationRoleHandler(repo, readModel, deps.DirectRealization))
+	deps.CommandBus.Register("AssignRealizationRole", handlers.NewAssignRealizationRoleHandler(repo, readModel, directRealization))
 	deps.CommandBus.Register("ClearRealizationRole", handlers.NewClearRealizationRoleHandler(repo, readModel))
 	deps.EventBus.Subscribe(cmPL.SystemRealizationDeleted, projectors.NewRealizationRoleDeletionReactor(readModel, deps.CommandBus))
 
@@ -197,17 +205,17 @@ func subscribeRealizationRoleEvents(eventBus events.EventBus, rm *readmodels.Rea
 		amPL.ApplicationComponentDeleted, amPL.ApplicationComponentCreated, amPL.ApplicationComponentUpdated)
 }
 
-func setupCapabilityJourneyRoutes(deps RoutesDeps) {
+func setupCapabilityJourneyRoutes(deps RoutesDeps, lookups referenceLookups) {
 	readModel := readmodels.NewCapabilityJourneyReadModel(deps.DB)
 	repo := repositories.NewCapabilityJourneyRepository(deps.EventStore)
 
 	subscribeCapabilityJourneyEvents(deps.EventBus, readModel)
 
 	refs := handlers.JourneyReferenceChecks{
-		CapabilityExists:              deps.CapabilityExists,
-		ComponentExists:               deps.ComponentExists,
-		DomainExists:                  deps.DomainExists,
-		CapabilityEffectivelyInDomain: deps.CapabilityEffectivelyInDomain,
+		CapabilityExists:              lookups.capabilityExists,
+		ComponentExists:               lookups.componentExists,
+		DomainExists:                  lookups.domainExists,
+		CapabilityEffectivelyInDomain: lookups.capabilityEffectivelyInDomain,
 	}
 	deps.CommandBus.Register("PlanJourney", handlers.NewPlanJourneyHandler(repo, readModel, refs))
 	deps.CommandBus.Register("StartJourney", handlers.NewStartJourneyHandler(repo))
@@ -215,7 +223,7 @@ func setupCapabilityJourneyRoutes(deps RoutesDeps) {
 	deps.CommandBus.Register("AbandonJourney", handlers.NewAbandonJourneyHandler(repo))
 	deps.CommandBus.Register("UpdateJourneyProgress", handlers.NewUpdateJourneyProgressHandler(repo))
 	deps.CommandBus.Register("UpdateJourneyDetails", handlers.NewUpdateJourneyDetailsHandler(repo))
-	deps.CommandBus.Register("ChangeJourneySourceApplications", handlers.NewChangeJourneySourceApplicationsHandler(repo, deps.ComponentExists))
+	deps.CommandBus.Register("ChangeJourneySourceApplications", handlers.NewChangeJourneySourceApplicationsHandler(repo, lookups.componentExists))
 	deps.CommandBus.Register("AddJourneyMilestone", handlers.NewAddJourneyMilestoneHandler(repo))
 	deps.CommandBus.Register("UpdateJourneyMilestone", handlers.NewUpdateJourneyMilestoneHandler(repo))
 	deps.CommandBus.Register("RemoveJourneyMilestone", handlers.NewRemoveJourneyMilestoneHandler(repo))
@@ -325,5 +333,56 @@ func registerRoutes(r chi.Router, h *DirectionHandlers, preview *CompositionPrev
 			r.Post("/sources", h.AddDirectionSource)
 			r.Delete("/sources/{capabilityId}", h.RemoveDirectionSource)
 		})
+	})
+}
+
+func subscribeCacheEvents(eventBus events.EventBus, nodeCache *readmodels.CapabilityNodeCacheReadModel, ecCache *readmodels.EnterpriseCapabilityCacheReadModel) {
+	subscribeMany(eventBus, projectors.NewCapabilityNodeCacheProjector(nodeCache, nodeCache.BusinessDomainName),
+		cmPL.CapabilityCreated, cmPL.CapabilityUpdated, cmPL.CapabilityDeleted,
+		cmPL.CapabilityParentChanged, cmPL.CapabilityLevelChanged,
+		cmPL.CapabilityAssignedToDomain, cmPL.CapabilityUnassignedFromDomain,
+		cmPL.CapabilityMetadataUpdated, cmPL.BusinessDomainUpdated)
+	subscribeMany(eventBus, projectors.NewEnterpriseCapabilityCacheProjector(ecCache),
+		eaPL.EnterpriseCapabilityCreated, eaPL.EnterpriseCapabilityUpdated,
+		eaPL.EnterpriseCapabilityDeleted, eaPL.EnterpriseCapabilityTargetMaturitySet)
+}
+
+func subscribeReferenceCacheEvents(eventBus events.EventBus, referenceCache *readmodels.ReferenceCacheReadModel, realizationCache *readmodels.RealizationCacheReadModel) {
+	subscribeMany(eventBus, projectors.NewReferenceCacheProjector(referenceCache),
+		amPL.ApplicationComponentCreated, amPL.ApplicationComponentUpdated, amPL.ApplicationComponentDeleted,
+		cmPL.BusinessDomainCreated, cmPL.BusinessDomainUpdated, cmPL.BusinessDomainDeleted)
+	subscribeMany(eventBus, projectors.NewRealizationCacheProjector(realizationCache),
+		cmPL.SystemLinkedToCapability, cmPL.SystemRealizationDeleted,
+		cmPL.CapabilityDeleted, amPL.ApplicationComponentDeleted)
+}
+
+func referenceChecker(capabilityExists services.ExistenceCheck, ecCache *readmodels.EnterpriseCapabilityCacheReadModel) *services.ReferenceChecker {
+	return &services.ReferenceChecker{
+		PhysicalCapabilityExists: capabilityExists,
+		EnterpriseCapabilityExists: func(ctx context.Context, id string) (bool, error) {
+			capability, err := ecCache.GetByID(ctx, id)
+			return capability != nil, err
+		},
+		EnterpriseCapabilityIsActive: func(ctx context.Context, id string) (bool, error) {
+			capability, err := ecCache.GetByID(ctx, id)
+			return capability != nil && capability.Active, err
+		},
+	}
+}
+
+type compositionReadHandlers struct {
+	composition *CompositionHandlers
+	summaries   *CompositionSummaryHandlers
+	maturity    *MaturityAnalysisHandlers
+}
+
+func registerCompositionRoutes(r chi.Router, h compositionReadHandlers, authMiddleware AuthMiddleware) {
+	r.Group(func(r chi.Router) {
+		r.Use(authMiddleware.RequirePermission(authPL.PermEnterpriseArchRead))
+		r.Get("/enterprise-capabilities/maturity-analysis", h.maturity.GetMaturityAnalysisCandidates)
+		r.Get("/enterprise-capabilities/{id}/composition", h.composition.GetComposition)
+		r.Get("/enterprise-capabilities/{id}/maturity-gap", h.maturity.GetMaturityGapDetail)
+		r.Get("/enterprise-capability-compositions", h.summaries.GetCompositionSummaries)
+		r.Get("/capabilities/source-candidates", h.composition.GetSourceCandidates)
 	})
 }

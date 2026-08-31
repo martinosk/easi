@@ -20,7 +20,6 @@ type ApplicationComponentDTO struct {
 	Description      string              `json:"description,omitempty"`
 	CreatedAt        time.Time           `json:"createdAt"`
 	Experts          []ExpertDTO         `json:"experts,omitempty"`
-	OnePagerComplete *bool               `json:"onePagerComplete,omitempty"`
 	Links            types.Links         `json:"_links,omitempty"`
 	XRelated         []types.RelatedLink `json:"-"`
 }

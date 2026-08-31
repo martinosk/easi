@@ -2,7 +2,7 @@ import { realizationRoleQueryKeys, timeAssessmentQueryKeys } from '../architectu
 import { auditQueryKeys } from '../audit/queryKeys';
 import { businessDomainsQueryKeys } from '../business-domains/queryKeys';
 import { componentsQueryKeys } from '../components/queryKeys';
-import { maturityAnalysisQueryKeys } from '../enterprise-architecture/queryKeys';
+import { compositionSummariesQueryKeys, maturityAnalysisQueryKeys } from '../enterprise-architecture/queryKeys';
 import { artifactCreatorsQueryKeys } from '../navigation/hooks/useArtifactCreators';
 import { onePagerQualityQueryKeys } from '../one-pager-quality/queryKeys';
 import { onePagersQueryKeys } from '../one-pagers/queryKeys';
@@ -20,6 +20,7 @@ export const capabilitiesMutationEffects = {
     ...(context.businessDomainId ? [businessDomainsQueryKeys.capabilities(context.businessDomainId)] : []),
     maturityAnalysisQueryKeys.unlinked(),
     artifactCreatorsQueryKeys.all,
+    onePagersQueryKeys.completenessForSubjectType('capability'),
   ],
 
   update: (capabilityId: string) => [
@@ -28,6 +29,7 @@ export const capabilitiesMutationEffects = {
     auditQueryKeys.history(capabilityId),
     valueStreamsQueryKeys.all,
     ...onePagerFreshness(capabilityId),
+    onePagersQueryKeys.completenessForSubjectType('capability'),
   ],
 
   delete: (context: { id: string; parentId?: string; domainId?: string }) => [
@@ -38,6 +40,8 @@ export const capabilitiesMutationEffects = {
     businessDomainsQueryKeys.lists(),
     maturityAnalysisQueryKeys.unlinked(),
     valueStreamsQueryKeys.all,
+    onePagersQueryKeys.completenessForSubjectType('capability'),
+    compositionSummariesQueryKeys.lists(),
   ],
 
   cascadeDelete: (context: { id: string; parentId?: string; domainId?: string; deleteApplications: boolean }) => [
@@ -53,7 +57,15 @@ export const capabilitiesMutationEffects = {
     valueStreamsQueryKeys.all,
     artifactCreatorsQueryKeys.all,
     auditQueryKeys.history(context.id),
-    ...(context.deleteApplications ? [componentsQueryKeys.lists(), componentsQueryKeys.details()] : []),
+    onePagersQueryKeys.completenessForSubjectType('capability'),
+    compositionSummariesQueryKeys.lists(),
+    ...(context.deleteApplications
+      ? [
+          componentsQueryKeys.lists(),
+          componentsQueryKeys.details(),
+          onePagersQueryKeys.completenessForSubjectType('application'),
+        ]
+      : []),
   ],
 
   assignToDomain: (context: { capabilityId: string; domainId: string }) => [
@@ -61,6 +73,7 @@ export const capabilitiesMutationEffects = {
     businessDomainsQueryKeys.detail(context.domainId),
     capabilitiesQueryKeys.detail(context.capabilityId),
     maturityAnalysisQueryKeys.unlinked(),
+    compositionSummariesQueryKeys.lists(),
   ],
 
   unassignFromDomain: (context: { capabilityId: string; domainId: string }) => [
@@ -68,6 +81,7 @@ export const capabilitiesMutationEffects = {
     businessDomainsQueryKeys.detail(context.domainId),
     capabilitiesQueryKeys.detail(context.capabilityId),
     maturityAnalysisQueryKeys.unlinked(),
+    compositionSummariesQueryKeys.lists(),
   ],
 
   changeParent: (context: { id: string; oldParentId?: string; newParentId?: string }) => [
@@ -82,6 +96,7 @@ export const capabilitiesMutationEffects = {
     ...(context.newParentId ? [capabilitiesQueryKeys.realizations(context.newParentId)] : []),
     capabilitiesQueryKeys.realizationsByComponents(),
     businessDomainsQueryKeys.details(),
+    compositionSummariesQueryKeys.lists(),
   ],
 
   addDependency: (context: { sourceCapabilityId: string; targetCapabilityId: string }) => [

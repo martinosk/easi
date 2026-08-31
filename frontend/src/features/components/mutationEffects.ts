@@ -11,7 +11,11 @@ function onePagerFreshness(componentId: string) {
 }
 
 export const componentsMutationEffects = {
-  create: () => [componentsQueryKeys.lists(), artifactCreatorsQueryKeys.all],
+  create: () => [
+    componentsQueryKeys.lists(),
+    artifactCreatorsQueryKeys.all,
+    onePagersQueryKeys.completenessForSubjectType('application'),
+  ],
 
   update: (componentId: string) => [
     componentsQueryKeys.lists(),
@@ -19,9 +23,14 @@ export const componentsMutationEffects = {
     businessDomainsQueryKeys.all,
     auditQueryKeys.history(componentId),
     ...onePagerFreshness(componentId),
+    onePagersQueryKeys.completenessForSubjectType('application'),
   ],
 
-  delete: (componentId: string) => [componentsQueryKeys.lists(), componentsQueryKeys.detail(componentId)],
+  delete: (componentId: string) => [
+    componentsQueryKeys.lists(),
+    componentsQueryKeys.detail(componentId),
+    onePagersQueryKeys.completenessForSubjectType('application'),
+  ],
 
   addExpert: (componentId: string) => [
     componentsQueryKeys.detail(componentId),

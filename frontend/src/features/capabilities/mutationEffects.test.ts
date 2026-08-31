@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { compositionSummariesQueryKeys } from '../enterprise-architecture/queryKeys';
 import { onePagerQualityQueryKeys } from '../one-pager-quality/queryKeys';
 import { onePagersQueryKeys } from '../one-pagers/queryKeys';
 import { capabilitiesMutationEffects } from './mutationEffects';
@@ -21,5 +22,41 @@ describe('capabilitiesMutationEffects one-pager freshness', () => {
 
   it('update still invalidates the capability detail', () => {
     expect(capabilitiesMutationEffects.update('cap-1')).toContainEqual(capabilitiesQueryKeys.detail('cap-1'));
+  });
+
+  it('update invalidates the completeness for capabilities', () => {
+    expect(capabilitiesMutationEffects.update('cap-1')).toContainEqual(
+      onePagersQueryKeys.completenessForSubjectType('capability'),
+    );
+  });
+});
+
+describe('capabilitiesMutationEffects composition summaries freshness', () => {
+  it('assignToDomain invalidates the composition summaries', () => {
+    expect(capabilitiesMutationEffects.assignToDomain({ capabilityId: 'cap-1', domainId: 'dom-1' })).toContainEqual(
+      compositionSummariesQueryKeys.lists(),
+    );
+  });
+
+  it('unassignFromDomain invalidates the composition summaries', () => {
+    expect(
+      capabilitiesMutationEffects.unassignFromDomain({ capabilityId: 'cap-1', domainId: 'dom-1' }),
+    ).toContainEqual(compositionSummariesQueryKeys.lists());
+  });
+
+  it('changeParent invalidates the composition summaries', () => {
+    expect(capabilitiesMutationEffects.changeParent({ id: 'cap-1' })).toContainEqual(
+      compositionSummariesQueryKeys.lists(),
+    );
+  });
+
+  it('delete invalidates the composition summaries', () => {
+    expect(capabilitiesMutationEffects.delete({ id: 'cap-1' })).toContainEqual(compositionSummariesQueryKeys.lists());
+  });
+
+  it('cascadeDelete invalidates the composition summaries', () => {
+    expect(
+      capabilitiesMutationEffects.cascadeDelete({ id: 'cap-1', deleteApplications: false }),
+    ).toContainEqual(compositionSummariesQueryKeys.lists());
   });
 });
