@@ -271,6 +271,26 @@ func TestCaptureJourney_ActiveJourneyExists_Returns409WithExistingID(t *testing.
 	assert.Contains(t, rec.Body.String(), existingID)
 }
 
+func TestCaptureJourney_ParentNotInTargetDomain_Returns400WithSpecificMessage(t *testing.T) {
+	bus := &mockCommandBus{err: services.ErrTargetParentNotInTargetDomain}
+	h := setupCapabilityJourneyHandlers(bus, &mockCapabilityJourneyQueries{})
+	r := capabilityJourneyRouter(h)
+
+	body, _ := json.Marshal(CaptureJourneyRequest{
+		Kind:           valueobjects.JourneyKindMove,
+		ToComponentID:  uuid.New().String(),
+		TargetDomainID: uuid.New().String(),
+		TargetParentID: uuid.New().String(),
+		ResultingName:  "Freight invoicing",
+	})
+	req := withActor(httptest.NewRequest(http.MethodPost, "/capabilities/"+uuid.New().String()+"/journey", bytes.NewReader(body)), architectActor())
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
+	assert.Contains(t, rec.Body.String(), "The target parent capability must belong to the target business domain")
+}
+
 func TestGetJourneyHistory_ReturnsCollection(t *testing.T) {
 	queries := &mockCapabilityJourneyQueries{history: []readmodels.CapabilityJourneyDTO{*plannedJourneyDTO()}}
 	h := setupCapabilityJourneyHandlers(&mockCommandBus{}, queries)

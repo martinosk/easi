@@ -15,7 +15,7 @@ function isUnincludedChild(cap: Capability, included: Set<string>): boolean {
   return !included.has(cap.id) && !!cap.parentId && included.has(cap.parentId);
 }
 
-function getDescendantCapabilityIds(directIds: Set<string>, allCapabilities: Capability[]): Set<string> {
+export function getDescendantCapabilityIds(directIds: Set<string>, allCapabilities: Capability[]): Set<string> {
   const result = new Set(directIds);
   let added = true;
   while (added) {

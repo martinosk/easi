@@ -13,11 +13,13 @@ import {
 } from '@mantine/core';
 import { useEffect, useMemo } from 'react';
 import { Controller, type FieldErrors, useForm } from 'react-hook-form';
-import type { Capability, CapabilityRealization } from '../../../api/types';
+import type { BusinessDomainId, Capability, CapabilityRealization } from '../../../api/types';
 import { type CaptureJourneyFormData, captureJourneySchema } from '../../../lib/schemas/journey';
 import { useBusinessDomainsQuery } from '../../business-domains/hooks/useBusinessDomains';
+import { useCapabilitiesInDomainQuery } from '../../business-domains/hooks/useDomainCapabilities';
 import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
 import { useComponents } from '../../components/hooks/useComponents';
+import { getDescendantCapabilityIds } from '../../navigation/utils/filterByDomain';
 import { useCaptureJourney } from '../hooks/useJourneys';
 import type { CaptureJourneyRequest, JourneyKind } from '../types';
 import { QUARTER_OPTIONS, yearOptions } from './periodFields';
@@ -86,13 +88,11 @@ function toCaptureRequest(data: CaptureJourneyFormData): CaptureJourneyRequest {
 
 function useOptions(
   realizations: CapabilityRealization[],
-  capabilityId: string,
   fromComponentIds: string[],
   kind: JourneyKind,
 ) {
   const componentsQuery = useComponents();
   const domainsQuery = useBusinessDomainsQuery();
-  const capabilitiesQuery = useCapabilities();
 
   const fromAppOptions = useMemo(
     () => realizations.map((r) => ({ value: String(r.componentId), label: r.componentName ?? String(r.componentId) })),
@@ -112,15 +112,24 @@ function useOptions(
     [domainsQuery.data],
   );
 
-  const parentOptions = useMemo(
-    () =>
-      (capabilitiesQuery.data ?? [])
-        .filter((c) => String(c.id) !== capabilityId)
-        .map((c) => ({ value: String(c.id), label: c.name })),
-    [capabilitiesQuery.data, capabilityId],
+  return { fromAppOptions, toAppOptions, domainOptions };
+}
+
+function useTargetParentOptions(capabilityId: string, targetDomainId: string) {
+  const capabilitiesQuery = useCapabilities();
+  const domainCapabilitiesQuery = useCapabilitiesInDomainQuery(
+    targetDomainId ? (targetDomainId as BusinessDomainId) : undefined,
   );
 
-  return { fromAppOptions, toAppOptions, domainOptions, parentOptions };
+  return useMemo(() => {
+    if (!targetDomainId) return [];
+    const allCapabilities = capabilitiesQuery.data ?? [];
+    const directIds = new Set((domainCapabilitiesQuery.data ?? []).map((c) => String(c.id)));
+    const effectiveIds = getDescendantCapabilityIds(directIds, allCapabilities);
+    return allCapabilities
+      .filter((c) => effectiveIds.has(String(c.id)) && String(c.id) !== capabilityId)
+      .map((c) => ({ value: String(c.id), label: c.name }));
+  }, [capabilitiesQuery.data, domainCapabilitiesQuery.data, capabilityId, targetDomainId]);
 }
 
 function useCaptureJourneyController(
@@ -138,6 +147,7 @@ function useCaptureJourneyController(
   const kind = watch('kind');
   const fromComponentIds = watch('fromComponentIds');
   const toComponentId = watch('toComponentId');
+  const targetDomainId = watch('targetDomainId');
 
   useEffect(() => {
     if (hasImplicitSources(kind)) {
@@ -146,7 +156,10 @@ function useCaptureJourneyController(
     }
   }, [kind, realizations, toComponentId, setValue, trigger]);
 
-  const options = useOptions(realizations, String(capability.id), fromComponentIds, kind);
+  const options = {
+    ...useOptions(realizations, fromComponentIds, kind),
+    parentOptions: useTargetParentOptions(String(capability.id), targetDomainId),
+  };
   const consolidationBlocked = kind === 'consolidation' && realizations.length < 2;
 
   const submit = form.handleSubmit(async (data) => {
@@ -158,7 +171,19 @@ function useCaptureJourneyController(
 
   const errorMessage = captureMutation.error instanceof Error ? captureMutation.error.message : null;
 
-  return { form, kind, options, submit, isPending: captureMutation.isPending, errorMessage, consolidationBlocked };
+  const clearTargetParent = () => setValue('targetParentId', '');
+
+  return {
+    form,
+    kind,
+    options,
+    parentDisabled: !targetDomainId,
+    clearTargetParent,
+    submit,
+    isPending: captureMutation.isPending,
+    errorMessage,
+    consolidationBlocked,
+  };
 }
 
 type FormControl = ReturnType<typeof useForm<CaptureJourneyFormData>>['control'];
@@ -269,10 +294,14 @@ function MoveFields({
   control,
   domainOptions,
   parentOptions,
+  parentDisabled,
+  onDomainChange,
 }: {
   control: FormControl;
   domainOptions: { value: string; label: string }[];
   parentOptions: { value: string; label: string }[];
+  parentDisabled: boolean;
+  onDomainChange: () => void;
 }) {
   return (
     <>
@@ -285,7 +314,10 @@ function MoveFields({
             withAsterisk
             data={domainOptions}
             value={field.value || null}
-            onChange={(value) => field.onChange(value ?? '')}
+            onChange={(value) => {
+              field.onChange(value ?? '');
+              onDomainChange();
+            }}
             searchable
             data-testid="journey-target-domain"
           />
@@ -297,10 +329,12 @@ function MoveFields({
         render={({ field }) => (
           <Select
             label="Target parent capability"
-            description="Optional"
+            description="Optional — a capability in the target business domain"
+            placeholder={parentDisabled ? 'Select a target business domain first' : undefined}
             data={parentOptions}
             value={field.value || null}
             onChange={(value) => field.onChange(value ?? '')}
+            disabled={parentDisabled}
             searchable
             clearable
             data-testid="journey-target-parent"
@@ -370,11 +404,8 @@ function SubmitAlerts({
 }
 
 export function CaptureJourneyForm({ capability, realizations, onCaptured, onCancel }: CaptureJourneyFormProps) {
-  const { form, kind, options, submit, isPending, errorMessage, consolidationBlocked } = useCaptureJourneyController(
-    capability,
-    realizations,
-    onCaptured,
-  );
+  const { form, kind, options, parentDisabled, clearTargetParent, submit, isPending, errorMessage, consolidationBlocked } =
+    useCaptureJourneyController(capability, realizations, onCaptured);
   const { control, formState } = form;
 
   return (
@@ -403,7 +434,13 @@ export function CaptureJourneyForm({ capability, realizations, onCaptured, onCan
         <NoteField control={control} />
 
         {kind === 'move' && (
-          <MoveFields control={control} domainOptions={options.domainOptions} parentOptions={options.parentOptions} />
+          <MoveFields
+            control={control}
+            domainOptions={options.domainOptions}
+            parentOptions={options.parentOptions}
+            parentDisabled={parentDisabled}
+            onDomainChange={clearTargetParent}
+          />
         )}
 
         <SubmitAlerts errors={formState.errors} errorMessage={errorMessage} />

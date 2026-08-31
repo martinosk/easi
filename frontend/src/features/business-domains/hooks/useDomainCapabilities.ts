@@ -1,9 +1,18 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import type { BusinessDomainId, Capability, CapabilityId } from '../../../api/types';
 import { invalidateFor } from '../../../lib/invalidateFor';
 import { businessDomainsApi } from '../api';
 import { businessDomainsMutationEffects } from '../mutationEffects';
+import { businessDomainsQueryKeys } from '../queryKeys';
+
+export function useCapabilitiesInDomainQuery(domainId: BusinessDomainId | undefined) {
+  return useQuery({
+    queryKey: businessDomainsQueryKeys.capabilities(domainId!),
+    queryFn: () => businessDomainsApi.getCapabilitiesByDomainId(domainId!),
+    enabled: !!domainId,
+  });
+}
 
 export function useAssociateCapability() {
   const queryClient = useQueryClient();

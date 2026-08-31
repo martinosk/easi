@@ -67,13 +67,13 @@ func (h *PlanJourneyHandler) ensureNoActiveJourney(ctx context.Context, capabili
 }
 
 func (h *PlanJourneyHandler) verifyReferences(ctx context.Context, facts aggregates.CapabilityJourneyFacts) error {
-	if err := requireCapabilityExists(ctx, h.refs.CapabilityExists, facts.CapabilityID.Value()); err != nil {
+	if err := requireReferenceExists(ctx, h.refs.CapabilityExists, facts.CapabilityID); err != nil {
 		return err
 	}
-	if err := requireComponentExists(ctx, h.refs.ComponentExists, facts.ToApp.Value()); err != nil {
+	if err := requireReferenceExists(ctx, h.refs.ComponentExists, facts.ToApp); err != nil {
 		return err
 	}
-	if err := verifyComponentsExist(ctx, h.refs.ComponentExists, applicationRefValues(facts.FromApps)); err != nil {
+	if err := verifyComponentsExist(ctx, h.refs.ComponentExists, facts.FromApps); err != nil {
 		return err
 	}
 	return h.verifyMoveReferences(ctx, facts)
@@ -83,13 +83,16 @@ func (h *PlanJourneyHandler) verifyMoveReferences(ctx context.Context, facts agg
 	if !facts.Kind.IsMove() || facts.TargetDomain == nil {
 		return nil
 	}
-	if err := requireDomainExists(ctx, h.refs.DomainExists, facts.TargetDomain.Value()); err != nil {
+	if err := requireReferenceExists(ctx, h.refs.DomainExists, facts.TargetDomain); err != nil {
 		return err
 	}
 	if facts.TargetParent == nil {
 		return nil
 	}
-	return requireCapabilityEffectivelyInDomain(ctx, h.refs.CapabilityEffectivelyInDomain, facts.TargetParent.Value(), facts.TargetDomain.Value())
+	if err := requireReferenceExists(ctx, h.refs.CapabilityExists, facts.TargetParent); err != nil {
+		return err
+	}
+	return requireCapabilityEffectivelyInDomain(ctx, h.refs.CapabilityEffectivelyInDomain, *facts.TargetParent, *facts.TargetDomain)
 }
 
 type planJourneyCoreFacts struct {

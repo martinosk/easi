@@ -70,7 +70,7 @@ func (h *ChangeJourneySourceApplicationsHandler) Handle(ctx context.Context, cmd
 	if err != nil {
 		return cqrs.EmptyResult(), err
 	}
-	if err := verifyComponentsExist(ctx, h.componentExists, command.FromComponentIDs); err != nil {
+	if err := verifyComponentsExist(ctx, h.componentExists, fromApps); err != nil {
 		return cqrs.EmptyResult(), err
 	}
 	journey, err := h.repo.GetByID(ctx, command.JourneyID)

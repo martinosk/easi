@@ -31,37 +31,34 @@ func buildTargetPeriod(year, quarter *int) (*valueobjects.TargetPeriod, error) {
 	return &tp, nil
 }
 
-func requireCapabilityExists(ctx context.Context, check services.CapabilityExists, id string) error {
-	return requireReferenceExists(ctx, func(ctx context.Context, id string) (bool, error) { return check(ctx, id) }, id)
+type entityRef interface {
+	Value() string
 }
 
-func requireComponentExists(ctx context.Context, check services.ComponentExists, id string) error {
-	return requireReferenceExists(ctx, func(ctx context.Context, id string) (bool, error) { return check(ctx, id) }, id)
-}
-
-func requireDomainExists(ctx context.Context, check services.DomainExists, id string) error {
-	return requireReferenceExists(ctx, func(ctx context.Context, id string) (bool, error) { return check(ctx, id) }, id)
-}
-
-func requireCapabilityEffectivelyInDomain(ctx context.Context, check services.CapabilityEffectivelyInDomain, capabilityID, domainID string) error {
+func requireCapabilityEffectivelyInDomain(
+	ctx context.Context,
+	check services.CapabilityEffectivelyInDomain,
+	parent valueobjects.PhysicalCapabilityRef,
+	domain valueobjects.BusinessDomainRef,
+) error {
 	if check == nil {
 		return nil
 	}
-	ok, err := check(ctx, capabilityID, domainID)
+	ok, err := check(ctx, parent.Value(), domain.Value())
 	if err != nil {
 		return err
 	}
 	if !ok {
-		return services.ErrReferencedEntityNotFound
+		return services.ErrTargetParentNotInTargetDomain
 	}
 	return nil
 }
 
-func requireReferenceExists(ctx context.Context, check func(context.Context, string) (bool, error), id string) error {
+func requireReferenceExists(ctx context.Context, check func(context.Context, string) (bool, error), ref entityRef) error {
 	if check == nil {
 		return nil
 	}
-	exists, err := check(ctx, id)
+	exists, err := check(ctx, ref.Value())
 	if err != nil {
 		return err
 	}
@@ -71,9 +68,9 @@ func requireReferenceExists(ctx context.Context, check func(context.Context, str
 	return nil
 }
 
-func verifyComponentsExist(ctx context.Context, check services.ComponentExists, ids []string) error {
-	for _, id := range ids {
-		if err := requireComponentExists(ctx, check, id); err != nil {
+func verifyComponentsExist(ctx context.Context, check services.ComponentExists, refs []valueobjects.ApplicationRef) error {
+	for _, ref := range refs {
+		if err := requireReferenceExists(ctx, check, ref); err != nil {
 			return err
 		}
 	}
@@ -90,14 +87,6 @@ func parseApplicationRefs(ids []string) ([]valueobjects.ApplicationRef, error) {
 		refs[i] = ref
 	}
 	return refs, nil
-}
-
-func applicationRefValues(refs []valueobjects.ApplicationRef) []string {
-	ids := make([]string, len(refs))
-	for i, ref := range refs {
-		ids[i] = ref.Value()
-	}
-	return ids
 }
 
 func parseOptionalBusinessDomainRef(id string) (*valueobjects.BusinessDomainRef, error) {

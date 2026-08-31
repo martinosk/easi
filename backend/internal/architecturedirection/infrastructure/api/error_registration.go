@@ -55,6 +55,7 @@ func init() {
 
 	registry.RegisterValidation(aggregates.ErrJourneyTargetAmongSources, "The target application must not be among the from-applications")
 	registry.RegisterValidation(aggregates.ErrJourneyMoveRequiresTargetDomain, "A move journey requires a target business domain")
+	registry.RegisterValidation(services.ErrTargetParentNotInTargetDomain, "The target parent capability must belong to the target business domain")
 	registry.RegisterValidation(aggregates.ErrJourneyMoveFieldsOnNonMove, "Move fields are only valid for move journeys")
 	registry.RegisterValidation(valueobjects.ErrInvalidJourneyKind, "Kind must be one of migration, consolidation, carve-out, move")
 	registry.RegisterValidation(valueobjects.ErrInvalidSourceApplicationCount, "Source application count does not match the journey kind")

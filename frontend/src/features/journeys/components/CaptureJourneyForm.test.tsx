@@ -46,6 +46,10 @@ async function pickOption(dropdownClass: string, name: string) {
 const pickFromAppOption = (name: string) => pickOption('mantine-MultiSelect-dropdown', name);
 const pickToAppOption = (name: string) => pickOption('mantine-Select-dropdown', name);
 
+function inSelectDropdown(name: string) {
+  return screen.queryAllByText(name).some((el) => el.closest('.mantine-Select-dropdown') !== null);
+}
+
 function realizationOf(component: Component) {
   return buildCapabilityRealization({ componentId: component.id, componentName: component.name });
 }
@@ -155,10 +159,6 @@ describe('CaptureJourneyForm — implicit sources (specs 193 & 194)', () => {
     return new Map(names.map((name) => [name, addComponent({ name })]));
   }
 
-  function inToAppDropdown(name: string) {
-    return screen.queryAllByText(name).some((el) => el.closest('.mantine-Select-dropdown') !== null);
-  }
-
   async function capturedJourney(capabilityId: string | number) {
     const result = await journeyApi.getForCapability(String(capabilityId));
     return result.journey;
@@ -255,8 +255,8 @@ describe('CaptureJourneyForm — implicit sources (specs 193 & 194)', () => {
       await user.click(screen.getByRole('radio', { name: kind }));
       await user.click(screen.getByTestId('journey-to-app'));
 
-      await waitFor(() => expect(inToAppDropdown('Seabook')).toBe(true));
-      expect(inToAppDropdown('Phoenix')).toBe(true);
+      await waitFor(() => expect(inSelectDropdown('Seabook')).toBe(true));
+      expect(inSelectDropdown('Phoenix')).toBe(true);
     });
 
     it(`shows no target-among-sources error when a realiser becomes the ${kind.toLowerCase()} target`, async () => {
@@ -319,8 +319,84 @@ describe('CaptureJourneyForm — implicit sources (specs 193 & 194)', () => {
 
     await user.click(screen.getByTestId('journey-to-app'));
 
-    await waitFor(() => expect(inToAppDropdown('Phoenix')).toBe(true));
-    expect(inToAppDropdown('Seabook')).toBe(false);
+    await waitFor(() => expect(inSelectDropdown('Phoenix')).toBe(true));
+    expect(inSelectDropdown('Seabook')).toBe(false);
+  });
+});
+
+describe('CaptureJourneyForm — move target parent (effective domain filter)', () => {
+  function seedTwoDomains() {
+    const domains = [
+      { id: 'domain-gf', name: 'Group functions' },
+      { id: 'domain-ops', name: 'Operations' },
+    ].map((d) => ({ ...d, description: '', capabilityCount: 0, createdAt: '2026-01-01T00:00:00Z', _links: {} }));
+    server.use(
+      http.get('*/api/v1/business-domains', () => {
+        return HttpResponse.json({ data: domains, _links: { self: '/api/v1/business-domains' } });
+      }),
+    );
+  }
+
+  function seedDomainAssignments(assignments: Record<string, { id: string | number; name: string }[]>) {
+    server.use(
+      http.get('*/api/v1/business-domains/:id/capabilities', ({ params }) => {
+        return HttpResponse.json({
+          data: assignments[String(params.id)] ?? [],
+          _links: { self: `/api/v1/business-domains/${params.id}/capabilities` },
+        });
+      }),
+    );
+  }
+
+  it('disables the target parent picker until a target domain is chosen', async () => {
+    seedDomains();
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.click(screen.getByRole('radio', { name: 'Move' }));
+
+    expect(screen.getByTestId('journey-target-parent')).toBeDisabled();
+  });
+
+  it('offers only capabilities effectively in the chosen target domain as parents', async () => {
+    seedDomains();
+    const finance = addCapability({ name: 'Finance' });
+    addCapability({ name: 'Invoicing', parentId: finance.id });
+    addCapability({ name: 'Logistics Ops' });
+    seedDomainAssignments({ 'domain-gf': [finance] });
+    const user = userEvent.setup();
+    const { capability } = renderForm();
+
+    await user.click(screen.getByRole('radio', { name: 'Move' }));
+    await user.click(screen.getByTestId('journey-target-domain'));
+    await pickToAppOption('Group functions');
+    await user.click(screen.getByTestId('journey-target-parent'));
+
+    await waitFor(() => expect(inSelectDropdown('Finance')).toBe(true));
+    expect(inSelectDropdown('Invoicing')).toBe(true);
+    expect(inSelectDropdown('Logistics Ops')).toBe(false);
+    expect(inSelectDropdown(capability.name)).toBe(false);
+  });
+
+  it('clears the selected parent when the target domain changes', async () => {
+    seedTwoDomains();
+    const finance = addCapability({ name: 'Finance' });
+    const logistics = addCapability({ name: 'Logistics Ops' });
+    seedDomainAssignments({ 'domain-gf': [finance], 'domain-ops': [logistics] });
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.click(screen.getByRole('radio', { name: 'Move' }));
+    await user.click(screen.getByTestId('journey-target-domain'));
+    await pickToAppOption('Group functions');
+    await user.click(screen.getByTestId('journey-target-parent'));
+    await pickToAppOption('Finance');
+    expect(screen.getByTestId('journey-target-parent')).toHaveValue('Finance');
+
+    await user.click(screen.getByTestId('journey-target-domain'));
+    await pickToAppOption('Operations');
+
+    await waitFor(() => expect(screen.getByTestId('journey-target-parent')).toHaveValue(''));
   });
 });
 

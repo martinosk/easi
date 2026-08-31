@@ -1,6 +1,11 @@
 package services
 
-import "context"
+import (
+	"context"
+	"errors"
+)
+
+var ErrTargetParentNotInTargetDomain = errors.New("the target parent capability does not effectively belong to the target business domain")
 
 type CapabilityExists func(ctx context.Context, capabilityID string) (bool, error)
 

@@ -208,15 +208,20 @@ func TestPlanJourneyHandler_AggregateInvariantViolations_Fail(t *testing.T) {
 	}
 }
 
-func TestPlanJourneyHandler_ValidMove_VerifiesDomainAndParent(t *testing.T) {
-	repo := &mockCapabilityJourneyRepository{}
-	lookup := &mockActiveJourneyLookup{exists: false}
+func validMovePlanJourneyCmd() *commands.PlanJourney {
 	cmd := validPlanJourneyCmd()
 	cmd.Kind = valueobjects.JourneyKindMove
 	cmd.FromComponentIDs = []string{}
 	cmd.TargetDomainID = uuid.New().String()
 	cmd.TargetParentID = uuid.New().String()
 	cmd.ResultingName = "Freight invoicing"
+	return cmd
+}
+
+func TestPlanJourneyHandler_ValidMove_VerifiesDomainAndParent(t *testing.T) {
+	repo := &mockCapabilityJourneyRepository{}
+	lookup := &mockActiveJourneyLookup{exists: false}
+	cmd := validMovePlanJourneyCmd()
 
 	var checkedCapability, checkedDomain string
 	refs := allExistingRefs()
@@ -234,24 +239,44 @@ func TestPlanJourneyHandler_ValidMove_VerifiesDomainAndParent(t *testing.T) {
 	assert.Equal(t, cmd.TargetDomainID, checkedDomain)
 }
 
-func TestPlanJourneyHandler_MoveParentNotEffectivelyInDomain_Fails(t *testing.T) {
-	repo := &mockCapabilityJourneyRepository{}
-	lookup := &mockActiveJourneyLookup{exists: false}
-	cmd := validPlanJourneyCmd()
-	cmd.Kind = valueobjects.JourneyKindMove
-	cmd.FromComponentIDs = []string{}
-	cmd.TargetDomainID = uuid.New().String()
-	cmd.TargetParentID = uuid.New().String()
-	cmd.ResultingName = "Freight invoicing"
+func TestPlanJourneyHandler_MoveParentReferenceViolations_Fail(t *testing.T) {
+	cases := []struct {
+		name    string
+		refs    func(cmd *commands.PlanJourney) JourneyReferenceChecks
+		wantErr error
+	}{
+		{
+			name: "parent not effectively in target domain",
+			refs: func(_ *commands.PlanJourney) JourneyReferenceChecks {
+				refs := allExistingRefs()
+				refs.CapabilityEffectivelyInDomain = func(_ context.Context, _, _ string) (bool, error) { return false, nil }
+				return refs
+			},
+			wantErr: services.ErrTargetParentNotInTargetDomain,
+		},
+		{
+			name: "parent does not exist",
+			refs: func(cmd *commands.PlanJourney) JourneyReferenceChecks {
+				refs := allExistingRefs()
+				refs.CapabilityExists = func(_ context.Context, id string) (bool, error) { return id != cmd.TargetParentID, nil }
+				return refs
+			},
+			wantErr: services.ErrReferencedEntityNotFound,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := &mockCapabilityJourneyRepository{}
+			lookup := &mockActiveJourneyLookup{exists: false}
+			cmd := validMovePlanJourneyCmd()
+			h := NewPlanJourneyHandler(repo, lookup, tc.refs(cmd))
 
-	refs := allExistingRefs()
-	refs.CapabilityEffectivelyInDomain = func(_ context.Context, _, _ string) (bool, error) { return false, nil }
-	h := NewPlanJourneyHandler(repo, lookup, refs)
+			_, err := h.Handle(context.Background(), cmd)
 
-	_, err := h.Handle(context.Background(), cmd)
-
-	assert.ErrorIs(t, err, services.ErrReferencedEntityNotFound)
-	assert.Empty(t, repo.saved)
+			assert.ErrorIs(t, err, tc.wantErr)
+			assert.Empty(t, repo.saved)
+		})
+	}
 }
 
 func TestPlanJourneyHandler_LookupError_Fails(t *testing.T) {
