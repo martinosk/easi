@@ -101,6 +101,7 @@ type PlanJourney struct {
 	TargetDomainID   string
 	TargetParentID   string
 	ResultingName    string
+	TargetMaturity   *int
 	PlannedBy        string
 }
 

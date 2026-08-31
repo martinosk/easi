@@ -1,9 +1,10 @@
 import type { CapabilityTreeNode } from '../../capabilities/hooks/useCapabilityTree';
 import type { CapabilityJourney } from '../../journeys/types';
-import { capabilityJourneyStatus, selectBoardJourney } from './boardLens';
+import { capabilityJourneyStatus, selectBoardJourney, selectBoardJourneys } from './boardLens';
 
 export interface JourneyIndex {
   getJourney: (capabilityId: string) => CapabilityJourney | undefined;
+  getJourneys: (capabilityId: string) => CapabilityJourney[];
   getArrivingMovesForParent: (capabilityId: string) => CapabilityJourney[];
   getArrivingMovesForDomain: (domainId: string) => CapabilityJourney[];
   sourceDomainName: (capabilityId: string) => string | undefined;
@@ -27,6 +28,7 @@ export function buildJourneyIndex({ journeys, capabilityDomainNames }: BuildJour
   }
 
   const boardJourney = new Map<string, CapabilityJourney>();
+  const boardJourneys = new Map<string, CapabilityJourney[]>();
   const movesByParent = new Map<string, CapabilityJourney[]>();
   const movesByDomain = new Map<string, CapabilityJourney[]>();
 
@@ -34,6 +36,7 @@ export function buildJourneyIndex({ journeys, capabilityDomainNames }: BuildJour
     const board = selectBoardJourney(list);
     if (!board) continue;
     boardJourney.set(capabilityId, board);
+    boardJourneys.set(capabilityId, selectBoardJourneys(list));
     if (board.kind !== 'move' || !board.move) continue;
     if (board.move.targetParentId) pushInto(movesByParent, board.move.targetParentId, board);
     else pushInto(movesByDomain, board.move.targetDomainId, board);
@@ -41,6 +44,7 @@ export function buildJourneyIndex({ journeys, capabilityDomainNames }: BuildJour
 
   return {
     getJourney: (capabilityId) => boardJourney.get(capabilityId),
+    getJourneys: (capabilityId) => boardJourneys.get(capabilityId) ?? [],
     getArrivingMovesForParent: (capabilityId) => movesByParent.get(capabilityId) ?? [],
     getArrivingMovesForDomain: (domainId) => movesByDomain.get(domainId) ?? [],
     sourceDomainName: (capabilityId) => capabilityDomainNames.get(capabilityId),

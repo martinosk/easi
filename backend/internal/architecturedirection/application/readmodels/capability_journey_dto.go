@@ -27,6 +27,12 @@ type JourneyMoveDTO struct {
 	ResultingName     string `json:"resultingName"`
 }
 
+type JourneyMaturityDTO struct {
+	TargetMaturity  int `json:"targetMaturity"`
+	CurrentMaturity int `json:"currentMaturity"`
+	MaturityGap     int `json:"maturityGap"`
+}
+
 type CapabilityJourneyMilestoneDTO struct {
 	ID           string           `json:"id"`
 	Label        string           `json:"label"`
@@ -48,6 +54,7 @@ type CapabilityJourneyDTO struct {
 	FromApplications []JourneyApplicationRefDTO      `json:"fromApplications"`
 	ToApplication    JourneyApplicationRefDTO        `json:"toApplication"`
 	Move             *JourneyMoveDTO                 `json:"move,omitempty"`
+	Maturity         *JourneyMaturityDTO             `json:"maturity,omitempty"`
 	Milestones       []CapabilityJourneyMilestoneDTO `json:"milestones"`
 	PlannedBy        string                          `json:"plannedBy"`
 	PlannedByName    string                          `json:"plannedByName"`
@@ -71,6 +78,7 @@ type InsertJourneyParams struct {
 	TargetDomainID   string
 	TargetParentID   string
 	ResultingName    string
+	TargetMaturity   *int
 	PlannedBy        string
 	PlannedAt        time.Time
 }

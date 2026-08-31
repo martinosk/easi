@@ -77,6 +77,24 @@ func verifyComponentsExist(ctx context.Context, check services.ComponentExists, 
 	return nil
 }
 
+func parseToApplicationRef(kind valueobjects.JourneyKind, id string) (valueobjects.ApplicationRef, error) {
+	if kind.IsMaturity() && id == "" {
+		return valueobjects.ApplicationRef{}, nil
+	}
+	return valueobjects.NewApplicationRef(id)
+}
+
+func parseOptionalTargetMaturity(value *int) (*valueobjects.TargetMaturity, error) {
+	if value == nil {
+		return nil, nil
+	}
+	maturity, err := valueobjects.NewTargetMaturity(*value)
+	if err != nil {
+		return nil, err
+	}
+	return &maturity, nil
+}
+
 func parseApplicationRefs(ids []string) ([]valueobjects.ApplicationRef, error) {
 	refs := make([]valueobjects.ApplicationRef, len(ids))
 	for i, id := range ids {

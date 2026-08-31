@@ -3,8 +3,10 @@ import { buildJourneyMilestone } from '../../../test/helpers/entityBuilders';
 import type { CapabilityJourney, JourneyMilestone } from '../types';
 import {
   formatTargetPeriod,
+  journeyDestinationLabel,
   journeyKindLabel,
   journeyStatusLabel,
+  maturityGapLabel,
   milestoneWhenLabel,
   scheduleConflictLabel,
 } from './journeyFormat';
@@ -66,10 +68,44 @@ describe('journeyKindLabel', () => {
     expect(journeyKindLabel('move')).toBe('capability move');
   });
 
+  it('renders a maturity journey as "maturity uplift"', () => {
+    expect(journeyKindLabel('maturity')).toBe('maturity uplift');
+  });
+
   it('renders other kinds verbatim', () => {
     expect(journeyKindLabel('migration')).toBe('migration');
     expect(journeyKindLabel('consolidation')).toBe('consolidation');
     expect(journeyKindLabel('carve-out')).toBe('carve-out');
+  });
+});
+
+describe('journeyDestinationLabel — spec 211', () => {
+  it('names the target application for an application journey', () => {
+    expect(journeyDestinationLabel(journey())).toBe('Phoenix');
+  });
+
+  it('names the target maturity for a maturity journey', () => {
+    const maturityJourney = journey({
+      kind: 'maturity',
+      toApplication: { componentId: '', componentName: '', stale: false },
+      maturity: { targetMaturity: 65, currentMaturity: 30, maturityGap: 35 },
+    });
+
+    expect(journeyDestinationLabel(maturityJourney)).toBe('maturity 65');
+  });
+});
+
+describe('maturityGapLabel — spec 211 rule 7', () => {
+  it('counts the remaining gap', () => {
+    expect(maturityGapLabel({ targetMaturity: 65, currentMaturity: 30, maturityGap: 35 })).toBe('35 to go');
+  });
+
+  it('reads as reached once the gap closes', () => {
+    expect(maturityGapLabel({ targetMaturity: 65, currentMaturity: 65, maturityGap: 0 })).toBe('reached');
+  });
+
+  it('reads as reached when the capability overshoots the target', () => {
+    expect(maturityGapLabel({ targetMaturity: 65, currentMaturity: 70, maturityGap: -5 })).toBe('reached');
   });
 });
 

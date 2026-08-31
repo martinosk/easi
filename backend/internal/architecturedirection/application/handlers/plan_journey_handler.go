@@ -17,17 +17,20 @@ type CapabilityJourneyRepository interface {
 }
 
 type ActiveJourneyLookup interface {
-	FindActiveJourneyIDForCapability(ctx context.Context, capabilityID string) (string, bool, error)
+	FindActiveJourneyIDForCapability(ctx context.Context, capabilityID string, kinds []string) (string, bool, error)
 }
+
+type CapabilityMaturityLookup func(ctx context.Context, capabilityID string) (int, error)
 
 type PlanJourneyHandler struct {
-	repo   CapabilityJourneyRepository
-	lookup ActiveJourneyLookup
-	refs   JourneyReferenceChecks
+	repo     CapabilityJourneyRepository
+	lookup   ActiveJourneyLookup
+	refs     JourneyReferenceChecks
+	maturity CapabilityMaturityLookup
 }
 
-func NewPlanJourneyHandler(repo CapabilityJourneyRepository, lookup ActiveJourneyLookup, refs JourneyReferenceChecks) *PlanJourneyHandler {
-	return &PlanJourneyHandler{repo: repo, lookup: lookup, refs: refs}
+func NewPlanJourneyHandler(repo CapabilityJourneyRepository, lookup ActiveJourneyLookup, refs JourneyReferenceChecks, maturity CapabilityMaturityLookup) *PlanJourneyHandler {
+	return &PlanJourneyHandler{repo: repo, lookup: lookup, refs: refs, maturity: maturity}
 }
 
 func (h *PlanJourneyHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
@@ -39,10 +42,13 @@ func (h *PlanJourneyHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs
 	if err != nil {
 		return cqrs.EmptyResult(), err
 	}
-	if err := h.ensureNoActiveJourney(ctx, facts.CapabilityID.Value()); err != nil {
+	if err := h.ensureNoActiveJourneyOnTrack(ctx, facts); err != nil {
 		return cqrs.EmptyResult(), err
 	}
 	if err := h.verifyReferences(ctx, facts); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+	if facts.CurrentMaturity, err = h.currentMaturity(ctx, facts); err != nil {
 		return cqrs.EmptyResult(), err
 	}
 	journey, err := aggregates.PlanCapabilityJourney(facts)
@@ -55,8 +61,8 @@ func (h *PlanJourneyHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs
 	return cqrs.NewResult(journey.ID()), nil
 }
 
-func (h *PlanJourneyHandler) ensureNoActiveJourney(ctx context.Context, capabilityID string) error {
-	existingID, exists, err := h.lookup.FindActiveJourneyIDForCapability(ctx, capabilityID)
+func (h *PlanJourneyHandler) ensureNoActiveJourneyOnTrack(ctx context.Context, facts aggregates.CapabilityJourneyFacts) error {
+	existingID, exists, err := h.lookup.FindActiveJourneyIDForCapability(ctx, facts.CapabilityID.Value(), facts.Kind.TrackKinds())
 	if err != nil {
 		return err
 	}
@@ -66,12 +72,21 @@ func (h *PlanJourneyHandler) ensureNoActiveJourney(ctx context.Context, capabili
 	return nil
 }
 
+func (h *PlanJourneyHandler) currentMaturity(ctx context.Context, facts aggregates.CapabilityJourneyFacts) (int, error) {
+	if !facts.Kind.IsMaturity() || h.maturity == nil {
+		return 0, nil
+	}
+	return h.maturity(ctx, facts.CapabilityID.Value())
+}
+
 func (h *PlanJourneyHandler) verifyReferences(ctx context.Context, facts aggregates.CapabilityJourneyFacts) error {
 	if err := requireReferenceExists(ctx, h.refs.CapabilityExists, facts.CapabilityID); err != nil {
 		return err
 	}
-	if err := requireReferenceExists(ctx, h.refs.ComponentExists, facts.ToApp); err != nil {
-		return err
+	if facts.ToApp.Value() != "" {
+		if err := requireReferenceExists(ctx, h.refs.ComponentExists, facts.ToApp); err != nil {
+			return err
+		}
 	}
 	if err := verifyComponentsExist(ctx, h.refs.ComponentExists, facts.FromApps); err != nil {
 		return err
@@ -116,7 +131,7 @@ func parsePlanJourneyCoreFacts(cmd *commands.PlanJourney) (planJourneyCoreFacts,
 	if err != nil {
 		return planJourneyCoreFacts{}, err
 	}
-	toApp, err := valueobjects.NewApplicationRef(cmd.ToComponentID)
+	toApp, err := parseToApplicationRef(kind, cmd.ToComponentID)
 	if err != nil {
 		return planJourneyCoreFacts{}, err
 	}
@@ -128,9 +143,10 @@ func parsePlanJourneyCoreFacts(cmd *commands.PlanJourney) (planJourneyCoreFacts,
 }
 
 type planJourneyTargetFacts struct {
-	period *valueobjects.TargetPeriod
-	domain *valueobjects.BusinessDomainRef
-	parent *valueobjects.PhysicalCapabilityRef
+	period   *valueobjects.TargetPeriod
+	domain   *valueobjects.BusinessDomainRef
+	parent   *valueobjects.PhysicalCapabilityRef
+	maturity *valueobjects.TargetMaturity
 }
 
 func parsePlanJourneyTargetFacts(cmd *commands.PlanJourney) (planJourneyTargetFacts, error) {
@@ -146,7 +162,11 @@ func parsePlanJourneyTargetFacts(cmd *commands.PlanJourney) (planJourneyTargetFa
 	if err != nil {
 		return planJourneyTargetFacts{}, err
 	}
-	return planJourneyTargetFacts{period: targetPeriod, domain: targetDomain, parent: targetParent}, nil
+	targetMaturity, err := parseOptionalTargetMaturity(cmd.TargetMaturity)
+	if err != nil {
+		return planJourneyTargetFacts{}, err
+	}
+	return planJourneyTargetFacts{period: targetPeriod, domain: targetDomain, parent: targetParent, maturity: targetMaturity}, nil
 }
 
 func parsePlanJourneyFacts(cmd *commands.PlanJourney) (aggregates.CapabilityJourneyFacts, error) {
@@ -159,16 +179,17 @@ func parsePlanJourneyFacts(cmd *commands.PlanJourney) (aggregates.CapabilityJour
 		return aggregates.CapabilityJourneyFacts{}, err
 	}
 	return aggregates.CapabilityJourneyFacts{
-		ID:            valueobjects.NewCapabilityJourneyID(),
-		CapabilityID:  core.capability,
-		Kind:          core.kind,
-		FromApps:      core.fromApps,
-		ToApp:         core.toApp,
-		Note:          core.note,
-		TargetPeriod:  target.period,
-		TargetDomain:  target.domain,
-		TargetParent:  target.parent,
-		ResultingName: cmd.ResultingName,
-		PlannedBy:     cmd.PlannedBy,
+		ID:             valueobjects.NewCapabilityJourneyID(),
+		CapabilityID:   core.capability,
+		Kind:           core.kind,
+		FromApps:       core.fromApps,
+		ToApp:          core.toApp,
+		Note:           core.note,
+		TargetPeriod:   target.period,
+		TargetDomain:   target.domain,
+		TargetParent:   target.parent,
+		ResultingName:  cmd.ResultingName,
+		TargetMaturity: target.maturity,
+		PlannedBy:      cmd.PlannedBy,
 	}, nil
 }

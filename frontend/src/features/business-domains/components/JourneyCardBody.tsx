@@ -2,7 +2,7 @@ import type { CapabilityId, ComponentId } from '../../../api/types';
 import type { CapabilityTreeNode } from '../../capabilities/hooks/useCapabilityTree';
 import { JourneyProgressBar } from '../../journeys/components/JourneyProgressBar';
 import type { CapabilityJourney } from '../../journeys/types';
-import { journeyKindLabel } from '../../journeys/utils/journeyFormat';
+import { journeyDestinationLabel, journeyKindLabel } from '../../journeys/utils/journeyFormat';
 import type { AssessedRealization } from '../hooks/domainBoardViewModel';
 import { capabilityJourneyStatus } from '../lens/boardLens';
 import { AppChip } from './AppChip';
@@ -33,7 +33,7 @@ function DoneBody({ journey, realizations, onChipClick }: DoneBodyProps) {
             <AppChip key={realization.id} realization={realization} onClick={onChipClick} showGrade={false} />
           ))
         ) : (
-          <PlanChip label={journey.toApplication.componentName} variant="standard" />
+          <PlanChip label={journeyDestinationLabel(journey)} variant="standard" />
         )}
       </div>
       <JourneyProgressBar journey={journey} />
@@ -42,12 +42,13 @@ function DoneBody({ journey, realizations, onChipClick }: DoneBodyProps) {
 }
 
 function ActiveBody({ journey }: { journey: CapabilityJourney }) {
+  const maturity = journey.maturity;
   return (
     <>
       <div className={classes.row}>
-        <PlanChip label={fromLabel(journey) || '—'} variant="legacy" />
+        <PlanChip label={maturity ? String(maturity.currentMaturity) : fromLabel(journey) || '—'} variant="legacy" />
         <span className={classes.arrow}>→</span>
-        <PlanChip label={journey.toApplication.componentName} variant="future" />
+        <PlanChip label={journeyDestinationLabel(journey)} variant="future" />
         <span className={classes.kind}>{journeyKindLabel(journey.kind)}</span>
       </div>
       <JourneyProgressBar journey={journey} />

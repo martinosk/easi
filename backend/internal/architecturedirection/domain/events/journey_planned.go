@@ -19,6 +19,7 @@ type JourneyPlanned struct {
 	TargetDomainID   string            `json:"targetDomainId,omitempty"`
 	TargetParentID   string            `json:"targetParentId,omitempty"`
 	ResultingName    string            `json:"resultingName,omitempty"`
+	TargetMaturity   *int              `json:"targetMaturity,omitempty"`
 	PlannedBy        string            `json:"plannedBy"`
 	OccurredOn       time.Time         `json:"occurredOn"`
 }
@@ -34,6 +35,7 @@ type JourneyPlannedFields struct {
 	TargetDomainID   string
 	TargetParentID   string
 	ResultingName    string
+	TargetMaturity   *int
 	PlannedBy        string
 }
 
@@ -50,6 +52,7 @@ func NewJourneyPlanned(f JourneyPlannedFields) JourneyPlanned {
 		TargetDomainID:   f.TargetDomainID,
 		TargetParentID:   f.TargetParentID,
 		ResultingName:    f.ResultingName,
+		TargetMaturity:   f.TargetMaturity,
 		PlannedBy:        f.PlannedBy,
 		OccurredOn:       time.Now().UTC(),
 	}
@@ -76,6 +79,7 @@ func (e JourneyPlanned) EventData() map[string]interface{} {
 		"targetDomainId":   e.TargetDomainID,
 		"targetParentId":   e.TargetParentID,
 		"resultingName":    e.ResultingName,
+		"targetMaturity":   e.TargetMaturity,
 		"plannedBy":        e.PlannedBy,
 		"occurredOn":       e.OccurredOn,
 	}

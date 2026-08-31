@@ -7,7 +7,10 @@ import { buildCapabilityRealization, renderWithProviders } from '../../../test/h
 import { addCapability, addComponent } from '../../../test/mocks/db';
 import { server } from '../../../test/mocks/server';
 import { journeyApi } from '../api/journeyApi';
+import type { JourneyKind } from '../types';
 import { CaptureJourneyForm } from './CaptureJourneyForm';
+
+const ALL_JOURNEY_KINDS: JourneyKind[] = ['migration', 'consolidation', 'carve-out', 'move', 'maturity'];
 
 vi.mock('react-hot-toast', () => ({
   default: { success: vi.fn(), error: vi.fn() },
@@ -29,6 +32,7 @@ function renderForm(overrides: Partial<Parameters<typeof CaptureJourneyForm>[0]>
   const props = {
     capability,
     realizations: [],
+    availableKinds: ALL_JOURNEY_KINDS,
     onCaptured: vi.fn(),
     onCancel: vi.fn(),
     ...overrides,
@@ -82,6 +86,27 @@ describe('CaptureJourneyForm — kind-driven fields', () => {
     expect(screen.getByTestId('journey-target-domain')).toBeInTheDocument();
     expect(screen.getByTestId('journey-target-parent')).toBeInTheDocument();
     expect(screen.getByTestId('journey-resulting-name')).toHaveValue(capability.name);
+  });
+
+  it('swaps the application pickers for a maturity target (spec 211 rule 2)', async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    expect(screen.queryByTestId('journey-target-maturity')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('radio', { name: 'Maturity' }));
+
+    expect(screen.getByTestId('journey-target-maturity')).toBeInTheDocument();
+    expect(screen.queryByTestId('journey-from-apps')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('journey-to-app')).not.toBeInTheDocument();
+  });
+
+  it('offers only the kinds the backend still allows', () => {
+    renderForm({ availableKinds: ['maturity'] });
+
+    expect(screen.getByRole('radio', { name: 'Maturity' })).toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: 'Migration' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('journey-target-maturity')).toBeInTheDocument();
   });
 
   it('explains the selected kind and updates the description when the kind changes', async () => {
@@ -161,7 +186,7 @@ describe('CaptureJourneyForm — implicit sources (specs 193 & 194)', () => {
 
   async function capturedJourney(capabilityId: string | number) {
     const result = await journeyApi.getForCapability(String(capabilityId));
-    return result.journey;
+    return result.journeys[0];
   }
 
   async function pickTarget(user: ReturnType<typeof userEvent.setup>, name: string) {
@@ -415,7 +440,7 @@ describe('CaptureJourneyForm — capture', () => {
 
     await waitFor(() => expect(onCaptured).toHaveBeenCalled());
     const result = await journeyApi.getForCapability(String(capability.id));
-    expect(result.journey?.kind).toBe('migration');
-    expect(result.journey?.toApplication.componentId).toBe(phoenix.id);
+    expect(result.journeys[0]?.kind).toBe('migration');
+    expect(result.journeys[0]?.toApplication.componentId).toBe(phoenix.id);
   });
 });

@@ -1,6 +1,11 @@
 import { Stack, UnstyledButton } from '@mantine/core';
 import type { CapabilityJourney } from '../../journeys/types';
-import { formatTargetPeriod, journeyKindLabel, journeyStatusLabel } from '../../journeys/utils/journeyFormat';
+import {
+  formatTargetPeriod,
+  journeyDestinationLabel,
+  journeyKindLabel,
+  journeyStatusLabel,
+} from '../../journeys/utils/journeyFormat';
 import { DrawerSectionHeader } from './DrawerSectionHeader';
 import classes from './HierarchyJourneys.module.css';
 
@@ -38,7 +43,7 @@ function SubCapabilityJourneyRow({ journey, onNavigate }: JourneyRowProps) {
       <span className={classes.body}>
         <span className={classes.name}>{journey.capabilityName}</span>
         <span className={classes.route}>
-          {journeyKindLabel(journey.kind)} → {journey.toApplication.componentName}
+          {journeyKindLabel(journey.kind)} → {journeyDestinationLabel(journey)}
         </span>
       </span>
       <span className={classes.right}>
@@ -74,7 +79,7 @@ function AncestorJourneyRow({ journey, onNavigate }: JourneyRowProps) {
     >
       <span className={classes.body}>
         <span className={classes.name}>{journey.capabilityName}</span>
-        <span className={classes.route}>→ {journey.toApplication.componentName}</span>
+        <span className={classes.route}>→ {journeyDestinationLabel(journey)}</span>
       </span>
       <span className={classes.right}>
         <StatusPill journey={journey} />

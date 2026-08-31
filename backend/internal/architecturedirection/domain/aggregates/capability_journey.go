@@ -12,47 +12,54 @@ import (
 )
 
 var (
-	ErrJourneyTargetAmongSources       = errors.New("journey target application must not be among the from-applications")
-	ErrJourneyMoveRequiresTargetDomain = errors.New("move journey requires a target business domain")
-	ErrJourneyMoveFieldsOnNonMove      = errors.New("move fields are only valid for move journeys")
-	ErrInvalidJourneyTransition        = errors.New("journey transition not allowed from its current status")
-	ErrJourneyFrozen                   = errors.New("journey is frozen and can no longer be edited")
-	ErrJourneyMilestoneNotFound        = entities.ErrMilestoneNotFound
-	ErrJourneyMilestoneOrderIncomplete = entities.ErrMilestoneOrderIncomplete
-	ErrJourneyMilestoneOrderDuplicate  = entities.ErrMilestoneOrderDuplicate
-	ErrJourneyMilestoneOrderUnchanged  = errors.New("milestone order is unchanged")
-	ErrCorruptedCapabilityJourneyEvent = errors.New("corrupted event store: cannot rehydrate capability journey")
-	ErrUnknownCapabilityJourneyEvent   = errors.New("unknown event type for capability journey aggregate")
+	ErrJourneyTargetAmongSources            = errors.New("journey target application must not be among the from-applications")
+	ErrJourneyMoveRequiresTargetDomain      = errors.New("move journey requires a target business domain")
+	ErrJourneyMoveFieldsOnNonMove           = errors.New("move fields are only valid for move journeys")
+	ErrJourneyTargetMaturityOnNonMaturity   = errors.New("target maturity is only valid for maturity journeys")
+	ErrJourneyMaturityRequiresTarget        = errors.New("maturity journey requires a target maturity")
+	ErrJourneyMaturityRefusesApplications   = errors.New("maturity journeys carry no applications")
+	ErrJourneyMaturityTargetNotAboveCurrent = errors.New("target maturity must exceed the capability's current maturity")
+	ErrInvalidJourneyTransition             = errors.New("journey transition not allowed from its current status")
+	ErrJourneyFrozen                        = errors.New("journey is frozen and can no longer be edited")
+	ErrJourneyMilestoneNotFound             = entities.ErrMilestoneNotFound
+	ErrJourneyMilestoneOrderIncomplete      = entities.ErrMilestoneOrderIncomplete
+	ErrJourneyMilestoneOrderDuplicate       = entities.ErrMilestoneOrderDuplicate
+	ErrJourneyMilestoneOrderUnchanged       = errors.New("milestone order is unchanged")
+	ErrCorruptedCapabilityJourneyEvent      = errors.New("corrupted event store: cannot rehydrate capability journey")
+	ErrUnknownCapabilityJourneyEvent        = errors.New("unknown event type for capability journey aggregate")
 )
 
 type CapabilityJourney struct {
 	domain.AggregateRoot
-	capabilityID  valueobjects.PhysicalCapabilityRef
-	kind          valueobjects.JourneyKind
-	status        valueobjects.JourneyStatus
-	fromApps      []valueobjects.ApplicationRef
-	toApp         valueobjects.ApplicationRef
-	progress      *valueobjects.JourneyProgress
-	targetPeriod  *valueobjects.TargetPeriod
-	note          sharedvo.Description
-	milestones    entities.Milestones
-	targetDomain  *valueobjects.BusinessDomainRef
-	targetParent  *valueobjects.PhysicalCapabilityRef
-	resultingName string
+	capabilityID   valueobjects.PhysicalCapabilityRef
+	kind           valueobjects.JourneyKind
+	status         valueobjects.JourneyStatus
+	fromApps       []valueobjects.ApplicationRef
+	toApp          valueobjects.ApplicationRef
+	progress       *valueobjects.JourneyProgress
+	targetPeriod   *valueobjects.TargetPeriod
+	note           sharedvo.Description
+	milestones     entities.Milestones
+	targetDomain   *valueobjects.BusinessDomainRef
+	targetParent   *valueobjects.PhysicalCapabilityRef
+	resultingName  string
+	targetMaturity *valueobjects.TargetMaturity
 }
 
 type CapabilityJourneyFacts struct {
-	ID            valueobjects.CapabilityJourneyID
-	CapabilityID  valueobjects.PhysicalCapabilityRef
-	Kind          valueobjects.JourneyKind
-	FromApps      []valueobjects.ApplicationRef
-	ToApp         valueobjects.ApplicationRef
-	Note          sharedvo.Description
-	TargetPeriod  *valueobjects.TargetPeriod
-	TargetDomain  *valueobjects.BusinessDomainRef
-	TargetParent  *valueobjects.PhysicalCapabilityRef
-	ResultingName string
-	PlannedBy     string
+	ID              valueobjects.CapabilityJourneyID
+	CapabilityID    valueobjects.PhysicalCapabilityRef
+	Kind            valueobjects.JourneyKind
+	FromApps        []valueobjects.ApplicationRef
+	ToApp           valueobjects.ApplicationRef
+	Note            sharedvo.Description
+	TargetPeriod    *valueobjects.TargetPeriod
+	TargetDomain    *valueobjects.BusinessDomainRef
+	TargetParent    *valueobjects.PhysicalCapabilityRef
+	ResultingName   string
+	TargetMaturity  *valueobjects.TargetMaturity
+	CurrentMaturity int
+	PlannedBy       string
 }
 
 type MilestoneFacts struct {
@@ -81,6 +88,9 @@ func PlanCapabilityJourney(facts CapabilityJourneyFacts) (*CapabilityJourney, er
 	if err != nil {
 		return nil, err
 	}
+	if err := validateMaturityFields(facts); err != nil {
+		return nil, err
+	}
 
 	aggregate := &CapabilityJourney{
 		AggregateRoot: domain.NewAggregateRootWithID(facts.ID.Value()),
@@ -96,6 +106,7 @@ func PlanCapabilityJourney(facts CapabilityJourneyFacts) (*CapabilityJourney, er
 		TargetDomainID:   optionalRefValue(facts.TargetDomain),
 		TargetParentID:   optionalRefValue(facts.TargetParent),
 		ResultingName:    resultingName,
+		TargetMaturity:   targetMaturityToData(facts.TargetMaturity),
 		PlannedBy:        facts.PlannedBy,
 	}))
 	return aggregate, nil
@@ -257,6 +268,8 @@ func (j *CapabilityJourney) TargetParent() *valueobjects.PhysicalCapabilityRef {
 }
 func (j *CapabilityJourney) ResultingName() string { return j.resultingName }
 
+func (j *CapabilityJourney) TargetMaturity() *valueobjects.TargetMaturity { return j.targetMaturity }
+
 func (j *CapabilityJourney) FromApps() []valueobjects.ApplicationRef {
 	out := make([]valueobjects.ApplicationRef, len(j.fromApps))
 	copy(out, j.fromApps)
@@ -386,6 +399,7 @@ func (j *CapabilityJourney) applyPlanned(evt events.JourneyPlanned) error {
 	j.targetDomain = destination.targetDomain
 	j.targetParent = destination.targetParent
 	j.resultingName = evt.ResultingName
+	j.targetMaturity = destination.targetMaturity
 	j.status = status
 	j.milestones = entities.NoMilestones()
 	j.progress = nil
@@ -472,6 +486,25 @@ func validateMoveFields(facts CapabilityJourneyFacts) (string, error) {
 	return name.Value(), nil
 }
 
+func validateMaturityFields(facts CapabilityJourneyFacts) error {
+	if !facts.Kind.IsMaturity() {
+		if facts.TargetMaturity != nil {
+			return ErrJourneyTargetMaturityOnNonMaturity
+		}
+		return nil
+	}
+	if facts.ToApp.Value() != "" {
+		return ErrJourneyMaturityRefusesApplications
+	}
+	if facts.TargetMaturity == nil {
+		return ErrJourneyMaturityRequiresTarget
+	}
+	if facts.TargetMaturity.Value() <= facts.CurrentMaturity {
+		return ErrJourneyMaturityTargetNotAboveCurrent
+	}
+	return nil
+}
+
 func containsApplicationRef(refs []valueobjects.ApplicationRef, target valueobjects.ApplicationRef) bool {
 	for _, r := range refs {
 		if r.Value() == target.Value() {
@@ -501,4 +534,12 @@ func targetPeriodToData(tp *valueobjects.TargetPeriod) *events.TargetPeriodData 
 		return nil
 	}
 	return &events.TargetPeriodData{Year: tp.Year(), Quarter: tp.Quarter()}
+}
+
+func targetMaturityToData(tm *valueobjects.TargetMaturity) *int {
+	if tm == nil {
+		return nil
+	}
+	value := tm.Value()
+	return &value
 }

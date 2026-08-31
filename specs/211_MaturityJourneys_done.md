@@ -1,6 +1,6 @@
 # 211 — Maturity Journeys
 
-> **Status:** pending
+> **Status:** done
 > **Depends on:** [210_RelocateEnterpriseArchitectureIntoDirection](210_RelocateEnterpriseArchitectureIntoDirection_done.md), 182 (journeys), 196 (milestone order) — design: [docs/specs/enterprise-capability.md](../docs/specs/enterprise-capability.md)
 > **Roadmap alignment:** SD2 / H1-1
 
@@ -91,12 +91,12 @@ Feature: Maturity as a journey
 
 ## Acceptance Criteria
 
-- [ ] A maturity journey can be planned, started, progressed, completed and abandoned against a domain capability, carrying a target maturity and no applications
-- [ ] Planning is rejected when the target does not exceed current maturity, when application fields are supplied, or when an active maturity journey already exists for that capability
-- [ ] A target maturity supplied on a non-maturity kind is rejected
-- [ ] The journey read model exposes target maturity, current maturity and the derived remaining gap
-- [ ] Maturity journeys appear in the journey list, the timeline view and the sub-capability journey composition alongside other kinds
-- [ ] The capability drawer's journey section renders a maturity journey with its target, gap and milestones
+- [x] A maturity journey can be planned, started, progressed, completed and abandoned against a domain capability, carrying a target maturity and no applications
+- [x] Planning is rejected when the target does not exceed current maturity, when application fields are supplied, or when an active maturity journey already exists for that capability
+- [x] A target maturity supplied on a non-maturity kind is rejected
+- [x] The journey read model exposes target maturity, current maturity and the derived remaining gap
+- [x] Maturity journeys appear in the journey list, the timeline view and the sub-capability journey composition alongside other kinds
+- [x] The capability drawer's journey section renders a maturity journey with its target, gap and milestones
 
 ---
 
@@ -112,15 +112,15 @@ Architecture Direction, entirely in-context.
 
 ### API Surface
 
-`POST /capabilities/{id}/journey` accepts `kind: "maturity"` with `targetMaturity`; the journey DTO gains `targetMaturity`, `currentMaturity` and `maturityGap`. No new routes.
+`POST /capabilities/{id}/journey` accepts `kind: "maturity"` with `targetMaturity`; the journey DTO gains a `maturity` object carrying `targetMaturity`, `currentMaturity` and `maturityGap`. `GET /capabilities/{id}/journey` returns `journeys` (0–2 active journeys, one per track) instead of a single `journey`. No new routes.
 
 ### Persistence
 
-`capability_journeys` gains a nullable `target_maturity` column. Current maturity is read from the existing `capability_node_cache`; the gap is computed in the query, so no backfill is needed — pre-existing journeys have no target and no gap.
+`capability_journeys` gains a nullable `target_maturity` column, and the single-active partial unique index is re-scoped to `(tenant_id, capability_id, kind = 'maturity')` so the two tracks are independent. Current maturity is read from the existing `capability_node_cache`; the gap is computed in the query, so no backfill is needed — pre-existing journeys have no target and no gap.
 
 ### Frontend
 
-`CaptureJourneyForm` offers the maturity kind and swaps its application pickers for a maturity target field; the journey panel renders target, current and gap. Journey list, timeline and sub-capability composition pick the kind up without change.
+`CaptureJourneyForm` offers the maturity kind and swaps its application pickers for a maturity target field; the journey panel renders target, current and gap for every active journey. Journey list, timeline and sub-capability composition pick the kind up without change.
 
 ### Cross-Context Integration
 
@@ -135,6 +135,16 @@ None. Current maturity already arrives in Architecture Direction through `capabi
 3. **Gap is derived at read time** — storing it would go stale the moment a capability's maturity changes, and the capability cache is already local to the context.
 4. **The target must raise maturity** — enforcing it at planning time keeps the concept honest without freezing the journey if the capability later regresses; a regression makes the gap grow, which is information, not an error.
 
+5. **A journey occupies a *track*, and one-active-per-capability becomes one-active-per-track** (decided during implementation) — rule 6 lets a maturity journey run beside an application journey, which amends spec 182 rule 1. `JourneyKind.TrackKinds()` names the kinds sharing a track (`maturity` alone; the four application kinds together); the handler's active-journey lookup and the partial unique index are both scoped by it. Alternative — a stored `track` column — rejected: the track is derivable from the kind, and storing it would need a projector write and a backfill for no gain.
+
+6. **`GET /capabilities/{id}/journey` returns `journeys`, not `journey`** (decided during implementation) — with two tracks the endpoint can no longer name one journey. Alternatives rejected: a second `maturity-journey` route (fragments the concept D5 exists to unify) and a kind-specific second field on the envelope (special-cases one kind in the wire shape). The drawer renders each returned journey with the existing journey card.
+
+7. **Two capture rels, not one** (decided during implementation) — `x-capture` is emitted when the application track is free and `x-capture-maturity` when the maturity track is, so the client derives the offered kinds from links rather than re-deriving the rule. `x-change-sources` is withheld from maturity journeys, which have no sources to change.
+
+8. **The gap is a nested `maturity` object, mirroring `move`** (decided during implementation) — the DTO already models kind-specific fields as an optional nested object; a third set of flat nullable columns would read as unconditional fields that are usually null. Section names (Genesis / Custom Build / Product / Commodity) are deliberately not returned: the maturity scale is MetaModel-owned and Architecture Direction should not publish a second copy of it.
+
+9. **Current maturity is resolved by the handler and validated by the aggregate** (decided during implementation) — `PlanCapabilityJourney` takes `CurrentMaturity` as a fact so rule 3 stays a domain invariant rather than a handler check; the handler reads it from `capability_node_cache` only for the maturity kind.
+
 ---
 
 ## Trade-offs
@@ -144,14 +154,15 @@ None. Current maturity already arrives in Architecture Direction through `capabi
 | Maturity ambition exists only where a journey exists | No catalog-wide "where should we invest" list from target maturity alone | Investment candidates come from TIME suggestions and strategic fit, which are computed from evidence rather than declared; spec 212 puts the suggestion where it is acted on |
 | One more journey kind on a shared form | `CaptureJourneyForm` grows a second kind-conditional branch after `move` | The branch is the same shape as move's; if a third appears, the form splits per kind |
 | Target maturity is fixed once planned | Re-aiming a journey means abandoning and re-planning | Matches how the other kinds treat their targets; editing the target is a later slice if the need appears |
+| Two active journeys per capability (rule 6) | The Domain Board card still shows one journey, so a maturity journey can be hidden behind an application one | The board card is the five-second answer about the application landscape; `selectBoardJourney` deterministically prefers the application journey, and the drawer, history and bulk query all show both |
 
 ---
 
 ## Checklist
 
 - [x] Specification ready
-- [ ] Implementation done
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
-- [ ] API documentation updated
+- [x] Implementation done
+- [x] Unit tests implemented and passing
+- [x] Integration tests implemented if relevant
+- [x] API documentation updated
 - [ ] User sign-off

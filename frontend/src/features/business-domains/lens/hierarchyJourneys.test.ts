@@ -14,7 +14,7 @@ const CAPABILITIES = [FERRY_BOOKING, HAZARDOUS, SPACE_CHARTER, HAZCHECK];
 
 function derive(journeys: CapabilityJourney[], capabilityId: string) {
   const index = buildJourneyIndex({ journeys, capabilityDomainNames: new Map() });
-  return buildHierarchyJourneys({ capabilityId, capabilities: CAPABILITIES, getJourney: index.getJourney });
+  return buildHierarchyJourneys({ capabilityId, capabilities: CAPABILITIES, getJourneys: index.getJourneys });
 }
 
 function journeyOn(capabilityId: string, overrides: Partial<CapabilityJourney> = {}): CapabilityJourney {
@@ -47,6 +47,18 @@ describe('buildHierarchyJourneys — descendants (rules 1-3)', () => {
     const { descendants } = derive([journeyOn('hazardous', { status: 'done', progress: 100 })], 'ferry-booking');
 
     expect(descendants.map((journey) => journey.status)).toEqual(['done']);
+  });
+
+  it('lists a maturity journey beside a descendant application journey (spec 211 rule 6)', () => {
+    const { descendants } = derive(
+      [
+        journeyOn('hazardous', { id: 'journey-migration', kind: 'migration' }),
+        journeyOn('hazardous', { id: 'journey-maturity', kind: 'maturity' }),
+      ],
+      'ferry-booking',
+    );
+
+    expect(descendants.map((journey) => journey.id)).toEqual(['journey-migration', 'journey-maturity']);
   });
 
   it('excludes a descendant whose current journey was abandoned', () => {

@@ -8,7 +8,7 @@ import (
 )
 
 func TestNewJourneyKind_AllValid(t *testing.T) {
-	for _, v := range []string{"migration", "consolidation", "carve-out", "move"} {
+	for _, v := range []string{"migration", "consolidation", "carve-out", "move", "maturity"} {
 		k, err := NewJourneyKind(v)
 		require.NoError(t, err)
 		assert.Equal(t, v, k.Value())
@@ -26,6 +26,24 @@ func TestJourneyKind_IsMove(t *testing.T) {
 
 	migration, _ := NewJourneyKind("migration")
 	assert.False(t, migration.IsMove())
+}
+
+func TestJourneyKind_IsMaturity(t *testing.T) {
+	maturity, _ := NewJourneyKind("maturity")
+	assert.True(t, maturity.IsMaturity())
+
+	migration, _ := NewJourneyKind("migration")
+	assert.False(t, migration.IsMaturity())
+}
+
+func TestJourneyKind_TrackKinds(t *testing.T) {
+	maturity, _ := NewJourneyKind("maturity")
+	assert.Equal(t, []string{"maturity"}, maturity.TrackKinds())
+
+	for _, v := range []string{"migration", "consolidation", "carve-out", "move"} {
+		k, _ := NewJourneyKind(v)
+		assert.Equal(t, []string{"migration", "consolidation", "carve-out", "move"}, k.TrackKinds())
+	}
 }
 
 func TestJourneyKind_ValidateSourceCount_Rule3(t *testing.T) {
@@ -47,6 +65,9 @@ func TestJourneyKind_ValidateSourceCount_Rule3(t *testing.T) {
 		{"move", 0, true},
 		{"move", 1, true},
 		{"move", 4, true},
+		{"maturity", 0, true},
+		{"maturity", 1, false},
+		{"maturity", 2, false},
 	}
 	for _, c := range cases {
 		t.Run(c.kind, func(t *testing.T) {

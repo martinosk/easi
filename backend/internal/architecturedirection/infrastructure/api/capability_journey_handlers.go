@@ -17,7 +17,7 @@ import (
 var errCapabilityJourneyMissingAfterMutation = errors.New("capability journey not found after mutation")
 
 type CapabilityJourneyQueries interface {
-	GetActiveByCapabilityID(ctx context.Context, capabilityID string) (*readmodels.CapabilityJourneyDTO, error)
+	GetActiveByCapabilityID(ctx context.Context, capabilityID string) ([]readmodels.CapabilityJourneyDTO, error)
 	GetHistoryByCapabilityID(ctx context.Context, capabilityID string) ([]readmodels.CapabilityJourneyDTO, error)
 	GetCurrentByCapabilityIDs(ctx context.Context, capabilityIDs []string) ([]readmodels.CapabilityJourneyDTO, error)
 	GetAllCurrent(ctx context.Context) ([]readmodels.CapabilityJourneyDTO, error)
@@ -35,8 +35,8 @@ func NewCapabilityJourneyHandlers(commandBus cqrs.CommandBus, queries Capability
 }
 
 type CapabilityJourneyResponse struct {
-	Journey *readmodels.CapabilityJourneyDTO `json:"journey"`
-	Links   sharedAPI.Links                  `json:"_links,omitempty"`
+	Journeys []readmodels.CapabilityJourneyDTO `json:"journeys"`
+	Links    sharedAPI.Links                   `json:"_links,omitempty"`
 }
 
 type TargetPeriodRequest struct {
@@ -53,6 +53,7 @@ type CaptureJourneyRequest struct {
 	TargetDomainID   string               `json:"targetDomainId,omitempty"`
 	TargetParentID   string               `json:"targetParentId,omitempty"`
 	ResultingName    string               `json:"resultingName,omitempty"`
+	TargetMaturity   *int                 `json:"targetMaturity,omitempty"`
 }
 
 type UpdateJourneyProgressRequest struct {
@@ -105,15 +106,15 @@ type ReorderJourneyMilestonesRequest struct {
 // @Router /capabilities/{id}/journey [get]
 func (h *CapabilityJourneyHandlers) GetJourneyForCapability(w http.ResponseWriter, r *http.Request) {
 	capabilityID := sharedAPI.GetPathParam(r, "id")
-	journey, ok := fetchOrFail(w, r, func(ctx context.Context) (*readmodels.CapabilityJourneyDTO, error) {
+	journeys, ok := fetchOrFail(w, r, func(ctx context.Context) ([]readmodels.CapabilityJourneyDTO, error) {
 		return h.queries.GetActiveByCapabilityID(ctx, capabilityID)
 	})
 	if !ok {
 		return
 	}
 	actor, _ := sharedctx.GetActor(r.Context())
-	h.decorateJourney(journey, actor)
-	envelope := CapabilityJourneyResponse{Journey: journey, Links: h.hateoas.ForCapability(capabilityID, journey, actor)}
+	h.decorateJourneys(journeys, actor)
+	envelope := CapabilityJourneyResponse{Journeys: journeys, Links: h.hateoas.ForCapability(capabilityID, journeys, actor)}
 	sharedAPI.RespondJSON(w, http.StatusOK, envelope)
 }
 
@@ -153,6 +154,7 @@ func (h *CapabilityJourneyHandlers) CaptureJourney(w http.ResponseWriter, r *htt
 		TargetDomainID:   req.TargetDomainID,
 		TargetParentID:   req.TargetParentID,
 		ResultingName:    req.ResultingName,
+		TargetMaturity:   req.TargetMaturity,
 		PlannedBy:        actor.Email,
 	}
 	result, err := h.commandBus.Dispatch(r.Context(), cmd)

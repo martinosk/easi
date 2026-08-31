@@ -137,6 +137,46 @@ describe('JourneySection — transition table (mockup-literal)', () => {
     expect(screen.queryByTestId('journey-from-to')).not.toBeInTheDocument();
   });
 
+  it('shows maturity and gap rows for a maturity journey instead of From → to (spec 211)', async () => {
+    seedSpec182Db({
+      journeys: [
+        buildStubJourney({
+          kind: 'maturity',
+          fromApplications: [],
+          toApplication: { componentId: '', componentName: '', stale: false },
+          maturity: { targetMaturity: 65, currentMaturity: 30, maturityGap: 35 },
+        }),
+      ],
+    });
+    renderSection();
+
+    expect(await screen.findByTestId('journey-type')).toHaveTextContent('maturity uplift');
+    expect(screen.getByTestId('journey-maturity')).toHaveTextContent('30 → 65');
+    expect(screen.getByTestId('journey-maturity-gap')).toHaveTextContent('35 to go');
+    expect(screen.queryByTestId('journey-from-to')).not.toBeInTheDocument();
+  });
+
+  it('renders both active journeys when a maturity journey runs beside an application one (spec 211 rule 6)', async () => {
+    seedSpec182Db({
+      journeys: [
+        buildStubJourney({ id: 'journey-migration' }),
+        buildStubJourney({
+          id: 'journey-maturity',
+          kind: 'maturity',
+          fromApplications: [],
+          toApplication: { componentId: '', componentName: '', stale: false },
+          maturity: { targetMaturity: 65, currentMaturity: 30, maturityGap: 35 },
+        }),
+      ],
+    });
+    renderSection();
+
+    expect(await screen.findAllByTestId('journey-transition-table')).toHaveLength(2);
+    expect(screen.getByTestId('journey-from-to')).toHaveTextContent('Seabook → Phoenix');
+    expect(screen.getByTestId('journey-maturity')).toHaveTextContent('30 → 65');
+    expect(screen.queryByTestId('plan-journey-btn')).not.toBeInTheDocument();
+  });
+
   it('renders the plan summary note', async () => {
     seedSpec182Db({ journeys: [buildStubJourney()] });
     renderSection();

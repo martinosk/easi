@@ -6,9 +6,11 @@ import (
 	"errors"
 
 	"github.com/lib/pq"
+
+	"easi/backend/internal/architecturedirection/domain/valueobjects"
 )
 
-func (rm *CapabilityJourneyReadModel) FindActiveJourneyIDForCapability(ctx context.Context, capabilityID string) (string, bool, error) {
+func (rm *CapabilityJourneyReadModel) FindActiveJourneyIDForCapability(ctx context.Context, capabilityID string, kinds []string) (string, bool, error) {
 	tenantID, err := tenantOf(ctx)
 	if err != nil {
 		return "", false, err
@@ -17,8 +19,9 @@ func (rm *CapabilityJourneyReadModel) FindActiveJourneyIDForCapability(ctx conte
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		return tx.QueryRowContext(ctx,
 			`SELECT id FROM architecturedirection.capability_journeys
-			 WHERE tenant_id = $1 AND capability_id = $2 AND status IN ('planned', 'in-flight')`,
-			tenantID, capabilityID,
+			 WHERE tenant_id = $1 AND capability_id = $2 AND status IN ('planned', 'in-flight')
+			   AND kind = ANY($3)`,
+			tenantID, capabilityID, pq.Array(kinds),
 		).Scan(&id)
 	})
 	if errors.Is(err, sql.ErrNoRows) {
@@ -30,33 +33,38 @@ func (rm *CapabilityJourneyReadModel) FindActiveJourneyIDForCapability(ctx conte
 	return id, true, nil
 }
 
-func (rm *CapabilityJourneyReadModel) GetActiveByCapabilityID(ctx context.Context, capabilityID string) (*CapabilityJourneyDTO, error) {
-	return rm.fetchOne(ctx,
-		`SELECT `+journeyColumns+` FROM architecturedirection.capability_journeys
-		 WHERE tenant_id = $1 AND capability_id = $2 AND status IN ('planned', 'in-flight')`,
-		func(tenantID string) []any { return []any{tenantID, capabilityID} },
+func (rm *CapabilityJourneyReadModel) GetActiveByCapabilityID(ctx context.Context, capabilityID string) ([]CapabilityJourneyDTO, error) {
+	return rm.fetchMany(ctx,
+		`SELECT `+journeyColumns+` FROM `+journeySource+`
+		 WHERE cj.tenant_id = $1 AND cj.capability_id = $2 AND cj.status IN ('planned', 'in-flight')
+		 ORDER BY cj.planned_at DESC`,
+		capabilityID,
 	)
 }
 
 func (rm *CapabilityJourneyReadModel) GetByID(ctx context.Context, journeyID string) (*CapabilityJourneyDTO, error) {
 	return rm.fetchOne(ctx,
-		`SELECT `+journeyColumns+` FROM architecturedirection.capability_journeys WHERE tenant_id = $1 AND id = $2`,
+		`SELECT `+journeyColumns+` FROM `+journeySource+` WHERE cj.tenant_id = $1 AND cj.id = $2`,
 		func(tenantID string) []any { return []any{tenantID, journeyID} },
 	)
 }
 
 func (rm *CapabilityJourneyReadModel) GetHistoryByCapabilityID(ctx context.Context, capabilityID string) ([]CapabilityJourneyDTO, error) {
+	return rm.fetchMany(ctx,
+		`SELECT `+journeyColumns+` FROM `+journeySource+`
+		 WHERE cj.tenant_id = $1 AND cj.capability_id = $2 ORDER BY cj.planned_at DESC`,
+		capabilityID,
+	)
+}
+
+func (rm *CapabilityJourneyReadModel) fetchMany(ctx context.Context, query, capabilityID string) ([]CapabilityJourneyDTO, error) {
 	tenantID, err := tenantOf(ctx)
 	if err != nil {
 		return nil, err
 	}
 	journeys := []CapabilityJourneyDTO{}
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		loaded, err := rm.queryJourneys(ctx, tx,
-			`SELECT `+journeyColumns+` FROM architecturedirection.capability_journeys
-			 WHERE tenant_id = $1 AND capability_id = $2 ORDER BY planned_at DESC`,
-			tenantID, capabilityID,
-		)
+		loaded, err := rm.queryJourneys(ctx, tx, query, tenantID, capabilityID)
 		journeys = loaded
 		return err
 	})
@@ -87,15 +95,17 @@ func (rm *CapabilityJourneyReadModel) currentJourneys(ctx context.Context, where
 	err := rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		loaded, err := rm.queryJourneys(ctx, tx,
 			`SELECT `+journeyColumns+` FROM (
-			   SELECT cj.*, ROW_NUMBER() OVER (
-			     PARTITION BY capability_id, (CASE WHEN status IN ('planned', 'in-flight') THEN 1 ELSE 0 END)
+			   SELECT ranked.*, ROW_NUMBER() OVER (
+			     PARTITION BY capability_id,
+			       (CASE WHEN status IN ('planned', 'in-flight') THEN 1 ELSE 0 END),
+			       (CASE WHEN status IN ('planned', 'in-flight') AND kind = '`+valueobjects.JourneyKindMaturity+`' THEN 1 ELSE 0 END)
 			     ORDER BY planned_at DESC
 			   ) AS rn
-			   FROM architecturedirection.capability_journeys cj
+			   FROM architecturedirection.capability_journeys ranked
 			   WHERE `+where+`
-			 ) ranked
-			 WHERE rn = 1
-			 ORDER BY capability_id, planned_at DESC`,
+			 ) cj `+journeyMaturityJoin+`
+			 WHERE cj.rn = 1
+			 ORDER BY cj.capability_id, cj.planned_at DESC`,
 			args...,
 		)
 		journeys = loaded
@@ -138,12 +148,18 @@ func scanAllJourneys(rows *sql.Rows) ([]CapabilityJourneyDTO, error) {
 	return journeys, rows.Err()
 }
 
-const journeyColumns = `id, capability_id, COALESCE(capability_name, ''), capability_stale, kind, status,
-	progress, target_year, target_quarter, note,
-	to_component_id, COALESCE(to_component_name, ''), to_component_stale,
-	COALESCE(target_domain_id, ''), COALESCE(target_domain_name, ''), target_domain_stale,
-	COALESCE(target_parent_id, ''), COALESCE(target_parent_name, ''), target_parent_stale, resulting_name,
-	planned_by, planned_by_name, planned_at, updated_at, started_at, completed_at, abandoned_at`
+const journeyColumns = `cj.id, cj.capability_id, COALESCE(cj.capability_name, ''), cj.capability_stale, cj.kind, cj.status,
+	cj.progress, cj.target_year, cj.target_quarter, cj.note,
+	cj.to_component_id, COALESCE(cj.to_component_name, ''), cj.to_component_stale,
+	COALESCE(cj.target_domain_id, ''), COALESCE(cj.target_domain_name, ''), cj.target_domain_stale,
+	COALESCE(cj.target_parent_id, ''), COALESCE(cj.target_parent_name, ''), cj.target_parent_stale, cj.resulting_name,
+	cj.target_maturity, cnc.maturity_value,
+	cj.planned_by, cj.planned_by_name, cj.planned_at, cj.updated_at, cj.started_at, cj.completed_at, cj.abandoned_at`
+
+const journeyMaturityJoin = `LEFT JOIN architecturedirection.capability_node_cache cnc
+	 ON cnc.tenant_id = cj.tenant_id AND cnc.capability_id = cj.capability_id`
+
+const journeySource = `architecturedirection.capability_journeys cj ` + journeyMaturityJoin
 
 type journeyRowScanner interface {
 	Scan(dest ...any) error
@@ -153,6 +169,7 @@ type journeyScanBuffer struct {
 	progress                                       sql.NullInt64
 	targetYear, targetQuarter                      sql.NullInt64
 	move                                           JourneyMoveDTO
+	targetMaturity, currentMaturity                sql.NullInt64
 	updatedAt, startedAt, completedAt, abandonedAt sql.NullTime
 }
 
@@ -175,6 +192,7 @@ func journeyScanTargets(dto *CapabilityJourneyDTO, raw *journeyScanBuffer) []any
 		&dto.ToApplication.ComponentID, &dto.ToApplication.ComponentName, &dto.ToApplication.Stale,
 		&raw.move.TargetDomainID, &raw.move.TargetDomainName, &raw.move.TargetDomainStale,
 		&raw.move.TargetParentID, &raw.move.TargetParentName, &raw.move.TargetParentStale, &raw.move.ResultingName,
+		&raw.targetMaturity, &raw.currentMaturity,
 		&dto.PlannedBy, &dto.PlannedByName, &dto.PlannedAt, &raw.updatedAt, &raw.startedAt, &raw.completedAt, &raw.abandonedAt,
 	}
 }
@@ -183,6 +201,7 @@ func applyJourneyScanBuffer(dto *CapabilityJourneyDTO, raw journeyScanBuffer) {
 	applyJourneyProgress(dto, raw.progress)
 	applyJourneyTargetPeriod(dto, raw.targetYear, raw.targetQuarter)
 	applyJourneyMove(dto, raw.move)
+	applyJourneyMaturity(dto, raw.targetMaturity, raw.currentMaturity)
 	applyJourneyTimestamps(dto, raw)
 }
 
@@ -202,10 +221,22 @@ func applyJourneyTargetPeriod(dto *CapabilityJourneyDTO, year, quarter sql.NullI
 }
 
 func applyJourneyMove(dto *CapabilityJourneyDTO, move JourneyMoveDTO) {
-	if dto.Kind != journeyKindMove {
+	if dto.Kind != valueobjects.JourneyKindMove {
 		return
 	}
 	dto.Move = &move
+}
+
+func applyJourneyMaturity(dto *CapabilityJourneyDTO, target, current sql.NullInt64) {
+	if dto.Kind != valueobjects.JourneyKindMaturity || !target.Valid {
+		return
+	}
+	targetValue, currentValue := int(target.Int64), int(current.Int64)
+	dto.Maturity = &JourneyMaturityDTO{
+		TargetMaturity:  targetValue,
+		CurrentMaturity: currentValue,
+		MaturityGap:     targetValue - currentValue,
+	}
 }
 
 func applyJourneyTimestamps(dto *CapabilityJourneyDTO, raw journeyScanBuffer) {

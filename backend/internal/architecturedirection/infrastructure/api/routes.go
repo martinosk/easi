@@ -219,7 +219,7 @@ func setupCapabilityJourneyRoutes(deps RoutesDeps, lookups referenceLookups) {
 		DomainExists:                  lookups.domainExists,
 		CapabilityEffectivelyInDomain: lookups.capabilityEffectivelyInDomain,
 	}
-	deps.CommandBus.Register("PlanJourney", handlers.NewPlanJourneyHandler(repo, readModel, refs))
+	deps.CommandBus.Register("PlanJourney", handlers.NewPlanJourneyHandler(repo, readModel, refs, lookups.capabilityMaturity))
 	deps.CommandBus.Register("StartJourney", handlers.NewStartJourneyHandler(repo))
 	deps.CommandBus.Register("CompleteJourney", handlers.NewCompleteJourneyHandler(repo))
 	deps.CommandBus.Register("AbandonJourney", handlers.NewAbandonJourneyHandler(repo))

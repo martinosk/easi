@@ -34,7 +34,7 @@ A horizon move becomes a Phase-1 design doc (`docs/specs/`) and vertical-slice s
 
 | Move | Scope | Decisions | Specs | Status |
 |------|-------|-----------|-------|--------|
-| H1-1 | Retire the enterprise capability: relocate the context, then maturity journeys, unified TIME value object, and removal of EnterpriseCapability with Direction, Standard Application and Composition | SD1, SD2 | 210–213 ([design doc](../specs/enterprise-capability.md)) | 210 done (contexts 15 → 14); 211–213 re-planned and approved 2026-08-31 against the retirement, ready to implement |
+| H1-1 | Retire the enterprise capability: relocate the context, then maturity journeys, unified TIME value object, and removal of EnterpriseCapability with Direction, Standard Application and Composition | SD1, SD2 | 210–213 ([design doc](../specs/enterprise-capability.md)) | 210 done (contexts 15 → 14); 211 implemented and verified, awaiting sign-off (maturity is a journey kind on its own track); 212–213 ready to implement |
 | H1-2 | Application record: ownership state machine with stats projection, hosting classification, two-level composition | SD6 | 214–216 | specs pending approval |
 | H1-3 | MetaModel: custom-field schema moves in (backfilled), modelling rule set v1 with AI naming validation | SD5 | 217–218 | specs pending approval |
 

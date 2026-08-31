@@ -14072,6 +14072,9 @@ const docTemplate = `{
                 "kind": {
                     "type": "string"
                 },
+                "maturity": {
+                    "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.JourneyMaturityDTO"
+                },
                 "milestones": {
                     "type": "array",
                     "items": {
@@ -14344,6 +14347,20 @@ const docTemplate = `{
                 },
                 "stale": {
                     "type": "boolean"
+                }
+            }
+        },
+        "easi_backend_internal_architecturedirection_application_readmodels.JourneyMaturityDTO": {
+            "type": "object",
+            "properties": {
+                "currentMaturity": {
+                    "type": "integer"
+                },
+                "maturityGap": {
+                    "type": "integer"
+                },
+                "targetMaturity": {
+                    "type": "integer"
                 }
             }
         },
@@ -16032,8 +16049,11 @@ const docTemplate = `{
                 "_links": {
                     "$ref": "#/definitions/easi_backend_internal_shared_api.Links"
                 },
-                "journey": {
-                    "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.CapabilityJourneyDTO"
+                "journeys": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.CapabilityJourneyDTO"
+                    }
                 }
             }
         },
@@ -16077,6 +16097,9 @@ const docTemplate = `{
                 },
                 "targetDomainId": {
                     "type": "string"
+                },
+                "targetMaturity": {
+                    "type": "integer"
                 },
                 "targetParentId": {
                     "type": "string"

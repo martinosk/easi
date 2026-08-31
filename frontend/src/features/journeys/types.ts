@@ -2,7 +2,7 @@ import type { HATEOASLink, HATEOASLinks } from '../../api/types';
 
 export type JourneyId = string;
 
-export type JourneyKind = 'migration' | 'consolidation' | 'carve-out' | 'move';
+export type JourneyKind = 'migration' | 'consolidation' | 'carve-out' | 'move' | 'maturity';
 
 export type JourneyStatus = 'planned' | 'in-flight' | 'done' | 'abandoned';
 
@@ -29,6 +29,12 @@ export interface JourneyMove {
   resultingName: string;
 }
 
+export interface JourneyMaturity {
+  targetMaturity: number;
+  currentMaturity: number;
+  maturityGap: number;
+}
+
 export interface JourneyMilestone {
   id: string;
   label: string;
@@ -53,6 +59,7 @@ export interface CapabilityJourney {
   fromApplications: JourneyApplicationRef[];
   toApplication: JourneyApplicationRef;
   move?: JourneyMove;
+  maturity?: JourneyMaturity;
   milestones: JourneyMilestone[];
   plannedBy: string;
   plannedByName: string;
@@ -76,10 +83,11 @@ export interface CapabilityJourney {
 }
 
 export interface CapabilityJourneyResponse {
-  journey: CapabilityJourney | null;
+  journeys: CapabilityJourney[];
   _links: HATEOASLinks & {
     self?: HATEOASLink;
     'x-capture'?: HATEOASLink;
+    'x-capture-maturity'?: HATEOASLink;
   };
 }
 
@@ -110,6 +118,7 @@ export interface CaptureJourneyRequest {
   targetDomainId?: string;
   targetParentId?: string | null;
   resultingName?: string;
+  targetMaturity?: number;
 }
 
 export interface UpdateJourneyDetailsRequest {

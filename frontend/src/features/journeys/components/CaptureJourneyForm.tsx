@@ -4,6 +4,7 @@ import {
   Button,
   Group,
   MultiSelect,
+  NumberInput,
   SegmentedControl,
   Select,
   Stack,
@@ -14,7 +15,13 @@ import {
 import { useEffect, useMemo } from 'react';
 import { Controller, type FieldErrors, useForm } from 'react-hook-form';
 import type { BusinessDomainId, Capability, CapabilityRealization } from '../../../api/types';
-import { type CaptureJourneyFormData, captureJourneySchema } from '../../../lib/schemas/journey';
+import {
+  carriesApplications,
+  type CaptureJourneyFormData,
+  captureJourneySchema,
+  MAX_TARGET_MATURITY,
+  MIN_TARGET_MATURITY,
+} from '../../../lib/schemas/journey';
 import { useBusinessDomainsQuery } from '../../business-domains/hooks/useBusinessDomains';
 import { useCapabilitiesInDomainQuery } from '../../business-domains/hooks/useDomainCapabilities';
 import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
@@ -27,6 +34,7 @@ import { QUARTER_OPTIONS, yearOptions } from './periodFields';
 interface CaptureJourneyFormProps {
   capability: Capability;
   realizations: CapabilityRealization[];
+  availableKinds: JourneyKind[];
   onCaptured: () => void;
   onCancel: () => void;
 }
@@ -36,6 +44,7 @@ const KIND_OPTIONS = [
   { value: 'consolidation', label: 'Consolidation' },
   { value: 'carve-out', label: 'Carve-out' },
   { value: 'move', label: 'Move' },
+  { value: 'maturity', label: 'Maturity' },
 ] as const satisfies ReadonlyArray<{ value: JourneyKind; label: string }>;
 
 const KIND_DESCRIPTIONS = {
@@ -44,12 +53,18 @@ const KIND_DESCRIPTIONS = {
     'Several applications merge onto one. Its current realisations, apart from the target, are the implicit sources.',
   'carve-out': 'Functionality is extracted from one application into another. Exactly one source application.',
   move: 'The capability relocates to another business domain or parent, under a new name. Its current realisations, apart from the target, are the implicit sources.',
+  maturity:
+    'The capability is deliberately matured to a higher level. No applications — the milestones carry the work, which need not be technical.',
 } as const satisfies Record<JourneyKind, string>;
 
-function defaultValues(capability: Capability, realizations: CapabilityRealization[]): CaptureJourneyFormData {
+function defaultValues(
+  capability: Capability,
+  realizations: CapabilityRealization[],
+  kind: JourneyKind,
+): CaptureJourneyFormData {
   return {
-    kind: 'migration',
-    fromComponentIds: realizations.map((r) => String(r.componentId)),
+    kind,
+    fromComponentIds: carriesApplications(kind) ? realizations.map((r) => String(r.componentId)) : [],
     toComponentId: '',
     note: '',
     targetYear: undefined,
@@ -57,6 +72,7 @@ function defaultValues(capability: Capability, realizations: CapabilityRealizati
     targetDomainId: '',
     targetParentId: '',
     resultingName: capability.name,
+    targetMaturity: undefined,
   };
 }
 
@@ -83,6 +99,7 @@ function toCaptureRequest(data: CaptureJourneyFormData): CaptureJourneyRequest {
           resultingName: data.resultingName.trim(),
         }
       : {}),
+    ...(data.kind === 'maturity' ? { targetMaturity: data.targetMaturity } : {}),
   };
 }
 
@@ -135,12 +152,13 @@ function useTargetParentOptions(capabilityId: string, targetDomainId: string) {
 function useCaptureJourneyController(
   capability: Capability,
   realizations: CapabilityRealization[],
+  availableKinds: JourneyKind[],
   onCaptured: () => void,
 ) {
   const captureMutation = useCaptureJourney();
   const form = useForm<CaptureJourneyFormData>({
     resolver: zodResolver(captureJourneySchema),
-    defaultValues: defaultValues(capability, realizations),
+    defaultValues: defaultValues(capability, realizations, availableKinds[0]),
     mode: 'onChange',
   });
   const { watch, setValue, trigger } = form;
@@ -150,11 +168,16 @@ function useCaptureJourneyController(
   const targetDomainId = watch('targetDomainId');
 
   useEffect(() => {
+    if (!carriesApplications(kind)) {
+      if (fromComponentIds.length > 0) setValue('fromComponentIds', [], { shouldValidate: true });
+      if (toComponentId !== '') setValue('toComponentId', '', { shouldValidate: true });
+      return;
+    }
     if (hasImplicitSources(kind)) {
       setValue('fromComponentIds', implicitSources(realizations, toComponentId), { shouldValidate: true });
       void trigger('toComponentId');
     }
-  }, [kind, realizations, toComponentId, setValue, trigger]);
+  }, [kind, realizations, fromComponentIds, toComponentId, setValue, trigger]);
 
   const options = {
     ...useOptions(realizations, fromComponentIds, kind),
@@ -188,14 +211,15 @@ function useCaptureJourneyController(
 
 type FormControl = ReturnType<typeof useForm<CaptureJourneyFormData>>['control'];
 
-function KindField({ control }: { control: FormControl }) {
+function KindField({ control, availableKinds }: { control: FormControl; availableKinds: JourneyKind[] }) {
+  const options = KIND_OPTIONS.filter((option) => availableKinds.includes(option.value));
   return (
     <Controller
       name="kind"
       control={control}
       render={({ field }) => (
         <SegmentedControl
-          data={KIND_OPTIONS as unknown as { value: string; label: string }[]}
+          data={options as unknown as { value: string; label: string }[]}
           value={field.value}
           onChange={field.onChange}
           fullWidth
@@ -358,6 +382,28 @@ function MoveFields({
   );
 }
 
+function MaturityFields({ control }: { control: FormControl }) {
+  return (
+    <Controller
+      name="targetMaturity"
+      control={control}
+      render={({ field, fieldState }) => (
+        <NumberInput
+          label="Target maturity"
+          description={`The level this journey will reach, ${MIN_TARGET_MATURITY}–${MAX_TARGET_MATURITY}. It must be above the capability's current maturity.`}
+          withAsterisk
+          min={MIN_TARGET_MATURITY}
+          max={MAX_TARGET_MATURITY}
+          value={field.value ?? ''}
+          onChange={(value) => field.onChange(value === '' ? undefined : Number(value))}
+          error={fieldState.error?.message}
+          data-testid="journey-target-maturity"
+        />
+      )}
+    />
+  );
+}
+
 function NoteField({ control }: { control: FormControl }) {
   return (
     <Controller
@@ -403,16 +449,22 @@ function SubmitAlerts({
   );
 }
 
-export function CaptureJourneyForm({ capability, realizations, onCaptured, onCancel }: CaptureJourneyFormProps) {
+export function CaptureJourneyForm({
+  capability,
+  realizations,
+  availableKinds,
+  onCaptured,
+  onCancel,
+}: CaptureJourneyFormProps) {
   const { form, kind, options, parentDisabled, clearTargetParent, submit, isPending, errorMessage, consolidationBlocked } =
-    useCaptureJourneyController(capability, realizations, onCaptured);
+    useCaptureJourneyController(capability, realizations, availableKinds, onCaptured);
   const { control, formState } = form;
 
   return (
     <form onSubmit={submit} data-testid="capture-journey-form">
       <Stack gap="md">
         <Stack gap={4}>
-          <KindField control={control} />
+          <KindField control={control} availableKinds={availableKinds} />
           <Text size="sm" c="dimmed" data-testid="journey-kind-description">
             {KIND_DESCRIPTIONS[kind]}
           </Text>
@@ -425,9 +477,14 @@ export function CaptureJourneyForm({ capability, realizations, onCaptured, onCan
           </Alert>
         )}
 
-        {!hasImplicitSources(kind) && <FromAppsField control={control} options={options.fromAppOptions} />}
+        {carriesApplications(kind) && (
+          <>
+            {!hasImplicitSources(kind) && <FromAppsField control={control} options={options.fromAppOptions} />}
+            <ToAppField control={control} options={options.toAppOptions} />
+          </>
+        )}
 
-        <ToAppField control={control} options={options.toAppOptions} />
+        {kind === 'maturity' && <MaturityFields control={control} />}
 
         <TargetPeriodFields control={control} />
 

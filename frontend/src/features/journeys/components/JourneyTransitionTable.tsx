@@ -1,7 +1,7 @@
 import { Badge, Table } from '@mantine/core';
 import { Fragment, type ReactNode } from 'react';
 import type { CapabilityJourney } from '../types';
-import { formatTargetPeriod, journeyKindLabel, journeyStatusLabel } from '../utils/journeyFormat';
+import { formatTargetPeriod, journeyKindLabel, journeyStatusLabel, maturityGapLabel } from '../utils/journeyFormat';
 import classes from './JourneyTransitionTable.module.css';
 
 function StaleBadge() {
@@ -67,6 +67,31 @@ function MoveRows({ journey }: { journey: CapabilityJourney }) {
   );
 }
 
+function MaturityRows({ journey }: { journey: CapabilityJourney }) {
+  const maturity = journey.maturity;
+  if (!maturity) return null;
+  return (
+    <>
+      <Row label="Maturity" testId="journey-maturity">
+        {maturity.currentMaturity} → {maturity.targetMaturity}
+      </Row>
+      <Row label="Remaining gap" testId="journey-maturity-gap">
+        {maturityGapLabel(maturity)}
+      </Row>
+    </>
+  );
+}
+
+function TransitionRows({ journey }: { journey: CapabilityJourney }) {
+  if (journey.kind === 'move') return <MoveRows journey={journey} />;
+  if (journey.kind === 'maturity') return <MaturityRows journey={journey} />;
+  return (
+    <Row label="From → to" testId="journey-from-to">
+      <FromToCell journey={journey} />
+    </Row>
+  );
+}
+
 export function JourneyTransitionTable({ journey }: { journey: CapabilityJourney }) {
   return (
     <Table className={classes.table} data-testid="journey-transition-table">
@@ -74,13 +99,7 @@ export function JourneyTransitionTable({ journey }: { journey: CapabilityJourney
         <Row label="Type" testId="journey-type">
           {journeyKindLabel(journey.kind)}
         </Row>
-        {journey.kind === 'move' ? (
-          <MoveRows journey={journey} />
-        ) : (
-          <Row label="From → to" testId="journey-from-to">
-            <FromToCell journey={journey} />
-          </Row>
-        )}
+        <TransitionRows journey={journey} />
         <Row label="Status" testId="journey-status">
           {journeyStatusLabel(journey)}
         </Row>

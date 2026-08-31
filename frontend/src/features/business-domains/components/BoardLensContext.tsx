@@ -8,6 +8,7 @@ const TRACE_HIGHLIGHT_MS = 2600;
 
 const EMPTY_INDEX: JourneyIndex = {
   getJourney: () => undefined,
+  getJourneys: () => [],
   getArrivingMovesForParent: () => [],
   getArrivingMovesForDomain: () => [],
   sourceDomainName: () => undefined,
