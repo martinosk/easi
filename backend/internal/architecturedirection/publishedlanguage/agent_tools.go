@@ -10,6 +10,8 @@ func AgentTools() []agenttools.AgentToolSpec {
 	tools = append(tools, realizationRoleTools()...)
 	tools = append(tools, capabilityJourneyTools()...)
 	tools = append(tools, compositionTools()...)
+	tools = append(tools, enterpriseCapabilityTools()...)
+	tools = append(tools, enterpriseAnalysisTools()...)
 	return tools
 }
 

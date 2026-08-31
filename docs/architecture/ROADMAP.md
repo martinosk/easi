@@ -34,9 +34,9 @@ A horizon move becomes a Phase-1 design doc (`docs/specs/`) and vertical-slice s
 
 | Move | Scope | Decisions | Specs | Status |
 |------|-------|-----------|-------|--------|
-| H1-1 | Dissolve EnterpriseArchitecture into Architecture Direction: unified TIME value object, EnterpriseCapability as Direction subject, Assessment aggregate, retire the context | SD1, SD2 | — | not started |
-| H1-2 | Application record: ownership state machine with stats projection, hosting classification, two-level composition | SD6 | — | not started |
-| H1-3 | MetaModel: custom-field schema moves in (backfilled), modelling rule set v1 with AI naming validation | SD5 | — | not started |
+| H1-1 | Dissolve EnterpriseArchitecture into Architecture Direction: relocate the context, Assessment aggregate, unified TIME value object, EnterpriseCapability as Direction subject | SD1, SD2 | 210–213 ([design doc](../specs/ea-dissolution.md)) | 210 done (contexts 15 → 14); 211–213 pending approval |
+| H1-2 | Application record: ownership state machine with stats projection, hosting classification, two-level composition | SD6 | 214–216 | specs pending approval |
+| H1-3 | MetaModel: custom-field schema moves in (backfilled), modelling rule set v1 with AI naming validation | SD5 | 217–218 | specs pending approval |
 
 Exit: coverage assessment re-scored — boundary smells 3 → 1, contexts 15 → 14.
 

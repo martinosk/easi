@@ -21,7 +21,7 @@ Provide an AI-powered conversational assistant that helps users explore and modi
 ## Strategic Classification
 
 ### Domain Importance
-**Supporting Domain** - Enhances the usability of all core domains but does not define the architecture modeling methodology itself. The competitive advantage lies in the core domains (Capability Mapping, Enterprise Architecture, Value Streams); this context makes them more accessible.
+**Supporting Domain** - Enhances the usability of all core domains but does not define the architecture modeling methodology itself. The competitive advantage lies in the core domains (Capability Mapping, Architecture Direction, Value Streams); this context makes them more accessible.
 
 ### Business Model
 **Engagement Creator** - Increases user engagement by lowering the barrier to exploring and modifying architecture data through conversational AI.
@@ -74,7 +74,7 @@ Provide an AI-powered conversational assistant that helps users explore and modi
 **Tool Calls** (to other contexts via loopback HTTP):
 - To **Architecture Modeling**: Component CRUD, vendor/acquired entity/internal team management, origin links
 - To **Capability Mapping**: Capability CRUD, metadata, business domains, dependencies, strategy
-- To **Enterprise Architecture**: Enterprise capability management
+- To **Architecture Direction**: Enterprise capability management, directions, TIME and journeys
 - To **Value Streams**: Value stream and stage management
 - To **MetaModel**: Configuration queries
 
@@ -207,5 +207,5 @@ Provide an AI-powered conversational assistant that helps users explore and modi
 
 ### Cross-Context Integration
 - **Downstream of Auth**: Listens to `TenantCreated` to auto-provision AI configuration
-- **Loopback consumer of all contexts**: Executes tools via HTTP against Architecture Modeling, Capability Mapping, Enterprise Architecture, Value Streams, and MetaModel APIs
+- **Loopback consumer of all contexts**: Executes tools via HTTP against Architecture Modeling, Capability Mapping, Architecture Direction, Value Streams, and MetaModel APIs
 - **Published Language provider**: Defines `AgentToolSpec` contract that other contexts implement to contribute tools

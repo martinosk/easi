@@ -40,7 +40,7 @@ BEGIN
     FOREACH schema_name IN ARRAY ARRAY[
         'infrastructure', 'shared', 'architecturemodeling', 'architectureviews',
         'architecturedirection',
-        'capabilitymapping', 'enterprisearchitecture', 'viewlayouts', 'importing',
+        'capabilitymapping', 'viewlayouts', 'importing',
         'auth', 'accessdelegation', 'metamodel', 'releases', 'valuestreams',
         'archassistant'
     ]

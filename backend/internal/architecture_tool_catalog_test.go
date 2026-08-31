@@ -17,7 +17,6 @@ import (
 	viewsAPI "easi/backend/internal/architectureviews/infrastructure/api"
 	authPL "easi/backend/internal/auth/publishedlanguage"
 	capabilityAPI "easi/backend/internal/capabilitymapping/infrastructure/api"
-	enterpriseArchAPI "easi/backend/internal/enterprisearchitecture/infrastructure/api"
 	metamodelAPI "easi/backend/internal/metamodel/infrastructure/api"
 	pl "easi/backend/internal/shared/agenttools"
 	sharedAPI "easi/backend/internal/shared/api"
@@ -72,13 +71,6 @@ func buildToolCatalogTestRouter(t *testing.T) chi.Router {
 		HATEOAS: hateoas, AuthMiddleware: auth,
 	}); err != nil {
 		t.Fatalf("value streams routes: %v", err)
-	}
-
-	if err := enterpriseArchAPI.SetupEnterpriseArchitectureRoutes(enterpriseArchAPI.EnterpriseArchRoutesDeps{
-		Router: r, CommandBus: commandBus, EventStore: es, EventBus: eventBus,
-		AuthMiddleware: auth,
-	}); err != nil {
-		t.Fatalf("enterprise architecture routes: %v", err)
 	}
 
 	if err := directionAPI.SetupRoutes(directionAPI.RoutesDeps{

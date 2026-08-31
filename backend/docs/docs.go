@@ -6158,7 +6158,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseCapabilityDTO"
+                                                "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.EnterpriseCapabilityDTO"
                                             }
                                         }
                                     }
@@ -6193,7 +6193,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_enterprisearchitecture_infrastructure_api.CreateEnterpriseCapabilityRequest"
+                            "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.CreateEnterpriseCapabilityRequest"
                         }
                     }
                 ],
@@ -6201,7 +6201,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseCapabilityDTO"
+                            "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.EnterpriseCapabilityDTO"
                         }
                     },
                     "400": {
@@ -6299,7 +6299,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseCapabilityDTO"
+                            "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.EnterpriseCapabilityDTO"
                         }
                     },
                     "404": {
@@ -6342,7 +6342,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_enterprisearchitecture_infrastructure_api.UpdateEnterpriseCapabilityRequest"
+                            "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.UpdateEnterpriseCapabilityRequest"
                         }
                     }
                 ],
@@ -6350,7 +6350,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseCapabilityDTO"
+                            "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.EnterpriseCapabilityDTO"
                         }
                     },
                     "400": {
@@ -7397,7 +7397,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseStrategicImportanceDTO"
+                                                "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.EnterpriseStrategicImportanceDTO"
                                             }
                                         }
                                     }
@@ -7445,7 +7445,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_enterprisearchitecture_infrastructure_api.SetStrategicImportanceRequest"
+                            "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.SetStrategicImportanceRequest"
                         }
                     }
                 ],
@@ -7453,7 +7453,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseStrategicImportanceDTO"
+                            "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.EnterpriseStrategicImportanceDTO"
                         }
                     },
                     "400": {
@@ -7517,7 +7517,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_enterprisearchitecture_infrastructure_api.UpdateStrategicImportanceRequest"
+                            "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.UpdateStrategicImportanceRequest"
                         }
                     }
                 ],
@@ -7525,7 +7525,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseStrategicImportanceDTO"
+                            "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.EnterpriseStrategicImportanceDTO"
                         }
                     },
                     "400": {
@@ -7616,7 +7616,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_enterprisearchitecture_infrastructure_api.SetTargetMaturityRequest"
+                            "$ref": "#/definitions/internal_architecturedirection_infrastructure_api.SetTargetMaturityRequest"
                         }
                     }
                 ],
@@ -7624,7 +7624,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseCapabilityDTO"
+                            "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.EnterpriseCapabilityDTO"
                         }
                     },
                     "400": {
@@ -11726,7 +11726,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.TimeSuggestionDTO"
+                                                "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.TimeSuggestionDTO"
                                             }
                                         }
                                     }
@@ -14208,6 +14208,73 @@ const docTemplate = `{
                 }
             }
         },
+        "easi_backend_internal_architecturedirection_application_readmodels.EnterpriseCapabilityDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "active": {
+                    "type": "boolean"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "targetMaturity": {
+                    "type": "integer"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "easi_backend_internal_architecturedirection_application_readmodels.EnterpriseStrategicImportanceDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "enterpriseCapabilityId": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "importance": {
+                    "type": "integer"
+                },
+                "importanceLabel": {
+                    "type": "string"
+                },
+                "pillarId": {
+                    "type": "string"
+                },
+                "pillarName": {
+                    "type": "string"
+                },
+                "rationale": {
+                    "type": "string"
+                },
+                "setAt": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
         "easi_backend_internal_architecturedirection_application_readmodels.ImplementationDetailDTO": {
             "type": "object",
             "properties": {
@@ -14566,6 +14633,35 @@ const docTemplate = `{
                 },
                 "stale": {
                     "type": "boolean"
+                }
+            }
+        },
+        "easi_backend_internal_architecturedirection_application_readmodels.TimeSuggestionDTO": {
+            "type": "object",
+            "properties": {
+                "capabilityId": {
+                    "type": "string"
+                },
+                "capabilityName": {
+                    "type": "string"
+                },
+                "componentId": {
+                    "type": "string"
+                },
+                "componentName": {
+                    "type": "string"
+                },
+                "confidence": {
+                    "type": "string"
+                },
+                "functionalGap": {
+                    "type": "number"
+                },
+                "suggestedTime": {
+                    "type": "string"
+                },
+                "technicalGap": {
+                    "type": "number"
                 }
             }
         },
@@ -15210,102 +15306,6 @@ const docTemplate = `{
                 },
                 "sourceRealizationId": {
                     "type": "string"
-                }
-            }
-        },
-        "easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseCapabilityDTO": {
-            "type": "object",
-            "properties": {
-                "_links": {
-                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
-                },
-                "active": {
-                    "type": "boolean"
-                },
-                "category": {
-                    "type": "string"
-                },
-                "createdAt": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "targetMaturity": {
-                    "type": "integer"
-                },
-                "updatedAt": {
-                    "type": "string"
-                }
-            }
-        },
-        "easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseStrategicImportanceDTO": {
-            "type": "object",
-            "properties": {
-                "_links": {
-                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
-                },
-                "enterpriseCapabilityId": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "importance": {
-                    "type": "integer"
-                },
-                "importanceLabel": {
-                    "type": "string"
-                },
-                "pillarId": {
-                    "type": "string"
-                },
-                "pillarName": {
-                    "type": "string"
-                },
-                "rationale": {
-                    "type": "string"
-                },
-                "setAt": {
-                    "type": "string"
-                },
-                "updatedAt": {
-                    "type": "string"
-                }
-            }
-        },
-        "easi_backend_internal_enterprisearchitecture_application_readmodels.TimeSuggestionDTO": {
-            "type": "object",
-            "properties": {
-                "capabilityId": {
-                    "type": "string"
-                },
-                "capabilityName": {
-                    "type": "string"
-                },
-                "componentId": {
-                    "type": "string"
-                },
-                "componentName": {
-                    "type": "string"
-                },
-                "confidence": {
-                    "type": "string"
-                },
-                "functionalGap": {
-                    "type": "number"
-                },
-                "suggestedTime": {
-                    "type": "string"
-                },
-                "technicalGap": {
-                    "type": "number"
                 }
             }
         },
@@ -16264,6 +16264,20 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_architecturedirection_infrastructure_api.CreateEnterpriseCapabilityRequest": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_architecturedirection_infrastructure_api.ECDirectionResponse": {
             "type": "object",
             "properties": {
@@ -16380,6 +16394,31 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_architecturedirection_infrastructure_api.SetStrategicImportanceRequest": {
+            "type": "object",
+            "properties": {
+                "importance": {
+                    "type": "integer"
+                },
+                "pillarId": {
+                    "type": "string"
+                },
+                "pillarName": {
+                    "type": "string"
+                },
+                "rationale": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_architecturedirection_infrastructure_api.SetTargetMaturityRequest": {
+            "type": "object",
+            "properties": {
+                "targetMaturity": {
+                    "type": "integer"
+                }
+            }
+        },
         "internal_architecturedirection_infrastructure_api.SourceCandidateDTO": {
             "type": "object",
             "properties": {
@@ -16485,6 +16524,20 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_architecturedirection_infrastructure_api.UpdateEnterpriseCapabilityRequest": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_architecturedirection_infrastructure_api.UpdateJourneyDetailsRequest": {
             "type": "object",
             "properties": {
@@ -16518,6 +16571,17 @@ const docTemplate = `{
             "properties": {
                 "progress": {
                     "type": "integer"
+                }
+            }
+        },
+        "internal_architecturedirection_infrastructure_api.UpdateStrategicImportanceRequest": {
+            "type": "object",
+            "properties": {
+                "importance": {
+                    "type": "integer"
+                },
+                "rationale": {
+                    "type": "string"
                 }
             }
         },
@@ -17883,70 +17947,6 @@ const docTemplate = `{
             }
         },
         "internal_capabilitymapping_infrastructure_api.UpdateStrategyImportanceRequest": {
-            "type": "object",
-            "properties": {
-                "importance": {
-                    "type": "integer"
-                },
-                "rationale": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_enterprisearchitecture_infrastructure_api.CreateEnterpriseCapabilityRequest": {
-            "type": "object",
-            "properties": {
-                "category": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_enterprisearchitecture_infrastructure_api.SetStrategicImportanceRequest": {
-            "type": "object",
-            "properties": {
-                "importance": {
-                    "type": "integer"
-                },
-                "pillarId": {
-                    "type": "string"
-                },
-                "pillarName": {
-                    "type": "string"
-                },
-                "rationale": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_enterprisearchitecture_infrastructure_api.SetTargetMaturityRequest": {
-            "type": "object",
-            "properties": {
-                "targetMaturity": {
-                    "type": "integer"
-                }
-            }
-        },
-        "internal_enterprisearchitecture_infrastructure_api.UpdateEnterpriseCapabilityRequest": {
-            "type": "object",
-            "properties": {
-                "category": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_enterprisearchitecture_infrastructure_api.UpdateStrategicImportanceRequest": {
             "type": "object",
             "properties": {
                 "importance": {

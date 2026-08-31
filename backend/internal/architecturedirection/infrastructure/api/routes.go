@@ -15,7 +15,6 @@ import (
 	amPL "easi/backend/internal/architecturemodeling/publishedlanguage"
 	authPL "easi/backend/internal/auth/publishedlanguage"
 	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
-	eaPL "easi/backend/internal/enterprisearchitecture/publishedlanguage"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
 	sharedAPI "easi/backend/internal/shared/api"
@@ -30,31 +29,34 @@ type AuthMiddleware interface {
 }
 
 type RoutesDeps struct {
-	Router         chi.Router
-	CommandBus     *cqrs.InMemoryCommandBus
-	EventStore     eventstore.EventStore
-	EventBus       events.EventBus
-	DB             *database.TenantAwareDB
-	HATEOAS        *sharedAPI.HATEOASLinks
-	AuthMiddleware AuthMiddleware
+	Router          chi.Router
+	CommandBus      *cqrs.InMemoryCommandBus
+	EventStore      eventstore.EventStore
+	EventBus        events.EventBus
+	DB              *database.TenantAwareDB
+	HATEOAS         *sharedAPI.HATEOASLinks
+	AuthMiddleware  AuthMiddleware
+	SessionProvider authPL.SessionProvider
 }
 
 func SetupRoutes(deps RoutesDeps) error {
 	readModel := readmodels.NewDirectionReadModel(deps.DB)
 	repo := repositories.NewDirectionRepository(deps.EventStore)
 	nodeCache := readmodels.NewCapabilityNodeCacheReadModel(deps.DB)
-	ecCache := readmodels.NewEnterpriseCapabilityCacheReadModel(deps.DB)
+	enterpriseCapabilities := readmodels.NewEnterpriseCapabilityReadModel(deps.DB)
 	referenceCache := readmodels.NewReferenceCacheReadModel(deps.DB)
 	realizationCache := readmodels.NewRealizationCacheReadModel(deps.DB)
 	lookups := newReferenceLookups(nodeCache, referenceCache, realizationCache)
-	composition := appservices.NewCompositionService(directionSourcesProvider{readModel: readModel}, nodeCache, ecCache)
+	composition := appservices.NewCompositionService(directionSourcesProvider{readModel: readModel}, nodeCache, enterpriseCapabilities)
+
+	setupEnterpriseCapabilityRoutes(deps, enterpriseCapabilities)
 
 	subscribeEvents(deps.EventBus, readModel)
-	subscribeCacheEvents(deps.EventBus, nodeCache, ecCache)
+	subscribeCacheEvents(deps.EventBus, nodeCache)
 	subscribeReferenceCacheEvents(deps.EventBus, referenceCache, realizationCache)
-	deps.EventBus.Subscribe(eaPL.EnterpriseCapabilityDeleted,
+	deps.EventBus.Subscribe(pl.EnterpriseCapabilityDeleted,
 		projectors.NewEnterpriseCapabilityDeletedReactor(readModel, deps.CommandBus))
-	refs := referenceChecker(lookups.capabilityExists, ecCache)
+	refs := referenceChecker(lookups.capabilityExists, enterpriseCapabilities)
 	registerCommandHandlers(commandHandlerDeps{
 		commandBus:  deps.CommandBus,
 		repo:        repo,
@@ -65,11 +67,11 @@ func SetupRoutes(deps RoutesDeps) error {
 
 	links := NewDirectionLinks(deps.HATEOAS)
 	httpHandlers := NewDirectionHandlers(deps.CommandBus, readModel, links)
-	previewHandlers := NewCompositionPreviewHandlers(compositionPreviewService{composition: composition, capabilities: ecCache}, deps.HATEOAS)
+	previewHandlers := NewCompositionPreviewHandlers(compositionPreviewService{composition: composition, capabilities: enterpriseCapabilities}, deps.HATEOAS)
 
 	registerRoutes(deps.Router, httpHandlers, previewHandlers, deps.AuthMiddleware)
 	registerCompositionRoutes(deps.Router, compositionReadHandlers{
-		composition: NewCompositionHandlers(composition, ecCache, deps.HATEOAS),
+		composition: NewCompositionHandlers(composition, enterpriseCapabilities, deps.HATEOAS),
 		summaries:   NewCompositionSummaryHandlers(composition, deps.HATEOAS),
 		maturity:    NewMaturityAnalysisHandlers(readmodels.NewMaturityAnalysisReadModel(deps.DB, composition), deps.HATEOAS),
 	}, deps.AuthMiddleware)
@@ -336,15 +338,12 @@ func registerRoutes(r chi.Router, h *DirectionHandlers, preview *CompositionPrev
 	})
 }
 
-func subscribeCacheEvents(eventBus events.EventBus, nodeCache *readmodels.CapabilityNodeCacheReadModel, ecCache *readmodels.EnterpriseCapabilityCacheReadModel) {
+func subscribeCacheEvents(eventBus events.EventBus, nodeCache *readmodels.CapabilityNodeCacheReadModel) {
 	subscribeMany(eventBus, projectors.NewCapabilityNodeCacheProjector(nodeCache, nodeCache.BusinessDomainName),
 		cmPL.CapabilityCreated, cmPL.CapabilityUpdated, cmPL.CapabilityDeleted,
 		cmPL.CapabilityParentChanged, cmPL.CapabilityLevelChanged,
 		cmPL.CapabilityAssignedToDomain, cmPL.CapabilityUnassignedFromDomain,
 		cmPL.CapabilityMetadataUpdated, cmPL.BusinessDomainUpdated)
-	subscribeMany(eventBus, projectors.NewEnterpriseCapabilityCacheProjector(ecCache),
-		eaPL.EnterpriseCapabilityCreated, eaPL.EnterpriseCapabilityUpdated,
-		eaPL.EnterpriseCapabilityDeleted, eaPL.EnterpriseCapabilityTargetMaturitySet)
 }
 
 func subscribeReferenceCacheEvents(eventBus events.EventBus, referenceCache *readmodels.ReferenceCacheReadModel, realizationCache *readmodels.RealizationCacheReadModel) {
@@ -356,15 +355,15 @@ func subscribeReferenceCacheEvents(eventBus events.EventBus, referenceCache *rea
 		cmPL.CapabilityDeleted, amPL.ApplicationComponentDeleted)
 }
 
-func referenceChecker(capabilityExists services.ExistenceCheck, ecCache *readmodels.EnterpriseCapabilityCacheReadModel) *services.ReferenceChecker {
+func referenceChecker(capabilityExists services.ExistenceCheck, enterpriseCapabilities EnterpriseCapabilityLookup) *services.ReferenceChecker {
 	return &services.ReferenceChecker{
 		PhysicalCapabilityExists: capabilityExists,
 		EnterpriseCapabilityExists: func(ctx context.Context, id string) (bool, error) {
-			capability, err := ecCache.GetByID(ctx, id)
+			capability, err := enterpriseCapabilities.GetByID(ctx, id)
 			return capability != nil, err
 		},
 		EnterpriseCapabilityIsActive: func(ctx context.Context, id string) (bool, error) {
-			capability, err := ecCache.GetByID(ctx, id)
+			capability, err := enterpriseCapabilities.GetByID(ctx, id)
 			return capability != nil && capability.Active, err
 		},
 	}

@@ -7,7 +7,6 @@ backend:audit,easi/backend/internal/audit/**
 backend:auth,easi/backend/internal/auth/**
 backend:capabilitymapping,easi/backend/internal/capabilitymapping/**
 backend:cmd,easi/backend/cmd/**
-backend:enterprisearchitecture,easi/backend/internal/enterprisearchitecture/**
 backend:importing,easi/backend/internal/importing/**
 backend:infrastructure,easi/backend/internal/infrastructure/**
 backend:metamodel,easi/backend/internal/metamodel/**

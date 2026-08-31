@@ -34,10 +34,10 @@ func (f *fakeCompositionQueries) SourceCandidates(_ context.Context, q appservic
 }
 
 type fakeECQueries struct {
-	byID map[string]*readmodels.EnterpriseCapabilityCacheDTO
+	byID map[string]*readmodels.EnterpriseCapabilityDTO
 }
 
-func (f *fakeECQueries) GetByID(_ context.Context, id string) (*readmodels.EnterpriseCapabilityCacheDTO, error) {
+func (f *fakeECQueries) GetByID(_ context.Context, id string) (*readmodels.EnterpriseCapabilityDTO, error) {
 	return f.byID[id], nil
 }
 
@@ -88,7 +88,7 @@ func TestGetComposition_UnknownEC_404(t *testing.T) {
 }
 
 func TestGetComposition_GroupsByDomainWithMetaAndLinks(t *testing.T) {
-	ecs := &fakeECQueries{byID: map[string]*readmodels.EnterpriseCapabilityCacheDTO{
+	ecs := &fakeECQueries{byID: map[string]*readmodels.EnterpriseCapabilityDTO{
 		"ec-1": {ID: "ec-1", Name: "Customer Identity", Active: true},
 	}}
 	queries := &fakeCompositionQueries{composition: appservices.CompositionResult{
@@ -159,7 +159,7 @@ func TestGetComposition_NonDraftDirectionHidesExclude(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.status, func(t *testing.T) {
-			ecs := &fakeECQueries{byID: map[string]*readmodels.EnterpriseCapabilityCacheDTO{
+			ecs := &fakeECQueries{byID: map[string]*readmodels.EnterpriseCapabilityDTO{
 				"ec-1": {ID: "ec-1", Name: "Customer Identity", Active: true},
 			}}
 			queries := &fakeCompositionQueries{composition: appservices.CompositionResult{
@@ -181,7 +181,7 @@ func TestGetComposition_NonDraftDirectionHidesExclude(t *testing.T) {
 }
 
 func TestGetComposition_NoActiveDirection_EmptyDataAndCaptureLink(t *testing.T) {
-	ecs := &fakeECQueries{byID: map[string]*readmodels.EnterpriseCapabilityCacheDTO{
+	ecs := &fakeECQueries{byID: map[string]*readmodels.EnterpriseCapabilityDTO{
 		"ec-1": {ID: "ec-1", Name: "Customer Identity", Active: true},
 	}}
 	h := newCompositionHandlers(&fakeCompositionQueries{}, ecs)

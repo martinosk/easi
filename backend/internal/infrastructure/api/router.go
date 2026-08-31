@@ -15,7 +15,6 @@ import (
 	auditAPI "easi/backend/internal/audit/infrastructure/api"
 	authAPI "easi/backend/internal/auth/infrastructure/api"
 	capabilityAPI "easi/backend/internal/capabilitymapping/infrastructure/api"
-	enterpriseArchAPI "easi/backend/internal/enterprisearchitecture/infrastructure/api"
 	importingAPI "easi/backend/internal/importing/infrastructure/api"
 	"easi/backend/internal/infrastructure/api/middleware"
 	"easi/backend/internal/infrastructure/database"
@@ -222,23 +221,15 @@ func setupValueStreamsRoutes(r chi.Router, deps routerDependencies) {
 }
 
 func setupDomainRoutes(r chi.Router, deps routerDependencies) {
-	mustSetup(enterpriseArchAPI.SetupEnterpriseArchitectureRoutes(enterpriseArchAPI.EnterpriseArchRoutesDeps{
+	mustSetup(directionAPI.SetupRoutes(directionAPI.RoutesDeps{
 		Router:          r,
 		CommandBus:      deps.commandBus,
 		EventStore:      deps.eventStore,
 		EventBus:        deps.eventBus,
 		DB:              deps.db,
+		HATEOAS:         deps.hateoas,
 		AuthMiddleware:  deps.authDeps.AuthMiddleware,
 		SessionProvider: deps.authDeps.SessionManager,
-	}), "enterprise architecture routes")
-	mustSetup(directionAPI.SetupRoutes(directionAPI.RoutesDeps{
-		Router:         r,
-		CommandBus:     deps.commandBus,
-		EventStore:     deps.eventStore,
-		EventBus:       deps.eventBus,
-		DB:             deps.db,
-		HATEOAS:        deps.hateoas,
-		AuthMiddleware: deps.authDeps.AuthMiddleware,
 	}), "architecture direction routes")
 
 	mustSetup(metamodelAPI.SetupMetaModelRoutes(metamodelAPI.MetaModelRoutesDeps{

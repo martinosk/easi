@@ -77,11 +77,6 @@ func TestTestContext_Cleanup_RemovesArchitectureDirectionCacheRows(t *testing.T)
 	)
 	require.NoError(t, err)
 	_, err = tc.DB.Exec(
-		`INSERT INTO architecturedirection.enterprise_capability_cache (tenant_id, id, name, active) VALUES ($1, $2, 'Cleanup Test', true)`,
-		tc.TenantID.Value(), id,
-	)
-	require.NoError(t, err)
-	_, err = tc.DB.Exec(
 		`INSERT INTO architecturedirection.realization_cache (tenant_id, realization_id, capability_id, component_id) VALUES ($1, $2, $2, $2)`,
 		tc.TenantID.Value(), id,
 	)
@@ -97,8 +92,6 @@ func TestTestContext_Cleanup_RemovesArchitectureDirectionCacheRows(t *testing.T)
 	var count int
 	require.NoError(t, tc.DB.QueryRow(`SELECT COUNT(*) FROM architecturedirection.capability_node_cache WHERE capability_id = $1`, id).Scan(&count))
 	assert.Zero(t, count, "capability_node_cache row must be cleaned up")
-	require.NoError(t, tc.DB.QueryRow(`SELECT COUNT(*) FROM architecturedirection.enterprise_capability_cache WHERE id = $1`, id).Scan(&count))
-	assert.Zero(t, count, "enterprise_capability_cache row must be cleaned up")
 	require.NoError(t, tc.DB.QueryRow(`SELECT COUNT(*) FROM architecturedirection.realization_cache WHERE realization_id = $1`, id).Scan(&count))
 	assert.Zero(t, count, "realization_cache row must be cleaned up")
 	require.NoError(t, tc.DB.QueryRow(`SELECT COUNT(*) FROM architecturedirection.reference_name_cache WHERE entity_id = $1`, id).Scan(&count))

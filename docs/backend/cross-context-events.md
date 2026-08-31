@@ -69,7 +69,6 @@ func (p *Projector) ProjectEvent(ctx context.Context, eventType string, eventDat
 | `adPL` | `accessdelegation/publishedlanguage` |
 | `vsPL` | `valuestreams/publishedlanguage` |
 | `adirPL` | `architecturedirection/publishedlanguage` |
-| `eaPL` | `enterprisearchitecture/publishedlanguage` |
 | `authPL` | `auth/publishedlanguage` |
 
 ## Delivery Semantics
@@ -242,13 +241,7 @@ const (
     JourneyMilestoneRemoved          = "JourneyMilestoneRemoved"
     JourneyMilestonesReordered       = "JourneyMilestonesReordered"
     JourneySourceApplicationsChanged = "JourneySourceApplicationsChanged"
-)
-```
 
-### Enterprise Architecture (`eaPL`)
-
-```go
-const (
     EnterpriseCapabilityCreated           = "EnterpriseCapabilityCreated"
     EnterpriseCapabilityUpdated           = "EnterpriseCapabilityUpdated"
     EnterpriseCapabilityDeleted           = "EnterpriseCapabilityDeleted"
@@ -313,30 +306,6 @@ Every event subscription that crosses a bounded context boundary is documented b
 | `MaturityScaleConfigUpdated` | `MaturityScaleConfigUpdatedHandler` | `setupMetaModelEventHandlers()` | Invalidate maturity scale gateway cache |
 | `MaturityScaleConfigReset` | `MaturityScaleConfigUpdatedHandler` | same | Reset maturity scale gateway to defaults |
 
-### Enterprise Architecture consumes from:
-
-**Capability Mapping** (`cmPL`):
-
-| Event | Projector | Wired In | Purpose |
-|-------|-----------|----------|---------|
-| `CapabilityCreated` | `DomainCapabilityMetadataProjector` | `enterprisearchitecture/infrastructure/api/routes.go` `subscribeCapabilityMappingEvents()` | Track new capability with level, parent, L1 root |
-| `CapabilityUpdated` | `DomainCapabilityMetadataProjector` | same | Update capability name in metadata |
-| `CapabilityDeleted` | `DomainCapabilityMetadataProjector` | same | Remove metadata, clean up links and blocking records |
-| `CapabilityParentChanged` | `DomainCapabilityMetadataProjector`, `EnterpriseCapabilityLinkProjector` | same + `subscribeLinkEvents()` | Recalculate L1 ancestry; recompute blocking relationships for subtree |
-| `CapabilityAssignedToDomain` | `DomainCapabilityMetadataProjector` | `subscribeCapabilityMappingEvents()` | Update business domain for L1 subtree, recalculate enterprise domain counts |
-| `CapabilityUnassignedFromDomain` | `DomainCapabilityMetadataProjector` | same | Clear business domain for L1 subtree, recalculate counts |
-| `BusinessDomainCreated` / `Updated` / `Deleted` | `BusinessDomainNameCacheProjector` | same | Business-domain name cache read by the metadata projector at assignment time (spec 209) |
-
-**MetaModel** (`mmPL`):
-
-| Event | Projector | Wired In | Purpose |
-|-------|-----------|----------|---------|
-| `MetaModelConfigurationCreated` | `StrategyPillarCacheProjector` | `subscribePillarCacheEvents()` | Seed pillar cache on initial configuration |
-| `StrategyPillarAdded` | `StrategyPillarCacheProjector` | same | Add pillar to local cache |
-| `StrategyPillarUpdated` | `StrategyPillarCacheProjector` | same | Update pillar name and description |
-| `StrategyPillarRemoved` | `StrategyPillarCacheProjector` | same | Remove pillar from cache |
-| `PillarFitConfigurationUpdated` | `StrategyPillarCacheProjector` | same | Update fit scoring config in cache |
-
 ### Value Streams consumes from:
 
 **Capability Mapping** (`cmPL`):
@@ -393,12 +362,7 @@ Access Delegation invites a grantee without an account by dispatching Auth's pub
 
 ### Architecture Direction consumes from:
 
-**Enterprise Architecture** (`eaPL`):
-
-| Event | Projector | Wired In | Purpose |
-|-------|-----------|----------|---------|
-| `EnterpriseCapabilityCreated` / `Updated` / `Deleted` / `TargetMaturitySet` | `EnterpriseCapabilityCacheProjector` | `architecturedirection/infrastructure/api/routes.go` `subscribeCacheEvents()` | Local enterprise capability cache for composition, existence checks and maturity analysis (spec 207) |
-| `EnterpriseCapabilityDeleted` | `EnterpriseCapabilityDeletedReactor` | `SetupRoutes()` | Reject the active direction of a deleted enterprise capability |
+Enterprise Architecture was merged into this context (spec 210), so the enterprise capability read model is local: the `enterprise_capability_cache` and its projector are gone, and `EnterpriseCapabilityDeleted` is handled in-context by `EnterpriseCapabilityDeletedReactor` (wired in `SetupRoutes()`) to reject the active direction.
 
 **Capability Mapping** (`cmPL`) — capability node cache (spec 207):
 
@@ -428,6 +392,25 @@ Access Delegation invites a grantee without an account by dispatching Auth's pub
 | `ApplicationComponentUpdated` | `StaleApplicationProjector` | same | Update cached application component name |
 | `ApplicationComponentDeleted` | `StaleApplicationProjector`, `ReferenceCacheProjector` | same, `subscribeReferenceCacheEvents()` | Mark standard applications as stale; remove the component from the reference-name cache so existence checks fail (spec 209) |
 
+**Capability Mapping** (`cmPL`) — enterprise capability analysis caches (spec 210), all wired in `architecturedirection/infrastructure/api/enterprise_capability_routes.go`:
+
+| Event | Projector | Wired In | Purpose |
+|-------|-----------|----------|---------|
+| `CapabilityCreated` / `Updated` / `Deleted` / `ParentChanged` / `LevelChanged` / `MetadataUpdated` | `DomainCapabilityMetadataProjector` | `subscribeCapabilityMappingEvents()` | Capability level, parent and L1 ancestry behind TIME suggestions |
+| `CapabilityAssignedToDomain` / `CapabilityUnassignedFromDomain`, `BusinessDomainUpdated` | `DomainCapabilityMetadataProjector` | same | Set or clear the business domain for the L1 subtree |
+| `BusinessDomainCreated` / `Updated` / `Deleted` | `BusinessDomainNameCacheProjector` | `subscribeBusinessDomainNameCacheEvents()` | Business-domain name cache read by the metadata projector at assignment time (spec 209) |
+| `SystemLinkedToCapability`, `SystemRealizationDeleted`, `CapabilityDeleted` | `EARealizationCacheProjector` | `subscribeRealizationCacheEvents()` | Realisations behind the TIME suggestion calculator |
+| `EffectiveImportanceRecalculated` | `EAImportanceCacheProjector` | `subscribeImportanceCacheEvents()` | Effective importance behind the TIME suggestion calculator |
+| `ApplicationFitScoreSet` / `Removed` | `EAFitScoreCacheProjector` | `subscribeFitScoreCacheEvents()` | Fit scores behind the TIME suggestion calculator |
+
+**MetaModel** (`mmPL`):
+
+| Event | Projector | Wired In | Purpose |
+|-------|-----------|----------|---------|
+| `MetaModelConfigurationCreated` | `StrategyPillarCacheProjector` | `subscribePillarCacheEvents()` | Seed pillar cache on initial configuration |
+| `StrategyPillarAdded` / `Updated` / `Removed` | `StrategyPillarCacheProjector` | same | Keep the local pillar cache current |
+| `PillarFitConfigurationUpdated` | `StrategyPillarCacheProjector` | same | Update fit scoring config in cache |
+
 ### OnePagers consumes from:
 
 All subscriptions are wired in `onepagers/infrastructure/api/routes.go` `SetupOnePagersRoutes()`; every cache is backfilled by migration 148 (spec 209).
@@ -436,7 +419,7 @@ All subscriptions are wired in `onepagers/infrastructure/api/routes.go` `SetupOn
 |----------|--------|-----------|-------|---------|
 | Architecture Modeling (`archPL`) | `ApplicationComponentCreated/Updated/Deleted`, `ApplicationComponentExpertAdded/Removed`, `AcquiredEntityCreated/Updated/Deleted`, `VendorCreated/Updated/Deleted`, `InternalTeamCreated/Updated/Deleted` | `SubjectIndexProjector` | `one_pager_subject_index` (name, existence, completeness counters, `built_in_fields` = the complete published attribute set) | Subject header, built-in field values, subject existence, completeness |
 | Capability Mapping (`cmPL`) | `CapabilityCreated/Updated/Deleted`, `CapabilityMetadataUpdated`, `CapabilityExpertAdded/Removed`, `CapabilityParentChanged`, `CapabilityLevelChanged` | `SubjectIndexProjector` | same | same, plus `parentId` / `level` built-in attributes |
-| Enterprise Architecture (`eaPL`) | `EnterpriseCapabilityCreated/Updated/Deleted`, `EnterpriseCapabilityTargetMaturitySet` | `SubjectIndexProjector` | same | same, plus `targetMaturity` built-in attribute |
+| Architecture Direction (`adirPL`) | `EnterpriseCapabilityCreated/Updated/Deleted`, `EnterpriseCapabilityTargetMaturitySet` | `SubjectIndexProjector` | same | same, plus `targetMaturity` built-in attribute |
 | Capability Mapping (`cmPL`) | `CapabilityCreated`, `SystemLinkedToCapability`, `SystemRealizationDeleted`, `CapabilityRealizationsInherited/Uninherited`, `CapabilityDependencyCreated/Deleted`, `CapabilityAssignedToDomain/UnassignedFromDomain`, `CapabilityParentChanged`, `BusinessDomainCreated/Updated/Deleted` | `SubjectRelationProjector` | `subject_relation_cache`, `business_domain_name_cache` | Relation built-in fields (realizations, dependencies, domains, parent/children) and domain labels |
 | Architecture Modeling (`archPL`) | `ComponentRelationCreated/Deleted`, `OriginLinkSet/Replaced/Cleared/Deleted` | `SubjectRelationProjector` | `subject_relation_cache` | Relation built-in fields (component relations, built-by / purchased-from / acquired-via and their reverse entries) |
 | MetaModel (`mmPL`) | `MetaModelConfigurationCreated`, `MaturityScaleConfigUpdated/Reset` | `MaturityScaleProjector` | `maturity_scale_cache` | Maturity-scale sections for rendering maturity fields |
@@ -484,4 +467,4 @@ A context depends on another context only through that context's published langu
 - **Every cache of upstream data is backfilled** by a `*backfill*` migration from the supplier's tables and kept current by a projector on the supplier's published events, wired inside the consuming context.
 - **Actor identity and role come from the request context**, never from Auth's read models.
 
-When a context needs another context's data at request time, the fix is a local cache fed by the supplier's events (as Access Delegation, Architecture Direction, Enterprise Architecture, OnePagers and Auth do), or moving the derived read to the context that owns its inputs (as spec 207 did for composition), or serving the data from its owner (as spec 208 did for one-pager completeness).
+When a context needs another context's data at request time, the fix is a local cache fed by the supplier's events (as Access Delegation, Architecture Direction, OnePagers and Auth do), or moving the derived read to the context that owns its inputs (as spec 207 did for composition), or serving the data from its owner (as spec 208 did for one-pager completeness).

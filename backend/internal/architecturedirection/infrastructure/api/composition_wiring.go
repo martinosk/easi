@@ -9,7 +9,7 @@ import (
 )
 
 type EnterpriseCapabilityLookup interface {
-	GetByID(ctx context.Context, id string) (*readmodels.EnterpriseCapabilityCacheDTO, error)
+	GetByID(ctx context.Context, id string) (*readmodels.EnterpriseCapabilityDTO, error)
 }
 
 type directionSourcesProvider struct {

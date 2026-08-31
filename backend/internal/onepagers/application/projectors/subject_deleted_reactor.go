@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 
+	adPL "easi/backend/internal/architecturedirection/publishedlanguage"
 	amPL "easi/backend/internal/architecturemodeling/publishedlanguage"
 	capPL "easi/backend/internal/capabilitymapping/publishedlanguage"
-	eaPL "easi/backend/internal/enterprisearchitecture/publishedlanguage"
 	"easi/backend/internal/onepagers/application/commands"
 	"easi/backend/internal/onepagers/application/readmodels"
 	"easi/backend/internal/onepagers/domain/aggregates"
@@ -17,7 +17,7 @@ import (
 
 var subjectTypeByDeletionEvent = map[string]string{
 	capPL.CapabilityDeleted:          "capability",
-	eaPL.EnterpriseCapabilityDeleted: "enterprise-capability",
+	adPL.EnterpriseCapabilityDeleted: "enterprise-capability",
 	amPL.ApplicationComponentDeleted: "application",
 	amPL.AcquiredEntityDeleted:       "acquired-entity",
 	amPL.VendorDeleted:               "vendor",

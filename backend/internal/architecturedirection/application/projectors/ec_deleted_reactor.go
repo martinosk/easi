@@ -8,7 +8,7 @@ import (
 
 	"easi/backend/internal/architecturedirection/application/commands"
 	"easi/backend/internal/architecturedirection/application/readmodels"
-	eaPL "easi/backend/internal/enterprisearchitecture/publishedlanguage"
+	pl "easi/backend/internal/architecturedirection/publishedlanguage"
 	"easi/backend/internal/shared/cqrs"
 	domain "easi/backend/internal/shared/eventsourcing"
 )
@@ -41,7 +41,7 @@ func (r *EnterpriseCapabilityDeletedReactor) Handle(ctx context.Context, event d
 }
 
 func (r *EnterpriseCapabilityDeletedReactor) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
-	if eventType != eaPL.EnterpriseCapabilityDeleted {
+	if eventType != pl.EnterpriseCapabilityDeleted {
 		return nil
 	}
 	return handleProjection(ctx, eventData, r.rejectActiveDirection)

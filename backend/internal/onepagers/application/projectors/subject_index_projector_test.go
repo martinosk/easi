@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
+	adPL "easi/backend/internal/architecturedirection/publishedlanguage"
 	amPL "easi/backend/internal/architecturemodeling/publishedlanguage"
 	capPL "easi/backend/internal/capabilitymapping/publishedlanguage"
-	eaPL "easi/backend/internal/enterprisearchitecture/publishedlanguage"
 	"easi/backend/internal/onepagers/application/ports"
 	"easi/backend/internal/onepagers/application/projectors"
 	"easi/backend/internal/onepagers/application/readmodels"
@@ -332,7 +332,7 @@ func TestSubjectIndexProjector_Updated_MergesEveryPublishedAttribute(t *testing.
 		},
 		{
 			name:      "enterprise capability",
-			eventType: eaPL.EnterpriseCapabilityUpdated,
+			eventType: adPL.EnterpriseCapabilityUpdated,
 			payload:   map[string]any{"id": "ec-1", "name": "CX", "description": "Grouping", "category": "Front Office"},
 			subject:   subjectKey("enterprise-capability", "ec-1"),
 			want:      map[string]any{"description": "Grouping", "category": "Front Office"},
@@ -401,7 +401,7 @@ func TestSubjectIndexProjector_AttributeOnlyEvents_LeaveTheQualityListRowUntouch
 			want:      map[string]any{"level": "L3"},
 		},
 		{
-			eventType: eaPL.EnterpriseCapabilityTargetMaturitySet,
+			eventType: adPL.EnterpriseCapabilityTargetMaturitySet,
 			payload:   map[string]any{"id": "ec-1", "targetMaturity": 80},
 			subject:   subjectKey("enterprise-capability", "ec-1"),
 			want:      map[string]any{"targetMaturity": 80},

@@ -21,7 +21,6 @@ Quick reference for navigating EASI documentation.
 | Context | Canvas | Classification | Status |
 |---------|--------|----------------|--------|
 | CapabilityMapping | [docs/architecture/CapabilityMapping.md](architecture/CapabilityMapping.md) | Core | Implemented |
-| EnterpriseArchitecture | [docs/architecture/EnterpriseArchitecture.md](architecture/EnterpriseArchitecture.md) | Core | Implemented |
 | ValueStreams | [docs/architecture/README.md](architecture/README.md) | Core | Implemented |
 | ArchitectureModeling | [docs/architecture/ArchitectureModeling.md](architecture/ArchitectureModeling.md) | Supporting | Implemented |
 | ArchitectureViews | [docs/architecture/ArchitectureViews.md](architecture/ArchitectureViews.md) | Supporting | Implemented |

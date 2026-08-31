@@ -167,7 +167,7 @@ func (rm *MaturityAnalysisReadModel) loadActiveEnterpriseCapabilities(ctx contex
 	var headers []ecHeaderRow
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
-			`SELECT id, name, category, target_maturity FROM architecturedirection.enterprise_capability_cache
+			`SELECT id, name, category, target_maturity FROM architecturedirection.enterprise_capabilities
 			 WHERE tenant_id = $1 AND active = true`,
 			tenantID.Value(),
 		)
@@ -198,7 +198,7 @@ func (rm *MaturityAnalysisReadModel) loadEnterpriseCapability(ctx context.Contex
 	var header *ecHeaderRow
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		row := tx.QueryRowContext(ctx,
-			`SELECT id, name, category, target_maturity FROM architecturedirection.enterprise_capability_cache
+			`SELECT id, name, category, target_maturity FROM architecturedirection.enterprise_capabilities
 			 WHERE tenant_id = $1 AND id = $2 AND active = true`,
 			tenantID.Value(), id,
 		)

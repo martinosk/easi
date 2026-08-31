@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
+	adContracts "easi/backend/internal/architecturedirection/publishedlanguage/contracts"
 	amContracts "easi/backend/internal/architecturemodeling/publishedlanguage/contracts"
 	capContracts "easi/backend/internal/capabilitymapping/publishedlanguage/contracts"
-	eaContracts "easi/backend/internal/enterprisearchitecture/publishedlanguage/contracts"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,8 +20,8 @@ var contractPayloadsBySubjectType = map[string][]reflect.Type{
 		reflect.TypeOf(capContracts.CapabilityMetadataUpdatedPayload{}),
 	},
 	"enterprise-capability": {
-		reflect.TypeOf(eaContracts.EnterpriseCapabilityCreatedPayload{}),
-		reflect.TypeOf(eaContracts.EnterpriseCapabilityUpdatedPayload{}),
+		reflect.TypeOf(adContracts.EnterpriseCapabilityCreatedPayload{}),
+		reflect.TypeOf(adContracts.EnterpriseCapabilityUpdatedPayload{}),
 	},
 	"application": {
 		reflect.TypeOf(amContracts.ApplicationComponentCreatedPayload{}),

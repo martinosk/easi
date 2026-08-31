@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"testing"
+	"time"
 
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
@@ -27,7 +28,7 @@ func openCacheTestDB(t *testing.T) (*sql.DB, context.Context) {
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		_, _ = db.Exec("DELETE FROM architecturedirection.capability_node_cache WHERE tenant_id = $1", cacheTestTenant)
-		_, _ = db.Exec("DELETE FROM architecturedirection.enterprise_capability_cache WHERE tenant_id = $1", cacheTestTenant)
+		_, _ = db.Exec("DELETE FROM architecturedirection.enterprise_capabilities WHERE tenant_id = $1", cacheTestTenant)
 		_, _ = db.Exec("DELETE FROM architecturedirection.reference_name_cache WHERE tenant_id = $1", cacheTestTenant)
 		_, _ = db.Exec("DELETE FROM architecturedirection.realization_cache WHERE tenant_id = $1", cacheTestTenant)
 		_ = db.Close()
@@ -79,33 +80,6 @@ func TestCapabilityNodeCache_BusinessDomainNameComesFromReferenceNameCache(t *te
 	assert.Empty(t, missing)
 }
 
-func TestEnterpriseCapabilityCache_RoundTrip(t *testing.T) {
-	db, ctx := openCacheTestDB(t)
-	cache := NewEnterpriseCapabilityCacheReadModel(database.NewTenantAwareDB(db))
-
-	require.NoError(t, cache.Insert(ctx, EnterpriseCapabilityCacheDTO{ID: "ec-1", Name: "Payments", Category: "Finance", Active: true}))
-	require.NoError(t, cache.Insert(ctx, EnterpriseCapabilityCacheDTO{ID: "ec-2", Name: "Legacy", Active: false}))
-	require.NoError(t, cache.UpdateDetails(ctx, EnterpriseCapabilityCacheDTO{ID: "ec-1", Name: "Payments & Billing", Category: "Revenue"}))
-	require.NoError(t, cache.UpdateTargetMaturity(ctx, "ec-1", 70))
-
-	dto, err := cache.GetByID(ctx, "ec-1")
-	require.NoError(t, err)
-	assert.Equal(t, "Payments & Billing", dto.Name)
-	assert.Equal(t, "Revenue", dto.Category)
-	require.NotNil(t, dto.TargetMaturity)
-	assert.Equal(t, 70, *dto.TargetMaturity)
-
-	names, err := cache.ActiveEnterpriseCapabilityNames(ctx)
-	require.NoError(t, err)
-	assert.Equal(t, map[string]string{"ec-1": "Payments & Billing"}, names)
-
-	require.NoError(t, cache.Deactivate(ctx, "ec-1"))
-	deactivated, err := cache.GetByID(ctx, "ec-1")
-	require.NoError(t, err)
-	require.NotNil(t, deactivated, "deactivation must keep the row so existence checks still find it (409, not 404)")
-	assert.False(t, deactivated.Active)
-}
-
 type stubIncludedCapabilities struct {
 	byEC map[string][]string
 }
@@ -118,12 +92,12 @@ func TestCapabilityNodeCache_FreshlyCreatedCapabilityIsAnalysableForMaturity(t *
 	db, ctx := openCacheTestDB(t)
 	tenantDB := database.NewTenantAwareDB(db)
 	cache := NewCapabilityNodeCacheReadModel(tenantDB)
-	ecs := NewEnterpriseCapabilityCacheReadModel(tenantDB)
+	ecs := NewEnterpriseCapabilityReadModel(tenantDB)
 
 	require.NoError(t, cache.Insert(ctx, CapabilityNodeDTO{
 		CapabilityID: "fresh", CapabilityName: "Fresh", CapabilityLevel: "L1", L1CapabilityID: "fresh",
 	}))
-	require.NoError(t, ecs.Insert(ctx, EnterpriseCapabilityCacheDTO{ID: "ec-fresh", Name: "Payments", Active: true}))
+	require.NoError(t, ecs.Insert(ctx, EnterpriseCapabilityDTO{ID: "ec-fresh", Name: "Payments", Active: true, CreatedAt: time.Now()}))
 
 	node, err := cache.GetByID(ctx, "fresh")
 	require.NoError(t, err)

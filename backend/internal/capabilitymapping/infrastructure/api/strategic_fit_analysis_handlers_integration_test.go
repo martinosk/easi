@@ -108,7 +108,7 @@ func setupStrategicFitTestDB(t *testing.T) (*strategicFitTestContext, func()) {
 			db.Exec("DELETE FROM capabilitymapping.capability_realizations WHERE id = $1 OR capability_id = $1 OR component_id = $1", id)
 			db.Exec("DELETE FROM capabilitymapping.domain_capability_assignments WHERE capability_id = $1 OR business_domain_id = $1", id)
 			db.Exec("DELETE FROM capabilitymapping.cm_effective_business_domain WHERE capability_id = $1", id)
-			db.Exec("DELETE FROM enterprisearchitecture.domain_capability_metadata WHERE capability_id = $1 OR business_domain_id = $1", id)
+			db.Exec("DELETE FROM architecturedirection.domain_capability_metadata WHERE capability_id = $1 OR business_domain_id = $1", id)
 			db.Exec("DELETE FROM capabilitymapping.capabilities WHERE id = $1", id)
 			db.Exec("DELETE FROM capabilitymapping.business_domains WHERE id = $1", id)
 			db.Exec("DELETE FROM architecturemodeling.application_components WHERE id = $1", id)
