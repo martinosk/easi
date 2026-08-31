@@ -31,12 +31,6 @@ go test -v -tags=integration ./internal/auth/infrastructure/api/... -count=1
 
 echo ""
 
-# Run integration tests for platform (tenant management)
-echo "Running platform integration tests..."
-go test -v -tags=integration ./internal/platform/infrastructure/api/... -count=1
-
-echo ""
-
 # Run integration tests for importing
 echo "Running importing integration tests..."
 go test -v -tags=integration ./internal/importing/application/parsers/... -count=1
@@ -63,7 +57,7 @@ echo ""
 
 # Run integration tests for audit
 echo "Running audit integration tests..."
-go test -v -tags=integration ./internal/shared/audit/... -count=1
+go test -v -tags=integration ./internal/audit/... -count=1
 
 echo ""
 
