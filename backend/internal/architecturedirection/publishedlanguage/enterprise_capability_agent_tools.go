@@ -60,13 +60,3 @@ func enterpriseCapabilityTools() []agenttools.AgentToolSpec {
 		},
 	}
 }
-
-func enterpriseAnalysisTools() []agenttools.AgentToolSpec {
-	return []agenttools.AgentToolSpec{
-		{
-			Name: "get_time_suggestions", Description: "Get TIME classification suggestions for enterprise capabilities. TIME (Tolerate, Invest, Migrate, Eliminate) is an investment categorization framework. Suggestions are computed from the strategic importance, maturity gaps, and fit scores of included capabilities.",
-			Access: agenttools.AccessRead, Permission: "enterprise-arch:read",
-			Method: "GET", Path: "/time-suggestions",
-		},
-	}
-}

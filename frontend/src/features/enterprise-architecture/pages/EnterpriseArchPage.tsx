@@ -8,19 +8,17 @@ import { EnterpriseArchHeader } from '../components/EnterpriseArchHeader';
 import { MaturityAnalysisTab } from '../components/MaturityAnalysisTab';
 import { MaturityGapDetailPanel } from '../components/MaturityGapDetailPanel';
 import { StrategicFitTab } from '../components/StrategicFitTab';
-import { TimeSuggestionsTab } from '../components/TimeSuggestionsTab';
 import { useEnterpriseCapabilities } from '../hooks/useEnterpriseCapabilities';
 import type { CreateEnterpriseCapabilityRequest, EnterpriseCapability, EnterpriseCapabilityId } from '../types';
 import { getErrorMessage } from '../utils/errorMessages';
 import classes from './EnterpriseArchPage.module.css';
 
-type TabType = 'capabilities' | 'maturity-analysis' | 'strategic-fit' | 'time-suggestions';
+type TabType = 'capabilities' | 'maturity-analysis' | 'strategic-fit';
 
 const TAB_CONFIG: { id: TabType; label: string }[] = [
   { id: 'capabilities', label: 'Enterprise Capabilities' },
   { id: 'maturity-analysis', label: 'Maturity Analysis' },
   { id: 'strategic-fit', label: 'Strategic Fit' },
-  { id: 'time-suggestions', label: 'TIME Suggestions' },
 ];
 
 function useEnterpriseArchPermissions() {
@@ -66,7 +64,6 @@ function TabContent({
     return <MaturityAnalysisTab onViewDetail={onViewMaturityGapDetail} />;
   }
   if (activeTab === 'strategic-fit') return <StrategicFitTab />;
-  if (activeTab === 'time-suggestions') return <TimeSuggestionsTab />;
   return <EnterpriseArchContent {...contentProps} />;
 }
 

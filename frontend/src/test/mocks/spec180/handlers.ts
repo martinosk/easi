@@ -41,6 +41,7 @@ function toDto(a: StubTimeAssessment): TimeAssessment {
     assessedByName: a.assessedByName,
     assessedAt: a.assessedAt,
     stale: isStale(a.assessedAt),
+    suggestion: a.suggestion ?? null,
     _links: {
       self: link(base, 'GET'),
       ...(canWriteAssessments() ? { edit: link(base, 'PUT'), delete: link(base, 'DELETE') } : {}),

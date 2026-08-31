@@ -9,6 +9,7 @@ import type {
   TimeAssessment,
   TimeAssessmentGradeCounts,
   TimeGrade,
+  TimeSuggestion,
 } from '../../architecture-direction/types';
 import { NO_HIERARCHY_JOURNEYS } from '../lens/hierarchyJourneys';
 import { CapabilityDrawer } from './CapabilityDrawer';
@@ -26,32 +27,15 @@ vi.mock('../hooks/useStrategyImportance', () => ({
 
 const mockGetAssessment = vi.fn<(componentId: string) => TimeAssessment | undefined>();
 const mockGetRollup = vi.fn<(componentId: string) => TimeAssessmentGradeCounts | undefined>();
+const mockGetSuggestion = vi.fn<(componentId: string) => TimeSuggestion | null>();
 let mockCanAssess = false;
 
 vi.mock('../hooks/useCapabilityAssessments', () => ({
   useCapabilityAssessments: () => ({
     getAssessment: mockGetAssessment,
     getRollup: mockGetRollup,
+    getSuggestion: mockGetSuggestion,
     canAssess: mockCanAssess,
-  }),
-}));
-
-let mockSuggestions: { capabilityId: string; componentId: string; suggestedTime: string | null }[] = [];
-
-vi.mock('../../enterprise-architecture/hooks/useTimeSuggestions', () => ({
-  useTimeSuggestions: () => ({
-    suggestions: mockSuggestions.map((s) => ({
-      capabilityId: s.capabilityId,
-      capabilityName: '',
-      componentId: s.componentId,
-      componentName: '',
-      suggestedTime: s.suggestedTime,
-      technicalGap: null,
-      functionalGap: null,
-    })),
-    isLoading: false,
-    error: null,
-    refetch: vi.fn(),
   }),
 }));
 
@@ -117,6 +101,7 @@ function buildAssessment(overrides: Partial<TimeAssessment> = {}): TimeAssessmen
     assessedByName: 'Domain Architect',
     assessedAt: '2026-02-01T00:00:00Z',
     stale: false,
+    suggestion: null,
     _links: { self: { href: '', method: 'GET' } },
     ...overrides,
   };
@@ -129,7 +114,7 @@ describe('CapabilityDrawer', () => {
     mockGetAssessment.mockReset().mockReturnValue(undefined);
     mockGetRollup.mockReset().mockReturnValue(undefined);
     mockCanAssess = false;
-    mockSuggestions = [];
+    mockGetSuggestion.mockReset().mockReturnValue(null);
     mockGetRole.mockReset().mockReturnValue(undefined);
     mockCanAssign = false;
   });
@@ -403,16 +388,23 @@ describe('CapabilityDrawer', () => {
       expect(screen.queryByTestId('assessment-comp-1')).not.toBeInTheDocument();
     });
 
-    it('normalises the computed suggestion for the realized component and pre-fills it as reference when opening the assess control', async () => {
+    it('shows the computed suggestion for the realized component beside the grade choices without pre-selecting it', async () => {
       mockCanAssess = true;
-      mockSuggestions = [{ capabilityId: 'l2-a', componentId: 'comp-1', suggestedTime: 'ELIMINATE' }];
+      mockGetSuggestion.mockReturnValue({
+        grade: 'Eliminate',
+        confidence: 'HIGH',
+        technicalGap: 2.5,
+        functionalGap: 2,
+      });
 
       renderAssessmentDrawer();
 
+      expect(screen.getByTestId('assessment-suggestion-comp-1')).toHaveTextContent('Suggested: Eliminate');
+
       await userEvent.click(screen.getByTestId('assess-btn-comp-1'));
 
-      expect(screen.getByTestId('assessment-suggestion-comp-1')).toHaveTextContent('Eliminate');
-      expect(screen.getByRole('radio', { name: 'Eliminate' })).toBeChecked();
+      expect(screen.getByTestId('assessment-suggestion-comp-1')).toHaveTextContent('high confidence');
+      expect(screen.getByRole('radio', { name: 'Eliminate' })).not.toBeChecked();
     });
   });
 

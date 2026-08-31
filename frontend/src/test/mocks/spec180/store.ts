@@ -1,4 +1,5 @@
 import type { TimeGrade } from '../../../api/types';
+import type { TimeSuggestion } from '../../../features/architecture-direction/types';
 
 export interface StubTimeAssessment {
   id: string;
@@ -11,6 +12,7 @@ export interface StubTimeAssessment {
   assessedBy: string;
   assessedByName?: string;
   assessedAt: string;
+  suggestion?: TimeSuggestion | null;
 }
 
 interface Spec180Db {

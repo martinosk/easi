@@ -54,6 +54,8 @@ func (m *mockTimeAssessmentQueries) GetRollupsByComponentIDs(_ context.Context, 
 	return m.rollups, nil
 }
 
+func timeGradePtr(grade string) *string { return &grade }
+
 func setupTimeAssessmentHandlers(bus *mockCommandBus, queries TimeAssessmentQueries) *TimeAssessmentHandlers {
 	links := NewTimeAssessmentLinks(sharedAPI.NewHATEOASLinks(""))
 	return NewTimeAssessmentHandlers(bus, queries, links)
@@ -85,7 +87,7 @@ func TestGetTimeAssessment_Unassessed_Returns404(t *testing.T) {
 
 func TestGetTimeAssessment_Assessed_EditDeleteLinkVisibilityByActor(t *testing.T) {
 	capID, compID := uuid.New().String(), uuid.New().String()
-	current := &readmodels.TimeAssessmentDTO{ID: uuid.New().String(), CapabilityID: capID, ComponentID: compID, Grade: "Migrate"}
+	current := &readmodels.TimeAssessmentDTO{ID: uuid.New().String(), CapabilityID: capID, ComponentID: compID, Grade: timeGradePtr("Migrate")}
 	cases := []struct {
 		name       string
 		actor      sharedctx.Actor
@@ -121,7 +123,7 @@ func TestGetTimeAssessment_Assessed_EditDeleteLinkVisibilityByActor(t *testing.T
 
 func TestPutTimeAssessment_FirstAssessment_Returns201WithLocation(t *testing.T) {
 	capID, compID := uuid.New().String(), uuid.New().String()
-	created := &readmodels.TimeAssessmentDTO{ID: uuid.New().String(), CapabilityID: capID, ComponentID: compID, Grade: "Migrate"}
+	created := &readmodels.TimeAssessmentDTO{ID: uuid.New().String(), CapabilityID: capID, ComponentID: compID, Grade: timeGradePtr("Migrate")}
 	queries := &mockTimeAssessmentQueries{byPairReturns: []*readmodels.TimeAssessmentDTO{nil, created}}
 	bus := &mockCommandBus{}
 	h := setupTimeAssessmentHandlers(bus, queries)
@@ -146,8 +148,8 @@ func TestPutTimeAssessment_FirstAssessment_Returns201WithLocation(t *testing.T) 
 
 func TestPutTimeAssessment_Reassessment_Returns200(t *testing.T) {
 	capID, compID := uuid.New().String(), uuid.New().String()
-	existing := &readmodels.TimeAssessmentDTO{ID: uuid.New().String(), CapabilityID: capID, ComponentID: compID, Grade: "Tolerate"}
-	replaced := &readmodels.TimeAssessmentDTO{ID: existing.ID, CapabilityID: capID, ComponentID: compID, Grade: "Eliminate"}
+	existing := &readmodels.TimeAssessmentDTO{ID: uuid.New().String(), CapabilityID: capID, ComponentID: compID, Grade: timeGradePtr("Tolerate")}
+	replaced := &readmodels.TimeAssessmentDTO{ID: existing.ID, CapabilityID: capID, ComponentID: compID, Grade: timeGradePtr("Eliminate")}
 	queries := &mockTimeAssessmentQueries{byPairReturns: []*readmodels.TimeAssessmentDTO{existing, replaced}}
 	h := setupTimeAssessmentHandlers(&mockCommandBus{}, queries)
 	r := timeAssessmentRouter(h)
@@ -243,6 +245,35 @@ func TestGetTimeAssessments_XAssessLinkVisibilityByActor(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetTimeAssessments_UnassessedRealizationOffersAssessButNotDelete(t *testing.T) {
+	capID, compID := uuid.New().String(), uuid.New().String()
+	suggested := "Migrate"
+	queries := &mockTimeAssessmentQueries{all: []readmodels.TimeAssessmentDTO{{
+		CapabilityID: capID,
+		ComponentID:  compID,
+		Suggestion:   &readmodels.TimeSuggestionDTO{Grade: &suggested, Confidence: "MEDIUM"},
+	}}}
+	h := setupTimeAssessmentHandlers(&mockCommandBus{}, queries)
+	r := timeAssessmentRouter(h)
+
+	req := httptest.NewRequest(http.MethodGet, "/time-assessments", nil)
+	req = req.WithContext(sharedctx.WithActor(req.Context(), architectActor()))
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	var body struct {
+		Data []readmodels.TimeAssessmentDTO `json:"data"`
+	}
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&body))
+	require.Len(t, body.Data, 1)
+	assert.Nil(t, body.Data[0].Grade)
+	require.NotNil(t, body.Data[0].Suggestion)
+	assert.Equal(t, "Migrate", *body.Data[0].Suggestion.Grade)
+	assert.Contains(t, body.Data[0].Links, "edit")
+	assert.NotContains(t, body.Data[0].Links, "delete")
 }
 
 func TestGetTimeAssessmentRollups_ParsesCommaSeparatedComponentIDs(t *testing.T) {

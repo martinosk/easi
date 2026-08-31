@@ -465,13 +465,6 @@ export const handlers = [
     });
   }),
 
-  http.get(`${BASE_URL}/api/v1/time-suggestions`, () => {
-    return HttpResponse.json({
-      data: [],
-      _links: { self: { href: '/api/v1/time-suggestions', method: 'GET' } },
-    });
-  }),
-
   http.get(`${BASE_URL}/api/v1/capability-dependencies`, () => {
     return HttpResponse.json({
       data: [],

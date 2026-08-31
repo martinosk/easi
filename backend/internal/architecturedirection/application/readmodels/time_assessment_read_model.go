@@ -19,18 +19,19 @@ const timeAssessmentStaleThreshold = "12 months"
 var ErrTimeAssessmentAlreadyExists = errors.New("a time assessment already exists for this capability and component pair")
 
 type TimeAssessmentDTO struct {
-	ID             string      `json:"id"`
-	CapabilityID   string      `json:"capabilityId"`
-	CapabilityName string      `json:"capabilityName"`
-	ComponentID    string      `json:"componentId"`
-	ComponentName  string      `json:"componentName"`
-	Grade          string      `json:"grade"`
-	Rationale      string      `json:"rationale"`
-	AssessedBy     string      `json:"assessedBy"`
-	AssessedByName string      `json:"assessedByName"`
-	AssessedAt     time.Time   `json:"assessedAt"`
-	Stale          bool        `json:"stale"`
-	Links          types.Links `json:"_links,omitempty"`
+	ID             string             `json:"id"`
+	CapabilityID   string             `json:"capabilityId"`
+	CapabilityName string             `json:"capabilityName"`
+	ComponentID    string             `json:"componentId"`
+	ComponentName  string             `json:"componentName"`
+	Grade          *string            `json:"grade"`
+	Rationale      string             `json:"rationale"`
+	AssessedBy     string             `json:"assessedBy"`
+	AssessedByName string             `json:"assessedByName"`
+	AssessedAt     *time.Time         `json:"assessedAt"`
+	Stale          bool               `json:"stale"`
+	Suggestion     *TimeSuggestionDTO `json:"suggestion"`
+	Links          types.Links        `json:"_links,omitempty"`
 }
 
 type TimeGradeCounts struct {
@@ -134,7 +135,7 @@ func (rm *TimeAssessmentReadModel) DeleteByComponentID(ctx context.Context, comp
 }
 
 func (rm *TimeAssessmentReadModel) CacheCapabilityName(ctx context.Context, capabilityID, name string) error {
-	return rm.cacheReferenceName(ctx, "capability", capabilityID, name)
+	return rm.cacheReferenceName(ctx, ReferenceEntityCapability, capabilityID, name)
 }
 
 func (rm *TimeAssessmentReadModel) UpdateCapabilityName(ctx context.Context, capabilityID, name string) error {
@@ -146,19 +147,19 @@ func (rm *TimeAssessmentReadModel) UpdateCapabilityName(ctx context.Context, cap
 }
 
 func (rm *TimeAssessmentReadModel) CacheComponentName(ctx context.Context, componentID, name string) error {
-	return rm.cacheReferenceName(ctx, "application", componentID, name)
+	return rm.cacheReferenceName(ctx, ReferenceEntityApplication, componentID, name)
 }
 
 func (rm *TimeAssessmentReadModel) CacheUserName(ctx context.Context, email, name string) error {
-	return rm.cacheReferenceName(ctx, "user", email, name)
+	return rm.cacheReferenceName(ctx, ReferenceEntityUser, email, name)
 }
 
-func (rm *TimeAssessmentReadModel) cacheReferenceName(ctx context.Context, entityType, entityID, name string) error {
+func (rm *TimeAssessmentReadModel) cacheReferenceName(ctx context.Context, entity ReferenceEntity, entityID, name string) error {
 	return rm.tenantExec(ctx,
 		`INSERT INTO architecturedirection.reference_name_cache (tenant_id, entity_type, entity_id, name)
 		 VALUES ($1, $2, $3, $4)
 		 ON CONFLICT (tenant_id, entity_type, entity_id) DO UPDATE SET name = EXCLUDED.name`,
-		func(t string) []any { return []any{t, entityType, entityID, name} },
+		func(t string) []any { return []any{t, string(entity), entityID, name} },
 	)
 }
 

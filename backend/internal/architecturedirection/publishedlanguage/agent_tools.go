@@ -11,7 +11,6 @@ func AgentTools() []agenttools.AgentToolSpec {
 	tools = append(tools, capabilityJourneyTools()...)
 	tools = append(tools, compositionTools()...)
 	tools = append(tools, enterpriseCapabilityTools()...)
-	tools = append(tools, enterpriseAnalysisTools()...)
 	return tools
 }
 
@@ -42,7 +41,7 @@ func timeAssessmentTools() []agenttools.AgentToolSpec {
 	return []agenttools.AgentToolSpec{
 		{
 			Name:        "get_time_assessment_for_realization",
-			Description: "Get the current TIME grade (Invest / Tolerate / Migrate / Eliminate) an architect has recorded for a direct realisation — the pairing of a domain capability and the application component that realises it. Returns 404 if the pair has never been assessed.",
+			Description: "Get the current TIME grade (Invest / Tolerate / Migrate / Eliminate) an architect has recorded for a direct realisation — the pairing of a domain capability and the application component that realises it — alongside the TIME suggestion computed from the pair's fit gaps. Returns 404 if the pair has never been assessed.",
 			Access:      agenttools.AccessRead,
 			Permission:  "domains:read",
 			Method:      "GET",
@@ -54,7 +53,7 @@ func timeAssessmentTools() []agenttools.AgentToolSpec {
 		},
 		{
 			Name:        "list_time_assessments",
-			Description: "Bulk-fetch the current TIME assessment for every realisation — one entry per assessed (capability, component) pair. Narrow to a set of domain capabilities with capabilityIds, or omit it for the whole collection.",
+			Description: "Bulk-fetch the TIME picture for every realisation — one entry per (capability, component) pair, carrying the grade an architect recorded (null when unassessed) and the computed TIME suggestion with its confidence and technical/functional gaps, where the fit data yields one. Narrow to a set of domain capabilities with capabilityIds, or omit it for the whole collection.",
 			Access:      agenttools.AccessRead,
 			Permission:  "domains:read",
 			Method:      "GET",

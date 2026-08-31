@@ -143,18 +143,28 @@ export interface CompositionPreviewResponse {
   _links: HATEOASLinks;
 }
 
+export type TimeSuggestionConfidence = 'LOW' | 'MEDIUM' | 'HIGH';
+
+export interface TimeSuggestion {
+  grade: TimeGrade | null;
+  confidence: TimeSuggestionConfidence;
+  technicalGap: number | null;
+  functionalGap: number | null;
+}
+
 export interface TimeAssessment {
   id: string;
   capabilityId: CapabilityId | string;
   capabilityName: string;
   componentId: ComponentId | string;
   componentName: string;
-  grade: TimeGrade;
+  grade: TimeGrade | null;
   rationale: string;
   assessedBy: string;
   assessedByName?: string;
-  assessedAt: string;
+  assessedAt: string | null;
   stale: boolean;
+  suggestion: TimeSuggestion | null;
   _links: HATEOASLinks & {
     self?: HATEOASLink;
     edit?: HATEOASLink;

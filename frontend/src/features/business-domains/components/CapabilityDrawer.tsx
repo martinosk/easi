@@ -6,15 +6,12 @@ import type {
   CapabilityId,
   CapabilityRealization,
   ComponentId,
-  TimeGrade,
 } from '../../../api/types';
 import { DetailField } from '../../../components/shared/DetailField';
 import { canEdit as canEditResource, hasLink } from '../../../utils/hateoas';
-import { normalizeTimeGrade } from '../../architecture-direction/utils/timeGrade';
 import { AddExpertDialog } from '../../capabilities/components/AddExpertDialog';
 import { CapabilityExpertsList } from '../../capabilities/components/CapabilityExpertsList';
 import { EditCapabilityDialog } from '../../capabilities/components/EditCapabilityDialog';
-import { useTimeSuggestions } from '../../enterprise-architecture/hooks/useTimeSuggestions';
 import { OnePagerActionButton } from '../../one-pagers';
 import { type CapabilityAssessments, useCapabilityAssessments } from '../hooks/useCapabilityAssessments';
 import { type CapabilityRoles, useCapabilityRoles } from '../hooks/useCapabilityRoles';
@@ -43,10 +40,9 @@ interface RealizationRowProps {
   onChipClick: (componentId: ComponentId) => void;
   assessments: CapabilityAssessments;
   roles: CapabilityRoles;
-  getSuggestion: (componentId: ComponentId) => TimeGrade | null;
 }
 
-function RealizationRow({ realization, onChipClick, assessments, roles, getSuggestion }: RealizationRowProps) {
+function RealizationRow({ realization, onChipClick, assessments, roles }: RealizationRowProps) {
   return (
     <div className={classes.realizationRow} data-testid={`drawer-realization-${realization.id}`}>
       <Group gap="xs" wrap="wrap">
@@ -66,7 +62,7 @@ function RealizationRow({ realization, onChipClick, assessments, roles, getSugge
           assessment={assessments.getAssessment(realization.componentId)}
           rollup={assessments.getRollup(realization.componentId)}
           canAssess={assessments.canAssess}
-          suggestion={getSuggestion(realization.componentId)}
+          suggestion={assessments.getSuggestion(realization.componentId)}
         />
       )}
       {realization.origin === 'Direct' && (
@@ -90,12 +86,6 @@ interface RealisingApplicationsSectionProps {
 function RealisingApplicationsSection({ capability, realizations, onChipClick }: RealisingApplicationsSectionProps) {
   const assessments = useCapabilityAssessments(capability, realizations);
   const roles = useCapabilityRoles(capability);
-  const { suggestions } = useTimeSuggestions({ capabilityId: capability.id });
-
-  const getSuggestion = (componentId: ComponentId): TimeGrade | null => {
-    const match = suggestions.find((s) => s.componentId === componentId);
-    return normalizeTimeGrade(match?.suggestedTime ?? null);
-  };
 
   return (
     <Stack gap="xs">
@@ -111,7 +101,6 @@ function RealisingApplicationsSection({ capability, realizations, onChipClick }:
               onChipClick={onChipClick}
               assessments={assessments}
               roles={roles}
-              getSuggestion={getSuggestion}
             />
           ))}
         </Stack>

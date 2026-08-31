@@ -211,22 +211,3 @@ export interface MaturityGapDetail {
     'x-set-target-maturity'?: HATEOASLink;
   };
 }
-
-export type TimeClassification = 'Tolerate' | 'Invest' | 'Migrate' | 'Eliminate';
-
-export interface TimeSuggestion {
-  capabilityId: string;
-  capabilityName: string;
-  componentId: string;
-  componentName: string;
-  suggestedTime: TimeClassification | null;
-  technicalGap: number | null;
-  functionalGap: number | null;
-}
-
-export interface TimeSuggestionsResponse {
-  data: TimeSuggestion[];
-  _links: {
-    self: HATEOASLink;
-  };
-}

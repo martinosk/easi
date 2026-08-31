@@ -98,46 +98,86 @@ type suggestionSeedData struct {
 func (f *timeSuggestionTestFixture) seedSuggestionData(data suggestionSeedData) {
 	f.t.Helper()
 
-	realizationID := uuid.New().String()
-	_, err := f.db.Exec(`INSERT INTO architecturedirection.ea_realization_cache (tenant_id, realization_id, capability_id, component_id, component_name, origin)
-		VALUES ('default', $1, $2, $3, $4, 'Direct') ON CONFLICT DO NOTHING`,
-		realizationID, data.CapabilityID, data.ComponentID, data.ComponentName)
-	require.NoError(f.t, err)
-	f.t.Cleanup(func() {
-		f.db.Exec("DELETE FROM architecturedirection.ea_realization_cache WHERE tenant_id = 'default' AND realization_id = $1", realizationID)
-	})
-
-	_, err = f.db.Exec(`INSERT INTO architecturedirection.domain_capability_metadata (tenant_id, capability_id, capability_name, capability_level, l1_capability_id, business_domain_id, business_domain_name)
-		VALUES ('default', $1, 'Cap Name', 'L1', $1, $2, 'Domain Name') ON CONFLICT DO NOTHING`,
-		data.CapabilityID, data.DomainID)
-	require.NoError(f.t, err)
-	f.t.Cleanup(func() {
-		f.db.Exec("DELETE FROM architecturedirection.domain_capability_metadata WHERE tenant_id = 'default' AND capability_id = $1", data.CapabilityID)
-	})
+	f.seedRealization(data)
+	f.seedCapabilityNode(data)
+	f.seedComponentName(data)
 
 	for _, ps := range data.PillarScores {
-		ps := ps
-		_, err = f.db.Exec(`INSERT INTO architecturedirection.ea_importance_cache (tenant_id, capability_id, business_domain_id, pillar_id, effective_importance)
-			VALUES ('default', $1, $2, $3, $4) ON CONFLICT DO NOTHING`,
-			data.CapabilityID, data.DomainID, ps.PillarID, ps.Importance)
-		require.NoError(f.t, err)
-		f.t.Cleanup(func() {
-			f.db.Exec("DELETE FROM architecturedirection.ea_importance_cache WHERE tenant_id = 'default' AND capability_id = $1 AND pillar_id = $2",
-				data.CapabilityID, ps.PillarID)
-		})
-
-		_, err = f.db.Exec(`INSERT INTO architecturedirection.ea_fit_score_cache (tenant_id, component_id, pillar_id, score, rationale)
-			VALUES ('default', $1, $2, $3, '') ON CONFLICT DO NOTHING`,
-			data.ComponentID, ps.PillarID, ps.FitScore)
-		require.NoError(f.t, err)
-		f.t.Cleanup(func() {
-			f.db.Exec("DELETE FROM architecturedirection.ea_fit_score_cache WHERE tenant_id = 'default' AND component_id = $1 AND pillar_id = $2",
-				data.ComponentID, ps.PillarID)
-		})
+		for _, row := range pillarScopedRowsFor(data, ps) {
+			f.seedPillarScopedRow(row)
+		}
 	}
 }
 
-func TestTimeSuggestionReadModel_GetAllSuggestions_Empty(t *testing.T) {
+func (f *timeSuggestionTestFixture) seedRealization(data suggestionSeedData) {
+	realizationID := uuid.New().String()
+	_, err := f.db.Exec(`INSERT INTO architecturedirection.realization_cache (tenant_id, realization_id, capability_id, component_id)
+		VALUES ('default', $1, $2, $3) ON CONFLICT DO NOTHING`,
+		realizationID, data.CapabilityID, data.ComponentID)
+	require.NoError(f.t, err)
+	f.t.Cleanup(func() {
+		f.db.Exec("DELETE FROM architecturedirection.realization_cache WHERE tenant_id = 'default' AND realization_id = $1", realizationID)
+	})
+}
+
+func (f *timeSuggestionTestFixture) seedCapabilityNode(data suggestionSeedData) {
+	_, err := f.db.Exec(`INSERT INTO architecturedirection.capability_node_cache (tenant_id, capability_id, capability_name, capability_level, l1_capability_id, business_domain_id, business_domain_name, maturity_value)
+		VALUES ('default', $1, 'Cap Name', 'L1', $1, $2, 'Domain Name', 12) ON CONFLICT DO NOTHING`,
+		data.CapabilityID, data.DomainID)
+	require.NoError(f.t, err)
+	f.t.Cleanup(func() {
+		f.db.Exec("DELETE FROM architecturedirection.capability_node_cache WHERE tenant_id = 'default' AND capability_id = $1", data.CapabilityID)
+	})
+}
+
+func (f *timeSuggestionTestFixture) seedComponentName(data suggestionSeedData) {
+	_, err := f.db.Exec(`INSERT INTO architecturedirection.reference_name_cache (tenant_id, entity_type, entity_id, name)
+		VALUES ('default', 'application', $1, $2) ON CONFLICT (tenant_id, entity_type, entity_id) DO UPDATE SET name = EXCLUDED.name`,
+		data.ComponentID, data.ComponentName)
+	require.NoError(f.t, err)
+	f.t.Cleanup(func() {
+		f.db.Exec("DELETE FROM architecturedirection.reference_name_cache WHERE tenant_id = 'default' AND entity_type = 'application' AND entity_id = $1", data.ComponentID)
+	})
+}
+
+type pillarScopedRow struct {
+	insert   string
+	values   []any
+	remove   string
+	ownerID  string
+	pillarID string
+}
+
+func pillarScopedRowsFor(data suggestionSeedData, ps pillarTestScore) []pillarScopedRow {
+	return []pillarScopedRow{
+		{
+			insert: `INSERT INTO architecturedirection.ea_importance_cache (tenant_id, capability_id, business_domain_id, pillar_id, effective_importance)
+				VALUES ('default', $1, $2, $3, $4) ON CONFLICT DO NOTHING`,
+			values:   []any{data.CapabilityID, data.DomainID, ps.PillarID, ps.Importance},
+			remove:   `DELETE FROM architecturedirection.ea_importance_cache WHERE tenant_id = 'default' AND capability_id = $1 AND pillar_id = $2`,
+			ownerID:  data.CapabilityID,
+			pillarID: ps.PillarID,
+		},
+		{
+			insert: `INSERT INTO architecturedirection.ea_fit_score_cache (tenant_id, component_id, pillar_id, score, rationale)
+				VALUES ('default', $1, $2, $3, '') ON CONFLICT DO NOTHING`,
+			values:   []any{data.ComponentID, ps.PillarID, ps.FitScore},
+			remove:   `DELETE FROM architecturedirection.ea_fit_score_cache WHERE tenant_id = 'default' AND component_id = $1 AND pillar_id = $2`,
+			ownerID:  data.ComponentID,
+			pillarID: ps.PillarID,
+		},
+	}
+}
+
+func (f *timeSuggestionTestFixture) seedPillarScopedRow(row pillarScopedRow) {
+	_, err := f.db.Exec(row.insert, row.values...)
+	require.NoError(f.t, err)
+	f.t.Cleanup(func() {
+		f.db.Exec(row.remove, row.ownerID, row.pillarID)
+	})
+}
+
+func TestTimeSuggestionReadModel_All_Empty(t *testing.T) {
 	pillars := &mmPL.StrategyPillarsConfigDTO{
 		Pillars: []mmPL.StrategyPillarDTO{
 			{ID: "p1", Name: "Technical", FitScoringEnabled: true, FitType: "TECHNICAL"},
@@ -145,13 +185,13 @@ func TestTimeSuggestionReadModel_GetAllSuggestions_Empty(t *testing.T) {
 	}
 	f := newTimeSuggestionTestFixture(t, pillars)
 
-	suggestions, err := f.readModel.GetAllSuggestions(f.ctx)
+	suggestions, err := f.readModel.All(f.ctx)
 
 	require.NoError(t, err)
 	assert.Empty(t, suggestions)
 }
 
-func TestTimeSuggestionReadModel_GetAllSuggestions_WithData(t *testing.T) {
+func TestTimeSuggestionReadModel_All_WithData(t *testing.T) {
 	pillars := &mmPL.StrategyPillarsConfigDTO{
 		Pillars: []mmPL.StrategyPillarDTO{
 			{ID: "pillar-tech", Name: "Technical Quality", FitScoringEnabled: true, FitType: "TECHNICAL"},
@@ -175,23 +215,23 @@ func TestTimeSuggestionReadModel_GetAllSuggestions_WithData(t *testing.T) {
 		},
 	})
 
-	suggestions, err := f.readModel.GetAllSuggestions(f.ctx)
+	suggestions, err := f.readModel.All(f.ctx)
 
 	require.NoError(t, err)
 	require.Len(t, suggestions, 1)
 
-	suggestion := suggestions[0]
-	assert.Equal(t, capabilityID, suggestion.CapabilityID)
-	assert.Equal(t, "Cap Name", suggestion.CapabilityName)
-	assert.Equal(t, componentID, suggestion.ComponentID)
-	assert.Equal(t, "Test Component", suggestion.ComponentName)
-	assert.NotNil(t, suggestion.TechnicalGap)
-	assert.NotNil(t, suggestion.FunctionalGap)
-	assert.Equal(t, 20.0, *suggestion.TechnicalGap)
-	assert.Equal(t, 20.0, *suggestion.FunctionalGap)
-	assert.NotNil(t, suggestion.SuggestedTime)
-	assert.Equal(t, "Eliminate", *suggestion.SuggestedTime)
-	assert.Equal(t, "MEDIUM", suggestion.Confidence)
+	realization := suggestions[0]
+	assert.Equal(t, capabilityID, realization.Pair.CapabilityID)
+	assert.Equal(t, "Cap Name", realization.CapabilityName)
+	assert.Equal(t, componentID, realization.Pair.ComponentID)
+	assert.Equal(t, "Test Component", realization.ComponentName)
+	require.NotNil(t, realization.Suggestion.TechnicalGap)
+	require.NotNil(t, realization.Suggestion.FunctionalGap)
+	assert.Equal(t, 20.0, *realization.Suggestion.TechnicalGap)
+	assert.Equal(t, 20.0, *realization.Suggestion.FunctionalGap)
+	require.NotNil(t, realization.Suggestion.Grade)
+	assert.Equal(t, "Eliminate", *realization.Suggestion.Grade)
+	assert.Equal(t, "MEDIUM", realization.Suggestion.Confidence)
 }
 
 func TestTimeSuggestionReadModel_FilterMethods(t *testing.T) {
@@ -214,26 +254,26 @@ func TestTimeSuggestionReadModel_FilterMethods(t *testing.T) {
 		PillarScores:  []pillarTestScore{{PillarID: "pillar-tech", Importance: 80, FitScore: 70}},
 	})
 
-	tests := []struct {
-		name     string
-		query    func(context.Context, string) ([]TimeSuggestionDTO, error)
-		linkedID string
-	}{
-		{"GetByCapability", f.readModel.GetByCapability, capabilityID},
-		{"GetByComponent", f.readModel.GetByComponent, componentID},
-	}
+	t.Run("ForCapabilities filters correctly", func(t *testing.T) {
+		linked, err := f.readModel.ForCapabilities(f.ctx, []string{capabilityID})
+		require.NoError(t, err)
+		assert.Len(t, linked, 1)
 
-	for _, tt := range tests {
-		t.Run(tt.name+" filters correctly", func(t *testing.T) {
-			linked, err := tt.query(f.ctx, tt.linkedID)
-			require.NoError(t, err)
-			assert.Len(t, linked, 1)
+		unlinked, err := f.readModel.ForCapabilities(f.ctx, []string{uuid.New().String()})
+		require.NoError(t, err)
+		assert.Empty(t, unlinked)
+	})
 
-			unlinked, err := tt.query(f.ctx, uuid.New().String())
-			require.NoError(t, err)
-			assert.Empty(t, unlinked)
-		})
-	}
+	t.Run("ForPair returns the pair's suggestion only", func(t *testing.T) {
+		linked, err := f.readModel.ForPair(f.ctx, capabilityID, componentID)
+		require.NoError(t, err)
+		require.NotNil(t, linked)
+		assert.Equal(t, "LOW", linked.Confidence)
+
+		unlinked, err := f.readModel.ForPair(f.ctx, capabilityID, uuid.New().String())
+		require.NoError(t, err)
+		assert.Nil(t, unlinked)
+	})
 }
 
 func TestTimeSuggestionReadModel_CalculatesInsufficientConfidenceWhenNoPillars(t *testing.T) {
@@ -254,11 +294,11 @@ func TestTimeSuggestionReadModel_CalculatesInsufficientConfidenceWhenNoPillars(t
 		PillarScores:  []pillarTestScore{{PillarID: "pillar-unknown", Importance: 80, FitScore: 70}},
 	})
 
-	suggestions, err := f.readModel.GetAllSuggestions(f.ctx)
+	suggestions, err := f.readModel.All(f.ctx)
 
 	require.NoError(t, err)
 	if len(suggestions) > 0 {
-		assert.Equal(t, "LOW", suggestions[0].Confidence)
-		assert.Nil(t, suggestions[0].SuggestedTime)
+		assert.Equal(t, "LOW", suggestions[0].Suggestion.Confidence)
+		assert.Nil(t, suggestions[0].Suggestion.Grade)
 	}
 }

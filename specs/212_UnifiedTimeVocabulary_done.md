@@ -1,6 +1,6 @@
 # 212 — One TIME Vocabulary
 
-> **Status:** pending
+> **Status:** done
 > **Depends on:** [210_RelocateEnterpriseArchitectureIntoDirection](210_RelocateEnterpriseArchitectureIntoDirection_done.md) — design: [docs/specs/enterprise-capability.md](../docs/specs/enterprise-capability.md)
 > **Roadmap alignment:** SD1 / H1-1
 
@@ -61,17 +61,18 @@ Feature: Suggestion and assessment speak one TIME language
 3. **Unchanged computation** — gap inputs, the 1.5 threshold, and confidence rules are preserved exactly.
 4. **One set of caches** — suggestion queries read Architecture Direction's `realization_cache` and `capability_node_cache` plus the relocated fit, importance and pillar caches; the duplicate `ea_realization_cache` and `domain_capability_metadata` are dropped.
 5. **The suggestion is query-time context** — it is composed into assessment reads and never stored on the `TimeAssessment` aggregate.
+6. **The collection is realisation-scoped** — `/time-assessments` returns one entry per realisation that carries a recorded grade *or* a suggested grade. An unassessed realisation has a null grade, no `assessedAt`, and no `delete` link. The pair-scoped read is unchanged: it still 404s when the pair has never been assessed.
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] `TimeClassification` no longer exists; suggestion DTOs carry a `TimeGrade`
-- [ ] The pair-scoped TIME assessment read and its UI show the current suggestion and confidence
-- [ ] The TIME assessments overview shows each realisation's suggestion alongside its recorded grade
-- [ ] Suggestion results are value-identical to before for the same data
-- [ ] `ea_realization_cache` and `domain_capability_metadata`, their projectors and their backfill remnants are removed; the remaining caches serve both features
-- [ ] No surface for suggestions remains under `/enterprise-capabilities` or the enterprise architecture page
+- [x] `TimeClassification` no longer exists; suggestion DTOs carry a `TimeGrade`
+- [x] The pair-scoped TIME assessment read and its UI show the current suggestion and confidence
+- [x] The TIME assessments overview shows each realisation's suggestion alongside its recorded grade
+- [x] Suggestion results are value-identical to before for the same data
+- [x] `ea_realization_cache` and `domain_capability_metadata`, their projectors and their backfill remnants are removed; the remaining caches serve both features
+- [x] No surface for suggestions remains under `/enterprise-capabilities` or the enterprise architecture page
 
 ---
 
@@ -87,7 +88,7 @@ The suggestion calculator becomes an Architecture Direction domain service besid
 
 ### API Surface
 
-`GET /time-suggestions` retires as a standalone analysis route; the pair-scoped time-assessment read and the `/time-assessments` collection compose the suggestion into their responses. The `get_time_suggestions` agent tool re-points to the assessments collection.
+`GET /time-suggestions` retires as a standalone analysis route; the pair-scoped time-assessment read and the `/time-assessments` collection compose the suggestion into their responses. The composition lives in a `TimeAssessmentView` over the assessment and suggestion read models, so neither read model gains a second responsibility. The `get_time_suggestions` agent tool retires; `list_time_assessments` carries the same per-realisation data and says so.
 
 ### Persistence
 
@@ -95,7 +96,7 @@ Drop `ea_realization_cache` and `domain_capability_metadata` with their projecto
 
 ### Frontend
 
-The TIME assessment form and the assessments overview render the suggestion through the shared TIME grade component. The `TimeSuggestionsTab` on the enterprise architecture page is removed here rather than in 213, so the page's deletion carries no behaviour loss.
+The TIME assessment form and the assessments overview render the suggestion through the shared TIME grade component. The assessments overview is the Domain Board's capability drawer: its realising-applications list shows every direct realisation with its recorded grade or "unassessed", and the suggestion beside it. `useCapabilityAssessments` serves both from the one collection query, so `useTimeSuggestions` and the enterprise-architecture suggestion API retire with the route. The `TimeSuggestionsTab` on the enterprise architecture page is removed here rather than in 213, so the page's deletion carries no behaviour loss.
 
 ### Cross-Context Integration
 
@@ -123,8 +124,8 @@ None.
 ## Checklist
 
 - [x] Specification ready
-- [ ] Implementation done
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
-- [ ] API documentation updated
-- [ ] User sign-off
+- [x] Implementation done
+- [x] Unit tests implemented and passing
+- [x] Integration tests implemented if relevant
+- [x] API documentation updated
+- [x] User sign-off

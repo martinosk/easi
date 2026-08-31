@@ -3,11 +3,26 @@ import { useState } from 'react';
 import type { CapabilityId, ComponentId } from '../../../api/types';
 import { hasLink } from '../../../utils/hateoas';
 import { useAssessRealization, useRemoveTimeAssessment } from '../../architecture-direction/hooks/useTimeAssessments';
-import type { TimeAssessment, TimeAssessmentGradeCounts, TimeGrade } from '../../architecture-direction/types';
+import type {
+  TimeAssessment,
+  TimeAssessmentGradeCounts,
+  TimeGrade,
+  TimeSuggestion,
+} from '../../architecture-direction/types';
 import { TIME_GRADES } from '../../architecture-direction/utils/timeGrade';
 
 function formatAssessedDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function SuggestionLine({ componentId, suggestion }: { componentId: string; suggestion: TimeSuggestion | null }) {
+  if (!suggestion?.grade) return null;
+
+  return (
+    <Text size="xs" c="dimmed" data-testid={`assessment-suggestion-${componentId}`}>
+      Suggested: {suggestion.grade} — {suggestion.confidence.toLowerCase()} confidence
+    </Text>
+  );
 }
 
 function RollupLine({ componentId, rollup }: { componentId: string; rollup: TimeAssessmentGradeCounts }) {
@@ -21,7 +36,7 @@ function RollupLine({ componentId, rollup }: { componentId: string; rollup: Time
 interface AssessmentFormProps {
   componentId: string;
   initialGrade: TimeGrade | null;
-  suggestion: TimeGrade | null;
+  suggestion: TimeSuggestion | null;
   isSaving: boolean;
   onCancel: () => void;
   onSave: (grade: TimeGrade, rationale: string) => void;
@@ -33,11 +48,7 @@ function AssessmentForm({ componentId, initialGrade, suggestion, isSaving, onCan
 
   return (
     <Stack gap="xs" data-testid={`assessment-form-${componentId}`}>
-      {suggestion && (
-        <Text size="xs" c="dimmed" data-testid={`assessment-suggestion-${componentId}`}>
-          Suggested: {suggestion} — accept or override
-        </Text>
-      )}
+      <SuggestionLine componentId={componentId} suggestion={suggestion} />
       <SegmentedControl
         data={TIME_GRADES.map((g) => ({ value: g, label: g }))}
         value={grade ?? ''}
@@ -73,10 +84,12 @@ function AssessmentForm({ componentId, initialGrade, suggestion, isSaving, onCan
 function UnassessedState({
   componentId,
   canAssess,
+  suggestion,
   onAssess,
 }: {
   componentId: string;
   canAssess: boolean;
+  suggestion: TimeSuggestion | null;
   onAssess: () => void;
 }) {
   return (
@@ -84,6 +97,7 @@ function UnassessedState({
       <Text size="sm" c="dimmed">
         unassessed
       </Text>
+      <SuggestionLine componentId={componentId} suggestion={suggestion} />
       {canAssess && (
         <Group>
           <Button variant="subtle" size="compact-xs" onClick={onAssess} data-testid={`assess-btn-${componentId}`}>
@@ -134,12 +148,21 @@ interface AssessmentSummaryProps {
   componentId: string;
   assessment: TimeAssessment;
   rollup: TimeAssessmentGradeCounts | undefined;
+  suggestion: TimeSuggestion | null;
   isRemoving: boolean;
   onReassess: () => void;
   onRemove: () => void;
 }
 
-function AssessmentSummary({ componentId, assessment, rollup, isRemoving, onReassess, onRemove }: AssessmentSummaryProps) {
+function AssessmentSummary({
+  componentId,
+  assessment,
+  rollup,
+  suggestion,
+  isRemoving,
+  onReassess,
+  onRemove,
+}: AssessmentSummaryProps) {
   return (
     <Stack gap={4} data-testid={`assessment-${componentId}`}>
       <Group gap="xs">
@@ -150,9 +173,12 @@ function AssessmentSummary({ componentId, assessment, rollup, isRemoving, onReas
           </Badge>
         )}
       </Group>
-      <Text size="xs" c="dimmed">
-        Assessed {formatAssessedDate(assessment.assessedAt)} by {assessment.assessedByName ?? assessment.assessedBy}
-      </Text>
+      {assessment.assessedAt && (
+        <Text size="xs" c="dimmed">
+          Assessed {formatAssessedDate(assessment.assessedAt)} by {assessment.assessedByName ?? assessment.assessedBy}
+        </Text>
+      )}
+      <SuggestionLine componentId={componentId} suggestion={suggestion} />
       {rollup && <RollupLine componentId={componentId} rollup={rollup} />}
       <AssessmentControls
         componentId={componentId}
@@ -172,7 +198,7 @@ export interface RealizationAssessmentProps {
   assessment: TimeAssessment | undefined;
   rollup: TimeAssessmentGradeCounts | undefined;
   canAssess: boolean;
-  suggestion: TimeGrade | null;
+  suggestion: TimeSuggestion | null;
 }
 
 export function RealizationAssessment({
@@ -207,7 +233,7 @@ export function RealizationAssessment({
     return (
       <AssessmentForm
         componentId={id}
-        initialGrade={assessment?.grade ?? suggestion}
+        initialGrade={assessment?.grade ?? null}
         suggestion={suggestion}
         isSaving={assessMutation.isPending}
         onCancel={() => setEditing(false)}
@@ -217,7 +243,14 @@ export function RealizationAssessment({
   }
 
   if (!assessment) {
-    return <UnassessedState componentId={id} canAssess={canAssess} onAssess={() => setEditing(true)} />;
+    return (
+      <UnassessedState
+        componentId={id}
+        canAssess={canAssess}
+        suggestion={suggestion}
+        onAssess={() => setEditing(true)}
+      />
+    );
   }
 
   return (
@@ -225,6 +258,7 @@ export function RealizationAssessment({
       componentId={id}
       assessment={assessment}
       rollup={rollup}
+      suggestion={suggestion}
       isRemoving={removeMutation.isPending}
       onReassess={() => setEditing(true)}
       onRemove={handleRemove}

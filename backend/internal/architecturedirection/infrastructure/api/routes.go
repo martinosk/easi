@@ -10,6 +10,7 @@ import (
 	"easi/backend/internal/architecturedirection/application/readmodels"
 	appservices "easi/backend/internal/architecturedirection/application/services"
 	"easi/backend/internal/architecturedirection/domain/services"
+	"easi/backend/internal/architecturedirection/infrastructure/metamodel"
 	"easi/backend/internal/architecturedirection/infrastructure/repositories"
 	pl "easi/backend/internal/architecturedirection/publishedlanguage"
 	amPL "easi/backend/internal/architecturemodeling/publishedlanguage"
@@ -132,9 +133,15 @@ func setupTimeAssessmentRoutes(deps RoutesDeps, directRealization services.Direc
 	deps.EventBus.Subscribe(cmPL.SystemRealizationDeleted, projectors.NewTimeAssessmentDeletionReactor(readModel, deps.CommandBus))
 
 	links := NewTimeAssessmentLinks(deps.HATEOAS)
-	httpHandlers := NewTimeAssessmentHandlers(deps.CommandBus, readModel, links)
+	view := readmodels.NewTimeAssessmentView(readModel, newTimeSuggestionReadModel(deps.DB))
+	httpHandlers := NewTimeAssessmentHandlers(deps.CommandBus, view, links)
 
 	registerTimeAssessmentRoutes(deps.Router, httpHandlers, deps.AuthMiddleware)
+}
+
+func newTimeSuggestionReadModel(db *database.TenantAwareDB) *readmodels.TimeSuggestionReadModel {
+	pillarsGateway := metamodel.NewLocalStrategyPillarsGateway(readmodels.NewStrategyPillarCacheReadModel(db))
+	return readmodels.NewTimeSuggestionReadModel(db, pillarsGateway)
 }
 
 func subscribeTimeAssessmentEvents(eventBus events.EventBus, rm *readmodels.TimeAssessmentReadModel) {

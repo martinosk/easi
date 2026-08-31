@@ -159,6 +159,7 @@ describe('useDomainBoardData', () => {
               assessedBy: 'user-1',
               assessedAt: '2026-01-01T00:00:00Z',
               stale: false,
+              suggestion: null,
               _links: {},
             },
           ],

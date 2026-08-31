@@ -92,7 +92,7 @@ func (tc *TestContext) TrackID(id string) {
 func (tc *TestContext) cleanup() {
 	tc.setTenantContext()
 	for _, id := range tc.cleanupIDs {
-		tc.DB.Exec("DELETE FROM capabilitymapping.domain_capability_metadata WHERE capability_id = $1", id)
+		tc.DB.Exec("DELETE FROM architecturedirection.capability_node_cache WHERE capability_id = $1", id)
 		tc.DB.Exec("DELETE FROM capabilitymapping.domain_capability_assignments WHERE capability_id = $1 OR business_domain_id = $1", id)
 		tc.DB.Exec("DELETE FROM capabilitymapping.strategy_importance WHERE capability_id = $1 OR business_domain_id = $1", id)
 		tc.DB.Exec("DELETE FROM capabilitymapping.effective_capability_importance WHERE capability_id = $1 OR business_domain_id = $1", id)

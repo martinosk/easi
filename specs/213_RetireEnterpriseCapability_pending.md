@@ -1,7 +1,7 @@
 # 213 — Retire the Enterprise Capability
 
 > **Status:** pending
-> **Depends on:** [211_MaturityJourneys](211_MaturityJourneys_pending.md), [212_UnifiedTimeVocabulary](212_UnifiedTimeVocabulary_pending.md) — design: [docs/specs/enterprise-capability.md](../docs/specs/enterprise-capability.md)
+> **Depends on:** [211_MaturityJourneys](211_MaturityJourneys_done.md), [212_UnifiedTimeVocabulary](212_UnifiedTimeVocabulary_done.md) — design: [docs/specs/enterprise-capability.md](../docs/specs/enterprise-capability.md)
 > **Roadmap alignment:** SD1 / H1-1
 
 ---

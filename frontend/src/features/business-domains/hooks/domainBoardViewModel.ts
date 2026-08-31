@@ -44,10 +44,10 @@ function collectComponentIds(
   }
 }
 
-function buildGradeByPair(assessments: TimeAssessment[]): Map<string, TimeAssessment['grade']> {
-  const map = new Map<string, TimeAssessment['grade']>();
+function buildGradeByPair(assessments: TimeAssessment[]): Map<string, TimeGrade> {
+  const map = new Map<string, TimeGrade>();
   for (const assessment of assessments) {
-    map.set(`${assessment.capabilityId}:${assessment.componentId}`, assessment.grade);
+    if (assessment.grade) map.set(`${assessment.capabilityId}:${assessment.componentId}`, assessment.grade);
   }
   return map;
 }
@@ -62,7 +62,7 @@ function buildRoleByPair(roles: RealizationRoleAssignment[]): Map<string, Realiz
 
 function withAssessedGrade(
   realization: CapabilityRealization,
-  gradeByPair: Map<string, TimeAssessment['grade']>,
+  gradeByPair: Map<string, TimeGrade>,
 ): AssessedRealization {
   if (realization.origin !== 'Direct') return realization;
   const grade = gradeByPair.get(`${realization.capabilityId}:${realization.componentId}`);

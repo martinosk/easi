@@ -2669,7 +2669,7 @@ const docTemplate = `{
                         "CookieAuth": []
                     }
                 ],
-                "description": "Returns the current assessment for the given (capability, component) pair, or 404 when unassessed.",
+                "description": "Returns the current assessment for the given (capability, component) pair with the TIME suggestion computed from its fit gaps, or 404 when unassessed.",
                 "produces": [
                     "application/json"
                 ],
@@ -11592,14 +11592,14 @@ const docTemplate = `{
                         "CookieAuth": []
                     }
                 ],
-                "description": "Returns the current assessment for every (capability, component) pair among the given capabilities.",
+                "description": "Returns every (capability, component) pair among the given capabilities that carries a recorded grade or a computed TIME suggestion. Unassessed pairs have a null grade; the suggestion is composed at query time from the pair's fit gaps.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "time-assessments"
                 ],
-                "summary": "Bulk-fetch current TIME assessments for a capability set",
+                "summary": "Bulk-fetch the TIME picture for a capability set",
                 "parameters": [
                     {
                         "type": "string",
@@ -11677,61 +11677,6 @@ const docTemplate = `{
                         "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/time-suggestions": {
-            "get": {
-                "description": "Retrieves TIME (Tolerate, Invest, Migrate, Eliminate) suggestions based on strategic importance and application fit gaps",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "time-suggestions"
-                ],
-                "summary": "Get TIME suggestions",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Filter by capability ID",
-                        "name": "capabilityId",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filter by component ID",
-                        "name": "componentId",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.TimeSuggestionDTO"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
                         }
                     },
                     "500": {
@@ -14650,31 +14595,22 @@ const docTemplate = `{
                 },
                 "stale": {
                     "type": "boolean"
+                },
+                "suggestion": {
+                    "$ref": "#/definitions/easi_backend_internal_architecturedirection_application_readmodels.TimeSuggestionDTO"
                 }
             }
         },
         "easi_backend_internal_architecturedirection_application_readmodels.TimeSuggestionDTO": {
             "type": "object",
             "properties": {
-                "capabilityId": {
-                    "type": "string"
-                },
-                "capabilityName": {
-                    "type": "string"
-                },
-                "componentId": {
-                    "type": "string"
-                },
-                "componentName": {
-                    "type": "string"
-                },
                 "confidence": {
                     "type": "string"
                 },
                 "functionalGap": {
                     "type": "number"
                 },
-                "suggestedTime": {
+                "grade": {
                     "type": "string"
                 },
                 "technicalGap": {

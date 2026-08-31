@@ -13,7 +13,6 @@ import type {
   MaturityGapDetail,
   SetStrategicImportanceRequest,
   StrategicImportance,
-  TimeSuggestionsResponse,
   UpdateEnterpriseCapabilityRequest,
   UpdateStrategicImportanceRequest,
 } from '../types';
@@ -124,23 +123,6 @@ export const enterpriseArchApi = {
 
   async getStrategicFitAnalysis(pillarId: string): Promise<StrategicFitAnalysis> {
     const response = await httpClient.get<StrategicFitAnalysis>(`/api/v1/strategic-fit-analysis/${pillarId}`);
-    return response.data;
-  },
-
-  async getTimeSuggestions(filters?: {
-    capabilityId?: string;
-    componentId?: string;
-  }): Promise<TimeSuggestionsResponse> {
-    const params = new URLSearchParams();
-    if (filters?.capabilityId) {
-      params.append('capabilityId', filters.capabilityId);
-    }
-    if (filters?.componentId) {
-      params.append('componentId', filters.componentId);
-    }
-    const queryString = params.toString();
-    const url = queryString ? `/api/v1/time-suggestions?${queryString}` : '/api/v1/time-suggestions';
-    const response = await httpClient.get<TimeSuggestionsResponse>(url);
     return response.data;
   },
 };

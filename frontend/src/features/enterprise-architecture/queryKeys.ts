@@ -24,9 +24,3 @@ export const strategicFitAnalysisQueryKeys = {
   all: ['strategicFitAnalysis'] as const,
   byPillar: (pillarId: string) => [...strategicFitAnalysisQueryKeys.all, 'byPillar', pillarId] as const,
 };
-
-export const timeSuggestionsQueryKeys = {
-  all: ['timeSuggestions'] as const,
-  list: (filters?: { capabilityId?: string; componentId?: string }) =>
-    [...timeSuggestionsQueryKeys.all, 'list', filters] as const,
-};

@@ -36,8 +36,8 @@ type AssessRealizationRequest struct {
 }
 
 // GetTimeAssessments godoc
-// @Summary Bulk-fetch current TIME assessments for a capability set
-// @Description Returns the current assessment for every (capability, component) pair among the given capabilities.
+// @Summary Bulk-fetch the TIME picture for a capability set
+// @Description Returns every (capability, component) pair among the given capabilities that carries a recorded grade or a computed TIME suggestion. Unassessed pairs have a null grade; the suggestion is composed at query time from the pair's fit gaps.
 // @Tags time-assessments
 // @Produce json
 // @Security CookieAuth
@@ -55,10 +55,18 @@ func (h *TimeAssessmentHandlers) GetTimeAssessments(w http.ResponseWriter, r *ht
 	}
 	actor, _ := sharedctx.GetActor(r.Context())
 	for i := range assessments {
-		assessments[i].Links = h.hateoas.ItemLinks(assessments[i].CapabilityID, assessments[i].ComponentID, actor)
+		assessments[i].Links = h.itemLinksFor(assessments[i], actor)
 	}
 	links := h.hateoas.CollectionLinks(string(timeAssessmentsPath), actor)
 	sharedAPI.RespondCollection(w, http.StatusOK, assessments, links)
+}
+
+func (h *TimeAssessmentHandlers) itemLinksFor(assessment readmodels.TimeAssessmentDTO, actor sharedctx.Actor) sharedAPI.Links {
+	pair := timeAssessmentPairID{CapabilityID: assessment.CapabilityID, ComponentID: assessment.ComponentID}
+	if assessment.Grade == nil {
+		return h.hateoas.UnassessedItemLinks(pair, actor)
+	}
+	return h.hateoas.ItemLinks(pair, actor)
 }
 
 func (h *TimeAssessmentHandlers) fetchAssessments(r *http.Request) ([]readmodels.TimeAssessmentDTO, error) {
@@ -93,7 +101,7 @@ func (h *TimeAssessmentHandlers) GetTimeAssessmentRollups(w http.ResponseWriter,
 
 // GetTimeAssessment godoc
 // @Summary Get the current TIME assessment for a realisation
-// @Description Returns the current assessment for the given (capability, component) pair, or 404 when unassessed.
+// @Description Returns the current assessment for the given (capability, component) pair with the TIME suggestion computed from its fit gaps, or 404 when unassessed.
 // @Tags time-assessments
 // @Produce json
 // @Security CookieAuth
@@ -118,7 +126,7 @@ func (h *TimeAssessmentHandlers) GetTimeAssessment(w http.ResponseWriter, r *htt
 		return
 	}
 	actor, _ := sharedctx.GetActor(r.Context())
-	dto.Links = h.hateoas.ItemLinks(capabilityID, componentID, actor)
+	dto.Links = h.hateoas.ItemLinks(timeAssessmentPairID{CapabilityID: capabilityID, ComponentID: componentID}, actor)
 	sharedAPI.RespondJSON(w, http.StatusOK, dto)
 }
 
@@ -217,9 +225,9 @@ func (h *TimeAssessmentHandlers) respondWithCurrentAssessment(w http.ResponseWri
 		return
 	}
 	actor, _ := sharedctx.GetActor(r.Context())
-	dto.Links = h.hateoas.ItemLinks(pair.CapabilityID, pair.ComponentID, actor)
+	dto.Links = h.hateoas.ItemLinks(pair, actor)
 	if statusCode == http.StatusCreated {
-		location := sharedAPI.APIVersionPrefix + timeAssessmentItemResourcePath(pair.CapabilityID, pair.ComponentID)
+		location := sharedAPI.APIVersionPrefix + timeAssessmentItemResourcePath(pair)
 		sharedAPI.RespondCreated(w, location, dto)
 		return
 	}

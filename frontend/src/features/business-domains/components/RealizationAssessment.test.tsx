@@ -2,7 +2,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../test/helpers';
-import type { TimeAssessment } from '../../architecture-direction/types';
+import type { TimeAssessment, TimeSuggestion } from '../../architecture-direction/types';
 import { RealizationAssessment, type RealizationAssessmentProps } from './RealizationAssessment';
 
 const mutateAssessAsync = vi.fn();
@@ -26,6 +26,7 @@ function buildAssessment(overrides: Partial<TimeAssessment> = {}): TimeAssessmen
     assessedByName: 'Domain Architect',
     assessedAt: '2026-02-01T00:00:00Z',
     stale: false,
+    suggestion: null,
     _links: {
       self: { href: '', method: 'GET' },
       edit: { href: '', method: 'PUT' },
@@ -33,6 +34,10 @@ function buildAssessment(overrides: Partial<TimeAssessment> = {}): TimeAssessmen
     },
     ...overrides,
   };
+}
+
+function buildSuggestion(overrides: Partial<TimeSuggestion> = {}): TimeSuggestion {
+  return { grade: 'Migrate', confidence: 'MEDIUM', technicalGap: 2, functionalGap: 0.5, ...overrides };
 }
 
 function renderAssessment(overrides: Partial<RealizationAssessmentProps> = {}) {
@@ -124,13 +129,54 @@ describe('RealizationAssessment', () => {
     }
   });
 
-  it('pre-fills the computed suggestion as reference when opening the assess control', async () => {
-    renderAssessment({ canAssess: true, suggestion: 'Eliminate' });
+  it('shows the suggestion and its confidence beside the grade choices, without pre-selecting one', async () => {
+    renderAssessment({ canAssess: true, suggestion: buildSuggestion({ grade: 'Eliminate', confidence: 'MEDIUM' }) });
 
     await userEvent.click(screen.getByTestId('assess-btn-comp-1'));
 
-    expect(screen.getByTestId('assessment-suggestion-comp-1')).toHaveTextContent('Eliminate');
-    expect(screen.getByRole('radio', { name: 'Eliminate' })).toBeChecked();
+    expect(screen.getByTestId('assessment-suggestion-comp-1')).toHaveTextContent('Suggested: Eliminate');
+    expect(screen.getByTestId('assessment-suggestion-comp-1')).toHaveTextContent('medium confidence');
+    expect(screen.getByRole('radio', { name: 'Eliminate' })).not.toBeChecked();
+  });
+
+  it('keeps the recorded grade selected when re-assessing a realisation the suggestion disagrees with', async () => {
+    renderAssessment({
+      assessment: buildAssessment({ grade: 'Tolerate' }),
+      suggestion: buildSuggestion({ grade: 'Migrate' }),
+    });
+
+    await userEvent.click(screen.getByTestId('reassess-btn-comp-1'));
+
+    expect(screen.getByRole('radio', { name: 'Tolerate' })).toBeChecked();
+    expect(screen.getByTestId('assessment-suggestion-comp-1')).toHaveTextContent('Suggested: Migrate');
+  });
+
+  it('shows the suggestion alongside a recorded grade that disagrees with it', () => {
+    renderAssessment({
+      assessment: buildAssessment({ grade: 'Tolerate' }),
+      suggestion: buildSuggestion({ grade: 'Migrate' }),
+    });
+
+    expect(screen.getByTestId('assessment-comp-1')).toHaveTextContent('Tolerate — for this capability');
+    expect(screen.getByTestId('assessment-suggestion-comp-1')).toHaveTextContent('Suggested: Migrate');
+  });
+
+  it('shows no suggestion when the fit data yields none', async () => {
+    renderAssessment({ canAssess: true, suggestion: buildSuggestion({ grade: null, confidence: 'LOW' }) });
+
+    expect(screen.queryByTestId('assessment-suggestion-comp-1')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByTestId('assess-btn-comp-1'));
+
+    expect(screen.queryByTestId('assessment-suggestion-comp-1')).not.toBeInTheDocument();
+  });
+
+  it('shows the suggestion on an unassessed realisation', () => {
+    renderAssessment({ suggestion: buildSuggestion({ grade: 'Invest', confidence: 'HIGH' }) });
+
+    expect(screen.getByText('unassessed')).toBeInTheDocument();
+    expect(screen.getByTestId('assessment-suggestion-comp-1')).toHaveTextContent('Suggested: Invest');
+    expect(screen.getByTestId('assessment-suggestion-comp-1')).toHaveTextContent('high confidence');
   });
 
   it('assesses the realisation with the selected grade when Save is clicked', async () => {

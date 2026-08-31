@@ -4,17 +4,14 @@ import (
 	"easi/backend/internal/architecturedirection/application/handlers"
 	"easi/backend/internal/architecturedirection/application/projectors"
 	"easi/backend/internal/architecturedirection/application/readmodels"
-	"easi/backend/internal/architecturedirection/infrastructure/metamodel"
 	"easi/backend/internal/architecturedirection/infrastructure/repositories"
 	pl "easi/backend/internal/architecturedirection/publishedlanguage"
-	amPL "easi/backend/internal/architecturemodeling/publishedlanguage"
 	authPL "easi/backend/internal/auth/publishedlanguage"
 	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/infrastructure/api/middleware"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
 	mmPL "easi/backend/internal/metamodel/publishedlanguage"
-	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
 
@@ -29,10 +26,7 @@ type routeRepositories struct {
 type routeReadModels struct {
 	capability          *readmodels.EnterpriseCapabilityReadModel
 	importance          *readmodels.EnterpriseStrategicImportanceReadModel
-	metadata            *readmodels.DomainCapabilityMetadataReadModel
-	timeSuggestion      *readmodels.TimeSuggestionReadModel
 	pillarCache         *readmodels.StrategyPillarCacheReadModel
-	realizationCache    *readmodels.EARealizationCacheReadModel
 	importanceCache     *readmodels.EAImportanceCacheReadModel
 	fitScoreCache       *readmodels.EAFitScoreCacheReadModel
 	businessDomainNames *readmodels.BusinessDomainNameCacheReadModel
@@ -40,7 +34,6 @@ type routeReadModels struct {
 
 type routeHTTPHandlers struct {
 	enterpriseCapability *EnterpriseCapabilityHandlers
-	timeSuggestions      *TimeSuggestionsHandlers
 }
 
 func setupEnterpriseCapabilityRoutes(deps RoutesDeps, capability *readmodels.EnterpriseCapabilityReadModel) {
@@ -63,16 +56,10 @@ func initializeRepositories(eventStore eventstore.EventStore) *routeRepositories
 }
 
 func initializeReadModels(db *database.TenantAwareDB, capability *readmodels.EnterpriseCapabilityReadModel) *routeReadModels {
-	pillarCache := readmodels.NewStrategyPillarCacheReadModel(db)
-	pillarsGateway := metamodel.NewLocalStrategyPillarsGateway(pillarCache)
-	metadata := readmodels.NewDomainCapabilityMetadataReadModel(db)
 	return &routeReadModels{
 		capability:          capability,
 		importance:          readmodels.NewEnterpriseStrategicImportanceReadModel(db),
-		metadata:            metadata,
-		timeSuggestion:      readmodels.NewTimeSuggestionReadModel(db, pillarsGateway),
-		pillarCache:         pillarCache,
-		realizationCache:    readmodels.NewEARealizationCacheReadModel(db),
+		pillarCache:         readmodels.NewStrategyPillarCacheReadModel(db),
 		importanceCache:     readmodels.NewEAImportanceCacheReadModel(db),
 		fitScoreCache:       readmodels.NewEAFitScoreCacheReadModel(db),
 		businessDomainNames: readmodels.NewBusinessDomainNameCacheReadModel(db),
@@ -82,18 +69,14 @@ func initializeReadModels(db *database.TenantAwareDB, capability *readmodels.Ent
 func setupEventSubscriptions(eventBus events.EventBus, rm *routeReadModels) {
 	capabilityProjector := projectors.NewEnterpriseCapabilityProjector(rm.capability)
 	importanceProjector := projectors.NewEnterpriseStrategicImportanceProjector(rm.importance)
-	metadataProjector := projectors.NewDomainCapabilityMetadataProjector(rm.metadata, rm.businessDomainNames)
 	pillarCacheProjector := projectors.NewStrategyPillarCacheProjector(rm.pillarCache)
-	realizationCacheProjector := projectors.NewEARealizationCacheProjector(rm.realizationCache)
 	importanceCacheProjector := projectors.NewEAImportanceCacheProjector(rm.importanceCache)
 	fitScoreCacheProjector := projectors.NewEAFitScoreCacheProjector(rm.fitScoreCache)
 	businessDomainNameCacheProjector := projectors.NewBusinessDomainNameCacheProjector(rm.businessDomainNames)
 
 	subscribeCapabilityEvents(eventBus, capabilityProjector)
 	subscribeImportanceEvents(eventBus, importanceProjector)
-	subscribeCapabilityMappingEvents(eventBus, metadataProjector)
 	subscribePillarCacheEvents(eventBus, pillarCacheProjector)
-	subscribeRealizationCacheEvents(eventBus, realizationCacheProjector)
 	subscribeImportanceCacheEvents(eventBus, importanceCacheProjector)
 	subscribeFitScoreCacheEvents(eventBus, fitScoreCacheProjector)
 	subscribeBusinessDomainNameCacheEvents(eventBus, businessDomainNameCacheProjector)
@@ -122,23 +105,6 @@ func subscribeImportanceEvents(eventBus events.EventBus, projector *projectors.E
 	}
 }
 
-func subscribeCapabilityMappingEvents(eventBus events.EventBus, projector *projectors.DomainCapabilityMetadataProjector) {
-	eventTypes := []string{
-		cmPL.CapabilityCreated,
-		cmPL.CapabilityUpdated,
-		cmPL.CapabilityDeleted,
-		cmPL.CapabilityParentChanged,
-		cmPL.CapabilityLevelChanged,
-		cmPL.CapabilityAssignedToDomain,
-		cmPL.CapabilityUnassignedFromDomain,
-		cmPL.CapabilityMetadataUpdated,
-		cmPL.BusinessDomainUpdated,
-	}
-	for _, eventType := range eventTypes {
-		eventBus.Subscribe(eventType, projector)
-	}
-}
-
 func subscribePillarCacheEvents(eventBus events.EventBus, projector *projectors.StrategyPillarCacheProjector) {
 	eventTypes := []string{
 		mmPL.MetaModelConfigurationCreated,
@@ -146,18 +112,6 @@ func subscribePillarCacheEvents(eventBus events.EventBus, projector *projectors.
 		mmPL.StrategyPillarUpdated,
 		mmPL.StrategyPillarRemoved,
 		mmPL.PillarFitConfigurationUpdated,
-	}
-	for _, eventType := range eventTypes {
-		eventBus.Subscribe(eventType, projector)
-	}
-}
-
-func subscribeRealizationCacheEvents(eventBus events.EventBus, projector *projectors.EARealizationCacheProjector) {
-	eventTypes := []string{
-		cmPL.SystemLinkedToCapability,
-		cmPL.SystemRealizationDeleted,
-		cmPL.CapabilityDeleted,
-		amPL.ApplicationComponentUpdated,
 	}
 	for _, eventType := range eventTypes {
 		eventBus.Subscribe(eventType, projector)
@@ -205,16 +159,13 @@ func initializeHTTPHandlers(commandBus *cqrs.InMemoryCommandBus, rm *routeReadMo
 		Capability: rm.capability,
 		Importance: rm.importance,
 	}
-	links := NewEnterpriseArchLinks(sharedAPI.NewHATEOASLinks(""))
 	return &routeHTTPHandlers{
 		enterpriseCapability: NewEnterpriseCapabilityHandlers(commandBus, readModels, sessionProvider),
-		timeSuggestions:      NewTimeSuggestionsHandlers(rm.timeSuggestion, links),
 	}
 }
 
 func registerEnterpriseArchRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware AuthMiddleware, rateLimiter *middleware.RateLimiter) {
 	registerEnterpriseCapabilityRoutes(r, h, authMiddleware, rateLimiter)
-	registerTimeSuggestionsRoutes(r, h.timeSuggestions, authMiddleware)
 }
 
 func registerEnterpriseCapabilityRoutes(r chi.Router, handlers *routeHTTPHandlers, authMiddleware AuthMiddleware, rateLimiter *middleware.RateLimiter) {
@@ -243,12 +194,5 @@ func registerEnterpriseCapabilityRoutes(r chi.Router, handlers *routeHTTPHandler
 			r.Delete("/{id}", h.DeleteEnterpriseCapability)
 			r.Delete("/{id}/strategic-importance/{importanceId}", h.RemoveStrategicImportance)
 		})
-	})
-}
-
-func registerTimeSuggestionsRoutes(r chi.Router, h *TimeSuggestionsHandlers, authMiddleware AuthMiddleware) {
-	r.Group(func(r chi.Router) {
-		r.Use(authMiddleware.RequirePermission(authPL.PermEnterpriseArchRead))
-		r.Get("/time-suggestions", h.GetTimeSuggestions)
 	})
 }

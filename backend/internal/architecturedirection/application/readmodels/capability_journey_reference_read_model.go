@@ -14,6 +14,7 @@ const (
 	ReferenceEntityCapability     ReferenceEntity = "capability"
 	ReferenceEntityApplication    ReferenceEntity = "application"
 	ReferenceEntityBusinessDomain ReferenceEntity = "business_domain"
+	ReferenceEntityUser           ReferenceEntity = "user"
 )
 
 func (rm *CapabilityJourneyReadModel) CacheReferenceName(ctx context.Context, entity ReferenceEntity, entityID, name string) error {

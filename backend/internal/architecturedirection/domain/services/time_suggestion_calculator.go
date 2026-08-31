@@ -5,10 +5,10 @@ import "easi/backend/internal/architecturedirection/domain/valueobjects"
 const DefaultGapThreshold = 1.5
 
 type TimeSuggestionResult struct {
-	SuggestedTime string
-	TechnicalGap  float64
-	FunctionalGap float64
-	Confidence    string
+	SuggestedGrade string
+	TechnicalGap   float64
+	FunctionalGap  float64
+	Confidence     string
 }
 
 type TimeSuggestionCalculator struct {
@@ -38,25 +38,25 @@ func (c *TimeSuggestionCalculator) Calculate(technicalGaps, functionalGaps []flo
 		return result
 	}
 
-	result.SuggestedTime = c.determineTimeClassification(result.TechnicalGap, result.FunctionalGap)
+	result.SuggestedGrade = c.determineTimeGrade(result.TechnicalGap, result.FunctionalGap)
 
 	return result
 }
 
-func (c *TimeSuggestionCalculator) determineTimeClassification(technicalGap, functionalGap float64) string {
+func (c *TimeSuggestionCalculator) determineTimeGrade(technicalGap, functionalGap float64) string {
 	highTechnicalGap := technicalGap >= c.threshold
 	highFunctionalGap := functionalGap >= c.threshold
 
 	if !highTechnicalGap && !highFunctionalGap {
-		return valueobjects.TimeClassificationInvest
+		return valueobjects.TimeGradeInvest
 	}
 	if !highTechnicalGap && highFunctionalGap {
-		return valueobjects.TimeClassificationTolerate
+		return valueobjects.TimeGradeTolerate
 	}
 	if highTechnicalGap && !highFunctionalGap {
-		return valueobjects.TimeClassificationMigrate
+		return valueobjects.TimeGradeMigrate
 	}
-	return valueobjects.TimeClassificationEliminate
+	return valueobjects.TimeGradeEliminate
 }
 
 func (c *TimeSuggestionCalculator) determineConfidence(hasTechnicalData, hasFunctionalData bool, technicalCount, functionalCount int) string {

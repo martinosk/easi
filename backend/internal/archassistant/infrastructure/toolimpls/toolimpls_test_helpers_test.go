@@ -49,7 +49,6 @@ var architectureDirectionSpecToolNames = []string{
 	"list_enterprise_capabilities", "get_enterprise_capability_details",
 	"create_enterprise_capability", "update_enterprise_capability", "delete_enterprise_capability",
 	"get_enterprise_strategic_importance", "set_enterprise_strategic_importance",
-	"get_time_suggestions",
 }
 
 var allExpectedSpecToolNames = append(

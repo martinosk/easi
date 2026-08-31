@@ -210,7 +210,8 @@ func TestTimeAssessmentIntegration_AssessThenReassess_ReplacesGrade(t *testing.T
 	require.Equal(t, http.StatusOK, get.Code)
 	var dto readmodels.TimeAssessmentDTO
 	require.NoError(t, json.NewDecoder(get.Body).Decode(&dto))
-	assert.Equal(t, "Eliminate", dto.Grade)
+	require.NotNil(t, dto.Grade)
+	assert.Equal(t, "Eliminate", *dto.Grade)
 	assert.Equal(t, "reconsidered", dto.Rationale)
 	assert.False(t, dto.Stale)
 }
