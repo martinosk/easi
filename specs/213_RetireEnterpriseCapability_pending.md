@@ -14,6 +14,8 @@ Direction, Standard Application and Composition go with it. Each is a statement 
 
 Strategic fit analysis is the one thing on the enterprise architecture page worth keeping. It is already owned by Capability Mapping, scores domain capabilities against strategy pillars, and never referenced an enterprise capability. It needs a page of its own, nothing more.
 
+Maturity analysis goes with the concept. It answered "which enterprise capabilities sit below their target maturity" — a question about a target that spec 211 moved onto the journey, where the gap is stated per capability at the moment the ambition is recorded. There is no enterprise capability left to roll the gap up to.
+
 ---
 
 ## User Personas
@@ -57,38 +59,46 @@ Feature: The enterprise capability is gone
     Given a capability with a journey, a TIME assessment and a realisation role
     When the retirement is deployed
     Then all three read and write exactly as before
+    And the Domain Board drawer still records grades and roles against them
+
+  Scenario: Maturity gaps are read on the journey, not on a catalog entry
+    Given a capability with a maturity journey
+    When an architect looks for its maturity gap
+    Then the journey states it
+    And no enterprise-capability maturity analysis or maturity gap surface remains
 
   Scenario: The assistant loses the retired tools
     When an assistant user asks about enterprise capabilities
-    Then no enterprise-capability, direction, standard-application or composition tool is available
+    Then no enterprise-capability, direction, standard-application, composition or maturity-analysis tool is available
 ```
 
 ---
 
 ## Business Rules & Invariants
 
-1. **Four aggregates retire** — `EnterpriseCapability`, `EnterpriseStrategicImportance`, `Direction` and `StandardApplication`, with their commands, events, repositories, read models and tables. Composition is a service over Direction and retires with it.
+1. **Four aggregates retire** — `EnterpriseCapability`, `EnterpriseStrategicImportance`, `Direction` and `StandardApplication`, with their commands, events, repositories, read models and tables. Composition is a service over Direction and retires with it, and maturity analysis is a read over composition and retires with that.
 2. **Architecture Direction keeps only planning** — `CapabilityJourney`, `TimeAssessment` and `RealizationRole` survive, all keyed on a domain capability or a capability-application pair. The context speaks one language.
 3. **Stored events are not rewritten** — retired event types stay in `infrastructure.events`, unread. No migration touches history; only read-model tables are dropped.
-4. **OnePagers loses one subject type** — `enterprise-capability` retires from the subject-type value object, the relation catalog, the built-in field catalog, the subject index and the subject-deleted reactor. Existing facts for that subject type are archived through the context's own archival path, not deleted by SQL.
-5. **Strategic fit analysis is untouched behind the API** — `GET /strategic-fit-analysis/{pillarId}` and its Capability Mapping ownership do not change; only the UI that calls it moves.
-6. **Permissions retire** — the `enterprise-arch:*` group is removed, and every surviving route it guarded is re-pointed at an existing capability or architecture-direction permission.
-7. **Agent tools retire with their routes** — the eight enterprise-capability tools plus the direction, standard-application and composition tools go; the tool catalog guard must stay green.
+4. **OnePagers loses one subject type** — `enterprise-capability` retires from the subject-type value object, the relation catalog, the built-in field catalog, the subject index and the subject-deleted reactor.
+5. **The archival sweep runs before the reactor mapping goes** — the subject-deleted reactor archives on `EnterpriseCapabilityDeleted`, an event retirement never emits, so a one-off archival dispatched inside OnePagers at deploy walks the subject index for the retired type and issues `ArchiveOnePagerFacts` for each. The reactor's mapping for the type is removed only after that sweep exists. No SQL touches the facts.
+6. **Strategic fit analysis is untouched behind the API** — `GET /strategic-fit-analysis/{pillarId}` and its Capability Mapping ownership do not change; only the UI that calls it moves and the permission that guards it.
+7. **Permissions retire everywhere, not just on routes** — the `enterprise-arch:*` group leaves the published language, the role definitions and every consumer: `/strategic-fit-analysis/{pillarId}` re-points at `capabilities:read`, and the assistant's write-link check, the session's one-pager-quality link check and the one-pager quality permission table drop the permission with the subject type it stood for. Roles already stored keep working: the permission is dropped from the role definitions, not migrated out of persisted rows.
+8. **Agent tools retire with their routes** — the seven enterprise-capability tools plus the direction, standard-application, composition and maturity-analysis tools go: fourteen of Architecture Direction's twenty-two, leaving the eight that serve journeys, TIME assessments and realisation roles. The tool catalog guard must stay green.
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] `EnterpriseCapability`, `EnterpriseStrategicImportance`, `Direction` and `StandardApplication` aggregates, and the composition service, no longer exist in the codebase
+- [ ] `EnterpriseCapability`, `EnterpriseStrategicImportance`, `Direction` and `StandardApplication` aggregates, the composition service and the maturity analysis read model no longer exist in the codebase
 - [ ] No `/enterprise-capabilities`, `/enterprise-capability-compositions` or direction route is registered
-- [ ] Strategic fit analysis is reachable from the main navigation and renders identically to before
-- [ ] The `enterprise-architecture` frontend feature and the `architecture-direction` and `standard-application` features are deleted
-- [ ] OnePagers offers five subject types; facts held for the retired type are archived
-- [ ] The `enterprise-arch:*` permission group is gone and no route references it
-- [ ] The agent tool catalog guard passes with the retired tools removed
+- [ ] Strategic fit analysis is reachable from the main navigation, guarded by `capabilities:read`, and renders identically to before
+- [ ] The `enterprise-architecture` and `standard-application` frontend features are deleted; `architecture-direction` keeps its TIME assessment and realisation role surface and loses only its direction slice
+- [ ] OnePagers offers five subject types; the archival sweep has run and no unarchived facts remain for the retired type
+- [ ] The `enterprise-arch:*` permission group is gone and nothing — route, link check or quality table — references it
+- [ ] The agent tool catalog guard passes with fourteen tools removed and eight left in Architecture Direction
 - [ ] Read-model tables for the retired concepts are dropped in one migration; the event store is untouched
-- [ ] Journeys, TIME assessments and realisation roles pass their existing test suites unchanged
-- [ ] Context count and boundary smells re-measured against the coverage assessment
+- [ ] Journeys, TIME assessments and realisation roles pass their existing test suites unchanged, and the Domain Board drawer still assesses and roles a realisation end to end
+- [ ] The coverage assessment is re-scored: capability C3 drops from full to uncovered, C6 loses its enterprise-architecture rows, the context count stays at 14, and no boundary smell closes — this slice removes surface, not a smell
 
 ---
 
@@ -100,23 +110,27 @@ Architecture Direction (deletion) and OnePagers (subject type). Capability Mappi
 
 ### Domain Model
 
-Delete the four aggregates and every value object exclusive to them (`EnterpriseCapabilityID`, `EnterpriseCapabilityName`, `Category`, `Importance`, `Rationale`, `SetAt`, `EnterpriseStrategicImportanceID`, direction status and horizon types). `TargetMaturity` does not die — spec 211 moves it onto the journey. Retire the published event constants and, in OnePagers, the handling that consumed them.
+Delete the four aggregates and every value object exclusive to them (`EnterpriseCapabilityID`, `EnterpriseCapabilityName`, `Category`, `Importance`, `Rationale`, `SetAt`, `EnterpriseStrategicImportanceID`, direction status and horizon types), plus the composition service and the maturity analysis read model that reads over it. `TargetMaturity` does not die — spec 211 moves it onto the journey, and only the enterprise capability's copy goes. Retire the published event constants and, in OnePagers, the handling that consumed them.
 
 ### API Surface
 
-Remove `/enterprise-capabilities/**`, `/enterprise-capability-compositions`, `/capabilities/source-candidates` and the direction and standard-application routes. `/strategic-fit-analysis/{pillarId}` is unchanged.
+Remove `/enterprise-capabilities/**` (including `maturity-analysis` and `{id}/maturity-gap`), `/enterprise-capability-compositions`, `/capabilities/source-candidates` and the direction and standard-application routes. `/strategic-fit-analysis/{pillarId}` keeps its handler and its Capability Mapping ownership; only its guard changes, from `enterprise-arch:read` to `capabilities:read`.
 
 ### Persistence
 
-One migration drops `enterprise_capabilities`, `enterprise_strategic_importance`, `directions`, `standard_applications`, `standard_application_history` and any cache exclusive to them. `infrastructure.events` is untouched.
+One migration drops `enterprise_capabilities`, `enterprise_strategic_importance`, `directions`, `direction_source_capabilities`, `standard_applications`, `standard_application_history` and `capability_domain_cache`, the last of which only `DirectionReadModel` reads.
+
+The caches that stay, because the surviving features read them: `capability_node_cache`, `realization_cache` and `reference_name_cache` back journeys, assessments and roles; `ea_importance_cache`, `ea_fit_score_cache` and `ea_strategy_pillar_cache` back the TIME suggestion that spec 212 composed into assessment reads. Dropping any of the six breaks a surviving feature. `infrastructure.events` is untouched.
 
 ### Frontend
 
-Delete the `enterprise-architecture`, `architecture-direction` and `standard-application` features. `StrategicFitTab` becomes a page of its own with a navigation entry, keeping its hook, query keys and API call. Remove enterprise-capability query keys, schemas, API types and mutation effects.
+Delete the `enterprise-architecture` and `standard-application` features. **Prune, do not delete, `architecture-direction`**: it is where TIME assessments and realisation roles live, and twenty files across `business-domains` and the test mocks import from it. Remove `api/directionApi.ts`, the direction components (`DirectionPanel`, `CaptureDirectionForm`, `EditDraftDirectionForm`, `DirectionStatusBadge`, `sourcePickerPrimitives`), `hooks/useDirection*.ts`, and the direction slice of `types.ts`, `queryKeys.ts` and `mutationEffects.ts`. Everything TIME and role keeps working untouched.
+
+`StrategicFitTab` becomes a page of its own with a navigation entry, keeping its hook, query keys and API call. Remove the enterprise-architecture navigation entry and route path, and the enterprise-capability query keys, schemas, API types and mutation effects.
 
 ### Cross-Context Integration
 
-OnePagers stops subscribing to the retired Architecture Direction events — the only cross-context consumption of them. No new integration.
+OnePagers stops subscribing to the retired Architecture Direction events — the only cross-context consumption of them. Before those subscriptions go, OnePagers runs its own one-off archival over the retired subject type (rule 5): it walks its subject index for `enterprise-capability` and dispatches `ArchiveOnePagerFacts` per subject, exactly as the subject-deleted reactor would have. No new integration and no cross-schema SQL.
 
 ---
 
@@ -136,6 +150,8 @@ OnePagers stops subscribing to the retired Architecture Direction events — the
 |----------|-----------|------------|
 | Large deletion in one change set | Hard to review as a diff | Acceptance criteria are checkable independently; the architecture guard tests, tool catalog guard and existing journey suites pin what must still work |
 | Recorded directions and standard applications are lost as a surface | History that architects may have relied on becomes unreadable | The events remain in the store; if a need appears, a read-side projection can resurrect them without the write model |
+| Capability C3 — enterprise consolidation and standardisation analysis — drops from full to uncovered | Nothing will answer "the same capability is implemented in several domains; what do we consolidate, and which application is the standard?" | Deliberate: the assessment rated C3 full on machinery nobody used, and its own verdict left open whether the enterprise capability deserved a context at all. This slice answers that question. The question C3 poses stays worth answering; when it is asked again it gets a design informed by use, not the taxonomy being retired here |
+| Maturity analysis disappears with composition | The catalog-wide "which capabilities are below target" list goes | Spec 211 put the target and the gap on the journey, where the ambition is recorded per capability; the roll-up had no subject left to roll up to |
 | One-pager facts for the retired subject type are archived | Curated content is retired with the concept | Archival, not deletion — the facts remain recoverable through the same path used for any deleted subject |
 | Spec 169 is blocked | Its resolution vocabulary names both retired concepts | Design doc decision 7 records the re-scope; 169 is pending and unscheduled |
 

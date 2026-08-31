@@ -24,12 +24,11 @@ type routeRepositories struct {
 }
 
 type routeReadModels struct {
-	capability          *readmodels.EnterpriseCapabilityReadModel
-	importance          *readmodels.EnterpriseStrategicImportanceReadModel
-	pillarCache         *readmodels.StrategyPillarCacheReadModel
-	importanceCache     *readmodels.EAImportanceCacheReadModel
-	fitScoreCache       *readmodels.EAFitScoreCacheReadModel
-	businessDomainNames *readmodels.BusinessDomainNameCacheReadModel
+	capability      *readmodels.EnterpriseCapabilityReadModel
+	importance      *readmodels.EnterpriseStrategicImportanceReadModel
+	pillarCache     *readmodels.StrategyPillarCacheReadModel
+	importanceCache *readmodels.EAImportanceCacheReadModel
+	fitScoreCache   *readmodels.EAFitScoreCacheReadModel
 }
 
 type routeHTTPHandlers struct {
@@ -57,12 +56,11 @@ func initializeRepositories(eventStore eventstore.EventStore) *routeRepositories
 
 func initializeReadModels(db *database.TenantAwareDB, capability *readmodels.EnterpriseCapabilityReadModel) *routeReadModels {
 	return &routeReadModels{
-		capability:          capability,
-		importance:          readmodels.NewEnterpriseStrategicImportanceReadModel(db),
-		pillarCache:         readmodels.NewStrategyPillarCacheReadModel(db),
-		importanceCache:     readmodels.NewEAImportanceCacheReadModel(db),
-		fitScoreCache:       readmodels.NewEAFitScoreCacheReadModel(db),
-		businessDomainNames: readmodels.NewBusinessDomainNameCacheReadModel(db),
+		capability:      capability,
+		importance:      readmodels.NewEnterpriseStrategicImportanceReadModel(db),
+		pillarCache:     readmodels.NewStrategyPillarCacheReadModel(db),
+		importanceCache: readmodels.NewEAImportanceCacheReadModel(db),
+		fitScoreCache:   readmodels.NewEAFitScoreCacheReadModel(db),
 	}
 }
 
@@ -72,14 +70,12 @@ func setupEventSubscriptions(eventBus events.EventBus, rm *routeReadModels) {
 	pillarCacheProjector := projectors.NewStrategyPillarCacheProjector(rm.pillarCache)
 	importanceCacheProjector := projectors.NewEAImportanceCacheProjector(rm.importanceCache)
 	fitScoreCacheProjector := projectors.NewEAFitScoreCacheProjector(rm.fitScoreCache)
-	businessDomainNameCacheProjector := projectors.NewBusinessDomainNameCacheProjector(rm.businessDomainNames)
 
 	subscribeCapabilityEvents(eventBus, capabilityProjector)
 	subscribeImportanceEvents(eventBus, importanceProjector)
 	subscribePillarCacheEvents(eventBus, pillarCacheProjector)
 	subscribeImportanceCacheEvents(eventBus, importanceCacheProjector)
 	subscribeFitScoreCacheEvents(eventBus, fitScoreCacheProjector)
-	subscribeBusinessDomainNameCacheEvents(eventBus, businessDomainNameCacheProjector)
 }
 
 func subscribeCapabilityEvents(eventBus events.EventBus, projector *projectors.EnterpriseCapabilityProjector) {
@@ -126,17 +122,6 @@ func subscribeFitScoreCacheEvents(eventBus events.EventBus, projector *projector
 	eventTypes := []string{
 		cmPL.ApplicationFitScoreSet,
 		cmPL.ApplicationFitScoreRemoved,
-	}
-	for _, eventType := range eventTypes {
-		eventBus.Subscribe(eventType, projector)
-	}
-}
-
-func subscribeBusinessDomainNameCacheEvents(eventBus events.EventBus, projector *projectors.BusinessDomainNameCacheProjector) {
-	eventTypes := []string{
-		cmPL.BusinessDomainCreated,
-		cmPL.BusinessDomainUpdated,
-		cmPL.BusinessDomainDeleted,
 	}
 	for _, eventType := range eventTypes {
 		eventBus.Subscribe(eventType, projector)
