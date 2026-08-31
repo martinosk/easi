@@ -14,15 +14,15 @@ import (
 )
 
 type InternalTeamDTO struct {
-	ID               string              `json:"id"`
-	Name             string              `json:"name"`
-	Department       string              `json:"department,omitempty"`
-	ContactPerson    string              `json:"contactPerson,omitempty"`
-	Notes            string              `json:"notes,omitempty"`
-	CreatedAt        time.Time           `json:"createdAt"`
-	UpdatedAt        *time.Time          `json:"updatedAt,omitempty"`
-	Links            types.Links         `json:"_links,omitempty"`
-	XRelated         []types.RelatedLink `json:"-"`
+	ID            string              `json:"id"`
+	Name          string              `json:"name"`
+	Department    string              `json:"department,omitempty"`
+	ContactPerson string              `json:"contactPerson,omitempty"`
+	Notes         string              `json:"notes,omitempty"`
+	CreatedAt     time.Time           `json:"createdAt"`
+	UpdatedAt     *time.Time          `json:"updatedAt,omitempty"`
+	Links         types.Links         `json:"_links,omitempty"`
+	XRelated      []types.RelatedLink `json:"-"`
 }
 
 func (d InternalTeamDTO) MarshalJSON() ([]byte, error) {

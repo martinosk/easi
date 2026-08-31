@@ -15,13 +15,13 @@ import (
 )
 
 type ApplicationComponentDTO struct {
-	ID               string              `json:"id"`
-	Name             string              `json:"name"`
-	Description      string              `json:"description,omitempty"`
-	CreatedAt        time.Time           `json:"createdAt"`
-	Experts          []ExpertDTO         `json:"experts,omitempty"`
-	Links            types.Links         `json:"_links,omitempty"`
-	XRelated         []types.RelatedLink `json:"-"`
+	ID          string              `json:"id"`
+	Name        string              `json:"name"`
+	Description string              `json:"description,omitempty"`
+	CreatedAt   time.Time           `json:"createdAt"`
+	Experts     []ExpertDTO         `json:"experts,omitempty"`
+	Links       types.Links         `json:"_links,omitempty"`
+	XRelated    []types.RelatedLink `json:"-"`
 }
 
 func (d ApplicationComponentDTO) MarshalJSON() ([]byte, error) {
