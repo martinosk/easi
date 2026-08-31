@@ -1,7 +1,7 @@
 # 210 — Relocate EnterpriseArchitecture into Architecture Direction
 
 > **Status:** done
-> **Depends on:** — (design: [docs/specs/ea-dissolution.md](../docs/specs/ea-dissolution.md))
+> **Depends on:** — (design: [docs/specs/enterprise-capability.md](../docs/specs/enterprise-capability.md))
 > **Roadmap alignment:** SD1 / H1-1
 
 ---

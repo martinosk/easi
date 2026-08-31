@@ -6,8 +6,8 @@ The plan-of-record for EASI's capability and bounded-context evolution: settled 
 
 | ID | Decision | Addresses |
 |----|----------|-----------|
-| SD1 | EnterpriseArchitecture dissolves into Architecture Direction. EnterpriseCapability is demoted from curated catalog to the subject of a Direction — it comes into existence when direction work starts. TIME suggestion and assessment unify on one value object. | C2, C3 |
-| SD2 | TargetMaturity and EnterpriseStrategicImportance move into Architecture Direction as a separate Assessment aggregate with its own events; Direction consumes, never embeds. The maturity concept stays reshapeable or removable without touching Direction. | A4 |
+| SD1 | The EnterpriseCapability concept is retired outright, and Direction, Standard Application and Composition retire with it — each was a statement about an enterprise capability with no surface of its own. Architecture Direction becomes the planning context: journeys, TIME assessments, realisation roles. TIME suggestion and assessment unify on one value object, with the suggestion shown beside the assessment it advises. Amended 2026-08-31; the earlier reading (demote EnterpriseCapability to the subject of a Direction) is superseded. | C2, C3 |
+| SD2 | Maturity is an outcome a plan targets, not a rating on a catalog entry: a maturity journey declares the maturity uplift it will deliver, over a period, through milestones that need not be technical. EnterpriseStrategicImportance retires unreplaced — it never had a surface. Strategic fit analysis (capability × pillar) is unaffected; it is owned by Capability Mapping and never referenced an enterprise capability. | A4 |
 | SD3 | CMDB sync (ServiceNow) auto-registers discovered applications in ownership state Unknown/orphaned, stamped with provenance; stewards promote them. Sync never overwrites a curated field. | G2 |
 | SD4 | Value Streams evolves into the Business Operating Model context: BusinessRole and BusinessObject aggregates, linked to capabilities through a reified but hidden, unnamed process aggregate. Capability Mapping does not grow. | A3, B4 |
 | SD5 | MetaModel owns the custom-field schema (moved from OnePagers) and the modelling rule set: capability-naming standards (AI-evaluated, override recorded), composition depth, required attributes. OnePagers trends toward pure presentation. | G1, D1 |
@@ -24,7 +24,7 @@ Every spec and every architectural recommendation is checked against these. A de
 3. **External data carries provenance** — facts enter only through the Integrations context, stamped with source, external id and sync time; sync never overwrites a curated fact.
 4. **Judgements are separable** — assessment-like concepts get their own aggregate and events; consumers reference, never embed.
 5. **MetaModel owns the vocabulary** — scales, pillars, custom attributes and modelling rules; AI checks are advisory at the edge with recorded overrides, and the domain never blocks on a model.
-6. **Contexts stay small** — when one context starts speaking two languages, split it. Architecture Direction's split line after absorbing EnterpriseArchitecture is judgement (assess, decide) versus plan (journeys, tracking).
+6. **Contexts stay small** — when one context starts speaking two languages, split it. Architecture Direction speaks one language once the enterprise capability retires: planning and tracking change to a capability. A concept that needs a second language there is a signal to split, not to widen.
 
 ## Horizon Plan & Traceability
 
@@ -34,7 +34,7 @@ A horizon move becomes a Phase-1 design doc (`docs/specs/`) and vertical-slice s
 
 | Move | Scope | Decisions | Specs | Status |
 |------|-------|-----------|-------|--------|
-| H1-1 | Dissolve EnterpriseArchitecture into Architecture Direction: relocate the context, Assessment aggregate, unified TIME value object, EnterpriseCapability as Direction subject | SD1, SD2 | 210–213 ([design doc](../specs/ea-dissolution.md)) | 210 done (contexts 15 → 14); 211–213 pending approval |
+| H1-1 | Retire the enterprise capability: relocate the context, then maturity journeys, unified TIME value object, and removal of EnterpriseCapability with Direction, Standard Application and Composition | SD1, SD2 | 210–213 ([design doc](../specs/enterprise-capability.md)) | 210 done (contexts 15 → 14); 211–213 re-planned and approved 2026-08-31 against the retirement, ready to implement |
 | H1-2 | Application record: ownership state machine with stats projection, hosting classification, two-level composition | SD6 | 214–216 | specs pending approval |
 | H1-3 | MetaModel: custom-field schema moves in (backfilled), modelling rule set v1 with AI naming validation | SD5 | 217–218 | specs pending approval |
 
@@ -55,7 +55,7 @@ Exit: coverage assessment re-scored — boundary smells 3 → 1, contexts 15 →
 | H3-7 | MS Forms adapter feeding one-pager facts | SD7 | — | not started |
 | H3-8 | Export read side (CSV, image, BI feed) | SD8 | — | not started |
 | H3-9 | Dashboards & KPIs read side | SD8 | — | not started |
-| H3-10 | Maturity 2.0: MetaModel-defined dimensions, per-dimension ratings, evidence-assisted suggestions | SD2 | — | not started |
+| H3-10 | Maturity 2.0: MetaModel-defined dimensions replacing the single 0–99 scale, per-dimension current ratings and per-dimension journey targets, evidence-assisted suggestions | SD2, SD5 | — | not started |
 | H3-11 | Principles register grown from the modelling rule set | SD5 | — | not started |
 
 ## Parked
