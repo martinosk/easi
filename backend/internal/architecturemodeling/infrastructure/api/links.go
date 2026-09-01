@@ -1,6 +1,8 @@
 package api
 
 import (
+	"maps"
+
 	"easi/backend/internal/architecturemodeling/domain/valueobjects"
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
@@ -54,6 +56,12 @@ func (h *ArchitectureModelingLinks) ComponentLinksForActor(id string, actor shar
 
 func (h *ArchitectureModelingLinks) ComponentExpertLinksForActor(p sharedAPI.ExpertParams, actor sharedctx.Actor) sharedAPI.Links {
 	return h.ExpertRemoveLink(p, actor, "components")
+}
+
+func (h *ArchitectureModelingLinks) StatisticsLinks() sharedAPI.Links {
+	return sharedAPI.Links{
+		"self": h.Get("/components/ownership-statistics"),
+	}
 }
 
 type relatedLinkSpec struct {
@@ -174,9 +182,7 @@ func (h *ArchitectureModelingLinks) OriginRelationshipLinksForActor(basePath, id
 		"self":      h.Get(basePath + "/" + id),
 		"component": h.Get("/components/" + componentID),
 	}
-	for k, v := range extraLinks {
-		links[k] = v
-	}
+	maps.Copy(links, extraLinks)
 	if actor.CanDelete("components") {
 		links["delete"] = h.Del(basePath + "/" + id)
 	}

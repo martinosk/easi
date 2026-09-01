@@ -4,10 +4,11 @@ import type {
   AddComponentExpertRequest,
   Component,
   ComponentId,
+  ComponentStatistics,
   CreateComponentRequest,
   Expert,
+  HostingClassification,
   OwnerReferenceRequest,
-  OwnershipStatistics,
 } from '../../../api/types';
 import { followLink } from '../../../utils/hateoas';
 
@@ -72,8 +73,13 @@ export const componentsApi = {
     await httpClient.delete(followLink(component, 'x-clear-owner'));
   },
 
-  async getOwnershipStatistics(): Promise<OwnershipStatistics> {
-    const response = await httpClient.get<OwnershipStatistics>('/api/v1/components/ownership-statistics');
+  async classifyHosting(component: Component, hosting: HostingClassification): Promise<Component> {
+    const response = await httpClient.put<Component>(followLink(component, 'x-classify-hosting'), { hosting });
+    return response.data;
+  },
+
+  async getStatistics(): Promise<ComponentStatistics> {
+    const response = await httpClient.get<ComponentStatistics>('/api/v1/components/ownership-statistics');
     return response.data;
   },
 };

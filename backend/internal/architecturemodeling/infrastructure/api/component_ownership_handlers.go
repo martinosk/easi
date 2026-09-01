@@ -10,9 +10,7 @@ import (
 )
 
 type ComponentOwnershipHandlers struct {
-	commandBus cqrs.CommandBus
-	readModel  *readmodels.ApplicationComponentReadModel
-	hateoas    *ArchitectureModelingLinks
+	componentCommandHandlers
 }
 
 func NewComponentOwnershipHandlers(
@@ -21,9 +19,11 @@ func NewComponentOwnershipHandlers(
 	hateoas *ArchitectureModelingLinks,
 ) *ComponentOwnershipHandlers {
 	return &ComponentOwnershipHandlers{
-		commandBus: commandBus,
-		readModel:  readModel,
-		hateoas:    hateoas,
+		componentCommandHandlers: componentCommandHandlers{
+			commandBus: commandBus,
+			readModel:  readModel,
+			hateoas:    hateoas,
+		},
 	}
 }
 
@@ -111,25 +111,6 @@ func (h *ComponentOwnershipHandlers) ClearOwnership(w http.ResponseWriter, r *ht
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// GetOwnershipStatistics godoc
-// @Summary Get ownership statistics for application components
-// @Description Returns component counts per ownership state for the tenant, including the orphan (unknown) count
-// @Tags components
-// @Produce json
-// @Success 200 {object} readmodels.OwnershipStatisticsDTO
-// @Failure 500 {object} sharedAPI.ErrorResponse
-// @Router /components/ownership-statistics [get]
-func (h *ComponentOwnershipHandlers) GetOwnershipStatistics(w http.ResponseWriter, r *http.Request) {
-	stats, err := h.readModel.OwnershipStatistics(r.Context())
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve ownership statistics")
-		return
-	}
-
-	stats.Links = h.hateoas.OwnershipStatisticsLinks()
-	sharedAPI.RespondJSON(w, http.StatusOK, stats)
-}
-
 func (h *ComponentOwnershipHandlers) transitionWithOwner(w http.ResponseWriter, r *http.Request, buildCommand func(id string, req OwnerReferenceRequest) cqrs.Command) {
 	id := sharedAPI.GetPathParam(r, "id")
 
@@ -139,24 +120,4 @@ func (h *ComponentOwnershipHandlers) transitionWithOwner(w http.ResponseWriter, 
 	}
 
 	h.dispatchAndRespond(w, r, id, buildCommand(id, req))
-}
-
-func (h *ComponentOwnershipHandlers) dispatchAndRespond(w http.ResponseWriter, r *http.Request, id string, cmd cqrs.Command) {
-	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		sharedAPI.HandleError(w, err)
-		return
-	}
-
-	component, err := h.readModel.GetByID(r.Context(), id)
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve component")
-		return
-	}
-	if component == nil {
-		sharedAPI.RespondError(w, http.StatusNotFound, nil, "Component not found")
-		return
-	}
-
-	enrichComponentDTO(r, h.hateoas, component)
-	sharedAPI.RespondJSON(w, http.StatusOK, component)
 }

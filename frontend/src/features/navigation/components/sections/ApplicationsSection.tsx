@@ -1,10 +1,11 @@
 import { ColorSwatch, Select, TextInput, UnstyledButton } from '@mantine/core';
 import { IconBox } from '@tabler/icons-react';
 import React, { useMemo, useState } from 'react';
-import type { Component, OwnershipState, View } from '../../../../api/types';
+import type { Component, HostingClassification, OwnershipState, View } from '../../../../api/types';
 import { TreeSearchInput } from '../../../../components/shared';
+import { HOSTING_CLASSIFICATION_LABELS } from '../../../components/components/ComponentHostingSection';
 import { OWNERSHIP_STATE_LABELS } from '../../../components/components/ComponentOwnershipSection';
-import { OwnershipSummary } from '../../../components/components/OwnershipSummary';
+import { StatisticsSummary } from '../../../components/components/StatisticsSummary';
 import { OnePagerIncompleteIndicator } from '../../../one-pagers/components/OnePagerIncompleteIndicator';
 import { useOnePagerCompleteness } from '../../../one-pagers/hooks/useOnePagerCompleteness';
 import type { EditingState, TreeMultiSelectProps } from '../../types';
@@ -20,11 +21,17 @@ const ColorIndicator: React.FC<ColorIndicatorProps> = ({ customColor }) => (
   <ColorSwatch data-testid="custom-color-indicator" color={customColor ?? ''} size="xs" radius="xs" ml="sm" />
 );
 
-function filterComponents(components: Component[], search: string, ownershipState: string | null): Component[] {
+function filterComponents(
+  components: Component[],
+  search: string,
+  ownershipState: string | null,
+  hosting: string | null,
+): Component[] {
   const byOwnership = ownershipState ? components.filter((c) => c.ownershipState === ownershipState) : components;
-  if (!search.trim()) return byOwnership;
+  const byHosting = hosting ? byOwnership.filter((c) => c.hosting === hosting) : byOwnership;
+  if (!search.trim()) return byHosting;
   const searchLower = search.toLowerCase();
-  return byOwnership.filter(
+  return byHosting.filter(
     (c) => c.name.toLowerCase().includes(searchLower) || c.description?.toLowerCase().includes(searchLower),
   );
 }
@@ -33,6 +40,13 @@ const OWNERSHIP_FILTER_OPTIONS = (Object.keys(OWNERSHIP_STATE_LABELS) as Ownersh
   value: state,
   label: OWNERSHIP_STATE_LABELS[state],
 }));
+
+const HOSTING_FILTER_OPTIONS = (Object.keys(HOSTING_CLASSIFICATION_LABELS) as HostingClassification[]).map(
+  (hosting) => ({
+    value: hosting,
+    label: HOSTING_CLASSIFICATION_LABELS[hosting],
+  }),
+);
 
 interface EditingItemProps {
   component: Component;
@@ -161,11 +175,12 @@ export const ApplicationsSection: React.FC<ApplicationsSectionProps> = ({
 }) => {
   const [applicationSearch, setApplicationSearch] = useState('');
   const [ownershipFilter, setOwnershipFilter] = useState<string | null>(null);
+  const [hostingFilter, setHostingFilter] = useState<string | null>(null);
   const { data: onePagerCompleteness } = useOnePagerCompleteness('application');
 
   const filteredComponents = useMemo(
-    () => filterComponents(components, applicationSearch, ownershipFilter),
-    [components, applicationSearch, ownershipFilter],
+    () => filterComponents(components, applicationSearch, ownershipFilter, hostingFilter),
+    [components, applicationSearch, ownershipFilter, hostingFilter],
   );
 
   const visibleItems = useMemo(
@@ -212,7 +227,7 @@ export const ApplicationsSection: React.FC<ApplicationsSectionProps> = ({
     }
   };
 
-  const emptyMessage = components.length === 0 && !ownershipFilter ? 'No applications' : 'No matches';
+  const emptyMessage = components.length === 0 && !ownershipFilter && !hostingFilter ? 'No applications' : 'No matches';
 
   const renderComponent = (component: Component) => {
     if (editingState?.componentId === component.id) {
@@ -256,7 +271,7 @@ export const ApplicationsSection: React.FC<ApplicationsSectionProps> = ({
       addTitle="Create new application"
       addTestId="create-component-button"
     >
-      <OwnershipSummary />
+      <StatisticsSummary />
       <TreeSearchInput value={applicationSearch} onChange={setApplicationSearch} placeholder="Search applications..." />
       <Select
         size="xs"
@@ -268,6 +283,17 @@ export const ApplicationsSection: React.FC<ApplicationsSectionProps> = ({
         value={ownershipFilter}
         onChange={setOwnershipFilter}
         data-testid="ownership-filter"
+      />
+      <Select
+        size="xs"
+        px="sm"
+        pb="xs"
+        clearable
+        placeholder="Filter by hosting"
+        data={HOSTING_FILTER_OPTIONS}
+        value={hostingFilter}
+        onChange={setHostingFilter}
+        data-testid="hosting-filter"
       />
       <div className={classes.list}>
         {filteredComponents.length === 0 ? (

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/lib/pq"
@@ -21,6 +22,7 @@ type ApplicationComponentDTO struct {
 	CreatedAt      time.Time           `json:"createdAt"`
 	OwnershipState string              `json:"ownershipState"`
 	Owner          *ComponentOwnerDTO  `json:"owner,omitempty"`
+	Hosting        string              `json:"hosting"`
 	Experts        []ExpertDTO         `json:"experts,omitempty"`
 	Links          types.Links         `json:"_links,omitempty"`
 	XRelated       []types.RelatedLink `json:"-"`
@@ -32,7 +34,7 @@ type ComponentOwnerDTO struct {
 	Name string `json:"name,omitempty"`
 }
 
-const componentSelect = `SELECT c.id, c.name, c.description, c.created_at, c.ownership_state, c.owner_kind, c.owner_id,
+const componentSelect = `SELECT c.id, c.name, c.description, c.created_at, c.ownership_state, c.owner_kind, c.owner_id, c.hosting,
 	CASE
 		WHEN c.owner_kind = 'user' THEN (SELECT COALESCE(NULLIF(u.name, ''), u.email) FROM architecturemodeling.user_names u WHERE u.tenant_id = c.tenant_id AND u.user_id = c.owner_id)
 		WHEN c.owner_kind = 'team' THEN (SELECT t.name FROM architecturemodeling.internal_teams t WHERE t.tenant_id = c.tenant_id AND t.id = c.owner_id AND t.is_deleted = FALSE)
@@ -237,18 +239,20 @@ func (rm *ApplicationComponentReadModel) queryComponents(ctx context.Context, te
 }
 
 type ComponentQuery struct {
-	Limit       int
-	AfterCursor string
-	AfterName   string
-	NameFilter  string
+	Limit         int
+	AfterCursor   string
+	AfterName     string
+	NameFilter    string
+	HostingFilter string
 }
 
 type resolvedQuery struct {
-	tenantID    string
-	afterCursor string
-	afterName   string
-	nameFilter  string
-	limit       int
+	tenantID      string
+	afterCursor   string
+	afterName     string
+	nameFilter    string
+	hostingFilter string
+	limit         int
 }
 
 func (rm *ApplicationComponentReadModel) GetAllPaginated(ctx context.Context, q ComponentQuery) ([]ApplicationComponentDTO, bool, error) {
@@ -258,11 +262,12 @@ func (rm *ApplicationComponentReadModel) GetAllPaginated(ctx context.Context, q 
 	}
 
 	query := resolvedQuery{
-		tenantID:    tenantID.Value(),
-		afterCursor: q.AfterCursor,
-		afterName:   q.AfterName,
-		nameFilter:  q.NameFilter,
-		limit:       q.Limit + 1,
+		tenantID:      tenantID.Value(),
+		afterCursor:   q.AfterCursor,
+		afterName:     q.AfterName,
+		nameFilter:    q.NameFilter,
+		hostingFilter: q.HostingFilter,
+		limit:         q.Limit + 1,
 	}
 
 	var components []ApplicationComponentDTO
@@ -289,34 +294,37 @@ func (rm *ApplicationComponentReadModel) GetAllPaginated(ctx context.Context, q 
 }
 
 func (rm *ApplicationComponentReadModel) queryPaginatedComponents(ctx context.Context, tx *sql.Tx, query resolvedQuery) (*sql.Rows, error) {
-	if query.nameFilter != "" && query.afterCursor != "" {
-		return tx.QueryContext(ctx,
-			componentSelect+" WHERE c.tenant_id = $1 AND c.is_deleted = FALSE AND LOWER(c.name) LIKE '%' || LOWER($2) || '%' AND (LOWER(c.name) > LOWER($3) OR (LOWER(c.name) = LOWER($3) AND c.id > $4)) ORDER BY LOWER(c.name) ASC, c.id ASC LIMIT $5",
-			query.tenantID, query.nameFilter, query.afterName, query.afterCursor, query.limit,
-		)
-	}
+	conditions := []string{"c.tenant_id = $1", "c.is_deleted = FALSE"}
+	args := []any{query.tenantID}
+
 	if query.nameFilter != "" {
-		return tx.QueryContext(ctx,
-			componentSelect+" WHERE c.tenant_id = $1 AND c.is_deleted = FALSE AND LOWER(c.name) LIKE '%' || LOWER($2) || '%' ORDER BY LOWER(c.name) ASC, c.id ASC LIMIT $3",
-			query.tenantID, query.nameFilter, query.limit,
-		)
+		args = append(args, query.nameFilter)
+		conditions = append(conditions, fmt.Sprintf("LOWER(c.name) LIKE '%%' || LOWER($%d) || '%%'", len(args)))
 	}
-	if query.afterCursor == "" {
-		return tx.QueryContext(ctx,
-			componentSelect+" WHERE c.tenant_id = $1 AND c.is_deleted = FALSE ORDER BY LOWER(c.name) ASC, c.id ASC LIMIT $2",
-			query.tenantID, query.limit,
-		)
+	if query.hostingFilter != "" {
+		args = append(args, query.hostingFilter)
+		conditions = append(conditions, fmt.Sprintf("c.hosting = $%d", len(args)))
 	}
-	return tx.QueryContext(ctx,
-		componentSelect+" WHERE c.tenant_id = $1 AND c.is_deleted = FALSE AND (LOWER(c.name) > LOWER($2) OR (LOWER(c.name) = LOWER($2) AND c.id > $3)) ORDER BY LOWER(c.name) ASC, c.id ASC LIMIT $4",
-		query.tenantID, query.afterName, query.afterCursor, query.limit,
+	if query.afterCursor != "" {
+		args = append(args, query.afterName, query.afterCursor)
+		conditions = append(conditions, fmt.Sprintf(
+			"(LOWER(c.name) > LOWER($%d) OR (LOWER(c.name) = LOWER($%d) AND c.id > $%d))",
+			len(args)-1, len(args)-1, len(args),
+		))
+	}
+
+	args = append(args, query.limit)
+	statement := fmt.Sprintf(
+		"%s WHERE %s ORDER BY LOWER(c.name) ASC, c.id ASC LIMIT $%d",
+		componentSelect, strings.Join(conditions, " AND "), len(args),
 	)
+	return tx.QueryContext(ctx, statement, args...)
 }
 
 func scanComponent(scan func(dest ...any) error) (ApplicationComponentDTO, error) {
 	var dto ApplicationComponentDTO
 	var ownerKind, ownerID, ownerName sql.NullString
-	if err := scan(&dto.ID, &dto.Name, &dto.Description, &dto.CreatedAt, &dto.OwnershipState, &ownerKind, &ownerID, &ownerName); err != nil {
+	if err := scan(&dto.ID, &dto.Name, &dto.Description, &dto.CreatedAt, &dto.OwnershipState, &ownerKind, &ownerID, &dto.Hosting, &ownerName); err != nil {
 		return dto, err
 	}
 	if ownerKind.Valid && ownerID.Valid {

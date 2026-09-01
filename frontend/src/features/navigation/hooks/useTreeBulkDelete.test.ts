@@ -1,4 +1,4 @@
-import { act, renderHook } from '@testing-library/react';
+﻿import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Capability, CapabilityId, Component, ComponentId, HATEOASLinks } from '../../../api/types';
 import { useTreeBulkDelete } from './useTreeBulkDelete';
@@ -14,6 +14,7 @@ function makeComponent(id: string, name: string): Component {
     id: id as ComponentId,
     name,
     ownershipState: 'unknown',
+    hosting: 'unknown',
     createdAt: '2024-01-01',
     _links: deleteLinks,
   };

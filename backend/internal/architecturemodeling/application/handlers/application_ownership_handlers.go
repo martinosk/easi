@@ -13,7 +13,7 @@ import (
 
 var ErrOwnerNotFound = errors.New("referenced owner does not exist")
 
-type OwnershipComponentRepository interface {
+type ComponentRepository interface {
 	GetByID(ctx context.Context, id string) (*aggregates.ApplicationComponent, error)
 	Save(ctx context.Context, component *aggregates.ApplicationComponent) error
 }
@@ -29,7 +29,7 @@ type ownerReference struct {
 }
 
 type ownerTransition struct {
-	repository OwnershipComponentRepository
+	repository ComponentRepository
 	users      OwnerExistence
 	teams      OwnerExistence
 }
@@ -43,7 +43,7 @@ func (t ownerTransition) run(
 	if err != nil {
 		return cqrs.EmptyResult(), err
 	}
-	return mutateComponentOwnership(ctx, t.repository, reference.ComponentID, func(component *aggregates.ApplicationComponent) error {
+	return mutateComponent(ctx, t.repository, reference.ComponentID, func(component *aggregates.ApplicationComponent) error {
 		return establish(component, owner)
 	})
 }
@@ -68,9 +68,9 @@ func (t ownerTransition) resolve(ctx context.Context, kind, id string) (valueobj
 	return ref, nil
 }
 
-func mutateComponentOwnership(
+func mutateComponent(
 	ctx context.Context,
-	repository OwnershipComponentRepository,
+	repository ComponentRepository,
 	componentID string,
 	mutate func(*aggregates.ApplicationComponent) error,
 ) (cqrs.CommandResult, error) {
@@ -94,7 +94,7 @@ type NominateApplicationComponentOwnerHandler struct {
 	transition ownerTransition
 }
 
-func NewNominateApplicationComponentOwnerHandler(repository OwnershipComponentRepository, users, teams OwnerExistence) *NominateApplicationComponentOwnerHandler {
+func NewNominateApplicationComponentOwnerHandler(repository ComponentRepository, users, teams OwnerExistence) *NominateApplicationComponentOwnerHandler {
 	return &NominateApplicationComponentOwnerHandler{transition: ownerTransition{repository: repository, users: users, teams: teams}}
 }
 
@@ -111,7 +111,7 @@ type AssignApplicationComponentOwnerHandler struct {
 	transition ownerTransition
 }
 
-func NewAssignApplicationComponentOwnerHandler(repository OwnershipComponentRepository, users, teams OwnerExistence) *AssignApplicationComponentOwnerHandler {
+func NewAssignApplicationComponentOwnerHandler(repository ComponentRepository, users, teams OwnerExistence) *AssignApplicationComponentOwnerHandler {
 	return &AssignApplicationComponentOwnerHandler{transition: ownerTransition{repository: repository, users: users, teams: teams}}
 }
 
@@ -125,10 +125,10 @@ func (h *AssignApplicationComponentOwnerHandler) Handle(ctx context.Context, cmd
 }
 
 type ConfirmApplicationComponentOwnershipHandler struct {
-	repository OwnershipComponentRepository
+	repository ComponentRepository
 }
 
-func NewConfirmApplicationComponentOwnershipHandler(repository OwnershipComponentRepository) *ConfirmApplicationComponentOwnershipHandler {
+func NewConfirmApplicationComponentOwnershipHandler(repository ComponentRepository) *ConfirmApplicationComponentOwnershipHandler {
 	return &ConfirmApplicationComponentOwnershipHandler{repository: repository}
 }
 
@@ -137,14 +137,14 @@ func (h *ConfirmApplicationComponentOwnershipHandler) Handle(ctx context.Context
 	if !ok {
 		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
-	return mutateComponentOwnership(ctx, h.repository, command.ComponentID, (*aggregates.ApplicationComponent).ConfirmOwnership)
+	return mutateComponent(ctx, h.repository, command.ComponentID, (*aggregates.ApplicationComponent).ConfirmOwnership)
 }
 
 type ClearApplicationComponentOwnershipHandler struct {
-	repository OwnershipComponentRepository
+	repository ComponentRepository
 }
 
-func NewClearApplicationComponentOwnershipHandler(repository OwnershipComponentRepository) *ClearApplicationComponentOwnershipHandler {
+func NewClearApplicationComponentOwnershipHandler(repository ComponentRepository) *ClearApplicationComponentOwnershipHandler {
 	return &ClearApplicationComponentOwnershipHandler{repository: repository}
 }
 
@@ -153,5 +153,5 @@ func (h *ClearApplicationComponentOwnershipHandler) Handle(ctx context.Context, 
 	if !ok {
 		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
-	return mutateComponentOwnership(ctx, h.repository, command.ComponentID, (*aggregates.ApplicationComponent).ClearOwnership)
+	return mutateComponent(ctx, h.repository, command.ComponentID, (*aggregates.ApplicationComponent).ClearOwnership)
 }

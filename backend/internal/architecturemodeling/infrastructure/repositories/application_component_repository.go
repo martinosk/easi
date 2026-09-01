@@ -37,5 +37,6 @@ var componentEventDeserializers = repository.NewEventDeserializers(
 		"ApplicationOwnershipConfirmed":     repository.JSONDeserializer[events.ApplicationOwnershipConfirmed],
 		"ApplicationOwnerAssigned":          repository.JSONDeserializer[events.ApplicationOwnerAssigned],
 		"ApplicationOwnershipCleared":       repository.JSONDeserializer[events.ApplicationOwnershipCleared],
+		"ApplicationHostingClassified":      repository.JSONDeserializer[events.ApplicationHostingClassified],
 	},
 )

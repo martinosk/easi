@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+﻿import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiClient } from '../../../api/client';
 import type { Capability, CapabilityId, Component, ComponentId, View, ViewId } from '../../../api/types';
@@ -73,6 +73,7 @@ function createComponentsWithB() {
       id: 'comp-2' as ComponentId,
       name: 'Component B',
       ownershipState: 'unknown' as const,
+      hosting: 'unknown' as const,
       createdAt: '2024-01-01T00:00:00Z',
       _links: { self: { href: '/api/v1/components/comp-2', method: 'GET' as const } },
     },
@@ -128,6 +129,7 @@ const mockComponents: Component[] = [
     name: 'Component A',
     description: 'Test component',
     ownershipState: 'unknown',
+    hosting: 'unknown',
     createdAt: '2024-01-01T00:00:00Z',
     _links: {
       self: { href: '/api/v1/components/comp-1', method: 'GET' },

@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ComponentId, OwnershipStatistics } from '../../../api/types';
+import type { ComponentId } from '../../../api/types';
 import { buildComponent } from '../../../test/helpers/entityBuilders';
 import { componentsQueryKeys } from '../queryKeys';
 import {
@@ -10,7 +10,6 @@ import {
   useClearComponentOwnership,
   useConfirmComponentOwnership,
   useNominateComponentOwner,
-  useOwnershipStatistics,
 } from './useComponentOwnership';
 
 vi.mock('../api', () => ({
@@ -19,7 +18,6 @@ vi.mock('../api', () => ({
     confirmOwnership: vi.fn(),
     assignOwner: vi.fn(),
     clearOwnership: vi.fn(),
-    getOwnershipStatistics: vi.fn(),
   },
 }));
 
@@ -60,7 +58,7 @@ describe('useComponentOwnership hooks', () => {
   const expectOwnershipInvalidation = (spy: ReturnType<typeof vi.spyOn>, componentId: string) => {
     expect(spy).toHaveBeenCalledWith({ queryKey: componentsQueryKeys.lists() });
     expect(spy).toHaveBeenCalledWith({ queryKey: componentsQueryKeys.detail(componentId) });
-    expect(spy).toHaveBeenCalledWith({ queryKey: componentsQueryKeys.ownershipStatistics() });
+    expect(spy).toHaveBeenCalledWith({ queryKey: componentsQueryKeys.statistics() });
   };
 
   const transitionCases = [
@@ -143,18 +141,5 @@ describe('useComponentOwnership hooks', () => {
     });
 
     expect(toast.error).toHaveBeenCalledWith('Ownership is already unknown');
-  });
-
-  it('fetches ownership statistics', async () => {
-    const stats: OwnershipStatistics = { unknown: 3, nominated: 1, owned: 2, managed: 1, total: 7 };
-    vi.mocked(componentsApi.getOwnershipStatistics).mockResolvedValue(stats);
-
-    const { result } = renderHook(() => useOwnershipStatistics(), { wrapper: createWrapper(queryClient) });
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
-
-    expect(result.current.data).toEqual(stats);
   });
 });

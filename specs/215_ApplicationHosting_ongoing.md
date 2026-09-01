@@ -1,7 +1,7 @@
 # 215 — Application Hosting Classification
 
-> **Status:** pending
-> **Depends on:** [214_ApplicationOwnership](214_ApplicationOwnership_pending.md) (statistics endpoint)
+> **Status:** ongoing
+> **Depends on:** [214_ApplicationOwnership](214_ApplicationOwnership_done.md) (statistics endpoint)
 > **Roadmap alignment:** SD6 / H1-2
 
 ---
@@ -107,7 +107,7 @@ Components feature: classification control on the details panel, hosting facet o
 
 ## Checklist
 
-- [ ] Specification ready
+- [x] Specification ready
 - [ ] Implementation done
 - [ ] Unit tests implemented and passing
 - [ ] Integration tests implemented if relevant

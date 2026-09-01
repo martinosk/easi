@@ -14,21 +14,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type mockOwnershipComponentRepository struct {
+type mockComponentRepository struct {
 	loaded  *aggregates.ApplicationComponent
 	saved   []*aggregates.ApplicationComponent
 	getErr  error
 	saveErr error
 }
 
-func (m *mockOwnershipComponentRepository) GetByID(_ context.Context, _ string) (*aggregates.ApplicationComponent, error) {
+func (m *mockComponentRepository) GetByID(_ context.Context, _ string) (*aggregates.ApplicationComponent, error) {
 	if m.getErr != nil {
 		return nil, m.getErr
 	}
 	return m.loaded, nil
 }
 
-func (m *mockOwnershipComponentRepository) Save(_ context.Context, component *aggregates.ApplicationComponent) error {
+func (m *mockComponentRepository) Save(_ context.Context, component *aggregates.ApplicationComponent) error {
 	if m.saveErr != nil {
 		return m.saveErr
 	}
@@ -45,16 +45,16 @@ func (f *fakeOwnerExistence) Exists(_ context.Context, _ string) (bool, error) {
 	return f.exists, f.err
 }
 
-type ownershipHandlerBuilder func(repo *mockOwnershipComponentRepository) cqrs.CommandHandler
+type ownershipHandlerBuilder func(repo *mockComponentRepository) cqrs.CommandHandler
 
 func nominateHandlerWith(users, teams OwnerExistence) ownershipHandlerBuilder {
-	return func(repo *mockOwnershipComponentRepository) cqrs.CommandHandler {
+	return func(repo *mockComponentRepository) cqrs.CommandHandler {
 		return NewNominateApplicationComponentOwnerHandler(repo, users, teams)
 	}
 }
 
 func assignHandlerWith(users, teams OwnerExistence) ownershipHandlerBuilder {
-	return func(repo *mockOwnershipComponentRepository) cqrs.CommandHandler {
+	return func(repo *mockComponentRepository) cqrs.CommandHandler {
 		return NewAssignApplicationComponentOwnerHandler(repo, users, teams)
 	}
 }
@@ -106,7 +106,7 @@ func TestOwnershipHandlers_Transitions(t *testing.T) {
 		{
 			name:    "confirm nominated team",
 			arrange: withOwner(valueobjects.OwnerKindTeam, "team-1"),
-			build: func(repo *mockOwnershipComponentRepository) cqrs.CommandHandler {
+			build: func(repo *mockComponentRepository) cqrs.CommandHandler {
 				return NewConfirmApplicationComponentOwnershipHandler(repo)
 			},
 			command: func(id string) cqrs.Command {
@@ -131,7 +131,7 @@ func TestOwnershipHandlers_Transitions(t *testing.T) {
 				}
 				return component.AssignOwner(ref)
 			},
-			build: func(repo *mockOwnershipComponentRepository) cqrs.CommandHandler {
+			build: func(repo *mockComponentRepository) cqrs.CommandHandler {
 				return NewClearApplicationComponentOwnershipHandler(repo)
 			},
 			command: func(id string) cqrs.Command {
@@ -143,7 +143,7 @@ func TestOwnershipHandlers_Transitions(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			component := buildOwnershipComponent(t, tc.arrange)
-			repo := &mockOwnershipComponentRepository{loaded: component}
+			repo := &mockComponentRepository{loaded: component}
 
 			_, err := tc.build(repo).Handle(context.Background(), tc.command(component.ID()))
 
@@ -182,7 +182,7 @@ func TestOwnershipHandlers_Rejections(t *testing.T) {
 		},
 		{
 			name: "confirm without nomination",
-			build: func(repo *mockOwnershipComponentRepository) cqrs.CommandHandler {
+			build: func(repo *mockComponentRepository) cqrs.CommandHandler {
 				return NewConfirmApplicationComponentOwnershipHandler(repo)
 			},
 			command: &commands.ConfirmApplicationComponentOwnership{ComponentID: "comp-1"},
@@ -190,7 +190,7 @@ func TestOwnershipHandlers_Rejections(t *testing.T) {
 		},
 		{
 			name: "clear already unknown",
-			build: func(repo *mockOwnershipComponentRepository) cqrs.CommandHandler {
+			build: func(repo *mockComponentRepository) cqrs.CommandHandler {
 				return NewClearApplicationComponentOwnershipHandler(repo)
 			},
 			command: &commands.ClearApplicationComponentOwnership{ComponentID: "comp-1"},
@@ -199,7 +199,7 @@ func TestOwnershipHandlers_Rejections(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			repo := &mockOwnershipComponentRepository{loaded: buildOwnershipComponent(t, nil)}
+			repo := &mockComponentRepository{loaded: buildOwnershipComponent(t, nil)}
 
 			_, err := tc.build(repo).Handle(context.Background(), tc.command)
 
@@ -210,7 +210,7 @@ func TestOwnershipHandlers_Rejections(t *testing.T) {
 }
 
 func TestOwnershipHandlers_DirectoryErrorFails(t *testing.T) {
-	repo := &mockOwnershipComponentRepository{loaded: buildOwnershipComponent(t, nil)}
+	repo := &mockComponentRepository{loaded: buildOwnershipComponent(t, nil)}
 	handler := NewNominateApplicationComponentOwnerHandler(repo, &fakeOwnerExistence{err: errors.New("db down")}, &fakeOwnerExistence{exists: true})
 
 	_, err := handler.Handle(context.Background(), &commands.NominateApplicationComponentOwner{
@@ -224,7 +224,7 @@ func TestOwnershipHandlers_DirectoryErrorFails(t *testing.T) {
 }
 
 func TestOwnershipHandlers_LoadErrorFails(t *testing.T) {
-	repo := &mockOwnershipComponentRepository{getErr: errors.New("not found")}
+	repo := &mockComponentRepository{getErr: errors.New("not found")}
 	handler := NewClearApplicationComponentOwnershipHandler(repo)
 
 	_, err := handler.Handle(context.Background(), &commands.ClearApplicationComponentOwnership{ComponentID: "comp-1"})

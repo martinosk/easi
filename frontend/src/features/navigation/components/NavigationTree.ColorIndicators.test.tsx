@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+﻿import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CapabilityId, ComponentId, View } from '../../../api/types';
 import { toViewId } from '../../../api/types';
@@ -22,6 +22,7 @@ const mockComponents = [
     name: 'Payment Service',
     description: 'Handles payments',
     ownershipState: 'unknown' as const,
+    hosting: 'unknown' as const,
     createdAt: '2024-01-01',
     _links: { self: { href: '/api/v1/components/comp-1', method: 'GET' as const } },
   },
@@ -30,6 +31,7 @@ const mockComponents = [
     name: 'Order Service',
     description: 'Handles orders',
     ownershipState: 'unknown' as const,
+    hosting: 'unknown' as const,
     createdAt: '2024-01-01',
     _links: { self: { href: '/api/v1/components/comp-2', method: 'GET' as const } },
   },

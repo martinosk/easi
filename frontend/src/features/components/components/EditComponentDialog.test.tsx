@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+﻿import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Component } from '../../../api/types';
@@ -40,6 +40,7 @@ const mockComponent: Component = {
   name: 'Test Component',
   description: 'Test description',
   ownershipState: 'unknown',
+  hosting: 'unknown',
   createdAt: '2024-01-01T00:00:00Z',
   _links: { self: { href: '/api/v1/components/comp-1', method: 'GET' as const } },
 };
@@ -235,6 +236,7 @@ describe('EditComponentDialog', () => {
         name: 'Another Component',
         description: 'Another description',
         ownershipState: 'unknown',
+        hosting: 'unknown',
         createdAt: '2024-01-01T00:00:00Z',
         _links: { self: { href: '/api/v1/components/comp-2', method: 'GET' as const } },
       };
@@ -277,6 +279,7 @@ describe('EditComponentDialog', () => {
         id: toComponentId('comp-2'),
         name: 'No Description Component',
         ownershipState: 'unknown',
+        hosting: 'unknown',
         createdAt: '2024-01-01T00:00:00Z',
         _links: { self: { href: '/api/v1/components/comp-2', method: 'GET' as const } },
       };

@@ -1,16 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
 import type { Component, OwnerReferenceRequest } from '../../../api/types';
 import { componentsApi } from '../api';
 import { componentsMutationEffects } from '../mutationEffects';
-import { componentsQueryKeys } from '../queryKeys';
 import { useComponentMutation } from './useComponents';
-
-export function useOwnershipStatistics() {
-  return useQuery({
-    queryKey: componentsQueryKeys.ownershipStatistics(),
-    queryFn: () => componentsApi.getOwnershipStatistics(),
-  });
-}
 
 export function useNominateComponentOwner() {
   return useComponentMutation(

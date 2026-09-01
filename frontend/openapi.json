@@ -4698,6 +4698,12 @@
                         "description": "Filter by name (case-insensitive substring match)",
                         "name": "name",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by hosting classification (on-premises, cloud, saas, third-party-hosted, unknown)",
+                        "name": "hosting",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -4720,6 +4726,12 @@
                                     }
                                 }
                             ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "500": {
@@ -4809,19 +4821,19 @@
         },
         "/components/ownership-statistics": {
             "get": {
-                "description": "Returns component counts per ownership state for the tenant, including the orphan (unknown) count",
+                "description": "Returns component counts per ownership state and a hosting classification distribution for the tenant",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "components"
                 ],
-                "summary": "Get ownership statistics for application components",
+                "summary": "Get statistics for application components",
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_architecturemodeling_application_readmodels.OwnershipStatisticsDTO"
+                            "$ref": "#/definitions/easi_backend_internal_architecturemodeling_application_readmodels.ComponentStatisticsDTO"
                         }
                     },
                     "500": {
@@ -5773,6 +5785,65 @@
                     },
                     "404": {
                         "description": "Fit score not found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/components/{id}/hosting": {
+            "put": {
+                "description": "Sets the hosting classification (on-premises, cloud, saas, third-party-hosted, or unknown); reclassification is unrestricted",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "components"
+                ],
+                "summary": "Classify where an application component is hosted",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Component ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Hosting classification",
+                        "name": "hosting",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_architecturemodeling_infrastructure_api.ClassifyHostingRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_architecturemodeling_application_readmodels.ApplicationComponentDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
@@ -12892,6 +12963,9 @@
                         "$ref": "#/definitions/easi_backend_internal_architecturemodeling_application_readmodels.ExpertDTO"
                     }
                 },
+                "hosting": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "string"
                 },
@@ -12978,6 +13052,32 @@
                 }
             }
         },
+        "easi_backend_internal_architecturemodeling_application_readmodels.ComponentStatisticsDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "hosting": {
+                    "$ref": "#/definitions/easi_backend_internal_architecturemodeling_application_readmodels.HostingDistributionDTO"
+                },
+                "managed": {
+                    "type": "integer"
+                },
+                "nominated": {
+                    "type": "integer"
+                },
+                "owned": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "unknown": {
+                    "type": "integer"
+                }
+            }
+        },
         "easi_backend_internal_architecturemodeling_application_readmodels.ExpertDTO": {
             "type": "object",
             "properties": {
@@ -12995,6 +13095,26 @@
                 },
                 "role": {
                     "type": "string"
+                }
+            }
+        },
+        "easi_backend_internal_architecturemodeling_application_readmodels.HostingDistributionDTO": {
+            "type": "object",
+            "properties": {
+                "cloud": {
+                    "type": "integer"
+                },
+                "on-premises": {
+                    "type": "integer"
+                },
+                "saas": {
+                    "type": "integer"
+                },
+                "third-party-hosted": {
+                    "type": "integer"
+                },
+                "unknown": {
+                    "type": "integer"
                 }
             }
         },
@@ -13024,29 +13144,6 @@
                 },
                 "updatedAt": {
                     "type": "string"
-                }
-            }
-        },
-        "easi_backend_internal_architecturemodeling_application_readmodels.OwnershipStatisticsDTO": {
-            "type": "object",
-            "properties": {
-                "_links": {
-                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
-                },
-                "managed": {
-                    "type": "integer"
-                },
-                "nominated": {
-                    "type": "integer"
-                },
-                "owned": {
-                    "type": "integer"
-                },
-                "total": {
-                    "type": "integer"
-                },
-                "unknown": {
-                    "type": "integer"
                 }
             }
         },
@@ -14367,6 +14464,14 @@
                     "items": {
                         "$ref": "#/definitions/easi_backend_internal_architecturemodeling_application_readmodels.PurchasedFromRelationshipDTO"
                     }
+                }
+            }
+        },
+        "internal_architecturemodeling_infrastructure_api.ClassifyHostingRequest": {
+            "type": "object",
+            "properties": {
+                "hosting": {
+                    "type": "string"
                 }
             }
         },

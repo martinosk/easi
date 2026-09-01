@@ -57,6 +57,7 @@ type httpHandlerSet struct {
 	component          *ComponentHandlers
 	expert             *ComponentExpertHandlers
 	ownership          *ComponentOwnershipHandlers
+	hosting            *ComponentHostingHandlers
 	relation           *RelationHandlers
 	acquiredEntity     *AcquiredEntityHandlers
 	vendor             *VendorHandlers
@@ -111,6 +112,7 @@ func subscribeOwnershipProjectors(eventBus events.EventBus, rm *readModelSet, co
 	eventBus.Subscribe(archPL.ApplicationOwnershipCleared, ownershipProjector)
 	eventBus.Subscribe(authPL.UserCreated, projectors.NewUserNameCacheProjector(rm.userNames))
 	eventBus.Subscribe(archPL.InternalTeamDeleted, projectors.NewTeamOwnershipDeletionReactor(rm.component, commandBus))
+	eventBus.Subscribe(archPL.ApplicationHostingClassified, projectors.NewApplicationHostingProjector(rm.component))
 }
 
 func subscribeComponentProjectors(eventBus events.EventBus, component, relation events.EventHandler) {
@@ -160,6 +162,7 @@ func registerComponentCommandHandlers(bus *cqrs.InMemoryCommandBus, repos *repos
 	bus.Register("ConfirmApplicationComponentOwnership", handlers.NewConfirmApplicationComponentOwnershipHandler(repos.component))
 	bus.Register("AssignApplicationComponentOwner", handlers.NewAssignApplicationComponentOwnerHandler(repos.component, rm.userNames, rm.internalTeam))
 	bus.Register("ClearApplicationComponentOwnership", handlers.NewClearApplicationComponentOwnershipHandler(repos.component))
+	bus.Register("ClassifyApplicationHosting", handlers.NewClassifyApplicationHostingHandler(repos.component))
 	bus.Register("CreateComponentRelation", handlers.NewCreateComponentRelationHandler(repos.relation))
 	bus.Register("UpdateComponentRelation", handlers.NewUpdateComponentRelationHandler(repos.relation))
 	bus.Register("DeleteComponentRelation", handlers.NewDeleteComponentRelationHandler(repos.relation))
@@ -188,6 +191,7 @@ func newHTTPHandlerSet(bus *cqrs.InMemoryCommandBus, rm *readModelSet, hateoas *
 		component:      NewComponentHandlers(bus, rm.component, links),
 		expert:         NewComponentExpertHandlers(bus, rm.component),
 		ownership:      NewComponentOwnershipHandlers(bus, rm.component, links),
+		hosting:        NewComponentHostingHandlers(bus, rm.component, links),
 		relation:       NewRelationHandlers(bus, rm.relation, links),
 		acquiredEntity: NewAcquiredEntityHandlers(bus, rm.acquiredEntity, links),
 		vendor:         NewVendorHandlers(bus, rm.vendor, links),
@@ -217,7 +221,7 @@ func registerComponentRoutes(r chi.Router, h *httpHandlerSet, auth AuthMiddlewar
 			r.Use(auth.RequirePermission(authPL.PermComponentsRead))
 			r.Get("/", h.component.GetAllComponents)
 			r.Get("/expert-roles", h.expert.GetExpertRoles)
-			r.Get("/ownership-statistics", h.ownership.GetOwnershipStatistics)
+			r.Get("/ownership-statistics", h.component.GetStatistics)
 			r.Get("/{id}", h.component.GetComponentByID)
 			r.Get("/{componentId}/origins", h.originRelationship.GetAllOriginsByComponent)
 			r.Get("/{componentId}/origin/acquired-via", h.originRelationship.GetAcquiredViaByComponent)
@@ -232,6 +236,7 @@ func registerComponentRoutes(r chi.Router, h *httpHandlerSet, auth AuthMiddlewar
 			r.Post("/{id}/ownership/confirmation", h.ownership.ConfirmOwnership)
 			r.Put("/{id}/ownership", h.ownership.AssignOwner)
 			r.Delete("/{id}/ownership", h.ownership.ClearOwnership)
+			r.Put("/{id}/hosting", h.hosting.ClassifyHosting)
 			r.Put("/{componentId}/origin/acquired-via", h.originRelationship.CreateAcquiredViaRelationship)
 			r.Put("/{componentId}/origin/purchased-from", h.originRelationship.CreatePurchasedFromRelationship)
 			r.Put("/{componentId}/origin/built-by", h.originRelationship.CreateBuiltByRelationship)

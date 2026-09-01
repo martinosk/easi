@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+﻿import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse, http } from 'msw';
 import type React from 'react';
@@ -50,6 +50,7 @@ describe('CreateRelationDialog', () => {
           id: '1' as ComponentId,
           name: 'Component A',
           ownershipState: 'unknown',
+          hosting: 'unknown',
           createdAt: '2024-01-01T00:00:00Z',
           _links: { self: { href: '/api/v1/components/1', method: 'GET' } },
         },
@@ -57,6 +58,7 @@ describe('CreateRelationDialog', () => {
           id: '2' as ComponentId,
           name: 'Component B',
           ownershipState: 'unknown',
+          hosting: 'unknown',
           createdAt: '2024-01-01T00:00:00Z',
           _links: { self: { href: '/api/v1/components/2', method: 'GET' } },
         },
@@ -64,6 +66,7 @@ describe('CreateRelationDialog', () => {
           id: '3' as ComponentId,
           name: 'Component C',
           ownershipState: 'unknown',
+          hosting: 'unknown',
           createdAt: '2024-01-01T00:00:00Z',
           _links: { self: { href: '/api/v1/components/3', method: 'GET' } },
         },

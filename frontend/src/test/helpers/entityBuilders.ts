@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   AcquiredEntity,
   BusinessDomain,
   Capability,
@@ -64,6 +64,7 @@ export function buildComponent(overrides: Partial<Component> = {}): Component {
     name: `Component ${id}`,
     description: 'Test component description',
     ownershipState: 'unknown',
+    hosting: 'unknown',
     createdAt: '2024-01-01T00:00:00Z',
     _links: buildLinks(`/api/v1/components/${id}`),
     ...overrides,

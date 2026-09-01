@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+﻿import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ComponentId, HATEOASLinks } from '../../../api/types';
@@ -12,7 +12,7 @@ vi.mock('../api', () => ({
     confirmOwnership: vi.fn(),
     assignOwner: vi.fn(),
     clearOwnership: vi.fn(),
-    getOwnershipStatistics: vi.fn(),
+    getStatistics: vi.fn(),
   },
 }));
 
@@ -51,6 +51,7 @@ describe('ComponentOwnershipSection', () => {
     const component = buildComponent({
       id: 'comp-1' as ComponentId,
       ownershipState: 'unknown',
+      hosting: 'unknown',
       _links: ownershipLinks(['x-nominate-owner', 'x-assign-owner']),
     });
 
@@ -126,6 +127,7 @@ describe('ComponentOwnershipSection', () => {
     const component = buildComponent({
       id: 'comp-1' as ComponentId,
       ownershipState: 'unknown',
+      hosting: 'unknown',
       _links: ownershipLinks(['x-nominate-owner']),
     });
 

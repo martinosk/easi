@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+﻿import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { HttpResponse, http } from 'msw';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -36,6 +36,7 @@ const mockComponent = {
   name: 'Test Component',
   description: 'Test description',
   ownershipState: 'unknown' as const,
+  hosting: 'unknown' as const,
   createdAt: '2024-01-01T00:00:00Z',
   _links: { self: { href: '/api/v1/components/comp-1', method: 'GET' as const } },
 };

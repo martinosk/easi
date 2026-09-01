@@ -12,6 +12,8 @@ const (
 	ApplicationOwnerAssigned      = "ApplicationOwnerAssigned"
 	ApplicationOwnershipCleared   = "ApplicationOwnershipCleared"
 
+	ApplicationHostingClassified = "ApplicationHostingClassified"
+
 	ComponentRelationCreated = "ComponentRelationCreated"
 	ComponentRelationUpdated = "ComponentRelationUpdated"
 	ComponentRelationDeleted = "ComponentRelationDeleted"

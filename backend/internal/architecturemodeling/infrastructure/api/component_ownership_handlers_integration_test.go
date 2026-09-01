@@ -30,16 +30,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type ownershipStack struct {
+type componentStack struct {
 	component *ComponentHandlers
 	ownership *ComponentOwnershipHandlers
+	hosting   *ComponentHostingHandlers
 	readModel *readmodels.ApplicationComponentReadModel
 	userNames *readmodels.UserNameCacheReadModel
 	teams     *readmodels.InternalTeamReadModel
 	eventBus  events.EventBus
 }
 
-func setupOwnershipStack(db *sql.DB) *ownershipStack {
+func setupComponentStack(db *sql.DB) *componentStack {
 	tenantDB := database.NewTenantAwareDB(db)
 	eventStore := eventstore.NewPostgresEventStore(tenantDB)
 	commandBus := cqrs.NewInMemoryCommandBus()
@@ -59,6 +60,7 @@ func setupOwnershipStack(db *sql.DB) *ownershipStack {
 	eventBus.Subscribe(archPL.ApplicationOwnerAssigned, ownershipProjector)
 	eventBus.Subscribe(archPL.ApplicationOwnershipCleared, ownershipProjector)
 	eventBus.Subscribe(archPL.InternalTeamDeleted, projectors.NewTeamOwnershipDeletionReactor(readModel, commandBus))
+	eventBus.Subscribe(archPL.ApplicationHostingClassified, projectors.NewApplicationHostingProjector(readModel))
 
 	componentRepo := repositories.NewApplicationComponentRepository(eventStore)
 	commandBus.Register("CreateApplicationComponent", handlers.NewCreateApplicationComponentHandler(componentRepo))
@@ -66,10 +68,12 @@ func setupOwnershipStack(db *sql.DB) *ownershipStack {
 	commandBus.Register("ConfirmApplicationComponentOwnership", handlers.NewConfirmApplicationComponentOwnershipHandler(componentRepo))
 	commandBus.Register("AssignApplicationComponentOwner", handlers.NewAssignApplicationComponentOwnerHandler(componentRepo, userNames, teams))
 	commandBus.Register("ClearApplicationComponentOwnership", handlers.NewClearApplicationComponentOwnershipHandler(componentRepo))
+	commandBus.Register("ClassifyApplicationHosting", handlers.NewClassifyApplicationHostingHandler(componentRepo))
 
-	return &ownershipStack{
+	return &componentStack{
 		component: NewComponentHandlers(commandBus, readModel, links),
 		ownership: NewComponentOwnershipHandlers(commandBus, readModel, links),
+		hosting:   NewComponentHostingHandlers(commandBus, readModel, links),
 		readModel: readModel,
 		userNames: userNames,
 		teams:     teams,
@@ -83,7 +87,7 @@ type ownershipCall struct {
 	body   any
 }
 
-func (s *ownershipStack) ownershipRequest(t *testing.T, ctx *testContext, componentID string, call ownershipCall) *httptest.ResponseRecorder {
+func (s *componentStack) ownershipRequest(t *testing.T, ctx *testContext, componentID string, call ownershipCall) *httptest.ResponseRecorder {
 	var payload []byte
 	if call.body != nil {
 		var err error
@@ -119,7 +123,7 @@ func decodeComponent(t *testing.T, body *bytes.Buffer) map[string]any {
 func TestOwnershipLifecycle_Integration(t *testing.T) {
 	testCtx, cleanup := setupTestDB(t)
 	defer cleanup()
-	stack := setupOwnershipStack(testCtx.db)
+	stack := setupComponentStack(testCtx.db)
 
 	userID := fmt.Sprintf("own-user-%d", time.Now().UnixNano())
 	require.NoError(t, stack.userNames.Upsert(tenantContext(), userID, "Alice Smith", "alice@example.com"))
@@ -159,7 +163,7 @@ func TestOwnershipLifecycle_Integration(t *testing.T) {
 func TestOwnershipAssignTeamAndDeletionRevert_Integration(t *testing.T) {
 	testCtx, cleanup := setupTestDB(t)
 	defer cleanup()
-	stack := setupOwnershipStack(testCtx.db)
+	stack := setupComponentStack(testCtx.db)
 
 	teamID := fmt.Sprintf("own-team-%d", time.Now().UnixNano())
 	require.NoError(t, stack.teams.Insert(tenantContext(), readmodels.InternalTeamDTO{
@@ -189,7 +193,7 @@ func TestOwnershipAssignTeamAndDeletionRevert_Integration(t *testing.T) {
 func TestOwnershipNominateUnknownOwner_Integration(t *testing.T) {
 	testCtx, cleanup := setupTestDB(t)
 	defer cleanup()
-	stack := setupOwnershipStack(testCtx.db)
+	stack := setupComponentStack(testCtx.db)
 
 	componentID := testCtx.createComponentViaAPI(t, stack.component, "Orphan Service", "")
 
@@ -202,9 +206,9 @@ func TestOwnershipNominateUnknownOwner_Integration(t *testing.T) {
 func TestOwnershipStatistics_Integration(t *testing.T) {
 	testCtx, cleanup := setupTestDB(t)
 	defer cleanup()
-	stack := setupOwnershipStack(testCtx.db)
+	stack := setupComponentStack(testCtx.db)
 
-	before, err := stack.readModel.OwnershipStatistics(tenantContext())
+	before, err := stack.readModel.Statistics(tenantContext())
 	require.NoError(t, err)
 
 	userID := fmt.Sprintf("stats-user-%d", time.Now().UnixNano())
@@ -219,7 +223,7 @@ func TestOwnershipStatistics_Integration(t *testing.T) {
 		body: OwnerReferenceRequest{OwnerKind: "user", OwnerID: userID}})
 	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
 
-	after, err := stack.readModel.OwnershipStatistics(tenantContext())
+	after, err := stack.readModel.Statistics(tenantContext())
 	require.NoError(t, err)
 	assert.Equal(t, before.Total+2, after.Total)
 	assert.Equal(t, before.Owned+1, after.Owned)

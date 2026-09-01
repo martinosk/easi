@@ -108,11 +108,16 @@ export interface OwnerReferenceRequest {
   ownerId: string;
 }
 
-export interface OwnershipStatistics {
+export type HostingClassification = 'on-premises' | 'cloud' | 'saas' | 'third-party-hosted' | 'unknown';
+
+export type HostingDistribution = Record<HostingClassification, number>;
+
+export interface ComponentStatistics {
   unknown: number;
   nominated: number;
   owned: number;
   managed: number;
+  hosting: HostingDistribution;
   total: number;
   _links?: HATEOASLinks;
 }
@@ -124,6 +129,7 @@ export interface Component {
   experts?: Expert[];
   ownershipState: OwnershipState;
   owner?: ComponentOwner;
+  hosting: HostingClassification;
   createdAt: string;
   _links: HATEOASLinks;
 }

@@ -107,10 +107,10 @@ func TestEnrichWithLinks_AddsOwnershipAffordances(t *testing.T) {
 	assert.Contains(t, dto.Links, "x-assign-owner")
 }
 
-func TestOwnershipStatisticsLinks_Self(t *testing.T) {
+func TestStatisticsLinks_Self(t *testing.T) {
 	links := NewArchitectureModelingLinks(sharedAPI.NewHATEOASLinks("/api/v1"))
 
-	result := links.OwnershipStatisticsLinks()
+	result := links.StatisticsLinks()
 
 	self, ok := result["self"]
 	require.True(t, ok)

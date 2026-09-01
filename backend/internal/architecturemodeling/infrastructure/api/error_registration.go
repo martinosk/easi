@@ -26,6 +26,7 @@ func init() {
 	registry.RegisterValidation(valueobjects.ErrNotesTooLong, "Notes exceeds maximum length of 500 characters")
 	registry.RegisterValidation(valueobjects.ErrInvalidIntegrationStatus, "Invalid integration status")
 
+	registry.RegisterValidation(valueobjects.ErrInvalidHostingClassification, "Hosting must be on-premises, cloud, saas, third-party-hosted, or unknown")
 	registry.RegisterValidation(valueobjects.ErrInvalidOwnerKind, "Owner kind must be user or team")
 	registry.RegisterValidation(valueobjects.ErrEmptyOwnerID, "Owner id cannot be empty")
 	registry.RegisterValidation(handlers.ErrOwnerNotFound, "Referenced owner does not exist")

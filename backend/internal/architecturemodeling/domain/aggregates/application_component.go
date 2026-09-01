@@ -24,12 +24,14 @@ type ApplicationComponent struct {
 	experts        []valueobjects.Expert
 	ownershipState valueobjects.OwnershipState
 	owner          *valueobjects.OwnerReference
+	hosting        valueobjects.HostingClassification
 }
 
 func NewApplicationComponent(name valueobjects.ComponentName, description valueobjects.Description) (*ApplicationComponent, error) {
 	aggregate := &ApplicationComponent{
 		AggregateRoot:  domain.NewAggregateRoot(),
 		ownershipState: valueobjects.UnknownOwnershipState(),
+		hosting:        valueobjects.UnknownHostingClassification(),
 	}
 
 	event := events.NewApplicationComponentCreated(
@@ -50,6 +52,7 @@ func LoadApplicationComponentFromHistory(events []domain.DomainEvent) (*Applicat
 	aggregate := &ApplicationComponent{
 		AggregateRoot:  domain.NewAggregateRoot(),
 		ownershipState: valueobjects.UnknownOwnershipState(),
+		hosting:        valueobjects.UnknownHostingClassification(),
 	}
 
 	var applyErr error
@@ -149,6 +152,8 @@ func (a *ApplicationComponent) apply(event domain.DomainEvent) error {
 		return a.applyExpertAdded(e)
 	case events.ApplicationComponentExpertRemoved:
 		a.experts = removeExpert(a.experts, e.ExpertName, e.ExpertRole, e.ContactInfo)
+	case events.ApplicationHostingClassified:
+		return a.applyHostingClassified(e)
 	default:
 		return a.applyOwnershipEvent(event)
 	}

@@ -51,7 +51,14 @@ export const componentsMutationEffects = {
   ownership: (componentId: string) => [
     componentsQueryKeys.lists(),
     componentsQueryKeys.detail(componentId),
-    componentsQueryKeys.ownershipStatistics(),
+    componentsQueryKeys.statistics(),
+    auditQueryKeys.history(componentId),
+  ],
+
+  hosting: (componentId: string) => [
+    componentsQueryKeys.lists(),
+    componentsQueryKeys.detail(componentId),
+    componentsQueryKeys.statistics(),
     auditQueryKeys.history(componentId),
   ],
 };

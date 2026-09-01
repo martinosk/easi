@@ -24,7 +24,7 @@ interface OwnershipStateBadgeProps {
   state: OwnershipState;
 }
 
-export const OwnershipStateBadge: React.FC<OwnershipStateBadgeProps> = ({ state }) => (
+const OwnershipStateBadge: React.FC<OwnershipStateBadgeProps> = ({ state }) => (
   <Badge color={OWNERSHIP_STATE_COLORS[state]} variant="light" size="sm" data-testid="ownership-state-badge">
     {OWNERSHIP_STATE_LABELS[state]}
   </Badge>

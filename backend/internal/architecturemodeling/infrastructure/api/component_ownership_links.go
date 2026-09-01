@@ -22,9 +22,3 @@ func (h *ArchitectureModelingLinks) AddOwnershipAffordances(links sharedAPI.Link
 		links["x-clear-owner"] = h.Del(p)
 	}
 }
-
-func (h *ArchitectureModelingLinks) OwnershipStatisticsLinks() sharedAPI.Links {
-	return sharedAPI.Links{
-		"self": h.Get("/components/ownership-statistics"),
-	}
-}
