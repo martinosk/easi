@@ -101,7 +101,6 @@ func (tc *TestContext) cleanup() {
 		tc.DB.Exec("DELETE FROM capabilitymapping.capabilities WHERE id = $1", id)
 		tc.DB.Exec("DELETE FROM capabilitymapping.business_domains WHERE id = $1", id)
 		tc.DB.Exec("DELETE FROM architecturemodeling.application_components WHERE id = $1", id)
-		tc.DB.Exec("DELETE FROM architecturedirection.enterprise_capabilities WHERE id = $1", id)
 		tc.DB.Exec("DELETE FROM architecturedirection.capability_node_cache WHERE capability_id = $1 OR parent_id = $1 OR l1_capability_id = $1", id)
 		tc.DB.Exec("DELETE FROM architecturedirection.realization_cache WHERE realization_id = $1 OR capability_id = $1 OR component_id = $1", id)
 		tc.DB.Exec("DELETE FROM architecturedirection.reference_name_cache WHERE entity_id = $1", id)

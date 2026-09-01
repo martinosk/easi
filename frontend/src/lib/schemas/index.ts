@@ -3,7 +3,6 @@ export * from './capability';
 export * from './component';
 export * from './direction';
 export * from './editGrant';
-export * from './enterpriseCapability';
 export * from './invitation';
 export * from './journey';
 export * from './onePagerConfiguration';

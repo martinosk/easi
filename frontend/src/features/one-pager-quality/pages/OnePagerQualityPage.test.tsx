@@ -274,28 +274,6 @@ describe('OnePagerQualityPage', () => {
       ).not.toBeInTheDocument();
     });
 
-    it('shows no Invite to Edit action on an Enterprise Capability row, even if the backend sent a link', async () => {
-      vi.mocked(onePagerQualityApi.getList).mockResolvedValue(
-        buildResponse({
-          data: [
-            buildRow({
-              subjectType: 'enterprise-capability',
-              subjectId: 'ec-1',
-              name: 'Customer Experience',
-              _links: EDIT_GRANTS_LINK,
-            }),
-          ],
-        }),
-      );
-
-      renderPage();
-
-      await waitFor(() => expect(screen.getByTestId('quality-row-ec-1')).toBeInTheDocument());
-      expect(
-        within(screen.getByTestId('quality-row-ec-1')).queryByTestId('invite-to-edit-btn'),
-      ).not.toBeInTheDocument();
-    });
-
     it('opens the existing invite dialog prefilled with the mapped artifact type and creates the grant through the existing mechanism', async () => {
       const user = userEvent.setup();
       vi.mocked(onePagerQualityApi.getList).mockResolvedValue(

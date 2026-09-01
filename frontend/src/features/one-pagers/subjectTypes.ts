@@ -7,7 +7,6 @@ export interface SubjectTypeTab {
 
 const SUBJECT_TYPE_LABELS: Record<OnePagerSubjectType, string> = {
   capability: 'Capability',
-  'enterprise-capability': 'Enterprise Capability',
   application: 'Application',
   'acquired-entity': 'Acquired Entity',
   vendor: 'Vendor',

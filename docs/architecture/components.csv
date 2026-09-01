@@ -27,7 +27,6 @@ frontend:chat,easi/frontend/src/features/chat/**
 frontend:components,easi/frontend/src/features/components/**
 frontend:e2e,easi/frontend/e2e/**
 frontend:edit-grants,easi/frontend/src/features/edit-grants/**
-frontend:enterprise-architecture,easi/frontend/src/features/enterprise-architecture/**
 frontend:importing,easi/frontend/src/features/importing/**
 frontend:invitations,easi/frontend/src/features/invitations/**
 frontend:journeys,easi/frontend/src/features/journeys/**
@@ -49,7 +48,7 @@ frontend:shared,easi/frontend/src/store/**
 frontend:shared,easi/frontend/src/test/**
 frontend:shared,easi/frontend/src/theme/**
 frontend:shared,easi/frontend/src/utils/**
-frontend:standard-application,easi/frontend/src/features/standard-application/**
+frontend:strategic-fit,easi/frontend/src/features/strategic-fit/**
 frontend:users,easi/frontend/src/features/users/**
 frontend:value-streams,easi/frontend/src/features/value-streams/**
 frontend:views,easi/frontend/src/features/views/**

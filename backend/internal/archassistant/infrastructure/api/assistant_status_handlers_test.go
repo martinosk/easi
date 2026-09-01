@@ -49,7 +49,6 @@ func TestGetAssistantStatus_ConversationsWriteLink(t *testing.T) {
 		wantWrite   bool
 	}{
 		{"actor with capabilities write gets write link", map[string]bool{"capabilities:write": true}, true},
-		{"actor with enterprise-arch write gets write link", map[string]bool{"enterprise-arch:write": true}, true},
 		{"actor with components write gets write link", map[string]bool{"components:write": true}, true},
 		{"read-only actor has no write link", map[string]bool{"capabilities:read": true}, false},
 		{"actor without permissions has no write link", nil, false},

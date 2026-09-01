@@ -70,8 +70,8 @@ func (c *recordingCapabilityNodeCache) UpdateBusinessDomainForL1Subtree(_ contex
 	return nil
 }
 
-func (c *recordingCapabilityNodeCache) UpdateBusinessDomainNameForDomain(_ context.Context, businessDomainID, name string) error {
-	c.renamedDomains[businessDomainID] = name
+func (c *recordingCapabilityNodeCache) UpdateBusinessDomainName(_ context.Context, domain readmodels.BusinessDomainRef) error {
+	c.renamedDomains[domain.ID] = domain.Name
 	return nil
 }
 

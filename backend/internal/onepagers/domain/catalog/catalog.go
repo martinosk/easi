@@ -22,11 +22,6 @@ var entriesBySubjectType = map[string][]Entry{
 		{ID: "child-capabilities", Label: "Child Capabilities", Relation: true},
 		{ID: "depends-on", Label: "Depends On", Relation: true},
 	},
-	"enterprise-capability": {
-		{ID: "name", Label: "Name"},
-		{ID: "description", Label: "Description"},
-		{ID: "category", Label: "Category"},
-	},
 	"application": {
 		{ID: "name", Label: "Name"},
 		{ID: "description", Label: "Description"},

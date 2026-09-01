@@ -10,10 +10,7 @@ export type CapabilityDependencyId = Branded<string, 'CapabilityDependencyId'>;
 export type RealizationId = Branded<string, 'RealizationId'>;
 export type ReleaseVersion = Branded<string, 'ReleaseVersion'>;
 export type BusinessDomainId = Branded<string, 'BusinessDomainId'>;
-export type EnterpriseCapabilityId = Branded<string, 'EnterpriseCapabilityId'>;
-export type EnterpriseCapabilityLinkId = Branded<string, 'EnterpriseCapabilityLinkId'>;
 export type StandardApplicationId = Branded<string, 'StandardApplicationId'>;
-export type EnterpriseStrategicImportanceId = Branded<string, 'EnterpriseStrategicImportanceId'>;
 export type StrategyImportanceId = Branded<string, 'StrategyImportanceId'>;
 export type AcquiredEntityId = Branded<string, 'AcquiredEntityId'>;
 export type VendorId = Branded<string, 'VendorId'>;
@@ -47,13 +44,7 @@ export const toCapabilityDependencyId = createBrandedFactory<CapabilityDependenc
 export const toRealizationId = createBrandedFactory<RealizationId>('RealizationId');
 export const toReleaseVersion = createBrandedFactory<ReleaseVersion>('ReleaseVersion');
 export const toBusinessDomainId = createBrandedFactory<BusinessDomainId>('BusinessDomainId');
-export const toEnterpriseCapabilityId = createBrandedFactory<EnterpriseCapabilityId>('EnterpriseCapabilityId');
-export const toEnterpriseCapabilityLinkId =
-  createBrandedFactory<EnterpriseCapabilityLinkId>('EnterpriseCapabilityLinkId');
 export const toStandardApplicationId = createBrandedFactory<StandardApplicationId>('StandardApplicationId');
-export const toEnterpriseStrategicImportanceId = createBrandedFactory<EnterpriseStrategicImportanceId>(
-  'EnterpriseStrategicImportanceId',
-);
 export const toStrategyImportanceId = createBrandedFactory<StrategyImportanceId>('StrategyImportanceId');
 export const toAcquiredEntityId = createBrandedFactory<AcquiredEntityId>('AcquiredEntityId');
 export const toVendorId = createBrandedFactory<VendorId>('VendorId');
@@ -70,9 +61,6 @@ export const isCapabilityDependencyId = createBrandedTypeGuard<CapabilityDepende
 export const isRealizationId = createBrandedTypeGuard<RealizationId>();
 export const isReleaseVersion = createBrandedTypeGuard<ReleaseVersion>();
 export const isBusinessDomainId = createBrandedTypeGuard<BusinessDomainId>();
-export const isEnterpriseCapabilityId = createBrandedTypeGuard<EnterpriseCapabilityId>();
-export const isEnterpriseCapabilityLinkId = createBrandedTypeGuard<EnterpriseCapabilityLinkId>();
-export const isEnterpriseStrategicImportanceId = createBrandedTypeGuard<EnterpriseStrategicImportanceId>();
 export const isStrategyImportanceId = createBrandedTypeGuard<StrategyImportanceId>();
 export const isAcquiredEntityId = createBrandedTypeGuard<AcquiredEntityId>();
 export const isVendorId = createBrandedTypeGuard<VendorId>();

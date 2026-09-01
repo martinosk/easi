@@ -38,7 +38,7 @@ func TestAgentScopedPermissions_AllowsAllCeilingPermissions(t *testing.T) {
 		"capabilities:read", "capabilities:write",
 		"domains:read", "domains:write",
 		"valuestreams:read", "valuestreams:write",
-		"enterprise-arch:read", "enterprise-arch:write",
+		"architecture-direction:read", "architecture-direction:write",
 		"views:read",
 		"metamodel:read",
 		"assistant:use",
@@ -75,7 +75,7 @@ func TestHasAnyWritePermission(t *testing.T) {
 	assert.True(t, tools.HasAnyWritePermission(permsFor("capabilities:write")))
 	assert.False(t, tools.HasAnyWritePermission(permsFor(
 		"components:read", "capabilities:read", "domains:read",
-		"enterprise-arch:read", "architecture-direction:read",
+		"architecture-direction:read",
 		"valuestreams:read", "views:read", "metamodel:read", "assistant:use",
 	)), "read-only actor has no write permission")
 	assert.False(t, tools.HasAnyWritePermission(permsFor("metamodel:write")),

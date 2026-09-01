@@ -12,7 +12,7 @@ All locations are relative to `/backend/internal/`.
 | Architecture Views | Supporting | Create and manage visual representations of architecture for stakeholder perspectives | `architectureviews/` | [Canvas](./ArchitectureViews.md) |
 | Capability Mapping | Core | Map business capabilities to IT systems, track maturity, dependencies, and strategic alignment | `capabilitymapping/` | [Canvas](./CapabilityMapping.md) |
 | MetaModel | Supporting | Manage configurable meta-model elements that control modeling tool behavior per tenant | `metamodel/` | [Canvas](./MetaModel.md) |
-| Architecture Direction | Core | Own enterprise capability identity, strategic importance and target maturity; govern directions, standard applications, TIME assessments, suggestions and journeys; own composition and maturity analysis derived from direction sources | `architecturedirection/` | [Canvas](./ArchitectureDirection.md) |
+| Architecture Direction | Core | Plan and track change on domain capabilities: TIME assessments with composed suggestions, realisation roles, and capability journeys | `architecturedirection/` | [Canvas](./ArchitectureDirection.md) |
 | Value Streams | Core | Model value streams with stages and map business capabilities to each stage | `valuestreams/` | — |
 | Access Delegation | Supporting | Manage temporary edit grants for specific users on specific artifacts | `accessdelegation/` | — |
 | Importing | Supporting | Import components, capabilities and value streams from files through the owning contexts' published commands | `importing/` | — |
@@ -95,7 +95,6 @@ flowchart LR
 | Architecture Modeling | Capability Mapping, Architecture Views, Architecture Direction, Access Delegation, OnePagers | Customer-Supplier | Component / vendor / acquired-entity / team lifecycle events into local caches |
 | MetaModel | Capability Mapping, Architecture Direction, OnePagers | Published Language | Pillar, fit and maturity-scale configuration events into local caches |
 | Capability Mapping | Architecture Direction, Value Streams, Access Delegation, OnePagers | Customer-Supplier | Capability, domain, realization, dependency, fit and importance lifecycle events into local caches |
-| Architecture Direction | OnePagers | Customer-Supplier | Enterprise capability lifecycle and target maturity into the one-pager subject index and its built-in field cache |
 | Architecture Views | Access Delegation | Customer-Supplier | View lifecycle into the artifact name cache; deletion revokes grants |
 | Architecture Modeling, Capability Mapping, Value Streams | Importing | Open Host Service | Published import commands dispatched through the command bus |
 | Any context with a public API | Arch Assistant | Open Host Service | Loopback HTTP (agent tool execution); tools are declared in each context's published language against the `shared/agenttools` contract |

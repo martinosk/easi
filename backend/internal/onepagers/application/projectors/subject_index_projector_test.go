@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	adPL "easi/backend/internal/architecturedirection/publishedlanguage"
 	amPL "easi/backend/internal/architecturemodeling/publishedlanguage"
 	capPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/onepagers/application/ports"
@@ -331,13 +330,6 @@ func TestSubjectIndexProjector_Updated_MergesEveryPublishedAttribute(t *testing.
 			want:      map[string]any{"maturityValue": 62, "ownershipModel": "Shared", "eaOwner": "user-1", "status": "Active"},
 		},
 		{
-			name:      "enterprise capability",
-			eventType: adPL.EnterpriseCapabilityUpdated,
-			payload:   map[string]any{"id": "ec-1", "name": "CX", "description": "Grouping", "category": "Front Office"},
-			subject:   subjectKey("enterprise-capability", "ec-1"),
-			want:      map[string]any{"description": "Grouping", "category": "Front Office"},
-		},
-		{
 			name:      "application description cleared",
 			eventType: amPL.ApplicationComponentUpdated,
 			payload:   map[string]any{"id": "app-9", "name": "Billing", "description": ""},
@@ -399,12 +391,6 @@ func TestSubjectIndexProjector_AttributeOnlyEvents_LeaveTheQualityListRowUntouch
 			payload:   map[string]any{"capabilityId": "cap-2", "oldLevel": "L2", "newLevel": "L3"},
 			subject:   subjectKey("capability", "cap-2"),
 			want:      map[string]any{"level": "L3"},
-		},
-		{
-			eventType: adPL.EnterpriseCapabilityTargetMaturitySet,
-			payload:   map[string]any{"id": "ec-1", "targetMaturity": 80},
-			subject:   subjectKey("enterprise-capability", "ec-1"),
-			want:      map[string]any{"targetMaturity": 80},
 		},
 	}
 

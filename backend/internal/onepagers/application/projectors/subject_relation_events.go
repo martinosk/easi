@@ -3,9 +3,8 @@ package projectors
 import "easi/backend/internal/onepagers/application/readmodels"
 
 const (
-	subjectTypeCapability           = "capability"
-	subjectTypeApplication          = "application"
-	subjectTypeEnterpriseCapability = "enterprise-capability"
+	subjectTypeCapability  = "capability"
+	subjectTypeApplication = "application"
 )
 
 const (

@@ -45,6 +45,7 @@ func newIndexFixture(t *testing.T) *indexFixture {
 	ctx := sharedctx.WithTenant(context.Background(), tenantID)
 
 	t.Cleanup(func() {
+		_, _ = db.Exec("SET app.current_tenant = '" + tenantValue + "'")
 		_, _ = db.Exec("DELETE FROM onepagers.one_pager_subject_index WHERE tenant_id = $1", tenantValue)
 	})
 

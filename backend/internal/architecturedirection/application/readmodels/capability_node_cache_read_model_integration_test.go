@@ -6,7 +6,6 @@ import (
 	"context"
 	"database/sql"
 	"testing"
-	"time"
 
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
@@ -28,7 +27,6 @@ func openCacheTestDB(t *testing.T) (*sql.DB, context.Context) {
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		_, _ = db.Exec("DELETE FROM architecturedirection.capability_node_cache WHERE tenant_id = $1", cacheTestTenant)
-		_, _ = db.Exec("DELETE FROM architecturedirection.enterprise_capabilities WHERE tenant_id = $1", cacheTestTenant)
 		_, _ = db.Exec("DELETE FROM architecturedirection.reference_name_cache WHERE tenant_id = $1", cacheTestTenant)
 		_, _ = db.Exec("DELETE FROM architecturedirection.realization_cache WHERE tenant_id = $1", cacheTestTenant)
 		_ = db.Close()
@@ -59,10 +57,6 @@ func TestCapabilityNodeCache_DomainAssignmentPropagatesToSubtreeAndReparentingRe
 	assert.Equal(t, "l1-b", moved.L1CapabilityID)
 	assert.Equal(t, "bd-b", moved.BusinessDomainID)
 	assert.Equal(t, "Domain B", moved.BusinessDomainName)
-
-	nodes, err := cache.AllCapabilityNodes(ctx)
-	require.NoError(t, err)
-	assert.Len(t, nodes, 4)
 }
 
 func TestCapabilityNodeCache_BusinessDomainNameComesFromReferenceNameCache(t *testing.T) {
@@ -78,37 +72,6 @@ func TestCapabilityNodeCache_BusinessDomainNameComesFromReferenceNameCache(t *te
 	missing, err := cache.BusinessDomainName(ctx, "bd-unknown")
 	require.NoError(t, err)
 	assert.Empty(t, missing)
-}
-
-type stubIncludedCapabilities struct {
-	byEC map[string][]string
-}
-
-func (s stubIncludedCapabilities) IncludedCapabilityIDsByEC(_ context.Context) (map[string][]string, error) {
-	return s.byEC, nil
-}
-
-func TestCapabilityNodeCache_FreshlyCreatedCapabilityIsAnalysableForMaturity(t *testing.T) {
-	db, ctx := openCacheTestDB(t)
-	tenantDB := database.NewTenantAwareDB(db)
-	cache := NewCapabilityNodeCacheReadModel(tenantDB)
-	ecs := NewEnterpriseCapabilityReadModel(tenantDB)
-
-	require.NoError(t, cache.Insert(ctx, CapabilityNodeDTO{
-		CapabilityID: "fresh", CapabilityName: "Fresh", CapabilityLevel: "L1", L1CapabilityID: "fresh",
-	}))
-	require.NoError(t, ecs.Insert(ctx, EnterpriseCapabilityDTO{ID: "ec-fresh", Name: "Payments", Active: true, CreatedAt: time.Now()}))
-
-	node, err := cache.GetByID(ctx, "fresh")
-	require.NoError(t, err)
-	require.NotNil(t, node)
-	assert.Equal(t, 0, node.MaturityValue)
-
-	analysis := NewMaturityAnalysisReadModel(tenantDB, stubIncludedCapabilities{byEC: map[string][]string{"ec-fresh": {"fresh"}}})
-	candidates, _, err := analysis.GetMaturityAnalysisCandidates(ctx, "")
-	require.NoError(t, err)
-	require.Len(t, candidates, 1)
-	assert.Equal(t, 1, candidates[0].ImplementationCount)
 }
 
 func TestCapabilityNodeCache_RenamePreservesMaturityValue(t *testing.T) {

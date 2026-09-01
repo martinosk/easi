@@ -41,7 +41,6 @@ func allPerms() *mockPermissions {
 		"components:read": true, "components:write": true,
 		"capabilities:read": true, "capabilities:write": true,
 		"domains:read": true, "domains:write": true,
-		"enterprise-arch:read": true, "enterprise-arch:write": true,
 		"valuestreams:read": true, "valuestreams:write": true,
 		"metamodel:read": true,
 		"assistant:use":  true,
@@ -217,7 +216,7 @@ func TestQueryDomainModel(t *testing.T) {
 	t.Run("returns content for each topic", func(t *testing.T) {
 		topics := []string{
 			"capability-hierarchy", "business-domains", "realizations",
-			"strategy", "enterprise-capabilities", "time-classification",
+			"strategy", "time-classification",
 			"value-streams", "component-origins", "overview",
 		}
 		for _, topic := range topics {

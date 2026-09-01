@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	adContracts "easi/backend/internal/architecturedirection/publishedlanguage/contracts"
 	amContracts "easi/backend/internal/architecturemodeling/publishedlanguage/contracts"
 	capContracts "easi/backend/internal/capabilitymapping/publishedlanguage/contracts"
 
@@ -18,10 +17,6 @@ var contractPayloadsBySubjectType = map[string][]reflect.Type{
 		reflect.TypeOf(capContracts.CapabilityCreatedPayload{}),
 		reflect.TypeOf(capContracts.CapabilityUpdatedPayload{}),
 		reflect.TypeOf(capContracts.CapabilityMetadataUpdatedPayload{}),
-	},
-	"enterprise-capability": {
-		reflect.TypeOf(adContracts.EnterpriseCapabilityCreatedPayload{}),
-		reflect.TypeOf(adContracts.EnterpriseCapabilityUpdatedPayload{}),
 	},
 	"application": {
 		reflect.TypeOf(amContracts.ApplicationComponentCreatedPayload{}),

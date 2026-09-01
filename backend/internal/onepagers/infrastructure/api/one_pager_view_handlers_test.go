@@ -342,7 +342,6 @@ func TestGetOnePager_LinksForAllSubjectTypes(t *testing.T) {
 		expectedPath string
 	}{
 		{"capability", "/capabilities/" + testSubjectID},
-		{"enterprise-capability", "/enterprise-capabilities/" + testSubjectID},
 		{"application", "/components/" + testSubjectID},
 		{"acquired-entity", "/acquired-entities/" + testSubjectID},
 		{"vendor", "/vendors/" + testSubjectID},
@@ -370,7 +369,7 @@ func TestGetOnePager_LinksForAllSubjectTypes(t *testing.T) {
 }
 
 func TestGetOnePager_XRecordLinkPresentForActorWithSubjectWritePermission(t *testing.T) {
-	cases := []string{"capability", "enterprise-capability", "application", "acquired-entity", "vendor", "internal-team"}
+	cases := []string{"capability", "application", "acquired-entity", "vendor", "internal-team"}
 
 	for _, subjectType := range cases {
 		t.Run(subjectType, func(t *testing.T) {

@@ -1,6 +1,6 @@
 import { auditQueryKeys } from '../audit/queryKeys';
 import { businessDomainsQueryKeys } from '../business-domains/queryKeys';
-import { strategicFitAnalysisQueryKeys } from '../enterprise-architecture/queryKeys';
+import { strategicFitAnalysisQueryKeys } from '../strategic-fit/queryKeys';
 import { artifactCreatorsQueryKeys } from '../navigation/hooks/useArtifactCreators';
 import { onePagerQualityQueryKeys } from '../one-pager-quality/queryKeys';
 import { onePagersQueryKeys } from '../one-pagers/queryKeys';

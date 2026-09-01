@@ -27,7 +27,7 @@ func NewImpactPreviewHandlers(query impactPreviewReader, links *OnePagerLinks) *
 // @Description Side-effect-free preview of how many subjects would be marked incomplete by making a field required. For an existing custom field, counts the subjects of the type lacking a recorded value; for a built-in field (fieldKind=builtIn), counts the subjects lacking a value for that built-in through the supplier read models; without fieldId, counts the full subject population for a new custom field being defined. Appends no events and changes no configuration or facts.
 // @Tags one-pagers
 // @Produce json
-// @Param subjectType path string true "Subject type" Enums(capability, enterprise-capability, application, acquired-entity, vendor, internal-team)
+// @Param subjectType path string true "Subject type" Enums(capability, application, acquired-entity, vendor, internal-team)
 // @Param fieldId query string false "Existing custom field ID or built-in catalog entry ID; omit for a new custom field being defined"
 // @Param fieldKind query string false "Field kind discriminator: 'custom' (default) or 'builtIn'" Enums(custom, builtIn)
 // @Success 200 {object} ImpactPreviewDTO

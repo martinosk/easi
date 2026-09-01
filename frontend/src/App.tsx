@@ -43,8 +43,8 @@ const ValueStreamsRouter = lazy(() =>
   import('./features/value-streams').then((module) => ({ default: module.ValueStreamsRouter })),
 );
 
-const EnterpriseArchRouter = lazy(() =>
-  import('./features/enterprise-architecture').then((module) => ({ default: module.EnterpriseArchRouter })),
+const StrategicFitPage = lazy(() =>
+  import('./features/strategic-fit').then((module) => ({ default: module.StrategicFitPage })),
 );
 
 const MyEditAccessPage = lazy(() => import('./features/edit-grants/pages/MyEditAccessPage'));
@@ -108,7 +108,7 @@ const mainViews: Record<AppView, { featureName: string; Component: ComponentType
   invitations: { featureName: 'Invitations', Component: InvitationsPage },
   users: { featureName: 'Users', Component: UsersPage },
   settings: { featureName: 'Settings', Component: SettingsPage },
-  'enterprise-architecture': { featureName: 'Enterprise Architecture', Component: EnterpriseArchRouter },
+  'strategic-fit': { featureName: 'Strategic Fit', Component: StrategicFitPage },
   'my-edit-access': { featureName: 'My Edit Access', Component: MyEditAccessPage },
   'one-pagers': { featureName: 'One-Pagers', Component: OnePagersRouter },
   'one-pager-quality': { featureName: 'One-Pager Quality', Component: OnePagerQualityPage },

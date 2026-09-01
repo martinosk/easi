@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	adPL "easi/backend/internal/architecturedirection/publishedlanguage"
 	amPL "easi/backend/internal/architecturemodeling/publishedlanguage"
 	capPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/onepagers/application/readmodels"
@@ -42,10 +41,6 @@ var attributeOnlyEvents = map[string]attributeOnlyEvent{
 	capPL.CapabilityLevelChanged: {
 		subjectType: subjectTypeCapability,
 		keys:        map[string]string{"newLevel": "level"},
-	},
-	adPL.EnterpriseCapabilityTargetMaturitySet: {
-		subjectType: subjectTypeEnterpriseCapability,
-		keys:        map[string]string{"targetMaturity": "targetMaturity"},
 	},
 }
 

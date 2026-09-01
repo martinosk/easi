@@ -5,7 +5,10 @@ import (
 	"errors"
 )
 
-var ErrTargetParentNotInTargetDomain = errors.New("the target parent capability does not effectively belong to the target business domain")
+var (
+	ErrReferencedEntityNotFound      = errors.New("a referenced entity does not exist or is not accessible in this tenant")
+	ErrTargetParentNotInTargetDomain = errors.New("the target parent capability does not effectively belong to the target business domain")
+)
 
 type CapabilityExists func(ctx context.Context, capabilityID string) (bool, error)
 

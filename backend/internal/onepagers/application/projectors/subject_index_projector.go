@@ -7,7 +7,6 @@ import (
 	"slices"
 	"time"
 
-	adPL "easi/backend/internal/architecturedirection/publishedlanguage"
 	amPL "easi/backend/internal/architecturemodeling/publishedlanguage"
 	capPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/onepagers/application/ports"
@@ -47,7 +46,6 @@ func NewSubjectIndexProjector(store SubjectIndexStore, counter CompletenessCount
 
 var subjectTypeByCreationEvent = map[string]string{
 	capPL.CapabilityCreated:          "capability",
-	adPL.EnterpriseCapabilityCreated: "enterprise-capability",
 	amPL.ApplicationComponentCreated: "application",
 	amPL.AcquiredEntityCreated:       "acquired-entity",
 	amPL.VendorCreated:               "vendor",
@@ -59,7 +57,6 @@ var subjectTypeByUpdateEvent = map[string]string{
 	capPL.CapabilityMetadataUpdated:        "capability",
 	capPL.CapabilityExpertAdded:            "capability",
 	capPL.CapabilityExpertRemoved:          "capability",
-	adPL.EnterpriseCapabilityUpdated:       "enterprise-capability",
 	amPL.ApplicationComponentUpdated:       "application",
 	amPL.ApplicationComponentExpertAdded:   "application",
 	amPL.ApplicationComponentExpertRemoved: "application",

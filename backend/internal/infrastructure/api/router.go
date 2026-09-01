@@ -252,6 +252,7 @@ func setupDomainRoutes(r chi.Router, deps routerDependencies) {
 		Hateoas:         deps.hateoas,
 		AuthMiddleware:  deps.authDeps.AuthMiddleware,
 		SessionProvider: deps.authDeps.SessionManager,
+		Tenants:         authAPI.NewTenantDirectory(deps.db.DB()),
 	}), "one-pagers routes")
 }
 

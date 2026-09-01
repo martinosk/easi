@@ -17,7 +17,7 @@ func (t *domainKnowledgeTool) Execute(_ context.Context, args map[string]interfa
 	content, ok := domainTopics[topic]
 	if !ok {
 		return tools.ToolResult{
-			Content: fmt.Sprintf("Unknown topic: %q. Available topics: capability-hierarchy, business-domains, realizations, strategy, enterprise-capabilities, time-classification, value-streams, component-origins, overview", topic),
+			Content: fmt.Sprintf("Unknown topic: %q. Available topics: capability-hierarchy, business-domains, realizations, strategy, time-classification, value-streams, component-origins, overview", topic),
 			IsError: true,
 		}
 	}
@@ -89,22 +89,6 @@ Gap analysis:
   - **Concern**: Gap = 1 (minor shortfall)
   - **Liability**: Gap ≥ 2 (significant shortfall requiring attention)`,
 
-	"enterprise-capabilities": `# Enterprise Capabilities
-
-Enterprise capabilities provide a cross-domain view of the organization's capability landscape.
-They live in the Enterprise Architecture view and group related domain capabilities
-that serve similar business functions across different business domains.
-
-Purpose:
-- Discover **overlapping** capabilities across business domains.
-- Identify **duplication** where multiple domains implement similar functions.
-- Drive rationalization decisions — consolidate or differentiate.
-
-Rules:
-- Enterprise capabilities link to domain capabilities (L1-L4).
-- One domain capability can be linked to multiple enterprise capabilities.
-- Enterprise capabilities exist independently of business domains.`,
-
 	"time-classification": `# TIME Classification
 
 TIME is an investment classification framework for applications:
@@ -163,7 +147,6 @@ Purpose:
   └── Assigned to → **Business Domains** (L1 only)
   └── Realized by → **Application Components** (via Realizations: Full/Partial/Planned)
   └── Mapped to → **Value Stream Stages**
-  └── Linked to → **Enterprise Capabilities** (cross-domain groupings)
 
 **Application Components** (IT systems)
   └── Have → **Relations** to other applications (depends_on, uses, etc.)
@@ -180,6 +163,5 @@ Purpose:
   └── Contain → **Stages** (ordered sequence)
   └── Stages map to → **Capabilities**
 
-**Business Domains** group L1 capabilities for organizational views.
-**Enterprise Capabilities** group domain capabilities for cross-domain analysis.`,
+**Business Domains** group L1 capabilities for organizational views.`,
 }

@@ -17,7 +17,7 @@ type CapabilityNodeCacheStore interface {
 	UpdateParentAndL1(ctx context.Context, update readmodels.ParentL1Update) error
 	UpdateLevel(ctx context.Context, capabilityID, newLevel string) error
 	UpdateBusinessDomainForL1Subtree(ctx context.Context, l1CapabilityID string, domain readmodels.BusinessDomainRef) error
-	UpdateBusinessDomainNameForDomain(ctx context.Context, businessDomainID, name string) error
+	UpdateBusinessDomainName(ctx context.Context, domain readmodels.BusinessDomainRef) error
 	RecalculateL1ForSubtree(ctx context.Context, capabilityID string) error
 	UpdateMaturityValue(ctx context.Context, capabilityID string, maturityValue int) error
 }
@@ -166,5 +166,5 @@ func (p *CapabilityNodeCacheProjector) projectMetadataUpdated(ctx context.Contex
 }
 
 func (p *CapabilityNodeCacheProjector) projectBusinessDomainUpdated(ctx context.Context, event capabilityNodeEvent) error {
-	return p.cache.UpdateBusinessDomainNameForDomain(ctx, event.ID, event.Name)
+	return p.cache.UpdateBusinessDomainName(ctx, readmodels.BusinessDomainRef{ID: event.ID, Name: event.Name})
 }

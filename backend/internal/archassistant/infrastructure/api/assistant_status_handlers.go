@@ -58,6 +58,5 @@ func (h *AssistantStatusHandlers) GetStatus(w http.ResponseWriter, r *http.Reque
 
 func canWriteAnySubject(actor sharedctx.Actor) bool {
 	return actor.HasPermission(authPL.PermCapabilitiesWrite.String()) ||
-		actor.HasPermission(authPL.PermEnterpriseArchWrite.String()) ||
 		actor.HasPermission(authPL.PermComponentsWrite.String())
 }

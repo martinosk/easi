@@ -5,7 +5,7 @@ export type AppView =
   | 'invitations'
   | 'users'
   | 'settings'
-  | 'enterprise-architecture'
+  | 'strategic-fit'
   | 'my-edit-access'
   | 'one-pagers'
   | 'one-pager-quality';
@@ -17,7 +17,7 @@ export const ROUTES = {
   BUSINESS_DOMAIN_DETAIL: '/business-domains/:domainId',
   VALUE_STREAMS: '/value-streams',
   VALUE_STREAM_DETAIL: '/value-streams/:valueStreamId',
-  ENTERPRISE_ARCHITECTURE: '/enterprise-architecture',
+  STRATEGIC_FIT: '/strategic-fit',
   USERS: '/users',
   INVITATIONS: '/invitations',
   SETTINGS: '/settings',

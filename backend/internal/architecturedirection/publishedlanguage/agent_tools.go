@@ -5,36 +5,10 @@ import (
 )
 
 func AgentTools() []agenttools.AgentToolSpec {
-	tools := directionTools()
-	tools = append(tools, timeAssessmentTools()...)
+	tools := timeAssessmentTools()
 	tools = append(tools, realizationRoleTools()...)
 	tools = append(tools, capabilityJourneyTools()...)
-	tools = append(tools, compositionTools()...)
-	tools = append(tools, enterpriseCapabilityTools()...)
 	return tools
-}
-
-func directionTools() []agenttools.AgentToolSpec {
-	return []agenttools.AgentToolSpec{
-		{
-			Name:        "get_direction_for_enterprise_capability",
-			Description: "Get the active architecture direction on an enterprise capability — what the architecture group intends to do with it (consolidate / decompose / stay), where it is on the agenda (draft / proposed / agreed), the narrative, and the affected physical capabilities. Returns null if no direction has been captured.",
-			Access:      agenttools.AccessRead,
-			Permission:  "architecture-direction:read",
-			Method:      "GET",
-			Path:        "/enterprise-capabilities/{id}/direction",
-			PathParams:  []agenttools.ParamSpec{agenttools.UUIDParam("id", "Enterprise capability ID (UUID)")},
-		},
-		{
-			Name:        "get_standard_application_for_enterprise_capability",
-			Description: "Get the standard application for an enterprise capability — the architecture group's recorded answer to which application should realise this capability, with the narrative that explains the choice. Returns null in the standard envelope if no standard has been set.",
-			Access:      agenttools.AccessRead,
-			Permission:  "architecture-direction:read",
-			Method:      "GET",
-			Path:        "/enterprise-capabilities/{id}/standard-application",
-			PathParams:  []agenttools.ParamSpec{agenttools.UUIDParam("id", "Enterprise capability ID (UUID)")},
-		},
-	}
 }
 
 func timeAssessmentTools() []agenttools.AgentToolSpec {
@@ -134,47 +108,6 @@ func capabilityJourneyTools() []agenttools.AgentToolSpec {
 			QueryParams: []agenttools.ParamSpec{
 				agenttools.StringParam("capabilityIds", "Comma-separated domain capability IDs (UUIDs); omit to fetch the whole collection", false),
 			},
-		},
-	}
-}
-
-func compositionTools() []agenttools.AgentToolSpec {
-	return []agenttools.AgentToolSpec{
-		{
-			Name:        "list_enterprise_capability_compositions",
-			Description: "List composition summaries for every enterprise capability: source, included, carved-out and business-domain counts derived from each active direction, plus the direction status. Enterprise capabilities without an active direction report zero counts. Use get_enterprise_capability_composition for the detailed breakdown of one enterprise capability.",
-			Access:      agenttools.AccessRead,
-			Permission:  "enterprise-arch:read",
-			Method:      "GET",
-			Path:        "/enterprise-capability-compositions",
-		},
-		{
-			Name: "get_enterprise_capability_composition", Description: "Get the composition of an enterprise capability: every domain capability included via its active direction's sources and their subtrees, grouped by business domain, with carve-out attribution where a more specific source on another enterprise capability owns a subtree.",
-			Access: agenttools.AccessRead, Permission: "enterprise-arch:read",
-			Method: "GET", Path: "/enterprise-capabilities/{id}/composition",
-			PathParams: []agenttools.ParamSpec{agenttools.UUIDParam("id", "Enterprise capability ID (UUID)")},
-		},
-		{
-			Name: "search_direction_source_candidates", Description: "Search domain capabilities by name as candidate sources for an enterprise capability's direction, with per-candidate eligibility (a capability may be the explicit source of at most one active direction).",
-			Access: agenttools.AccessRead, Permission: "enterprise-arch:read",
-			Method: "GET", Path: "/capabilities/source-candidates",
-			QueryParams: []agenttools.ParamSpec{
-				agenttools.StringParam("q", "Search term (case-insensitive substring match on capability name)", true),
-				{Name: "ecId", Type: "uuid", Description: "Enterprise capability the sources are searched for", Required: true},
-				{Name: "domainId", Type: "uuid", Description: "Filter to capabilities in this business domain"},
-				agenttools.IntParam("limit", "Max results to return (default 20)"),
-			},
-		},
-		{
-			Name: "get_maturity_analysis", Description: "Get maturity analysis candidates — enterprise capabilities where the current maturity of included domain capabilities falls below the target maturity level. Use to identify strategic themes that need maturity investment.",
-			Access: agenttools.AccessRead, Permission: "enterprise-arch:read",
-			Method: "GET", Path: "/enterprise-capabilities/maturity-analysis",
-		},
-		{
-			Name: "get_maturity_gap_detail", Description: "Get detailed maturity gap analysis for a specific enterprise capability. Shows each included domain capability's current maturity versus the enterprise capability's target maturity, highlighting where gaps exist.",
-			Access: agenttools.AccessRead, Permission: "enterprise-arch:read",
-			Method: "GET", Path: "/enterprise-capabilities/{id}/maturity-gap",
-			PathParams: []agenttools.ParamSpec{agenttools.UUIDParam("id", "Enterprise capability ID (UUID)")},
 		},
 	}
 }

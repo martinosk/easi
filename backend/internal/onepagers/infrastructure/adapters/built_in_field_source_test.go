@@ -104,7 +104,7 @@ func TestBuiltInFieldSources_KeysMatchSubjectTypes(t *testing.T) {
 }
 
 func TestBuiltInFieldSource_FetchSubject_CarriesEveryCatalogAttribute(t *testing.T) {
-	for _, subjectType := range []string{"capability", "enterprise-capability", "application", "acquired-entity", "vendor", "internal-team"} {
+	for _, subjectType := range []string{"capability", "application", "acquired-entity", "vendor", "internal-team"} {
 		t.Run(subjectType, func(t *testing.T) {
 			subjects := &fakeAttributeStore{rows: map[string][]readmodels.SubjectAttributeRow{
 				subjectType: {attributeRow(t, "s-1", "Subject", nil)},

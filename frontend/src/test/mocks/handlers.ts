@@ -19,7 +19,6 @@ import {
 } from './db';
 import { assistantStatusHandlers } from './assistantStatus';
 import { onePagerCompletenessHandlers } from './onePagerCompleteness';
-import { spec172Handlers } from './spec172/handlers';
 import { spec180Handlers } from './spec180/handlers';
 import { spec181Handlers } from './spec181/handlers';
 import { spec182Handlers } from './spec182/handlers';
@@ -60,7 +59,6 @@ const inheritanceAuditMockEntries = [
 export const handlers = [
   ...assistantStatusHandlers,
   ...onePagerCompletenessHandlers,
-  ...spec172Handlers,
   ...spec180Handlers,
   ...spec181Handlers,
   ...spec182Handlers,

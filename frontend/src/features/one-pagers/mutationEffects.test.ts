@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { capabilitiesMutationEffects } from '../capabilities/mutationEffects';
 import { componentsMutationEffects } from '../components/mutationEffects';
-import { enterpriseCapabilitiesMutationEffects } from '../enterprise-architecture/mutationEffects';
 import { onePagerQualityQueryKeys } from '../one-pager-quality/queryKeys';
 import {
   acquiredEntitiesMutationEffects,
@@ -74,15 +73,6 @@ describe('subject mutation effects', () => {
     );
     expect(capabilitiesMutationEffects.cascadeDelete({ id: 'cap-1', deleteApplications: false })).toContainEqual(
       onePagersQueryKeys.completenessForSubjectType('capability'),
-    );
-  });
-
-  it('invalidates enterprise-capability completeness when an enterprise capability is created or deleted', () => {
-    expect(enterpriseCapabilitiesMutationEffects.create()).toContainEqual(
-      onePagersQueryKeys.completenessForSubjectType('enterprise-capability'),
-    );
-    expect(enterpriseCapabilitiesMutationEffects.delete('ec-1')).toContainEqual(
-      onePagersQueryKeys.completenessForSubjectType('enterprise-capability'),
     );
   });
 

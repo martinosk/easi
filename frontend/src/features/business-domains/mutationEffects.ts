@@ -1,6 +1,5 @@
 import { auditQueryKeys } from '../audit/queryKeys';
 import { capabilitiesQueryKeys } from '../capabilities/queryKeys';
-import { maturityAnalysisQueryKeys } from '../enterprise-architecture/queryKeys';
 import { businessDomainsQueryKeys, strategyImportanceQueryKeys } from './queryKeys';
 
 export const strategyImportanceMutationEffects = {
@@ -29,7 +28,6 @@ export const businessDomainsMutationEffects = {
   delete: (domainId: string) => [
     businessDomainsQueryKeys.lists(),
     businessDomainsQueryKeys.detail(domainId),
-    maturityAnalysisQueryKeys.unlinked(),
   ],
 
   update: (domainId: string) => [
@@ -44,7 +42,6 @@ export const businessDomainsMutationEffects = {
     businessDomainsQueryKeys.detail(domainId),
     businessDomainsQueryKeys.lists(),
     capabilitiesQueryKeys.detail(capabilityId),
-    maturityAnalysisQueryKeys.unlinked(),
   ],
 
   dissociateCapability: (domainId: string, capabilityId: string) => [
@@ -53,6 +50,5 @@ export const businessDomainsMutationEffects = {
     businessDomainsQueryKeys.detail(domainId),
     businessDomainsQueryKeys.lists(),
     capabilitiesQueryKeys.detail(capabilityId),
-    maturityAnalysisQueryKeys.unlinked(),
   ],
 };

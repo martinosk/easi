@@ -19,7 +19,7 @@ Deliver the One-Pager — a stakeholder-facing fact sheet for a single subject e
 | Term | Meaning |
 |------|---------|
 | **One-Pager** | The rendered, stakeholder-facing fact sheet for one subject entity |
-| **Subject Type** | Capability, Enterprise Capability, Application, Acquired Entity, Vendor, Internal Team |
+| **Subject Type** | Capability, Application, Acquired Entity, Vendor, Internal Team |
 | **One-Pager Configuration** | Per-(tenant, subject type) definition of which fields the one-pager shows |
 | **One-Pager Facts** | Per-subject aggregate holding that subject's custom Field Values |
 | **Built-in Field** | A catalog-defined field sourced from the owning context's read contract at query time |
@@ -44,7 +44,7 @@ Deliver the One-Pager — a stakeholder-facing fact sheet for a single subject e
 - Composed one-pager read `GET /api/v1/one-pagers/{subjectType}/{subjectID}` (subject's read permission): subject header plus built-in and custom fields interleaved in the configured display order
 
 **Events consumed** (supplier published language, projected into OnePagers' own caches — spec 209):
-- Subject lifecycle and attributes → `one_pager_subject_index` (name, existence, completeness counters, and `built_in_fields`: the subject's **complete** published attribute set, keyed by the supplier's attribute names): `Capability*` incl. `CapabilityMetadataUpdated`, `CapabilityLevelChanged` and expert events (capabilitymapping); `EnterpriseCapability*` (architecturedirection); `ApplicationComponent*` incl. expert events, `AcquiredEntity*`, `Vendor*`, `InternalTeam*` (architecturemodeling). Deletion events also archive the subject's facts.
+- Subject lifecycle and attributes → `one_pager_subject_index` (name, existence, completeness counters, and `built_in_fields`: the subject's **complete** published attribute set, keyed by the supplier's attribute names): `Capability*` incl. `CapabilityMetadataUpdated`, `CapabilityLevelChanged` and expert events (capabilitymapping); `ApplicationComponent*` incl. expert events, `AcquiredEntity*`, `Vendor*`, `InternalTeam*` (architecturemodeling). Deletion events also archive the subject's facts.
 - Relations → `subject_relation_cache` (+ `business_domain_name_cache` for domain labels): `SystemLinkedToCapability`, `SystemRealizationDeleted`, `CapabilityRealizationsInherited/Uninherited`, `CapabilityDependencyCreated/Deleted`, `CapabilityAssignedToDomain/UnassignedFromDomain`, `CapabilityParentChanged`, `BusinessDomain*` (capabilitymapping); `ComponentRelation*`, `OriginLink*` (architecturemodeling). Expert names travel on the expert events, so no user cache exists.
 - Rendering semantics → `maturity_scale_cache`: `MaturityScaleConfigUpdated/Reset`, `MetaModelConfigurationCreated` (metamodel)
 
@@ -54,7 +54,7 @@ Every cache is backfilled by migration 148 from the suppliers' tables. Adding a 
 
 **Events published**: none — the context has no published language; its event types are internal aggregate mechanics. Machine-enforced by the boundary test, which asserts the `publishedlanguage` package does not exist.
 
-**Queries made**: none. The ports in `/backend/internal/onepagers/application/ports` (`BuiltInFieldSource` per subject type, `MaturityScaleSource`, `SubjectExistenceChecker`) are implemented inside the context over its own caches; the catalog-entry → published-attribute binding lives only in those adapters. The enterprise-capability one-pager no longer has an `included-capabilities` field.
+**Queries made**: none. The ports in `/backend/internal/onepagers/application/ports` (`BuiltInFieldSource` per subject type, `MaturityScaleSource`, `SubjectExistenceChecker`) are implemented inside the context over its own caches; the catalog-entry → published-attribute binding lives only in those adapters.
 
 ## Business Rules
 

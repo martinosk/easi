@@ -39,7 +39,6 @@ func TestSubjectDeletedReactor_ArchivesFactsForEachSubjectType(t *testing.T) {
 		subjectType string
 	}{
 		{"CapabilityDeleted", "capability"},
-		{"EnterpriseCapabilityDeleted", "enterprise-capability"},
 		{"ApplicationComponentDeleted", "application"},
 		{"AcquiredEntityDeleted", "acquired-entity"},
 		{"VendorDeleted", "vendor"},
@@ -86,10 +85,9 @@ func TestSubjectDeletedReactor_IgnoresUnrelatedEvents(t *testing.T) {
 	assert.Empty(t, dispatcher.dispatched)
 }
 
-func TestSubjectDeletedReactor_SubscribedEventTypesCoverAllSixSubjects(t *testing.T) {
+func TestSubjectDeletedReactor_SubscribedEventTypesCoverAllFiveSubjects(t *testing.T) {
 	assert.ElementsMatch(t, []string{
 		"CapabilityDeleted",
-		"EnterpriseCapabilityDeleted",
 		"ApplicationComponentDeleted",
 		"AcquiredEntityDeleted",
 		"VendorDeleted",

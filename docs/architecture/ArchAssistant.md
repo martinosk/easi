@@ -74,7 +74,7 @@ Provide an AI-powered conversational assistant that helps users explore and modi
 **Tool Calls** (to other contexts via loopback HTTP):
 - To **Architecture Modeling**: Component CRUD, vendor/acquired entity/internal team management, origin links
 - To **Capability Mapping**: Capability CRUD, metadata, business domains, dependencies, strategy
-- To **Architecture Direction**: Enterprise capability management, directions, TIME and journeys
+- To **Architecture Direction**: TIME assessments, realisation roles and journeys
 - To **Value Streams**: Value stream and stage management
 - To **MetaModel**: Configuration queries
 
@@ -110,7 +110,7 @@ Provide an AI-powered conversational assistant that helps users explore and modi
 ## Business Decisions
 
 ### Core Business Rules
-1. **Permission ceiling**: The agent can never exceed a fixed set of permissions (`components:read/write`, `capabilities:read/write`, `domains:read/write`, `valuestreams:read/write`, `enterprise-arch:read/write`, `views:read`, `metamodel:read`, `assistant:use`), regardless of the user's actual role
+1. **Permission ceiling**: The agent can never exceed a fixed set of permissions (`components:read/write`, `capabilities:read/write`, `domains:read/write`, `valuestreams:read/write`, `architecture-direction:read/write`, `views:read`, `metamodel:read`, `assistant:use`), regardless of the user's actual role
 2. **Tool call budgets**: Each access class has a maximum number of calls per message (read: 500, create: 50, update: 100, delete: 5) to prevent runaway agent behavior
 3. **Iteration limit**: The agent loop terminates after 50 iterations maximum
 4. **Conversation ownership**: Users can only access their own conversations

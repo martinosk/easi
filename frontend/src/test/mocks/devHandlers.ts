@@ -12,9 +12,7 @@ export const devHandlers = [
         name: 'Dev Architect',
         role: 'architect',
         permissions: [
-          'enterprise-arch:read',
-          'enterprise-arch:write',
-          'enterprise-arch:delete',
+          'capabilities:read',
           'architecture-direction:read',
           'architecture-direction:write',
           'valuestreams:read',

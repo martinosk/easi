@@ -1,6 +1,6 @@
 # Design: Retiring the Enterprise Capability
 
-> Status: approved 2026-08-31; slice 210 shipped, slices 211–213 ready to implement
+> Status: approved 2026-08-31; all four slices (210–213) shipped
 > Author: agent + maosk
 > Date: 2026-08-31
 > Amended 2026-08-31 (user decision): the enterprise capability is **retired outright**, not demoted to the subject of a Direction as this document first proposed. Slice 210 shipped under the original reading and stands unchanged — see D1. Slices 211–213 are re-planned; D3, D4, D5 and D8 record what replaced them.

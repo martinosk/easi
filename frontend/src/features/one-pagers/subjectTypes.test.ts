@@ -14,10 +14,6 @@ describe('pluralSubjectTypeLabel', () => {
     expect(pluralSubjectTypeLabel('capability')).toBe('Capabilities');
   });
 
-  it('pluralizes enterprise-capability as Enterprise Capabilities', () => {
-    expect(pluralSubjectTypeLabel('enterprise-capability')).toBe('Enterprise Capabilities');
-  });
-
   it('pluralizes acquired-entity as Acquired Entities', () => {
     expect(pluralSubjectTypeLabel('acquired-entity')).toBe('Acquired Entities');
   });
