@@ -6,6 +6,7 @@ export const componentsQueryKeys = {
   detail: (id: string) => [...componentsQueryKeys.details(), id] as const,
   origins: (id: string) => [...componentsQueryKeys.detail(id), 'origins'] as const,
   expertRoles: () => [...componentsQueryKeys.all, 'expert-roles'] as const,
+  ownershipStatistics: () => [...componentsQueryKeys.all, 'ownership-statistics'] as const,
 };
 
 export const fitScoresQueryKeys = {

@@ -21,6 +21,7 @@ const mockComponents = [
     id: 'comp-1' as ComponentId,
     name: 'Payment Service',
     description: 'Handles payments',
+    ownershipState: 'unknown' as const,
     createdAt: '2024-01-01',
     _links: { self: { href: '/api/v1/components/comp-1', method: 'GET' as const } },
   },
@@ -28,6 +29,7 @@ const mockComponents = [
     id: 'comp-2' as ComponentId,
     name: 'Order Service',
     description: 'Handles orders',
+    ownershipState: 'unknown' as const,
     createdAt: '2024-01-01',
     _links: { self: { href: '/api/v1/components/comp-2', method: 'GET' as const } },
   },
@@ -153,7 +155,9 @@ describe('NavigationTree - Custom Color Indicators', () => {
   const expectIndicatorWithColor = (container: HTMLElement, color: string) => {
     const indicator = within(container).getByTestId('custom-color-indicator');
     expect(indicator).toBeInTheDocument();
-    expect(indicator).toHaveStyle({ backgroundColor: color });
+    const candidates = [indicator, ...indicator.querySelectorAll('span')] as HTMLElement[];
+    const colored = candidates.find((el) => el.style.backgroundColor !== '');
+    expect(colored).toHaveStyle({ backgroundColor: color });
   };
 
   const expectNoIndicator = (container: HTMLElement) => {

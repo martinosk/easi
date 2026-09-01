@@ -39,6 +39,7 @@ const mockComponent: Component = {
   id: toComponentId('comp-1'),
   name: 'Test Component',
   description: 'Test description',
+  ownershipState: 'unknown',
   createdAt: '2024-01-01T00:00:00Z',
   _links: { self: { href: '/api/v1/components/comp-1', method: 'GET' as const } },
 };
@@ -233,6 +234,7 @@ describe('EditComponentDialog', () => {
         id: toComponentId('comp-2'),
         name: 'Another Component',
         description: 'Another description',
+        ownershipState: 'unknown',
         createdAt: '2024-01-01T00:00:00Z',
         _links: { self: { href: '/api/v1/components/comp-2', method: 'GET' as const } },
       };
@@ -274,6 +276,7 @@ describe('EditComponentDialog', () => {
       const componentWithoutDescription: Component = {
         id: toComponentId('comp-2'),
         name: 'No Description Component',
+        ownershipState: 'unknown',
         createdAt: '2024-01-01T00:00:00Z',
         _links: { self: { href: '/api/v1/components/comp-2', method: 'GET' as const } },
       };

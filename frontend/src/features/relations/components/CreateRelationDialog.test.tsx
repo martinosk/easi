@@ -49,18 +49,21 @@ describe('CreateRelationDialog', () => {
         {
           id: '1' as ComponentId,
           name: 'Component A',
+          ownershipState: 'unknown',
           createdAt: '2024-01-01T00:00:00Z',
           _links: { self: { href: '/api/v1/components/1', method: 'GET' } },
         },
         {
           id: '2' as ComponentId,
           name: 'Component B',
+          ownershipState: 'unknown',
           createdAt: '2024-01-01T00:00:00Z',
           _links: { self: { href: '/api/v1/components/2', method: 'GET' } },
         },
         {
           id: '3' as ComponentId,
           name: 'Component C',
+          ownershipState: 'unknown',
           createdAt: '2024-01-01T00:00:00Z',
           _links: { self: { href: '/api/v1/components/3', method: 'GET' } },
         },

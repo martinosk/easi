@@ -1,6 +1,6 @@
 # 214 — Application Ownership
 
-> **Status:** pending
+> **Status:** done
 > **Depends on:** —
 > **Roadmap alignment:** SD6 / H1-2
 
@@ -83,12 +83,12 @@ Feature: Application ownership
 
 ## Acceptance Criteria
 
-- [ ] Component responses and list rows carry ownership state and resolved owner display name
-- [ ] Nominate, confirm, assign, and clear operate per rules 1–5, each raising its own domain event
-- [ ] Team deletion reverts ownership per rule 6 without any cross-context call
-- [ ] An ownership statistics query returns counts per state for the tenant
-- [ ] Existing components read as `unknown` after deployment with no data loss
-- [ ] Affordance links appear exactly when the corresponding transition is legal for the actor
+- [x] Component responses and list rows carry ownership state and resolved owner display name
+- [x] Nominate, confirm, assign, and clear operate per rules 1–5, each raising its own domain event
+- [x] Team deletion reverts ownership per rule 6 without any cross-context call
+- [x] An ownership statistics query returns counts per state for the tenant
+- [x] Existing components read as `unknown` after deployment with no data loss
+- [x] Affordance links appear exactly when the corresponding transition is legal for the actor
 
 ---
 
@@ -125,6 +125,9 @@ Consumes `authPL.UserCreated` into a local name cache. Publishes the four owners
 1. **Ownership on the component aggregate, not a separate aggregate** — the state has no lifecycle apart from the component and its invariants are component-local. Alternative: standalone Ownership aggregate (rejected — adds identity and coordination without independent behavior).
 2. **`owned` vs `managed` resolved by reference kind** — one nomination/confirmation flow; the distinction the roadmap requires falls out of whether a person or team is referenced. Alternative: separate command sets per kind (rejected — doubles the surface for no expressiveness).
 3. **Reference validity checked at the command handler via read models** — user existence via the name cache, team existence via AM's own read model, per the cross-aggregate-invariant rule. DB constraints are a backstop only.
+4. **Ownership is a sub-resource: `POST {id}/ownership/nomination`, `POST {id}/ownership/confirmation`, `PUT {id}/ownership` (assign), `DELETE {id}/ownership` (clear)** — affordance rels `x-nominate-owner`, `x-assign-owner`, `x-confirm-owner`, `x-clear-owner` follow the existing keyed-link idiom (`x-add-expert`); the `x-related` methods-array vehicle is reserved for relation-creation endpoints and cannot express per-component state gating.
+5. **Nominate and assign are legal only from `unknown`** — re-nomination or reassignment goes through clear first, keeping the machine minimal; the deleted-team revert dispatches the clear command, so the four events remain the complete vocabulary.
+6. **The five new routes are excluded from the agent tool catalog** — ownership stewardship is a UI concern in this slice; exposing it to the assistant is its own decision, not a side effect.
 
 ---
 
@@ -139,9 +142,9 @@ Consumes `authPL.UserCreated` into a local name cache. Publishes the four owners
 
 ## Checklist
 
-- [ ] Specification ready
-- [ ] Implementation done
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
-- [ ] API documentation updated
-- [ ] User sign-off
+- [x] Specification ready
+- [x] Implementation done
+- [x] Unit tests implemented and passing
+- [x] Integration tests implemented if relevant
+- [x] API documentation updated
+- [x] User sign-off

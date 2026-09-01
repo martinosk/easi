@@ -15,14 +15,29 @@ import (
 )
 
 type ApplicationComponentDTO struct {
-	ID          string              `json:"id"`
-	Name        string              `json:"name"`
-	Description string              `json:"description,omitempty"`
-	CreatedAt   time.Time           `json:"createdAt"`
-	Experts     []ExpertDTO         `json:"experts,omitempty"`
-	Links       types.Links         `json:"_links,omitempty"`
-	XRelated    []types.RelatedLink `json:"-"`
+	ID             string              `json:"id"`
+	Name           string              `json:"name"`
+	Description    string              `json:"description,omitempty"`
+	CreatedAt      time.Time           `json:"createdAt"`
+	OwnershipState string              `json:"ownershipState"`
+	Owner          *ComponentOwnerDTO  `json:"owner,omitempty"`
+	Experts        []ExpertDTO         `json:"experts,omitempty"`
+	Links          types.Links         `json:"_links,omitempty"`
+	XRelated       []types.RelatedLink `json:"-"`
 }
+
+type ComponentOwnerDTO struct {
+	Kind string `json:"kind"`
+	ID   string `json:"id"`
+	Name string `json:"name,omitempty"`
+}
+
+const componentSelect = `SELECT c.id, c.name, c.description, c.created_at, c.ownership_state, c.owner_kind, c.owner_id,
+	CASE
+		WHEN c.owner_kind = 'user' THEN (SELECT COALESCE(NULLIF(u.name, ''), u.email) FROM architecturemodeling.user_names u WHERE u.tenant_id = c.tenant_id AND u.user_id = c.owner_id)
+		WHEN c.owner_kind = 'team' THEN (SELECT t.name FROM architecturemodeling.internal_teams t WHERE t.tenant_id = c.tenant_id AND t.id = c.owner_id AND t.is_deleted = FALSE)
+	END AS owner_name
+	FROM architecturemodeling.application_components c`
 
 func (d ApplicationComponentDTO) MarshalJSON() ([]byte, error) {
 	type alias ApplicationComponentDTO
@@ -126,10 +141,12 @@ func (rm *ApplicationComponentReadModel) GetByID(ctx context.Context, id string)
 	var notFound bool
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		err := tx.QueryRowContext(ctx,
-			"SELECT id, name, description, created_at FROM architecturemodeling.application_components WHERE tenant_id = $1 AND id = $2 AND is_deleted = FALSE",
+		row := tx.QueryRowContext(ctx,
+			componentSelect+" WHERE c.tenant_id = $1 AND c.id = $2 AND c.is_deleted = FALSE",
 			tenantID.Value(), id,
-		).Scan(&dto.ID, &dto.Name, &dto.Description, &dto.CreatedAt)
+		)
+		var err error
+		dto, err = scanComponent(row.Scan)
 
 		if err == sql.ErrNoRows {
 			notFound = true
@@ -181,7 +198,7 @@ func (rm *ApplicationComponentReadModel) GetAll(ctx context.Context) ([]Applicat
 		return nil, err
 	}
 	return rm.queryComponents(ctx, tenantID.Value(),
-		"SELECT id, name, description, created_at FROM architecturemodeling.application_components WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC, id ASC",
+		componentSelect+" WHERE c.tenant_id = $1 AND c.is_deleted = FALSE ORDER BY LOWER(c.name) ASC, c.id ASC",
 		tenantID.Value(),
 	)
 }
@@ -195,7 +212,7 @@ func (rm *ApplicationComponentReadModel) GetByIDs(ctx context.Context, ids []str
 		return nil, err
 	}
 	return rm.queryComponents(ctx, tenantID.Value(),
-		"SELECT id, name, description, created_at FROM architecturemodeling.application_components WHERE tenant_id = $1 AND id = ANY($2) AND is_deleted = FALSE ORDER BY LOWER(name) ASC, id ASC",
+		componentSelect+" WHERE c.tenant_id = $1 AND c.id = ANY($2) AND c.is_deleted = FALSE ORDER BY LOWER(c.name) ASC, c.id ASC",
 		tenantID.Value(), pq.Array(ids),
 	)
 }
@@ -274,33 +291,45 @@ func (rm *ApplicationComponentReadModel) GetAllPaginated(ctx context.Context, q 
 func (rm *ApplicationComponentReadModel) queryPaginatedComponents(ctx context.Context, tx *sql.Tx, query resolvedQuery) (*sql.Rows, error) {
 	if query.nameFilter != "" && query.afterCursor != "" {
 		return tx.QueryContext(ctx,
-			"SELECT id, name, description, created_at FROM architecturemodeling.application_components WHERE tenant_id = $1 AND is_deleted = FALSE AND LOWER(name) LIKE '%' || LOWER($2) || '%' AND (LOWER(name) > LOWER($3) OR (LOWER(name) = LOWER($3) AND id > $4)) ORDER BY LOWER(name) ASC, id ASC LIMIT $5",
+			componentSelect+" WHERE c.tenant_id = $1 AND c.is_deleted = FALSE AND LOWER(c.name) LIKE '%' || LOWER($2) || '%' AND (LOWER(c.name) > LOWER($3) OR (LOWER(c.name) = LOWER($3) AND c.id > $4)) ORDER BY LOWER(c.name) ASC, c.id ASC LIMIT $5",
 			query.tenantID, query.nameFilter, query.afterName, query.afterCursor, query.limit,
 		)
 	}
 	if query.nameFilter != "" {
 		return tx.QueryContext(ctx,
-			"SELECT id, name, description, created_at FROM architecturemodeling.application_components WHERE tenant_id = $1 AND is_deleted = FALSE AND LOWER(name) LIKE '%' || LOWER($2) || '%' ORDER BY LOWER(name) ASC, id ASC LIMIT $3",
+			componentSelect+" WHERE c.tenant_id = $1 AND c.is_deleted = FALSE AND LOWER(c.name) LIKE '%' || LOWER($2) || '%' ORDER BY LOWER(c.name) ASC, c.id ASC LIMIT $3",
 			query.tenantID, query.nameFilter, query.limit,
 		)
 	}
 	if query.afterCursor == "" {
 		return tx.QueryContext(ctx,
-			"SELECT id, name, description, created_at FROM architecturemodeling.application_components WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC, id ASC LIMIT $2",
+			componentSelect+" WHERE c.tenant_id = $1 AND c.is_deleted = FALSE ORDER BY LOWER(c.name) ASC, c.id ASC LIMIT $2",
 			query.tenantID, query.limit,
 		)
 	}
 	return tx.QueryContext(ctx,
-		"SELECT id, name, description, created_at FROM architecturemodeling.application_components WHERE tenant_id = $1 AND is_deleted = FALSE AND (LOWER(name) > LOWER($2) OR (LOWER(name) = LOWER($2) AND id > $3)) ORDER BY LOWER(name) ASC, id ASC LIMIT $4",
+		componentSelect+" WHERE c.tenant_id = $1 AND c.is_deleted = FALSE AND (LOWER(c.name) > LOWER($2) OR (LOWER(c.name) = LOWER($2) AND c.id > $3)) ORDER BY LOWER(c.name) ASC, c.id ASC LIMIT $4",
 		query.tenantID, query.afterName, query.afterCursor, query.limit,
 	)
+}
+
+func scanComponent(scan func(dest ...any) error) (ApplicationComponentDTO, error) {
+	var dto ApplicationComponentDTO
+	var ownerKind, ownerID, ownerName sql.NullString
+	if err := scan(&dto.ID, &dto.Name, &dto.Description, &dto.CreatedAt, &dto.OwnershipState, &ownerKind, &ownerID, &ownerName); err != nil {
+		return dto, err
+	}
+	if ownerKind.Valid && ownerID.Valid {
+		dto.Owner = &ComponentOwnerDTO{Kind: ownerKind.String, ID: ownerID.String, Name: ownerName.String}
+	}
+	return dto, nil
 }
 
 func (rm *ApplicationComponentReadModel) scanComponents(rows *sql.Rows) ([]ApplicationComponentDTO, error) {
 	var components []ApplicationComponentDTO
 	for rows.Next() {
-		var dto ApplicationComponentDTO
-		if err := rows.Scan(&dto.ID, &dto.Name, &dto.Description, &dto.CreatedAt); err != nil {
+		dto, err := scanComponent(rows.Scan)
+		if err != nil {
 			return nil, err
 		}
 		components = append(components, dto)

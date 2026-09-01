@@ -255,12 +255,17 @@ func (h *ComponentHandlers) validateComponentName(w http.ResponseWriter, name st
 }
 
 func (h *ComponentHandlers) enrichWithLinks(r *http.Request, component *readmodels.ApplicationComponentDTO) {
+	enrichComponentDTO(r, h.hateoas, component)
+}
+
+func enrichComponentDTO(r *http.Request, hateoas *ArchitectureModelingLinks, component *readmodels.ApplicationComponentDTO) {
 	actor, _ := sharedctx.GetActor(r.Context())
-	component.Links = h.hateoas.ComponentLinksForActor(component.ID, actor)
-	component.XRelated = h.hateoas.ComponentXRelatedForActor(actor)
+	component.Links = hateoas.ComponentLinksForActor(component.ID, actor)
+	hateoas.AddOwnershipAffordances(component.Links, component.ID, component.OwnershipState, actor)
+	component.XRelated = hateoas.ComponentXRelatedForActor(actor)
 	for i := range component.Experts {
 		e := component.Experts[i]
-		component.Experts[i].Links = h.hateoas.ComponentExpertLinksForActor(sharedAPI.ExpertParams{
+		component.Experts[i].Links = hateoas.ComponentExpertLinksForActor(sharedAPI.ExpertParams{
 			ResourcePath: "/components/" + component.ID,
 			ExpertName:   e.Name,
 			ExpertRole:   e.Role,

@@ -22,6 +22,7 @@ import { useClearComponentColor, useUpdateComponentColor } from '../../views/hoo
 import { useComponents } from '../hooks/useComponents';
 import { AddComponentExpertDialog } from './AddComponentExpertDialog';
 import { ComponentExpertsList } from './ComponentExpertsList';
+import { ComponentOwnershipSection } from './ComponentOwnershipSection';
 import { ComponentFitScores } from './ComponentFitScores';
 import { ComponentOriginsSection } from './ComponentOriginsSection';
 
@@ -292,6 +293,8 @@ const ComponentContentInternal: React.FC<ComponentContentProps> = ({
       <DetailField label="Name">{component.name}</DetailField>
 
       <OptionalField value={component.description} label="Description" render={(desc) => desc} />
+
+      <ComponentOwnershipSection component={component} />
 
       {onAddExpert && (
         <ComponentExpertsList

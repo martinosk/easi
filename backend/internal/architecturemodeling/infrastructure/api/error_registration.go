@@ -1,6 +1,7 @@
 package api
 
 import (
+	"easi/backend/internal/architecturemodeling/application/handlers"
 	"easi/backend/internal/architecturemodeling/domain/aggregates"
 	"easi/backend/internal/architecturemodeling/domain/valueobjects"
 	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
@@ -24,4 +25,11 @@ func init() {
 	registry.RegisterValidation(valueobjects.ErrEntityNameTooLong, "Name exceeds maximum length of 100 characters")
 	registry.RegisterValidation(valueobjects.ErrNotesTooLong, "Notes exceeds maximum length of 500 characters")
 	registry.RegisterValidation(valueobjects.ErrInvalidIntegrationStatus, "Invalid integration status")
+
+	registry.RegisterValidation(valueobjects.ErrInvalidOwnerKind, "Owner kind must be user or team")
+	registry.RegisterValidation(valueobjects.ErrEmptyOwnerID, "Owner id cannot be empty")
+	registry.RegisterValidation(handlers.ErrOwnerNotFound, "Referenced owner does not exist")
+	registry.RegisterConflict(aggregates.ErrOwnershipNotUnknown, "Ownership can only be nominated or assigned while it is unknown")
+	registry.RegisterConflict(aggregates.ErrNoNominationToConfirm, "No nominated owner to confirm")
+	registry.RegisterConflict(aggregates.ErrNoOwnershipToClear, "Ownership is already unknown")
 }

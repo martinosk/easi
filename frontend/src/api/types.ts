@@ -93,11 +93,37 @@ export interface HATEOASLinks {
   [key: string]: HATEOASLink | undefined;
 }
 
+export type OwnershipState = 'unknown' | 'nominated' | 'owned' | 'managed';
+
+export type OwnerKind = 'user' | 'team';
+
+export interface ComponentOwner {
+  kind: OwnerKind;
+  id: string;
+  name?: string;
+}
+
+export interface OwnerReferenceRequest {
+  ownerKind: OwnerKind;
+  ownerId: string;
+}
+
+export interface OwnershipStatistics {
+  unknown: number;
+  nominated: number;
+  owned: number;
+  managed: number;
+  total: number;
+  _links?: HATEOASLinks;
+}
+
 export interface Component {
   id: ComponentId;
   name: string;
   description?: string;
   experts?: Expert[];
+  ownershipState: OwnershipState;
+  owner?: ComponentOwner;
   createdAt: string;
   _links: HATEOASLinks;
 }

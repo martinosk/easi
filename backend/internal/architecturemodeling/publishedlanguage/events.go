@@ -7,6 +7,11 @@ const (
 	ApplicationComponentExpertAdded   = "ApplicationComponentExpertAdded"
 	ApplicationComponentExpertRemoved = "ApplicationComponentExpertRemoved"
 
+	ApplicationOwnerNominated     = "ApplicationOwnerNominated"
+	ApplicationOwnershipConfirmed = "ApplicationOwnershipConfirmed"
+	ApplicationOwnerAssigned      = "ApplicationOwnerAssigned"
+	ApplicationOwnershipCleared   = "ApplicationOwnershipCleared"
+
 	ComponentRelationCreated = "ComponentRelationCreated"
 	ComponentRelationUpdated = "ComponentRelationUpdated"
 	ComponentRelationDeleted = "ComponentRelationDeleted"

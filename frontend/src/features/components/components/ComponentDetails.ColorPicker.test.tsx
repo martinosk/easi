@@ -35,6 +35,7 @@ const mockComponent = {
   id: toComponentId('comp-1'),
   name: 'Test Component',
   description: 'Test description',
+  ownershipState: 'unknown' as const,
   createdAt: '2024-01-01T00:00:00Z',
   _links: { self: { href: '/api/v1/components/comp-1', method: 'GET' as const } },
 };

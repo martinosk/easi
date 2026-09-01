@@ -17,16 +17,19 @@ var (
 // ApplicationComponent represents an application component aggregate
 type ApplicationComponent struct {
 	domain.AggregateRoot
-	name        valueobjects.ComponentName
-	description valueobjects.Description
-	createdAt   time.Time
-	isDeleted   bool
-	experts     []valueobjects.Expert
+	name           valueobjects.ComponentName
+	description    valueobjects.Description
+	createdAt      time.Time
+	isDeleted      bool
+	experts        []valueobjects.Expert
+	ownershipState valueobjects.OwnershipState
+	owner          *valueobjects.OwnerReference
 }
 
 func NewApplicationComponent(name valueobjects.ComponentName, description valueobjects.Description) (*ApplicationComponent, error) {
 	aggregate := &ApplicationComponent{
-		AggregateRoot: domain.NewAggregateRoot(),
+		AggregateRoot:  domain.NewAggregateRoot(),
+		ownershipState: valueobjects.UnknownOwnershipState(),
 	}
 
 	event := events.NewApplicationComponentCreated(
@@ -45,7 +48,8 @@ func NewApplicationComponent(name valueobjects.ComponentName, description valueo
 
 func LoadApplicationComponentFromHistory(events []domain.DomainEvent) (*ApplicationComponent, error) {
 	aggregate := &ApplicationComponent{
-		AggregateRoot: domain.NewAggregateRoot(),
+		AggregateRoot:  domain.NewAggregateRoot(),
+		ownershipState: valueobjects.UnknownOwnershipState(),
 	}
 
 	var applyErr error
@@ -145,6 +149,8 @@ func (a *ApplicationComponent) apply(event domain.DomainEvent) error {
 		return a.applyExpertAdded(e)
 	case events.ApplicationComponentExpertRemoved:
 		a.experts = removeExpert(a.experts, e.ExpertName, e.ExpertRole, e.ContactInfo)
+	default:
+		return a.applyOwnershipEvent(event)
 	}
 	return nil
 }

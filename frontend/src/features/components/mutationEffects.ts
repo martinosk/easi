@@ -47,6 +47,13 @@ export const componentsMutationEffects = {
     auditQueryKeys.history(componentId),
     ...onePagerFreshness(componentId),
   ],
+
+  ownership: (componentId: string) => [
+    componentsQueryKeys.lists(),
+    componentsQueryKeys.detail(componentId),
+    componentsQueryKeys.ownershipStatistics(),
+    auditQueryKeys.history(componentId),
+  ],
 };
 
 export const fitScoresMutationEffects = {

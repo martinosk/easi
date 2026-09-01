@@ -72,6 +72,7 @@ function createComponentsWithB() {
     {
       id: 'comp-2' as ComponentId,
       name: 'Component B',
+      ownershipState: 'unknown' as const,
       createdAt: '2024-01-01T00:00:00Z',
       _links: { self: { href: '/api/v1/components/comp-2', method: 'GET' as const } },
     },
@@ -126,6 +127,7 @@ const mockComponents: Component[] = [
     id: 'comp-1' as ComponentId,
     name: 'Component A',
     description: 'Test component',
+    ownershipState: 'unknown',
     createdAt: '2024-01-01T00:00:00Z',
     _links: {
       self: { href: '/api/v1/components/comp-1', method: 'GET' },

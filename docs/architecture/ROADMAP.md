@@ -35,7 +35,7 @@ A horizon move becomes a Phase-1 design doc (`docs/specs/`) and vertical-slice s
 | Move | Scope | Decisions | Specs | Status |
 |------|-------|-----------|-------|--------|
 | H1-1 | Retire the enterprise capability: relocate the context, then maturity journeys, unified TIME value object, and removal of EnterpriseCapability with Direction, Standard Application and Composition | SD1, SD2 | 210–213 ([design doc](../specs/enterprise-capability.md)) | 210 done (contexts 15 → 14); 211 done (maturity is a journey kind on its own track); 212 done (one `TimeGrade`, suggestion composed into assessment reads, duplicate caches dropped — smell C2 closed); 213 done (EnterpriseCapability, Direction, StandardApplication and Composition removed; strategic fit analysis has its own page under `capabilities:read`; `enterprise-arch:*` permissions retired; one-pager facts for the retired subject type archived by a deploy-time sweep) |
-| H1-2 | Application record: ownership state machine with stats projection, hosting classification, two-level composition | SD6 | 214–216 | specs pending approval |
+| H1-2 | Application record: ownership state machine with stats projection, hosting classification, two-level composition | SD6 | 214–216 | 214 done (ownership state machine Unknown → Nominated → Owned/Managed with typed owner references, HATEOAS affordances, statistics endpoint, team-deletion revert, AM user-name cache); 215–216 pending approval |
 | H1-3 | MetaModel: custom-field schema moves in (backfilled), modelling rule set v1 with AI naming validation | SD5 | 217–218 | specs pending approval |
 
 Exit: coverage assessment re-scored — boundary smells 3 → 1, contexts 15 → 14.

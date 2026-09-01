@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/lib/pq"
@@ -135,6 +136,25 @@ func (rm *InternalTeamReadModel) GetByID(ctx context.Context, id string) (*Inter
 	}
 
 	return &dto, nil
+}
+
+func (rm *InternalTeamReadModel) Exists(ctx context.Context, id string) (bool, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	var exists bool
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		return tx.QueryRowContext(ctx,
+			"SELECT EXISTS(SELECT 1 FROM architecturemodeling.internal_teams WHERE tenant_id = $1 AND id = $2 AND is_deleted = FALSE)",
+			tenantID.Value(), id,
+		).Scan(&exists)
+	})
+	if err != nil {
+		return false, fmt.Errorf("check internal team %s exists for tenant %s: %w", id, tenantID.Value(), err)
+	}
+	return exists, nil
 }
 
 func (rm *InternalTeamReadModel) Count(ctx context.Context) (int, error) {

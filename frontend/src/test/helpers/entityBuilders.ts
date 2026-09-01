@@ -63,6 +63,7 @@ export function buildComponent(overrides: Partial<Component> = {}): Component {
     id,
     name: `Component ${id}`,
     description: 'Test component description',
+    ownershipState: 'unknown',
     createdAt: '2024-01-01T00:00:00Z',
     _links: buildLinks(`/api/v1/components/${id}`),
     ...overrides,

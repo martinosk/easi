@@ -1,8 +1,10 @@
-import { TextInput, UnstyledButton } from '@mantine/core';
+import { ColorSwatch, Select, TextInput, UnstyledButton } from '@mantine/core';
 import { IconBox } from '@tabler/icons-react';
 import React, { useMemo, useState } from 'react';
-import type { Component, View } from '../../../../api/types';
+import type { Component, OwnershipState, View } from '../../../../api/types';
 import { TreeSearchInput } from '../../../../components/shared';
+import { OWNERSHIP_STATE_LABELS } from '../../../components/components/ComponentOwnershipSection';
+import { OwnershipSummary } from '../../../components/components/OwnershipSummary';
 import { OnePagerIncompleteIndicator } from '../../../one-pagers/components/OnePagerIncompleteIndicator';
 import { useOnePagerCompleteness } from '../../../one-pagers/hooks/useOnePagerCompleteness';
 import type { EditingState, TreeMultiSelectProps } from '../../types';
@@ -15,27 +17,22 @@ interface ColorIndicatorProps {
 }
 
 const ColorIndicator: React.FC<ColorIndicatorProps> = ({ customColor }) => (
-  <div
-    data-testid="custom-color-indicator"
-    style={{
-      width: '10px',
-      height: '10px',
-      borderRadius: '2px',
-      backgroundColor: customColor,
-      display: 'inline-block',
-      marginLeft: '8px',
-      border: '1px solid rgba(0,0,0,0.1)',
-    }}
-  />
+  <ColorSwatch data-testid="custom-color-indicator" color={customColor ?? ''} size="xs" radius="xs" ml="sm" />
 );
 
-function filterComponents(components: Component[], search: string): Component[] {
-  if (!search.trim()) return components;
+function filterComponents(components: Component[], search: string, ownershipState: string | null): Component[] {
+  const byOwnership = ownershipState ? components.filter((c) => c.ownershipState === ownershipState) : components;
+  if (!search.trim()) return byOwnership;
   const searchLower = search.toLowerCase();
-  return components.filter(
+  return byOwnership.filter(
     (c) => c.name.toLowerCase().includes(searchLower) || c.description?.toLowerCase().includes(searchLower),
   );
 }
+
+const OWNERSHIP_FILTER_OPTIONS = (Object.keys(OWNERSHIP_STATE_LABELS) as OwnershipState[]).map((state) => ({
+  value: state,
+  label: OWNERSHIP_STATE_LABELS[state],
+}));
 
 interface EditingItemProps {
   component: Component;
@@ -163,11 +160,12 @@ export const ApplicationsSection: React.FC<ApplicationsSectionProps> = ({
   multiSelect,
 }) => {
   const [applicationSearch, setApplicationSearch] = useState('');
+  const [ownershipFilter, setOwnershipFilter] = useState<string | null>(null);
   const { data: onePagerCompleteness } = useOnePagerCompleteness('application');
 
   const filteredComponents = useMemo(
-    () => filterComponents(components, applicationSearch),
-    [components, applicationSearch],
+    () => filterComponents(components, applicationSearch, ownershipFilter),
+    [components, applicationSearch, ownershipFilter],
   );
 
   const visibleItems = useMemo(
@@ -214,7 +212,7 @@ export const ApplicationsSection: React.FC<ApplicationsSectionProps> = ({
     }
   };
 
-  const emptyMessage = components.length === 0 ? 'No applications' : 'No matches';
+  const emptyMessage = components.length === 0 && !ownershipFilter ? 'No applications' : 'No matches';
 
   const renderComponent = (component: Component) => {
     if (editingState?.componentId === component.id) {
@@ -258,7 +256,19 @@ export const ApplicationsSection: React.FC<ApplicationsSectionProps> = ({
       addTitle="Create new application"
       addTestId="create-component-button"
     >
+      <OwnershipSummary />
       <TreeSearchInput value={applicationSearch} onChange={setApplicationSearch} placeholder="Search applications..." />
+      <Select
+        size="xs"
+        px="sm"
+        pb="xs"
+        clearable
+        placeholder="Filter by ownership"
+        data={OWNERSHIP_FILTER_OPTIONS}
+        value={ownershipFilter}
+        onChange={setOwnershipFilter}
+        data-testid="ownership-filter"
+      />
       <div className={classes.list}>
         {filteredComponents.length === 0 ? (
           <div className={classes.empty}>{emptyMessage}</div>
