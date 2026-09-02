@@ -14,7 +14,6 @@ describe('FilterPopover', () => {
         domains={[{ id: 'd-1', name: 'Sales' }]}
         selectedDomainIds={[]}
         onDomainSelectionChange={vi.fn()}
-        hasActiveFilters={false}
         onClearAllFilters={vi.fn()}
       />,
       { withRouter: false },

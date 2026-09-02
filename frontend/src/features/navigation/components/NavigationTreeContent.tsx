@@ -78,7 +78,6 @@ interface NavigationTreeContentProps {
   domains?: Array<{ id: string; name: string }>;
   selectedDomainIds?: string[];
   onDomainSelectionChange?: (domainIds: string[]) => void;
-  hasActiveFilters?: boolean;
   onClearAllFilters?: () => void;
 }
 
@@ -186,7 +185,6 @@ export const NavigationTreeContent: React.FC<NavigationTreeContentProps> = ({
   domains = [],
   selectedDomainIds = [],
   onDomainSelectionChange,
-  hasActiveFilters = false,
   onClearAllFilters,
 }) => {
   const viewElementIds = useCurrentViewElementIds();
@@ -202,7 +200,6 @@ export const NavigationTreeContent: React.FC<NavigationTreeContentProps> = ({
           domains={domains}
           selectedDomainIds={selectedDomainIds}
           onDomainSelectionChange={onDomainSelectionChange}
-          hasActiveFilters={hasActiveFilters}
           onClearAllFilters={onClearAllFilters}
         />
       </div>

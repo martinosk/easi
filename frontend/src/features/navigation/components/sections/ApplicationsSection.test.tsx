@@ -1,12 +1,12 @@
-﻿import type { ReactElement } from 'react';
 import { screen, waitFor } from '@testing-library/react';
-import { renderWithProviders } from '../../../../test/helpers';
-import { seedOnePagerCompleteness } from '../../../../test/mocks/onePagerCompleteness';
-import { seedComponentStatistics } from '../../../../test/mocks/componentStatistics';
-const render = (ui: ReactElement) => renderWithProviders(ui, { withRouter: false });
+import type { ReactElement } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Component, ComponentId, HATEOASLinks } from '../../../../api/types';
+import { renderWithProviders } from '../../../../test/helpers';
+import { seedOnePagerCompleteness } from '../../../../test/mocks/onePagerCompleteness';
 import { ApplicationsSection } from './ApplicationsSection';
+
+const render = (ui: ReactElement) => renderWithProviders(ui, { withRouter: false });
 
 describe('ApplicationsSection', () => {
   const mockLinks: HATEOASLinks = { self: { href: '/test', method: 'GET' } };
@@ -75,76 +75,85 @@ describe('ApplicationsSection', () => {
     });
   });
 
-  describe('ownership', () => {
-    it('shows counts per ownership state including the orphan count', async () => {
-      seedComponentStatistics({ unknown: 2, nominated: 1, owned: 3, managed: 0, total: 6 });
+  describe('filters', () => {
+    const user = () => import('@testing-library/user-event').then((m) => m.default);
+
+    it('does not render the ownership and hosting summary', () => {
       render(<ApplicationsSection {...defaultProps} components={[createMockComponent()]} />);
 
-      const summary = await screen.findByTestId('ownership-distribution');
-      expect(summary).toHaveTextContent('Unknown2');
-      expect(summary).toHaveTextContent('Nominated1');
-      expect(summary).toHaveTextContent('Owned3');
-      expect(summary).toHaveTextContent('Managed0');
+      expect(screen.queryByTestId('statistics-summary')).not.toBeInTheDocument();
+      expect(screen.queryByText('Ownership')).not.toBeInTheDocument();
+      expect(screen.queryByText('Hosting')).not.toBeInTheDocument();
     });
 
-    it('filters applications by ownership state', async () => {
-      const owned = createMockComponent({ id: 'comp-owned' as ComponentId, name: 'Owned App', ownershipState: 'owned' });
-      const orphan = createMockComponent({
-        id: 'comp-orphan' as ComponentId,
-        name: 'Orphan App',
-        ownershipState: 'unknown',
-        hosting: 'unknown',
-      });
-      render(<ApplicationsSection {...defaultProps} components={[owned, orphan]} />);
-      await screen.findByTestId('ownership-distribution');
-
-      expect(screen.getByText('Owned App')).toBeInTheDocument();
-      expect(screen.getByText('Orphan App')).toBeInTheDocument();
-
-      const user = (await import('@testing-library/user-event')).default;
-      await user.click(screen.getByTestId('ownership-filter'));
-      await user.click(await screen.findByRole('option', { name: 'Owned', hidden: true }));
-
-      expect(screen.getByText('Owned App')).toBeInTheDocument();
-      expect(screen.queryByText('Orphan App')).not.toBeInTheDocument();
-    });
-  });
-
-  describe('hosting', () => {
-    it('shows counts per hosting classification', async () => {
-      seedComponentStatistics({
-        hosting: { 'on-premises': 1, cloud: 2, saas: 3, 'third-party-hosted': 0, unknown: 4 },
-        total: 10,
-      });
+    it('keeps the filters behind a filter icon next to the search box', () => {
       render(<ApplicationsSection {...defaultProps} components={[createMockComponent()]} />);
 
-      const distribution = await screen.findByTestId('hosting-distribution');
-      expect(distribution).toHaveTextContent('On-premises1');
-      expect(distribution).toHaveTextContent('Cloud2');
-      expect(distribution).toHaveTextContent('SaaS3');
-      expect(distribution).toHaveTextContent('Third-party hosted0');
-      expect(distribution).toHaveTextContent('Unknown4');
+      expect(screen.getByLabelText('Toggle application filters')).toBeInTheDocument();
+      expect(screen.queryByText('Filter by ownership')).not.toBeInTheDocument();
+      expect(screen.queryByText('Filter by hosting')).not.toBeInTheDocument();
     });
 
-    it('filters applications by hosting classification', async () => {
+    it.each([
+      {
+        dimension: 'ownership state',
+        chip: 'Owned',
+        matching: createMockComponent({ id: 'comp-owned' as ComponentId, name: 'Owned App', ownershipState: 'owned' }),
+        other: createMockComponent({ id: 'comp-orphan' as ComponentId, name: 'Orphan App' }),
+      },
+      {
+        dimension: 'hosting classification',
+        chip: 'SaaS',
+        matching: createMockComponent({ id: 'comp-saas' as ComponentId, name: 'SaaS App', hosting: 'saas' }),
+        other: createMockComponent({ id: 'comp-onprem' as ComponentId, name: 'OnPrem App', hosting: 'on-premises' }),
+      },
+    ])('filters applications by $dimension', async ({ chip, matching, other }) => {
+      render(<ApplicationsSection {...defaultProps} components={[matching, other]} />);
+      const u = await user();
+
+      await u.click(screen.getByLabelText('Toggle application filters'));
+      await u.click(await screen.findByText(chip));
+
+      expect(screen.getByText(matching.name)).toBeInTheDocument();
+      expect(screen.queryByText(other.name)).not.toBeInTheDocument();
+    });
+
+    it('shows the filtered count in the section header', async () => {
       const saas = createMockComponent({ id: 'comp-saas' as ComponentId, name: 'SaaS App', hosting: 'saas' });
-      const onPrem = createMockComponent({
-        id: 'comp-onprem' as ComponentId,
-        name: 'OnPrem App',
-        hosting: 'on-premises',
-      });
-      render(<ApplicationsSection {...defaultProps} components={[saas, onPrem]} />);
-      await screen.findByTestId('hosting-distribution');
+      const cloud = createMockComponent({ id: 'comp-cloud' as ComponentId, name: 'Cloud App', hosting: 'cloud' });
+      render(<ApplicationsSection {...defaultProps} components={[saas, cloud]} />);
+      const u = await user();
+      const header = screen.getByRole('button', { name: /Applications/ });
+      expect(header).toHaveTextContent('Applications2');
 
-      expect(screen.getByText('SaaS App')).toBeInTheDocument();
-      expect(screen.getByText('OnPrem App')).toBeInTheDocument();
+      await u.click(screen.getByLabelText('Toggle application filters'));
+      await u.click(await screen.findByText('SaaS'));
 
-      const user = (await import('@testing-library/user-event')).default;
-      await user.click(screen.getByTestId('hosting-filter'));
-      await user.click(await screen.findByRole('option', { name: 'SaaS', hidden: true }));
+      expect(header).toHaveTextContent('Applications1');
+    });
 
-      expect(screen.getByText('SaaS App')).toBeInTheDocument();
-      expect(screen.queryByText('OnPrem App')).not.toBeInTheDocument();
+    it('keeps the header count independent of the search text', async () => {
+      render(
+        <ApplicationsSection
+          {...defaultProps}
+          components={[createMockComponent(), createMockComponent({ id: 'comp-2' as ComponentId, name: 'Other' })]}
+        />,
+      );
+      const u = await user();
+
+      await u.type(screen.getByPlaceholderText('Search applications...'), 'Other');
+
+      expect(screen.getByRole('button', { name: /Applications/ })).toHaveTextContent('Applications2');
+    });
+
+    it('shows a no-matches message when filters exclude every application', async () => {
+      render(<ApplicationsSection {...defaultProps} components={[createMockComponent({ hosting: 'cloud' })]} />);
+      const u = await user();
+
+      await u.click(screen.getByLabelText('Toggle application filters'));
+      await u.click(await screen.findByText('SaaS'));
+
+      expect(screen.getByText('No matches')).toBeInTheDocument();
     });
   });
 });

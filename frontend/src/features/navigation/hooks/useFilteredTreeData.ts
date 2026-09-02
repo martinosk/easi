@@ -61,8 +61,6 @@ export function useFilteredTreeData() {
     [views, selectedCreatorIds, creatorMap],
   );
 
-  const hasActiveFilters = selectedCreatorIds.length > 0 || selectedDomainIds.length > 0;
-
   const clearAllFilters = () => {
     setSelectedCreatorIds([]);
     setSelectedDomainIds([]);
@@ -79,7 +77,6 @@ export function useFilteredTreeData() {
     domains,
     selectedDomainIds,
     setSelectedDomainIds,
-    hasActiveFilters,
     clearAllFilters,
   };
 }
