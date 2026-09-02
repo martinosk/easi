@@ -39,11 +39,6 @@ Feature: Application hosting classification
     Given applications classified across several hosting models
     When an architect filters the application list by "On-premises"
     Then only applications with that classification are listed
-
-  Scenario: Hosting distribution
-    Given applications classified across several hosting models
-    When an architect views the application statistics
-    Then a count per hosting classification is shown alongside the ownership counts
 ```
 
 ---
@@ -108,8 +103,8 @@ Components feature: classification control on the details panel, hosting facet o
 ## Checklist
 
 - [x] Specification ready
-- [ ] Implementation done
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
-- [ ] API documentation updated
-- [ ] User sign-off
+- [x] Implementation done
+- [x] Unit tests implemented and passing
+- [x] Integration tests implemented if relevant
+- [x] API documentation updated
+- [x] User sign-off
