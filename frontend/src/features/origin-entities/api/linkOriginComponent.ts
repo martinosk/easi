@@ -6,9 +6,9 @@ export async function linkOriginComponent(
   rel: string,
   body: Record<string, unknown>,
 ): Promise<OriginRelationship> {
-  const response = await httpClient.put<OriginRelationship>(
-    `/api/v1/components/${componentId}/origin/${rel}`,
-    { ...body, componentId },
-  );
+  const response = await httpClient.put<OriginRelationship>(`/api/v1/components/${componentId}/origin/${rel}`, {
+    ...body,
+    componentId,
+  });
   return response.data;
 }

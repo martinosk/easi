@@ -1,12 +1,19 @@
 import type {
+  AcquiredEntity,
+  AcquiredEntityId,
   BusinessDomain,
   Capability,
   CapabilityId,
   CapabilityRealization,
   Component,
   ComponentId,
+  InternalTeam,
+  InternalTeamId,
+  OriginRelationship,
   Relation,
   RelationId,
+  Vendor,
+  VendorId,
   View,
   ViewId,
 } from '../../api/types';
@@ -26,6 +33,10 @@ export interface MockDatabase {
   capabilityRealizations: CapabilityRealization[];
   views: View[];
   relations: Relation[];
+  acquiredEntities: AcquiredEntity[];
+  vendors: Vendor[];
+  internalTeams: InternalTeam[];
+  originRelationships: OriginRelationship[];
 }
 
 let db: MockDatabase = createEmptyDb();
@@ -38,6 +49,10 @@ function createEmptyDb(): MockDatabase {
     capabilityRealizations: [],
     views: [],
     relations: [],
+    acquiredEntities: [],
+    vendors: [],
+    internalTeams: [],
+    originRelationships: [],
   };
 }
 
@@ -47,12 +62,9 @@ export function resetDb(): void {
 }
 
 export function seedDb(data: Partial<MockDatabase>): void {
-  if (data.businessDomains) db.businessDomains = data.businessDomains;
-  if (data.components) db.components = data.components;
-  if (data.capabilities) db.capabilities = data.capabilities;
-  if (data.capabilityRealizations) db.capabilityRealizations = data.capabilityRealizations;
-  if (data.views) db.views = data.views;
-  if (data.relations) db.relations = data.relations;
+  for (const [collection, items] of Object.entries(data)) {
+    if (items) (db as unknown as Record<string, unknown[]>)[collection] = items;
+  }
 }
 
 export function getDb(): MockDatabase {
@@ -156,4 +168,54 @@ export function addRelation(relation: Partial<Relation> = {}): Relation {
 
 export function getBusinessDomains(): BusinessDomain[] {
   return db.businessDomains;
+}
+
+function updateIn<T extends { id: string }>(items: T[], id: string, updates: Partial<T>): T | undefined {
+  const index = items.findIndex((item) => item.id === id);
+  if (index < 0) return undefined;
+  items[index] = { ...items[index], ...updates };
+  return items[index];
+}
+
+export function getAcquiredEntities(): AcquiredEntity[] {
+  return db.acquiredEntities;
+}
+
+export function getAcquiredEntity(id: AcquiredEntityId): AcquiredEntity | undefined {
+  return db.acquiredEntities.find((entity) => entity.id === id);
+}
+
+export function updateAcquiredEntity(
+  id: AcquiredEntityId,
+  updates: Partial<AcquiredEntity>,
+): AcquiredEntity | undefined {
+  return updateIn(db.acquiredEntities, id, updates);
+}
+
+export function getVendors(): Vendor[] {
+  return db.vendors;
+}
+
+export function getVendor(id: VendorId): Vendor | undefined {
+  return db.vendors.find((vendor) => vendor.id === id);
+}
+
+export function updateVendor(id: VendorId, updates: Partial<Vendor>): Vendor | undefined {
+  return updateIn(db.vendors, id, updates);
+}
+
+export function getInternalTeams(): InternalTeam[] {
+  return db.internalTeams;
+}
+
+export function getInternalTeam(id: InternalTeamId): InternalTeam | undefined {
+  return db.internalTeams.find((team) => team.id === id);
+}
+
+export function updateInternalTeam(id: InternalTeamId, updates: Partial<InternalTeam>): InternalTeam | undefined {
+  return updateIn(db.internalTeams, id, updates);
+}
+
+export function getOriginRelationships(): OriginRelationship[] {
+  return db.originRelationships;
 }

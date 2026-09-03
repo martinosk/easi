@@ -1,12 +1,14 @@
-import type { ZodTypeAny } from 'zod';
 import { describe, expect, it } from 'vitest';
+import type { ZodTypeAny } from 'zod';
 import {
   createAcquiredEntitySchema,
   createInternalTeamSchema,
   createVendorSchema,
-  editAcquiredEntitySchema,
-  editInternalTeamSchema,
-  editVendorSchema,
+  integrationStatusSchema,
+  internalTeamContactPersonSchema,
+  internalTeamDepartmentSchema,
+  originEntityNotesSchema,
+  vendorImplementationPartnerSchema,
 } from './originEntity';
 
 const expectTrimsField = (
@@ -141,7 +143,12 @@ describe('createAcquiredEntitySchema', () => {
     });
 
     it('should trim whitespace from notes', () => {
-      expectTrimsField(createAcquiredEntitySchema, { name: 'TechCorp', notes: '  Some notes  ' }, 'notes', 'Some notes');
+      expectTrimsField(
+        createAcquiredEntitySchema,
+        { name: 'TechCorp', notes: '  Some notes  ' },
+        'notes',
+        'Some notes',
+      );
     });
 
     it('should reject notes exceeding 500 characters', () => {
@@ -159,25 +166,6 @@ describe('createAcquiredEntitySchema', () => {
       });
       expect(result.success).toBe(true);
     });
-  });
-});
-
-describe('editAcquiredEntitySchema', () => {
-  it('should accept valid edit data', () => {
-    const result = editAcquiredEntitySchema.safeParse({
-      name: 'Updated TechCorp',
-      acquisitionDate: '2021-06-01',
-      integrationStatus: 'Completed',
-      notes: 'Integration completed successfully.',
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it('should reject empty name on edit', () => {
-    const result = editAcquiredEntitySchema.safeParse({
-      name: '',
-    });
-    expect(result.success).toBe(false);
   });
 });
 
@@ -266,24 +254,6 @@ describe('createVendorSchema', () => {
       });
       expect(result.success).toBe(false);
     });
-  });
-});
-
-describe('editVendorSchema', () => {
-  it('should accept valid edit data', () => {
-    const result = editVendorSchema.safeParse({
-      name: 'Updated SAP',
-      implementationPartner: 'Deloitte',
-      notes: 'Updated implementation partner.',
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it('should reject empty name on edit', () => {
-    const result = editVendorSchema.safeParse({
-      name: '',
-    });
-    expect(result.success).toBe(false);
   });
 });
 
@@ -409,21 +379,29 @@ describe('createInternalTeamSchema', () => {
   });
 });
 
-describe('editInternalTeamSchema', () => {
-  it('should accept valid edit data', () => {
-    const result = editInternalTeamSchema.safeParse({
-      name: 'Updated Platform Engineering',
-      department: 'Engineering',
-      contactPerson: 'Jane Smith',
-      notes: 'Updated team information.',
-    });
-    expect(result.success).toBe(true);
+describe('in-place field schemas', () => {
+  it('accepts an empty note so notes can be cleared, and trims', () => {
+    expect(originEntityNotesSchema.safeParse('').success).toBe(true);
+    expect(originEntityNotesSchema.parse('  keep  ')).toBe('keep');
   });
 
-  it('should reject empty name on edit', () => {
-    const result = editInternalTeamSchema.safeParse({
-      name: '',
-    });
-    expect(result.success).toBe(false);
+  it('rejects notes over 500 characters', () => {
+    expect(originEntityNotesSchema.safeParse('x'.repeat(501)).success).toBe(false);
+  });
+
+  it('accepts only the API integration statuses', () => {
+    expect(integrationStatusSchema.safeParse('COMPLETED').success).toBe(true);
+    expect(integrationStatusSchema.safeParse('Completed').success).toBe(false);
+  });
+
+  it('bounds the optional text fields at 100 characters', () => {
+    for (const schema of [
+      vendorImplementationPartnerSchema,
+      internalTeamDepartmentSchema,
+      internalTeamContactPersonSchema,
+    ]) {
+      expect(schema.safeParse('').success).toBe(true);
+      expect(schema.safeParse('x'.repeat(101)).success).toBe(false);
+    }
   });
 });

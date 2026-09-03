@@ -142,11 +142,7 @@ function useInternalTeamFormState(
   return { form, onSubmit, backendError, isPending: createMutation.isPending || isHandoffPending };
 }
 
-export const CreateInternalTeamDialog: React.FC<CreateInternalTeamDialogProps> = ({
-  isOpen,
-  onClose,
-  onCreated,
-}) => {
+export const CreateInternalTeamDialog: React.FC<CreateInternalTeamDialogProps> = ({ isOpen, onClose, onCreated }) => {
   const { form, onSubmit, backendError, isPending } = useInternalTeamFormState(isOpen, onClose, onCreated);
   const {
     register,

@@ -1,25 +1,42 @@
 import { HttpResponse, http } from 'msw';
-import type { Capability, Component } from '../../api/types';
-import { toCapabilityId, toComponentId, toViewId } from '../../api/types';
+import type { AcquiredEntity, Capability, Component, InternalTeam, OriginRelationship, Vendor } from '../../api/types';
+import {
+  toAcquiredEntityId,
+  toCapabilityId,
+  toComponentId,
+  toInternalTeamId,
+  toVendorId,
+  toViewId,
+} from '../../api/types';
 import { assistantStatusHandlers } from './assistantStatus';
 import { componentStatisticsHandlers } from './componentStatistics';
 import {
   addCapability,
   addComponent,
   addRelation,
+  getAcquiredEntities,
+  getAcquiredEntity,
   getBusinessDomains,
   getCapabilities,
   getCapability,
   getCapabilityRealizations,
   getComponent,
   getComponents,
+  getInternalTeam,
+  getInternalTeams,
+  getOriginRelationships,
   getRealizationsByCapability,
   getRealizationsByComponent,
   getRelations,
+  getVendor,
+  getVendors,
   getView,
   getViews,
+  updateAcquiredEntity,
   updateCapability,
   updateComponent,
+  updateInternalTeam,
+  updateVendor,
   updateView,
 } from './db';
 import { onePagerCompletenessHandlers } from './onePagerCompleteness';
@@ -590,30 +607,78 @@ export const handlers = [
 
   http.get(`${BASE_URL}/api/v1/acquired-entities`, () => {
     return HttpResponse.json({
-      data: [],
+      data: getAcquiredEntities(),
       _links: { self: '/api/v1/acquired-entities' },
     });
   }),
 
+  http.get(`${BASE_URL}/api/v1/acquired-entities/:id`, ({ params }) => {
+    const entity = getAcquiredEntity(toAcquiredEntityId(params.id as string));
+    return entity ? HttpResponse.json(entity) : new HttpResponse(null, { status: 404 });
+  }),
+
+  http.put(`${BASE_URL}/api/v1/acquired-entities/:id`, async ({ params, request }) => {
+    const body = (await request.json()) as Partial<AcquiredEntity>;
+    const updated = updateAcquiredEntity(toAcquiredEntityId(params.id as string), body);
+    return updated ? HttpResponse.json(updated) : new HttpResponse(null, { status: 404 });
+  }),
+
   http.get(`${BASE_URL}/api/v1/internal-teams`, () => {
     return HttpResponse.json({
-      data: [],
+      data: getInternalTeams(),
       _links: { self: '/api/v1/internal-teams' },
     });
   }),
 
+  http.get(`${BASE_URL}/api/v1/internal-teams/:id`, ({ params }) => {
+    const team = getInternalTeam(toInternalTeamId(params.id as string));
+    return team ? HttpResponse.json(team) : new HttpResponse(null, { status: 404 });
+  }),
+
+  http.put(`${BASE_URL}/api/v1/internal-teams/:id`, async ({ params, request }) => {
+    const body = (await request.json()) as Partial<InternalTeam>;
+    const updated = updateInternalTeam(toInternalTeamId(params.id as string), body);
+    return updated ? HttpResponse.json(updated) : new HttpResponse(null, { status: 404 });
+  }),
+
   http.get(`${BASE_URL}/api/v1/vendors`, () => {
     return HttpResponse.json({
-      data: [],
+      data: getVendors(),
       _links: { self: '/api/v1/vendors' },
     });
   }),
 
+  http.get(`${BASE_URL}/api/v1/vendors/:id`, ({ params }) => {
+    const vendor = getVendor(toVendorId(params.id as string));
+    return vendor ? HttpResponse.json(vendor) : new HttpResponse(null, { status: 404 });
+  }),
+
+  http.put(`${BASE_URL}/api/v1/vendors/:id`, async ({ params, request }) => {
+    const body = (await request.json()) as Partial<Vendor>;
+    const updated = updateVendor(toVendorId(params.id as string), body);
+    return updated ? HttpResponse.json(updated) : new HttpResponse(null, { status: 404 });
+  }),
+
   http.get(`${BASE_URL}/api/v1/origin-relationships`, () => {
+    const relationships = getOriginRelationships();
+    const byType = (type: OriginRelationship['relationshipType']) =>
+      relationships.filter((relationship) => relationship.relationshipType === type);
     return HttpResponse.json({
-      acquiredVia: [],
-      purchasedFrom: [],
-      builtBy: [],
+      acquiredVia: byType('AcquiredVia').map((relationship) => ({
+        ...relationship,
+        acquiredEntityId: relationship.originEntityId,
+        acquiredEntityName: relationship.originEntityName,
+      })),
+      purchasedFrom: byType('PurchasedFrom').map((relationship) => ({
+        ...relationship,
+        vendorId: relationship.originEntityId,
+        vendorName: relationship.originEntityName,
+      })),
+      builtBy: byType('BuiltBy').map((relationship) => ({
+        ...relationship,
+        internalTeamId: relationship.originEntityId,
+        internalTeamName: relationship.originEntityName,
+      })),
       _links: { self: { href: '/api/v1/origin-relationships', method: 'GET' } },
     });
   }),

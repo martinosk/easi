@@ -1,9 +1,12 @@
-import { toBusinessDomainId, toCapabilityId, toComponentId } from '../../api/types';
+import { toAcquiredEntityId, toBusinessDomainId, toCapabilityId, toComponentId, toVendorId } from '../../api/types';
 import {
+  buildAcquiredEntity,
   buildBusinessDomain,
   buildCapabilityAt,
   buildCapabilityRealization,
   buildComponent,
+  buildOriginRelationship,
+  buildVendor,
   buildView,
 } from '../helpers/entityBuilders';
 import { seedDb } from './db';
@@ -80,5 +83,24 @@ export function seedDevData(): void {
       }),
     ],
     views: [buildView({ name: 'Default View', isDefault: true })],
+    acquiredEntities: [
+      buildAcquiredEntity({
+        id: toAcquiredEntityId('ae-nordic'),
+        name: 'Nordic Cargo',
+        acquisitionDate: '2023-06-01',
+        integrationStatus: 'IN_PROGRESS',
+        notes: 'Freight booking brand acquired in 2023.',
+      }),
+    ],
+    vendors: [buildVendor({ id: toVendorId('vendor-sap'), name: 'SAP', implementationPartner: 'Accenture' })],
+    originRelationships: [
+      buildOriginRelationship({
+        relationshipType: 'AcquiredVia',
+        originEntityId: 'ae-nordic',
+        originEntityName: 'Nordic Cargo',
+        componentId: toComponentId('comp-phoenix'),
+        componentName: 'Phoenix',
+      }),
+    ],
   });
 }

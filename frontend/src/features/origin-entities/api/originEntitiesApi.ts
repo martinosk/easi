@@ -18,6 +18,7 @@ import type {
   VendorId,
   VendorsResponse,
 } from '../../../api/types';
+import { followLink } from '../../../utils/hateoas';
 import { linkOriginComponent } from './linkOriginComponent';
 
 export const originEntitiesApi = {
@@ -42,8 +43,8 @@ export const originEntitiesApi = {
       return response.data;
     },
 
-    async update(id: AcquiredEntityId, request: UpdateAcquiredEntityRequest): Promise<AcquiredEntity> {
-      const response = await httpClient.put<AcquiredEntity>(`/api/v1/acquired-entities/${id}`, request);
+    async update(entity: AcquiredEntity, request: UpdateAcquiredEntityRequest): Promise<AcquiredEntity> {
+      const response = await httpClient.put<AcquiredEntity>(followLink(entity, 'edit'), request);
       return response.data;
     },
 
@@ -80,8 +81,8 @@ export const originEntitiesApi = {
       return response.data;
     },
 
-    async update(id: VendorId, request: UpdateVendorRequest): Promise<Vendor> {
-      const response = await httpClient.put<Vendor>(`/api/v1/vendors/${id}`, request);
+    async update(vendor: Vendor, request: UpdateVendorRequest): Promise<Vendor> {
+      const response = await httpClient.put<Vendor>(followLink(vendor, 'edit'), request);
       return response.data;
     },
 
@@ -114,8 +115,8 @@ export const originEntitiesApi = {
       return response.data;
     },
 
-    async update(id: InternalTeamId, request: UpdateInternalTeamRequest): Promise<InternalTeam> {
-      const response = await httpClient.put<InternalTeam>(`/api/v1/internal-teams/${id}`, request);
+    async update(team: InternalTeam, request: UpdateInternalTeamRequest): Promise<InternalTeam> {
+      const response = await httpClient.put<InternalTeam>(followLink(team, 'edit'), request);
       return response.data;
     },
 

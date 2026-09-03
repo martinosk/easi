@@ -56,9 +56,9 @@ export function useCreateAcquiredEntity() {
 
 export function useUpdateAcquiredEntity() {
   return useEntityMutation({
-    mutationFn: ({ id, request }: { id: AcquiredEntityId; request: UpdateAcquiredEntityRequest }) =>
-      originEntitiesApi.acquiredEntities.update(id, request),
-    effects: (_, { id }) => acquiredEntitiesMutationEffects.update(id),
+    mutationFn: ({ entity, request }: { entity: AcquiredEntity; request: UpdateAcquiredEntityRequest }) =>
+      originEntitiesApi.acquiredEntities.update(entity, request),
+    effects: (_, { entity }) => acquiredEntitiesMutationEffects.update(entity.id),
     successMessage: (entity) => `Acquired entity "${entity.name}" updated`,
     errorMessage: 'Failed to update acquired entity',
   });

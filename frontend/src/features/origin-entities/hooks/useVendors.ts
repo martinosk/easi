@@ -51,9 +51,9 @@ export function useCreateVendor() {
 
 export function useUpdateVendor() {
   return useVendorMutation({
-    mutationFn: ({ id, request }: { id: VendorId; request: UpdateVendorRequest }) =>
-      originEntitiesApi.vendors.update(id, request),
-    effects: (_, { id }) => vendorsMutationEffects.update(id),
+    mutationFn: ({ vendor, request }: { vendor: Vendor; request: UpdateVendorRequest }) =>
+      originEntitiesApi.vendors.update(vendor, request),
+    effects: (_, { vendor }) => vendorsMutationEffects.update(vendor.id),
     successMessage: (vendor) => `Vendor "${vendor.name}" updated`,
     errorMessage: 'Failed to update vendor',
   });

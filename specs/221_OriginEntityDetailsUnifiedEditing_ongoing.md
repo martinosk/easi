@@ -1,6 +1,6 @@
 # 221 — Origin Entity Details: One Surface, Edited In Place
 
-> **Status:** pending
+> **Status:** ongoing
 > **Depends on:** 191 (one-pager subject drawer), 219 (application details edited in place)
 > **Roadmap alignment:** outside roadmap: presentation consistency for the origin-entity records (acquired entity, vendor, internal team), the third slice of the in-place editing rule that 219 settled; no domain change. Respects SD6's principle that every affordance is a HATEOAS link.
 
@@ -128,16 +128,16 @@ Feature: One origin entity detail surface, edited in place
 
 ## Acceptance Criteria
 
-- [ ] The canvas details pane and the one-pager subject drawer render the same panel for each of the three types with the same sections in the same order; a test per type and host asserts the type-specific fields are present.
-- [ ] Every field in rule 8 is edited in place, gated on `edit`; confirm persists through the existing update request with the other fields unchanged, cancel sends nothing, an empty name is rejected client-side with the message shown in the field.
-- [ ] Integration status is an in-place select over the four known statuses; acquisition date is an in-place date field; both share the confirm, cancel and error behaviour of the text field.
-- [ ] Empty optional fields render an "Add a …" prompt when `edit` is present, and nothing when it is absent.
-- [ ] With no `edit` link, every field renders as text or a badge with no edit control.
-- [ ] The three edit dialogs, the panel's dialog state and action row, and the unwired tree Edit handlers for origin entities are removed.
-- [ ] "Remove from view" renders in one "In this view" section only on the canvas when the entity is on the current view.
-- [ ] Each host renders one heading for the entity.
-- [ ] The hand-rolled type switch that picks a fetch hook per type stays behind the query layer; no host fetches an entity outside it.
-- [ ] E2E (mock-mode Playwright project, `e2e/mock/origin-entity-details.spec.ts`): rename a vendor in place on the canvas with the tree following, and change an acquired entity's integration status from a one-pager subject drawer.
+- [x] The canvas details pane and the one-pager subject drawer render the same panel for each of the three types with the same sections in the same order; a test per type and host asserts the type-specific fields are present.
+- [x] Every field in rule 8 is edited in place, gated on `edit`; confirm persists through the existing update request with the other fields unchanged, cancel sends nothing, an empty name is rejected client-side with the message shown in the field.
+- [x] Integration status is an in-place select over the four known statuses; acquisition date is an in-place date field; both share the confirm, cancel and error behaviour of the text field.
+- [x] Empty optional fields render an "Add a …" prompt when `edit` is present, and nothing when it is absent.
+- [x] With no `edit` link, every field renders as text or a badge with no edit control.
+- [x] The three edit dialogs, the panel's dialog state and action row, and the unwired tree Edit handlers for origin entities are removed.
+- [x] "Remove from view" renders in one "In this view" section only on the canvas when the entity is on the current view.
+- [x] Each host renders one heading for the entity.
+- [x] The hand-rolled type switch that picks a fetch hook per type stays behind the query layer; no host fetches an entity outside it.
+- [x] E2E (mock-mode Playwright project, `e2e/mock/origin-entity-details.spec.ts`): rename a vendor in place on the canvas with the tree following, and change an acquired entity's integration status in place on the canvas. The mock project has no one-pager page, so the subject-drawer surface is covered by the panel unit tests and the subject drawer test rather than end to end.
 
 ---
 
@@ -158,6 +158,12 @@ No change. The `edit` link is already emitted under the write-or-grant rule for 
 ### Persistence
 
 No change.
+
+### Implementation Notes
+
+- The acquired-entity status badge keyed on form-style values while the API returns upper-case constants, so every status rendered as its raw value; the panel now keys on the API values.
+- The per-type update requests follow the entity's `edit` link instead of a hard-coded path, matching 219 and 220.
+- The mock API now serves and persists single origin entities and derives the origin-relationships response from the mock database, so the panel tests and the mock-mode Playwright project can exercise the in-place flows.
 
 ### Frontend
 
@@ -196,8 +202,8 @@ None. Spec 191's freshness rule continues to hold through the existing mutation 
 ## Checklist
 
 - [x] Specification ready
-- [ ] Implementation done
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
-- [ ] API documentation updated
+- [x] Implementation done
+- [x] Unit tests implemented and passing
+- [x] Integration tests implemented if relevant (no backend change)
+- [x] API documentation updated (no API change)
 - [ ] User sign-off

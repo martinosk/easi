@@ -1,38 +1,7 @@
-import { Badge, Button, Divider, Group, Stack, Text } from '@mantine/core';
+import { Badge, Divider, Group, Stack, Text } from '@mantine/core';
 import React from 'react';
 import type { OriginRelationship } from '../../../api/types';
 import { DetailField } from '../../../components/shared/DetailField';
-
-interface OriginEntityActionsProps {
-  canEdit: boolean;
-  canRemoveFromView: boolean;
-  onEdit: () => void;
-  onRemoveFromView: () => void;
-}
-
-export const OriginEntityActions: React.FC<OriginEntityActionsProps> = ({
-  canEdit,
-  canRemoveFromView,
-  onEdit,
-  onRemoveFromView,
-}) => {
-  if (!canEdit && !canRemoveFromView) return null;
-
-  return (
-    <Group gap="sm">
-      {canEdit && (
-        <Button variant="default" size="xs" onClick={onEdit}>
-          Edit
-        </Button>
-      )}
-      {canRemoveFromView && (
-        <Button variant="default" size="xs" onClick={onRemoveFromView}>
-          Remove from View
-        </Button>
-      )}
-    </Group>
-  );
-};
 
 interface OriginEntityRelationshipsListProps {
   relationships: OriginRelationship[];

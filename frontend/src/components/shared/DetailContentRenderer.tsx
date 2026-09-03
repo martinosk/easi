@@ -15,6 +15,7 @@ import { ComponentDetails } from '../../features/components';
 import {
   AcquiredEntityDetailsPanel,
   InternalTeamDetailsPanel,
+  OriginEntityViewMembershipSection,
   OriginRelationshipDetails,
   VendorDetailsPanel,
 } from '../../features/origin-entities';
@@ -42,13 +43,14 @@ const NodeDetail: React.FC<NodeDetailProps> = ({
   onRemoveFromView,
   onRemoveCapabilityFromView,
 }) => {
+  const viewMembership = <OriginEntityViewMembershipSection entityId={entityId} />;
   switch (entityType) {
     case 'acquired':
-      return <AcquiredEntityDetailsPanel entityId={entityId} />;
+      return <AcquiredEntityDetailsPanel entityId={entityId} viewMembership={viewMembership} />;
     case 'vendor':
-      return <VendorDetailsPanel entityId={entityId} />;
+      return <VendorDetailsPanel entityId={entityId} viewMembership={viewMembership} />;
     case 'team':
-      return <InternalTeamDetailsPanel entityId={entityId} />;
+      return <InternalTeamDetailsPanel entityId={entityId} viewMembership={viewMembership} />;
     case 'capability':
       return <CapabilityDetails onRemoveFromView={onRemoveCapabilityFromView} />;
     default:

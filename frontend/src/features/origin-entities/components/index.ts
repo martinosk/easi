@@ -1,14 +1,9 @@
-export { AcquiredEntityDetails } from './AcquiredEntityDetails';
 export { AcquiredEntityDetailsPanel } from './AcquiredEntityDetailsPanel';
 export { CreateAcquiredEntityDialog } from './CreateAcquiredEntityDialog';
 export { CreateInternalTeamDialog } from './CreateInternalTeamDialog';
 export { CreateVendorDialog } from './CreateVendorDialog';
-export { EditAcquiredEntityDialog } from './EditAcquiredEntityDialog';
-export { EditInternalTeamDialog } from './EditInternalTeamDialog';
-export { EditVendorDialog } from './EditVendorDialog';
-export { InternalTeamDetails } from './InternalTeamDetails';
 export { InternalTeamDetailsPanel } from './InternalTeamDetailsPanel';
 export { OriginEntityDetailsPanel } from './OriginEntityDetailsPanel';
+export { OriginEntityViewMembershipSection } from './OriginEntityViewMembershipSection';
 export { OriginRelationshipDetails } from './OriginRelationshipDetails';
-export { VendorDetails } from './VendorDetails';
 export { VendorDetailsPanel } from './VendorDetailsPanel';

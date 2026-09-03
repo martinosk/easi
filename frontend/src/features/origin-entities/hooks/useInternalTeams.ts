@@ -56,9 +56,9 @@ export function useCreateInternalTeam() {
 
 export function useUpdateInternalTeam() {
   return useTeamMutation({
-    mutationFn: ({ id, request }: { id: InternalTeamId; request: UpdateInternalTeamRequest }) =>
-      originEntitiesApi.internalTeams.update(id, request),
-    effects: (_, { id }) => internalTeamsMutationEffects.update(id),
+    mutationFn: ({ team, request }: { team: InternalTeam; request: UpdateInternalTeamRequest }) =>
+      originEntitiesApi.internalTeams.update(team, request),
+    effects: (_, { team }) => internalTeamsMutationEffects.update(team.id),
     successMessage: (team) => `Internal team "${team.name}" updated`,
     errorMessage: 'Failed to update internal team',
   });
