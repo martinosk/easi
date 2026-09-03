@@ -11,21 +11,3 @@
   color: var(--faint);
   margin-top: var(--spacing-md);
 }
-
-.emptyRealizations {
-  font-size: var(--font-size-sm);
-  color: var(--faint);
-  font-style: italic;
-}
-
-.realizationRow {
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  padding: 8px 10px;
-}
-
-.realizationMeta {
-  font-size: var(--font-size-xs);
-  color: var(--muted);
-  margin-top: 2px;
-}

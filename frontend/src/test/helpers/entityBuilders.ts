@@ -141,7 +141,11 @@ export function buildCapability(overrides: Partial<Capability> = {}): Capability
     description: 'Test capability description',
     level: 'L1' as CapabilityLevel,
     createdAt: '2024-01-01T00:00:00Z',
-    _links: buildLinks(`/api/v1/capabilities/${id}`),
+    _links: {
+      ...buildLinks(`/api/v1/capabilities/${id}`),
+      'x-update-metadata': buildLink(`/api/v1/capabilities/${id}/metadata`, 'PUT'),
+      'x-add-tag': buildLink(`/api/v1/capabilities/${id}/tags`, 'POST'),
+    },
     ...overrides,
   };
 }

@@ -1,8 +1,9 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { toComponentId } from '../../../api/types';
-import { buildBusinessDomain, buildCapabilityRealization, renderWithProviders } from '../../../test/helpers';
+import type { Capability, CapabilityRealization } from '../../../api/types';
+import { toCapabilityId, toComponentId } from '../../../api/types';
+import { buildBusinessDomain, buildCapabilityRealization, renderWithProviders, seedDb } from '../../../test/helpers';
 import { buildCapabilityAt as cap } from '../../../test/helpers/entityBuilders';
 import type {
   RealizationRoleAssignment,
@@ -20,6 +21,7 @@ vi.mock('../../../hooks/useStrategyPillarsSettings', () => ({
 
 vi.mock('../hooks/useStrategyImportance', () => ({
   useStrategyImportanceByDomainAndCapability: () => ({ data: { data: [] }, isLoading: false }),
+  useStrategyImportanceByCapability: () => ({ data: [], isLoading: false }),
   useSetStrategyImportance: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdateStrategyImportance: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useRemoveStrategyImportance: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -109,6 +111,37 @@ function buildAssessment(overrides: Partial<TimeAssessment> = {}): TimeAssessmen
 
 const domain = buildBusinessDomain({ name: 'Ferry Freight' });
 
+function realizationFor(overrides: Partial<CapabilityRealization> = {}): CapabilityRealization {
+  return buildCapabilityRealization({
+    capabilityId: toCapabilityId('l2-a'),
+    componentId: toComponentId('comp-1'),
+    componentName: 'Phoenix',
+    origin: 'Direct',
+    ...overrides,
+  });
+}
+
+interface DrawerOptions {
+  realizations?: CapabilityRealization[];
+  onChipClick?: (componentId: string) => void;
+}
+
+function renderDrawer(capability: Capability | null, { realizations = [], onChipClick = vi.fn() }: DrawerOptions = {}) {
+  seedDb({ capabilities: capability ? [capability] : [], components: [], capabilityRealizations: realizations });
+  return renderWithProviders(
+    <CapabilityDrawer
+      capability={capability}
+      domain={domain}
+      l1Name="Ferry Booking"
+      getRealizationsForCapability={() => realizations}
+      hierarchyJourneys={NO_HIERARCHY_JOURNEYS}
+      onClose={vi.fn()}
+      onChipClick={onChipClick}
+      onNavigateToCapability={vi.fn()}
+    />,
+  );
+}
+
 describe('CapabilityDrawer', () => {
   beforeEach(() => {
     mockGetAssessment.mockReset().mockReturnValue(undefined);
@@ -120,271 +153,151 @@ describe('CapabilityDrawer', () => {
   });
 
   it('renders no capability content when no capability is selected', () => {
-    renderWithProviders(
-      <CapabilityDrawer
-        capability={null}
-        domain={null}
-        l1Name={null}
-        getRealizationsForCapability={() => []}
-        hierarchyJourneys={NO_HIERARCHY_JOURNEYS}
-        onClose={vi.fn()}
-        onChipClick={vi.fn()}
-        onNavigateToCapability={vi.fn()}
-      />,
-    );
+    renderDrawer(null);
 
     expect(screen.queryByRole('heading')).not.toBeInTheDocument();
     expect(screen.queryByText('no realising application mapped')).not.toBeInTheDocument();
   });
 
-  it('renders the breadcrumb, name, level, and empty realisations state', () => {
-    const capability = cap('l2-a', 'Booking Management', 'L2');
-    renderWithProviders(
-      <CapabilityDrawer
-        capability={capability}
-        domain={domain}
-        l1Name="Ferry Booking"
-        getRealizationsForCapability={() => []}
-        hierarchyJourneys={NO_HIERARCHY_JOURNEYS}
-        onClose={vi.fn()}
-        onChipClick={vi.fn()}
-        onNavigateToCapability={vi.fn()}
-      />,
-    );
+  it('renders the breadcrumb, the shared panel with one heading, and the empty realisations state', async () => {
+    renderDrawer(cap('l2-a', 'Booking Management', 'L2'));
 
+    expect(await screen.findByRole('heading', { name: 'Booking Management' })).toBeInTheDocument();
     expect(screen.getByTestId('capability-drawer')).toHaveTextContent('Ferry Freight');
     expect(screen.getByTestId('capability-drawer')).toHaveTextContent('Ferry Booking');
-    expect(screen.getByRole('heading', { name: 'Booking Management' })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { name: 'Booking Management' })).toHaveLength(1);
     expect(screen.getByText('L2')).toBeInTheDocument();
     expect(screen.getByText('no realising application mapped')).toBeInTheDocument();
+    expect(screen.queryByText('Capability Details')).not.toBeInTheDocument();
   });
 
-  it('renders a row per realising application with level, origin note, and notes', () => {
-    const capability = cap('l2-a', 'Booking Management', 'L2');
-    const realizations = [
-      buildCapabilityRealization({
-        componentId: toComponentId('comp-1'),
-        componentName: 'Phoenix',
-        realizationLevel: 'Full',
-        origin: 'Direct',
-        notes: 'Primary booking engine',
-      }),
-      buildCapabilityRealization({
-        componentId: toComponentId('comp-2'),
-        componentName: 'Seabook',
-        realizationLevel: 'Partial',
-        origin: 'Inherited',
-        sourceCapabilityName: 'Ferry Booking',
-      }),
-    ];
+  it('never offers a whole-record Edit action', async () => {
+    renderDrawer(cap('l2-a', 'Booking Management', 'L2'));
 
-    renderWithProviders(
-      <CapabilityDrawer
-        capability={capability}
-        domain={domain}
-        l1Name="Ferry Booking"
-        getRealizationsForCapability={() => realizations}
-        hierarchyJourneys={NO_HIERARCHY_JOURNEYS}
-        onClose={vi.fn()}
-        onChipClick={vi.fn()}
-        onNavigateToCapability={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByTestId('drawer-realization-real-1')).toHaveTextContent('Primary booking engine');
-    expect(screen.getByTestId('drawer-realization-real-2')).toHaveTextContent('Inherited from Ferry Booking');
+    await screen.findByRole('heading', { name: 'Booking Management' });
+    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Edit name' })).toBeInTheDocument();
   });
 
-  it('calls onChipClick when a realising application chip is clicked', async () => {
-    const capability = cap('l2-a', 'Booking Management', 'L2');
-    const onChipClick = vi.fn();
-    const realizations = [
-      buildCapabilityRealization({ componentId: toComponentId('comp-1'), componentName: 'Phoenix' }),
-    ];
+  it('renders the journey and strategic importance sections above the capability fields', async () => {
+    renderDrawer(cap('l2-a', 'Booking Management', 'L2'));
 
-    renderWithProviders(
-      <CapabilityDrawer
-        capability={capability}
-        domain={domain}
-        l1Name="Ferry Booking"
-        getRealizationsForCapability={() => realizations}
-        hierarchyJourneys={NO_HIERARCHY_JOURNEYS}
-        onClose={vi.fn()}
-        onChipClick={onChipClick}
-        onNavigateToCapability={vi.fn()}
-      />,
-    );
-
-    await userEvent.click(screen.getByTestId('app-chip-comp-1'));
-
-    expect(onChipClick).toHaveBeenCalledWith('comp-1');
-  });
-
-  it('renders the journey section after the realising applications', () => {
-    const capability = cap('l2-a', 'Booking Management', 'L2');
-    renderWithProviders(
-      <CapabilityDrawer
-        capability={capability}
-        domain={domain}
-        l1Name="Ferry Booking"
-        getRealizationsForCapability={() => []}
-        hierarchyJourneys={NO_HIERARCHY_JOURNEYS}
-        onClose={vi.fn()}
-        onChipClick={vi.fn()}
-        onNavigateToCapability={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByTestId('journey-section')).toBeInTheDocument();
+    const heading = await screen.findByRole('heading', { name: 'Booking Management' });
+    const journey = screen.getByTestId('journey-section');
+    expect(journey.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByText('Transition')).toBeInTheDocument();
     expect(screen.getByText('No change planned.')).toBeInTheDocument();
   });
 
-  it('renders description, tags and owners under Details', () => {
-    const capability = {
+  it('renders a row per realising application with level, origin note, and notes', async () => {
+    renderDrawer(cap('l2-a', 'Booking Management', 'L2'), {
+      realizations: [
+        realizationFor({ realizationLevel: 'Full', notes: 'Primary booking engine' }),
+        realizationFor({
+          componentId: toComponentId('comp-2'),
+          componentName: 'Seabook',
+          realizationLevel: 'Partial',
+          origin: 'Inherited',
+          sourceCapabilityName: 'Ferry Booking',
+        }),
+      ],
+    });
+
+    const rows = await screen.findAllByTestId(/^drawer-realization-/);
+    expect(rows[0]).toHaveTextContent('Primary booking engine');
+    expect(rows[1]).toHaveTextContent('Inherited from Ferry Booking');
+  });
+
+  it('calls onChipClick when a realising application chip is clicked', async () => {
+    const onChipClick = vi.fn();
+    renderDrawer(cap('l2-a', 'Booking Management', 'L2'), { realizations: [realizationFor()], onChipClick });
+
+    await userEvent.click(await screen.findByTestId('app-chip-comp-1'));
+
+    expect(onChipClick).toHaveBeenCalledWith('comp-1');
+  });
+
+  it('renders description, tags and owners', async () => {
+    renderDrawer({
       ...cap('l2-a', 'Booking Management', 'L2'),
       description: 'Handles route bookings',
       primaryOwner: 'Jane Doe',
       tags: ['core', 'freight'],
-    };
+    });
 
-    renderWithProviders(
-      <CapabilityDrawer
-        capability={capability}
-        domain={domain}
-        l1Name="Ferry Booking"
-        getRealizationsForCapability={() => []}
-        hierarchyJourneys={NO_HIERARCHY_JOURNEYS}
-        onClose={vi.fn()}
-        onChipClick={vi.fn()}
-        onNavigateToCapability={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByText('Handles route bookings')).toBeInTheDocument();
+    expect(await screen.findByText('Handles route bookings')).toBeInTheDocument();
     expect(screen.getByText('Jane Doe')).toBeInTheDocument();
     expect(screen.getByText('core')).toBeInTheDocument();
     expect(screen.getByText('freight')).toBeInTheDocument();
   });
 
-  it('renders the EA owner display name instead of the stored user id', () => {
-    const capability = {
+  it('renders the EA owner display name instead of the stored user id', async () => {
+    renderDrawer({
       ...cap('l2-a', 'Booking Management', 'L2'),
       eaOwner: '2ec46b70-63b3-4d6d-92f0-1d385f9d4c4b',
       eaOwnerName: 'Alice Smith',
-    };
+    });
 
-    renderWithProviders(
-      <CapabilityDrawer
-        capability={capability}
-        domain={domain}
-        l1Name="Ferry Booking"
-        getRealizationsForCapability={() => []}
-        hierarchyJourneys={NO_HIERARCHY_JOURNEYS}
-        onClose={vi.fn()}
-        onChipClick={vi.fn()}
-        onNavigateToCapability={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByText('Alice Smith')).toBeInTheDocument();
+    expect(await screen.findByText('Alice Smith')).toBeInTheDocument();
     expect(screen.queryByText('2ec46b70-63b3-4d6d-92f0-1d385f9d4c4b')).not.toBeInTheDocument();
   });
 
-  it('falls back to the stored EA owner value when no display name is provided', () => {
-    const capability = {
-      ...cap('l2-a', 'Booking Management', 'L2'),
-      eaOwner: 'Bob Jones',
-    };
+  it('falls back to the stored EA owner value when no display name is provided', async () => {
+    renderDrawer({ ...cap('l2-a', 'Booking Management', 'L2'), eaOwner: 'Bob Jones' });
 
-    renderWithProviders(
-      <CapabilityDrawer
-        capability={capability}
-        domain={domain}
-        l1Name="Ferry Booking"
-        getRealizationsForCapability={() => []}
-        hierarchyJourneys={NO_HIERARCHY_JOURNEYS}
-        onClose={vi.fn()}
-        onChipClick={vi.fn()}
-        onNavigateToCapability={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByText('Bob Jones')).toBeInTheDocument();
+    expect(await screen.findByText('Bob Jones')).toBeInTheDocument();
   });
 
   describe('TIME assessment on a Direct realising application', () => {
-    function renderAssessmentDrawer(
-      realizationOverrides: Partial<Parameters<typeof buildCapabilityRealization>[0]> = {},
-    ) {
-      const capability = cap('l2-a', 'Booking Management', 'L2');
-      const realizations = [
-        buildCapabilityRealization({
-          componentId: toComponentId('comp-1'),
-          componentName: 'Phoenix',
-          origin: 'Direct',
-          ...realizationOverrides,
-        }),
-      ];
-
-      renderWithProviders(
-        <CapabilityDrawer
-          capability={capability}
-          domain={domain}
-          l1Name="Ferry Booking"
-          getRealizationsForCapability={() => realizations}
-          hierarchyJourneys={NO_HIERARCHY_JOURNEYS}
-          onClose={vi.fn()}
-          onChipClick={vi.fn()}
-          onNavigateToCapability={vi.fn()}
-        />,
-      );
+    function renderAssessmentDrawer(realizationOverrides: Partial<CapabilityRealization> = {}) {
+      renderDrawer(cap('l2-a', 'Booking Management', 'L2'), { realizations: [realizationFor(realizationOverrides)] });
     }
 
-    it('shows the current grade, assessor, and date for an assessed realization', () => {
+    it('shows the current grade, assessor, and date for an assessed realization', async () => {
       mockGetAssessment.mockReturnValue(buildAssessment());
 
       renderAssessmentDrawer();
 
-      expect(screen.getByTestId('assessment-comp-1')).toHaveTextContent('Migrate — for this capability');
+      expect(await screen.findByTestId('assessment-comp-1')).toHaveTextContent('Migrate — for this capability');
       expect(screen.getByTestId('assessment-comp-1')).toHaveTextContent('Domain Architect');
     });
 
-    it('shows an explicit unassessed state for a Direct realization with no assessment', () => {
+    it('shows an explicit unassessed state for a Direct realization with no assessment', async () => {
       renderAssessmentDrawer();
 
-      expect(screen.getByTestId('assessment-comp-1')).toHaveTextContent('unassessed');
+      expect(await screen.findByTestId('assessment-comp-1')).toHaveTextContent('unassessed');
     });
 
-    it('shows the stale marker and landscape rollup line for an assessed realization', () => {
+    it('shows the stale marker and landscape rollup line for an assessed realization', async () => {
       mockGetAssessment.mockReturnValue(buildAssessment({ stale: true }));
       mockGetRollup.mockReturnValue({ Invest: 1, Tolerate: 1, Migrate: 1, Eliminate: 1 });
 
       renderAssessmentDrawer();
 
-      expect(screen.getByTestId('assessment-stale-comp-1')).toHaveTextContent('stale');
+      expect(await screen.findByTestId('assessment-stale-comp-1')).toHaveTextContent('stale');
       expect(screen.getByTestId('assessment-rollup-comp-1')).toHaveTextContent(
         'Across landscape: I×1 · T×1 · M×1 · E×1',
       );
     });
 
-    it('shows no assess/remove control for a read-only caller with no write links', () => {
+    it('shows no assess/remove control for a read-only caller with no write links', async () => {
       mockGetAssessment.mockReturnValue(buildAssessment({ _links: { self: { href: '', method: 'GET' } } }));
       mockCanAssess = false;
 
       renderAssessmentDrawer();
 
-      expect(screen.getByTestId('assessment-comp-1')).toBeInTheDocument();
+      expect(await screen.findByTestId('assessment-comp-1')).toBeInTheDocument();
       expect(screen.queryByTestId('reassess-btn-comp-1')).not.toBeInTheDocument();
       expect(screen.queryByTestId('remove-assessment-btn-comp-1')).not.toBeInTheDocument();
       expect(screen.queryByTestId('assess-btn-comp-1')).not.toBeInTheDocument();
     });
 
-    it('shows no assessment UI at all for an Inherited realization', () => {
+    it('shows no assessment UI at all for an Inherited realization', async () => {
       mockGetAssessment.mockReturnValue(buildAssessment());
 
       renderAssessmentDrawer({ origin: 'Inherited', sourceCapabilityName: 'Ferry Booking' });
 
+      await screen.findByTestId('app-chip-comp-1');
       expect(screen.queryByTestId('assessment-comp-1')).not.toBeInTheDocument();
     });
 
@@ -399,7 +312,7 @@ describe('CapabilityDrawer', () => {
 
       renderAssessmentDrawer();
 
-      expect(screen.getByTestId('assessment-suggestion-comp-1')).toHaveTextContent('Suggested: Eliminate');
+      expect(await screen.findByTestId('assessment-suggestion-comp-1')).toHaveTextContent('Suggested: Eliminate');
 
       await userEvent.click(screen.getByTestId('assess-btn-comp-1'));
 
@@ -409,61 +322,42 @@ describe('CapabilityDrawer', () => {
   });
 
   describe('Realization role on a Direct realising application', () => {
-    function renderRoleDrawer(realizationOverrides: Partial<Parameters<typeof buildCapabilityRealization>[0]> = {}) {
-      const capability = cap('l2-a', 'Booking Management', 'L2');
-      const realizations = [
-        buildCapabilityRealization({
-          componentId: toComponentId('comp-1'),
-          componentName: 'Phoenix',
-          origin: 'Direct',
-          ...realizationOverrides,
-        }),
-      ];
-
-      renderWithProviders(
-        <CapabilityDrawer
-          capability={capability}
-          domain={domain}
-          l1Name="Ferry Booking"
-          getRealizationsForCapability={() => realizations}
-          hierarchyJourneys={NO_HIERARCHY_JOURNEYS}
-          onClose={vi.fn()}
-          onChipClick={vi.fn()}
-          onNavigateToCapability={vi.fn()}
-        />,
-      );
+    function renderRoleDrawer(realizationOverrides: Partial<CapabilityRealization> = {}) {
+      renderDrawer(cap('l2-a', 'Booking Management', 'L2'), { realizations: [realizationFor(realizationOverrides)] });
     }
 
-    it('shows the current role badge for a classified Direct realization', () => {
+    it('shows the current role badge for a classified Direct realization', async () => {
       mockGetRole.mockReturnValue(buildRole({ role: 'standard' }));
 
       renderRoleDrawer();
 
-      expect(screen.getByTestId('role-badge-comp-1')).toHaveTextContent('standard');
+      expect(await screen.findByTestId('role-badge-comp-1')).toHaveTextContent('standard');
     });
 
-    it('shows no role UI for an unclassified realization when the caller cannot assign', () => {
+    it('shows no role UI for an unclassified realization when the caller cannot assign', async () => {
       mockCanAssign = false;
 
       renderRoleDrawer();
 
+      await screen.findByTestId('app-chip-comp-1');
       expect(screen.queryByTestId('role-comp-1')).not.toBeInTheDocument();
     });
 
-    it('shows assign controls for an unclassified realization when the caller can assign', () => {
+    it('shows assign controls for an unclassified realization when the caller can assign', async () => {
       mockCanAssign = true;
 
       renderRoleDrawer();
 
-      expect(screen.getByTestId('assign-standard-btn-comp-1')).toBeInTheDocument();
+      expect(await screen.findByTestId('assign-standard-btn-comp-1')).toBeInTheDocument();
       expect(screen.getByTestId('assign-legacy-btn-comp-1')).toBeInTheDocument();
     });
 
-    it('shows no role UI at all for an Inherited realization', () => {
+    it('shows no role UI at all for an Inherited realization', async () => {
       mockGetRole.mockReturnValue(buildRole({ role: 'standard' }));
 
       renderRoleDrawer({ origin: 'Inherited', sourceCapabilityName: 'Ferry Booking' });
 
+      await screen.findByTestId('app-chip-comp-1');
       expect(screen.queryByTestId('role-comp-1')).not.toBeInTheDocument();
       expect(screen.queryByTestId('role-badge-comp-1')).not.toBeInTheDocument();
     });

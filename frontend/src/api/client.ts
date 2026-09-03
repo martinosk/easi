@@ -6,7 +6,6 @@ import { viewsApi } from '../features/views/api';
 import { metadataApi } from './metadata';
 import type {
   AddCapabilityExpertRequest,
-  AddCapabilityTagRequest,
   AddCapabilityToViewRequest,
   AddComponentToViewRequest,
   AssociateCapabilityRequest,
@@ -35,7 +34,6 @@ import type {
   RenameViewRequest,
   StatusOption,
   UpdateBusinessDomainRequest,
-  UpdateCapabilityMetadataRequest,
   UpdateCapabilityRequest,
   UpdateMultiplePositionsRequest,
   UpdatePositionRequest,
@@ -200,16 +198,8 @@ class ApiClient {
     return capabilitiesApi.update(capability, request);
   }
 
-  async updateCapabilityMetadata(id: CapabilityId, request: UpdateCapabilityMetadataRequest): Promise<Capability> {
-    return capabilitiesApi.updateMetadata(id, request);
-  }
-
   async addCapabilityExpert(id: CapabilityId, request: AddCapabilityExpertRequest): Promise<void> {
     return capabilitiesApi.addExpert(id, request);
-  }
-
-  async addCapabilityTag(id: CapabilityId, request: AddCapabilityTagRequest): Promise<void> {
-    return capabilitiesApi.addTag(id, request);
   }
 
   async deleteCapability(capability: Capability): Promise<void> {
@@ -333,7 +323,6 @@ class ApiClient {
   ): Promise<CapabilityRealizationsGroup[]> {
     return businessDomainsApi.getCapabilityRealizations(domainId, depth);
   }
-
 }
 
 export const apiClient = new ApiClient();

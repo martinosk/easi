@@ -6,7 +6,6 @@ import {
   IconLayoutSidebarRightExpand,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
-import type { Capability } from '../../api/types';
 import { ComponentCanvas, type ComponentCanvasRef } from '../../features/canvas';
 import { CANVAS_COMMANDS_SLOT_ID } from '../../features/canvas/components/CanvasCommandsPortal';
 import { NavigationTree } from '../../features/navigation';
@@ -140,7 +139,6 @@ interface CanvasWorkspaceProps {
   onOriginEntitySelect?: (nodeId: string) => void;
   onViewSelect: (viewId: string) => Promise<void>;
   onEditRelation: () => void;
-  onEditCapability: (capability: Capability) => void;
   onRemoveFromView: () => void;
 }
 
@@ -163,7 +161,7 @@ function ExplorerPane({ props, onCollapse }: { props: CanvasWorkspaceProps; onCo
           onViewSelect={props.onViewSelect}
           onAddComponent={props.onAddComponent}
           onAddCapability={props.onAddCapability}
-          onEditCapability={props.onEditCapability}
+          onEditCapability={(capability) => props.onCapabilitySelect(capability.id)}
           onEditComponent={props.onComponentSelect}
           canCreateView={props.canCreateView}
           canCreateOriginEntity={props.canCreateOriginEntity}

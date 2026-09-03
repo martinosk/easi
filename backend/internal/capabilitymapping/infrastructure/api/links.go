@@ -41,7 +41,9 @@ func (h *CapabilityMappingLinks) capabilityBaseForActor(id string, actor sharedc
 		ArtifactID:   id,
 		EditLink:     h.Put(p),
 		ExtraWrite: map[string]types.Link{
-			"x-add-expert": h.Post(p + "/experts"),
+			"x-add-expert":      h.Post(p + "/experts"),
+			"x-update-metadata": h.Put(p + "/metadata"),
+			"x-add-tag":         h.Post(p + "/tags"),
 		},
 	})
 	if actor.CanDelete("capabilities") {

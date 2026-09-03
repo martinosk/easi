@@ -55,7 +55,6 @@ export default function CanvasContainer() {
       onOriginEntitySelect={navigateToOriginEntity}
       onViewSelect={async (id) => switchView(id as ViewId)}
       onEditRelation={dialogActions.openEditRelationDialog}
-      onEditCapability={dialogActions.openEditCapabilityDialog}
       onRemoveFromView={handleRemoveFromView}
     />
   );

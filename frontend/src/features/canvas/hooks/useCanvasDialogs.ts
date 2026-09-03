@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import type { Capability, Relation } from '../../../api/types';
+import type { Relation } from '../../../api/types';
 import { useDialogContext } from '../../../contexts/dialogs';
 
 export interface CanvasDialogActions {
@@ -7,7 +7,6 @@ export interface CanvasDialogActions {
   openCapabilityDialog: () => void;
   openRelationDialog: (sourceId: string, targetId: string) => void;
   openEditRelationDialog: () => void;
-  openEditCapabilityDialog: (capability: Capability) => void;
   openReleaseNotesBrowser: () => void;
 }
 
@@ -36,13 +35,6 @@ export function useCanvasDialogs(selectedEdgeId: string | null, relations: Relat
     }
   }, [openDialog, relations, selectedEdgeId]);
 
-  const openEditCapabilityDialog = useCallback(
-    (capability: Capability) => {
-      openDialog('edit-capability', { capability });
-    },
-    [openDialog],
-  );
-
   const openReleaseNotesBrowser = useCallback(() => {
     openDialog('release-notes-browser');
   }, [openDialog]);
@@ -52,7 +44,6 @@ export function useCanvasDialogs(selectedEdgeId: string | null, relations: Relat
     openCapabilityDialog,
     openRelationDialog,
     openEditRelationDialog,
-    openEditCapabilityDialog,
     openReleaseNotesBrowser,
   };
 }

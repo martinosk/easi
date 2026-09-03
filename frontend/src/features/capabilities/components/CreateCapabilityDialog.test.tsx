@@ -337,7 +337,7 @@ describe('CreateCapabilityDialog', () => {
 
       await waitFor(() => {
         expect(mockUpdateMetadataMutateAsync).toHaveBeenCalledWith({
-          id: 'cap-1',
+          capability: mockCapability,
           request: {
             status: 'Active',
             maturityValue: 12,
@@ -513,9 +513,7 @@ describe('CreateCapabilityDialog', () => {
       mockCreateMutateAsync.mockResolvedValueOnce({ id: 'cap-1', name: 'Child', level: 'L2' });
       mockUpdateMetadataMutateAsync.mockResolvedValueOnce({});
 
-      renderWithProviders(
-        <CreateCapabilityDialog isOpen onClose={mockOnClose} prefill={{ level: 'L2' }} />,
-      );
+      renderWithProviders(<CreateCapabilityDialog isOpen onClose={mockOnClose} prefill={{ level: 'L2' }} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('capability-status-select')).not.toBeDisabled();
@@ -530,9 +528,7 @@ describe('CreateCapabilityDialog', () => {
       fireEvent.click(screen.getByTestId('create-capability-submit'));
 
       await waitFor(() => {
-        expect(mockCreateMutateAsync).toHaveBeenCalledWith(
-          expect.objectContaining({ level: 'L2' }),
-        );
+        expect(mockCreateMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ level: 'L2' }));
       });
     });
   });
@@ -544,9 +540,7 @@ describe('CreateCapabilityDialog', () => {
       mockUpdateMetadataMutateAsync.mockResolvedValueOnce({});
       const onCreated = vi.fn();
 
-      renderWithProviders(
-        <CreateCapabilityDialog isOpen onClose={mockOnClose} onCreated={onCreated} />,
-      );
+      renderWithProviders(<CreateCapabilityDialog isOpen onClose={mockOnClose} onCreated={onCreated} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('capability-status-select')).not.toBeDisabled();

@@ -13,6 +13,11 @@ export const capabilityDescriptionSchema = z
   .max(1000, 'Description must be 1000 characters or less')
   .transform((val) => val.trim());
 
+export const capabilityPrimaryOwnerSchema = z
+  .string()
+  .max(200, 'Primary owner must be 200 characters or less')
+  .transform((val) => val.trim());
+
 const DEFAULT_MATURITY_BOUNDS: MaturityBounds = { min: 0, max: 99 };
 
 export function createCapabilitySchema(bounds: MaturityBounds = DEFAULT_MATURITY_BOUNDS) {
@@ -25,20 +30,6 @@ export function createCapabilitySchema(bounds: MaturityBounds = DEFAULT_MATURITY
 }
 
 export type CreateCapabilityFormData = z.infer<ReturnType<typeof createCapabilitySchema>>;
-
-export function editCapabilitySchema(bounds: MaturityBounds = DEFAULT_MATURITY_BOUNDS) {
-  return z.object({
-    name: capabilityNameSchema,
-    description: capabilityDescriptionSchema,
-    status: z.string().min(1),
-    maturityValue: z.number().min(bounds.min).max(bounds.max),
-    ownershipModel: z.string().transform((val) => val.trim()),
-    primaryOwner: z.string().transform((val) => val.trim()),
-    eaOwner: z.string(),
-  });
-}
-
-export type EditCapabilityFormData = z.infer<ReturnType<typeof editCapabilitySchema>>;
 
 export const addTagSchema = z.object({
   tag: z

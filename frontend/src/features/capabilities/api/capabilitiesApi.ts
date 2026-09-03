@@ -45,8 +45,8 @@ export const capabilitiesApi = {
     return response.data;
   },
 
-  async updateMetadata(id: CapabilityId, request: UpdateCapabilityMetadataRequest): Promise<Capability> {
-    const response = await httpClient.put<Capability>(`/api/v1/capabilities/${id}/metadata`, request);
+  async updateMetadata(capability: Capability, request: UpdateCapabilityMetadataRequest): Promise<Capability> {
+    const response = await httpClient.put<Capability>(followLink(capability, 'x-update-metadata'), request);
     return response.data;
   },
 
@@ -68,8 +68,8 @@ export const capabilitiesApi = {
     return response.data.roles || [];
   },
 
-  async addTag(id: CapabilityId, request: AddCapabilityTagRequest): Promise<void> {
-    await httpClient.post(`/api/v1/capabilities/${id}/tags`, request);
+  async addTag(capability: Capability, request: AddCapabilityTagRequest): Promise<void> {
+    await httpClient.post(followLink(capability, 'x-add-tag'), request);
   },
 
   async delete(capability: Capability): Promise<void> {

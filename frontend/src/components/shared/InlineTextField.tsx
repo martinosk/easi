@@ -1,8 +1,8 @@
-import { ActionIcon, Button, Group, Text, Textarea, TextInput, Title } from '@mantine/core';
-import { IconCheck, IconPencil, IconX } from '@tabler/icons-react';
+import { Group, Text, Textarea, TextInput, Title } from '@mantine/core';
 import React, { useState } from 'react';
 import type { ZodType } from 'zod';
 import { DetailField } from './DetailField';
+import { InlineEditButton, InlineEmptyPrompt, InlineFieldActions, useInlineCommit } from './InlineFieldChrome';
 import classes from './InlineTextField.module.css';
 
 export interface InlineTextFieldProps {
@@ -33,29 +33,13 @@ function isConfirmKey(event: React.KeyboardEvent, multiline: boolean): boolean {
 
 function Editor({ initialValue, multiline, schema, testId, onSave, onDone }: EditorProps) {
   const [draft, setDraft] = useState(initialValue);
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  const confirm = async () => {
-    const parsed = schema.safeParse(draft);
-    if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? 'Invalid value');
-      return;
-    }
-    if (parsed.data === initialValue) {
-      onDone();
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    try {
-      await onSave(parsed.data);
-      onDone();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save');
-      setSaving(false);
-    }
+  const parse = (value: string): { ok: true; value: string } | { ok: false; message: string } => {
+    const parsed = schema.safeParse(value);
+    return parsed.success
+      ? { ok: true, value: parsed.data }
+      : { ok: false, message: parsed.error.issues[0]?.message ?? 'Invalid value' };
   };
+  const { error, saving, commit } = useInlineCommit({ initialValue, parse, onSave, onDone });
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'Escape') {
@@ -63,7 +47,7 @@ function Editor({ initialValue, multiline, schema, testId, onSave, onDone }: Edi
       onDone();
     } else if (isConfirmKey(event, multiline)) {
       event.preventDefault();
-      void confirm();
+      void commit(draft);
     }
   };
 
@@ -83,18 +67,7 @@ function Editor({ initialValue, multiline, schema, testId, onSave, onDone }: Edi
       <div className={classes.grow}>
         {multiline ? <Textarea {...inputProps} autosize minRows={2} /> : <TextInput {...inputProps} />}
       </div>
-      <ActionIcon
-        variant="filled"
-        aria-label="Save"
-        loading={saving}
-        onClick={() => void confirm()}
-        data-testid={`${testId}-save`}
-      >
-        <IconCheck size={16} stroke={1.75} />
-      </ActionIcon>
-      <ActionIcon variant="default" aria-label="Cancel" disabled={saving} onClick={onDone} data-testid={`${testId}-cancel`}>
-        <IconX size={16} stroke={1.75} />
-      </ActionIcon>
+      <InlineFieldActions testId={testId} saving={saving} onConfirm={() => void commit(draft)} onCancel={onDone} />
     </Group>
   );
 }
@@ -120,11 +93,7 @@ function ReadView({ value, heading, canEdit, editLabel, testId, onEdit }: ReadVi
           {value}
         </Text>
       )}
-      {canEdit && (
-        <ActionIcon variant="subtle" aria-label={editLabel} onClick={onEdit} data-testid={`${testId}-edit`}>
-          <IconPencil size={16} stroke={1.75} />
-        </ActionIcon>
-      )}
+      {canEdit && <InlineEditButton testId={testId} editLabel={editLabel} onEdit={onEdit} />}
     </Group>
   );
 }
@@ -154,9 +123,7 @@ export function InlineTextField({
       onDone={() => setEditing(false)}
     />
   ) : !value ? (
-    <Button variant="subtle" size="compact-sm" onClick={() => setEditing(true)} data-testid={`${testId}-edit`}>
-      {emptyPrompt ?? editLabel}
-    </Button>
+    <InlineEmptyPrompt testId={testId} prompt={emptyPrompt ?? editLabel} onEdit={() => setEditing(true)} />
   ) : (
     <ReadView
       value={value}

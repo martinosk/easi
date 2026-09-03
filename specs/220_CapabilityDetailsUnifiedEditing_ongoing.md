@@ -1,6 +1,6 @@
 # 220 — Capability Details: One Surface, Edited In Place
 
-> **Status:** pending
+> **Status:** ongoing
 > **Depends on:** 042 (capability UI consistency), 096 (maturity slider), 114 (capability experts), 191 (one-pager subject drawer), 200 (EA owner name display), 219 (application details edited in place)
 > **Roadmap alignment:** outside roadmap: presentation consistency for the capability record, the second slice of the in-place editing rule that 219 settled for applications; no domain change. Respects SD6's principle that every affordance is a HATEOAS link.
 
@@ -153,18 +153,18 @@ Feature: One capability detail surface, edited in place
 
 ## Acceptance Criteria
 
-- [ ] The canvas details pane, the Business Domains drawer and the one-pager subject drawer render the same panel component with the same sections in the same order; a test per host asserts the status and experts sections are present.
-- [ ] Name and description are edited in place, gated on `edit`; confirm persists through the existing update request, cancel sends nothing, an empty name is rejected client-side with the message shown in the field.
-- [ ] Status, maturity, ownership model, primary owner and EA owner are edited in place, gated on `x-update-metadata`; each commit sends the full current metadata set with one field changed; a server rejection keeps the field open with the server's message.
-- [ ] Tags are added in place, gated on `x-add-tag`; the add-tag dialog is removed.
-- [ ] With none of the links present, every field renders as text or a badge with no edit control.
-- [ ] The capability edit dialog, its form fields, its form hook, the `edit-capability` dialog type, the canvas dialog opener and every Edit button (canvas pane, subject drawer panel, Business Domains drawer) are removed; the tree context-menu "Edit" selects the capability.
-- [ ] Custom colour and "Remove from view" render in one "In this view" section only on the canvas when the capability is on the current view.
-- [ ] The Business Domains drawer renders the shared panel plus its journeys and strategic importance sections; its bespoke details section is removed.
-- [ ] The realising-applications section, with link-gated assessment and role controls, renders on every host.
-- [ ] Exactly one experts list is mounted per open panel; each host renders one heading for the capability.
-- [ ] Backend: the capability resource carries `x-update-metadata` and `x-add-tag` when the actor may write or holds an edit grant, and neither otherwise; link tests cover both cases.
-- [ ] E2E (mock-mode Playwright project, `e2e/mock/capability-details.spec.ts`): rename in place on the canvas with the tree following, and change status from a domain board drawer with the canvas pane reflecting it.
+- [x] The canvas details pane, the Business Domains drawer and the one-pager subject drawer render the same panel component with the same sections in the same order; a test per host asserts the status and experts sections are present.
+- [x] Name and description are edited in place, gated on `edit`; confirm persists through the existing update request, cancel sends nothing, an empty name is rejected client-side with the message shown in the field.
+- [x] Status, maturity, ownership model, primary owner and EA owner are edited in place, gated on `x-update-metadata`; each commit sends the full current metadata set with one field changed; a server rejection keeps the field open with the server's message.
+- [x] Tags are added in place, gated on `x-add-tag`; the add-tag dialog is removed.
+- [x] With none of the links present, every field renders as text or a badge with no edit control.
+- [x] The capability edit dialog, its form fields, its form hook, the `edit-capability` dialog type, the canvas dialog opener and every Edit button (canvas pane, subject drawer panel, Business Domains drawer) are removed; the tree context-menu "Edit" selects the capability.
+- [x] Custom colour and "Remove from view" render in one "In this view" section only on the canvas when the capability is on the current view.
+- [x] The Business Domains drawer renders the shared panel plus its journeys and strategic importance sections; its bespoke details section is removed.
+- [x] The realising-applications section, with link-gated assessment and role controls, renders on every host.
+- [x] Exactly one experts list is mounted per open panel; each host renders one heading for the capability.
+- [x] Backend: the capability resource carries `x-update-metadata` and `x-add-tag` when the actor may write or holds an edit grant, and neither otherwise; link tests cover both cases.
+- [x] E2E (mock-mode Playwright project, `e2e/mock/capability-details.spec.ts`): rename in place on the canvas with the tree following, and change status from a domain board drawer with the canvas pane reflecting it.
 
 ---
 
@@ -192,6 +192,12 @@ Both endpoints already exist and already sit behind the matching authorisation m
 ### Persistence
 
 No change.
+
+### Implementation Notes
+
+- The mock API persists capability, metadata and tag writes so the mock-mode Playwright project can exercise the in-place flows; test capability builders carry the two new links by default.
+- In jsdom the Mantine select popover is hidden immediately after it opens, so panel tests pick options through the combobox option attribute rather than the option role.
+- Both mock-mode Playwright scenarios ran green in the implementation environment; they are marked slow because the first page load pays the Vite cold compile, and the status scenario navigates in-app because a reload re-seeds the mock data.
 
 ### Frontend
 
@@ -235,8 +241,8 @@ None. Spec 191's freshness rule continues to hold through the existing mutation 
 ## Checklist
 
 - [x] Specification ready
-- [ ] Implementation done
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
-- [ ] API documentation updated
+- [x] Implementation done
+- [x] Unit tests implemented and passing
+- [x] Integration tests implemented if relevant (link unit tests; no handler change)
+- [x] API documentation updated (links only, no annotation change)
 - [ ] User sign-off

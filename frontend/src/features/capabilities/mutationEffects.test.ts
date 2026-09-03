@@ -29,4 +29,3 @@ describe('capabilitiesMutationEffects one-pager freshness', () => {
     );
   });
 });
-

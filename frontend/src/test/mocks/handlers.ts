@@ -1,6 +1,8 @@
 import { HttpResponse, http } from 'msw';
-import type { Component } from '../../api/types';
+import type { Capability, Component } from '../../api/types';
 import { toCapabilityId, toComponentId, toViewId } from '../../api/types';
+import { assistantStatusHandlers } from './assistantStatus';
+import { componentStatisticsHandlers } from './componentStatistics';
 import {
   addCapability,
   addComponent,
@@ -16,12 +18,11 @@ import {
   getRelations,
   getView,
   getViews,
+  updateCapability,
   updateComponent,
   updateView,
 } from './db';
-import { assistantStatusHandlers } from './assistantStatus';
 import { onePagerCompletenessHandlers } from './onePagerCompleteness';
-import { componentStatisticsHandlers } from './componentStatistics';
 import { spec180Handlers } from './spec180/handlers';
 import { spec181Handlers } from './spec181/handlers';
 import { spec182Handlers } from './spec182/handlers';
@@ -139,23 +140,31 @@ export const handlers = [
   }),
 
   http.put(`${BASE_URL}/api/v1/capabilities/:id`, async ({ params, request }) => {
-    const capability = getCapability(toCapabilityId(params.id as string));
-    if (!capability) {
+    const body = (await request.json()) as Partial<Capability>;
+    const updated = updateCapability(toCapabilityId(params.id as string), body);
+    if (!updated) {
       return new HttpResponse(null, { status: 404 });
     }
-    const body = (await request.json()) as Record<string, unknown>;
-    const updated = { ...capability, ...body };
     return HttpResponse.json(updated);
   }),
 
   http.put(`${BASE_URL}/api/v1/capabilities/:id/metadata`, async ({ params, request }) => {
+    const body = (await request.json()) as Partial<Capability>;
+    const updated = updateCapability(toCapabilityId(params.id as string), body);
+    if (!updated) {
+      return new HttpResponse(null, { status: 404 });
+    }
+    return HttpResponse.json(updated);
+  }),
+
+  http.post(`${BASE_URL}/api/v1/capabilities/:id/tags`, async ({ params, request }) => {
     const capability = getCapability(toCapabilityId(params.id as string));
     if (!capability) {
       return new HttpResponse(null, { status: 404 });
     }
-    const body = (await request.json()) as Record<string, unknown>;
-    const updated = { ...capability, ...body };
-    return HttpResponse.json(updated);
+    const body = (await request.json()) as { tag: string };
+    updateCapability(capability.id, { tags: [...(capability.tags ?? []), body.tag] });
+    return new HttpResponse(null, { status: 204 });
   }),
 
   http.delete(`${BASE_URL}/api/v1/capabilities/:id`, ({ params }) => {

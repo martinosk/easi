@@ -15,10 +15,19 @@ vi.mock('../../features/canvas', async () => {
 });
 
 vi.mock('../../features/navigation', () => ({
-  NavigationTree: ({ onEditComponent }: { onEditComponent?: (componentId: string) => void }) => (
+  NavigationTree: ({
+    onEditComponent,
+    onEditCapability,
+  }: {
+    onEditComponent?: (componentId: string) => void;
+    onEditCapability?: (capability: { id: string }) => void;
+  }) => (
     <div data-testid="navigation-tree-mock">
       <button type="button" data-testid="tree-edit-mock" onClick={() => onEditComponent?.('comp-1')}>
         Edit
+      </button>
+      <button type="button" data-testid="tree-edit-capability-mock" onClick={() => onEditCapability?.({ id: 'cap-1' })}>
+        Edit capability
       </button>
     </div>
   ),
@@ -38,7 +47,7 @@ vi.mock('../shared/DetailContentRenderer', () => ({
 
 const STORAGE_KEY = 'easi-canvas-panels';
 
-function renderWorkspace(onComponentSelect = vi.fn()) {
+function renderWorkspace(onComponentSelect = vi.fn(), onCapabilitySelect = vi.fn()) {
   const canvasRef = createRef<ComponentCanvasRef>();
   return renderWithProviders(
     <CanvasWorkspace
@@ -48,10 +57,9 @@ function renderWorkspace(onComponentSelect = vi.fn()) {
       onConnect={vi.fn()}
       onComponentDrop={vi.fn()}
       onComponentSelect={onComponentSelect}
-      onCapabilitySelect={vi.fn()}
+      onCapabilitySelect={onCapabilitySelect}
       onViewSelect={vi.fn()}
       onEditRelation={vi.fn()}
-      onEditCapability={vi.fn()}
       onRemoveFromView={vi.fn()}
     />,
   );
@@ -87,6 +95,15 @@ describe('CanvasWorkspace', () => {
     await userEvent.click(screen.getByTestId('tree-edit-mock'));
 
     expect(onComponentSelect).toHaveBeenCalledWith('comp-1');
+  });
+
+  it("routes the tree's Edit action for a capability to capability selection so the details pane shows it", async () => {
+    const onCapabilitySelect = vi.fn();
+    renderWorkspace(vi.fn(), onCapabilitySelect);
+
+    await userEvent.click(screen.getByTestId('tree-edit-capability-mock'));
+
+    expect(onCapabilitySelect).toHaveBeenCalledWith('cap-1');
   });
 
   it('hides the explorer pane via its header collapse button, and reopens it from the floating button', async () => {

@@ -94,6 +94,13 @@ export function addCapability(capability: Partial<Capability> = {}): Capability 
   return newCapability;
 }
 
+export function updateCapability(id: CapabilityId, updates: Partial<Capability>): Capability | undefined {
+  const index = db.capabilities.findIndex((c) => c.id === id);
+  if (index < 0) return undefined;
+  db.capabilities[index] = { ...db.capabilities[index], ...updates };
+  return db.capabilities[index];
+}
+
 export function getCapabilityRealizations(): CapabilityRealization[] {
   return db.capabilityRealizations;
 }
