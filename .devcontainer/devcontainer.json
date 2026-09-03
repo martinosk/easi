@@ -1,0 +1,31 @@
+{
+  "name": "EASI Claude Dev",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "args": {
+      "TZ": "${localEnv:TZ:UTC}",
+      "GO_VERSION": "1.26.2",
+      "GOLANGCI_LINT_VERSION": "v2.1.6",
+      "CLAUDE_CODE_VERSION": "latest"
+    }
+  },
+  "remoteUser": "node",
+  "mounts": [
+    "source=easi-claude-config,target=/home/node/.claude,type=volume",
+    "source=easi-go-cache,target=/home/node/go,type=volume",
+    "source=easi-npm-cache,target=/home/node/.npm,type=volume",
+    "source=easi-frontend-node-modules,target=/workspace/frontend/node_modules,type=volume"
+  ],
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
+  "workspaceFolder": "/workspace",
+  "containerEnv": {
+    "NODE_OPTIONS": "--max-old-space-size=4096",
+    "CLAUDE_CONFIG_DIR": "/home/node/.claude",
+    "GOPATH": "/home/node/go",
+    "CS_ACCESS_TOKEN": "${localEnv:CS_ACCESS_TOKEN}",
+    "CS_ONPREM_URL": "${localEnv:CS_ONPREM_URL}"
+  },
+  "onCreateCommand": "sudo chown -R node:node /home/node/go /home/node/.npm /home/node/.claude && sh /workspace/.devcontainer/init.sh",
+  "postStartCommand": "sudo chown -R node:node /home/node/go /home/node/.npm /home/node/.claude",
+  "postCreateCommand": "cd /workspace/frontend && npm install && cd /workspace/backend && go mod download"
+}
