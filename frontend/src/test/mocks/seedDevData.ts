@@ -1,5 +1,11 @@
-import { toBusinessDomainId } from '../../api/types';
-import { buildBusinessDomain, buildCapabilityAt, buildView } from '../helpers/entityBuilders';
+import { toBusinessDomainId, toCapabilityId, toComponentId } from '../../api/types';
+import {
+  buildBusinessDomain,
+  buildCapabilityAt,
+  buildCapabilityRealization,
+  buildComponent,
+  buildView,
+} from '../helpers/entityBuilders';
 import { seedDb } from './db';
 import { buildStubJourney } from './spec182/builders';
 import { seedSpec182Db } from './spec182/store';
@@ -59,6 +65,20 @@ export function seedDevData(): void {
     capabilities: devCapabilities.map((cap) =>
       buildCapabilityAt(cap.id, cap.name, cap.level, cap.parentId ?? undefined),
     ),
+    components: [
+      buildComponent({
+        id: toComponentId('comp-phoenix'),
+        name: 'Phoenix',
+        description: 'Booking platform for passenger and freight routes.',
+      }),
+    ],
+    capabilityRealizations: [
+      buildCapabilityRealization({
+        capabilityId: toCapabilityId('cap-account-creation'),
+        componentId: toComponentId('comp-phoenix'),
+        componentName: 'Phoenix',
+      }),
+    ],
     views: [buildView({ name: 'Default View', isDefault: true })],
   });
 }

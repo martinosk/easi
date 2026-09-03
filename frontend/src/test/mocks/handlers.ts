@@ -1,4 +1,5 @@
 import { HttpResponse, http } from 'msw';
+import type { Component } from '../../api/types';
 import { toCapabilityId, toComponentId, toViewId } from '../../api/types';
 import {
   addCapability,
@@ -15,6 +16,7 @@ import {
   getRelations,
   getView,
   getViews,
+  updateComponent,
   updateView,
 } from './db';
 import { assistantStatusHandlers } from './assistantStatus';
@@ -57,6 +59,17 @@ const inheritanceAuditMockEntries = [
   },
 ];
 
+function groupRealizationsByCapability() {
+  return getCapabilities()
+    .map((capability) => ({
+      capabilityId: capability.id,
+      capabilityName: capability.name,
+      level: capability.level,
+      realizations: getRealizationsByCapability(capability.id),
+    }))
+    .filter((group) => group.realizations.length > 0);
+}
+
 export const handlers = [
   ...assistantStatusHandlers,
   ...onePagerCompletenessHandlers,
@@ -74,6 +87,24 @@ export const handlers = [
 
   http.get(`${BASE_URL}/api/v1/components/:id`, ({ params }) => {
     const component = getComponent(toComponentId(params.id as string));
+    if (!component) {
+      return new HttpResponse(null, { status: 404 });
+    }
+    return HttpResponse.json(component);
+  }),
+
+  http.put(`${BASE_URL}/api/v1/components/:id`, async ({ params, request }) => {
+    const body = (await request.json()) as Partial<Component>;
+    const component = updateComponent(toComponentId(params.id as string), body);
+    if (!component) {
+      return new HttpResponse(null, { status: 404 });
+    }
+    return HttpResponse.json(component);
+  }),
+
+  http.put(`${BASE_URL}/api/v1/components/:id/hosting`, async ({ params, request }) => {
+    const body = (await request.json()) as Pick<Component, 'hosting'>;
+    const component = updateComponent(toComponentId(params.id as string), { hosting: body.hosting });
     if (!component) {
       return new HttpResponse(null, { status: 404 });
     }
@@ -460,7 +491,7 @@ export const handlers = [
 
   http.get(`${BASE_URL}/api/v1/business-domains/:id/capability-realizations`, ({ params }) => {
     return HttpResponse.json({
-      data: [],
+      data: groupRealizationsByCapability(),
       _links: { self: `/api/v1/business-domains/${params.id}/capability-realizations` },
     });
   }),

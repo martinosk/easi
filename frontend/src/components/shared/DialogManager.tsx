@@ -2,12 +2,11 @@ import React from 'react';
 import { useDialog } from '../../contexts/dialogs';
 import { ReleaseNotesBrowser } from '../../contexts/releases/components/ReleaseNotesBrowser';
 import { CreateCapabilityDialog, EditCapabilityDialog } from '../../features/capabilities';
-import { CreateComponentDialog, EditComponentDialog } from '../../features/components';
+import { CreateComponentDialog } from '../../features/components';
 import { CreateRelationDialog, EditRelationDialog } from '../../features/relations';
 
 export const DialogManager: React.FC = () => {
   const createComponent = useDialog('create-component');
-  const editComponent = useDialog('edit-component');
   const createRelation = useDialog('create-relation');
   const editRelation = useDialog('edit-relation');
   const createCapability = useDialog('create-capability');
@@ -24,14 +23,6 @@ export const DialogManager: React.FC = () => {
         sourceComponentId={createRelation.data?.sourceComponentId}
         targetComponentId={createRelation.data?.targetComponentId}
       />
-
-      {editComponent.data && (
-        <EditComponentDialog
-          isOpen={editComponent.isOpen}
-          onClose={editComponent.close}
-          component={editComponent.data.component}
-        />
-      )}
 
       {editRelation.data && (
         <EditRelationDialog

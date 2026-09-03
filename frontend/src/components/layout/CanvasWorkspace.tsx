@@ -139,7 +139,6 @@ interface CanvasWorkspaceProps {
   onCapabilitySelect: (capabilityId: string) => void;
   onOriginEntitySelect?: (nodeId: string) => void;
   onViewSelect: (viewId: string) => Promise<void>;
-  onEditComponent: (componentId?: string) => void;
   onEditRelation: () => void;
   onEditCapability: (capability: Capability) => void;
   onRemoveFromView: () => void;
@@ -165,7 +164,7 @@ function ExplorerPane({ props, onCollapse }: { props: CanvasWorkspaceProps; onCo
           onAddComponent={props.onAddComponent}
           onAddCapability={props.onAddCapability}
           onEditCapability={props.onEditCapability}
-          onEditComponent={props.onEditComponent}
+          onEditComponent={props.onComponentSelect}
           canCreateView={props.canCreateView}
           canCreateOriginEntity={props.canCreateOriginEntity}
         />
@@ -201,7 +200,6 @@ function DetailsPane({ props, onCollapse }: { props: CanvasWorkspaceProps; onCol
             selectedNodeId={props.selectedNodeId}
             selectedEdgeId={props.selectedEdgeId}
             selectedCapabilityId={selectedCapabilityId}
-            onEditComponent={props.onEditComponent}
             onEditRelation={props.onEditRelation}
             onRemoveFromView={props.onRemoveFromView}
             onRemoveCapabilityFromView={handleRemoveCapabilityFromView}

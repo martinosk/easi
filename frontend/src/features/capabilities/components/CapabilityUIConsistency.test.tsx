@@ -5,7 +5,6 @@ import type { Capability, CapabilityId, Component, ComponentId, View, ViewId } f
 import type { AppStore } from '../../../store/appStore';
 import { useAppStore } from '../../../store/appStore';
 import { createMantineTestWrapper, seedDb } from '../../../test/helpers';
-import { EditComponentDialog } from '../../components/components/EditComponentDialog';
 import { NavigationTree } from '../../navigation/components/NavigationTree';
 import { EditCapabilityDialog } from './EditCapabilityDialog';
 
@@ -217,28 +216,6 @@ describe('Capability UI Consistency', () => {
         fireEvent.click(screen.getByTestId('edit-capability-cancel'));
 
         expect(mockOnClose).toHaveBeenCalled();
-      });
-
-      it('should follow same pattern as EditComponentDialog for dialog opening', async () => {
-        setupMockStore();
-        setupApiClientMocks();
-        const { Wrapper } = createMantineTestWrapper();
-
-        const { rerender } = render(
-          <EditComponentDialog isOpen={true} onClose={vi.fn()} component={mockComponents[0]} />,
-          { wrapper: Wrapper },
-        );
-
-        await waitFor(() => {
-          expect(screen.getByText('Edit Application')).toBeInTheDocument();
-        });
-
-        rerender(<EditCapabilityDialog isOpen={true} onClose={vi.fn()} capability={mockCapabilities[0]} />);
-
-        await waitFor(() => {
-          expect(screen.getByText('Edit Capability')).toBeInTheDocument();
-          expect(screen.queryByText('Edit Application')).not.toBeInTheDocument();
-        });
       });
     });
   });

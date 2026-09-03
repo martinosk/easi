@@ -73,6 +73,13 @@ export function addComponent(component: Partial<Component> = {}): Component {
   return newComponent;
 }
 
+export function updateComponent(id: ComponentId, updates: Partial<Component>): Component | undefined {
+  const index = db.components.findIndex((c) => c.id === id);
+  if (index < 0) return undefined;
+  db.components[index] = { ...db.components[index], ...updates };
+  return db.components[index];
+}
+
 export function getCapabilities(): Capability[] {
   return db.capabilities;
 }

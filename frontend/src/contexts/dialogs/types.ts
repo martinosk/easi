@@ -1,8 +1,7 @@
-import type { Capability, Component, Relation } from '../../api/types';
+import type { Capability, Relation } from '../../api/types';
 
 export type DialogId =
   | 'create-component'
-  | 'edit-component'
   | 'create-relation'
   | 'edit-relation'
   | 'create-capability'
@@ -11,7 +10,6 @@ export type DialogId =
 
 export interface DialogDataMap {
   'create-component': undefined;
-  'edit-component': { component: Component };
   'create-relation': { sourceComponentId?: string; targetComponentId?: string };
   'edit-relation': { relation: Relation };
   'create-capability': undefined;

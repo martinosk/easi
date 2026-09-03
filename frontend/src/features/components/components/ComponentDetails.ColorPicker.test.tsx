@@ -92,7 +92,7 @@ describe('ComponentDetails - ColorPicker Integration', () => {
       error: null,
     });
     const { Wrapper } = createMantineTestWrapper();
-    return render(<ComponentDetails onEdit={vi.fn()} />, {
+    return render(<ComponentDetails onRemoveFromView={vi.fn()} />, {
       wrapper: ({ children }) => (
         <MemoryRouter>
           <Wrapper>{children}</Wrapper>
@@ -102,6 +102,15 @@ describe('ComponentDetails - ColorPicker Integration', () => {
   };
 
   describe('Color picker visibility', () => {
+    it('groups the colour control and view removal under an "In this view" section', async () => {
+      renderComponentDetails(createMockView('custom'));
+
+      const section = await screen.findByTestId('view-membership-section');
+      expect(section).toHaveTextContent('In this view');
+      expect(section).toContainElement(screen.getByTestId('color-picker'));
+      expect(section).toContainElement(screen.getByRole('button', { name: 'Remove from View' }));
+    });
+
     it('should show color picker in component details panel', async () => {
       const mockView = createMockView('custom');
       renderComponentDetails(mockView);
