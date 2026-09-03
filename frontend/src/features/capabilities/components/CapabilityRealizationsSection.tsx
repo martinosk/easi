@@ -28,7 +28,7 @@ function RealizationRow({ realization, domainIds, assessments, roles, onApplicat
   const isDirect = realization.origin === 'Direct';
   const assessed = {
     ...realization,
-    timeGrade: assessments.getAssessment(realization.componentId)?.grade,
+    timeGrade: assessments.getAssessment(realization.componentId)?.grade ?? undefined,
     role: roles.getRole(realization.componentId)?.role,
   };
 

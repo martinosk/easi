@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import type {
   ComponentId,
   CreateInternalTeamRequest,
+  InternalTeam,
   InternalTeamId,
   UpdateInternalTeamRequest,
 } from '../../../api/types';

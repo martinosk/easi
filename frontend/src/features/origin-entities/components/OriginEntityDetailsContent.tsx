@@ -15,7 +15,7 @@ import { InlineSelectField } from '../../../components/shared/InlineSelectField'
 import { InlineTextField } from '../../../components/shared/InlineTextField';
 import type { OriginEntityType } from '../../../constants/entityIdentifiers';
 import { originEntityNameSchema } from '../../../lib/schemas/originEntity';
-import { hasLink } from '../../../utils/hateoas';
+import { hasLink, type ResourceWithLinks } from '../../../utils/hateoas';
 import { AuditHistorySection } from '../../audit';
 import { OnePagerActionButton } from '../../one-pagers/components/OnePagerActionButton';
 import type { OnePagerSubjectType } from '../../one-pagers/types';
@@ -113,18 +113,18 @@ function Field<E>({ field, entity, canEdit, onSave }: FieldProps<E>) {
   }
 }
 
-interface EntityFieldsProps<E extends { name: string; _links?: unknown }, R> {
+interface EntityFieldsProps<E extends ResourceWithLinks & { name: string }, R> {
   entity: E;
   definition: OriginEntityDefinition<E, R>;
   save: (request: R) => Promise<unknown>;
 }
 
-function EntityFields<E extends { name: string }, R extends object>({
+function EntityFields<E extends ResourceWithLinks & { name: string }, R extends object>({
   entity,
   definition,
   save,
 }: EntityFieldsProps<E, R>) {
-  const canEdit = hasLink(entity as { _links?: Record<string, unknown> }, 'edit');
+  const canEdit = hasLink(entity, 'edit');
   const saveField = (key: string, value: string) =>
     save({ ...definition.toRequest(entity), [key]: value || undefined } as R);
 
