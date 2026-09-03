@@ -4,7 +4,6 @@ import { CanvasWorkspace } from '../../components/layout/CanvasWorkspace';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useAppStore } from '../../store/appStore';
 import { useUserStore } from '../../store/userStore';
-import { useRelations } from '../relations/hooks/useRelations';
 import { useViewOperations } from '../views/hooks/useViewOperations';
 import type { ComponentCanvasRef } from './components/ComponentCanvas';
 import { useCanvasDialogs } from './hooks/useCanvasDialogs';
@@ -26,8 +25,7 @@ export default function CanvasContainer() {
     [hasPermission],
   );
 
-  const { data: relations = [] } = useRelations();
-  const dialogActions = useCanvasDialogs(selectedEdgeId, relations);
+  const dialogActions = useCanvasDialogs();
   const { removeComponentFromView, addComponentToView, switchView } = useViewOperations();
   const { navigateToComponent, navigateToCapability, navigateToOriginEntity } = useCanvasNavigation(canvasRef);
 
@@ -54,7 +52,6 @@ export default function CanvasContainer() {
       onCapabilitySelect={navigateToCapability}
       onOriginEntitySelect={navigateToOriginEntity}
       onViewSelect={async (id) => switchView(id as ViewId)}
-      onEditRelation={dialogActions.openEditRelationDialog}
       onRemoveFromView={handleRemoveFromView}
     />
   );

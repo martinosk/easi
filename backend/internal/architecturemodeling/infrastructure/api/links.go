@@ -127,10 +127,19 @@ func (h *ArchitectureModelingLinks) InternalTeamXRelatedForActor(actor sharedctx
 	return h.gatedRelated([]relatedLinkSpec{internalTeamSpec}, actor)
 }
 
-func (h *ArchitectureModelingLinks) RelationLinks(id string) sharedAPI.Links {
-	links := h.Crud("/relations/" + id)
-	links["describedby"] = h.Get("/reference/relations/generic")
-	links["collection"] = h.Get("/relations")
+func (h *ArchitectureModelingLinks) RelationLinksForActor(id string, actor sharedctx.Actor) sharedAPI.Links {
+	p := "/relations/" + id
+	links := sharedAPI.Links{
+		"self":        h.Get(p),
+		"describedby": h.Get("/reference/relations/generic"),
+		"collection":  h.Get("/relations"),
+	}
+	if actor.CanWrite("components") {
+		links["edit"] = h.Put(p)
+	}
+	if actor.CanDelete("components") {
+		links["delete"] = h.Del(p)
+	}
 	return links
 }
 

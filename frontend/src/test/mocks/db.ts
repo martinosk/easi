@@ -219,3 +219,14 @@ export function updateInternalTeam(id: InternalTeamId, updates: Partial<Internal
 export function getOriginRelationships(): OriginRelationship[] {
   return db.originRelationships;
 }
+
+export function updateRelation(id: RelationId, updates: Partial<Relation>): Relation | undefined {
+  return updateIn(db.relations, id, updates);
+}
+
+export function updateCapabilityRealization(
+  id: CapabilityRealization['id'],
+  updates: Partial<CapabilityRealization>,
+): CapabilityRealization | undefined {
+  return updateIn(db.capabilityRealizations, id, updates);
+}

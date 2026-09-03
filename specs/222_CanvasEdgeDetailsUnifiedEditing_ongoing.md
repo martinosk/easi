@@ -1,6 +1,6 @@
 # 222 — Canvas Edge Details: One Surface, Edited In Place
 
-> **Status:** pending
+> **Status:** ongoing
 > **Depends on:** 219 (application details edited in place), 220 (capability details edited in place)
 > **Roadmap alignment:** outside roadmap: presentation consistency for the two editable canvas edges (application relation, capability realization), the last slice of the in-place editing rule that 219 settled; no domain change. Respects SD6's principle that every affordance is a HATEOAS link, and fixes two places where it was not.
 
@@ -109,14 +109,14 @@ Feature: Canvas edge details edited in place
 
 ## Acceptance Criteria
 
-- [ ] The relation pane renders name and description in place, gated on `edit`; confirm persists through the existing relation update with the other field unchanged, cancel sends nothing.
-- [ ] The realization pane renders level as an in-place select over Full, Partial and Planned, and notes as an in-place text field, both gated on `edit` and on the realization being direct; confirm persists through the existing realization update with the other field unchanged.
-- [ ] Empty relation description and empty realization notes render an "Add …" prompt when editable, and nothing when not.
-- [ ] With no `edit` link, or for an inherited realization, every field renders as text or a badge with no edit control.
-- [ ] The relation edit dialog, the `edit-relation` dialog type, its dialog-manager entry and its canvas opener, and the realization edit dialog with the pane's dialog state, are removed. The canvas dialog hook no longer exposes an edit opener of any kind.
-- [ ] Backend: relation links emit `edit` and `delete` only for actors with the matching components permission; realization links emit `edit` and `delete` only for actors with the matching capabilities permission. Link tests cover both the permitted and the refused actor for each resource.
-- [ ] Frontend tests exist for both panes covering editable, read-only and inherited states; the relation pane test replaces the absent edit dialog test.
-- [ ] E2E (mock-mode Playwright project, `e2e/mock/edge-details.spec.ts`): rename a relation in place with the edge label following, and change a realization level in place.
+- [x] The relation pane renders name and description in place, gated on `edit`; confirm persists through the existing relation update with the other field unchanged, cancel sends nothing.
+- [x] The realization pane renders level as an in-place select over Full, Partial and Planned, and notes as an in-place text field, both gated on `edit` and on the realization being direct; confirm persists through the existing realization update with the other field unchanged.
+- [x] Empty relation description and empty realization notes render an "Add …" prompt when editable, and nothing when not.
+- [x] With no `edit` link, or for an inherited realization, every field renders as text or a badge with no edit control.
+- [x] The relation edit dialog, the `edit-relation` dialog type, its dialog-manager entry and its canvas opener, and the realization edit dialog with the pane's dialog state, are removed. The canvas dialog hook no longer exposes an edit opener of any kind.
+- [x] Backend: relation links emit `edit` and `delete` only for actors with the matching components permission; realization links emit `edit` and `delete` only for actors with the matching capabilities permission. Link tests cover both the permitted and the refused actor for each resource.
+- [x] Frontend tests exist for both panes covering editable, read-only and inherited states; the relation pane test replaces the absent edit dialog test.
+- [x] E2E (mock-mode Playwright project, `e2e/mock/edge-details.spec.ts`): rename a relation in place with the edge label following, and change a realization level in place.
 
 ---
 
@@ -144,6 +144,11 @@ Both match the middleware already guarding those routes.
 ### Persistence
 
 No change.
+
+### Implementation Notes
+
+- The relation and realization link builders now take the actor, and every handler that emits those links reads the actor from the request; the unconditional builders are gone.
+- The mock API persists relation and realization updates so the panes' tests and the mock-mode Playwright project can exercise the in-place flows.
 
 ### Frontend
 
@@ -180,8 +185,8 @@ None.
 ## Checklist
 
 - [x] Specification ready
-- [ ] Implementation done
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
-- [ ] API documentation updated
+- [x] Implementation done
+- [x] Unit tests implemented and passing
+- [x] Integration tests implemented if relevant (link unit tests; no handler contract change)
+- [x] API documentation updated (links only, no annotation change)
 - [ ] User sign-off

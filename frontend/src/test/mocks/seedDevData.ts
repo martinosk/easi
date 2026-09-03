@@ -1,4 +1,12 @@
-import { toAcquiredEntityId, toBusinessDomainId, toCapabilityId, toComponentId, toVendorId } from '../../api/types';
+import {
+  toAcquiredEntityId,
+  toBusinessDomainId,
+  toCapabilityId,
+  toComponentId,
+  toRealizationId,
+  toRelationId,
+  toVendorId,
+} from '../../api/types';
 import {
   buildAcquiredEntity,
   buildBusinessDomain,
@@ -6,6 +14,7 @@ import {
   buildCapabilityRealization,
   buildComponent,
   buildOriginRelationship,
+  buildRelation,
   buildVendor,
   buildView,
 } from '../helpers/entityBuilders';
@@ -74,15 +83,38 @@ export function seedDevData(): void {
         name: 'Phoenix',
         description: 'Booking platform for passenger and freight routes.',
       }),
+      buildComponent({ id: toComponentId('comp-seabook'), name: 'Seabook', description: 'Legacy booking system.' }),
     ],
     capabilityRealizations: [
       buildCapabilityRealization({
+        id: toRealizationId('real-phoenix-account'),
         capabilityId: toCapabilityId('cap-account-creation'),
         componentId: toComponentId('comp-phoenix'),
         componentName: 'Phoenix',
+        notes: 'Primary booking engine',
       }),
     ],
-    views: [buildView({ name: 'Default View', isDefault: true })],
+    relations: [
+      buildRelation({
+        id: toRelationId('rel-phoenix-seabook'),
+        sourceComponentId: toComponentId('comp-phoenix'),
+        targetComponentId: toComponentId('comp-seabook'),
+        relationType: 'Serves',
+        name: 'Sends bookings',
+        description: 'Nightly booking sync.',
+      }),
+    ],
+    views: [
+      buildView({
+        name: 'Default View',
+        isDefault: true,
+        components: [
+          { componentId: toComponentId('comp-phoenix'), x: 100, y: 100 },
+          { componentId: toComponentId('comp-seabook'), x: 600, y: 100 },
+        ],
+        capabilities: [{ capabilityId: toCapabilityId('cap-account-creation'), x: 100, y: 450 }],
+      }),
+    ],
     acquiredEntities: [
       buildAcquiredEntity({
         id: toAcquiredEntityId('ae-nordic'),

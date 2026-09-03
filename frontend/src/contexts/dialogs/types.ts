@@ -1,16 +1,8 @@
-import type { Relation } from '../../api/types';
-
-export type DialogId =
-  | 'create-component'
-  | 'create-relation'
-  | 'edit-relation'
-  | 'create-capability'
-  | 'release-notes-browser';
+export type DialogId = 'create-component' | 'create-relation' | 'create-capability' | 'release-notes-browser';
 
 export interface DialogDataMap {
   'create-component': undefined;
   'create-relation': { sourceComponentId?: string; targetComponentId?: string };
-  'edit-relation': { relation: Relation };
   'create-capability': undefined;
   'release-notes-browser': undefined;
 }

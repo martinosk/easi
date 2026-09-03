@@ -25,7 +25,6 @@ export interface DetailContentRendererProps {
   selectedNodeId: string | null;
   selectedEdgeId: string | null;
   selectedCapabilityId: string | null;
-  onEditRelation: () => void;
   onRemoveFromView: () => void;
   onRemoveCapabilityFromView: () => void;
 }
@@ -60,10 +59,9 @@ const NodeDetail: React.FC<NodeDetailProps> = ({
 
 interface EdgeDetailProps {
   edgeId: string;
-  onEditRelation: () => void;
 }
 
-const EdgeDetail: React.FC<EdgeDetailProps> = ({ edgeId, onEditRelation }) => {
+const EdgeDetail: React.FC<EdgeDetailProps> = ({ edgeId }) => {
   const typedEdgeId = toEdgeId(edgeId);
   if (isRealizationEdge(typedEdgeId)) {
     return <RealizationDetails />;
@@ -72,7 +70,7 @@ const EdgeDetail: React.FC<EdgeDetailProps> = ({ edgeId, onEditRelation }) => {
     return <OriginRelationshipDetails />;
   }
   if (isRelationEdge(typedEdgeId)) {
-    return <RelationDetails onEdit={onEditRelation} />;
+    return <RelationDetails />;
   }
   return null;
 };
@@ -81,7 +79,6 @@ export const DetailContentRenderer: React.FC<DetailContentRendererProps> = ({
   selectedNodeId,
   selectedEdgeId,
   selectedCapabilityId,
-  onEditRelation,
   onRemoveFromView,
   onRemoveCapabilityFromView,
 }) => {
@@ -97,7 +94,7 @@ export const DetailContentRenderer: React.FC<DetailContentRendererProps> = ({
   }
 
   if (selectedEdgeId) {
-    return <EdgeDetail edgeId={selectedEdgeId} onEditRelation={onEditRelation} />;
+    return <EdgeDetail edgeId={selectedEdgeId} />;
   }
 
   if (selectedCapabilityId) {

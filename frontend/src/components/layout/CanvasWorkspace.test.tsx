@@ -59,7 +59,6 @@ function renderWorkspace(onComponentSelect = vi.fn(), onCapabilitySelect = vi.fn
       onComponentSelect={onComponentSelect}
       onCapabilitySelect={onCapabilitySelect}
       onViewSelect={vi.fn()}
-      onEditRelation={vi.fn()}
       onRemoveFromView={vi.fn()}
     />,
   );

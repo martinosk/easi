@@ -10,6 +10,7 @@ import (
 	"easi/backend/internal/capabilitymapping/application/readmodels"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
 	sharedAPI "easi/backend/internal/shared/api"
+	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
 
 	"github.com/go-chi/chi/v5"
@@ -108,7 +109,8 @@ func (h *RealizationHandlers) LinkSystemToCapability(w http.ResponseWriter, r *h
 		return
 	}
 
-	realization.Links = h.hateoas.RealizationLinks(realization.ID, realization.CapabilityID, realization.ComponentID)
+	actor, _ := sharedctx.GetActor(r.Context())
+	realization.Links = h.hateoas.RealizationLinksForActor(realization.ID, realization.CapabilityID, realization.ComponentID, actor)
 
 	location := fmt.Sprintf("/api/v1/capability-realizations/%s", realization.ID)
 	w.Header().Set("Location", location)
@@ -159,13 +161,14 @@ func (h *RealizationHandlers) respondRealizations(
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve realizations")
 		return
 	}
-	h.enrichRealizationLinks(realizations)
+	h.enrichRealizationLinks(r, realizations)
 	sharedAPI.RespondCollection(w, http.StatusOK, realizations, links)
 }
 
-func (h *RealizationHandlers) enrichRealizationLinks(realizations []readmodels.RealizationDTO) {
+func (h *RealizationHandlers) enrichRealizationLinks(r *http.Request, realizations []readmodels.RealizationDTO) {
+	actor, _ := sharedctx.GetActor(r.Context())
 	for i := range realizations {
-		realizations[i].Links = h.hateoas.RealizationLinks(realizations[i].ID, realizations[i].CapabilityID, realizations[i].ComponentID)
+		realizations[i].Links = h.hateoas.RealizationLinksForActor(realizations[i].ID, realizations[i].CapabilityID, realizations[i].ComponentID, actor)
 	}
 }
 
@@ -184,7 +187,7 @@ func (h *RealizationHandlers) GetAllRealizations(w http.ResponseWriter, r *http.
 		return
 	}
 
-	h.enrichRealizationLinks(realizations)
+	h.enrichRealizationLinks(r, realizations)
 	links := sharedAPI.Links{
 		"self": sharedAPI.NewLink("/api/v1/capability-realizations", "GET"),
 	}
@@ -246,7 +249,8 @@ func (h *RealizationHandlers) UpdateRealization(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	realization.Links = h.hateoas.RealizationLinks(realization.ID, realization.CapabilityID, realization.ComponentID)
+	actor, _ := sharedctx.GetActor(r.Context())
+	realization.Links = h.hateoas.RealizationLinksForActor(realization.ID, realization.CapabilityID, realization.ComponentID, actor)
 
 	sharedAPI.RespondJSON(w, http.StatusOK, realization)
 }

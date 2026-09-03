@@ -1,10 +1,21 @@
 import { HttpResponse, http } from 'msw';
-import type { AcquiredEntity, Capability, Component, InternalTeam, OriginRelationship, Vendor } from '../../api/types';
+import type {
+  AcquiredEntity,
+  Capability,
+  CapabilityRealization,
+  Component,
+  InternalTeam,
+  OriginRelationship,
+  Relation,
+  Vendor,
+} from '../../api/types';
 import {
   toAcquiredEntityId,
   toCapabilityId,
   toComponentId,
   toInternalTeamId,
+  toRealizationId,
+  toRelationId,
   toVendorId,
   toViewId,
 } from '../../api/types';
@@ -34,8 +45,10 @@ import {
   getViews,
   updateAcquiredEntity,
   updateCapability,
+  updateCapabilityRealization,
   updateComponent,
   updateInternalTeam,
+  updateRelation,
   updateVendor,
   updateView,
 } from './db';
@@ -327,6 +340,18 @@ export const handlers = [
     const body = (await request.json()) as Record<string, unknown>;
     const relation = addRelation(body);
     return HttpResponse.json(relation, { status: 201 });
+  }),
+
+  http.put(`${BASE_URL}/api/v1/relations/:id`, async ({ params, request }) => {
+    const body = (await request.json()) as Partial<Relation>;
+    const updated = updateRelation(toRelationId(params.id as string), body);
+    return updated ? HttpResponse.json(updated) : new HttpResponse(null, { status: 404 });
+  }),
+
+  http.put(`${BASE_URL}/api/v1/capability-realizations/:id`, async ({ params, request }) => {
+    const body = (await request.json()) as Partial<CapabilityRealization>;
+    const updated = updateCapabilityRealization(toRealizationId(params.id as string), body);
+    return updated ? HttpResponse.json(updated) : new HttpResponse(null, { status: 404 });
   }),
 
   http.get(`${BASE_URL}/api/v1/value-streams`, () => {

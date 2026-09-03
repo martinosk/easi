@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createRelationSchema, editRealizationSchema, editRelationSchema, relationTypeSchema } from './relation';
+import { createRelationSchema, realizationNotesSchema, relationTypeSchema } from './relation';
 
 describe('relationTypeSchema', () => {
   it('should accept Triggers', () => {
@@ -113,85 +113,13 @@ describe('createRelationSchema', () => {
   });
 });
 
-describe('editRelationSchema', () => {
-  it('should accept valid data', () => {
-    const result = editRelationSchema.safeParse({
-      name: 'Updated Name',
-      description: 'Updated description',
-    });
-    expect(result.success).toBe(true);
+describe('realizationNotesSchema', () => {
+  it('accepts empty notes so they can be cleared, and trims', () => {
+    expect(realizationNotesSchema.safeParse('').success).toBe(true);
+    expect(realizationNotesSchema.parse('  keep  ')).toBe('keep');
   });
 
-  it('should accept empty name and description', () => {
-    const result = editRelationSchema.safeParse({
-      name: '',
-      description: '',
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it('should trim fields', () => {
-    const result = editRelationSchema.safeParse({
-      name: '  Name  ',
-      description: '  Description  ',
-    });
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.name).toBe('Name');
-      expect(result.data.description).toBe('Description');
-    }
-  });
-});
-
-describe('editRealizationSchema', () => {
-  it('should accept Full level', () => {
-    const result = editRealizationSchema.safeParse({
-      realizationLevel: 'Full',
-      notes: 'Some notes',
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it('should accept Partial level', () => {
-    const result = editRealizationSchema.safeParse({
-      realizationLevel: 'Partial',
-      notes: '',
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it('should accept Planned level', () => {
-    const result = editRealizationSchema.safeParse({
-      realizationLevel: 'Planned',
-      notes: '',
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it('should reject invalid level', () => {
-    const result = editRealizationSchema.safeParse({
-      realizationLevel: 'Invalid',
-      notes: '',
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('should trim notes', () => {
-    const result = editRealizationSchema.safeParse({
-      realizationLevel: 'Full',
-      notes: '  Some notes  ',
-    });
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.notes).toBe('Some notes');
-    }
-  });
-
-  it('should reject notes exceeding 1000 characters', () => {
-    const result = editRealizationSchema.safeParse({
-      realizationLevel: 'Full',
-      notes: 'a'.repeat(1001),
-    });
-    expect(result.success).toBe(false);
+  it('rejects notes over 1000 characters', () => {
+    expect(realizationNotesSchema.safeParse('x'.repeat(1001)).success).toBe(false);
   });
 });

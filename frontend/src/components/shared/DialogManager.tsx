@@ -3,12 +3,11 @@ import { useDialog } from '../../contexts/dialogs';
 import { ReleaseNotesBrowser } from '../../contexts/releases/components/ReleaseNotesBrowser';
 import { CreateCapabilityDialog } from '../../features/capabilities';
 import { CreateComponentDialog } from '../../features/components';
-import { CreateRelationDialog, EditRelationDialog } from '../../features/relations';
+import { CreateRelationDialog } from '../../features/relations';
 
 export const DialogManager: React.FC = () => {
   const createComponent = useDialog('create-component');
   const createRelation = useDialog('create-relation');
-  const editRelation = useDialog('edit-relation');
   const createCapability = useDialog('create-capability');
   const releaseNotesBrowser = useDialog('release-notes-browser');
 
@@ -22,14 +21,6 @@ export const DialogManager: React.FC = () => {
         sourceComponentId={createRelation.data?.sourceComponentId}
         targetComponentId={createRelation.data?.targetComponentId}
       />
-
-      {editRelation.data && (
-        <EditRelationDialog
-          isOpen={editRelation.isOpen}
-          onClose={editRelation.close}
-          relation={editRelation.data.relation}
-        />
-      )}
 
       <CreateCapabilityDialog isOpen={createCapability.isOpen} onClose={createCapability.close} />
 

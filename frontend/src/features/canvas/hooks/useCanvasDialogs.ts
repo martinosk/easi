@@ -1,16 +1,14 @@
 import { useCallback } from 'react';
-import type { Relation } from '../../../api/types';
 import { useDialogContext } from '../../../contexts/dialogs';
 
 export interface CanvasDialogActions {
   openComponentDialog: () => void;
   openCapabilityDialog: () => void;
   openRelationDialog: (sourceId: string, targetId: string) => void;
-  openEditRelationDialog: () => void;
   openReleaseNotesBrowser: () => void;
 }
 
-export function useCanvasDialogs(selectedEdgeId: string | null, relations: Relation[]): CanvasDialogActions {
+export function useCanvasDialogs(): CanvasDialogActions {
   const { openDialog } = useDialogContext();
 
   const openComponentDialog = useCallback(() => {
@@ -28,13 +26,6 @@ export function useCanvasDialogs(selectedEdgeId: string | null, relations: Relat
     [openDialog],
   );
 
-  const openEditRelationDialog = useCallback(() => {
-    const selectedRelation = relations.find((r) => r.id === selectedEdgeId) || null;
-    if (selectedRelation) {
-      openDialog('edit-relation', { relation: selectedRelation });
-    }
-  }, [openDialog, relations, selectedEdgeId]);
-
   const openReleaseNotesBrowser = useCallback(() => {
     openDialog('release-notes-browser');
   }, [openDialog]);
@@ -43,7 +34,6 @@ export function useCanvasDialogs(selectedEdgeId: string | null, relations: Relat
     openComponentDialog,
     openCapabilityDialog,
     openRelationDialog,
-    openEditRelationDialog,
     openReleaseNotesBrowser,
   };
 }

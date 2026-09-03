@@ -138,7 +138,6 @@ interface CanvasWorkspaceProps {
   onCapabilitySelect: (capabilityId: string) => void;
   onOriginEntitySelect?: (nodeId: string) => void;
   onViewSelect: (viewId: string) => Promise<void>;
-  onEditRelation: () => void;
   onRemoveFromView: () => void;
 }
 
@@ -198,7 +197,6 @@ function DetailsPane({ props, onCollapse }: { props: CanvasWorkspaceProps; onCol
             selectedNodeId={props.selectedNodeId}
             selectedEdgeId={props.selectedEdgeId}
             selectedCapabilityId={selectedCapabilityId}
-            onEditRelation={props.onEditRelation}
             onRemoveFromView={props.onRemoveFromView}
             onRemoveCapabilityFromView={handleRemoveCapabilityFromView}
           />

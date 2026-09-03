@@ -1,23 +1,20 @@
-import { Anchor, Badge, Box, Button, Group, Stack, Text, Title } from '@mantine/core';
+import { Anchor, Badge, Box, Group, Stack, Text } from '@mantine/core';
 import { IconExternalLink } from '@tabler/icons-react';
-import React from 'react';
+import type React from 'react';
 import type { Component, Relation } from '../../../api/types';
 import { DetailField } from '../../../components/shared/DetailField';
+import { InlineTextField } from '../../../components/shared/InlineTextField';
+import { relationDescriptionSchema, relationNameSchema } from '../../../lib/schemas/relation';
 import { useAppStore } from '../../../store/appStore';
+import { hasLink } from '../../../utils/hateoas';
 import { AuditHistorySection } from '../../audit';
 import { useComponents } from '../../components/hooks/useComponents';
-import { useRelations } from '../hooks/useRelations';
-
-interface RelationDetailsProps {
-  onEdit: () => void;
-}
+import { useRelations, useUpdateRelation } from '../hooks/useRelations';
 
 interface RelationData {
   relation: Relation;
   sourceComponent: Component | undefined;
   targetComponent: Component | undefined;
-  referenceLink: string | undefined;
-  formattedDate: string;
 }
 
 const RELATION_TYPE_COLOR: Record<Relation['relationType'], string> = {
@@ -29,29 +26,17 @@ const useRelationData = (selectedEdgeId: string | null): RelationData | null => 
   const { data: relations = [] } = useRelations();
   const { data: components = [] } = useComponents();
 
-  if (!selectedEdgeId) {
-    return null;
-  }
-
   const relation = relations.find((r) => r.id === selectedEdgeId);
+  if (!relation) return null;
 
-  if (!relation) {
-    return null;
-  }
-
-  const sourceComponent = components.find((c) => c.id === relation.sourceComponentId);
-  const targetComponent = components.find((c) => c.id === relation.targetComponentId);
-  const referenceLink = relation._links.describedby?.href;
-  const formattedDate = new Date(relation.createdAt).toLocaleString();
-
-  return { relation, sourceComponent, targetComponent, referenceLink, formattedDate };
+  return {
+    relation,
+    sourceComponent: components.find((c) => c.id === relation.sourceComponentId),
+    targetComponent: components.find((c) => c.id === relation.targetComponentId),
+  };
 };
 
-interface ReferenceLinkProps {
-  href: string | undefined;
-}
-
-const ReferenceLink: React.FC<ReferenceLinkProps> = ({ href }) => {
+const ReferenceLink: React.FC<{ href: string | undefined }> = ({ href }) => {
   if (!href) return null;
 
   return (
@@ -66,69 +51,78 @@ const ReferenceLink: React.FC<ReferenceLinkProps> = ({ href }) => {
   );
 };
 
-interface EditActionProps {
-  canEdit: boolean;
-  onEdit: () => void;
+interface RelationFieldProps {
+  relation: Relation;
 }
 
-const EditAction: React.FC<EditActionProps> = ({ canEdit, onEdit }) => {
-  if (!canEdit) return null;
+const RelationName: React.FC<RelationFieldProps> = ({ relation }) => {
+  const updateMutation = useUpdateRelation();
 
   return (
-    <Group gap="sm">
-      <Button variant="default" size="xs" onClick={onEdit}>
-        Edit
-      </Button>
-    </Group>
+    <InlineTextField
+      value={relation.name ?? ''}
+      canEdit={hasLink(relation, 'edit')}
+      schema={relationNameSchema}
+      onSave={(name) =>
+        updateMutation.mutateAsync({
+          relation,
+          request: { name: name || undefined, description: relation.description },
+        })
+      }
+      editLabel="Edit name"
+      emptyPrompt="Add a name"
+      testId="relation-name"
+    />
   );
 };
 
-export const RelationDetails: React.FC<RelationDetailsProps> = ({ onEdit }) => {
+const RelationDescription: React.FC<RelationFieldProps> = ({ relation }) => {
+  const updateMutation = useUpdateRelation();
+
+  return (
+    <InlineTextField
+      label="Description"
+      value={relation.description ?? ''}
+      canEdit={hasLink(relation, 'edit')}
+      schema={relationDescriptionSchema}
+      onSave={(description) =>
+        updateMutation.mutateAsync({
+          relation,
+          request: { name: relation.name, description: description || undefined },
+        })
+      }
+      editLabel="Edit description"
+      emptyPrompt="Add a description"
+      multiline
+      testId="relation-description"
+    />
+  );
+};
+
+export const RelationDetails: React.FC = () => {
   const selectedEdgeId = useAppStore((state) => state.selectedEdgeId);
-
   const data = useRelationData(selectedEdgeId);
+  if (!data) return null;
 
-  if (!data) {
-    return null;
-  }
-
-  const { relation, sourceComponent, targetComponent, referenceLink, formattedDate } = data;
-  const canEdit = relation._links?.edit !== undefined;
+  const { relation, sourceComponent, targetComponent } = data;
 
   return (
     <Stack gap="sm" p="md">
-      <Title order={4}>Relation Details</Title>
-
-      <EditAction canEdit={canEdit} onEdit={onEdit} />
-
-      {relation.name && <DetailField label="Name">{relation.name}</DetailField>}
-
+      <RelationName relation={relation} />
       <DetailField label="Type">
         <Badge color={RELATION_TYPE_COLOR[relation.relationType] ?? 'gray'} variant="light" size="sm">
           {relation.relationType}
         </Badge>
       </DetailField>
-
       <DetailField label="Source">{sourceComponent?.name || relation.sourceComponentId}</DetailField>
-
       <DetailField label="Target">{targetComponent?.name || relation.targetComponentId}</DetailField>
-
-      {relation.description && <DetailField label="Description">{relation.description}</DetailField>}
-
+      <RelationDescription relation={relation} />
       <DetailField label="Created">
         <Text size="sm" c="dimmed">
-          {formattedDate}
+          {new Date(relation.createdAt).toLocaleString()}
         </Text>
       </DetailField>
-
-      <DetailField label="ID">
-        <Text size="xs" ff="monospace" c="gray.5" style={{ wordBreak: 'break-all' }}>
-          {relation.id}
-        </Text>
-      </DetailField>
-
-      <ReferenceLink href={referenceLink} />
-
+      <ReferenceLink href={relation._links.describedby?.href} />
       <AuditHistorySection aggregateId={relation.id} />
     </Stack>
   );
