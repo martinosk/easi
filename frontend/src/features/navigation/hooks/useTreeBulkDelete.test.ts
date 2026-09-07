@@ -1,4 +1,4 @@
-﻿import { act, renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Capability, CapabilityId, Component, ComponentId, HATEOASLinks } from '../../../api/types';
 import { useTreeBulkDelete } from './useTreeBulkDelete';
