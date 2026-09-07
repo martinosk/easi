@@ -6,7 +6,6 @@ export type { ValueEnvelope } from '../../lib/schemas/onePagerFacts';
 
 export const ONE_PAGER_SUBJECT_TYPES = [
   'capability',
-  'enterprise-capability',
   'application',
   'acquired-entity',
   'vendor',

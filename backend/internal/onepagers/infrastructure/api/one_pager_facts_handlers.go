@@ -42,7 +42,7 @@ type RecordFieldValueRequest struct {
 // @Description Retrieves all recorded field values for the subject as {type, version, value} envelopes. Values recorded against retired selection options are flagged.
 // @Tags one-pagers
 // @Produce json
-// @Param subjectType path string true "Subject type" Enums(capability, enterprise-capability, application, acquired-entity, vendor, internal-team)
+// @Param subjectType path string true "Subject type" Enums(capability, application, acquired-entity, vendor, internal-team)
 // @Param subjectID path string true "Subject ID"
 // @Success 200 {object} OnePagerFactsDTO
 // @Failure 401 {object} sharedAPI.ErrorResponse
@@ -67,7 +67,7 @@ func (h *OnePagerFactsHandlers) GetFacts(subjectType valueobjects.SubjectType) h
 // @Tags one-pagers
 // @Accept json
 // @Produce json
-// @Param subjectType path string true "Subject type" Enums(capability, enterprise-capability, application, acquired-entity, vendor, internal-team)
+// @Param subjectType path string true "Subject type" Enums(capability, application, acquired-entity, vendor, internal-team)
 // @Param subjectID path string true "Subject ID"
 // @Param fieldID path string true "Field ID"
 // @Param value body RecordFieldValueRequest true "Value envelope"
@@ -97,7 +97,7 @@ func (h *OnePagerFactsHandlers) RecordValue(subjectType valueobjects.SubjectType
 // @Description Clears the recorded value of one custom field. Clearing a field that has no value is a no-op.
 // @Tags one-pagers
 // @Produce json
-// @Param subjectType path string true "Subject type" Enums(capability, enterprise-capability, application, acquired-entity, vendor, internal-team)
+// @Param subjectType path string true "Subject type" Enums(capability, application, acquired-entity, vendor, internal-team)
 // @Param subjectID path string true "Subject ID"
 // @Param fieldID path string true "Field ID"
 // @Success 200 {object} OnePagerFactsDTO

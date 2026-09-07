@@ -30,18 +30,20 @@ Defined in `dex-config.yaml` at the repo root. **Password for all users is `pass
 
 ## Login requires an invitation, not just a dex user
 
-Dex only authenticates. The OIDC callback then requires a row in `auth.invitations` for the email — without one, the backend logs `no valid invitation for email <email>` and the app bounces back to the login screen with no visible error.
+Dex only authenticates. The OIDC callback then requires an invitation for the email — without one, the backend logs `no valid invitation for email <email>` and the app bounces back to the login screen with no visible error.
 
-Seed invitations through the platform admin API (header `X-Platform-Admin-Key: localdev` locally):
+Seed invitations through the platform admin API (header `X-Platform-Admin-Key: localdev` locally). The invitation route is **`/auth/invitations`**, with the tenant in the body — not a sub-resource of the tenant:
 
 ```
 curl -H "X-Platform-Admin-Key: localdev" http://localhost:8080/api/v1/platform/tenants
 curl -X POST -H "X-Platform-Admin-Key: localdev" -H "Content-Type: application/json" \
-  -d '{"email":"architect@acme.com","role":"architect"}' \
-  http://localhost:8080/api/v1/platform/tenants/acme/invitations
+  -d '{"tenantId":"acme","email":"architect@acme.com","role":"architect"}' \
+  http://localhost:8080/api/v1/auth/invitations
 ```
 
-Check current invitations: `podman exec easi-postgres psql -U easi -d easi -c "SELECT email, role FROM auth.invitations;"`
+**Never seed `auth.invitations` with SQL.** Invitations are event-sourced: the login path loads the aggregate from `infrastructure.events`, so a hand-inserted read-model row authenticates and then fails with `invitation not found`. Go through the API.
+
+Check current invitations: `podman exec easi-postgres psql -U easi -d easi -c "SELECT email, role, status FROM auth.invitations;"`
 
 
 ## Testing with Playwright

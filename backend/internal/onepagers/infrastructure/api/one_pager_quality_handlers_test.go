@@ -40,7 +40,7 @@ func requestWithActor(target string, permissions map[string]bool) *http.Request 
 }
 
 func allReadPermissions() map[string]bool {
-	return map[string]bool{"capabilities:read": true, "enterprise-arch:read": true, "components:read": true}
+	return map[string]bool{"capabilities:read": true, "components:read": true}
 }
 
 func TestQualityList_403WhenNoReadPermission(t *testing.T) {
@@ -136,7 +136,7 @@ type qualityListBody struct {
 func TestQualityList_RowsCarryEditGrantsLinkGatedOnPermission(t *testing.T) {
 	source := &fakePageSource{records: []readmodels.SubjectIndexRecord{
 		{SubjectType: "application", SubjectID: "app-1", Name: "Billing", CreatedAt: time.Now(), LastUpdatedAt: time.Now()},
-		{SubjectType: "enterprise-capability", SubjectID: "ec-1", Name: "Payments EC", CreatedAt: time.Now(), LastUpdatedAt: time.Now()},
+		{SubjectType: "business-unit", SubjectID: "bu-1", Name: "Payments BU", CreatedAt: time.Now(), LastUpdatedAt: time.Now()},
 	}}
 	rec := httptest.NewRecorder()
 	permissions := allReadPermissions()
@@ -154,8 +154,8 @@ func TestQualityList_RowsCarryEditGrantsLinkGatedOnPermission(t *testing.T) {
 	assert.Equal(t, "/api/v1/edit-grants", appLink.Href)
 	assert.Equal(t, "POST", appLink.Method)
 
-	_, ecHasLink := body.Data[1].Links["x-edit-grants"]
-	assert.False(t, ecHasLink, "enterprise-capability row must never carry x-edit-grants")
+	_, unknownHasLink := body.Data[1].Links["x-edit-grants"]
+	assert.False(t, unknownHasLink, "a row of an unknown subject type must never carry x-edit-grants")
 }
 
 func TestQualityList_NoEditGrantsLinkWithoutGrantorPermission(t *testing.T) {

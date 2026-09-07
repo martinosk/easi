@@ -6,12 +6,11 @@ import (
 )
 
 var subjectWritePermissions = map[string]string{
-	"capability":            "capabilities:write",
-	"enterprise-capability": "enterprise-arch:write",
-	"application":           "components:write",
-	"acquired-entity":       "components:write",
-	"vendor":                "components:write",
-	"internal-team":         "components:write",
+	"capability":      "capabilities:write",
+	"application":     "components:write",
+	"acquired-entity": "components:write",
+	"vendor":          "components:write",
+	"internal-team":   "components:write",
 }
 
 type factsLinkContext struct {

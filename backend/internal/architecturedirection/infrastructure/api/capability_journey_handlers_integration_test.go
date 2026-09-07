@@ -140,7 +140,7 @@ func registerCapabilityJourneyTestCommands(commandBus cqrs.CommandBus, repo *rep
 		DomainExists:                  services.DomainExists(func(context.Context, string) (bool, error) { return true, nil }),
 		CapabilityEffectivelyInDomain: services.CapabilityEffectivelyInDomain(func(context.Context, string, string) (bool, error) { return true, nil }),
 	}
-	commandBus.Register("PlanJourney", handlers.NewPlanJourneyHandler(repo, readModel, refs))
+	commandBus.Register("PlanJourney", handlers.NewPlanJourneyHandler(repo, readModel, refs, testCurrentMaturity))
 	commandBus.Register("StartJourney", handlers.NewStartJourneyHandler(repo))
 	commandBus.Register("CompleteJourney", handlers.NewCompleteJourneyHandler(repo))
 	commandBus.Register("AbandonJourney", handlers.NewAbandonJourneyHandler(repo))
@@ -152,6 +152,10 @@ func registerCapabilityJourneyTestCommands(commandBus cqrs.CommandBus, repo *rep
 	commandBus.Register("RemoveJourneyMilestone", handlers.NewRemoveJourneyMilestoneHandler(repo))
 	commandBus.Register("ReorderJourneyMilestones", handlers.NewReorderJourneyMilestonesHandler(repo))
 }
+
+const testCurrentMaturityValue = 30
+
+func testCurrentMaturity(context.Context, string) (int, error) { return testCurrentMaturityValue, nil }
 
 func cleanupCapabilityJourneyTestData(db *sql.DB, capabilityIDs []string) {
 	_, _ = db.Exec(fmt.Sprintf("SET app.current_tenant = '%s'", sharedvo.DefaultTenantID().Value()))
@@ -168,6 +172,7 @@ func cleanupCapabilityJourneysForCapability(db *sql.DB, capID string) {
 		_, _ = db.Exec("DELETE FROM architecturedirection.capability_journey_milestones WHERE tenant_id = $1 AND journey_id = $2", tenantID, jid)
 	}
 	_, _ = db.Exec("DELETE FROM architecturedirection.capability_journeys WHERE tenant_id = $1 AND capability_id = $2", tenantID, capID)
+	_, _ = db.Exec("DELETE FROM architecturedirection.capability_node_cache WHERE tenant_id = $1 AND capability_id = $2", tenantID, capID)
 }
 
 func journeyIDsForCapability(db *sql.DB, tenantID, capID string) []string {
@@ -461,6 +466,110 @@ func TestCapabilityJourneyIntegration_CompletingJourney_TouchesNothingOutsideOwn
 	assert.Equal(t, 0, capabilityRows, "completion is plan-only and must not create or touch capabilitymapping rows")
 }
 
+func (tc *capabilityJourneyTestContext) execAsTenant(t *testing.T, query string, args ...any) {
+	t.Helper()
+	ctx := context.Background()
+	conn, err := tc.db.Conn(ctx)
+	require.NoError(t, err)
+	defer func() { _ = conn.Close() }()
+	_, err = conn.ExecContext(ctx, fmt.Sprintf("SET app.current_tenant = '%s'", sharedvo.DefaultTenantID().Value()))
+	require.NoError(t, err)
+	_, err = conn.ExecContext(ctx, query, args...)
+	require.NoError(t, err)
+}
+
+func (tc *capabilityJourneyTestContext) seedCapabilityMaturity(t *testing.T, capabilityID string, maturity int) {
+	t.Helper()
+	tenantID := sharedvo.DefaultTenantID().Value()
+	tc.execAsTenant(t,
+		`INSERT INTO architecturedirection.capability_node_cache
+		 (tenant_id, capability_id, capability_name, capability_level, l1_capability_id, maturity_value)
+		 VALUES ($1, $2, 'Hazardous Booking', 'L2', $2, $3)
+		 ON CONFLICT (tenant_id, capability_id) DO UPDATE SET maturity_value = EXCLUDED.maturity_value`,
+		tenantID, capabilityID, maturity,
+	)
+}
+
+func TestCapabilityJourneyIntegration_MaturityJourney_DerivesGapFromCurrentMaturity(t *testing.T) {
+	tc, cleanup := setupCapabilityJourneyTestDB(t)
+	defer cleanup()
+
+	capID := uuid.New().String()
+	tc.trackCapability(capID)
+	tc.seedCapabilityMaturity(t, capID, testCurrentMaturityValue)
+
+	target := 65
+	captureRec := captureJourneyReq(tc.handlers, capID, CaptureJourneyRequest{
+		Kind: valueobjects.JourneyKindMaturity, TargetMaturity: &target,
+	}, architectActor())
+	require.Equal(t, http.StatusCreated, captureRec.Code, captureRec.Body.String())
+
+	envelope := decodeJourneyEnvelope(t, getJourneyForCapabilityReq(tc.handlers, capID, architectActor()))
+	require.Len(t, envelope.Journeys, 1)
+	require.NotNil(t, envelope.Journeys[0].Maturity)
+	assert.Equal(t, 65, envelope.Journeys[0].Maturity.TargetMaturity)
+	assert.Equal(t, testCurrentMaturityValue, envelope.Journeys[0].Maturity.CurrentMaturity)
+	assert.Equal(t, 65-testCurrentMaturityValue, envelope.Journeys[0].Maturity.MaturityGap)
+
+	tc.seedCapabilityMaturity(t, capID, 65)
+
+	closed := decodeJourneyEnvelope(t, getJourneyForCapabilityReq(tc.handlers, capID, architectActor()))
+	require.Len(t, closed.Journeys, 1)
+	require.NotNil(t, closed.Journeys[0].Maturity)
+	assert.Equal(t, 0, closed.Journeys[0].Maturity.MaturityGap, "the gap is derived, so it closes when the capability matures")
+}
+
+func TestCapabilityJourneyIntegration_MaturityJourneyRunsBesideApplicationJourney_Spec211Rule6(t *testing.T) {
+	tc, cleanup := setupCapabilityJourneyTestDB(t)
+	defer cleanup()
+
+	capID := uuid.New().String()
+	tc.trackCapability(capID)
+	tc.seedCapabilityMaturity(t, capID, testCurrentMaturityValue)
+
+	require.Equal(t, http.StatusCreated, captureJourneyReq(tc.handlers, capID, CaptureJourneyRequest{
+		Kind: valueobjects.JourneyKindMigration, FromComponentIDs: []string{uuid.New().String()}, ToComponentID: uuid.New().String(),
+	}, architectActor()).Code)
+
+	target := 65
+	require.Equal(t, http.StatusCreated, captureJourneyReq(tc.handlers, capID, CaptureJourneyRequest{
+		Kind: valueobjects.JourneyKindMaturity, TargetMaturity: &target,
+	}, architectActor()).Code)
+
+	secondMaturity := captureJourneyReq(tc.handlers, capID, CaptureJourneyRequest{
+		Kind: valueobjects.JourneyKindMaturity, TargetMaturity: &target,
+	}, architectActor())
+	assert.Equal(t, http.StatusConflict, secondMaturity.Code, "a capability runs at most one maturity journey")
+
+	envelope := decodeJourneyEnvelope(t, getJourneyForCapabilityReq(tc.handlers, capID, architectActor()))
+	require.Len(t, envelope.Journeys, 2)
+	assert.NotContains(t, envelope.Links, "x-capture")
+	assert.NotContains(t, envelope.Links, "x-capture-maturity")
+
+	bulk := bulkJourneysReq(tc.handlers, []string{capID}, architectActor())
+	require.Equal(t, http.StatusOK, bulk.Code)
+	var collection struct {
+		Data []readmodels.CapabilityJourneyDTO `json:"data"`
+	}
+	require.NoError(t, json.NewDecoder(bulk.Body).Decode(&collection))
+	assert.Len(t, collection.Data, 2, "both active journeys reach the board query")
+}
+
+func TestCapabilityJourneyIntegration_MaturityTargetBelowCurrent_Rejected_Spec211Rule3(t *testing.T) {
+	tc, cleanup := setupCapabilityJourneyTestDB(t)
+	defer cleanup()
+
+	capID := uuid.New().String()
+	tc.trackCapability(capID)
+
+	below := testCurrentMaturityValue - 5
+	rec := captureJourneyReq(tc.handlers, capID, CaptureJourneyRequest{
+		Kind: valueobjects.JourneyKindMaturity, TargetMaturity: &below,
+	}, architectActor())
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
+}
+
 func TestCapabilityJourneyIntegration_ReadOnlyActor_NoWriteAffordances(t *testing.T) {
 	tc, cleanup := setupCapabilityJourneyTestDB(t)
 	defer cleanup()
@@ -474,14 +583,14 @@ func TestCapabilityJourneyIntegration_ReadOnlyActor_NoWriteAffordances(t *testin
 	architectGet := getJourneyForCapabilityReq(tc.handlers, capID, architectActor())
 	require.Equal(t, http.StatusOK, architectGet.Code)
 	architectEnvelope := decodeJourneyEnvelope(t, architectGet)
-	require.NotNil(t, architectEnvelope.Journey)
-	assert.Contains(t, architectEnvelope.Journey.Links, "x-start")
+	require.Len(t, architectEnvelope.Journeys, 1)
+	assert.Contains(t, architectEnvelope.Journeys[0].Links, "x-start")
 
 	readOnlyGet := getJourneyForCapabilityReq(tc.handlers, capID, stakeholderActor())
 	require.Equal(t, http.StatusOK, readOnlyGet.Code)
 	readOnlyEnvelope := decodeJourneyEnvelope(t, readOnlyGet)
-	require.NotNil(t, readOnlyEnvelope.Journey)
-	assert.NotContains(t, readOnlyEnvelope.Journey.Links, "x-start")
+	require.Len(t, readOnlyEnvelope.Journeys, 1)
+	assert.NotContains(t, readOnlyEnvelope.Journeys[0].Links, "x-start")
 	assert.NotContains(t, readOnlyEnvelope.Links, "x-capture")
 }
 
@@ -515,9 +624,9 @@ func TestCapabilityJourneyIntegration_StaleReference_MarksStaleButJourneyRenders
 	get := getJourneyForCapabilityReq(tc.handlers, capID, architectActor())
 	require.Equal(t, http.StatusOK, get.Code)
 	envelope := decodeJourneyEnvelope(t, get)
-	require.NotNil(t, envelope.Journey)
-	assert.True(t, envelope.Journey.ToApplication.Stale)
-	assert.Equal(t, toApp, envelope.Journey.ToApplication.ComponentID, "the journey renders normally despite the stale reference")
+	require.Len(t, envelope.Journeys, 1)
+	assert.True(t, envelope.Journeys[0].ToApplication.Stale)
+	assert.Equal(t, toApp, envelope.Journeys[0].ToApplication.ComponentID, "the journey renders normally despite the stale reference")
 }
 
 const journeyMilestoneOrderPattern = "/api/v1/capability-journeys/{journeyId}/milestone-order"
@@ -580,8 +689,8 @@ func TestCapabilityJourneyIntegration_ReorderMilestones_EveryReadSurfaceReturnsN
 	assert.Equal(t, []string{"Contract signed", "Pilot", "Rollout"}, milestoneLabels(reordered.Milestones))
 
 	single := decodeJourneyEnvelope(t, getJourneyForCapabilityReq(tc.handlers, capID, architectActor()))
-	require.NotNil(t, single.Journey)
-	assert.Equal(t, []string{"Contract signed", "Pilot", "Rollout"}, milestoneLabels(single.Journey.Milestones))
+	require.Len(t, single.Journeys, 1)
+	assert.Equal(t, []string{"Contract signed", "Pilot", "Rollout"}, milestoneLabels(single.Journeys[0].Milestones))
 
 	historyRec := runCapabilityJourneyRequest(
 		httptest.NewRequest(http.MethodGet, "/api/v1/capabilities/"+capID+"/journey/history", nil),
@@ -640,7 +749,8 @@ func TestCapabilityJourneyIntegration_ReorderMilestones_RejectsInvalidAndNoOpOrd
 	assert.Equal(t, http.StatusConflict, reorderMilestonesReq(tc.handlers, journey.ID, []string{m[0].ID, m[1].ID, m[2].ID}, architectActor()).Code, "no-op")
 
 	single := decodeJourneyEnvelope(t, getJourneyForCapabilityReq(tc.handlers, journey.CapabilityID, architectActor()))
-	assert.Equal(t, []string{"Contract signed", "Rollout", "Pilot"}, milestoneLabels(single.Journey.Milestones), "rejected reorders leave the order untouched")
+	require.Len(t, single.Journeys, 1)
+	assert.Equal(t, []string{"Contract signed", "Rollout", "Pilot"}, milestoneLabels(single.Journeys[0].Milestones), "rejected reorders leave the order untouched")
 }
 
 func TestCapabilityJourneyIntegration_ReorderMilestones_ReadOnlyActorGetsNoAffordance_Rule6(t *testing.T) {
@@ -650,7 +760,7 @@ func TestCapabilityJourneyIntegration_ReorderMilestones_ReadOnlyActorGetsNoAffor
 
 	readOnly := decodeJourneyEnvelope(t, getJourneyForCapabilityReq(tc.handlers, capID, stakeholderActor()))
 
-	require.NotNil(t, readOnly.Journey)
-	require.Len(t, readOnly.Journey.Milestones, 3)
-	assert.NotContains(t, readOnly.Journey.Links, "x-reorder-milestones")
+	require.Len(t, readOnly.Journeys, 1)
+	require.Len(t, readOnly.Journeys[0].Milestones, 3)
+	assert.NotContains(t, readOnly.Journeys[0].Links, "x-reorder-milestones")
 }

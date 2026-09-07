@@ -76,7 +76,7 @@ describe('useCapabilities hooks', () => {
     vi.restoreAllMocks();
   });
 
-  const renderMutation = <T,>(hook: () => T) => {
+  const renderMutation = <T>(hook: () => T) => {
     const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
     const { result } = renderHook(hook, { wrapper: createWrapper(queryClient) });
     return { result, invalidateQueriesSpy };
@@ -245,11 +245,7 @@ describe('useCapabilities hooks', () => {
         });
       });
 
-      expectInvalidated(
-        invalidateQueriesSpy,
-        capabilitiesQueryKeys.lists(),
-        capabilitiesQueryKeys.detail('cap-1'),
-      );
+      expectInvalidated(invalidateQueriesSpy, capabilitiesQueryKeys.lists(), capabilitiesQueryKeys.detail('cap-1'));
 
       expect(toast.success).toHaveBeenCalledWith('Capability "Updated Name" updated');
     });
@@ -269,11 +265,7 @@ describe('useCapabilities hooks', () => {
         await result.current.mutateAsync({ capability });
       });
 
-      expectInvalidated(
-        invalidateQueriesSpy,
-        capabilitiesQueryKeys.lists(),
-        capabilitiesQueryKeys.detail('cap-1'),
-      );
+      expectInvalidated(invalidateQueriesSpy, capabilitiesQueryKeys.lists(), capabilitiesQueryKeys.detail('cap-1'));
 
       expect(toast.success).toHaveBeenCalledWith('Capability deleted');
     });

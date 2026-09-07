@@ -38,10 +38,6 @@ func (h *HATEOASLinks) Post(path string) types.Link  { return NewLink(h.base+pat
 func (h *HATEOASLinks) Del(path string) types.Link   { return NewLink(h.base+path, MethodDelete) }
 func (h *HATEOASLinks) Patch(path string) types.Link { return NewLink(h.base+path, MethodPatch) }
 
-func (h *HATEOASLinks) Crud(path string) Links {
-	return Links{"self": h.Get(path), "edit": h.Put(path), "delete": h.Del(path)}
-}
-
 type ResourceConfig struct {
 	Path       string
 	Collection string

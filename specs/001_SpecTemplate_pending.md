@@ -2,6 +2,7 @@
 
 > **Status:** pending | ongoing | done | superseded
 > **Depends on:** _(link to prerequisite specs, if any)_
+> **Roadmap alignment:** _(SD/move from `docs/architecture/ROADMAP.md`, e.g. `SD1 / H1-1`, or `outside roadmap: <why>`)_
 
 ---
 

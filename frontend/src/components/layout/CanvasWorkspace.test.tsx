@@ -15,7 +15,22 @@ vi.mock('../../features/canvas', async () => {
 });
 
 vi.mock('../../features/navigation', () => ({
-  NavigationTree: () => <div data-testid="navigation-tree-mock" />,
+  NavigationTree: ({
+    onEditComponent,
+    onEditCapability,
+  }: {
+    onEditComponent?: (componentId: string) => void;
+    onEditCapability?: (capability: { id: string }) => void;
+  }) => (
+    <div data-testid="navigation-tree-mock">
+      <button type="button" data-testid="tree-edit-mock" onClick={() => onEditComponent?.('comp-1')}>
+        Edit
+      </button>
+      <button type="button" data-testid="tree-edit-capability-mock" onClick={() => onEditCapability?.({ id: 'cap-1' })}>
+        Edit capability
+      </button>
+    </div>
+  ),
 }));
 
 vi.mock('../../features/views', async () => {
@@ -32,7 +47,7 @@ vi.mock('../shared/DetailContentRenderer', () => ({
 
 const STORAGE_KEY = 'easi-canvas-panels';
 
-function renderWorkspace() {
+function renderWorkspace(onComponentSelect = vi.fn(), onCapabilitySelect = vi.fn()) {
   const canvasRef = createRef<ComponentCanvasRef>();
   return renderWithProviders(
     <CanvasWorkspace
@@ -41,12 +56,9 @@ function renderWorkspace() {
       selectedEdgeId={null}
       onConnect={vi.fn()}
       onComponentDrop={vi.fn()}
-      onComponentSelect={vi.fn()}
-      onCapabilitySelect={vi.fn()}
+      onComponentSelect={onComponentSelect}
+      onCapabilitySelect={onCapabilitySelect}
       onViewSelect={vi.fn()}
-      onEditComponent={vi.fn()}
-      onEditRelation={vi.fn()}
-      onEditCapability={vi.fn()}
       onRemoveFromView={vi.fn()}
     />,
   );
@@ -73,6 +85,24 @@ describe('CanvasWorkspace', () => {
     expect(screen.getByTestId('detail-content-mock')).toBeInTheDocument();
     expect(within(screen.getByTestId('explorer-pane')).getByText('Explorer')).toBeInTheDocument();
     expect(within(screen.getByTestId('details-pane')).getByText('Details')).toBeInTheDocument();
+  });
+
+  it("routes the tree's Edit action to component selection so the details pane shows it", async () => {
+    const onComponentSelect = vi.fn();
+    renderWorkspace(onComponentSelect);
+
+    await userEvent.click(screen.getByTestId('tree-edit-mock'));
+
+    expect(onComponentSelect).toHaveBeenCalledWith('comp-1');
+  });
+
+  it("routes the tree's Edit action for a capability to capability selection so the details pane shows it", async () => {
+    const onCapabilitySelect = vi.fn();
+    renderWorkspace(vi.fn(), onCapabilitySelect);
+
+    await userEvent.click(screen.getByTestId('tree-edit-capability-mock'));
+
+    expect(onCapabilitySelect).toHaveBeenCalledWith('cap-1');
   });
 
   it('hides the explorer pane via its header collapse button, and reopens it from the floating button', async () => {

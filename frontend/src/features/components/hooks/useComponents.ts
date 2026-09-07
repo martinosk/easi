@@ -13,7 +13,7 @@ import { componentsApi } from '../api';
 import { componentsMutationEffects } from '../mutationEffects';
 import { componentsQueryKeys } from '../queryKeys';
 
-function useComponentMutation<TArgs, TResult>(
+export function useComponentMutation<TArgs, TResult>(
   mutationFn: (args: TArgs) => Promise<TResult>,
   getEffects: (result: TResult, args: TArgs) => QueryKey[],
   successMessage: string | ((result: TResult, args: TArgs) => string),

@@ -38,16 +38,37 @@ func (m *mockCapabilityJourneyRepository) GetByID(_ context.Context, _ string) (
 }
 
 type mockActiveJourneyLookup struct {
-	id     string
-	exists bool
-	err    error
+	id          string
+	exists      bool
+	err         error
+	askedKinds  []string
+	activeKinds []string
 }
 
-func (m *mockActiveJourneyLookup) FindActiveJourneyIDForCapability(_ context.Context, _ string) (string, bool, error) {
+func (m *mockActiveJourneyLookup) FindActiveJourneyIDForCapability(_ context.Context, _ string, kinds []string) (string, bool, error) {
 	if m.err != nil {
 		return "", false, m.err
 	}
+	m.askedKinds = kinds
+	if m.activeKinds != nil {
+		return m.id, intersects(kinds, m.activeKinds), nil
+	}
 	return m.id, m.exists, nil
+}
+
+func intersects(a, b []string) bool {
+	for _, left := range a {
+		for _, right := range b {
+			if left == right {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func maturityOf(value int) func(context.Context, string) (int, error) {
+	return func(context.Context, string) (int, error) { return value, nil }
 }
 
 func alwaysExists(_ context.Context, _ string) (bool, error) { return true, nil }
@@ -76,7 +97,7 @@ func validPlanJourneyCmd() *commands.PlanJourney {
 func TestPlanJourneyHandler_ValidMigration_CreatesJourney(t *testing.T) {
 	repo := &mockCapabilityJourneyRepository{}
 	lookup := &mockActiveJourneyLookup{exists: false}
-	h := NewPlanJourneyHandler(repo, lookup, allExistingRefs())
+	h := NewPlanJourneyHandler(repo, lookup, allExistingRefs(), nil)
 
 	cmd := validPlanJourneyCmd()
 	result, err := h.Handle(context.Background(), cmd)
@@ -91,7 +112,7 @@ func TestPlanJourneyHandler_ActiveJourneyExists_ReturnsErrorCarryingExistingID(t
 	repo := &mockCapabilityJourneyRepository{}
 	existingID := uuid.New().String()
 	lookup := &mockActiveJourneyLookup{id: existingID, exists: true}
-	h := NewPlanJourneyHandler(repo, lookup, allExistingRefs())
+	h := NewPlanJourneyHandler(repo, lookup, allExistingRefs(), nil)
 
 	_, err := h.Handle(context.Background(), validPlanJourneyCmd())
 
@@ -107,7 +128,7 @@ func TestPlanJourneyHandler_CapabilityDoesNotExist_Fails(t *testing.T) {
 	lookup := &mockActiveJourneyLookup{exists: false}
 	refs := allExistingRefs()
 	refs.CapabilityExists = neverExists
-	h := NewPlanJourneyHandler(repo, lookup, refs)
+	h := NewPlanJourneyHandler(repo, lookup, refs, nil)
 
 	_, err := h.Handle(context.Background(), validPlanJourneyCmd())
 
@@ -131,7 +152,7 @@ func TestPlanJourneyHandler_ComponentDoesNotExist_Fails(t *testing.T) {
 			missingComponentID := tc.missingCompFn(cmd)
 			refs := allExistingRefs()
 			refs.ComponentExists = func(_ context.Context, id string) (bool, error) { return id != missingComponentID, nil }
-			h := NewPlanJourneyHandler(repo, lookup, refs)
+			h := NewPlanJourneyHandler(repo, lookup, refs, nil)
 
 			_, err := h.Handle(context.Background(), cmd)
 
@@ -155,7 +176,7 @@ func TestPlanJourneyHandler_KindCardinalityViolation_Fails(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			repo := &mockCapabilityJourneyRepository{}
 			lookup := &mockActiveJourneyLookup{exists: false}
-			h := NewPlanJourneyHandler(repo, lookup, allExistingRefs())
+			h := NewPlanJourneyHandler(repo, lookup, allExistingRefs(), nil)
 			cmd := validPlanJourneyCmd()
 			cmd.Kind = tc.kind
 			ids := make([]string, tc.sources)
@@ -196,7 +217,7 @@ func TestPlanJourneyHandler_AggregateInvariantViolations_Fail(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			repo := &mockCapabilityJourneyRepository{}
 			lookup := &mockActiveJourneyLookup{exists: false}
-			h := NewPlanJourneyHandler(repo, lookup, allExistingRefs())
+			h := NewPlanJourneyHandler(repo, lookup, allExistingRefs(), nil)
 			cmd := validPlanJourneyCmd()
 			tc.mutate(cmd)
 
@@ -229,7 +250,7 @@ func TestPlanJourneyHandler_ValidMove_VerifiesDomainAndParent(t *testing.T) {
 		checkedCapability, checkedDomain = capabilityID, domainID
 		return true, nil
 	}
-	h := NewPlanJourneyHandler(repo, lookup, refs)
+	h := NewPlanJourneyHandler(repo, lookup, refs, nil)
 
 	_, err := h.Handle(context.Background(), cmd)
 
@@ -269,7 +290,7 @@ func TestPlanJourneyHandler_MoveParentReferenceViolations_Fail(t *testing.T) {
 			repo := &mockCapabilityJourneyRepository{}
 			lookup := &mockActiveJourneyLookup{exists: false}
 			cmd := validMovePlanJourneyCmd()
-			h := NewPlanJourneyHandler(repo, lookup, tc.refs(cmd))
+			h := NewPlanJourneyHandler(repo, lookup, tc.refs(cmd), nil)
 
 			_, err := h.Handle(context.Background(), cmd)
 
@@ -279,10 +300,87 @@ func TestPlanJourneyHandler_MoveParentReferenceViolations_Fail(t *testing.T) {
 	}
 }
 
+func validMaturityPlanJourneyCmd(target int) *commands.PlanJourney {
+	cmd := validPlanJourneyCmd()
+	cmd.Kind = valueobjects.JourneyKindMaturity
+	cmd.FromComponentIDs = nil
+	cmd.ToComponentID = ""
+	cmd.TargetMaturity = &target
+	return cmd
+}
+
+func TestPlanJourneyHandler_ValidMaturity_ReadsCurrentMaturityAndPlans(t *testing.T) {
+	repo := &mockCapabilityJourneyRepository{}
+	lookup := &mockActiveJourneyLookup{exists: false}
+	h := NewPlanJourneyHandler(repo, lookup, allExistingRefs(), maturityOf(30))
+
+	_, err := h.Handle(context.Background(), validMaturityPlanJourneyCmd(65))
+
+	require.NoError(t, err)
+	require.Len(t, repo.saved, 1)
+	require.NotNil(t, repo.saved[0].TargetMaturity())
+	assert.Equal(t, 65, repo.saved[0].TargetMaturity().Value())
+	assert.Equal(t, []string{valueobjects.JourneyKindMaturity}, lookup.askedKinds)
+}
+
+func TestPlanJourneyHandler_MaturityTargetNotAboveCurrent_Fails_Spec211Rule3(t *testing.T) {
+	repo := &mockCapabilityJourneyRepository{}
+	lookup := &mockActiveJourneyLookup{exists: false}
+	h := NewPlanJourneyHandler(repo, lookup, allExistingRefs(), maturityOf(65))
+
+	_, err := h.Handle(context.Background(), validMaturityPlanJourneyCmd(65))
+
+	assert.ErrorIs(t, err, aggregates.ErrJourneyMaturityTargetNotAboveCurrent)
+	assert.Empty(t, repo.saved)
+}
+
+func TestPlanJourneyHandler_MaturityAlongsideApplicationJourney_Spec211Rule6(t *testing.T) {
+	cases := []struct {
+		name        string
+		activeKinds []string
+		cmd         func() *commands.PlanJourney
+		wantBlocked bool
+	}{
+		{"maturity is allowed beside an active migration", []string{valueobjects.JourneyKindMigration}, func() *commands.PlanJourney { return validMaturityPlanJourneyCmd(65) }, false},
+		{"a second maturity is rejected", []string{valueobjects.JourneyKindMaturity}, func() *commands.PlanJourney { return validMaturityPlanJourneyCmd(65) }, true},
+		{"a migration is allowed beside an active maturity", []string{valueobjects.JourneyKindMaturity}, validPlanJourneyCmd, false},
+		{"a second migration is rejected", []string{valueobjects.JourneyKindMigration}, validPlanJourneyCmd, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := &mockCapabilityJourneyRepository{}
+			lookup := &mockActiveJourneyLookup{id: uuid.New().String(), activeKinds: tc.activeKinds}
+			h := NewPlanJourneyHandler(repo, lookup, allExistingRefs(), maturityOf(30))
+
+			_, err := h.Handle(context.Background(), tc.cmd())
+
+			if tc.wantBlocked {
+				var conflict *services.ActiveJourneyError
+				require.True(t, errors.As(err, &conflict))
+				assert.Empty(t, repo.saved)
+				return
+			}
+			require.NoError(t, err)
+			assert.Len(t, repo.saved, 1)
+		})
+	}
+}
+
+func TestPlanJourneyHandler_MaturityTargetOutOfRange_Fails(t *testing.T) {
+	repo := &mockCapabilityJourneyRepository{}
+	lookup := &mockActiveJourneyLookup{exists: false}
+	h := NewPlanJourneyHandler(repo, lookup, allExistingRefs(), maturityOf(30))
+
+	_, err := h.Handle(context.Background(), validMaturityPlanJourneyCmd(120))
+
+	assert.ErrorIs(t, err, valueobjects.ErrTargetMaturityOutOfRange)
+	assert.Empty(t, repo.saved)
+}
+
 func TestPlanJourneyHandler_LookupError_Fails(t *testing.T) {
 	repo := &mockCapabilityJourneyRepository{}
 	lookup := &mockActiveJourneyLookup{err: errors.New("db down")}
-	h := NewPlanJourneyHandler(repo, lookup, allExistingRefs())
+	h := NewPlanJourneyHandler(repo, lookup, allExistingRefs(), nil)
 
 	_, err := h.Handle(context.Background(), validPlanJourneyCmd())
 
@@ -293,7 +391,7 @@ func TestPlanJourneyHandler_LookupError_Fails(t *testing.T) {
 func TestPlanJourneyHandler_InvalidCommandType_Fails(t *testing.T) {
 	repo := &mockCapabilityJourneyRepository{}
 	lookup := &mockActiveJourneyLookup{}
-	h := NewPlanJourneyHandler(repo, lookup, allExistingRefs())
+	h := NewPlanJourneyHandler(repo, lookup, allExistingRefs(), nil)
 
 	_, err := h.Handle(context.Background(), &commands.StartJourney{})
 

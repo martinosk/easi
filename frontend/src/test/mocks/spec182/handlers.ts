@@ -15,7 +15,8 @@ import { getCapability, getComponent } from '../db';
 import {
   addJourney,
   canWriteJourneys,
-  findActiveJourneyForCapability,
+  findActiveJourneyOnTrack,
+  findActiveJourneysForCapability,
   findJourney,
   getCurrentByCapabilityIds,
   getHistoryForCapability,
@@ -28,6 +29,7 @@ import {
 } from './store';
 
 const BASE_URL = '*';
+const STUB_CURRENT_MATURITY = 30;
 const link = (href: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE') => ({ href, method });
 
 function capabilityIdFilter(url: URL): string[] | null {
@@ -50,26 +52,27 @@ function milestoneDto(milestone: StubMilestone, journeyId: string, writable: boo
   };
 }
 
-function journeyDto(journey: StubJourney): CapabilityJourney {
-  const writer = canWriteJourneys();
-  const active = isActiveStatus(journey.status);
-  const writable = active && writer;
+function journeyLinks(journey: StubJourney, writable: boolean): CapabilityJourney['_links'] {
   const base = `/api/v1/capability-journeys/${journey.id}`;
-
   const links: CapabilityJourney['_links'] = {
     self: link(base, 'GET'),
     'x-history': link(`/api/v1/capabilities/${journey.capabilityId}/journey/history`, 'GET'),
   };
-  if (writable) {
-    if (journey.status === 'planned') links['x-start'] = link(`${base}/start`, 'POST');
-    if (journey.status === 'in-flight') links['x-complete'] = link(`${base}/complete`, 'POST');
-    links['x-abandon'] = link(`${base}/abandon`, 'POST');
-    links.edit = link(`${base}/details`, 'PUT');
-    links['x-progress'] = link(`${base}/progress`, 'PUT');
-    links['x-change-sources'] = link(`${base}/source-applications`, 'PUT');
-    links['x-add-milestone'] = link(`${base}/milestones`, 'POST');
-    if (journey.milestones.length > 1) links['x-reorder-milestones'] = link(`${base}/milestone-order`, 'PUT');
-  }
+  if (!writable) return links;
+
+  if (journey.status === 'planned') links['x-start'] = link(`${base}/start`, 'POST');
+  if (journey.status === 'in-flight') links['x-complete'] = link(`${base}/complete`, 'POST');
+  links['x-abandon'] = link(`${base}/abandon`, 'POST');
+  links.edit = link(`${base}/details`, 'PUT');
+  links['x-progress'] = link(`${base}/progress`, 'PUT');
+  if (journey.kind !== 'maturity') links['x-change-sources'] = link(`${base}/source-applications`, 'PUT');
+  links['x-add-milestone'] = link(`${base}/milestones`, 'POST');
+  if (journey.milestones.length > 1) links['x-reorder-milestones'] = link(`${base}/milestone-order`, 'PUT');
+  return links;
+}
+
+function journeyDto(journey: StubJourney): CapabilityJourney {
+  const writable = isActiveStatus(journey.status) && canWriteJourneys();
 
   return {
     id: journey.id,
@@ -84,6 +87,7 @@ function journeyDto(journey: StubJourney): CapabilityJourney {
     fromApplications: journey.fromApplications,
     toApplication: journey.toApplication,
     ...(journey.move ? { move: journey.move } : {}),
+    ...(journey.maturity ? { maturity: journey.maturity } : {}),
     milestones: journey.milestones.map((m) => milestoneDto(m, journey.id, writable)),
     plannedBy: journey.plannedBy,
     plannedByName: journey.plannedByName,
@@ -92,7 +96,7 @@ function journeyDto(journey: StubJourney): CapabilityJourney {
     startedAt: journey.startedAt,
     completedAt: journey.completedAt,
     abandonedAt: journey.abandonedAt,
-    _links: links,
+    _links: journeyLinks(journey, writable),
   };
 }
 
@@ -116,6 +120,14 @@ function buildCapturedJourney(capabilityId: string, body: CaptureJourneyRequest)
     note: body.note ?? '',
     fromApplications: body.fromComponentIds.map(resolveApplicationRef),
     toApplication: resolveApplicationRef(body.toComponentId),
+    maturity:
+      body.kind === 'maturity' && body.targetMaturity !== undefined
+        ? {
+            targetMaturity: body.targetMaturity,
+            currentMaturity: STUB_CURRENT_MATURITY,
+            maturityGap: body.targetMaturity - STUB_CURRENT_MATURITY,
+          }
+        : undefined,
     move:
       body.kind === 'move'
         ? {
@@ -155,26 +167,32 @@ function transitionHandler(action: 'start' | 'complete' | 'abandon', nextStatus:
 export const spec182Handlers = [
   http.get(`${BASE_URL}/api/v1/capabilities/:id/journey`, ({ params }) => {
     const capabilityId = params.id as string;
-    const active = findActiveJourneyForCapability(capabilityId);
-    const links: { self: ReturnType<typeof link>; 'x-capture'?: ReturnType<typeof link> } = {
+    const active = findActiveJourneysForCapability(capabilityId);
+    const links: {
+      self: ReturnType<typeof link>;
+      'x-capture'?: ReturnType<typeof link>;
+      'x-capture-maturity'?: ReturnType<typeof link>;
+    } = {
       self: link(`/api/v1/capabilities/${capabilityId}/journey`, 'GET'),
     };
-    if (canWriteJourneys() && !active) {
-      links['x-capture'] = link(`/api/v1/capabilities/${capabilityId}/journey`, 'POST');
+    const capturePath = `/api/v1/capabilities/${capabilityId}/journey`;
+    if (canWriteJourneys()) {
+      if (!active.some((j) => j.kind !== 'maturity')) links['x-capture'] = link(capturePath, 'POST');
+      if (!active.some((j) => j.kind === 'maturity')) links['x-capture-maturity'] = link(capturePath, 'POST');
     }
-    return HttpResponse.json({ journey: active ? journeyDto(active) : null, _links: links });
+    return HttpResponse.json({ journeys: active.map(journeyDto), _links: links });
   }),
 
   http.post(`${BASE_URL}/api/v1/capabilities/:id/journey`, async ({ params, request }) => {
     const capabilityId = params.id as string;
-    const existingActive = findActiveJourneyForCapability(capabilityId);
+    const body = (await request.json()) as CaptureJourneyRequest;
+    const existingActive = findActiveJourneyOnTrack(capabilityId, body.kind);
     if (existingActive) {
       return HttpResponse.json(
         { message: `An active journey already exists for this capability (${existingActive.id})` },
         { status: 409 },
       );
     }
-    const body = (await request.json()) as CaptureJourneyRequest;
     const journey = buildCapturedJourney(capabilityId, body);
     addJourney(journey);
     return HttpResponse.json(journeyDto(journey), { status: 201 });

@@ -6,12 +6,11 @@ import (
 )
 
 var subjectDetailPathPrefixes = map[string]string{
-	"capability":            "/capabilities/",
-	"enterprise-capability": "/enterprise-capabilities/",
-	"application":           "/components/",
-	"acquired-entity":       "/acquired-entities/",
-	"vendor":                "/vendors/",
-	"internal-team":         "/internal-teams/",
+	"capability":      "/capabilities/",
+	"application":     "/components/",
+	"acquired-entity": "/acquired-entities/",
+	"vendor":          "/vendors/",
+	"internal-team":   "/internal-teams/",
 }
 
 func onePagerViewPath(subjectType, subjectID string) string {

@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "seed": "npx tsx seed-test-data.ts",
-    "seed:help": "npx tsx seed-test-data.ts --help"
+    "seed:help": "npx tsx seed-test-data.ts --help",
+    "generate:components": "node generate-architecture-components.js",
+    "check:components": "node generate-architecture-components.js --check"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

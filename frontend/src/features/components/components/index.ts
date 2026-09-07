@@ -1,4 +1,4 @@
-export type { ComponentDetailsContentProps } from './ComponentDetails';
-export { ComponentDetails, ComponentDetailsContent } from './ComponentDetails';
+export { ComponentDetails } from './ComponentDetails';
+export { ComponentDetailsContent } from './ComponentDetailsContent';
+export { ComponentDetailsPanel } from './ComponentDetailsPanel';
 export { CreateComponentDialog } from './CreateComponentDialog';
-export { EditComponentDialog } from './EditComponentDialog';

@@ -307,5 +307,4 @@ backend/docs/docs.go
 .claude/skills
 .claude/commands
 .claude/settings.local.json
-.devcontainer
 .mcp.json

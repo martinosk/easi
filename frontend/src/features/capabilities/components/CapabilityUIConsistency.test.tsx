@@ -1,13 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+﻿import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { apiClient } from '../../../api/client';
 import type { Capability, CapabilityId, Component, ComponentId, View, ViewId } from '../../../api/types';
 import type { AppStore } from '../../../store/appStore';
 import { useAppStore } from '../../../store/appStore';
 import { createMantineTestWrapper, seedDb } from '../../../test/helpers';
-import { EditComponentDialog } from '../../components/components/EditComponentDialog';
 import { NavigationTree } from '../../navigation/components/NavigationTree';
-import { EditCapabilityDialog } from './EditCapabilityDialog';
 
 vi.mock('../../../store/appStore', () => ({
   useAppStore: vi.fn(),
@@ -34,20 +31,9 @@ function setupMockStore(overrides: Record<string, unknown> = {}) {
   return mockStore;
 }
 
-function setupApiClientMocks() {
-  vi.mocked(apiClient.getMaturityLevels).mockResolvedValue(['Genesis', 'Custom Build', 'Product', 'Commodity']);
-  vi.mocked(apiClient.getStatuses).mockResolvedValue([{ value: 'Active', displayName: 'Active', sortOrder: 1 }]);
-  vi.mocked(apiClient.getOwnershipModels).mockResolvedValue([]);
-}
-
 function renderNavigationTree(props: Record<string, unknown> = {}) {
   const { Wrapper } = createMantineTestWrapper();
   return render(<NavigationTree {...props} />, { wrapper: Wrapper });
-}
-
-function renderEditCapabilityDialog(props: { isOpen: boolean; onClose: () => void; capability: Capability | null }) {
-  const { Wrapper } = createMantineTestWrapper();
-  return render(<EditCapabilityDialog {...props} />, { wrapper: Wrapper });
 }
 
 function expandButtonFor(capabilityName: string) {
@@ -72,6 +58,8 @@ function createComponentsWithB() {
     {
       id: 'comp-2' as ComponentId,
       name: 'Component B',
+      ownershipState: 'unknown' as const,
+      hosting: 'unknown' as const,
       createdAt: '2024-01-01T00:00:00Z',
       _links: { self: { href: '/api/v1/components/comp-2', method: 'GET' as const } },
     },
@@ -126,6 +114,8 @@ const mockComponents: Component[] = [
     id: 'comp-1' as ComponentId,
     name: 'Component A',
     description: 'Test component',
+    ownershipState: 'unknown',
+    hosting: 'unknown',
     createdAt: '2024-01-01T00:00:00Z',
     _links: {
       self: { href: '/api/v1/components/comp-1', method: 'GET' },
@@ -178,64 +168,6 @@ describe('Capability UI Consistency', () => {
       capabilities: mockCapabilities,
       components: mockComponents,
       views: [mockCurrentView],
-    });
-  });
-
-  describe('Dialog Management', () => {
-    describe('EditCapabilityDialog should be managed via DialogManager pattern', () => {
-      it('should render dialog as a modal overlay when opened', async () => {
-        setupMockStore();
-        setupApiClientMocks();
-        renderEditCapabilityDialog({ isOpen: true, onClose: vi.fn(), capability: mockCapabilities[0] });
-
-        await waitFor(() => {
-          expect(screen.getByText('Edit Capability')).toBeInTheDocument();
-        });
-      });
-
-      it('should not show modal when isOpen is false', async () => {
-        setupMockStore();
-        renderEditCapabilityDialog({ isOpen: false, onClose: vi.fn(), capability: null });
-
-        expect(screen.queryByText('Edit Capability')).not.toBeInTheDocument();
-      });
-
-      it('should call onClose when cancel button is clicked', async () => {
-        setupMockStore();
-        setupApiClientMocks();
-        const mockOnClose = vi.fn();
-        renderEditCapabilityDialog({ isOpen: true, onClose: mockOnClose, capability: mockCapabilities[0] });
-
-        await waitFor(() => {
-          expect(screen.getByTestId('edit-capability-cancel')).toBeInTheDocument();
-        });
-
-        fireEvent.click(screen.getByTestId('edit-capability-cancel'));
-
-        expect(mockOnClose).toHaveBeenCalled();
-      });
-
-      it('should follow same pattern as EditComponentDialog for dialog opening', async () => {
-        setupMockStore();
-        setupApiClientMocks();
-        const { Wrapper } = createMantineTestWrapper();
-
-        const { rerender } = render(
-          <EditComponentDialog isOpen={true} onClose={vi.fn()} component={mockComponents[0]} />,
-          { wrapper: Wrapper },
-        );
-
-        await waitFor(() => {
-          expect(screen.getByText('Edit Application')).toBeInTheDocument();
-        });
-
-        rerender(<EditCapabilityDialog isOpen={true} onClose={vi.fn()} capability={mockCapabilities[0]} />);
-
-        await waitFor(() => {
-          expect(screen.getByText('Edit Capability')).toBeInTheDocument();
-          expect(screen.queryByText('Edit Application')).not.toBeInTheDocument();
-        });
-      });
     });
   });
 

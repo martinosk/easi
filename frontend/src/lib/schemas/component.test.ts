@@ -3,7 +3,6 @@ import {
   componentDescriptionSchema,
   componentNameSchema,
   createComponentSchema,
-  editComponentSchema,
 } from './component';
 
 describe('componentNameSchema', () => {
@@ -120,31 +119,5 @@ describe('createComponentSchema', () => {
       expect(result.data.name).toBe('User Service');
       expect(result.data.description).toBe('Description');
     }
-  });
-});
-
-describe('editComponentSchema', () => {
-  it('should accept valid data', () => {
-    const result = editComponentSchema.safeParse({
-      name: 'Updated Service',
-      description: 'Updated description',
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it('should reject empty name', () => {
-    const result = editComponentSchema.safeParse({
-      name: '',
-      description: 'Some description',
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('should accept empty description', () => {
-    const result = editComponentSchema.safeParse({
-      name: 'Service',
-      description: '',
-    });
-    expect(result.success).toBe(true);
   });
 });

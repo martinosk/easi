@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { HttpResponse, http } from 'msw';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -35,7 +35,19 @@ const createMockView = (colorScheme: string, customColor?: string): View => ({
   isDefault: true,
   isPrivate: false,
   components: [],
-  capabilities: [{ capabilityId: 'cap-1' as CapabilityId, x: 100, y: 200, customColor }],
+  capabilities: [
+    {
+      capabilityId: 'cap-1' as CapabilityId,
+      x: 100,
+      y: 200,
+      customColor,
+      _links: {
+        'x-update-color': { href: '/api/v1/views/view-1/capabilities/cap-1/color', method: 'PATCH' },
+        'x-clear-color': { href: '/api/v1/views/view-1/capabilities/cap-1/color', method: 'DELETE' },
+        'x-remove': { href: '/api/v1/views/view-1/capabilities/cap-1', method: 'DELETE' },
+      },
+    },
+  ],
   originEntities: [],
   colorScheme,
   createdAt: '2024-01-01T00:00:00Z',
@@ -75,6 +87,37 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
       ),
     });
   };
+
+  describe('View membership section', () => {
+    it('renders custom colour and Remove from View in one "In this view" section after realising applications', async () => {
+      renderCapabilityDetails(createMockView('custom'));
+
+      const section = await screen.findByTestId('view-membership-section');
+      expect(section).toHaveTextContent('In this view');
+      expect(within(section).getByTestId('color-picker')).toBeInTheDocument();
+      expect(within(section).getByRole('button', { name: 'Remove from View' })).toBeInTheDocument();
+      const realising = screen.getByText('Realising applications');
+      expect(realising.compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(screen.queryByText('Capability Details')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+    });
+
+    it('renders no view section when the capability is not on the current view', async () => {
+      renderCapabilityDetails({ ...createMockView('custom'), capabilities: [] });
+
+      await screen.findByRole('heading', { name: 'Test Capability' });
+      expect(screen.queryByTestId('view-membership-section')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Remove from View' })).not.toBeInTheDocument();
+    });
+
+    it('hides the colour and remove controls when the view capability carries no links', async () => {
+      const view = createMockView('custom');
+      renderCapabilityDetails({ ...view, capabilities: [{ ...view.capabilities[0], _links: {} }] });
+
+      await screen.findByRole('heading', { name: 'Test Capability' });
+      expect(screen.queryByTestId('view-membership-section')).not.toBeInTheDocument();
+    });
+  });
 
   describe('Color picker visibility', () => {
     it('should show color picker in capability details panel', async () => {

@@ -72,7 +72,7 @@ type StrategicFitAnalysisResponse struct {
 
 // GetStrategicFitAnalysis godoc
 // @Summary Get strategic fit analysis for a pillar
-// @Description Analyzes the gap between capability importance and application fit scores for a strategic pillar. Requires enterprise-arch:read permission (Admin, Architect, or Stakeholder role).
+// @Description Analyzes the gap between capability importance and application fit scores for a strategic pillar. Requires capabilities:read permission (Admin, Architect, or Stakeholder role).
 // @Tags strategic-fit-analysis
 // @Accept json
 // @Produce json
@@ -80,7 +80,7 @@ type StrategicFitAnalysisResponse struct {
 // @Success 200 {object} StrategicFitAnalysisResponse
 // @Failure 400 {object} sharedAPI.ErrorResponse "Invalid pillar ID format or fit scoring not enabled"
 // @Failure 401 {object} sharedAPI.ErrorResponse "Authentication required"
-// @Failure 403 {object} sharedAPI.ErrorResponse "Insufficient permissions - requires enterprise-arch:read"
+// @Failure 403 {object} sharedAPI.ErrorResponse "Insufficient permissions - requires capabilities:read"
 // @Failure 404 {object} sharedAPI.ErrorResponse "Strategy pillar not found"
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Security ApiKeyAuth

@@ -59,6 +59,10 @@ stages:
       inputs:
         version: '24.x'
 
+    - script: node scripts/generate-architecture-components.js --check
+      name: ArchitectureComponentsCheck
+      displayName: 'Verify architecture components CSV is current'
+
     - script: |
         cd frontend
         npm ci

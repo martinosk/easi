@@ -139,7 +139,6 @@ var subjectTypesByReadPermission = []struct {
 	subjectTypes []string
 }{
 	{authPL.PermCapabilitiesRead.String(), []string{"capability"}},
-	{authPL.PermEnterpriseArchRead.String(), []string{"enterprise-capability"}},
 	{authPL.PermComponentsRead.String(), []string{"application", "acquired-entity", "vendor", "internal-team"}},
 }
 

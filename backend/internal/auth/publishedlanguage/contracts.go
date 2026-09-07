@@ -35,10 +35,6 @@ var (
 
 	PermAuditRead = Permission{value: "audit:read"}
 
-	PermEnterpriseArchRead   = Permission{value: "enterprise-arch:read"}
-	PermEnterpriseArchWrite  = Permission{value: "enterprise-arch:write"}
-	PermEnterpriseArchDelete = Permission{value: "enterprise-arch:delete"}
-
 	PermArchitectureDirectionRead   = Permission{value: "architecture-direction:read"}
 	PermArchitectureDirectionWrite  = Permission{value: "architecture-direction:write"}
 	PermArchitectureDirectionDelete = Permission{value: "architecture-direction:delete"}
@@ -71,9 +67,6 @@ var validPermissions = map[string]Permission{
 	"metamodel:read":                PermMetaModelRead,
 	"metamodel:write":               PermMetaModelWrite,
 	"audit:read":                    PermAuditRead,
-	"enterprise-arch:read":          PermEnterpriseArchRead,
-	"enterprise-arch:write":         PermEnterpriseArchWrite,
-	"enterprise-arch:delete":        PermEnterpriseArchDelete,
 	"architecture-direction:read":   PermArchitectureDirectionRead,
 	"architecture-direction:write":  PermArchitectureDirectionWrite,
 	"architecture-direction:delete": PermArchitectureDirectionDelete,

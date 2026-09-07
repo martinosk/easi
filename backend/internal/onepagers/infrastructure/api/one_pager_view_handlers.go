@@ -28,7 +28,7 @@ func NewOnePagerViewHandlers(query onePagerReader, links *OnePagerLinks) *OnePag
 // @Description Assembles the tenant's one-pager configuration, the subject's recorded field values, and built-in field data sourced from the owning context into a single field list in the configured interleaved display order, alongside a completeness summary of the active required custom fields. Carries an x-record link precisely when the requesting actor holds the subject's write permission.
 // @Tags one-pagers
 // @Produce json
-// @Param subjectType path string true "Subject type" Enums(capability, enterprise-capability, application, acquired-entity, vendor, internal-team)
+// @Param subjectType path string true "Subject type" Enums(capability, application, acquired-entity, vendor, internal-team)
 // @Param subjectID path string true "Subject ID"
 // @Success 200 {object} OnePagerDTO
 // @Failure 401 {object} sharedAPI.ErrorResponse

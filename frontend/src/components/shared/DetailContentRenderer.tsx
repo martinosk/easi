@@ -1,3 +1,4 @@
+import { Text } from '@mantine/core';
 import React from 'react';
 import {
   getEntityId,
@@ -14,6 +15,7 @@ import { ComponentDetails } from '../../features/components';
 import {
   AcquiredEntityDetailsPanel,
   InternalTeamDetailsPanel,
+  OriginEntityViewMembershipSection,
   OriginRelationshipDetails,
   VendorDetailsPanel,
 } from '../../features/origin-entities';
@@ -23,8 +25,6 @@ export interface DetailContentRendererProps {
   selectedNodeId: string | null;
   selectedEdgeId: string | null;
   selectedCapabilityId: string | null;
-  onEditComponent: (componentId?: string) => void;
-  onEditRelation: () => void;
   onRemoveFromView: () => void;
   onRemoveCapabilityFromView: () => void;
 }
@@ -32,7 +32,6 @@ export interface DetailContentRendererProps {
 interface NodeDetailProps {
   entityType: NodeEntityType;
   entityId: string;
-  onEditComponent: (componentId?: string) => void;
   onRemoveFromView: () => void;
   onRemoveCapabilityFromView: () => void;
 }
@@ -40,30 +39,29 @@ interface NodeDetailProps {
 const NodeDetail: React.FC<NodeDetailProps> = ({
   entityType,
   entityId,
-  onEditComponent,
   onRemoveFromView,
   onRemoveCapabilityFromView,
 }) => {
+  const viewMembership = <OriginEntityViewMembershipSection entityId={entityId} />;
   switch (entityType) {
     case 'acquired':
-      return <AcquiredEntityDetailsPanel entityId={entityId} />;
+      return <AcquiredEntityDetailsPanel entityId={entityId} viewMembership={viewMembership} />;
     case 'vendor':
-      return <VendorDetailsPanel entityId={entityId} />;
+      return <VendorDetailsPanel entityId={entityId} viewMembership={viewMembership} />;
     case 'team':
-      return <InternalTeamDetailsPanel entityId={entityId} />;
+      return <InternalTeamDetailsPanel entityId={entityId} viewMembership={viewMembership} />;
     case 'capability':
       return <CapabilityDetails onRemoveFromView={onRemoveCapabilityFromView} />;
     default:
-      return <ComponentDetails onEdit={onEditComponent} onRemoveFromView={onRemoveFromView} />;
+      return <ComponentDetails onRemoveFromView={onRemoveFromView} />;
   }
 };
 
 interface EdgeDetailProps {
   edgeId: string;
-  onEditRelation: () => void;
 }
 
-const EdgeDetail: React.FC<EdgeDetailProps> = ({ edgeId, onEditRelation }) => {
+const EdgeDetail: React.FC<EdgeDetailProps> = ({ edgeId }) => {
   const typedEdgeId = toEdgeId(edgeId);
   if (isRealizationEdge(typedEdgeId)) {
     return <RealizationDetails />;
@@ -72,7 +70,7 @@ const EdgeDetail: React.FC<EdgeDetailProps> = ({ edgeId, onEditRelation }) => {
     return <OriginRelationshipDetails />;
   }
   if (isRelationEdge(typedEdgeId)) {
-    return <RelationDetails onEdit={onEditRelation} />;
+    return <RelationDetails />;
   }
   return null;
 };
@@ -81,8 +79,6 @@ export const DetailContentRenderer: React.FC<DetailContentRendererProps> = ({
   selectedNodeId,
   selectedEdgeId,
   selectedCapabilityId,
-  onEditComponent,
-  onEditRelation,
   onRemoveFromView,
   onRemoveCapabilityFromView,
 }) => {
@@ -91,7 +87,6 @@ export const DetailContentRenderer: React.FC<DetailContentRendererProps> = ({
       <NodeDetail
         entityType={getEntityType(toNodeId(selectedNodeId))}
         entityId={getEntityId(toNodeId(selectedNodeId))}
-        onEditComponent={onEditComponent}
         onRemoveFromView={onRemoveFromView}
         onRemoveCapabilityFromView={onRemoveCapabilityFromView}
       />
@@ -99,7 +94,7 @@ export const DetailContentRenderer: React.FC<DetailContentRendererProps> = ({
   }
 
   if (selectedEdgeId) {
-    return <EdgeDetail edgeId={selectedEdgeId} onEditRelation={onEditRelation} />;
+    return <EdgeDetail edgeId={selectedEdgeId} />;
   }
 
   if (selectedCapabilityId) {
@@ -113,7 +108,5 @@ export const DetailContentRendererWithPlaceholder: React.FC<DetailContentRendere
   const content = DetailContentRenderer(props);
   if (content) return content;
 
-  return (
-    <div style={{ color: 'var(--color-gray-500)' }}>Select a component, relation, or capability to view details</div>
-  );
+  return <Text c="dimmed">Select a component, relation, or capability to view details</Text>;
 };

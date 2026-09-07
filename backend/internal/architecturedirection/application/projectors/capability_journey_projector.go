@@ -98,6 +98,7 @@ func (p *CapabilityJourneyProjector) applyJourneyPlanned(ctx context.Context, ev
 		TargetDomainID:   evt.TargetDomainID,
 		TargetParentID:   evt.TargetParentID,
 		ResultingName:    evt.ResultingName,
+		TargetMaturity:   evt.TargetMaturity,
 		PlannedBy:        evt.PlannedBy,
 		PlannedAt:        evt.OccurredOn,
 	})

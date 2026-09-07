@@ -30,9 +30,9 @@ func decodePlannedTransition(evt events.JourneyPlanned) (plannedTransition, erro
 	if err != nil {
 		return plannedTransition{}, err
 	}
-	toApp, err := valueobjects.NewApplicationRef(evt.ToComponentID)
+	toApp, err := decodeToApplication(kind, evt.ToComponentID)
 	if err != nil {
-		return plannedTransition{}, fmt.Errorf("%w: to component ref %q: %v", ErrCorruptedCapabilityJourneyEvent, evt.ToComponentID, err)
+		return plannedTransition{}, err
 	}
 	note, err := sharedvo.NewDescription(evt.Note)
 	if err != nil {
@@ -48,9 +48,10 @@ func decodePlannedTransition(evt events.JourneyPlanned) (plannedTransition, erro
 }
 
 type plannedDestination struct {
-	targetPeriod *valueobjects.TargetPeriod
-	targetDomain *valueobjects.BusinessDomainRef
-	targetParent *valueobjects.PhysicalCapabilityRef
+	targetPeriod   *valueobjects.TargetPeriod
+	targetDomain   *valueobjects.BusinessDomainRef
+	targetParent   *valueobjects.PhysicalCapabilityRef
+	targetMaturity *valueobjects.TargetMaturity
 }
 
 func decodePlannedDestination(evt events.JourneyPlanned) (plannedDestination, error) {
@@ -66,10 +67,15 @@ func decodePlannedDestination(evt events.JourneyPlanned) (plannedDestination, er
 	if err != nil {
 		return plannedDestination{}, err
 	}
+	targetMaturity, err := decodeTargetMaturity(evt.TargetMaturity)
+	if err != nil {
+		return plannedDestination{}, err
+	}
 	return plannedDestination{
-		targetPeriod: targetPeriod,
-		targetDomain: targetDomain,
-		targetParent: targetParent,
+		targetPeriod:   targetPeriod,
+		targetDomain:   targetDomain,
+		targetParent:   targetParent,
+		targetMaturity: targetMaturity,
 	}, nil
 }
 
@@ -87,6 +93,28 @@ func decodeMilestone(snapshot milestoneSnapshot) (entities.Milestone, error) {
 		return entities.Milestone{}, fmt.Errorf("%w: milestone: %v", ErrCorruptedCapabilityJourneyEvent, err)
 	}
 	return milestone, nil
+}
+
+func decodeToApplication(kind valueobjects.JourneyKind, value string) (valueobjects.ApplicationRef, error) {
+	if kind.IsMaturity() && value == "" {
+		return valueobjects.ApplicationRef{}, nil
+	}
+	ref, err := valueobjects.NewApplicationRef(value)
+	if err != nil {
+		return valueobjects.ApplicationRef{}, fmt.Errorf("%w: to component ref %q: %v", ErrCorruptedCapabilityJourneyEvent, value, err)
+	}
+	return ref, nil
+}
+
+func decodeTargetMaturity(value *int) (*valueobjects.TargetMaturity, error) {
+	if value == nil {
+		return nil, nil
+	}
+	maturity, err := valueobjects.NewTargetMaturity(*value)
+	if err != nil {
+		return nil, fmt.Errorf("%w: target maturity %d: %v", ErrCorruptedCapabilityJourneyEvent, *value, err)
+	}
+	return &maturity, nil
 }
 
 func decodeApplicationRefs(values []string) ([]valueobjects.ApplicationRef, error) {

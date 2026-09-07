@@ -37,7 +37,7 @@ func NewOnePagerCompletenessHandlers(index SubjectCompletenessSource, links *One
 // @Description Returns, for each subject of the given type, whether all required one-pager fields are filled. The collection is empty when the subject type has no required field, in which case no indicator applies (spec 178 rule 10).
 // @Tags one-pagers
 // @Produce json
-// @Param subjectType path string true "Subject type" Enums(capability, enterprise-capability, application, acquired-entity, vendor, internal-team)
+// @Param subjectType path string true "Subject type" Enums(capability, application, acquired-entity, vendor, internal-team)
 // @Success 200 {object} OnePagerCompletenessResponse
 // @Failure 401 {object} sharedAPI.ErrorResponse
 // @Failure 403 {object} sharedAPI.ErrorResponse

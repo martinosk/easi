@@ -1,8 +1,8 @@
 import { screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { renderWithProviders } from '../../../test/helpers';
 import { buildComponent } from '../../../test/helpers/entityBuilders';
-import { ComponentDetailsContent } from './ComponentDetails';
+import { ComponentDetailsContent } from './ComponentDetailsContent';
 
 function renderPanel(hasOnePagerLink: boolean) {
   const component = buildComponent({
@@ -12,7 +12,7 @@ function renderPanel(hasOnePagerLink: boolean) {
     },
   });
   return renderWithProviders(
-    <ComponentDetailsContent component={component} realizations={[]} capabilities={[]} onEdit={vi.fn()} />,
+    <ComponentDetailsContent component={component} realizations={[]} capabilities={[]} />,
   );
 }
 

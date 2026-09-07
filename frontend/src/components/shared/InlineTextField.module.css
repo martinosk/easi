@@ -1,0 +1,9 @@
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.preWrap {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

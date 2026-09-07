@@ -1,25 +1,58 @@
 import { HttpResponse, http } from 'msw';
-import { toCapabilityId, toComponentId, toViewId } from '../../api/types';
+import type {
+  AcquiredEntity,
+  Capability,
+  CapabilityRealization,
+  Component,
+  InternalTeam,
+  OriginRelationship,
+  Relation,
+  Vendor,
+} from '../../api/types';
+import {
+  toAcquiredEntityId,
+  toCapabilityId,
+  toComponentId,
+  toInternalTeamId,
+  toRealizationId,
+  toRelationId,
+  toVendorId,
+  toViewId,
+} from '../../api/types';
+import { assistantStatusHandlers } from './assistantStatus';
+import { componentStatisticsHandlers } from './componentStatistics';
 import {
   addCapability,
   addComponent,
   addRelation,
+  getAcquiredEntities,
+  getAcquiredEntity,
   getBusinessDomains,
   getCapabilities,
   getCapability,
   getCapabilityRealizations,
   getComponent,
   getComponents,
+  getInternalTeam,
+  getInternalTeams,
+  getOriginRelationships,
   getRealizationsByCapability,
   getRealizationsByComponent,
   getRelations,
+  getVendor,
+  getVendors,
   getView,
   getViews,
+  updateAcquiredEntity,
+  updateCapability,
+  updateCapabilityRealization,
+  updateComponent,
+  updateInternalTeam,
+  updateRelation,
+  updateVendor,
   updateView,
 } from './db';
-import { assistantStatusHandlers } from './assistantStatus';
 import { onePagerCompletenessHandlers } from './onePagerCompleteness';
-import { spec172Handlers } from './spec172/handlers';
 import { spec180Handlers } from './spec180/handlers';
 import { spec181Handlers } from './spec181/handlers';
 import { spec182Handlers } from './spec182/handlers';
@@ -57,10 +90,21 @@ const inheritanceAuditMockEntries = [
   },
 ];
 
+function groupRealizationsByCapability() {
+  return getCapabilities()
+    .map((capability) => ({
+      capabilityId: capability.id,
+      capabilityName: capability.name,
+      level: capability.level,
+      realizations: getRealizationsByCapability(capability.id),
+    }))
+    .filter((group) => group.realizations.length > 0);
+}
+
 export const handlers = [
   ...assistantStatusHandlers,
   ...onePagerCompletenessHandlers,
-  ...spec172Handlers,
+  ...componentStatisticsHandlers,
   ...spec180Handlers,
   ...spec181Handlers,
   ...spec182Handlers,
@@ -74,6 +118,24 @@ export const handlers = [
 
   http.get(`${BASE_URL}/api/v1/components/:id`, ({ params }) => {
     const component = getComponent(toComponentId(params.id as string));
+    if (!component) {
+      return new HttpResponse(null, { status: 404 });
+    }
+    return HttpResponse.json(component);
+  }),
+
+  http.put(`${BASE_URL}/api/v1/components/:id`, async ({ params, request }) => {
+    const body = (await request.json()) as Partial<Component>;
+    const component = updateComponent(toComponentId(params.id as string), body);
+    if (!component) {
+      return new HttpResponse(null, { status: 404 });
+    }
+    return HttpResponse.json(component);
+  }),
+
+  http.put(`${BASE_URL}/api/v1/components/:id/hosting`, async ({ params, request }) => {
+    const body = (await request.json()) as Pick<Component, 'hosting'>;
+    const component = updateComponent(toComponentId(params.id as string), { hosting: body.hosting });
     if (!component) {
       return new HttpResponse(null, { status: 404 });
     }
@@ -108,23 +170,31 @@ export const handlers = [
   }),
 
   http.put(`${BASE_URL}/api/v1/capabilities/:id`, async ({ params, request }) => {
-    const capability = getCapability(toCapabilityId(params.id as string));
-    if (!capability) {
+    const body = (await request.json()) as Partial<Capability>;
+    const updated = updateCapability(toCapabilityId(params.id as string), body);
+    if (!updated) {
       return new HttpResponse(null, { status: 404 });
     }
-    const body = (await request.json()) as Record<string, unknown>;
-    const updated = { ...capability, ...body };
     return HttpResponse.json(updated);
   }),
 
   http.put(`${BASE_URL}/api/v1/capabilities/:id/metadata`, async ({ params, request }) => {
+    const body = (await request.json()) as Partial<Capability>;
+    const updated = updateCapability(toCapabilityId(params.id as string), body);
+    if (!updated) {
+      return new HttpResponse(null, { status: 404 });
+    }
+    return HttpResponse.json(updated);
+  }),
+
+  http.post(`${BASE_URL}/api/v1/capabilities/:id/tags`, async ({ params, request }) => {
     const capability = getCapability(toCapabilityId(params.id as string));
     if (!capability) {
       return new HttpResponse(null, { status: 404 });
     }
-    const body = (await request.json()) as Record<string, unknown>;
-    const updated = { ...capability, ...body };
-    return HttpResponse.json(updated);
+    const body = (await request.json()) as { tag: string };
+    updateCapability(capability.id, { tags: [...(capability.tags ?? []), body.tag] });
+    return new HttpResponse(null, { status: 204 });
   }),
 
   http.delete(`${BASE_URL}/api/v1/capabilities/:id`, ({ params }) => {
@@ -270,6 +340,18 @@ export const handlers = [
     const body = (await request.json()) as Record<string, unknown>;
     const relation = addRelation(body);
     return HttpResponse.json(relation, { status: 201 });
+  }),
+
+  http.put(`${BASE_URL}/api/v1/relations/:id`, async ({ params, request }) => {
+    const body = (await request.json()) as Partial<Relation>;
+    const updated = updateRelation(toRelationId(params.id as string), body);
+    return updated ? HttpResponse.json(updated) : new HttpResponse(null, { status: 404 });
+  }),
+
+  http.put(`${BASE_URL}/api/v1/capability-realizations/:id`, async ({ params, request }) => {
+    const body = (await request.json()) as Partial<CapabilityRealization>;
+    const updated = updateCapabilityRealization(toRealizationId(params.id as string), body);
+    return updated ? HttpResponse.json(updated) : new HttpResponse(null, { status: 404 });
   }),
 
   http.get(`${BASE_URL}/api/v1/value-streams`, () => {
@@ -460,15 +542,8 @@ export const handlers = [
 
   http.get(`${BASE_URL}/api/v1/business-domains/:id/capability-realizations`, ({ params }) => {
     return HttpResponse.json({
-      data: [],
+      data: groupRealizationsByCapability(),
       _links: { self: `/api/v1/business-domains/${params.id}/capability-realizations` },
-    });
-  }),
-
-  http.get(`${BASE_URL}/api/v1/time-suggestions`, () => {
-    return HttpResponse.json({
-      data: [],
-      _links: { self: { href: '/api/v1/time-suggestions', method: 'GET' } },
     });
   }),
 
@@ -557,30 +632,78 @@ export const handlers = [
 
   http.get(`${BASE_URL}/api/v1/acquired-entities`, () => {
     return HttpResponse.json({
-      data: [],
+      data: getAcquiredEntities(),
       _links: { self: '/api/v1/acquired-entities' },
     });
   }),
 
+  http.get(`${BASE_URL}/api/v1/acquired-entities/:id`, ({ params }) => {
+    const entity = getAcquiredEntity(toAcquiredEntityId(params.id as string));
+    return entity ? HttpResponse.json(entity) : new HttpResponse(null, { status: 404 });
+  }),
+
+  http.put(`${BASE_URL}/api/v1/acquired-entities/:id`, async ({ params, request }) => {
+    const body = (await request.json()) as Partial<AcquiredEntity>;
+    const updated = updateAcquiredEntity(toAcquiredEntityId(params.id as string), body);
+    return updated ? HttpResponse.json(updated) : new HttpResponse(null, { status: 404 });
+  }),
+
   http.get(`${BASE_URL}/api/v1/internal-teams`, () => {
     return HttpResponse.json({
-      data: [],
+      data: getInternalTeams(),
       _links: { self: '/api/v1/internal-teams' },
     });
   }),
 
+  http.get(`${BASE_URL}/api/v1/internal-teams/:id`, ({ params }) => {
+    const team = getInternalTeam(toInternalTeamId(params.id as string));
+    return team ? HttpResponse.json(team) : new HttpResponse(null, { status: 404 });
+  }),
+
+  http.put(`${BASE_URL}/api/v1/internal-teams/:id`, async ({ params, request }) => {
+    const body = (await request.json()) as Partial<InternalTeam>;
+    const updated = updateInternalTeam(toInternalTeamId(params.id as string), body);
+    return updated ? HttpResponse.json(updated) : new HttpResponse(null, { status: 404 });
+  }),
+
   http.get(`${BASE_URL}/api/v1/vendors`, () => {
     return HttpResponse.json({
-      data: [],
+      data: getVendors(),
       _links: { self: '/api/v1/vendors' },
     });
   }),
 
+  http.get(`${BASE_URL}/api/v1/vendors/:id`, ({ params }) => {
+    const vendor = getVendor(toVendorId(params.id as string));
+    return vendor ? HttpResponse.json(vendor) : new HttpResponse(null, { status: 404 });
+  }),
+
+  http.put(`${BASE_URL}/api/v1/vendors/:id`, async ({ params, request }) => {
+    const body = (await request.json()) as Partial<Vendor>;
+    const updated = updateVendor(toVendorId(params.id as string), body);
+    return updated ? HttpResponse.json(updated) : new HttpResponse(null, { status: 404 });
+  }),
+
   http.get(`${BASE_URL}/api/v1/origin-relationships`, () => {
+    const relationships = getOriginRelationships();
+    const byType = (type: OriginRelationship['relationshipType']) =>
+      relationships.filter((relationship) => relationship.relationshipType === type);
     return HttpResponse.json({
-      acquiredVia: [],
-      purchasedFrom: [],
-      builtBy: [],
+      acquiredVia: byType('AcquiredVia').map((relationship) => ({
+        ...relationship,
+        acquiredEntityId: relationship.originEntityId,
+        acquiredEntityName: relationship.originEntityName,
+      })),
+      purchasedFrom: byType('PurchasedFrom').map((relationship) => ({
+        ...relationship,
+        vendorId: relationship.originEntityId,
+        vendorName: relationship.originEntityName,
+      })),
+      builtBy: byType('BuiltBy').map((relationship) => ({
+        ...relationship,
+        internalTeamId: relationship.originEntityId,
+        internalTeamName: relationship.originEntityName,
+      })),
       _links: { self: { href: '/api/v1/origin-relationships', method: 'GET' } },
     });
   }),

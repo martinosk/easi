@@ -14,7 +14,7 @@ Code is the source of truth. Documentation explains what code cannot: why, const
 
 ## Document Types
 
-EASI has six documentation types. Each has a purpose. Nothing else belongs in `docs/`.
+EASI has seven documentation types. Each has a purpose. Nothing else belongs in `docs/`.
 
 | Type | Location | Purpose | Target length |
 |------|----------|---------|---------------|
@@ -24,6 +24,7 @@ EASI has six documentation types. Each has a purpose. Nothing else belongs in `d
 | BC canvas | `docs/architecture/<Context>.md` | Single bounded context: purpose, language, communication, rules, architecture | 80–120 lines |
 | Pattern guide | `docs/backend/*.md`, `docs/frontend/*.md` | How to do X correctly — rules, code examples, anti-patterns | 60–150 lines |
 | User guide | `docs/user/*.md` | End-user-facing configuration or usage instructions | As needed |
+| Strategy register | `docs/architecture/ROADMAP.md` | Settled strategic decisions, standing invariants, horizon plan-of-record with spec traceability | 100–150 lines |
 
 Specs (`/specs/`) and skills (`.opencode/skills/`) have their own conventions — see `easi-spec-driven-development` and the skill template respectively. This skill does not govern those.
 
@@ -170,7 +171,7 @@ Walk the file with these questions:
 ## Hard Gates
 
 - No doc exceeds its length gate without justification (architecture README is the sole exception, capped at 160 lines).
-- No speculative content: "future", "might", "could", "should we", "open question", "TBD", "assumption" are red flags.
+- No speculative content: "future", "might", "could", "should we", "open question", "TBD", "assumption" are red flags. The strategy register is the sole exception — it is the plan-of-record and holds horizons, parked capabilities and pull conditions.
 - No orphan docs: every file in `docs/` is reachable from `INDEX.md` or a README.
 - No duplicate facts: `git grep` the key phrase before writing it. If it exists elsewhere, link.
 - `INDEX.md` updated when any doc is added, renamed, or removed.

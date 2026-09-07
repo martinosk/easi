@@ -152,7 +152,6 @@ func (h *SessionHandlers) buildSessionLinks(userID uuid.UUID, role valueobjects.
 
 func canReadAnySubject(role valueobjects.Role) bool {
 	return role.HasPermission(valueobjects.PermCapabilitiesRead) ||
-		role.HasPermission(valueobjects.PermEnterpriseArchRead) ||
 		role.HasPermission(valueobjects.PermComponentsRead)
 }
 

@@ -62,15 +62,17 @@ func newComponentRefs(t *testing.T, n int) []valueobjects.ApplicationRef {
 }
 
 type journeyOpts struct {
-	kind          string
-	fromApps      []valueobjects.ApplicationRef
-	fromAppCount  int
-	toApp         *valueobjects.ApplicationRef
-	note          string
-	targetPeriod  *valueobjects.TargetPeriod
-	targetDomain  *valueobjects.BusinessDomainRef
-	targetParent  *valueobjects.PhysicalCapabilityRef
-	resultingName string
+	kind            string
+	fromApps        []valueobjects.ApplicationRef
+	fromAppCount    int
+	toApp           *valueobjects.ApplicationRef
+	note            string
+	targetPeriod    *valueobjects.TargetPeriod
+	targetDomain    *valueobjects.BusinessDomainRef
+	targetParent    *valueobjects.PhysicalCapabilityRef
+	resultingName   string
+	targetMaturity  *valueobjects.TargetMaturity
+	currentMaturity int
 }
 
 func planWith(t *testing.T, opts journeyOpts) (*CapabilityJourney, error) {
@@ -80,29 +82,46 @@ func planWith(t *testing.T, opts journeyOpts) (*CapabilityJourney, error) {
 	}
 	fromApps := opts.fromApps
 	if fromApps == nil {
-		count := opts.fromAppCount
-		if count == 0 && opts.kind != valueobjects.JourneyKindMove {
-			count = 1
-		}
-		fromApps = newComponentRefs(t, count)
+		fromApps = newComponentRefs(t, defaultFromAppCount(opts))
 	}
-	toApp := newComponentRef(t)
-	if opts.toApp != nil {
-		toApp = *opts.toApp
-	}
+	toApp := defaultToApp(t, opts)
 	return PlanCapabilityJourney(CapabilityJourneyFacts{
-		ID:            valueobjects.NewCapabilityJourneyID(),
-		CapabilityID:  newCapabilityRef(t),
-		Kind:          newJourneyKind(t, opts.kind),
-		FromApps:      fromApps,
-		ToApp:         toApp,
-		Note:          newRationale(t, opts.note),
-		TargetPeriod:  opts.targetPeriod,
-		TargetDomain:  opts.targetDomain,
-		TargetParent:  opts.targetParent,
-		ResultingName: opts.resultingName,
-		PlannedBy:     journeyActor,
+		ID:              valueobjects.NewCapabilityJourneyID(),
+		CapabilityID:    newCapabilityRef(t),
+		Kind:            newJourneyKind(t, opts.kind),
+		FromApps:        fromApps,
+		ToApp:           toApp,
+		Note:            newRationale(t, opts.note),
+		TargetPeriod:    opts.targetPeriod,
+		TargetDomain:    opts.targetDomain,
+		TargetParent:    opts.targetParent,
+		ResultingName:   opts.resultingName,
+		TargetMaturity:  opts.targetMaturity,
+		CurrentMaturity: opts.currentMaturity,
+		PlannedBy:       journeyActor,
 	})
+}
+
+func kindRequiresFromApps(kind string) bool {
+	return kind != valueobjects.JourneyKindMove && kind != valueobjects.JourneyKindMaturity
+}
+
+func defaultFromAppCount(opts journeyOpts) int {
+	if opts.fromAppCount > 0 || !kindRequiresFromApps(opts.kind) {
+		return opts.fromAppCount
+	}
+	return 1
+}
+
+func defaultToApp(t *testing.T, opts journeyOpts) valueobjects.ApplicationRef {
+	t.Helper()
+	if opts.toApp != nil {
+		return *opts.toApp
+	}
+	if opts.kind == valueobjects.JourneyKindMaturity {
+		return valueobjects.ApplicationRef{}
+	}
+	return newComponentRef(t)
 }
 
 func plannedJourney(t *testing.T) *CapabilityJourney {

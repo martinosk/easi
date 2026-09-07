@@ -1,42 +1,88 @@
-import { Stack, Text, Title } from '@mantine/core';
-import React from 'react';
+import { Badge, Stack, Text } from '@mantine/core';
+import type React from 'react';
+import type { CapabilityRealization, RealizationLevel } from '../../../api/types';
 import { DetailField } from '../../../components/shared/DetailField';
+import { InlineSelectField } from '../../../components/shared/InlineSelectField';
+import { InlineTextField } from '../../../components/shared/InlineTextField';
+import { realizationNotesSchema } from '../../../lib/schemas/relation';
+import { hasLink } from '../../../utils/hateoas';
+import { AuditHistorySection } from '../../audit';
+import { useUpdateRealization } from '../../capabilities/hooks/useCapabilities';
 import type { RealizationData } from '../hooks/useRealizationDetails';
 import { InheritedRealizationInfo } from './InheritedRealizationInfo';
 import { OriginBadge } from './OriginBadge';
-import { RealizationActions } from './RealizationActions';
-import { RealizationLevelBadge } from './RealizationLevelBadge';
+
+const REALIZATION_LEVEL_OPTIONS: { value: RealizationLevel; label: string }[] = [
+  { value: 'Full', label: 'Full (100%)' },
+  { value: 'Partial', label: 'Partial' },
+  { value: 'Planned', label: 'Planned' },
+];
+
+interface LevelAndNotesProps {
+  realization: CapabilityRealization;
+  canEdit: boolean;
+}
+
+const LevelAndNotes: React.FC<LevelAndNotesProps> = ({ realization, canEdit }) => {
+  const updateMutation = useUpdateRealization();
+  const save = (patch: { realizationLevel?: RealizationLevel; notes?: string }) =>
+    updateMutation.mutateAsync({
+      realization,
+      request: { realizationLevel: realization.realizationLevel, notes: realization.notes || undefined, ...patch },
+    });
+
+  return (
+    <>
+      <InlineSelectField
+        label="Realization Level"
+        value={realization.realizationLevel}
+        options={REALIZATION_LEVEL_OPTIONS}
+        canEdit={canEdit}
+        onSave={(level) => save({ realizationLevel: level as RealizationLevel })}
+        editLabel="Edit realization level"
+        testId="realization-level"
+        renderValue={(_, label) => (
+          <Badge color="gray" variant="filled" size="sm">
+            {label}
+          </Badge>
+        )}
+      />
+      <OriginBadge origin={realization.origin} isInherited={realization.origin === 'Inherited'} />
+      <InlineTextField
+        label="Notes"
+        value={realization.notes ?? ''}
+        canEdit={canEdit}
+        schema={realizationNotesSchema}
+        onSave={(notes) => save({ notes: notes || undefined })}
+        editLabel="Edit notes"
+        emptyPrompt="Add notes"
+        multiline
+        testId="realization-notes"
+      />
+    </>
+  );
+};
 
 interface RealizationDetailsContentProps {
   data: RealizationData;
-  onEditClick: () => void;
 }
 
-export const RealizationDetailsContent: React.FC<RealizationDetailsContentProps> = ({ data, onEditClick }) => {
+export const RealizationDetailsContent: React.FC<RealizationDetailsContentProps> = ({ data }) => {
   const { realization, capability, component, formattedDate, isInherited } = data;
-  const canEdit = !isInherited && realization._links?.edit !== undefined;
+  const canEdit = !isInherited && hasLink(realization, 'edit');
 
   return (
     <Stack gap="sm" p="md">
-      <Title order={4}>Realization Details</Title>
-
-      <RealizationActions canEdit={canEdit} onEditClick={onEditClick} />
       <DetailField label="Capability">{capability?.name || 'Unknown'}</DetailField>
       <DetailField label="Application">{component?.name || 'Unknown'}</DetailField>
-      <RealizationLevelBadge level={realization.realizationLevel} />
-      <OriginBadge origin={realization.origin} isInherited={isInherited} />
-      {realization.notes && <DetailField label="Notes">{realization.notes}</DetailField>}
+      <LevelAndNotes realization={realization} canEdit={canEdit} />
       <DetailField label="Linked">
         <Text size="sm" c="dimmed">
           {formattedDate}
         </Text>
       </DetailField>
-      <DetailField label="ID">
-        <Text size="xs" ff="monospace" c="gray.5" style={{ wordBreak: 'break-all' }}>
-          {realization.id}
-        </Text>
-      </DetailField>
       <InheritedRealizationInfo isInherited={isInherited} />
+      <AuditHistorySection aggregateId={realization.id} />
     </Stack>
   );
 };

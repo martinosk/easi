@@ -9,13 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func mustNewEnterpriseCapabilityRef(t *testing.T, id string) valueobjects.EnterpriseCapabilityRef {
-	t.Helper()
-	ref, err := valueobjects.NewEnterpriseCapabilityRef(id)
-	require.NoError(t, err)
-	return ref
-}
-
 func mustNewApplicationRef(t *testing.T, id string) valueobjects.ApplicationRef {
 	t.Helper()
 	ref, err := valueobjects.NewApplicationRef(id)

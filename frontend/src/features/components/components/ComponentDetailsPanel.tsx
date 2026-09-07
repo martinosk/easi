@@ -1,39 +1,35 @@
-import { useState } from 'react';
-import type { ComponentId } from '../../../api/types';
+import type React from 'react';
+import { toComponentId } from '../../../api/types';
 import { DetailPanelFailure, DetailPanelLoading } from '../../../components/shared/DetailPanelStatus';
 import { useCapabilities, useCapabilitiesByComponent } from '../../capabilities/hooks/useCapabilities';
-import { useComponents } from '../hooks/useComponents';
-import { ComponentDetailsContent } from './ComponentDetails';
-import { EditComponentDialog } from './EditComponentDialog';
+import { useComponent, useComponents } from '../hooks/useComponents';
+import { ComponentDetailsContent } from './ComponentDetailsContent';
 
 interface ComponentDetailsPanelProps {
   componentId: string;
+  viewMembership?: React.ReactNode;
 }
 
-export function ComponentDetailsPanel({ componentId }: ComponentDetailsPanelProps) {
-  const componentsQuery = useComponents();
+export function ComponentDetailsPanel({ componentId, viewMembership }: ComponentDetailsPanelProps) {
+  const id = toComponentId(componentId);
+  const listQuery = useComponents();
+  const fromList = listQuery.data?.find((c) => c.id === id);
+  const detailQuery = useComponent(listQuery.isSuccess && !fromList ? id : undefined);
   const { data: capabilities = [] } = useCapabilities();
-  const { data: realizations = [] } = useCapabilitiesByComponent(componentId as ComponentId);
-  const [editOpen, setEditOpen] = useState(false);
-  const [addExpertOpen, setAddExpertOpen] = useState(false);
+  const { data: realizations = [] } = useCapabilitiesByComponent(id);
 
-  const component = (componentsQuery.data ?? []).find((c) => c.id === componentId);
+  const component = fromList ?? detailQuery.data;
 
-  if (componentsQuery.isLoading) return <DetailPanelLoading />;
-  if (!component) return <DetailPanelFailure message="Failed to load application" />;
-
-  return (
-    <>
+  if (component) {
+    return (
       <ComponentDetailsContent
         component={component}
         realizations={realizations}
         capabilities={capabilities}
-        onEdit={() => setEditOpen(true)}
-        onAddExpert={() => setAddExpertOpen(true)}
-        isAddExpertOpen={addExpertOpen}
-        onCloseAddExpert={() => setAddExpertOpen(false)}
+        viewMembership={viewMembership}
       />
-      <EditComponentDialog isOpen={editOpen} onClose={() => setEditOpen(false)} component={component} />
-    </>
-  );
+    );
+  }
+  if (listQuery.isPending || detailQuery.isPending) return <DetailPanelLoading />;
+  return <DetailPanelFailure message="Failed to load application" />;
 }

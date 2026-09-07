@@ -1,54 +1,39 @@
-import { Divider, Stack, Title } from '@mantine/core';
-import { useState } from 'react';
-import type { CapabilityId } from '../../../api/types';
+import type React from 'react';
+import type { CapabilityId, ComponentId } from '../../../api/types';
 import { DetailPanelFailure, DetailPanelLoading } from '../../../components/shared/DetailPanelStatus';
-import { useStrategyImportanceByCapability } from '../../business-domains/hooks/useStrategyImportance';
-import { useComponents } from '../../components/hooks/useComponents';
-import { useCapabilities, useCapabilityRealizations } from '../hooks/useCapabilities';
-import { AddExpertDialog } from './AddExpertDialog';
-import { CapabilityContent } from './CapabilityDetails';
-import { EditCapabilityDialog } from './EditCapabilityDialog';
+import { useCapabilities, useCapability } from '../hooks/useCapabilities';
+import { CapabilityDetailsContent } from './CapabilityDetailsContent';
 
-interface CapabilityDetailsPanelProps {
+export interface CapabilityDetailsPanelProps {
   capabilityId: string;
+  viewMembership?: React.ReactNode;
+  domainContext?: React.ReactNode;
+  onApplicationClick?: (componentId: ComponentId) => void;
 }
 
-const noop = () => {};
+export function CapabilityDetailsPanel({
+  capabilityId,
+  viewMembership,
+  domainContext,
+  onApplicationClick,
+}: CapabilityDetailsPanelProps) {
+  const id = capabilityId as CapabilityId;
+  const listQuery = useCapabilities();
+  const fromList = listQuery.data?.find((c) => c.id === id);
+  const detailQuery = useCapability(listQuery.isSuccess && !fromList ? id : undefined);
 
-export function CapabilityDetailsPanel({ capabilityId }: CapabilityDetailsPanelProps) {
-  const typedId = capabilityId as CapabilityId;
-  const capabilitiesQuery = useCapabilities();
-  const { data: components = [] } = useComponents();
-  const { data: realizations = [] } = useCapabilityRealizations(typedId);
-  const { data: importanceRatings = [] } = useStrategyImportanceByCapability(typedId);
-  const [editOpen, setEditOpen] = useState(false);
-  const [addExpertOpen, setAddExpertOpen] = useState(false);
+  const capability = fromList ?? detailQuery.data;
 
-  const capability = (capabilitiesQuery.data ?? []).find((c) => c.id === capabilityId);
-
-  if (capabilitiesQuery.isLoading) return <DetailPanelLoading />;
-  if (!capability) return <DetailPanelFailure message="Failed to load capability" />;
-
-  return (
-    <Stack gap="sm" p="md">
-      <Title order={4}>Capability Details</Title>
-      <Divider />
-
-      <CapabilityContent
+  if (capability) {
+    return (
+      <CapabilityDetailsContent
         capability={capability}
-        capabilityInView={undefined}
-        currentView={null}
-        realizations={realizations}
-        components={components}
-        importanceRatings={importanceRatings}
-        onColorChange={noop}
-        onEdit={() => setEditOpen(true)}
-        onRemoveFromView={noop}
-        onAddExpert={() => setAddExpertOpen(true)}
+        viewMembership={viewMembership}
+        domainContext={domainContext}
+        onApplicationClick={onApplicationClick}
       />
-
-      <EditCapabilityDialog isOpen={editOpen} onClose={() => setEditOpen(false)} capability={capability} />
-      <AddExpertDialog isOpen={addExpertOpen} onClose={() => setAddExpertOpen(false)} capabilityId={capability.id} />
-    </Stack>
-  );
+    );
+  }
+  if (listQuery.isPending || detailQuery.isPending) return <DetailPanelLoading />;
+  return <DetailPanelFailure message="Failed to load capability" />;
 }

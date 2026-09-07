@@ -9,6 +9,7 @@ import (
 	"easi/backend/internal/architecturemodeling/application/readmodels"
 	"easi/backend/internal/architecturemodeling/domain/valueobjects"
 	sharedAPI "easi/backend/internal/shared/api"
+	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
 )
 
@@ -108,7 +109,8 @@ func (h *RelationHandlers) CreateComponentRelation(w http.ResponseWriter, r *htt
 		return
 	}
 
-	relation.Links = h.hateoas.RelationLinks(relation.ID)
+	actor, _ := sharedctx.GetActor(r.Context())
+	relation.Links = h.hateoas.RelationLinksForActor(relation.ID, actor)
 	sharedAPI.RespondCreated(w, location, relation)
 }
 
@@ -137,7 +139,7 @@ func (h *RelationHandlers) GetAllRelations(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	h.addLinksToRelations(relations)
+	h.addLinksToRelations(r, relations)
 
 	nextCursor := h.buildNextCursor(relations, hasMore)
 	selfLink := h.buildSelfLink("/api/v1/relations", params)
@@ -182,9 +184,10 @@ func (h *RelationHandlers) buildSelfLink(basePath string, params sharedAPI.Pagin
 	return fmt.Sprintf("%s?after=%s&limit=%d", basePath, params.After, params.Limit)
 }
 
-func (h *RelationHandlers) addLinksToRelations(relations []readmodels.ComponentRelationDTO) {
+func (h *RelationHandlers) addLinksToRelations(r *http.Request, relations []readmodels.ComponentRelationDTO) {
+	actor, _ := sharedctx.GetActor(r.Context())
 	for i := range relations {
-		relations[i].Links = h.hateoas.RelationLinks(relations[i].ID)
+		relations[i].Links = h.hateoas.RelationLinksForActor(relations[i].ID, actor)
 	}
 }
 
@@ -212,7 +215,8 @@ func (h *RelationHandlers) GetRelationByID(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	relation.Links = h.hateoas.RelationLinks(relation.ID)
+	actor, _ := sharedctx.GetActor(r.Context())
+	relation.Links = h.hateoas.RelationLinksForActor(relation.ID, actor)
 	sharedAPI.RespondJSON(w, http.StatusOK, relation)
 }
 
@@ -253,7 +257,7 @@ func (h *RelationHandlers) getRelationsByComponent(w http.ResponseWriter, r *htt
 		return
 	}
 
-	h.addLinksToRelations(relations)
+	h.addLinksToRelations(r, relations)
 
 	links := sharedAPI.NewResourceLinks().
 		SelfWithID(sharedAPI.ResourcePath("/relations/"+direction), sharedAPI.ResourceID(componentID)).
@@ -306,7 +310,8 @@ func (h *RelationHandlers) UpdateComponentRelation(w http.ResponseWriter, r *htt
 		return
 	}
 
-	relation.Links = h.hateoas.RelationLinks(relation.ID)
+	actor, _ := sharedctx.GetActor(r.Context())
+	relation.Links = h.hateoas.RelationLinksForActor(relation.ID, actor)
 	sharedAPI.RespondJSON(w, http.StatusOK, relation)
 }
 

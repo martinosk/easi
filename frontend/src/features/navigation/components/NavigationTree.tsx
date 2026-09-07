@@ -170,7 +170,6 @@ export const NavigationTree: React.FC<NavigationTreeProps> = (props) => {
           domains={tree.filteredData.domains}
           selectedDomainIds={tree.filteredData.selectedDomainIds}
           onDomainSelectionChange={tree.filteredData.setSelectedDomainIds}
-          hasActiveFilters={tree.filteredData.hasActiveFilters}
           onClearAllFilters={tree.filteredData.clearAllFilters}
         />
       </div>

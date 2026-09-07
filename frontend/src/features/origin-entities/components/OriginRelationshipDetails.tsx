@@ -19,7 +19,7 @@ import { useUnlinkComponentFromVendor } from '../hooks/useVendors';
 
 const ORIGIN_EDGE_PREFIX = EDGE_PREFIXES.origin;
 
-const isOriginEdge = (edgeId: string | null): boolean => (edgeId?.startsWith(ORIGIN_EDGE_PREFIX) ?? false);
+const isOriginEdge = (edgeId: string | null): boolean => edgeId?.startsWith(ORIGIN_EDGE_PREFIX) ?? false;
 
 const extractRelationshipId = (edgeId: string): string => edgeId.replace(ORIGIN_EDGE_PREFIX, '');
 

@@ -1,32 +1,4 @@
-import { auditQueryKeys } from '../audit/queryKeys';
-import { compositionSummariesQueryKeys, enterpriseCapabilitiesQueryKeys } from '../enterprise-architecture/queryKeys';
-import { onePagerQualityQueryKeys } from '../one-pager-quality/queryKeys';
-import { onePagersQueryKeys } from '../one-pagers/queryKeys';
-import { directionQueryKeys, realizationRoleQueryKeys, timeAssessmentQueryKeys } from './queryKeys';
-
-function compositionEffects(enterpriseCapabilityId: string) {
-  return [
-    directionQueryKeys.byEnterpriseCapability(enterpriseCapabilityId),
-    enterpriseCapabilitiesQueryKeys.composition(enterpriseCapabilityId),
-    enterpriseCapabilitiesQueryKeys.detail(enterpriseCapabilityId),
-    enterpriseCapabilitiesQueryKeys.lists(),
-    compositionSummariesQueryKeys.lists(),
-    auditQueryKeys.history(enterpriseCapabilityId),
-    onePagersQueryKeys.onePager('enterprise-capability', enterpriseCapabilityId),
-    onePagerQualityQueryKeys.lists(),
-  ];
-}
-
-export const directionMutationEffects = {
-  capture: compositionEffects,
-  addSource: compositionEffects,
-  removeSource: compositionEffects,
-  update: compositionEffects,
-  propose: compositionEffects,
-  agree: compositionEffects,
-  reject: compositionEffects,
-  revert: compositionEffects,
-};
+import { realizationRoleQueryKeys, timeAssessmentQueryKeys } from './queryKeys';
 
 function timeAssessmentEffects() {
   return [timeAssessmentQueryKeys.all];

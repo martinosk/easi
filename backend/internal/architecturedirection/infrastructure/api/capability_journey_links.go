@@ -1,6 +1,8 @@
 package api
 
 import (
+	"slices"
+
 	"easi/backend/internal/architecturedirection/application/readmodels"
 	"easi/backend/internal/architecturedirection/domain/valueobjects"
 	sharedAPI "easi/backend/internal/shared/api"
@@ -23,15 +25,35 @@ func NewCapabilityJourneyLinks(h *sharedAPI.HATEOASLinks) *CapabilityJourneyLink
 	return &CapabilityJourneyLinks{HATEOASLinks: h}
 }
 
-func (h *CapabilityJourneyLinks) ForCapability(capabilityID string, journey *readmodels.CapabilityJourneyDTO, actor sharedctx.Actor) sharedAPI.Links {
+func (h *CapabilityJourneyLinks) ForCapability(capabilityID string, activeJourneys []readmodels.CapabilityJourneyDTO, actor sharedctx.Actor) sharedAPI.Links {
 	links := sharedAPI.Links{
 		"self":      h.Get(journeyResourcePath(capabilityID)),
 		"x-history": h.Get(journeyHistoryResourcePath(capabilityID)),
 	}
-	if journey == nil && actor.CanWrite(ArchitectureDirectionResource) {
+	if !actor.CanWrite(ArchitectureDirectionResource) {
+		return links
+	}
+	if !hasActiveMaturityJourney(activeJourneys) {
+		links["x-capture-maturity"] = h.Post(journeyResourcePath(capabilityID))
+	}
+	if !hasActiveApplicationJourney(activeJourneys) {
 		links["x-capture"] = h.Post(journeyResourcePath(capabilityID))
 	}
 	return links
+}
+
+func hasActiveMaturityJourney(journeys []readmodels.CapabilityJourneyDTO) bool {
+	return slices.ContainsFunc(journeys, isMaturityJourney)
+}
+
+func hasActiveApplicationJourney(journeys []readmodels.CapabilityJourneyDTO) bool {
+	return slices.ContainsFunc(journeys, func(journey readmodels.CapabilityJourneyDTO) bool {
+		return !isMaturityJourney(journey)
+	})
+}
+
+func isMaturityJourney(journey readmodels.CapabilityJourneyDTO) bool {
+	return journey.Kind == valueobjects.JourneyKindMaturity
 }
 
 func (h *CapabilityJourneyLinks) ItemLinks(journey *readmodels.CapabilityJourneyDTO, actor sharedctx.Actor) sharedAPI.Links {
@@ -42,14 +64,16 @@ func (h *CapabilityJourneyLinks) ItemLinks(journey *readmodels.CapabilityJourney
 	if !actor.CanWrite(ArchitectureDirectionResource) {
 		return links
 	}
-	h.addTransitionLinks(links, journey.ID, journey.Status)
+	h.addTransitionLinks(links, journey)
 	if !isActiveJourneyStatus(journey.Status) {
 		return links
 	}
 	itemBase := journeyItemResourcePath(journey.ID)
 	links["edit"] = h.Put(itemBase + "/details")
 	links["x-progress"] = h.Put(itemBase + "/progress")
-	links["x-change-sources"] = h.Put(itemBase + "/source-applications")
+	if !isMaturityJourney(*journey) {
+		links["x-change-sources"] = h.Put(itemBase + "/source-applications")
+	}
 	links["x-add-milestone"] = h.Post(itemBase + string(journeyMilestonesPath))
 	if len(journey.Milestones) > 1 {
 		links["x-reorder-milestones"] = h.Put(itemBase + string(journeyMilestoneOrderPath))
@@ -57,9 +81,9 @@ func (h *CapabilityJourneyLinks) ItemLinks(journey *readmodels.CapabilityJourney
 	return links
 }
 
-func (h *CapabilityJourneyLinks) addTransitionLinks(links sharedAPI.Links, journeyID, status string) {
-	itemBase := journeyItemResourcePath(journeyID)
-	switch status {
+func (h *CapabilityJourneyLinks) addTransitionLinks(links sharedAPI.Links, journey *readmodels.CapabilityJourneyDTO) {
+	itemBase := journeyItemResourcePath(journey.ID)
+	switch journey.Status {
 	case valueobjects.JourneyStatusPlanned:
 		links["x-start"] = h.Post(itemBase + "/start")
 		links["x-abandon"] = h.Post(itemBase + "/abandon")

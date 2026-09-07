@@ -117,9 +117,6 @@ interface UseTreeContextMenusProps {
   components: Component[];
   onEditCapability?: (capability: Capability) => void;
   onEditComponent?: (componentId: string) => void;
-  onEditAcquiredEntity?: (entity: AcquiredEntity) => void;
-  onEditVendor?: (vendor: Vendor) => void;
-  onEditInternalTeam?: (team: InternalTeam) => void;
   onGenerateView?: (target: GenerateViewTarget) => void;
   canCreateView?: boolean;
 }
@@ -128,9 +125,6 @@ export function useTreeContextMenus({
   components,
   onEditCapability,
   onEditComponent,
-  onEditAcquiredEntity,
-  onEditVendor,
-  onEditInternalTeam,
   onGenerateView,
   canCreateView = false,
 }: UseTreeContextMenusProps) {
@@ -366,12 +360,6 @@ export function useTreeContextMenus({
       team: 'internal_team',
     };
 
-    const editHandlers: Record<OriginEntityContextMenuState['entityType'], (() => void) | undefined> = {
-      acquired: onEditAcquiredEntity ? () => onEditAcquiredEntity(menu.entity as AcquiredEntity) : undefined,
-      vendor: onEditVendor ? () => onEditVendor(menu.entity as Vendor) : undefined,
-      team: onEditInternalTeam ? () => onEditInternalTeam(menu.entity as InternalTeam) : undefined,
-    };
-
     const deleteTargetFactories: Record<OriginEntityContextMenuState['entityType'], () => DeleteTarget> = {
       acquired: () => ({ type: 'acquired', entity: menu.entity as AcquiredEntity }),
       vendor: () => ({ type: 'vendor', entity: menu.entity as Vendor }),
@@ -380,7 +368,6 @@ export function useTreeContextMenus({
 
     return buildEntityMenuItems({
       links: menu.entity._links,
-      onEdit: editHandlers[menu.entityType],
       onInviteToEdit: () =>
         setInviteTarget({ id: menu.entity.id, artifactType: originEntityArtifactTypes[menu.entityType] }),
       onGenerateView: makeGenerateViewHandler(menu.entity.id, 'originEntity', menu.entity.name),

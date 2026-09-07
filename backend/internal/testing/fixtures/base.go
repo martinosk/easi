@@ -92,7 +92,6 @@ func (tc *TestContext) TrackID(id string) {
 func (tc *TestContext) cleanup() {
 	tc.setTenantContext()
 	for _, id := range tc.cleanupIDs {
-		tc.DB.Exec("DELETE FROM capabilitymapping.domain_capability_metadata WHERE capability_id = $1", id)
 		tc.DB.Exec("DELETE FROM capabilitymapping.domain_capability_assignments WHERE capability_id = $1 OR business_domain_id = $1", id)
 		tc.DB.Exec("DELETE FROM capabilitymapping.strategy_importance WHERE capability_id = $1 OR business_domain_id = $1", id)
 		tc.DB.Exec("DELETE FROM capabilitymapping.effective_capability_importance WHERE capability_id = $1 OR business_domain_id = $1", id)
@@ -101,9 +100,7 @@ func (tc *TestContext) cleanup() {
 		tc.DB.Exec("DELETE FROM capabilitymapping.capabilities WHERE id = $1", id)
 		tc.DB.Exec("DELETE FROM capabilitymapping.business_domains WHERE id = $1", id)
 		tc.DB.Exec("DELETE FROM architecturemodeling.application_components WHERE id = $1", id)
-		tc.DB.Exec("DELETE FROM enterprisearchitecture.enterprise_capabilities WHERE id = $1", id)
 		tc.DB.Exec("DELETE FROM architecturedirection.capability_node_cache WHERE capability_id = $1 OR parent_id = $1 OR l1_capability_id = $1", id)
-		tc.DB.Exec("DELETE FROM architecturedirection.enterprise_capability_cache WHERE id = $1", id)
 		tc.DB.Exec("DELETE FROM architecturedirection.realization_cache WHERE realization_id = $1 OR capability_id = $1 OR component_id = $1", id)
 		tc.DB.Exec("DELETE FROM architecturedirection.reference_name_cache WHERE entity_id = $1", id)
 		tc.DB.Exec("DELETE FROM infrastructure.events WHERE aggregate_id = $1", id)

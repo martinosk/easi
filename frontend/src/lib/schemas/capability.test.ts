@@ -4,8 +4,8 @@ import {
   addTagSchema,
   capabilityDescriptionSchema,
   capabilityNameSchema,
+  capabilityPrimaryOwnerSchema,
   createCapabilitySchema,
-  editCapabilitySchema,
 } from './capability';
 
 describe('capabilityNameSchema', () => {
@@ -138,42 +138,23 @@ describe('createCapabilitySchema', () => {
   });
 });
 
-describe('editCapabilitySchema', () => {
-  const schema = editCapabilitySchema();
-  const validData = {
-    name: 'Test Capability',
-    description: 'Test description',
-    status: 'Active',
-    maturityValue: 12,
-    ownershipModel: 'TribeOwned',
-    primaryOwner: 'John Doe',
-    eaOwner: 'user-123',
-  };
-
-  it('should accept valid data', () => {
-    const result = schema.safeParse(validData);
+describe('capabilityPrimaryOwnerSchema', () => {
+  it('accepts an empty value so the owner can be cleared', () => {
+    const result = capabilityPrimaryOwnerSchema.safeParse('');
     expect(result.success).toBe(true);
   });
 
-  it('should accept empty ownership fields', () => {
-    const result = schema.safeParse({
-      ...validData,
-      ownershipModel: '',
-      primaryOwner: '',
-      eaOwner: '',
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it('should trim primaryOwner', () => {
-    const result = schema.safeParse({
-      ...validData,
-      primaryOwner: '  John Doe  ',
-    });
+  it('trims the owner', () => {
+    const result = capabilityPrimaryOwnerSchema.safeParse('  Jane Doe  ');
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.primaryOwner).toBe('John Doe');
+      expect(result.data).toBe('Jane Doe');
     }
+  });
+
+  it('rejects an owner longer than 200 characters', () => {
+    const result = capabilityPrimaryOwnerSchema.safeParse('x'.repeat(201));
+    expect(result.success).toBe(false);
   });
 });
 

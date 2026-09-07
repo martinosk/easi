@@ -6,7 +6,6 @@ import {
   IconLayoutSidebarRightExpand,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
-import type { Capability } from '../../api/types';
 import { ComponentCanvas, type ComponentCanvasRef } from '../../features/canvas';
 import { CANVAS_COMMANDS_SLOT_ID } from '../../features/canvas/components/CanvasCommandsPortal';
 import { NavigationTree } from '../../features/navigation';
@@ -139,9 +138,6 @@ interface CanvasWorkspaceProps {
   onCapabilitySelect: (capabilityId: string) => void;
   onOriginEntitySelect?: (nodeId: string) => void;
   onViewSelect: (viewId: string) => Promise<void>;
-  onEditComponent: (componentId?: string) => void;
-  onEditRelation: () => void;
-  onEditCapability: (capability: Capability) => void;
   onRemoveFromView: () => void;
 }
 
@@ -164,8 +160,8 @@ function ExplorerPane({ props, onCollapse }: { props: CanvasWorkspaceProps; onCo
           onViewSelect={props.onViewSelect}
           onAddComponent={props.onAddComponent}
           onAddCapability={props.onAddCapability}
-          onEditCapability={props.onEditCapability}
-          onEditComponent={props.onEditComponent}
+          onEditCapability={(capability) => props.onCapabilitySelect(capability.id)}
+          onEditComponent={props.onComponentSelect}
           canCreateView={props.canCreateView}
           canCreateOriginEntity={props.canCreateOriginEntity}
         />
@@ -201,8 +197,6 @@ function DetailsPane({ props, onCollapse }: { props: CanvasWorkspaceProps; onCol
             selectedNodeId={props.selectedNodeId}
             selectedEdgeId={props.selectedEdgeId}
             selectedCapabilityId={selectedCapabilityId}
-            onEditComponent={props.onEditComponent}
-            onEditRelation={props.onEditRelation}
             onRemoveFromView={props.onRemoveFromView}
             onRemoveCapabilityFromView={handleRemoveCapabilityFromView}
           />

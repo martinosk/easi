@@ -76,7 +76,7 @@ function buildCapabilitySubmitter(
         level: deps.prefill?.level ?? 'L1',
       });
       await updateMetadata.mutateAsync({
-        id: capability.id,
+        capability,
         request: { status: data.status, maturityValue: data.maturityValue },
       });
       if (deps.onCreated) {

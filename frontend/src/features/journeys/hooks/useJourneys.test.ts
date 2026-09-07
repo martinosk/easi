@@ -43,16 +43,16 @@ describe('useJourneyForCapability', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(result.current.data?.journey?.id).toBe('journey-1');
+    expect(result.current.data?.journeys[0]?.id).toBe('journey-1');
   });
 
-  it('returns a null journey with an x-capture link when none is active and the caller can write', async () => {
+  it('returns no journeys with an x-capture link when none is active and the caller can write', async () => {
     seedSpec182Db({ canWrite: true });
     const { result } = renderHook(() => useJourneyForCapability('cap-1'), { wrapper: createWrapper(newQueryClient()) });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(result.current.data?.journey).toBeNull();
+    expect(result.current.data?.journeys).toEqual([]);
     expect(result.current.data?._links?.['x-capture']).toBeDefined();
   });
 
@@ -124,7 +124,7 @@ describe('journey mutations', () => {
   async function seedActiveJourney(overrides: Partial<StubJourney> = {}): Promise<CapabilityJourney> {
     seedSpec182Db({ journeys: [buildStubJourney(overrides)] });
     const wrapper = await journeyApi.getForCapability('cap-1');
-    return wrapper.journey!;
+    return wrapper.journeys[0];
   }
 
   async function runMutation<TArgs>(
@@ -140,7 +140,7 @@ describe('journey mutations', () => {
 
   async function currentJourney(): Promise<CapabilityJourney | null> {
     const wrapper = await journeyApi.getForCapability('cap-1');
-    return wrapper.journey;
+    return wrapper.journeys[0] ?? null;
   }
 
   it('captures a journey and invalidates journey queries', async () => {

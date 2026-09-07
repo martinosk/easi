@@ -90,7 +90,7 @@ Feature: Journey on a domain capability
 
 ## Business Rules & Invariants
 
-1. **One active journey per capability.** A journey is *active* while `planned` or `in-flight`. A second capture while one is active is rejected, referencing the existing journey. `done` and `abandoned` journeys never block a new capture.
+1. **One active journey per capability.** A journey is *active* while `planned` or `in-flight`. A second capture while one is active is rejected, referencing the existing journey. `done` and `abandoned` journeys never block a new capture. *Amended by spec 211 rule 6: the limit is one active journey per **track**, and the maturity kind forms a track of its own, so a capability may run one application journey and one maturity journey at the same time.*
 2. **Kind** — `migration` | `consolidation` | `carve-out` | `move`. Immutable after capture; to change kind, abandon and capture anew (167 decision 5 posture).
 3. **Source cardinality by kind** — migration ≥ 1 from-app; consolidation ≥ 2; carve-out exactly 1; move 0..n (the capability's current realisations are the implicit sources).
 4. **Target application is required for every kind** and must reference an existing application component at capture time; the target must not be among the from-apps. A not-yet-built app is created in the catalog first (its realisation may be `Planned`).

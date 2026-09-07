@@ -100,12 +100,19 @@ func (h *ComponentHandlers) CreateApplicationComponent(w http.ResponseWriter, r 
 // @Param limit query int false "Number of items per page (max 100)" default(50)
 // @Param after query string false "Cursor for pagination (opaque token)"
 // @Param name query string false "Filter by name (case-insensitive substring match)"
+// @Param hosting query string false "Filter by hosting classification (on-premises, cloud, saas, third-party-hosted, unknown)"
 // @Success 200 {object} easi_backend_internal_shared_api.PaginatedResponse{data=[]readmodels.ApplicationComponentDTO}
+// @Failure 400 {object} sharedAPI.ErrorResponse
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /components [get]
 func (h *ComponentHandlers) GetAllComponents(w http.ResponseWriter, r *http.Request) {
 	params := sharedAPI.ParsePaginationParams(r)
 	nameFilter := r.URL.Query().Get("name")
+	hostingFilter := r.URL.Query().Get("hosting")
+
+	if !h.validateHostingFilter(w, hostingFilter) {
+		return
+	}
 
 	afterID, afterName, err := h.paginationHelper.ProcessNameCursor(params.After)
 	if err != nil {
@@ -114,10 +121,11 @@ func (h *ComponentHandlers) GetAllComponents(w http.ResponseWriter, r *http.Requ
 	}
 
 	components, hasMore, err := h.readModel.GetAllPaginated(r.Context(), readmodels.ComponentQuery{
-		Limit:       params.Limit,
-		AfterCursor: afterID,
-		AfterName:   afterName,
-		NameFilter:  nameFilter,
+		Limit:         params.Limit,
+		AfterCursor:   afterID,
+		AfterName:     afterName,
+		NameFilter:    nameFilter,
+		HostingFilter: hostingFilter,
 	})
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve components")
@@ -141,6 +149,25 @@ func (h *ComponentHandlers) GetAllComponents(w http.ResponseWriter, r *http.Requ
 		SelfLink:   selfLink,
 		BaseLink:   "/api/v1/components",
 	})
+}
+
+// GetStatistics godoc
+// @Summary Get statistics for application components
+// @Description Returns component counts per ownership state and a hosting classification distribution for the tenant
+// @Tags components
+// @Produce json
+// @Success 200 {object} readmodels.ComponentStatisticsDTO
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /components/ownership-statistics [get]
+func (h *ComponentHandlers) GetStatistics(w http.ResponseWriter, r *http.Request) {
+	stats, err := h.readModel.Statistics(r.Context())
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve component statistics")
+		return
+	}
+
+	stats.Links = h.hateoas.StatisticsLinks()
+	sharedAPI.RespondJSON(w, http.StatusOK, stats)
 }
 
 // GetComponentByID godoc
@@ -254,13 +281,30 @@ func (h *ComponentHandlers) validateComponentName(w http.ResponseWriter, name st
 	return true
 }
 
+func (h *ComponentHandlers) validateHostingFilter(w http.ResponseWriter, hosting string) bool {
+	if hosting == "" {
+		return true
+	}
+	if _, err := valueobjects.NewHostingClassification(hosting); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+		return false
+	}
+	return true
+}
+
 func (h *ComponentHandlers) enrichWithLinks(r *http.Request, component *readmodels.ApplicationComponentDTO) {
+	enrichComponentDTO(r, h.hateoas, component)
+}
+
+func enrichComponentDTO(r *http.Request, hateoas *ArchitectureModelingLinks, component *readmodels.ApplicationComponentDTO) {
 	actor, _ := sharedctx.GetActor(r.Context())
-	component.Links = h.hateoas.ComponentLinksForActor(component.ID, actor)
-	component.XRelated = h.hateoas.ComponentXRelatedForActor(actor)
+	component.Links = hateoas.ComponentLinksForActor(component.ID, actor)
+	hateoas.AddOwnershipAffordances(component.Links, component.ID, component.OwnershipState, actor)
+	hateoas.AddHostingAffordances(component.Links, component.ID, actor)
+	component.XRelated = hateoas.ComponentXRelatedForActor(actor)
 	for i := range component.Experts {
 		e := component.Experts[i]
-		component.Experts[i].Links = h.hateoas.ComponentExpertLinksForActor(sharedAPI.ExpertParams{
+		component.Experts[i].Links = hateoas.ComponentExpertLinksForActor(sharedAPI.ExpertParams{
 			ResourcePath: "/components/" + component.ID,
 			ExpertName:   e.Name,
 			ExpertRole:   e.Role,

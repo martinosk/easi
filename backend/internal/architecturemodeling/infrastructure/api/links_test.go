@@ -279,3 +279,34 @@ func TestOriginHandlers_EnrichToMarshaledJSON_AdvertisesXRelated(t *testing.T) {
 		})
 	}
 }
+
+func TestRelationLinksForActor_ArchitectGetsEditAndDelete(t *testing.T) {
+	h := sharedAPI.NewHATEOASLinks("/api/v1")
+	links := NewArchitectureModelingLinks(h)
+	actor := sharedctx.NewActor("u1", "u@example.com", sharedctx.RoleArchitect)
+
+	result := links.RelationLinksForActor("rel1", actor)
+
+	edit, ok := result["edit"]
+	require.True(t, ok, "architect must see edit")
+	assert.Equal(t, "PUT", edit.Method)
+	assert.Equal(t, "/api/v1/relations/rel1", edit.Href)
+	_, hasDelete := result["delete"]
+	assert.True(t, hasDelete, "architect must see delete")
+	assert.Equal(t, "/api/v1/relations/rel1", result["self"].Href)
+	assert.Equal(t, "/api/v1/reference/relations/generic", result["describedby"].Href)
+}
+
+func TestRelationLinksForActor_StakeholderGetsNoEditOrDelete(t *testing.T) {
+	h := sharedAPI.NewHATEOASLinks("/api/v1")
+	links := NewArchitectureModelingLinks(h)
+	actor := sharedctx.NewActor("u1", "u@example.com", sharedctx.RoleStakeholder)
+
+	result := links.RelationLinksForActor("rel1", actor)
+
+	_, hasEdit := result["edit"]
+	_, hasDelete := result["delete"]
+	assert.False(t, hasEdit, "stakeholder must not see edit")
+	assert.False(t, hasDelete, "stakeholder must not see delete")
+	assert.Equal(t, "/api/v1/relations/rel1", result["self"].Href)
+}

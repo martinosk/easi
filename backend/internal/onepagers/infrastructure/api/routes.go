@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"net/http"
 
 	authPL "easi/backend/internal/auth/publishedlanguage"
@@ -36,6 +37,7 @@ type OnePagersRoutesDeps struct {
 	AuthMiddleware  AuthMiddleware
 	SessionProvider authPL.SessionProvider
 	SubjectAudit    ports.SubjectAuditReader
+	Tenants         authPL.TenantDirectory
 }
 
 type subjectCaches struct {
@@ -143,7 +145,15 @@ func SetupOnePagersRoutes(deps OnePagersRoutesDeps) error {
 	qualityHandlers := NewOnePagerQualityHandlers(caches.index, links)
 	deps.Router.Get("/one-pager-quality", qualityHandlers.GetQualityList)
 
-	return nil
+	return archiveRetiredSubjectFacts(deps, caches.index, factsReadModel)
+}
+
+func archiveRetiredSubjectFacts(deps OnePagersRoutesDeps, index *readmodels.OnePagerSubjectIndexReadModel, facts *readmodels.OnePagerFactsReadModel) error {
+	if deps.Tenants == nil {
+		return nil
+	}
+	archival := projectors.NewRetiredSubjectArchival(deps.Tenants, index, facts, deps.CommandBus)
+	return archival.Run(context.Background())
 }
 
 type factsCommandWiring struct {
@@ -165,12 +175,11 @@ type subjectRoutePermissions struct {
 }
 
 var subjectPermissionsByType = map[string]subjectRoutePermissions{
-	"capability":            {read: authPL.PermCapabilitiesRead, write: authPL.PermCapabilitiesWrite},
-	"enterprise-capability": {read: authPL.PermEnterpriseArchRead, write: authPL.PermEnterpriseArchWrite},
-	"application":           {read: authPL.PermComponentsRead, write: authPL.PermComponentsWrite},
-	"acquired-entity":       {read: authPL.PermComponentsRead, write: authPL.PermComponentsWrite},
-	"vendor":                {read: authPL.PermComponentsRead, write: authPL.PermComponentsWrite},
-	"internal-team":         {read: authPL.PermComponentsRead, write: authPL.PermComponentsWrite},
+	"capability":      {read: authPL.PermCapabilitiesRead, write: authPL.PermCapabilitiesWrite},
+	"application":     {read: authPL.PermComponentsRead, write: authPL.PermComponentsWrite},
+	"acquired-entity": {read: authPL.PermComponentsRead, write: authPL.PermComponentsWrite},
+	"vendor":          {read: authPL.PermComponentsRead, write: authPL.PermComponentsWrite},
+	"internal-team":   {read: authPL.PermComponentsRead, write: authPL.PermComponentsWrite},
 }
 
 func registerSubjectRoutes(router chi.Router, h subjectHandlers, authMiddleware AuthMiddleware) {

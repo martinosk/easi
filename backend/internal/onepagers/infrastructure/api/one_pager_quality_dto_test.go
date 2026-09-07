@@ -58,8 +58,8 @@ func TestQualitySubjectGrantPermission(t *testing.T) {
 		assert.Equal(t, permission, got, subjectType)
 	}
 
-	_, ok := qualitySubjectGrantPermission["enterprise-capability"]
-	assert.False(t, ok, "enterprise-capability must not be a supported edit-grant subject type")
+	_, ok := qualitySubjectGrantPermission["business-unit"]
+	assert.False(t, ok, "an unknown subject type must not be a supported edit-grant subject type")
 }
 
 func TestToQualityRow_EditGrantsLink(t *testing.T) {
@@ -78,7 +78,7 @@ func TestToQualityRow_EditGrantsLink(t *testing.T) {
 		{"vendor grantor can invite", "vendor", []string{"components:write"}, true},
 		{"internal-team grantor can invite", "internal-team", []string{"components:write"}, true},
 		{"edit-grants:manage grants access regardless of write permission", "capability", []string{"edit-grants:manage"}, true},
-		{"enterprise-capability is never invitable, even with edit-grants:manage", "enterprise-capability", []string{"edit-grants:manage"}, false},
+		{"an unknown subject type is never invitable, even with edit-grants:manage", "business-unit", []string{"edit-grants:manage"}, false},
 	}
 
 	for _, tc := range cases {
@@ -180,13 +180,12 @@ func TestReadableSubjectTypes(t *testing.T) {
 		want        []string
 	}{
 		{"capabilities only", map[string]bool{"capabilities:read": true}, []string{"capability"}},
-		{"enterprise only", map[string]bool{"enterprise-arch:read": true}, []string{"enterprise-capability"}},
 		{"components covers four types", map[string]bool{"components:read": true}, []string{"application", "acquired-entity", "vendor", "internal-team"}},
 		{"none", map[string]bool{}, nil},
 		{
-			"all three",
-			map[string]bool{"capabilities:read": true, "enterprise-arch:read": true, "components:read": true},
-			[]string{"capability", "enterprise-capability", "application", "acquired-entity", "vendor", "internal-team"},
+			"both",
+			map[string]bool{"capabilities:read": true, "components:read": true},
+			[]string{"capability", "application", "acquired-entity", "vendor", "internal-team"},
 		},
 	}
 	for _, tc := range cases {

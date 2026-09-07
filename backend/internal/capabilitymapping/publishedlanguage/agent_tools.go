@@ -295,7 +295,7 @@ func strategyTools() []agenttools.AgentToolSpec {
 		},
 		{
 			Name: "get_strategic_fit_analysis", Description: "Get strategic fit analysis for a specific strategy pillar. Shows capabilities ranked by importance with their realizing applications and fit scores, revealing gaps where important capabilities lack well-fitting systems. Use for gap analysis and investment prioritization.",
-			Access: agenttools.AccessRead, Permission: "enterprise-arch:read",
+			Access: agenttools.AccessRead, Permission: "capabilities:read",
 			Method: "GET", Path: "/strategic-fit-analysis/{pillarId}",
 			PathParams: []agenttools.ParamSpec{agenttools.UUIDParam("pillarId", "Strategy pillar ID (UUID)")},
 		},

@@ -23,7 +23,7 @@ import (
 )
 
 type mockCapabilityJourneyQueries struct {
-	active         *readmodels.CapabilityJourneyDTO
+	active         []readmodels.CapabilityJourneyDTO
 	activeErr      error
 	byIDReturns    []*readmodels.CapabilityJourneyDTO
 	byIDCallIdx    int
@@ -39,7 +39,7 @@ func (m *mockCapabilityJourneyQueries) GetAllCurrent(_ context.Context) ([]readm
 	return m.all, nil
 }
 
-func (m *mockCapabilityJourneyQueries) GetActiveByCapabilityID(_ context.Context, _ string) (*readmodels.CapabilityJourneyDTO, error) {
+func (m *mockCapabilityJourneyQueries) GetActiveByCapabilityID(_ context.Context, _ string) ([]readmodels.CapabilityJourneyDTO, error) {
 	return m.active, m.activeErr
 }
 
@@ -112,11 +112,11 @@ func TestGetJourneyForCapability_NoActiveJourney_WriterSeesCapture(t *testing.T)
 
 	require.Equal(t, http.StatusOK, rec.Code)
 	var body struct {
-		Journey *readmodels.CapabilityJourneyDTO `json:"journey"`
-		Links   sharedAPI.Links                  `json:"_links"`
+		Journeys []readmodels.CapabilityJourneyDTO `json:"journeys"`
+		Links    sharedAPI.Links                   `json:"_links"`
 	}
 	require.NoError(t, json.NewDecoder(rec.Body).Decode(&body))
-	assert.Nil(t, body.Journey)
+	assert.Empty(t, body.Journeys)
 	assert.Contains(t, body.Links, "x-capture")
 	assert.Contains(t, body.Links, "x-history")
 }
@@ -149,7 +149,7 @@ func plannedJourneyDTO() *readmodels.CapabilityJourneyDTO {
 
 func TestGetJourneyForCapability_ActiveJourney_WriterSeesPlannedLinks(t *testing.T) {
 	journey := plannedJourneyDTO()
-	queries := &mockCapabilityJourneyQueries{active: journey}
+	queries := &mockCapabilityJourneyQueries{active: []readmodels.CapabilityJourneyDTO{*journey}}
 	h := setupCapabilityJourneyHandlers(&mockCommandBus{}, queries)
 	r := capabilityJourneyRouter(h)
 
@@ -159,17 +159,17 @@ func TestGetJourneyForCapability_ActiveJourney_WriterSeesPlannedLinks(t *testing
 
 	require.Equal(t, http.StatusOK, rec.Code)
 	var body struct {
-		Journey *readmodels.CapabilityJourneyDTO `json:"journey"`
+		Journeys []readmodels.CapabilityJourneyDTO `json:"journeys"`
 	}
 	require.NoError(t, json.NewDecoder(rec.Body).Decode(&body))
-	require.NotNil(t, body.Journey)
-	assert.Contains(t, body.Journey.Links, "x-start")
-	assert.Contains(t, body.Journey.Links, "x-abandon")
-	assert.Contains(t, body.Journey.Links, "edit")
-	assert.Contains(t, body.Journey.Links, "x-progress")
-	assert.Contains(t, body.Journey.Links, "x-change-sources")
-	assert.Contains(t, body.Journey.Links, "x-add-milestone")
-	assert.NotContains(t, body.Journey.Links, "x-complete")
+	require.Len(t, body.Journeys, 1)
+	assert.Contains(t, body.Journeys[0].Links, "x-start")
+	assert.Contains(t, body.Journeys[0].Links, "x-abandon")
+	assert.Contains(t, body.Journeys[0].Links, "edit")
+	assert.Contains(t, body.Journeys[0].Links, "x-progress")
+	assert.Contains(t, body.Journeys[0].Links, "x-change-sources")
+	assert.Contains(t, body.Journeys[0].Links, "x-add-milestone")
+	assert.NotContains(t, body.Journeys[0].Links, "x-complete")
 }
 
 func TestGetJourneyForCapability_LinksVaryByStatusAndActor(t *testing.T) {
@@ -205,7 +205,7 @@ func TestGetJourneyForCapability_LinksVaryByStatusAndActor(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			journey := plannedJourneyDTO()
 			journey.Status = tc.status
-			queries := &mockCapabilityJourneyQueries{active: journey}
+			queries := &mockCapabilityJourneyQueries{active: []readmodels.CapabilityJourneyDTO{*journey}}
 			h := setupCapabilityJourneyHandlers(&mockCommandBus{}, queries)
 			r := capabilityJourneyRouter(h)
 
@@ -215,15 +215,15 @@ func TestGetJourneyForCapability_LinksVaryByStatusAndActor(t *testing.T) {
 
 			require.Equal(t, http.StatusOK, rec.Code)
 			var body struct {
-				Journey *readmodels.CapabilityJourneyDTO `json:"journey"`
+				Journeys []readmodels.CapabilityJourneyDTO `json:"journeys"`
 			}
 			require.NoError(t, json.NewDecoder(rec.Body).Decode(&body))
-			require.NotNil(t, body.Journey)
+			require.Len(t, body.Journeys, 1)
 			for _, link := range tc.wantLinks {
-				assert.Contains(t, body.Journey.Links, link)
+				assert.Contains(t, body.Journeys[0].Links, link)
 			}
 			for _, link := range tc.wantNoLinks {
-				assert.NotContains(t, body.Journey.Links, link)
+				assert.NotContains(t, body.Journeys[0].Links, link)
 			}
 		})
 	}
@@ -530,7 +530,7 @@ func TestGetJourneyForCapability_ReorderLinkGatedByActorStatusAndMilestoneCount_
 			journey := plannedJourneyDTO()
 			journey.Status = tc.status
 			journey.Milestones = tc.milestones
-			h := setupCapabilityJourneyHandlers(&mockCommandBus{}, &mockCapabilityJourneyQueries{active: journey})
+			h := setupCapabilityJourneyHandlers(&mockCommandBus{}, &mockCapabilityJourneyQueries{active: []readmodels.CapabilityJourneyDTO{*journey}})
 			r := capabilityJourneyRouter(h)
 
 			req := withActor(httptest.NewRequest(http.MethodGet, "/capabilities/"+journey.CapabilityID+"/journey", nil), tc.actor)
@@ -539,10 +539,11 @@ func TestGetJourneyForCapability_ReorderLinkGatedByActorStatusAndMilestoneCount_
 
 			require.Equal(t, http.StatusOK, rec.Code)
 			var body struct {
-				Journey *readmodels.CapabilityJourneyDTO `json:"journey"`
+				Journeys []readmodels.CapabilityJourneyDTO `json:"journeys"`
 			}
 			require.NoError(t, json.NewDecoder(rec.Body).Decode(&body))
-			link, present := body.Journey.Links["x-reorder-milestones"]
+			require.Len(t, body.Journeys, 1)
+			link, present := body.Journeys[0].Links["x-reorder-milestones"]
 			assert.Equal(t, tc.wantLink, present)
 			if tc.wantLink {
 				assert.Equal(t, "/api/v1/capability-journeys/"+journey.ID+"/milestone-order", link.Href)

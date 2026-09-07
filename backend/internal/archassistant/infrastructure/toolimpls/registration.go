@@ -38,7 +38,7 @@ func registerCompositeTools(registry *tools.Registry, client *agenthttp.Client) 
 		Permission:  "assistant:use",
 		Access:      tools.AccessRead,
 		Parameters: []tools.ParameterDef{
-			{Name: "topic", Type: "string", Description: "Topic to query: capability-hierarchy, business-domains, realizations, strategy, enterprise-capabilities, time-classification, value-streams, component-origins, overview", Required: true},
+			{Name: "topic", Type: "string", Description: "Topic to query: capability-hierarchy, business-domains, realizations, strategy, time-classification, value-streams, component-origins, overview", Required: true},
 		},
 	}, &domainKnowledgeTool{})
 }

@@ -72,7 +72,7 @@ async function enableMocking(): Promise<void> {
   if (!import.meta.env.DEV || import.meta.env.VITE_USE_MOCK_API !== 'true') return;
   const [{ worker }, { seedDevData }] = await Promise.all([
     import('./test/mocks/browser'),
-    import('./test/mocks/spec172/seed'),
+    import('./test/mocks/seedDevData'),
   ]);
   seedDevData();
   await worker.start({ onUnhandledRequest: 'bypass' });
@@ -95,7 +95,7 @@ function renderApp() {
                       <Route path={ROUTES.BUSINESS_DOMAINS} element={<App view="business-domains" />} />
                       <Route path={ROUTES.BUSINESS_DOMAIN_DETAIL} element={<App view="business-domains" />} />
                       <Route path={`${ROUTES.VALUE_STREAMS}/*`} element={<App view="value-streams" />} />
-                      <Route path={ROUTES.ENTERPRISE_ARCHITECTURE} element={<App view="enterprise-architecture" />} />
+                      <Route path={ROUTES.STRATEGIC_FIT} element={<App view="strategic-fit" />} />
                       <Route path={ROUTES.INVITATIONS} element={<App view="invitations" />} />
                       <Route path={ROUTES.USERS} element={<App view="users" />} />
                       <Route path="/settings/*" element={<App view="settings" />} />

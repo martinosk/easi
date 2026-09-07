@@ -9,6 +9,19 @@ compatibility: opencode
 ## Overview
 Model software around the business domain. Collaborate with domain experts to build a shared understanding expressed in code through ubiquitous language, bounded contexts, and tactical patterns.
 
+## EASI Strategic Frame
+
+Boundary and context-map decisions are checked against the strategy register at `docs/architecture/ROADMAP.md` (decision register SD1–SD8, horizon plan, parked capabilities — canonical wording and amendments live there). A design that contradicts a settled decision is a proposed roadmap amendment — surface it to the human, never override silently.
+
+Six standing invariants govern every design:
+
+1. **Events-only integration** — contexts integrate through published events and published commands; nothing else crosses a boundary.
+2. **Analysis is a read side** — a new analysis surface is a projection over published events, never a new dependency between write-side contexts.
+3. **External data carries provenance** — facts enter only through the Integrations context, stamped with source, external id and sync time; sync never overwrites a curated fact.
+4. **Judgements are separable** — assessment-like concepts get their own aggregate and events; consumers reference, never embed.
+5. **MetaModel owns the vocabulary** — scales, pillars, custom attributes and modelling rules; AI checks are advisory at the edge with recorded overrides.
+6. **Contexts stay small** — when one context starts speaking two languages, split it.
+
 ## Strategic Patterns
 
 ### Ubiquitous Language

@@ -1,7 +1,7 @@
-import { TextInput, UnstyledButton } from '@mantine/core';
+import { Box, ColorSwatch, Group, TextInput, UnstyledButton } from '@mantine/core';
 import { IconBox } from '@tabler/icons-react';
 import React, { useMemo, useState } from 'react';
-import type { Component, View } from '../../../../api/types';
+import type { Component, HostingClassification, OwnershipState, View } from '../../../../api/types';
 import { TreeSearchInput } from '../../../../components/shared';
 import { OnePagerIncompleteIndicator } from '../../../one-pagers/components/OnePagerIncompleteIndicator';
 import { useOnePagerCompleteness } from '../../../one-pagers/hooks/useOnePagerCompleteness';
@@ -9,27 +9,26 @@ import type { EditingState, TreeMultiSelectProps } from '../../types';
 import { hasCustomColor } from '../../utils/treeUtils';
 import classes from '../shared/TreeItem.module.css';
 import { TreeSection } from '../TreeSection';
+import { ApplicationsFilterPopover } from './ApplicationsFilterPopover';
 
 interface ColorIndicatorProps {
   customColor: string | undefined;
 }
 
 const ColorIndicator: React.FC<ColorIndicatorProps> = ({ customColor }) => (
-  <div
-    data-testid="custom-color-indicator"
-    style={{
-      width: '10px',
-      height: '10px',
-      borderRadius: '2px',
-      backgroundColor: customColor,
-      display: 'inline-block',
-      marginLeft: '8px',
-      border: '1px solid rgba(0,0,0,0.1)',
-    }}
-  />
+  <ColorSwatch data-testid="custom-color-indicator" color={customColor ?? ''} size="xs" radius="xs" ml="sm" />
 );
 
-function filterComponents(components: Component[], search: string): Component[] {
+function filterByClassification(
+  components: Component[],
+  ownershipState: OwnershipState | null,
+  hosting: HostingClassification | null,
+): Component[] {
+  const byOwnership = ownershipState ? components.filter((c) => c.ownershipState === ownershipState) : components;
+  return hosting ? byOwnership.filter((c) => c.hosting === hosting) : byOwnership;
+}
+
+function filterBySearch(components: Component[], search: string): Component[] {
   if (!search.trim()) return components;
   const searchLower = search.toLowerCase();
   return components.filter(
@@ -163,11 +162,17 @@ export const ApplicationsSection: React.FC<ApplicationsSectionProps> = ({
   multiSelect,
 }) => {
   const [applicationSearch, setApplicationSearch] = useState('');
+  const [ownershipFilter, setOwnershipFilter] = useState<OwnershipState | null>(null);
+  const [hostingFilter, setHostingFilter] = useState<HostingClassification | null>(null);
   const { data: onePagerCompleteness } = useOnePagerCompleteness('application');
 
+  const classifiedComponents = useMemo(
+    () => filterByClassification(components, ownershipFilter, hostingFilter),
+    [components, ownershipFilter, hostingFilter],
+  );
   const filteredComponents = useMemo(
-    () => filterComponents(components, applicationSearch),
-    [components, applicationSearch],
+    () => filterBySearch(classifiedComponents, applicationSearch),
+    [classifiedComponents, applicationSearch],
   );
 
   const visibleItems = useMemo(
@@ -214,7 +219,7 @@ export const ApplicationsSection: React.FC<ApplicationsSectionProps> = ({
     }
   };
 
-  const emptyMessage = components.length === 0 ? 'No applications' : 'No matches';
+  const emptyMessage = components.length === 0 && !ownershipFilter && !hostingFilter ? 'No applications' : 'No matches';
 
   const renderComponent = (component: Component) => {
     if (editingState?.componentId === component.id) {
@@ -251,14 +256,30 @@ export const ApplicationsSection: React.FC<ApplicationsSectionProps> = ({
   return (
     <TreeSection
       label="Applications"
-      count={components.length}
+      count={classifiedComponents.length}
       isExpanded={isExpanded}
       onToggle={onToggle}
       onAdd={onAddComponent}
       addTitle="Create new application"
       addTestId="create-component-button"
     >
-      <TreeSearchInput value={applicationSearch} onChange={setApplicationSearch} placeholder="Search applications..." />
+      <Group gap={0} wrap="nowrap" align="center" pr="md">
+        <Box flex={1} miw={0}>
+          <TreeSearchInput
+            value={applicationSearch}
+            onChange={setApplicationSearch}
+            placeholder="Search applications..."
+          />
+        </Box>
+        <Box pb="xs">
+          <ApplicationsFilterPopover
+            ownership={ownershipFilter}
+            onOwnershipChange={setOwnershipFilter}
+            hosting={hostingFilter}
+            onHostingChange={setHostingFilter}
+          />
+        </Box>
+      </Group>
       <div className={classes.list}>
         {filteredComponents.length === 0 ? (
           <div className={classes.empty}>{emptyMessage}</div>

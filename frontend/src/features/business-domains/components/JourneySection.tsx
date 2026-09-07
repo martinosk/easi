@@ -8,7 +8,7 @@ import { JourneyMilestones } from '../../journeys/components/JourneyMilestones';
 import { JourneyProgressBar } from '../../journeys/components/JourneyProgressBar';
 import { JourneyTransitionTable } from '../../journeys/components/JourneyTransitionTable';
 import { useJourneyForCapability, useJourneyHistory } from '../../journeys/hooks/useJourneys';
-import type { CapabilityJourney, CapabilityJourneyResponse } from '../../journeys/types';
+import type { CapabilityJourney, CapabilityJourneyResponse, JourneyKind } from '../../journeys/types';
 import type { CapabilityHierarchyJourneys } from '../lens/hierarchyJourneys';
 import { DrawerSectionHeader } from './DrawerSectionHeader';
 import { AncestorJourneys, SubCapabilityJourneys } from './HierarchyJourneys';
@@ -21,13 +21,21 @@ export interface JourneySectionProps {
   onNavigateToCapability: (capabilityId: string) => void;
 }
 
-function useDisplayJourney(capabilityId: string) {
+function useDisplayJourneys(capabilityId: string) {
   const wrapperQuery = useJourneyForCapability(capabilityId);
   const wrapper = wrapperQuery.data;
-  const activeJourney = wrapper?.journey ?? null;
-  const historyQuery = useJourneyHistory(wrapper && !activeJourney ? capabilityId : undefined);
-  const displayJourney = activeJourney ?? historyQuery.data?.data[0] ?? null;
-  return { wrapper, displayJourney };
+  const activeJourneys = wrapper?.journeys ?? [];
+  const historyQuery = useJourneyHistory(wrapper && activeJourneys.length === 0 ? capabilityId : undefined);
+  const mostRecent = historyQuery.data?.data[0];
+  const displayJourneys = activeJourneys.length > 0 ? activeJourneys : mostRecent ? [mostRecent] : [];
+  return { wrapper, displayJourneys };
+}
+
+function availableCaptureKinds(wrapper: CapabilityJourneyResponse): JourneyKind[] {
+  const kinds: JourneyKind[] = [];
+  if (hasLink(wrapper, 'x-capture')) kinds.push('migration', 'consolidation', 'carve-out', 'move');
+  if (hasLink(wrapper, 'x-capture-maturity')) kinds.push('maturity');
+  return kinds;
 }
 
 function JourneyContent({
@@ -71,7 +79,8 @@ function CaptureAffordance({
   realizations: CapabilityRealization[];
 }) {
   const [open, setOpen] = useState(false);
-  if (!hasLink(wrapper, 'x-capture')) return null;
+  const availableKinds = availableCaptureKinds(wrapper);
+  if (availableKinds.length === 0) return null;
 
   const close = () => setOpen(false);
 
@@ -84,7 +93,13 @@ function CaptureAffordance({
       </Group>
       {open && (
         <Modal opened onClose={close} title="Plan journey" size="lg" data-testid="capture-journey-modal">
-          <CaptureJourneyForm capability={capability} realizations={realizations} onCaptured={close} onCancel={close} />
+          <CaptureJourneyForm
+            capability={capability}
+            realizations={realizations}
+            availableKinds={availableKinds}
+            onCaptured={close}
+            onCancel={close}
+          />
         </Modal>
       )}
     </>
@@ -97,7 +112,7 @@ export function JourneySection({
   hierarchyJourneys,
   onNavigateToCapability,
 }: JourneySectionProps) {
-  const { wrapper, displayJourney } = useDisplayJourney(String(capability.id));
+  const { wrapper, displayJourneys } = useDisplayJourneys(String(capability.id));
 
   if (!wrapper) return null;
 
@@ -105,9 +120,11 @@ export function JourneySection({
     <Stack gap="xs" data-testid="journey-section">
       <AncestorJourneys journeys={hierarchyJourneys.ancestors} onNavigate={onNavigateToCapability} />
       <DrawerSectionHeader>Transition</DrawerSectionHeader>
-      {!displayJourney && <Text className={classes.empty}>No change planned.</Text>}
+      {displayJourneys.length === 0 && <Text className={classes.empty}>No change planned.</Text>}
       <CaptureAffordance wrapper={wrapper} capability={capability} realizations={realizations} />
-      {displayJourney && <JourneyContent journey={displayJourney} realizations={realizations} />}
+      {displayJourneys.map((journey) => (
+        <JourneyContent key={journey.id} journey={journey} realizations={realizations} />
+      ))}
       <SubCapabilityJourneys journeys={hierarchyJourneys.descendants} onNavigate={onNavigateToCapability} />
     </Stack>
   );

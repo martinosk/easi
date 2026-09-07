@@ -1,0 +1,16 @@
+.realizationRow {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+}
+
+.realizationMeta {
+  font-size: var(--font-size-xs);
+  color: var(--muted);
+}
+
+.empty {
+  font-size: var(--font-size-sm);
+  color: var(--faint);
+  font-style: italic;
+}

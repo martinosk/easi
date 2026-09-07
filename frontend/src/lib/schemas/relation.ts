@@ -29,23 +29,11 @@ export const createRelationSchema = z
 
 export type CreateRelationFormData = z.infer<typeof createRelationSchema>;
 
-export const editRelationSchema = z.object({
-  name: relationNameSchema,
-  description: relationDescriptionSchema,
-});
-
-export type EditRelationFormData = z.infer<typeof editRelationSchema>;
-
 export const realizationLevelSchema = z.enum(['Full', 'Partial', 'Planned']);
 
 export type RealizationLevelType = z.infer<typeof realizationLevelSchema>;
 
-export const editRealizationSchema = z.object({
-  realizationLevel: realizationLevelSchema,
-  notes: z
-    .string()
-    .max(1000, 'Notes must be 1000 characters or less')
-    .transform((val) => val.trim()),
-});
-
-export type EditRealizationFormData = z.infer<typeof editRealizationSchema>;
+export const realizationNotesSchema = z
+  .string()
+  .max(1000, 'Notes must be 1000 characters or less')
+  .transform((val) => val.trim());

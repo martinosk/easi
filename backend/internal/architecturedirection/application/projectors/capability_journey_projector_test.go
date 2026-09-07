@@ -133,6 +133,28 @@ func TestCapabilityJourneyProjector_JourneyPlanned_InsertsJourney(t *testing.T) 
 	assert.Equal(t, 2027, *store.inserted[0].TargetYear)
 }
 
+func TestCapabilityJourneyProjector_MaturityJourneyPlanned_InsertsTargetMaturity(t *testing.T) {
+	store := &mockCapabilityJourneyStore{}
+	projector := NewCapabilityJourneyProjector(store)
+
+	target := 65
+	evt := events.NewJourneyPlanned(events.JourneyPlannedFields{
+		ID:             uuid.New().String(),
+		CapabilityID:   uuid.New().String(),
+		Kind:           "maturity",
+		TargetMaturity: &target,
+		PlannedBy:      "architect@example.com",
+	})
+
+	require.NoError(t, projector.Handle(context.Background(), evt))
+
+	require.Len(t, store.inserted, 1)
+	assert.Equal(t, "maturity", store.inserted[0].Kind)
+	assert.Empty(t, store.inserted[0].ToComponentID)
+	require.NotNil(t, store.inserted[0].TargetMaturity)
+	assert.Equal(t, 65, *store.inserted[0].TargetMaturity)
+}
+
 func TestCapabilityJourneyProjector_JourneyStarted_UpdatesStatus(t *testing.T) {
 	store := &mockCapabilityJourneyStore{}
 	projector := NewCapabilityJourneyProjector(store)

@@ -410,7 +410,7 @@ function useSelectedCapabilityDetails({
     return buildHierarchyJourneys({
       capabilityId: String(selectedCapability.id),
       capabilities: allCapabilities,
-      getJourney: journeyIndex.getJourney,
+      getJourneys: journeyIndex.getJourneys,
     });
   }, [selectedCapability, allCapabilities, journeyIndex]);
 

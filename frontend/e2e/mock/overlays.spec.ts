@@ -4,7 +4,7 @@ const PAGES = [
   { name: 'canvas', path: '/' },
   { name: 'business domains', path: '/business-domains' },
   { name: 'value streams', path: '/value-streams' },
-  { name: 'enterprise architecture', path: '/enterprise-architecture' },
+  { name: 'strategic fit', path: '/strategic-fit' },
 ];
 
 const VIEWPORTS = [

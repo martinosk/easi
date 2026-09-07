@@ -86,10 +86,11 @@ Check each item only when genuinely complete. Do not batch-check at the end.
 Before writing a single line of the spec, understand the system:
 
 1. Find related specs in `/specs` — read any `_ongoing` or `_done` specs that touch the same bounded context
-2. Identify the affected bounded context(s) in `backend/internal/` and `frontend/src/features/`
-3. Locate similar patterns — find an analogous aggregate, handler, or component to use as reference
-4. Assess cross-context impact — which events or read models would be affected?
-5. Produce a short research summary (can be inline notes or a `memory/` file for larger features)
+2. Locate the change on the strategic roadmap (`docs/architecture/ROADMAP.md`) — name the decision (SD) or horizon move it advances, or record that it is outside the roadmap and why
+3. Identify the affected bounded context(s) in `backend/internal/` and `frontend/src/features/`
+4. Locate similar patterns — find an analogous aggregate, handler, or component to use as reference
+5. Assess cross-context impact — which events or read models would be affected?
+6. Produce a short research summary (can be inline notes or a `memory/` file for larger features)
 
 **Phase 1 human gate:** The human reviews research findings before spec writing begins. For large or architecturally significant features, produce a design document at `docs/specs/{feature-name}.md` covering problem statement, proposed approach, alternatives, and key decisions. Human approves the design doc before Phase 2 starts.
 
@@ -138,6 +139,7 @@ A spec must never contain "future work", "out of scope", or "nice to have" secti
 - [ ] Concepts are named consistently throughout all sections
 - [ ] No section contradicts another
 - [ ] Scope covers one vertical slice
+- [ ] Roadmap alignment stated — the SD/move from `docs/architecture/ROADMAP.md` or an explicit out-of-roadmap justification — and no standing invariant violated
 
 This gate is a **hard stop**. Do not check `Specification ready` until all items pass.
 
@@ -174,6 +176,7 @@ This gate is a **hard stop**. Do not check `Specification ready` until all items
 12. Run final `/code-review --changed` on all modified files
 13. Rename the file to `_done`
 14. Update any specs that reference this one
+15. Update the move's row in `docs/architecture/ROADMAP.md` when the spec advances a roadmap move
 
 ---
 
@@ -196,7 +199,7 @@ This gate is a **hard stop**. Do not check `Specification ready` until all items
 
 See `specs/001_SpecTemplate_pending.md` for the canonical template.
 
-**Required for all specs:** Problem Statement, User-Facing Behavior (BDD), Acceptance Criteria, Checklist
+**Required for all specs:** Roadmap alignment (header field), Problem Statement, User-Facing Behavior (BDD), Acceptance Criteria, Checklist
 
 **Required when the change introduces new domain concepts or cross-context integration:** Architecture section (Ownership, Domain Model, API Surface, Persistence, Frontend, Cross-Context Integration)
 

@@ -1,13 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Alert, Button, Group, Modal, Select, Stack, Textarea, TextInput } from '@mantine/core';
 import React, { useLayoutEffect, useState } from 'react';
-import {
-  Controller,
-  type Control,
-  type FieldErrors,
-  type UseFormRegister,
-  useForm,
-} from 'react-hook-form';
+import { type Control, Controller, type FieldErrors, type UseFormRegister, useForm } from 'react-hook-form';
 import type { IntegrationStatus } from '../../../api/types';
 import { type CreateAcquiredEntityFormData, createAcquiredEntitySchema } from '../../../lib/schemas';
 import { useCreateAcquiredEntity } from '../hooks/useAcquiredEntities';
@@ -113,12 +107,7 @@ function FormActions({ isPending, isValid, onCancel }: FormActionsProps) {
       <Button variant="default" onClick={onCancel} disabled={isPending} data-testid="create-acquired-entity-cancel">
         Cancel
       </Button>
-      <Button
-        type="submit"
-        loading={isPending}
-        disabled={!isValid}
-        data-testid="create-acquired-entity-submit"
-      >
+      <Button type="submit" loading={isPending} disabled={!isValid} data-testid="create-acquired-entity-submit">
         Create
       </Button>
     </Group>

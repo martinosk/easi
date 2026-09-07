@@ -7,7 +7,6 @@ import (
 
 	amContracts "easi/backend/internal/architecturemodeling/publishedlanguage/contracts"
 	capContracts "easi/backend/internal/capabilitymapping/publishedlanguage/contracts"
-	eaContracts "easi/backend/internal/enterprisearchitecture/publishedlanguage/contracts"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,10 +17,6 @@ var contractPayloadsBySubjectType = map[string][]reflect.Type{
 		reflect.TypeOf(capContracts.CapabilityCreatedPayload{}),
 		reflect.TypeOf(capContracts.CapabilityUpdatedPayload{}),
 		reflect.TypeOf(capContracts.CapabilityMetadataUpdatedPayload{}),
-	},
-	"enterprise-capability": {
-		reflect.TypeOf(eaContracts.EnterpriseCapabilityCreatedPayload{}),
-		reflect.TypeOf(eaContracts.EnterpriseCapabilityUpdatedPayload{}),
 	},
 	"application": {
 		reflect.TypeOf(amContracts.ApplicationComponentCreatedPayload{}),

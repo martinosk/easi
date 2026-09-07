@@ -13,6 +13,8 @@ function makeComponent(id: string, name: string): Component {
   return {
     id: id as ComponentId,
     name,
+    ownershipState: 'unknown',
+    hosting: 'unknown',
     createdAt: '2024-01-01',
     _links: deleteLinks,
   };

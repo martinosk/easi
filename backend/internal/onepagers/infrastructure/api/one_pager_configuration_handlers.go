@@ -45,7 +45,7 @@ func NewOnePagerConfigurationHandlers(
 // @Description Retrieves the tenant's one-pager configuration for the given subject type, lazily creating the default configuration (all catalog built-in fields in catalog order, no custom fields) on first read.
 // @Tags one-pagers
 // @Produce json
-// @Param subjectType path string true "Subject type" Enums(capability, enterprise-capability, application, acquired-entity, vendor, internal-team)
+// @Param subjectType path string true "Subject type" Enums(capability, application, acquired-entity, vendor, internal-team)
 // @Success 200 {object} OnePagerConfigurationDTO
 // @Failure 401 {object} sharedAPI.ErrorResponse
 // @Failure 403 {object} sharedAPI.ErrorResponse

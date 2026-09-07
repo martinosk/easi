@@ -35,10 +35,6 @@ var (
 
 	PermAuditRead = pl.PermAuditRead
 
-	PermEnterpriseArchRead   = pl.PermEnterpriseArchRead
-	PermEnterpriseArchWrite  = pl.PermEnterpriseArchWrite
-	PermEnterpriseArchDelete = pl.PermEnterpriseArchDelete
-
 	PermArchitectureDirectionRead   = pl.PermArchitectureDirectionRead
 	PermArchitectureDirectionWrite  = pl.PermArchitectureDirectionWrite
 	PermArchitectureDirectionDelete = pl.PermArchitectureDirectionDelete

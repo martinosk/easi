@@ -1,5 +1,4 @@
 import {
-  IconBuildingBank,
   IconClipboardCheck,
   IconDots,
   IconMap2,
@@ -7,6 +6,7 @@ import {
   IconRoute,
   IconSettings2,
   IconSparkles,
+  IconTargetArrow,
   IconTopologyStar3,
   IconUsers,
 } from '@tabler/icons-react';
@@ -20,7 +20,7 @@ export const BusinessDomainsIcon = <IconMap2 size={ICON_SIZE} stroke={ICON_STROK
 
 export const ValueStreamsIcon = <IconRoute size={ICON_SIZE} stroke={ICON_STROKE} />;
 
-export const EnterpriseArchIcon = <IconBuildingBank size={ICON_SIZE} stroke={ICON_STROKE} />;
+export const StrategicFitIcon = <IconTargetArrow size={ICON_SIZE} stroke={ICON_STROKE} />;
 
 export const UsersIcon = <IconUsers size={ICON_SIZE} stroke={ICON_STROKE} />;
 

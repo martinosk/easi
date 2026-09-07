@@ -2,6 +2,7 @@ package valueobjects
 
 import (
 	"errors"
+	"slices"
 
 	domain "easi/backend/internal/shared/eventsourcing"
 )
@@ -14,7 +15,6 @@ type SubjectType struct {
 
 var subjectTypeValues = []string{
 	"capability",
-	"enterprise-capability",
 	"application",
 	"acquired-entity",
 	"vendor",
@@ -22,10 +22,8 @@ var subjectTypeValues = []string{
 }
 
 func NewSubjectType(value string) (SubjectType, error) {
-	for _, v := range subjectTypeValues {
-		if v == value {
-			return SubjectType{value: value}, nil
-		}
+	if slices.Contains(subjectTypeValues, value) {
+		return SubjectType{value: value}, nil
 	}
 	return SubjectType{}, ErrInvalidSubjectType
 }

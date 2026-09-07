@@ -1,38 +1,63 @@
 import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { HttpResponse, http } from 'msw';
 import { describe, expect, it, vi } from 'vitest';
 import { toComponentId } from '../../../api/types';
-import { buildComponent, renderWithProviders } from '../../../test/helpers';
+import { buildComponent, buildExpert, renderWithProviders, seedDb, server } from '../../../test/helpers';
 import { ApplicationDrawer } from './ApplicationDrawer';
 
-const component = buildComponent({ id: toComponentId('comp-1'), name: 'Phoenix' });
+const API_BASE = 'http://localhost:8080';
 
-vi.mock('../../components/hooks/useComponents', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../components/hooks/useComponents')>();
-  return {
-    ...actual,
-    useComponents: () => ({ data: [component] }),
-  };
-});
-
-vi.mock('../../capabilities/hooks/useCapabilities', () => ({
-  useCapabilities: () => ({ data: [] }),
-  useCapabilitiesByComponent: () => ({ data: [] }),
-}));
-
-vi.mock('../hooks/useComponentDetails', () => ({
-  useComponentDetails: () => ({ component: null, isLoading: false, error: null }),
-}));
+function seedPhoenix() {
+  const component = buildComponent({
+    id: toComponentId('comp-1'),
+    name: 'Phoenix',
+    experts: [buildExpert({ name: 'Jane', role: 'Architect' })],
+    _links: {
+      self: { href: '/api/v1/components/comp-1', method: 'GET' },
+      edit: { href: '/api/v1/components/comp-1', method: 'PUT' },
+      'x-add-expert': { href: '/api/v1/components/comp-1/experts', method: 'POST' },
+      'x-classify-hosting': { href: '/api/v1/components/comp-1/hosting', method: 'PUT' },
+    },
+  });
+  seedDb({ components: [component], capabilities: [] });
+  return component;
+}
 
 describe('ApplicationDrawer', () => {
   it('renders no content when no component is selected', () => {
+    seedPhoenix();
     renderWithProviders(<ApplicationDrawer componentId={null} onClose={vi.fn()} />);
 
     expect(screen.queryByText('Phoenix')).not.toBeInTheDocument();
   });
 
-  it('renders the component details for the selected component (resolved from the components store)', async () => {
+  it('renders the application panel with its experts for the selected component', async () => {
+    seedPhoenix();
     renderWithProviders(<ApplicationDrawer componentId={toComponentId('comp-1')} onClose={vi.fn()} />);
 
-    await waitFor(() => expect(screen.getByTestId('application-drawer')).toHaveTextContent('Phoenix'));
+    expect(await screen.findByRole('heading', { name: 'Phoenix' })).toBeInTheDocument();
+    expect(screen.getByText('Experts')).toBeInTheDocument();
+    expect(screen.getByText('Jane', { exact: false })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '+ Add Expert' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+  });
+
+  it('re-renders a hosting change from the detail query when the list did not carry the application', async () => {
+    seedPhoenix();
+    server.use(
+      http.get(`${API_BASE}/api/v1/components`, () =>
+        HttpResponse.json({ data: [], _links: { self: '/api/v1/components' } }),
+      ),
+    );
+    renderWithProviders(<ApplicationDrawer componentId={toComponentId('comp-1')} onClose={vi.fn()} />);
+
+    const select = await screen.findByTestId('hosting-select');
+    expect(select).toHaveValue('Unknown');
+
+    await userEvent.click(select);
+    await userEvent.click(await screen.findByRole('option', { name: 'Cloud', hidden: true }));
+
+    await waitFor(() => expect(screen.getByTestId('hosting-select')).toHaveValue('Cloud'));
   });
 });

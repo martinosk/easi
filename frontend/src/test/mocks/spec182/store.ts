@@ -1,4 +1,4 @@
-import type { JourneyKind, MilestoneStatus, TargetPeriod } from '../../../features/journeys/types';
+import type { JourneyKind, JourneyMaturity, MilestoneStatus, TargetPeriod } from '../../../features/journeys/types';
 
 export interface StubApplicationRef {
   componentId: string;
@@ -38,6 +38,7 @@ export interface StubJourney {
   fromApplications: StubApplicationRef[];
   toApplication: StubApplicationRef;
   move?: StubMove;
+  maturity?: JourneyMaturity;
   milestones: StubMilestone[];
   plannedBy: string;
   plannedByName: string;
@@ -89,8 +90,16 @@ export function findJourney(journeyId: string): StubJourney | undefined {
   return db.journeys.find((j) => j.id === journeyId);
 }
 
-export function findActiveJourneyForCapability(capabilityId: string): StubJourney | undefined {
-  return db.journeys.find((j) => j.capabilityId === capabilityId && isActiveStatus(j.status));
+export function isMaturityKind(kind: JourneyKind): boolean {
+  return kind === 'maturity';
+}
+
+export function findActiveJourneysForCapability(capabilityId: string): StubJourney[] {
+  return db.journeys.filter((j) => j.capabilityId === capabilityId && isActiveStatus(j.status));
+}
+
+export function findActiveJourneyOnTrack(capabilityId: string, kind: JourneyKind): StubJourney | undefined {
+  return findActiveJourneysForCapability(capabilityId).find((j) => isMaturityKind(j.kind) === isMaturityKind(kind));
 }
 
 export function getHistoryForCapability(capabilityId: string): StubJourney[] {
@@ -104,9 +113,9 @@ export function getCurrentByCapabilityIds(capabilityIds: string[] | null): StubJ
   const targets = capabilityIds ?? [...new Set(db.journeys.map((j) => j.capabilityId))];
   const result: StubJourney[] = [];
   for (const capabilityId of targets) {
-    const active = findActiveJourneyForCapability(capabilityId);
-    if (active) {
-      result.push(active);
+    const active = findActiveJourneysForCapability(capabilityId);
+    if (active.length > 0) {
+      result.push(...active);
       continue;
     }
     const history = getHistoryForCapability(capabilityId);

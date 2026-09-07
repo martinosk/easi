@@ -577,7 +577,7 @@ func registerApplicationFitScoreRoutes(r chi.Router, h *routeHTTPHandlers, authM
 
 func registerStrategicFitAnalysisRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware AuthMiddleware) {
 	r.Group(func(r chi.Router) {
-		r.Use(authMiddleware.RequirePermission(authPL.PermEnterpriseArchRead))
+		r.Use(authMiddleware.RequirePermission(authPL.PermCapabilitiesRead))
 		r.Get("/strategic-fit-analysis/{pillarId}", h.strategicFitAnalysis.GetStrategicFitAnalysis)
 	})
 }

@@ -25,10 +25,6 @@ var builtInAttributesBySubjectType = map[string][]builtInAttribute{
 		{entryID: "maturity", attribute: "maturityValue", decode: decodeMaturity},
 		{entryID: "experts", attribute: "experts", decode: decodeExperts},
 	},
-	"enterprise-capability": {
-		{entryID: "description", attribute: "description", decode: decodeText},
-		{entryID: "category", attribute: "category", decode: decodeText},
-	},
 	"application": {
 		{entryID: "description", attribute: "description", decode: decodeText},
 		{entryID: "experts", attribute: "experts", decode: decodeExperts},

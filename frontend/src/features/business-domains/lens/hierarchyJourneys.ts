@@ -9,12 +9,12 @@ export interface CapabilityHierarchyJourneys {
 
 export const NO_HIERARCHY_JOURNEYS: CapabilityHierarchyJourneys = { descendants: [], ancestors: [] };
 
-export type JourneyLookup = (capabilityId: string) => CapabilityJourney | undefined;
+export type JourneyLookup = (capabilityId: string) => CapabilityJourney[];
 
 export interface BuildHierarchyJourneysParams {
   capabilityId: string;
   capabilities: Capability[];
-  getJourney: JourneyLookup;
+  getJourneys: JourneyLookup;
 }
 
 function indexById(capabilities: Capability[]): Map<string, Capability> {
@@ -40,7 +40,7 @@ function isActive(journey: CapabilityJourney): boolean {
 function collectDescendantJourneys(
   rootId: string,
   children: Map<string, Capability[]>,
-  getJourney: JourneyLookup,
+  getJourneys: JourneyLookup,
 ): CapabilityJourney[] {
   const journeys: CapabilityJourney[] = [];
   const visited = new Set<string>([rootId]);
@@ -51,8 +51,7 @@ function collectDescendantJourneys(
     if (visited.has(capabilityId)) continue;
     visited.add(capabilityId);
 
-    const journey = getJourney(capabilityId);
-    if (journey) journeys.push(journey);
+    journeys.push(...getJourneys(capabilityId));
     pending.push(...(children.get(capabilityId) ?? []));
   }
 
@@ -62,7 +61,7 @@ function collectDescendantJourneys(
 function collectAncestorJourneys(
   capability: Capability,
   byId: Map<string, Capability>,
-  getJourney: JourneyLookup,
+  getJourneys: JourneyLookup,
 ): CapabilityJourney[] {
   const parentOf = (child: Capability) => (child.parentId ? byId.get(String(child.parentId)) : undefined);
   const journeys: CapabilityJourney[] = [];
@@ -74,8 +73,7 @@ function collectAncestorJourneys(
     if (visited.has(currentId)) break;
     visited.add(currentId);
 
-    const journey = getJourney(currentId);
-    if (journey && isActive(journey)) journeys.push(journey);
+    journeys.push(...getJourneys(currentId).filter(isActive));
     current = parentOf(current);
   }
 
@@ -85,14 +83,14 @@ function collectAncestorJourneys(
 export function buildHierarchyJourneys({
   capabilityId,
   capabilities,
-  getJourney,
+  getJourneys,
 }: BuildHierarchyJourneysParams): CapabilityHierarchyJourneys {
   const byId = indexById(capabilities);
   const capability = byId.get(capabilityId);
   if (!capability) return NO_HIERARCHY_JOURNEYS;
 
   return {
-    descendants: collectDescendantJourneys(capabilityId, indexChildren(capabilities), getJourney),
-    ancestors: collectAncestorJourneys(capability, byId, getJourney),
+    descendants: collectDescendantJourneys(capabilityId, indexChildren(capabilities), getJourneys),
+    ancestors: collectAncestorJourneys(capability, byId, getJourneys),
   };
 }

@@ -2,8 +2,10 @@ package api
 
 import (
 	"context"
+	"database/sql"
 
 	"easi/backend/internal/auth/infrastructure/repositories"
+	"easi/backend/internal/auth/publishedlanguage"
 )
 
 type UserRepositoryAdapter struct {
@@ -26,6 +28,26 @@ func (a *UserRepositoryAdapter) GetByEmail(ctx context.Context, tenantID, email 
 		Role:   user.Role,
 		Status: user.Status,
 	}, nil
+}
+
+type TenantDirectoryAdapter struct {
+	repo *repositories.TenantRepository
+}
+
+func NewTenantDirectory(db *sql.DB) publishedlanguage.TenantDirectory {
+	return &TenantDirectoryAdapter{repo: repositories.NewTenantRepository(db)}
+}
+
+func (a *TenantDirectoryAdapter) TenantIDs(ctx context.Context) ([]string, error) {
+	records, err := a.repo.List(ctx, "", "")
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]string, len(records))
+	for i, record := range records {
+		ids[i] = record.ID
+	}
+	return ids, nil
 }
 
 type TenantRepositoryAdapter struct {

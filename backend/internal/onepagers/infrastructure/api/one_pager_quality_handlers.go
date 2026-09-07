@@ -29,7 +29,7 @@ func NewOnePagerQualityHandlers(query qualityPageSource, links *OnePagerLinks) *
 
 // GetQualityList godoc
 // @Summary Get the One-Pager Quality master list
-// @Description Returns a cursor-paginated list of every one-pager subject the caller may read, across all six subject types, each row carrying the subject name, type, completeness signal, creator, and created / last-updated dates. Sortable by completeness (default; incomplete subjects first), creator, name, created, or updated. Filtered to the subject types the caller may read (capabilities:read, enterprise-arch:read, components:read); a caller holding none of the three receives 403.
+// @Description Returns a cursor-paginated list of every one-pager subject the caller may read, across all five subject types, each row carrying the subject name, type, completeness signal, creator, and created / last-updated dates. Sortable by completeness (default; incomplete subjects first), creator, name, created, or updated. Filtered to the subject types the caller may read (capabilities:read, components:read); a caller holding neither receives 403.
 // @Tags one-pagers
 // @Produce json
 // @Param sort query string false "Sort dimension" Enums(completeness, creator, name, created, updated) default(completeness)

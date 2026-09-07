@@ -323,7 +323,8 @@ func TestRealizationRoleIntegration_RoleAndTimeAssessment_CoexistOnSamePair(t *t
 	require.Equal(t, http.StatusOK, timeGet.Code)
 	var timeDTO readmodels.TimeAssessmentDTO
 	require.NoError(t, json.NewDecoder(timeGet.Body).Decode(&timeDTO))
-	assert.Equal(t, "Tolerate", timeDTO.Grade)
+	require.NotNil(t, timeDTO.Grade)
+	assert.Equal(t, "Tolerate", *timeDTO.Grade)
 }
 
 func TestRealizationRoleIntegration_ReadOnlyActor_NoWriteAffordances(t *testing.T) {

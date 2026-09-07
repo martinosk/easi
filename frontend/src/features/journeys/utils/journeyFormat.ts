@@ -1,4 +1,4 @@
-import type { CapabilityJourney, JourneyKind, JourneyMilestone, TargetPeriod } from '../types';
+import type { CapabilityJourney, JourneyKind, JourneyMaturity, JourneyMilestone, TargetPeriod } from '../types';
 
 export function journeyStatusLabel(journey: CapabilityJourney): string {
   switch (journey.status) {
@@ -14,7 +14,18 @@ export function journeyStatusLabel(journey: CapabilityJourney): string {
 }
 
 export function journeyKindLabel(kind: JourneyKind): string {
-  return kind === 'move' ? 'capability move' : kind;
+  if (kind === 'move') return 'capability move';
+  return kind === 'maturity' ? 'maturity uplift' : kind;
+}
+
+export function journeyDestinationLabel(journey: CapabilityJourney): string {
+  if (journey.maturity) return `maturity ${journey.maturity.targetMaturity}`;
+  return journey.toApplication.componentName;
+}
+
+export function maturityGapLabel(maturity: JourneyMaturity): string {
+  if (maturity.maturityGap <= 0) return 'reached';
+  return `${maturity.maturityGap} to go`;
 }
 
 export function formatTargetPeriod(period: TargetPeriod | null): string {

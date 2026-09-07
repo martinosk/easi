@@ -41,7 +41,9 @@ func (h *CapabilityMappingLinks) capabilityBaseForActor(id string, actor sharedc
 		ArtifactID:   id,
 		EditLink:     h.Put(p),
 		ExtraWrite: map[string]types.Link{
-			"x-add-expert": h.Post(p + "/experts"),
+			"x-add-expert":      h.Post(p + "/experts"),
+			"x-update-metadata": h.Put(p + "/metadata"),
+			"x-add-tag":         h.Post(p + "/tags"),
 		},
 	})
 	if actor.CanDelete("capabilities") {
@@ -98,13 +100,20 @@ func (h *CapabilityMappingLinks) DependencyLinks(id, srcCapID, tgtCapID string) 
 	}
 }
 
-func (h *CapabilityMappingLinks) RealizationLinks(id, capID, compID string) sharedAPI.Links {
+func (h *CapabilityMappingLinks) RealizationLinksForActor(id, capID, compID string, actor sharedctx.Actor) sharedAPI.Links {
 	p := "/capability-realizations/" + id
-	return sharedAPI.Links{
-		"self": h.Get(p), "edit": h.Put(p), "delete": h.Del(p),
+	links := sharedAPI.Links{
+		"self":         h.Get(p),
 		"x-capability": h.Get("/capabilities/" + capID),
 		"x-component":  h.Get("/components/" + compID),
 	}
+	if actor.CanWrite("capabilities") {
+		links["edit"] = h.Put(p)
+	}
+	if actor.CanDelete("capabilities") {
+		links["delete"] = h.Del(p)
+	}
+	return links
 }
 
 func (h *CapabilityMappingLinks) BusinessDomainLinksForActor(id string, hasCaps bool, actor sharedctx.Actor) sharedAPI.Links {

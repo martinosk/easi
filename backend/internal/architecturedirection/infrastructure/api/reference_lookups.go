@@ -24,6 +24,7 @@ type referenceLookups struct {
 	domainExists                  func(ctx context.Context, domainID string) (bool, error)
 	capabilityEffectivelyInDomain func(ctx context.Context, capabilityID, domainID string) (bool, error)
 	directRealization             func(ctx context.Context, capabilityID, componentID string) (string, bool, error)
+	capabilityMaturity            func(ctx context.Context, capabilityID string) (int, error)
 }
 
 func newReferenceLookups(nodes capabilityNodeLookup, references referenceExistenceLookup, realizations directRealizationSource) referenceLookups {
@@ -44,6 +45,13 @@ func newReferenceLookups(nodes capabilityNodeLookup, references referenceExisten
 		directRealization: func(ctx context.Context, capabilityID, componentID string) (string, bool, error) {
 			realizationID, found, err := realizations.DirectRealizationID(ctx, readmodels.CapabilityID(capabilityID), readmodels.ComponentID(componentID))
 			return string(realizationID), found, err
+		},
+		capabilityMaturity: func(ctx context.Context, capabilityID string) (int, error) {
+			node, err := nodes.GetByID(ctx, capabilityID)
+			if err != nil || node == nil {
+				return 0, err
+			}
+			return node.MaturityValue, nil
 		},
 	}
 }

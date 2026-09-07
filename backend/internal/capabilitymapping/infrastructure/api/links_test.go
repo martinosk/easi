@@ -127,3 +127,67 @@ func TestAddLinksToCapability_EnrichToMarshaledJSON_AdvertisesXRelated(t *testin
 	assert.Contains(t, relTypes, "capability-parent")
 	assert.Contains(t, relTypes, "capability-realization")
 }
+
+func TestCapabilityLinksForActor_ArchitectGetsMetadataAndTagLinks(t *testing.T) {
+	h := sharedAPI.NewHATEOASLinks("/api/v1")
+	links := NewCapabilityMappingLinks(h)
+	actor := sharedctx.NewActor("u1", "u@example.com", sharedctx.RoleArchitect)
+
+	result := links.CapabilityLinksForActor("cap1", "", actor)
+
+	metadata, ok := result["x-update-metadata"]
+	require.True(t, ok, "expected x-update-metadata link")
+	assert.Equal(t, "PUT", metadata.Method)
+	assert.Equal(t, "/api/v1/capabilities/cap1/metadata", metadata.Href)
+
+	tag, ok := result["x-add-tag"]
+	require.True(t, ok, "expected x-add-tag link")
+	assert.Equal(t, "POST", tag.Method)
+	assert.Equal(t, "/api/v1/capabilities/cap1/tags", tag.Href)
+}
+
+func TestCapabilityLinksForActor_StakeholderGetsNoMetadataOrTagLinks(t *testing.T) {
+	h := sharedAPI.NewHATEOASLinks("/api/v1")
+	links := NewCapabilityMappingLinks(h)
+	actor := sharedctx.NewActor("u1", "u@example.com", sharedctx.RoleStakeholder)
+
+	result := links.CapabilityLinksForActor("cap1", "", actor)
+
+	_, hasMetadata := result["x-update-metadata"]
+	_, hasTag := result["x-add-tag"]
+	_, hasEdit := result["edit"]
+	assert.False(t, hasMetadata, "stakeholder must not see x-update-metadata")
+	assert.False(t, hasTag, "stakeholder must not see x-add-tag")
+	assert.False(t, hasEdit, "stakeholder must not see edit")
+}
+
+func TestRealizationLinksForActor_ArchitectGetsEditAndDelete(t *testing.T) {
+	h := sharedAPI.NewHATEOASLinks("/api/v1")
+	links := NewCapabilityMappingLinks(h)
+	actor := sharedctx.NewActor("u1", "u@example.com", sharedctx.RoleArchitect)
+
+	result := links.RealizationLinksForActor("real1", "cap1", "comp1", actor)
+
+	edit, ok := result["edit"]
+	require.True(t, ok, "architect must see edit")
+	assert.Equal(t, "PUT", edit.Method)
+	assert.Equal(t, "/api/v1/capability-realizations/real1", edit.Href)
+	_, hasDelete := result["delete"]
+	assert.True(t, hasDelete, "architect must see delete")
+	assert.Equal(t, "/api/v1/capabilities/cap1", result["x-capability"].Href)
+	assert.Equal(t, "/api/v1/components/comp1", result["x-component"].Href)
+}
+
+func TestRealizationLinksForActor_StakeholderGetsNoEditOrDelete(t *testing.T) {
+	h := sharedAPI.NewHATEOASLinks("/api/v1")
+	links := NewCapabilityMappingLinks(h)
+	actor := sharedctx.NewActor("u1", "u@example.com", sharedctx.RoleStakeholder)
+
+	result := links.RealizationLinksForActor("real1", "cap1", "comp1", actor)
+
+	_, hasEdit := result["edit"]
+	_, hasDelete := result["delete"]
+	assert.False(t, hasEdit, "stakeholder must not see edit")
+	assert.False(t, hasDelete, "stakeholder must not see delete")
+	assert.Equal(t, "/api/v1/capability-realizations/real1", result["self"].Href)
+}

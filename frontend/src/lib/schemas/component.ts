@@ -19,13 +19,6 @@ export const createComponentSchema = z.object({
 
 export type CreateComponentFormData = z.infer<typeof createComponentSchema>;
 
-export const editComponentSchema = z.object({
-  name: componentNameSchema,
-  description: componentDescriptionSchema,
-});
-
-export type EditComponentFormData = z.infer<typeof editComponentSchema>;
-
 export const addComponentExpertSchema = z.object({
   name: z
     .string()

@@ -717,7 +717,6 @@ describe('OnePagerPage subject drawer', () => {
 
   const labelCases: [OnePagerSubjectType, string][] = [
     ['capability', 'Open capability'],
-    ['enterprise-capability', 'Open enterprise capability'],
     ['application', 'Open application'],
     ['acquired-entity', 'Open acquired entity'],
     ['vendor', 'Open vendor'],

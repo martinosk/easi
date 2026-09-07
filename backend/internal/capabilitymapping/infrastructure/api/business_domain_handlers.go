@@ -474,23 +474,23 @@ func parseDepthParam(r *http.Request) (int, error) {
 	return depth, nil
 }
 
-func (h *BusinessDomainHandlers) toRealizationGroupDTOs(groups []readmodels.CapabilityRealizationsGroup) []CapabilityRealizationsGroupDTO {
+func (h *BusinessDomainHandlers) toRealizationGroupDTOs(groups []readmodels.CapabilityRealizationsGroup, actor sharedctx.Actor) []CapabilityRealizationsGroupDTO {
 	result := make([]CapabilityRealizationsGroupDTO, len(groups))
 	for i, g := range groups {
 		result[i] = CapabilityRealizationsGroupDTO{
 			CapabilityID:   g.CapabilityID,
 			CapabilityName: g.CapabilityName,
 			Level:          g.Level,
-			Realizations:   h.addRealizationLinks(g.Realizations),
+			Realizations:   h.addRealizationLinks(g.Realizations, actor),
 		}
 	}
 	return result
 }
 
-func (h *BusinessDomainHandlers) addRealizationLinks(realizations []readmodels.RealizationDTO) []readmodels.RealizationDTO {
+func (h *BusinessDomainHandlers) addRealizationLinks(realizations []readmodels.RealizationDTO, actor sharedctx.Actor) []readmodels.RealizationDTO {
 	result := make([]readmodels.RealizationDTO, len(realizations))
 	for i, r := range realizations {
-		r.Links = h.hateoas.RealizationLinks(r.ID, r.CapabilityID, r.ComponentID)
+		r.Links = h.hateoas.RealizationLinksForActor(r.ID, r.CapabilityID, r.ComponentID, actor)
 		result[i] = r
 	}
 	return result
@@ -538,5 +538,6 @@ func (h *BusinessDomainHandlers) GetCapabilityRealizationsByDomain(w http.Respon
 		"up":   sharedAPI.NewLink(fmt.Sprintf("/api/v1/business-domains/%s", domainID), "GET"),
 	}
 
-	sharedAPI.RespondCollection(w, http.StatusOK, h.toRealizationGroupDTOs(groups), links)
+	actor, _ := sharedctx.GetActor(r.Context())
+	sharedAPI.RespondCollection(w, http.StatusOK, h.toRealizationGroupDTOs(groups, actor), links)
 }

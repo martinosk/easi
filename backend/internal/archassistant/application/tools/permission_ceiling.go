@@ -11,8 +11,6 @@ var agentPermissionCeiling = map[string]bool{
 	"domains:write":                true,
 	"valuestreams:read":            true,
 	"valuestreams:write":           true,
-	"enterprise-arch:read":         true,
-	"enterprise-arch:write":        true,
 	"architecture-direction:read":  true,
 	"architecture-direction:write": true,
 	"views:read":                   true,

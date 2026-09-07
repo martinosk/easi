@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 
-	domainservices "easi/backend/internal/architecturedirection/domain/services"
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
 )
@@ -95,39 +94,6 @@ func (rm *CapabilityNodeCacheReadModel) GetByID(ctx context.Context, capabilityI
 	return &dto, nil
 }
 
-func (rm *CapabilityNodeCacheReadModel) AllCapabilityNodes(ctx context.Context) ([]domainservices.CapabilityNode, error) {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return nil, err
-	}
-	var nodes []domainservices.CapabilityNode
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		rows, err := tx.QueryContext(ctx,
-			`SELECT capability_id, capability_name, capability_level, parent_id, business_domain_id, business_domain_name
-			 FROM architecturedirection.capability_node_cache
-			 WHERE tenant_id = $1 ORDER BY capability_name`,
-			tenantID.Value(),
-		)
-		if err != nil {
-			return err
-		}
-		defer func() { _ = rows.Close() }()
-		for rows.Next() {
-			var node domainservices.CapabilityNode
-			var parentID, businessDomainID, businessDomainName sql.NullString
-			if err := rows.Scan(&node.ID, &node.Name, &node.Level, &parentID, &businessDomainID, &businessDomainName); err != nil {
-				return err
-			}
-			node.ParentID = parentID.String
-			node.BusinessDomainID = businessDomainID.String
-			node.BusinessDomainName = businessDomainName.String
-			nodes = append(nodes, node)
-		}
-		return rows.Err()
-	})
-	return nodes, err
-}
-
 func (rm *CapabilityNodeCacheReadModel) UpdateParentAndL1(ctx context.Context, update ParentL1Update) error {
 	return rm.execForTenant(ctx,
 		`UPDATE architecturedirection.capability_node_cache
@@ -153,10 +119,10 @@ func (rm *CapabilityNodeCacheReadModel) UpdateBusinessDomainForL1Subtree(ctx con
 	)
 }
 
-func (rm *CapabilityNodeCacheReadModel) UpdateBusinessDomainNameForDomain(ctx context.Context, businessDomainID, name string) error {
+func (rm *CapabilityNodeCacheReadModel) UpdateBusinessDomainName(ctx context.Context, domain BusinessDomainRef) error {
 	return rm.execForTenant(ctx,
 		`UPDATE architecturedirection.capability_node_cache SET business_domain_name = $2 WHERE tenant_id = $1 AND business_domain_id = $3`,
-		name, businessDomainID,
+		domain.Name, domain.ID,
 	)
 }
 

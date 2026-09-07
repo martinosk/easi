@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildCapabilityJourney } from '../../../test/helpers';
-import { capabilityJourneyStatus, isBoardLens, selectBoardJourney } from './boardLens';
+import { capabilityJourneyStatus, isBoardLens, selectBoardJourney, selectBoardJourneys } from './boardLens';
 
 describe('isBoardLens', () => {
   it('accepts the three lenses and rejects anything else', () => {
@@ -37,6 +37,36 @@ describe('selectBoardJourney', () => {
 
   it('returns undefined when there are no journeys', () => {
     expect(selectBoardJourney([])).toBeUndefined();
+  });
+
+  it('prefers the application journey when a maturity journey runs alongside (spec 211 rule 6)', () => {
+    const migration = buildCapabilityJourney({ id: 'migration', kind: 'migration', status: 'in-flight' });
+    const maturity = buildCapabilityJourney({ id: 'maturity', kind: 'maturity', status: 'planned' });
+    expect(selectBoardJourney([maturity, migration])?.id).toBe('migration');
+  });
+
+  it('falls back to the maturity journey when it is the only active one', () => {
+    const maturity = buildCapabilityJourney({ id: 'maturity', kind: 'maturity', status: 'planned' });
+    expect(selectBoardJourney([maturity])?.id).toBe('maturity');
+  });
+});
+
+describe('selectBoardJourneys — spec 211 rule 6', () => {
+  it('returns every active journey', () => {
+    const migration = buildCapabilityJourney({ id: 'migration', kind: 'migration', status: 'in-flight' });
+    const maturity = buildCapabilityJourney({ id: 'maturity', kind: 'maturity', status: 'planned' });
+    const done = buildCapabilityJourney({ id: 'done', status: 'done' });
+
+    expect(selectBoardJourneys([done, migration, maturity]).map((j) => j.id)).toEqual(['migration', 'maturity']);
+  });
+
+  it('falls back to the most recent done journey when none is active', () => {
+    const done = buildCapabilityJourney({ id: 'done', status: 'done' });
+    expect(selectBoardJourneys([done]).map((j) => j.id)).toEqual(['done']);
+  });
+
+  it('returns nothing for an abandoned-only capability', () => {
+    expect(selectBoardJourneys([buildCapabilityJourney({ status: 'abandoned' })])).toEqual([]);
   });
 });
 

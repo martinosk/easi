@@ -4,8 +4,11 @@ import type {
   AddComponentExpertRequest,
   Component,
   ComponentId,
+  ComponentStatistics,
   CreateComponentRequest,
   Expert,
+  HostingClassification,
+  OwnerReferenceRequest,
 } from '../../../api/types';
 import { followLink } from '../../../utils/hateoas';
 
@@ -49,6 +52,35 @@ export const componentsApi = {
   async getExpertRoles(): Promise<string[]> {
     const response = await httpClient.get<{ roles: string[] }>('/api/v1/components/expert-roles');
     return response.data.roles;
+  },
+
+  async nominateOwner(component: Component, request: OwnerReferenceRequest): Promise<Component> {
+    const response = await httpClient.post<Component>(followLink(component, 'x-nominate-owner'), request);
+    return response.data;
+  },
+
+  async confirmOwnership(component: Component): Promise<Component> {
+    const response = await httpClient.post<Component>(followLink(component, 'x-confirm-owner'), {});
+    return response.data;
+  },
+
+  async assignOwner(component: Component, request: OwnerReferenceRequest): Promise<Component> {
+    const response = await httpClient.put<Component>(followLink(component, 'x-assign-owner'), request);
+    return response.data;
+  },
+
+  async clearOwnership(component: Component): Promise<void> {
+    await httpClient.delete(followLink(component, 'x-clear-owner'));
+  },
+
+  async classifyHosting(component: Component, hosting: HostingClassification): Promise<Component> {
+    const response = await httpClient.put<Component>(followLink(component, 'x-classify-hosting'), { hosting });
+    return response.data;
+  },
+
+  async getStatistics(): Promise<ComponentStatistics> {
+    const response = await httpClient.get<ComponentStatistics>('/api/v1/components/ownership-statistics');
+    return response.data;
   },
 };
 

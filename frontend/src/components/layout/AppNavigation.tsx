@@ -8,10 +8,10 @@ import { useUserStore } from '../../store/userStore';
 import {
   BusinessDomainsIcon,
   CanvasIcon,
-  EnterpriseArchIcon,
   MoreIcon,
   OnePagerQualityIcon,
   ReleaseNotesIcon,
+  StrategicFitIcon,
   UsersIcon,
   ValueStreamsIcon,
 } from './AppNavigation.icons';
@@ -58,12 +58,12 @@ const NAV_ENTRIES: readonly NavEntry[] = [
     permission: 'valuestreams:read',
   },
   {
-    view: 'enterprise-architecture',
-    route: ROUTES.ENTERPRISE_ARCHITECTURE,
-    label: 'Enterprise Architecture',
-    testId: 'nav-enterprise-architecture',
-    icon: EnterpriseArchIcon,
-    permission: 'enterprise-arch:read',
+    view: 'strategic-fit',
+    route: ROUTES.STRATEGIC_FIT,
+    label: 'Strategic Fit',
+    testId: 'nav-strategic-fit',
+    icon: StrategicFitIcon,
+    permission: 'capabilities:read',
   },
   {
     view: 'users',

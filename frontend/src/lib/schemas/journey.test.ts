@@ -146,3 +146,36 @@ describe('captureJourneySchema — note length', () => {
     expect(result.success).toBe(true);
   });
 });
+
+describe('captureJourneySchema — maturity journeys (spec 211 rules 2 and 4)', () => {
+  function maturityBase(overrides: Partial<Record<string, unknown>> = {}) {
+    return makeBase({
+      kind: 'maturity',
+      fromComponentIds: [],
+      toComponentId: '',
+      targetMaturity: 65,
+      ...overrides,
+    });
+  }
+
+  it('accepts a maturity journey with a target and no applications', () => {
+    expect(captureJourneySchema.safeParse(maturityBase()).success).toBe(true);
+  });
+
+  it('rejects a maturity journey without a target maturity', () => {
+    expect(captureJourneySchema.safeParse(maturityBase({ targetMaturity: undefined })).success).toBe(false);
+  });
+
+  it('rejects a target maturity outside 0-99', () => {
+    expect(captureJourneySchema.safeParse(maturityBase({ targetMaturity: 100 })).success).toBe(false);
+    expect(captureJourneySchema.safeParse(maturityBase({ targetMaturity: -1 })).success).toBe(false);
+  });
+
+  it('rejects a maturity journey carrying source applications', () => {
+    expect(captureJourneySchema.safeParse(maturityBase({ fromComponentIds: ['comp-a'] })).success).toBe(false);
+  });
+
+  it('does not require a target application for a maturity journey', () => {
+    expect(captureJourneySchema.safeParse(maturityBase({ toComponentId: '' })).success).toBe(true);
+  });
+});

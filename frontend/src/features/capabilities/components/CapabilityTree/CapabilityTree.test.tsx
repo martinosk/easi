@@ -116,10 +116,7 @@ describe('CapabilityTree', () => {
 
   it('renders per-row content from renderRight', () => {
     renderTree(
-      <CapabilityTree
-        tree={tree}
-        renderRight={(node) => (node.capability.id === 'b' ? <span>Mapped</span> : null)}
-      />,
+      <CapabilityTree tree={tree} renderRight={(node) => (node.capability.id === 'b' ? <span>Mapped</span> : null)} />,
     );
 
     expect(screen.getByText('Mapped')).toBeInTheDocument();

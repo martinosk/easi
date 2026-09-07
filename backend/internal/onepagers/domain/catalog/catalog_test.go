@@ -26,12 +26,11 @@ func entryIDs(entries []Entry) []string {
 
 func TestEntriesFor_MatchesFullCatalogPerSubjectType(t *testing.T) {
 	cases := map[string][]string{
-		"capability":            {"name", "description", "maturity", "experts", "realizing-applications", "business-domains", "parent-capability", "child-capabilities", "depends-on"},
-		"enterprise-capability": {"name", "description", "category"},
-		"application":           {"name", "description", "experts", "realized-capabilities", "built-by", "purchased-from", "acquired-via", "component-relations"},
-		"acquired-entity":       {"name", "acquisition-date", "integration-status", "acquired-applications"},
-		"vendor":                {"name", "implementation-partner", "notes", "purchased-applications"},
-		"internal-team":         {"name", "department", "contact-person", "built-applications"},
+		"capability":      {"name", "description", "maturity", "experts", "realizing-applications", "business-domains", "parent-capability", "child-capabilities", "depends-on"},
+		"application":     {"name", "description", "experts", "realized-capabilities", "built-by", "purchased-from", "acquired-via", "component-relations"},
+		"acquired-entity": {"name", "acquisition-date", "integration-status", "acquired-applications"},
+		"vendor":          {"name", "implementation-partner", "notes", "purchased-applications"},
+		"internal-team":   {"name", "department", "contact-person", "built-applications"},
 	}
 	for subject, expected := range cases {
 		entries := EntriesFor(subjectType(t, subject))
@@ -41,12 +40,11 @@ func TestEntriesFor_MatchesFullCatalogPerSubjectType(t *testing.T) {
 
 func TestDefaultEntriesFor_ExcludesRelations(t *testing.T) {
 	cases := map[string][]string{
-		"capability":            {"name", "description", "maturity", "experts"},
-		"enterprise-capability": {"name", "description", "category"},
-		"application":           {"name", "description", "experts"},
-		"acquired-entity":       {"name", "acquisition-date", "integration-status"},
-		"vendor":                {"name", "implementation-partner", "notes"},
-		"internal-team":         {"name", "department", "contact-person"},
+		"capability":      {"name", "description", "maturity", "experts"},
+		"application":     {"name", "description", "experts"},
+		"acquired-entity": {"name", "acquisition-date", "integration-status"},
+		"vendor":          {"name", "implementation-partner", "notes"},
+		"internal-team":   {"name", "department", "contact-person"},
 	}
 	for subject, expected := range cases {
 		entries := DefaultEntriesFor(subjectType(t, subject))

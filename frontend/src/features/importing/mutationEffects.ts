@@ -1,7 +1,6 @@
 import { businessDomainsQueryKeys } from '../business-domains/queryKeys';
 import { capabilitiesQueryKeys } from '../capabilities/queryKeys';
 import { componentsQueryKeys } from '../components/queryKeys';
-import { maturityAnalysisQueryKeys } from '../enterprise-architecture/queryKeys';
 import { onePagersQueryKeys } from '../one-pagers/queryKeys';
 import { valueStreamsQueryKeys } from '../value-streams/queryKeys';
 
@@ -11,7 +10,6 @@ export const importsMutationEffects = {
     capabilitiesQueryKeys.realizationsByComponents(),
     componentsQueryKeys.lists(),
     businessDomainsQueryKeys.lists(),
-    maturityAnalysisQueryKeys.unlinked(),
     valueStreamsQueryKeys.lists(),
     onePagersQueryKeys.completenessForSubjectType('application'),
     onePagersQueryKeys.completenessForSubjectType('capability'),

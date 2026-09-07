@@ -32,10 +32,6 @@ var coreContextExpectedSpecToolNames = []string{
 	"update_capability_metadata",
 	"get_capability_realizations", "get_capabilities_by_application", "get_capability_business_domains",
 	"get_domain_importance_overview", "get_fit_scores_by_pillar",
-	"list_enterprise_capabilities", "get_enterprise_capability_details",
-	"create_enterprise_capability", "update_enterprise_capability", "delete_enterprise_capability",
-	"get_enterprise_strategic_importance", "set_enterprise_strategic_importance",
-	"get_time_suggestions",
 	"list_value_streams", "get_value_stream_details",
 	"create_value_stream", "update_value_stream",
 	"get_value_stream_capabilities",
@@ -45,8 +41,6 @@ var coreContextExpectedSpecToolNames = []string{
 }
 
 var architectureDirectionSpecToolNames = []string{
-	"get_enterprise_capability_composition", "search_direction_source_candidates", "list_enterprise_capability_compositions",
-	"get_maturity_analysis", "get_maturity_gap_detail",
 	"get_time_assessment_for_realization", "list_time_assessments", "get_time_assessment_rollups",
 	"get_realization_role_for_capability_component", "list_realization_roles",
 	"get_capability_journey", "get_capability_journey_history", "list_capability_journeys",

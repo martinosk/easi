@@ -47,23 +47,6 @@ function useCapabilityMutation<TData, TVariables>(config: MutationConfig<TData, 
   });
 }
 
-type IdRequestPair<TRequest> = { id: CapabilityId; request: TRequest };
-
-function createIdRequestMutation<TRequest, TData>(
-  apiFn: (id: CapabilityId, request: TRequest) => Promise<TData>,
-  getEffects: (id: CapabilityId) => InvalidationEffect,
-  successMessage: string,
-  errorMessage: string,
-) {
-  return () =>
-    useCapabilityMutation<TData, IdRequestPair<TRequest>>({
-      mutationFn: ({ id, request }) => apiFn(id, request),
-      getEffects: (_, { id }) => getEffects(id),
-      successMessage,
-      errorMessage,
-    });
-}
-
 export function useCapabilities() {
   return useQuery({
     queryKey: capabilitiesQueryKeys.lists(),
@@ -149,19 +132,25 @@ export function useUpdateCapability() {
   });
 }
 
-export const useUpdateCapabilityMetadata = createIdRequestMutation<UpdateCapabilityMetadataRequest, Capability>(
-  capabilitiesApi.updateMetadata,
-  (id) => capabilitiesMutationEffects.update(id),
-  'Capability metadata updated',
-  'Failed to update capability metadata',
-);
+export function useUpdateCapabilityMetadata() {
+  return useCapabilityMutation({
+    mutationFn: ({ capability, request }: { capability: Capability; request: UpdateCapabilityMetadataRequest }) =>
+      capabilitiesApi.updateMetadata(capability, request),
+    getEffects: (_, { capability }) => capabilitiesMutationEffects.update(capability.id),
+    successMessage: 'Capability metadata updated',
+    errorMessage: 'Failed to update capability metadata',
+  });
+}
 
-export const useAddCapabilityExpert = createIdRequestMutation<AddCapabilityExpertRequest, void>(
-  capabilitiesApi.addExpert,
-  (id) => capabilitiesMutationEffects.addExpert(id),
-  'Expert added',
-  'Failed to add expert',
-);
+export function useAddCapabilityExpert() {
+  return useCapabilityMutation({
+    mutationFn: ({ id, request }: { id: CapabilityId; request: AddCapabilityExpertRequest }) =>
+      capabilitiesApi.addExpert(id, request),
+    getEffects: (_, { id }) => capabilitiesMutationEffects.addExpert(id),
+    successMessage: 'Expert added',
+    errorMessage: 'Failed to add expert',
+  });
+}
 
 export function useCapabilityExpertRoles() {
   return useQuery({
@@ -180,12 +169,15 @@ export function useRemoveCapabilityExpert() {
   });
 }
 
-export const useAddCapabilityTag = createIdRequestMutation<AddCapabilityTagRequest, void>(
-  capabilitiesApi.addTag,
-  (id) => capabilitiesMutationEffects.addTag(id),
-  'Tag added',
-  'Failed to add tag',
-);
+export function useAddCapabilityTag() {
+  return useCapabilityMutation({
+    mutationFn: ({ capability, request }: { capability: Capability; request: AddCapabilityTagRequest }) =>
+      capabilitiesApi.addTag(capability, request),
+    getEffects: (_, { capability }) => capabilitiesMutationEffects.addTag(capability.id),
+    successMessage: 'Tag added',
+    errorMessage: 'Failed to add tag',
+  });
+}
 
 export function useDeleteCapability() {
   return useCapabilityMutation({

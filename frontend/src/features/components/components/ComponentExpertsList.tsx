@@ -9,7 +9,6 @@ interface ComponentExpertsListProps {
   experts?: Expert[];
   canAddExpert?: boolean;
   onAddClick: () => void;
-  disabled?: boolean;
 }
 
 export const ComponentExpertsList: React.FC<ComponentExpertsListProps> = ({
@@ -17,7 +16,6 @@ export const ComponentExpertsList: React.FC<ComponentExpertsListProps> = ({
   experts,
   canAddExpert,
   onAddClick,
-  disabled,
 }) => {
   const removeExpertMutation = useRemoveComponentExpert();
 
@@ -41,7 +39,7 @@ export const ComponentExpertsList: React.FC<ComponentExpertsListProps> = ({
                 <CloseButton
                   size="sm"
                   onClick={() => handleRemove(expert)}
-                  disabled={disabled || removeExpertMutation.isPending}
+                  disabled={removeExpertMutation.isPending}
                   data-testid={`remove-expert-${i}`}
                 />
               )}
@@ -58,7 +56,6 @@ export const ComponentExpertsList: React.FC<ComponentExpertsListProps> = ({
           variant="subtle"
           size="compact-sm"
           onClick={onAddClick}
-          disabled={disabled}
           mt="xs"
           data-testid="add-component-expert-button"
         >

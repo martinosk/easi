@@ -25,23 +25,23 @@ type MaturityRange struct {
 }
 
 type CapabilityDTO struct {
-	ID               string              `json:"id"`
-	Name             string              `json:"name"`
-	Description      string              `json:"description,omitempty"`
-	ParentID         string              `json:"parentId,omitempty"`
-	Level            string              `json:"level"`
-	MaturityValue    int                 `json:"maturityValue"`
-	MaturitySection  *MaturitySectionDTO `json:"maturitySection,omitempty"`
-	OwnershipModel   string              `json:"ownershipModel,omitempty"`
-	PrimaryOwner     string              `json:"primaryOwner,omitempty"`
-	EAOwner          string              `json:"eaOwner,omitempty"`
-	EAOwnerName      string              `json:"eaOwnerName,omitempty"`
-	Status           string              `json:"status,omitempty"`
-	Experts          []ExpertDTO         `json:"experts,omitempty"`
-	Tags             []string            `json:"tags,omitempty"`
-	CreatedAt        time.Time           `json:"createdAt"`
-	Links            types.Links         `json:"_links,omitempty"`
-	XRelated         []types.RelatedLink `json:"-"`
+	ID              string              `json:"id"`
+	Name            string              `json:"name"`
+	Description     string              `json:"description,omitempty"`
+	ParentID        string              `json:"parentId,omitempty"`
+	Level           string              `json:"level"`
+	MaturityValue   int                 `json:"maturityValue"`
+	MaturitySection *MaturitySectionDTO `json:"maturitySection,omitempty"`
+	OwnershipModel  string              `json:"ownershipModel,omitempty"`
+	PrimaryOwner    string              `json:"primaryOwner,omitempty"`
+	EAOwner         string              `json:"eaOwner,omitempty"`
+	EAOwnerName     string              `json:"eaOwnerName,omitempty"`
+	Status          string              `json:"status,omitempty"`
+	Experts         []ExpertDTO         `json:"experts,omitempty"`
+	Tags            []string            `json:"tags,omitempty"`
+	CreatedAt       time.Time           `json:"createdAt"`
+	Links           types.Links         `json:"_links,omitempty"`
+	XRelated        []types.RelatedLink `json:"-"`
 }
 
 func (d CapabilityDTO) MarshalJSON() ([]byte, error) {

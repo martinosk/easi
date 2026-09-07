@@ -12,7 +12,6 @@ import (
 )
 
 const activeJourneyUniqueConstraint = "uq_capability_journeys_single_active"
-const journeyKindMove = "move"
 
 var ErrActiveCapabilityJourneyExists = errors.New("an active journey already exists for this capability")
 var ErrUnknownJourneyTimestampColumn = errors.New("unknown journey timestamp column")
@@ -31,10 +30,10 @@ func (rm *CapabilityJourneyReadModel) InsertJourney(ctx context.Context, p Inser
 			`INSERT INTO architecturedirection.capability_journeys
 			 (tenant_id, id, capability_id, kind, status, target_year, target_quarter, note,
 			  planned_by, planned_by_name, planned_at, capability_name, to_component_id, to_component_name,
-			  target_domain_id, target_domain_name, target_parent_id, target_parent_name, resulting_name)
+			  target_domain_id, target_domain_name, target_parent_id, target_parent_name, resulting_name, target_maturity)
 			 SELECT $1, $2, $3, $4, 'planned', $5, $6, $7, $8, COALESCE(usr.name, ''), $9,
 			   COALESCE(cap.name, ''), $10, COALESCE(comp.name, ''),
-			   NULLIF($11, ''), COALESCE(dom.name, ''), NULLIF($12, ''), COALESCE(parent.name, ''), $13
+			   NULLIF($11, ''), COALESCE(dom.name, ''), NULLIF($12, ''), COALESCE(parent.name, ''), $13, $14
 			 FROM (SELECT 1) AS stub
 			 LEFT JOIN architecturedirection.reference_name_cache cap
 			   ON cap.tenant_id = $1 AND cap.entity_type = 'capability' AND cap.entity_id = $3
@@ -48,6 +47,7 @@ func (rm *CapabilityJourneyReadModel) InsertJourney(ctx context.Context, p Inser
 			   ON usr.tenant_id = $1 AND usr.entity_type = 'user' AND usr.entity_id = $8`,
 			tenantID, p.ID, p.CapabilityID, p.Kind, nullableInt(p.TargetYear), nullableInt(p.TargetQuarter), p.Note,
 			p.PlannedBy, p.PlannedAt, p.ToComponentID, p.TargetDomainID, p.TargetParentID, p.ResultingName,
+			nullableInt(p.TargetMaturity),
 		); err != nil {
 			return mapJourneyInsertError(err)
 		}

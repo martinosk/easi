@@ -1,6 +1,6 @@
 import { auditQueryKeys } from '../audit/queryKeys';
 import { businessDomainsQueryKeys } from '../business-domains/queryKeys';
-import { strategicFitAnalysisQueryKeys } from '../enterprise-architecture/queryKeys';
+import { strategicFitAnalysisQueryKeys } from '../strategic-fit/queryKeys';
 import { artifactCreatorsQueryKeys } from '../navigation/hooks/useArtifactCreators';
 import { onePagerQualityQueryKeys } from '../one-pager-quality/queryKeys';
 import { onePagersQueryKeys } from '../one-pagers/queryKeys';
@@ -46,6 +46,20 @@ export const componentsMutationEffects = {
     componentsQueryKeys.expertRoles(),
     auditQueryKeys.history(componentId),
     ...onePagerFreshness(componentId),
+  ],
+
+  ownership: (componentId: string) => [
+    componentsQueryKeys.lists(),
+    componentsQueryKeys.detail(componentId),
+    componentsQueryKeys.statistics(),
+    auditQueryKeys.history(componentId),
+  ],
+
+  hosting: (componentId: string) => [
+    componentsQueryKeys.lists(),
+    componentsQueryKeys.detail(componentId),
+    componentsQueryKeys.statistics(),
+    auditQueryKeys.history(componentId),
   ],
 };
 

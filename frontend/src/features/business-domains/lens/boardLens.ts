@@ -18,10 +18,20 @@ export const LENS_LABELS: Record<BoardLens, string> = {
 
 export type BoardJourneyStatus = 'steady' | 'not-started' | 'in-flight' | 'done' | 'planned-move';
 
+function isActiveJourney(journey: CapabilityJourney): boolean {
+  return journey.status === 'planned' || journey.status === 'in-flight';
+}
+
+export function selectBoardJourneys(journeys: CapabilityJourney[]): CapabilityJourney[] {
+  const active = journeys.filter(isActiveJourney);
+  if (active.length > 0) return active;
+  const done = journeys.find((journey) => journey.status === 'done');
+  return done ? [done] : [];
+}
+
 export function selectBoardJourney(journeys: CapabilityJourney[]): CapabilityJourney | undefined {
-  const active = journeys.find((journey) => journey.status === 'planned' || journey.status === 'in-flight');
-  if (active) return active;
-  return journeys.find((journey) => journey.status === 'done');
+  const board = selectBoardJourneys(journeys);
+  return board.find((journey) => journey.kind !== 'maturity') ?? board[0];
 }
 
 export function capabilityJourneyStatus(journey: CapabilityJourney | undefined): BoardJourneyStatus {
