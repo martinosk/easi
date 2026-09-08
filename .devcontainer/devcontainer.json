@@ -1,31 +1,85 @@
 {
-  "name": "EASI Claude Dev",
+  "name": "EASI Dev",
   "build": {
     "dockerfile": "Dockerfile",
     "args": {
       "TZ": "${localEnv:TZ:UTC}",
-      "GO_VERSION": "1.26.2",
-      "GOLANGCI_LINT_VERSION": "v2.1.6",
-      "CLAUDE_CODE_VERSION": "latest"
+      "GOLANGCI_LINT_VERSION": "v2.1.6"
     }
   },
+  "features": {
+    "ghcr.io/devcontainers/features/go:1": {
+      "version": "1.26.6"
+    },
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
+  },
   "remoteUser": "node",
+  "workspaceFolder": "/workspace",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
   "mounts": [
     "source=easi-claude-config,target=/home/node/.claude,type=volume",
     "source=easi-go-cache,target=/home/node/go,type=volume",
     "source=easi-npm-cache,target=/home/node/.npm,type=volume",
-    "source=easi-frontend-node-modules,target=/workspace/frontend/node_modules,type=volume"
+    "source=easi-frontend-node-modules,target=/workspace/frontend/node_modules,type=volume",
+    "source=easi-pgdata,target=/home/node/pgdata,type=volume"
   ],
-  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
-  "workspaceFolder": "/workspace",
   "containerEnv": {
     "NODE_OPTIONS": "--max-old-space-size=4096",
     "CLAUDE_CONFIG_DIR": "/home/node/.claude",
     "GOPATH": "/home/node/go",
+    "PGDATA": "/home/node/pgdata",
+    "INTEGRATION_TEST_DB_HOST": "localhost",
     "CS_ACCESS_TOKEN": "${localEnv:CS_ACCESS_TOKEN}",
     "CS_ONPREM_URL": "${localEnv:CS_ONPREM_URL}"
   },
-  "onCreateCommand": "sudo chown -R node:node /home/node/go /home/node/.npm /home/node/.claude && sh /workspace/.devcontainer/init.sh",
-  "postStartCommand": "sudo chown -R node:node /home/node/go /home/node/.npm /home/node/.claude",
-  "postCreateCommand": "cd /workspace/frontend && npm install && cd /workspace/backend && go mod download"
+  "remoteEnv": {
+    "PATH": "/usr/local/go/bin:/home/node/go/bin:/usr/lib/postgresql/17/bin:${containerEnv:PATH}"
+  },
+  "forwardPorts": [5173, 8080, 5432],
+  "portsAttributes": {
+    "5173": {
+      "label": "Frontend (Vite)",
+      "onAutoForward": "notify"
+    },
+    "8080": {
+      "label": "Backend (API)",
+      "onAutoForward": "silent"
+    },
+    "5432": {
+      "label": "PostgreSQL",
+      "onAutoForward": "silent"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go",
+        "biomejs.biome",
+        "ms-playwright.playwright",
+        "redhat.vscode-yaml"
+      ],
+      "settings": {
+        "go.lintTool": "golangci-lint",
+        "go.toolsManagement.checkForUpdates": "off",
+        "biome.lsp.bin": "frontend/node_modules/.bin/biome",
+        "editor.formatOnSave": true,
+        "[go]": {
+          "editor.defaultFormatter": "golang.go"
+        },
+        "[javascript]": {
+          "editor.defaultFormatter": "biomejs.biome"
+        },
+        "[typescript]": {
+          "editor.defaultFormatter": "biomejs.biome"
+        },
+        "[typescriptreact]": {
+          "editor.defaultFormatter": "biomejs.biome"
+        },
+        "terminal.integrated.defaultProfile.linux": "zsh"
+      }
+    }
+  },
+  "onCreateCommand": "sudo chown -R node:node /home/node/go /home/node/.npm /home/node/.claude /home/node/pgdata /workspace/frontend/node_modules",
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "postStartCommand": "bash .devcontainer/post-start.sh"
 }
