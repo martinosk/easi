@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"easi/backend/internal/infrastructure/database"
+	"easi/backend/internal/testing/testdb"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -21,8 +22,7 @@ type assignmentTestFixture struct {
 }
 
 func newAssignmentFixture(t *testing.T) *assignmentTestFixture {
-	db, cleanup := setupTestDB(t)
-	t.Cleanup(cleanup)
+	db := testdb.Open(t)
 	tenantDB := database.NewTenantAwareDB(db)
 	return &assignmentTestFixture{
 		t:         t,
@@ -53,14 +53,14 @@ func (f *assignmentTestFixture) insertViaSQL(dto AssignmentDTO) {
 	)
 	require.NoError(f.t, err)
 	f.t.Cleanup(func() {
-		f.rawDB.Exec("DELETE FROM capabilitymapping.domain_capability_assignments WHERE assignment_id = $1", dto.AssignmentID)
+		_, _ = f.rawDB.Exec("DELETE FROM capabilitymapping.domain_capability_assignments WHERE assignment_id = $1", dto.AssignmentID)
 	})
 }
 
 func (f *assignmentTestFixture) insertViaReadModel(dto AssignmentDTO) {
 	require.NoError(f.t, f.readModel.Insert(tenantContext(), dto))
 	f.t.Cleanup(func() {
-		f.rawDB.Exec("DELETE FROM capabilitymapping.domain_capability_assignments WHERE assignment_id = $1", dto.AssignmentID)
+		_, _ = f.rawDB.Exec("DELETE FROM capabilitymapping.domain_capability_assignments WHERE assignment_id = $1", dto.AssignmentID)
 	})
 }
 

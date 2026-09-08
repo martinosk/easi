@@ -6,16 +6,15 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"testing"
 
 	"easi/backend/internal/architecturedirection/application/readmodels"
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/eventsourcing/valueobjects"
+	"easi/backend/internal/testing/testdb"
 
 	"github.com/google/uuid"
-	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -35,13 +34,9 @@ type aclCacheTestFixture struct {
 func setupACLCacheTest(t *testing.T) *aclCacheTestFixture {
 	t.Helper()
 
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-		"localhost", "5432", "easi_app", "localdev", "easi", "disable")
-	db, err := sql.Open("postgres", connStr)
-	require.NoError(t, err)
-	require.NoError(t, db.Ping())
+	db := testdb.Open(t)
 
-	_, err = db.Exec("SELECT set_config('app.current_tenant', $1, false)", aclTestTenant)
+	_, err := db.Exec("SELECT set_config('app.current_tenant', $1, false)", aclTestTenant)
 	require.NoError(t, err)
 
 	tenantDB := database.NewTenantAwareDB(db)
@@ -51,9 +46,8 @@ func setupACLCacheTest(t *testing.T) *aclCacheTestFixture {
 	fitScoreRM := readmodels.NewEAFitScoreCacheReadModel(tenantDB)
 
 	t.Cleanup(func() {
-		db.Exec("DELETE FROM architecturedirection.ea_importance_cache WHERE tenant_id = $1", aclTestTenant)
-		db.Exec("DELETE FROM architecturedirection.ea_fit_score_cache WHERE tenant_id = $1", aclTestTenant)
-		db.Close()
+		_, _ = db.Exec("DELETE FROM architecturedirection.ea_importance_cache WHERE tenant_id = $1", aclTestTenant)
+		_, _ = db.Exec("DELETE FROM architecturedirection.ea_fit_score_cache WHERE tenant_id = $1", aclTestTenant)
 	})
 
 	return &aclCacheTestFixture{

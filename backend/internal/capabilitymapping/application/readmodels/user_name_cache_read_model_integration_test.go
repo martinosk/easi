@@ -8,6 +8,7 @@ import (
 
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
 	"easi/backend/internal/infrastructure/database"
+	"easi/backend/internal/testing/testdb"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -22,8 +23,7 @@ type userNameCacheFixture struct {
 }
 
 func newUserNameCacheFixture(t *testing.T) *userNameCacheFixture {
-	db, cleanup := setupTestDB(t)
-	t.Cleanup(cleanup)
+	db := testdb.Open(t)
 	tenantDB := database.NewTenantAwareDB(db)
 	return &userNameCacheFixture{
 		t:          t,

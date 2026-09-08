@@ -12,20 +12,11 @@ import (
 	"easi/backend/internal/infrastructure/database"
 	sharedcontext "easi/backend/internal/shared/context"
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
+	"easi/backend/internal/testing/testdb"
 
-	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func setupTestDB(t *testing.T) (*sql.DB, func()) {
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-		"localhost", "5432", "easi_app", "localdev", "easi", "disable")
-	db, err := sql.Open("postgres", connStr)
-	require.NoError(t, err)
-	require.NoError(t, db.Ping())
-	return db, func() { db.Close() }
-}
 
 func tenantContext() context.Context {
 	return sharedcontext.WithTenant(context.Background(), sharedvo.DefaultTenantID())
@@ -44,8 +35,7 @@ type businessDomainTestFixture struct {
 }
 
 func newBusinessDomainTestFixture(t *testing.T) *businessDomainTestFixture {
-	db, cleanup := setupTestDB(t)
-	t.Cleanup(cleanup)
+	db := testdb.Open(t)
 
 	tenantDB := database.NewTenantAwareDB(db)
 
@@ -73,7 +63,7 @@ func (f *businessDomainTestFixture) insertDomain(id, name, description string, c
 		id, "default", name, description, capabilityCount, time.Now().UTC(),
 	)
 	require.NoError(f.t, err)
-	f.t.Cleanup(func() { f.db.Exec("DELETE FROM capabilitymapping.business_domains WHERE id = $1", id) })
+	f.t.Cleanup(func() { _, _ = f.db.Exec("DELETE FROM capabilitymapping.business_domains WHERE id = $1", id) })
 }
 
 func (f *businessDomainTestFixture) queryName(id string) string {
@@ -113,7 +103,7 @@ func TestBusinessDomainReadModel_Insert(t *testing.T) {
 
 	err := f.readModel.Insert(f.ctx, dto)
 	require.NoError(t, err)
-	t.Cleanup(func() { f.db.Exec("DELETE FROM capabilitymapping.business_domains WHERE id = $1", domainID) })
+	t.Cleanup(func() { _, _ = f.db.Exec("DELETE FROM capabilitymapping.business_domains WHERE id = $1", domainID) })
 
 	f.setTenantContext()
 	var name, description string
@@ -141,7 +131,7 @@ func TestBusinessDomainReadModel_Insert_IdempotentReplay(t *testing.T) {
 
 	err := f.readModel.Insert(f.ctx, dto)
 	require.NoError(t, err)
-	t.Cleanup(func() { f.db.Exec("DELETE FROM capabilitymapping.business_domains WHERE id = $1", domainID) })
+	t.Cleanup(func() { _, _ = f.db.Exec("DELETE FROM capabilitymapping.business_domains WHERE id = $1", domainID) })
 
 	err = f.readModel.Insert(f.ctx, dto)
 	require.NoError(t, err)
@@ -160,7 +150,7 @@ func TestBusinessDomainReadModel_Insert_ReplayConvergence(t *testing.T) {
 	}
 
 	require.NoError(t, f.readModel.Insert(f.ctx, dto))
-	t.Cleanup(func() { f.db.Exec("DELETE FROM capabilitymapping.business_domains WHERE id = $1", domainID) })
+	t.Cleanup(func() { _, _ = f.db.Exec("DELETE FROM capabilitymapping.business_domains WHERE id = $1", domainID) })
 
 	dto.Name = "Updated Name"
 	require.NoError(t, f.readModel.Insert(f.ctx, dto))

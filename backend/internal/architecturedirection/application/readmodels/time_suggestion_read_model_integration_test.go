@@ -5,16 +5,15 @@ package readmodels
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"testing"
 
 	"easi/backend/internal/infrastructure/database"
 	mmPL "easi/backend/internal/metamodel/publishedlanguage"
 	sharedcontext "easi/backend/internal/shared/context"
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
+	"easi/backend/internal/testing/testdb"
 
 	"github.com/google/uuid"
-	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -55,7 +54,7 @@ func (m *mockPillarsGateway) GetActivePillar(ctx context.Context, pillarID strin
 func (m *mockPillarsGateway) InvalidateCache(tenantID string) {}
 
 func newTimeSuggestionTestFixture(t *testing.T, pillars *mmPL.StrategyPillarsConfigDTO) *timeSuggestionTestFixture {
-	db := setupTimeSuggestionTestDB(t)
+	db := testdb.Open(t)
 	tenantDB := database.NewTenantAwareDB(db)
 
 	_, err := db.Exec("SET app.current_tenant = 'default'")
@@ -69,16 +68,6 @@ func newTimeSuggestionTestFixture(t *testing.T, pillars *mmPL.StrategyPillarsCon
 		ctx:       sharedcontext.WithTenant(context.Background(), sharedvo.DefaultTenantID()),
 		t:         t,
 	}
-}
-
-func setupTimeSuggestionTestDB(t *testing.T) *sql.DB {
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-		"localhost", "5432", "easi_app", "localdev", "easi", "disable")
-	db, err := sql.Open("postgres", connStr)
-	require.NoError(t, err)
-	require.NoError(t, db.Ping())
-	t.Cleanup(func() { db.Close() })
-	return db
 }
 
 type pillarTestScore struct {
@@ -116,7 +105,7 @@ func (f *timeSuggestionTestFixture) seedRealization(data suggestionSeedData) {
 		realizationID, data.CapabilityID, data.ComponentID)
 	require.NoError(f.t, err)
 	f.t.Cleanup(func() {
-		f.db.Exec("DELETE FROM architecturedirection.realization_cache WHERE tenant_id = 'default' AND realization_id = $1", realizationID)
+		_, _ = f.db.Exec("DELETE FROM architecturedirection.realization_cache WHERE tenant_id = 'default' AND realization_id = $1", realizationID)
 	})
 }
 
@@ -126,7 +115,7 @@ func (f *timeSuggestionTestFixture) seedCapabilityNode(data suggestionSeedData) 
 		data.CapabilityID, data.DomainID)
 	require.NoError(f.t, err)
 	f.t.Cleanup(func() {
-		f.db.Exec("DELETE FROM architecturedirection.capability_node_cache WHERE tenant_id = 'default' AND capability_id = $1", data.CapabilityID)
+		_, _ = f.db.Exec("DELETE FROM architecturedirection.capability_node_cache WHERE tenant_id = 'default' AND capability_id = $1", data.CapabilityID)
 	})
 }
 
@@ -136,7 +125,7 @@ func (f *timeSuggestionTestFixture) seedComponentName(data suggestionSeedData) {
 		data.ComponentID, data.ComponentName)
 	require.NoError(f.t, err)
 	f.t.Cleanup(func() {
-		f.db.Exec("DELETE FROM architecturedirection.reference_name_cache WHERE tenant_id = 'default' AND entity_type = 'application' AND entity_id = $1", data.ComponentID)
+		_, _ = f.db.Exec("DELETE FROM architecturedirection.reference_name_cache WHERE tenant_id = 'default' AND entity_type = 'application' AND entity_id = $1", data.ComponentID)
 	})
 }
 
@@ -173,7 +162,7 @@ func (f *timeSuggestionTestFixture) seedPillarScopedRow(row pillarScopedRow) {
 	_, err := f.db.Exec(row.insert, row.values...)
 	require.NoError(f.t, err)
 	f.t.Cleanup(func() {
-		f.db.Exec(row.remove, row.ownerID, row.pillarID)
+		_, _ = f.db.Exec(row.remove, row.ownerID, row.pillarID)
 	})
 }
 

@@ -6,7 +6,6 @@ package readmodels_test
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"testing"
 	"time"
 
@@ -15,9 +14,9 @@ import (
 	"easi/backend/internal/onepagers/domain/valueobjects"
 	sharedctx "easi/backend/internal/shared/context"
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
+	"easi/backend/internal/testing/testdb"
 
 	"github.com/google/uuid"
-	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -45,12 +44,7 @@ type filledCountsQuery struct {
 
 func newCompletenessTestFixture(t *testing.T) *completenessTestFixture {
 	t.Helper()
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-		"localhost", "5432", "easi_app", "localdev", "easi", "disable")
-	db, err := sql.Open("postgres", connStr)
-	require.NoError(t, err)
-	require.NoError(t, db.Ping())
-	t.Cleanup(func() { _ = db.Close() })
+	db := testdb.Open(t)
 
 	tenantDB := database.NewTenantAwareDB(db)
 	ctx := sharedctx.WithTenant(context.Background(), sharedvo.DefaultTenantID())
