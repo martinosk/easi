@@ -4,7 +4,6 @@ package projectors_test
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"testing"
 	"time"
@@ -18,9 +17,9 @@ import (
 	"easi/backend/internal/onepagers/infrastructure/adapters"
 	sharedctx "easi/backend/internal/shared/context"
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
+	"easi/backend/internal/testing/testdb"
 
 	"github.com/google/uuid"
-	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -37,9 +36,7 @@ type relationCacheFixture struct {
 
 func newRelationCacheFixture(t *testing.T) *relationCacheFixture {
 	t.Helper()
-	db, err := sql.Open("postgres", "host=localhost port=5432 user=easi_app password=localdev dbname=easi sslmode=disable")
-	require.NoError(t, err)
-	require.NoError(t, db.Ping())
+	db := testdb.Open(t)
 
 	tenant := "test-rel-" + uuid.NewString()[:8]
 	tenantID, err := sharedvo.NewTenantID(tenant)
@@ -54,7 +51,6 @@ func newRelationCacheFixture(t *testing.T) *relationCacheFixture {
 		} {
 			_, _ = db.Exec("DELETE FROM "+table+" WHERE tenant_id = $1", tenant)
 		}
-		_ = db.Close()
 	})
 
 	tenantDB := database.NewTenantAwareDB(db)

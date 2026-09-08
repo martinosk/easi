@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Integration test runner script
-# Requires PostgreSQL to be running on localhost:5432
+# Requires a migrated PostgreSQL reachable via INTEGRATION_TEST_DB_* (defaults: localhost:5432, easi_app/localdev)
 
 set -e
 

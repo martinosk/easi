@@ -4,7 +4,6 @@ package projectors_test
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"testing"
 	"time"
@@ -20,9 +19,9 @@ import (
 	sharedctx "easi/backend/internal/shared/context"
 	domain "easi/backend/internal/shared/eventsourcing"
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
+	"easi/backend/internal/testing/testdb"
 
 	"github.com/google/uuid"
-	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -41,9 +40,7 @@ type indexProjectorFixture struct {
 
 func newIndexProjectorFixture(t *testing.T) *indexProjectorFixture {
 	t.Helper()
-	db, err := sql.Open("postgres", "host=localhost port=5432 user=easi_app password=localdev dbname=easi sslmode=disable")
-	require.NoError(t, err)
-	require.NoError(t, db.Ping())
+	db := testdb.Open(t)
 
 	tenant := "test-spi-" + uuid.NewString()[:8]
 	tenantID, err := sharedvo.NewTenantID(tenant)
@@ -58,7 +55,6 @@ func newIndexProjectorFixture(t *testing.T) *indexProjectorFixture {
 		} {
 			_, _ = db.Exec("DELETE FROM "+table+" WHERE tenant_id = $1", tenant)
 		}
-		_ = db.Close()
 	})
 
 	tenantDB := database.NewTenantAwareDB(db)

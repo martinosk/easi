@@ -121,8 +121,16 @@ docker-compose up -d
 podman compose up -d
 ```
 
+### Dev Container
+Open the repository in VS Code and choose "Reopen in Container". The dev container is a Compose
+service (`.devcontainer/docker-compose.yml`) that runs next to the same `postgres` and `migrate`
+services as `docker-compose.yml`, so the database is created and migrated before the workspace
+starts. Inside the container the database is reachable as `postgres:5432`; integration tests pick
+that up through `INTEGRATION_TEST_DB_HOST`. Stop any host-side `docker-compose up` stack first,
+since both publish port 5432.
+
 ## Database
-PostgreSQL 16
+PostgreSQL 17
 
 ## Testing
 ### Running backend unit tests
@@ -139,7 +147,7 @@ podman compose up -d
 cd backend
 # build and test backend
 make build
-./test-integration.sh
+./test_integration.sh
 ```
 
 ### Running frontend unit tests

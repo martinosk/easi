@@ -4,7 +4,6 @@ package adapters_test
 
 import (
 	"context"
-	"database/sql"
 	"testing"
 	"time"
 
@@ -16,9 +15,9 @@ import (
 	"easi/backend/internal/onepagers/infrastructure/adapters"
 	sharedctx "easi/backend/internal/shared/context"
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
+	"easi/backend/internal/testing/testdb"
 
 	"github.com/google/uuid"
-	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -34,9 +33,7 @@ type cacheFixture struct {
 
 func newCacheFixture(t *testing.T) *cacheFixture {
 	t.Helper()
-	db, err := sql.Open("postgres", "host=localhost port=5432 user=easi_app password=localdev dbname=easi sslmode=disable")
-	require.NoError(t, err)
-	require.NoError(t, db.Ping())
+	db := testdb.Open(t)
 
 	tenant := "test-bif-" + uuid.NewString()[:8]
 	tenantID, err := sharedvo.NewTenantID(tenant)
@@ -46,7 +43,6 @@ func newCacheFixture(t *testing.T) *cacheFixture {
 		for _, table := range []string{"onepagers.subject_relation_cache", "onepagers.one_pager_subject_index"} {
 			_, _ = db.Exec("DELETE FROM "+table+" WHERE tenant_id = $1", tenant)
 		}
-		_ = db.Close()
 	})
 
 	tenantDB := database.NewTenantAwareDB(db)

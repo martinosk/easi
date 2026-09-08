@@ -4,7 +4,6 @@ package api
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -20,17 +19,15 @@ import (
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
+	"easi/backend/internal/testing/testdb"
 
 	"github.com/google/uuid"
-	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestCompletenessEndpointAndQualityList_AgreeAfterARelationIsAdded(t *testing.T) {
-	db, err := sql.Open("postgres", "host=localhost port=5432 user=easi_app password=localdev dbname=easi sslmode=disable")
-	require.NoError(t, err)
-	require.NoError(t, db.Ping())
+	db := testdb.Open(t)
 
 	tenant := "test-agree-" + uuid.NewString()[:8]
 	tenantID, err := sharedvo.NewTenantID(tenant)
@@ -45,7 +42,6 @@ func TestCompletenessEndpointAndQualityList_AgreeAfterARelationIsAdded(t *testin
 		} {
 			_, _ = db.Exec("DELETE FROM "+table+" WHERE tenant_id = $1", tenant)
 		}
-		_ = db.Close()
 	})
 
 	tenantDB := database.NewTenantAwareDB(db)

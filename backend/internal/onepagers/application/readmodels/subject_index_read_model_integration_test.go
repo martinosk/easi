@@ -14,9 +14,9 @@ import (
 	"easi/backend/internal/onepagers/application/readmodels"
 	sharedctx "easi/backend/internal/shared/context"
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
+	"easi/backend/internal/testing/testdb"
 
 	"github.com/google/uuid"
-	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -33,11 +33,7 @@ type indexFixture struct {
 
 func newIndexFixture(t *testing.T) *indexFixture {
 	t.Helper()
-	connStr := "host=localhost port=5432 user=easi_app password=localdev dbname=easi sslmode=disable"
-	db, err := sql.Open("postgres", connStr)
-	require.NoError(t, err)
-	require.NoError(t, db.Ping())
-	t.Cleanup(func() { _ = db.Close() })
+	db := testdb.Open(t)
 
 	tenantValue := "test-si-" + uuid.NewString()[:8]
 	tenantID, err := sharedvo.NewTenantID(tenantValue)

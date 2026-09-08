@@ -1,12 +1,10 @@
 {
   "name": "EASI Dev",
-  "build": {
-    "dockerfile": "Dockerfile",
-    "args": {
-      "TZ": "${localEnv:TZ:UTC}",
-      "GOLANGCI_LINT_VERSION": "v2.1.6"
-    }
-  },
+  "dockerComposeFile": ["../docker-compose.yml", "docker-compose.yml"],
+  "service": "workspace",
+  "runServices": ["workspace", "postgres", "migrate"],
+  "workspaceFolder": "/workspace",
+  "shutdownAction": "stopCompose",
   "features": {
     "ghcr.io/devcontainers/features/go:1": {
       "version": "1.26.6"
@@ -14,28 +12,17 @@
     "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
   },
   "remoteUser": "node",
-  "workspaceFolder": "/workspace",
-  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
-  "mounts": [
-    "source=easi-claude-config,target=/home/node/.claude,type=volume",
-    "source=easi-go-cache,target=/home/node/go,type=volume",
-    "source=easi-npm-cache,target=/home/node/.npm,type=volume",
-    "source=easi-frontend-node-modules,target=/workspace/frontend/node_modules,type=volume",
-    "source=easi-pgdata,target=/home/node/pgdata,type=volume"
-  ],
   "containerEnv": {
     "NODE_OPTIONS": "--max-old-space-size=4096",
     "CLAUDE_CONFIG_DIR": "/home/node/.claude",
     "GOPATH": "/home/node/go",
-    "PGDATA": "/home/node/pgdata",
-    "INTEGRATION_TEST_DB_HOST": "localhost",
     "CS_ACCESS_TOKEN": "${localEnv:CS_ACCESS_TOKEN}",
     "CS_ONPREM_URL": "${localEnv:CS_ONPREM_URL}"
   },
   "remoteEnv": {
-    "PATH": "/usr/local/go/bin:/home/node/go/bin:/usr/lib/postgresql/17/bin:${containerEnv:PATH}"
+    "PATH": "/usr/local/go/bin:/home/node/go/bin:${containerEnv:PATH}"
   },
-  "forwardPorts": [5173, 8080, 5432],
+  "forwardPorts": [5173, 8080],
   "portsAttributes": {
     "5173": {
       "label": "Frontend (Vite)",
@@ -43,10 +30,6 @@
     },
     "8080": {
       "label": "Backend (API)",
-      "onAutoForward": "silent"
-    },
-    "5432": {
-      "label": "PostgreSQL",
       "onAutoForward": "silent"
     }
   },
@@ -79,7 +62,6 @@
       }
     }
   },
-  "onCreateCommand": "sudo chown -R node:node /home/node/go /home/node/.npm /home/node/.claude /home/node/pgdata /workspace/frontend/node_modules",
-  "postCreateCommand": "bash .devcontainer/post-create.sh",
-  "postStartCommand": "bash .devcontainer/post-start.sh"
+  "onCreateCommand": "sudo chown -R node:node /home/node/go /home/node/.npm /home/node/.claude /workspace/frontend/node_modules",
+  "postCreateCommand": "bash .devcontainer/post-create.sh"
 }

@@ -224,7 +224,7 @@ Adjust `--network` flag in `go-dev.ps1` if needed.
 Install the Go extension and configure it to use the container:
 
 1. Install "Remote - Containers" extension
-2. Or use "Dev Containers" configuration (create `.devcontainer/devcontainer.json`)
+2. Or open the repository with the Dev Containers extension (`.devcontainer/` at the repo root)
 3. Point Go tools to the container
 
 ### GoLand / IntelliJ

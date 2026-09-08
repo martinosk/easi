@@ -9,13 +9,13 @@ import (
 	"path/filepath"
 	"testing"
 
-	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/eventsourcing/valueobjects"
+	"easi/backend/internal/testing/testdb"
 )
 
 const (
@@ -39,13 +39,11 @@ func openNameCacheTestDB(t *testing.T) (*sql.DB, context.Context) {
 	if testing.Short() {
 		t.Skip("Skipping integration test")
 	}
-	db, err := sql.Open("postgres", "host=localhost port=5432 user=easi password=easi dbname=easi sslmode=disable")
-	require.NoError(t, err)
+	db := testdb.OpenAdmin(t)
 	t.Cleanup(func() {
 		for _, table := range nameCacheSourceTables {
 			_, _ = db.Exec("DELETE FROM "+table+" WHERE tenant_id = $1", nameCacheTestTenant)
 		}
-		_ = db.Close()
 	})
 	return db, sharedctx.WithTenant(context.Background(), valueobjects.MustNewTenantID(nameCacheTestTenant))
 }

@@ -7,7 +7,8 @@ import (
 	"database/sql"
 	"testing"
 
-	_ "github.com/lib/pq"
+	"easi/backend/internal/testing/testdb"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -19,14 +20,11 @@ func openOIDCCacheTestDB(t *testing.T) *sql.DB {
 	if testing.Short() {
 		t.Skip("Skipping integration test")
 	}
-	db, err := sql.Open("postgres", "host=localhost port=5432 user=easi_app password=localdev dbname=easi sslmode=disable")
-	require.NoError(t, err)
-	require.NoError(t, db.Ping())
+	db := testdb.Open(t)
 	t.Cleanup(func() {
 		_, _ = db.Exec("DELETE FROM auth.tenant_oidc_configs WHERE tenant_id = $1", oidcCacheTestTenant)
 		_, _ = db.Exec("DELETE FROM auth.tenant_domains WHERE tenant_id = $1", oidcCacheTestTenant)
 		_, _ = db.Exec("DELETE FROM auth.tenants WHERE id = $1", oidcCacheTestTenant)
-		_ = db.Close()
 	})
 	return db
 }

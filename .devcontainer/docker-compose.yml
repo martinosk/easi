@@ -1,0 +1,33 @@
+services:
+  workspace:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        TZ: ${TZ:-UTC}
+        GOLANGCI_LINT_VERSION: v2.1.6
+    command: sleep infinity
+    volumes:
+      - ..:/workspace:delegated
+      - easi-claude-config:/home/node/.claude
+      - easi-go-cache:/home/node/go
+      - easi-npm-cache:/home/node/.npm
+      - easi-frontend-node-modules:/workspace/frontend/node_modules
+    environment:
+      INTEGRATION_TEST_DB_HOST: postgres
+      DB_CONN_STRING: host=postgres port=5432 user=easi_app password=localdev dbname=easi sslmode=disable
+    networks:
+      - easi-network
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  easi-claude-config:
+    name: easi-claude-config
+  easi-go-cache:
+    name: easi-go-cache
+  easi-npm-cache:
+    name: easi-npm-cache
+  easi-frontend-node-modules:
+    name: easi-frontend-node-modules

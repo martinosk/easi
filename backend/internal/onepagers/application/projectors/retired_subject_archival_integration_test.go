@@ -4,7 +4,6 @@ package projectors_test
 
 import (
 	"context"
-	"database/sql"
 	"testing"
 	"time"
 
@@ -15,9 +14,9 @@ import (
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
+	"easi/backend/internal/testing/testdb"
 
 	"github.com/google/uuid"
-	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -78,11 +77,7 @@ func (s retiredSubjectStore) seed(tenant, subjectID, factsID string) {
 }
 
 func TestRetiredSubjectArchival_WalksRLSGuardedReadModelsPerTenant(t *testing.T) {
-	connStr := "host=localhost port=5432 user=easi_app password=localdev dbname=easi sslmode=disable"
-	db, err := sql.Open("postgres", connStr)
-	require.NoError(t, err)
-	require.NoError(t, db.Ping())
-	t.Cleanup(func() { _ = db.Close() })
+	db := testdb.Open(t)
 
 	tenantA := "test-rsa-" + uuid.NewString()[:8]
 	tenantB := "test-rsa-" + uuid.NewString()[:8]

@@ -304,7 +304,6 @@ backend/migrate
 backend/docs/swagger.json
 backend/docs/swagger.yaml
 backend/docs/docs.go
-.claude/skills
 .claude/commands
 .claude/settings.local.json
 .mcp.json

@@ -6,7 +6,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"os"
 	"testing"
 
 	"easi/backend/internal/infrastructure/database"
@@ -15,8 +14,8 @@ import (
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
+	"easi/backend/internal/testing/testdb"
 
-	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/require"
 )
 
@@ -32,26 +31,8 @@ type TestContext struct {
 	cleanupIDs []string
 }
 
-func getEnv(key, fallback string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return fallback
-}
-
 func NewTestContext(t *testing.T) *TestContext {
-	dbHost := getEnv("INTEGRATION_TEST_DB_HOST", "localhost")
-	dbPort := getEnv("INTEGRATION_TEST_DB_PORT", "5432")
-	dbUser := getEnv("INTEGRATION_TEST_DB_USER", "easi_app")
-	dbPassword := getEnv("INTEGRATION_TEST_DB_PASSWORD", "localdev")
-	dbName := getEnv("INTEGRATION_TEST_DB_NAME", "easi")
-	dbSSLMode := getEnv("INTEGRATION_TEST_DB_SSLMODE", "disable")
-
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-		dbHost, dbPort, dbUser, dbPassword, dbName, dbSSLMode)
-	db, err := sql.Open("postgres", connStr)
-	require.NoError(t, err)
-	require.NoError(t, db.Ping())
+	db := testdb.Open(t)
 
 	tenantDB := database.NewTenantAwareDB(db)
 	eventStore := eventstore.NewPostgresEventStore(tenantDB)
@@ -62,7 +43,7 @@ func NewTestContext(t *testing.T) *TestContext {
 	tenantID := sharedvo.DefaultTenantID()
 	ctx := sharedctx.WithTenant(context.Background(), tenantID)
 
-	_, err = db.Exec(fmt.Sprintf("SET app.current_tenant = '%s'", tenantID.Value()))
+	_, err := db.Exec(fmt.Sprintf("SET app.current_tenant = '%s'", tenantID.Value()))
 	require.NoError(t, err)
 
 	tc := &TestContext{
@@ -77,10 +58,7 @@ func NewTestContext(t *testing.T) *TestContext {
 		cleanupIDs: make([]string, 0),
 	}
 
-	t.Cleanup(func() {
-		tc.cleanup()
-		db.Close()
-	})
+	t.Cleanup(tc.cleanup)
 
 	return tc
 }
@@ -92,18 +70,18 @@ func (tc *TestContext) TrackID(id string) {
 func (tc *TestContext) cleanup() {
 	tc.setTenantContext()
 	for _, id := range tc.cleanupIDs {
-		tc.DB.Exec("DELETE FROM capabilitymapping.domain_capability_assignments WHERE capability_id = $1 OR business_domain_id = $1", id)
-		tc.DB.Exec("DELETE FROM capabilitymapping.strategy_importance WHERE capability_id = $1 OR business_domain_id = $1", id)
-		tc.DB.Exec("DELETE FROM capabilitymapping.effective_capability_importance WHERE capability_id = $1 OR business_domain_id = $1", id)
-		tc.DB.Exec("DELETE FROM capabilitymapping.capability_realizations WHERE capability_id = $1 OR component_id = $1", id)
-		tc.DB.Exec("DELETE FROM capabilitymapping.application_fit_scores WHERE component_id = $1", id)
-		tc.DB.Exec("DELETE FROM capabilitymapping.capabilities WHERE id = $1", id)
-		tc.DB.Exec("DELETE FROM capabilitymapping.business_domains WHERE id = $1", id)
-		tc.DB.Exec("DELETE FROM architecturemodeling.application_components WHERE id = $1", id)
-		tc.DB.Exec("DELETE FROM architecturedirection.capability_node_cache WHERE capability_id = $1 OR parent_id = $1 OR l1_capability_id = $1", id)
-		tc.DB.Exec("DELETE FROM architecturedirection.realization_cache WHERE realization_id = $1 OR capability_id = $1 OR component_id = $1", id)
-		tc.DB.Exec("DELETE FROM architecturedirection.reference_name_cache WHERE entity_id = $1", id)
-		tc.DB.Exec("DELETE FROM infrastructure.events WHERE aggregate_id = $1", id)
+		_, _ = tc.DB.Exec("DELETE FROM capabilitymapping.domain_capability_assignments WHERE capability_id = $1 OR business_domain_id = $1", id)
+		_, _ = tc.DB.Exec("DELETE FROM capabilitymapping.strategy_importance WHERE capability_id = $1 OR business_domain_id = $1", id)
+		_, _ = tc.DB.Exec("DELETE FROM capabilitymapping.effective_capability_importance WHERE capability_id = $1 OR business_domain_id = $1", id)
+		_, _ = tc.DB.Exec("DELETE FROM capabilitymapping.capability_realizations WHERE capability_id = $1 OR component_id = $1", id)
+		_, _ = tc.DB.Exec("DELETE FROM capabilitymapping.application_fit_scores WHERE component_id = $1", id)
+		_, _ = tc.DB.Exec("DELETE FROM capabilitymapping.capabilities WHERE id = $1", id)
+		_, _ = tc.DB.Exec("DELETE FROM capabilitymapping.business_domains WHERE id = $1", id)
+		_, _ = tc.DB.Exec("DELETE FROM architecturemodeling.application_components WHERE id = $1", id)
+		_, _ = tc.DB.Exec("DELETE FROM architecturedirection.capability_node_cache WHERE capability_id = $1 OR parent_id = $1 OR l1_capability_id = $1", id)
+		_, _ = tc.DB.Exec("DELETE FROM architecturedirection.realization_cache WHERE realization_id = $1 OR capability_id = $1 OR component_id = $1", id)
+		_, _ = tc.DB.Exec("DELETE FROM architecturedirection.reference_name_cache WHERE entity_id = $1", id)
+		_, _ = tc.DB.Exec("DELETE FROM infrastructure.events WHERE aggregate_id = $1", id)
 	}
 }
 

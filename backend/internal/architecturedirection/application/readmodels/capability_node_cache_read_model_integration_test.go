@@ -7,13 +7,13 @@ import (
 	"database/sql"
 	"testing"
 
-	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/eventsourcing/valueobjects"
+	"easi/backend/internal/testing/testdb"
 )
 
 const cacheTestTenant = "ad-cache-test-tenant"
@@ -23,13 +23,11 @@ func openCacheTestDB(t *testing.T) (*sql.DB, context.Context) {
 	if testing.Short() {
 		t.Skip("Skipping integration test")
 	}
-	db, err := sql.Open("postgres", "host=localhost port=5432 user=easi password=easi dbname=easi sslmode=disable")
-	require.NoError(t, err)
+	db := testdb.OpenAdmin(t)
 	t.Cleanup(func() {
 		_, _ = db.Exec("DELETE FROM architecturedirection.capability_node_cache WHERE tenant_id = $1", cacheTestTenant)
 		_, _ = db.Exec("DELETE FROM architecturedirection.reference_name_cache WHERE tenant_id = $1", cacheTestTenant)
 		_, _ = db.Exec("DELETE FROM architecturedirection.realization_cache WHERE tenant_id = $1", cacheTestTenant)
-		_ = db.Close()
 	})
 	return db, sharedctx.WithTenant(context.Background(), valueobjects.MustNewTenantID(cacheTestTenant))
 }

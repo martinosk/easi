@@ -5,7 +5,8 @@ ENV TZ="$TZ"
 
 ARG GOLANGCI_LINT_VERSION=v2.1.6
 
-# System packages plus PostgreSQL 17 server/client from the PGDG apt repository.
+# System packages plus the PostgreSQL 17 client (psql) from the PGDG apt repository,
+# matching the postgres:17 service the dev container talks to.
 RUN apt-get update && apt-get install -y --no-install-recommends \
       less \
       procps \
@@ -28,11 +29,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" \
        > /etc/apt/sources.list.d/pgdg.list \
   && apt-get update && apt-get install -y --no-install-recommends \
-      postgresql-17 \
       postgresql-client-17 \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-ENV PATH="/usr/lib/postgresql/17/bin:${PATH}"
 
 # golangci-lint (pinned to match the backend lint configuration).
 RUN ARCH="$(dpkg --print-architecture)" \
@@ -56,8 +54,8 @@ ENV SHELL=/bin/zsh
 ENV EDITOR=nano
 ENV VISUAL=nano
 
-RUN mkdir -p /usr/local/share/npm-global /home/node/go /home/node/.claude /home/node/pgdata \
-  && chown -R node:node /usr/local/share/npm-global /home/node/go /home/node/.claude /home/node/pgdata \
+RUN mkdir -p /usr/local/share/npm-global /home/node/go /home/node/.claude \
+  && chown -R node:node /usr/local/share/npm-global /home/node/go /home/node/.claude \
   && echo 'export PS1="[easi-dev] %~ %# "' >> /home/node/.zshrc
 
 USER node

@@ -4,18 +4,6 @@ set -euo pipefail
 
 cd /workspace
 
-echo "==> Starting PostgreSQL"
-bash .devcontainer/setup-postgres.sh
-
-echo "==> Running database migrations"
-(
-  cd backend
-  DB_ADMIN_CONN_STRING="host=localhost port=5432 user=easi password=easi dbname=easi sslmode=disable" \
-  EASI_APP_PASSWORD=localdev \
-  EASI_ADMIN_PASSWORD=localdev \
-    go run cmd/migrate/main.go
-)
-
 echo "==> Downloading Go modules"
 (cd backend && go mod download)
 
@@ -41,12 +29,5 @@ if [ ! -L /home/node/.claude.json ]; then
   fi
   ln -sf "${persisted_config}" /home/node/.claude.json
 fi
-
-echo "==> Linking opencode skills into .claude/skills"
-mkdir -p /workspace/.claude/skills
-for d in /workspace/.opencode/skills/*/; do
-  [ -d "${d}" ] || continue
-  ln -sfn "${d}" "/workspace/.claude/skills/$(basename "${d}")"
-done
 
 echo "==> Dev container ready"
