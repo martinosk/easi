@@ -16,11 +16,13 @@ services:
     command: sleep infinity
     volumes:
       - .:/workspace:delegated
+      - /tmp/.X11-unix:/tmp/.X11-unix
       - easi-claude-config:/home/node/.claude
       - easi-go-cache:/home/node/go
       - easi-npm-cache:/home/node/.npm
       - easi-frontend-node-modules:/workspace/frontend/node_modules
     environment:
+      DISPLAY: ":0"
       INTEGRATION_TEST_DB_HOST: postgres
       DB_CONN_STRING: host=postgres port=5432 user=easi_app password=localdev dbname=easi sslmode=disable
     networks:
