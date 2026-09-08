@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.26.6-alpine AS builder
+FROM docker.io/library/golang:1.26.6-alpine AS builder
 
 WORKDIR /app
 
@@ -23,7 +23,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     -o /app/api cmd/api/main.go
 
 # Run stage
-FROM alpine:3.24.1
+FROM docker.io/library/alpine:3.24.1
 
 WORKDIR /app
 
