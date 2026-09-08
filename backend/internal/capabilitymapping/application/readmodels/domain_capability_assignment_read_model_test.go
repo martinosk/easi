@@ -156,14 +156,14 @@ func TestDomainCapabilityAssignmentReadModel_GetByRelation(t *testing.T) {
 			sharedField: "bd",
 			makeDTOs: func(f *assignmentTestFixture, suffix int64, domainID string) (AssignmentDTO, AssignmentDTO) {
 				return AssignmentDTO{
-						AssignmentID: fmt.Sprintf("a1-%d", suffix), BusinessDomainID: domainID,
-						BusinessDomainName: "Finance", CapabilityID: fmt.Sprintf("c1-%d", suffix),
-						CapabilityName: "Financial Reporting", CapabilityLevel: "L1", AssignedAt: time.Now().UTC(),
-					}, AssignmentDTO{
-						AssignmentID: fmt.Sprintf("a2-%d", suffix), BusinessDomainID: domainID,
-						BusinessDomainName: "Finance", CapabilityID: fmt.Sprintf("c2-%d", suffix),
-						CapabilityName: "Budget Planning", CapabilityLevel: "L1", AssignedAt: time.Now().UTC(),
-					}
+					AssignmentID: fmt.Sprintf("a1-%d", suffix), BusinessDomainID: domainID,
+					BusinessDomainName: "Finance", CapabilityID: fmt.Sprintf("c1-%d", suffix),
+					CapabilityName: "Financial Reporting", CapabilityLevel: "L1", AssignedAt: time.Now().UTC(),
+				}, AssignmentDTO{
+					AssignmentID: fmt.Sprintf("a2-%d", suffix), BusinessDomainID: domainID,
+					BusinessDomainName: "Finance", CapabilityID: fmt.Sprintf("c2-%d", suffix),
+					CapabilityName: "Budget Planning", CapabilityLevel: "L1", AssignedAt: time.Now().UTC(),
+				}
 			},
 			query: func(rm *DomainCapabilityAssignmentReadModel, id string) ([]AssignmentDTO, error) {
 				return rm.GetByDomainID(tenantContext(), id)
@@ -181,14 +181,14 @@ func TestDomainCapabilityAssignmentReadModel_GetByRelation(t *testing.T) {
 			sharedField: "cap",
 			makeDTOs: func(f *assignmentTestFixture, suffix int64, capabilityID string) (AssignmentDTO, AssignmentDTO) {
 				return AssignmentDTO{
-						AssignmentID: fmt.Sprintf("a1-%d", suffix), BusinessDomainID: fmt.Sprintf("d1-%d", suffix),
-						BusinessDomainName: "Finance", CapabilityID: capabilityID,
-						CapabilityName: "Financial Reporting", CapabilityLevel: "L1", AssignedAt: time.Now().UTC(),
-					}, AssignmentDTO{
-						AssignmentID: fmt.Sprintf("a2-%d", suffix), BusinessDomainID: fmt.Sprintf("d2-%d", suffix),
-						BusinessDomainName: "Operations", CapabilityID: capabilityID,
-						CapabilityName: "Financial Reporting", CapabilityLevel: "L1", AssignedAt: time.Now().UTC(),
-					}
+					AssignmentID: fmt.Sprintf("a1-%d", suffix), BusinessDomainID: fmt.Sprintf("d1-%d", suffix),
+					BusinessDomainName: "Finance", CapabilityID: capabilityID,
+					CapabilityName: "Financial Reporting", CapabilityLevel: "L1", AssignedAt: time.Now().UTC(),
+				}, AssignmentDTO{
+					AssignmentID: fmt.Sprintf("a2-%d", suffix), BusinessDomainID: fmt.Sprintf("d2-%d", suffix),
+					BusinessDomainName: "Operations", CapabilityID: capabilityID,
+					CapabilityName: "Financial Reporting", CapabilityLevel: "L1", AssignedAt: time.Now().UTC(),
+				}
 			},
 			query: func(rm *DomainCapabilityAssignmentReadModel, id string) ([]AssignmentDTO, error) {
 				return rm.GetByCapabilityID(tenantContext(), id)

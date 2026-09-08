@@ -1,6 +1,6 @@
 module easi/backend
 
-go 1.26.6
+go 1.27.1
 
 require (
 	github.com/alexedwards/scs/postgresstore v0.0.0-20251002162104-209de6e426de

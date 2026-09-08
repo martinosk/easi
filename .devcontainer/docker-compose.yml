@@ -10,7 +10,6 @@ services:
       dockerfile: Dockerfile
       args:
         TZ: ${TZ:-UTC}
-        GOLANGCI_LINT_VERSION: v2.1.6
     # Rootless podman: map host user (uid/gid 1000) to the container's node user
     # so bind-mounted workspace files are writable.
     userns_mode: keep-id

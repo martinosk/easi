@@ -3,8 +3,6 @@ FROM mcr.microsoft.com/devcontainers/javascript-node:24-bookworm
 ARG TZ=UTC
 ENV TZ="$TZ"
 
-ARG GOLANGCI_LINT_VERSION=v2.1.6
-
 # System packages plus the PostgreSQL 17 client (psql) from the PGDG apt repository,
 # matching the postgres:17 service the dev container talks to.
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -31,16 +29,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && apt-get update && apt-get install -y --no-install-recommends \
       postgresql-client-17 \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# golangci-lint (pinned to match the backend lint configuration).
-RUN ARCH="$(dpkg --print-architecture)" \
-  && case "$ARCH" in \
-       amd64) GOARCH=amd64 ;; \
-       arm64) GOARCH=arm64 ;; \
-       *) echo "Unsupported arch: $ARCH" >&2; exit 1 ;; \
-     esac \
-  && curl -sSfL "https://github.com/golangci/golangci-lint/releases/download/${GOLANGCI_LINT_VERSION}/golangci-lint-${GOLANGCI_LINT_VERSION#v}-linux-${GOARCH}.tar.gz" \
-     | tar -xz -C /usr/local/bin --strip-components=1 "golangci-lint-${GOLANGCI_LINT_VERSION#v}-linux-${GOARCH}/golangci-lint"
 
 # Playwright OS dependencies. Browser binaries are installed per-project in post-create.sh.
 RUN npx -y playwright install-deps chromium
