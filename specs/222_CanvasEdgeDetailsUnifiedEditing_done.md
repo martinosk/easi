@@ -189,4 +189,4 @@ None.
 - [x] Unit tests implemented and passing
 - [x] Integration tests implemented if relevant (link unit tests; no handler contract change)
 - [x] API documentation updated (links only, no annotation change)
-- [ ] User sign-off
+- [x] User sign-off

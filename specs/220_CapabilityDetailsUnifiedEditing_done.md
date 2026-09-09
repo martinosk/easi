@@ -245,4 +245,4 @@ None. Spec 191's freshness rule continues to hold through the existing mutation 
 - [x] Unit tests implemented and passing
 - [x] Integration tests implemented if relevant (link unit tests; no handler change)
 - [x] API documentation updated (links only, no annotation change)
-- [ ] User sign-off
+- [x] User sign-off
