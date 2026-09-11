@@ -1,7 +1,13 @@
+name: easi
+
+# Rootless podman: run containers standalone (not in a shared pod) so the dev container
+# overlay can use per-container userns_mode: keep-id. Ignored by Docker Compose.
+x-podman:
+  in_pod: false
+
 services:
   postgres:
     image: docker.io/library/postgres:17-alpine
-    container_name: easi-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-easi}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-easi}
@@ -22,7 +28,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.migrate
-    container_name: easi-migrate
     environment:
       DB_ADMIN_CONN_STRING: ${DB_ADMIN_CONN_STRING:-host=postgres port=5432 user=easi password=easi dbname=easi sslmode=disable}
       EASI_APP_PASSWORD: ${EASI_APP_PASSWORD:-localdev}
@@ -33,35 +38,8 @@ services:
       postgres:
         condition: service_healthy
 
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-      args:
-        GO_BUILD_TAGS: ${GO_BUILD_TAGS:-devauth}
-    container_name: easi-backend
-    environment:
-      DB_CONN_STRING: ${DB_CONN_STRING:-host=postgres port=5432 user=easi_app password=localdev dbname=easi sslmode=disable}
-      AUTH_MODE: ${AUTH_MODE:-local_oidc}
-      PORT: 8080
-      PLATFORM_ADMIN_API_KEY: ${PLATFORM_ADMIN_API_KEY:-localdev}
-      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-easi-test-secret}
-      OIDC_REDIRECT_URL: ${OIDC_REDIRECT_URL:-http://localhost:8080/api/v1/auth/callback}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173/}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-105b52c2af25870943e36ded5a7ca51927715ca4bae962b9c72b9268b4ccb43a}
-      AGENT_TOKEN_SECRET: ${AGENT_TOKEN_SECRET:-easi-local-agent-token-secret-do-not-use-in-production}
-    ports:
-      - "8080:8080"
-    networks:
-      - easi-network
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
-
   dex:
     image: docker.io/dexidp/dex:v2.45.1
-    container_name: easi-dex
     command: ["dex", "serve", "/etc/dex/config.docker.yaml"]
     volumes:
       - ./dex-config.yaml:/etc/dex/config.docker.yaml
@@ -70,9 +48,43 @@ services:
     networks:
       - easi-network
 
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        GO_BUILD_TAGS: ${GO_BUILD_TAGS:-devauth}
+    restart: unless-stopped
+    environment:
+      DB_CONN_STRING: host=postgres port=5432 user=easi_app password=localdev dbname=easi sslmode=disable
+      AUTH_MODE: ${AUTH_MODE:-local_oidc}
+      PORT: 8080
+      PLATFORM_ADMIN_API_KEY: ${PLATFORM_ADMIN_API_KEY:-localdev}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-easi-test-secret}
+      OIDC_REDIRECT_URL: http://localhost:8080/api/v1/auth/callback
+      ALLOWED_ORIGINS: http://localhost:3000,http://localhost:5173
+      FRONTEND_URL: http://localhost:5173/
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-105b52c2af25870943e36ded5a7ca51927715ca4bae962b9c72b9268b4ccb43a}
+      AGENT_TOKEN_SECRET: ${AGENT_TOKEN_SECRET:-easi-local-agent-token-secret-do-not-use-in-production}
+    ports:
+      - "8080:8080"
+    networks:
+      - easi-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:8080
+        VITE_BUILD_MODE: development
+    ports:
+      - "5173:8080"
+    networks:
+      - easi-network
+
   pgadmin:
     image: docker.io/dpage/pgadmin4:latest
-    container_name: easi-pgadmin
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@easi.com}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}

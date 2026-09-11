@@ -32,11 +32,11 @@ clean: ## Clean build artifacts
 test-integration: ## Run integration tests against the migrated database (see docs/backend/testing.md)
 	./test_integration.sh
 
-docker-up: ## Start PostgreSQL via docker-compose (host only; the dev container starts it itself)
-	docker-compose up -d
+docker-up: ## Start the local stack from ../docker-compose.yml (host only; the dev container starts it itself)
+	docker compose -f ../docker-compose.yml up -d --build
 
-docker-down: ## Stop PostgreSQL
-	docker-compose down
+docker-down: ## Stop the local stack
+	docker compose -f ../docker-compose.yml down
 
 migrate: ## Apply pending migrations with the Compose defaults (works inside the dev container)
 	DB_ADMIN_CONN_STRING="$${DB_ADMIN_CONN_STRING:-host=$${INTEGRATION_TEST_DB_HOST:-localhost} port=5432 user=easi password=easi dbname=easi sslmode=disable}" \

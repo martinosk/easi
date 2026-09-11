@@ -1,5 +1,5 @@
 # Build stage
-FROM node:24-alpine AS builder
+FROM docker.io/library/node:24-alpine AS builder
 
 WORKDIR /app
 
@@ -15,14 +15,15 @@ COPY . .
 # Accept build arguments and set as environment variables
 ARG VITE_API_URL
 ARG VITE_BASE_PATH=/
+ARG VITE_BUILD_MODE=production
 ENV VITE_API_URL=${VITE_API_URL}
 ENV VITE_BASE_PATH=${VITE_BASE_PATH}
 
 # Build the application
-RUN npm run build
+RUN NODE_ENV=${VITE_BUILD_MODE} npm run build -- --mode ${VITE_BUILD_MODE}
 
 # Run stage
-FROM nginx:1.31.3-alpine3.24-slim
+FROM docker.io/library/nginx:1.31.3-alpine3.24-slim
 
 # Copy custom nginx config (replaces default nginx.conf)
 COPY nginx.conf /etc/nginx/nginx.conf

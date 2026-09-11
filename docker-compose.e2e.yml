@@ -1,6 +1,8 @@
+name: easi-e2e
+
 services:
   postgres-e2e:
-    image: postgres:17-alpine
+    image: docker.io/library/postgres:17-alpine
     container_name: easi-postgres-e2e
     environment:
       POSTGRES_USER: easi

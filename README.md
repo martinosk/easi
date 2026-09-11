@@ -110,26 +110,34 @@ flowchart TB
 
 ## Setup
 
-### First-Time Setup
-```bash
-# Set up environment variables
-./setup-local-env.sh
+One `docker-compose.yml` runs the whole stack: postgres, migrate, dex, pgadmin, and the backend and
+frontend built from the working tree. `.env` is optional, every variable has a working default
+(`./setup-local-env.sh` creates one to override them). `docker compose` works wherever
+`podman compose` is shown.
 
-# Start database and services
-docker-compose up -d
-# or if using Podman
-podman compose up -d
+### On the Host
+```bash
+podman compose up -d --build                                      # frontend :5173, API :8080, Dex :5556, pgAdmin :5050
+podman compose up -d --build --force-recreate --no-deps frontend  # rebuild one service after a change
+podman compose down                                               # add -v to drop the database
 ```
+Log in with any user from `dex-config.yaml` (password `password`), or set `AUTH_MODE=bypass` in
+`.env` to skip the login. The frontend image is a Vite development-mode build because the login
+page only accepts a plain-http authorize URL, such as the local Dex one, in development mode.
 
 ### Dev Container
-Open the repository in VS Code and choose "Reopen in Container". The dev container is a Compose
-service (`.devcontainer/docker-compose.yml`) that runs next to the same `postgres` and `migrate`
-services as `docker-compose.yml`, so the database is created and migrated before the workspace
-starts. Inside the container the database is reachable as `postgres:5432`; integration tests pick
-that up through `INTEGRATION_TEST_DB_HOST`. Stop any host-side `docker-compose up` stack first,
-since both publish port 5432. The container has no Docker CLI: run the backend with
-`cd backend && make run`, apply new migrations with `make migrate`, and start Dex or pgAdmin from
-the host (`podman compose up -d dex`) when you need them.
+Open the repository in VS Code and choose "Reopen in Container". The `workspace` service in
+`.devcontainer/docker-compose.yml` is an overlay on the same stack (paths in it are relative to the
+repository root). It starts postgres, migrate, dex and pgadmin next to itself and joins their
+network; the backend and frontend images are not started because you run both from source:
+`cd backend && make run` and `cd frontend && npm run dev`, forwarded to the host browser on 8080
+and 5173. Inside the container the database is `postgres:5432` (`INTEGRATION_TEST_DB_HOST` is
+preset) and Dex is forwarded to `localhost:5556`, so the issuer URL is the same as on the host.
+Apply migrations added later with `make migrate`.
+
+The host commands above also work while the dev container is open: the stack's containers are
+recreated (the database volume is kept) and the workspace reconnects by name. The backend and
+frontend images use the same host ports as the forwarded dev servers, so run one or the other.
 
 ## Database
 PostgreSQL 17

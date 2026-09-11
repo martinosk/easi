@@ -13,10 +13,10 @@
 
 | Environment | Database | Migrations | Dex |
 |-------------|----------|------------|-----|
-| Dev container (`.devcontainer/`) | `postgres:5432`, started with the container; `INTEGRATION_TEST_DB_HOST=postgres` is preset | `migrate` service runs on container start; migrations added afterwards: `cd backend && make migrate` | not started; start it on the host with `podman compose up -d dex` |
-| Host with Compose | `localhost:5432` after `podman compose up -d` (or `docker-compose up -d`) | `migrate` service; rebuild it after adding migrations: `podman compose build migrate && podman compose up migrate` | started by the same command |
+| Dev container (`.devcontainer/`) | `postgres:5432`, started with the container; `INTEGRATION_TEST_DB_HOST=postgres` is preset | `migrate` service runs on container start; migrations added afterwards: `cd backend && make migrate` | started with the container, reachable as `localhost:5556` |
+| Host with Compose | `localhost:5432` after `podman compose up -d` (or `docker compose up -d`) | `migrate` service; rebuild it after adding migrations: `podman compose build migrate && podman compose up migrate` | started by the same command |
 
-Both environments share `docker-compose.yml`, so they cannot run at the same time: both publish port 5432.
+Both are the same Compose stack from `docker-compose.yml`. A host `podman compose up -d` while the dev container is open recreates the postgres, migrate and dex containers (the data volume is kept) and the container reconnects to them by name.
 
 The integration tests read `INTEGRATION_TEST_DB_HOST`, `INTEGRATION_TEST_DB_PORT`, `INTEGRATION_TEST_DB_USER`, `INTEGRATION_TEST_DB_PASSWORD`, `INTEGRATION_TEST_DB_NAME` and `INTEGRATION_TEST_DB_SSLMODE` (defaults `localhost`, `5432`, `easi_app`, `localdev`, `easi`, `disable`).
 

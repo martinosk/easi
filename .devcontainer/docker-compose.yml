@@ -1,8 +1,3 @@
-# Rootless podman: run containers standalone (not in a shared pod) so per-container
-# userns_mode: keep-id is allowed. Ignored by Docker Compose.
-x-podman:
-  in_pod: false
-
 services:
   workspace:
     build:
@@ -29,9 +24,6 @@ services:
       DB_CONN_STRING: host=postgres port=5432 user=easi_app password=localdev dbname=easi sslmode=disable
     networks:
       - easi-network
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
 
 volumes:
   easi-claude-config:

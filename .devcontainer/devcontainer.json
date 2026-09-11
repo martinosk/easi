@@ -2,7 +2,7 @@
   "name": "EASI Dev",
   "dockerComposeFile": ["../docker-compose.yml", "docker-compose.yml"],
   "service": "workspace",
-  "runServices": ["workspace", "postgres", "migrate"],
+  "runServices": ["workspace", "postgres", "migrate", "dex", "pgadmin"],
   "workspaceFolder": "/workspace",
   "shutdownAction": "stopCompose",
   "features": {
@@ -63,5 +63,6 @@
   },
   "initializeCommand": "bash .devcontainer/cs-env.sh",
   "onCreateCommand": "sudo chown -R node:node /home/node/go /home/node/.npm /home/node/.claude /workspace/frontend/node_modules",
-  "postCreateCommand": "bash .devcontainer/post-create.sh"
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "postStartCommand": "nohup socat TCP-LISTEN:5556,fork,reuseaddr TCP:dex:5556 >/dev/null 2>&1 &"
 }
