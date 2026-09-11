@@ -14,6 +14,8 @@ services:
     # so bind-mounted workspace files are writable.
     userns_mode: keep-id
     command: sleep infinity
+    env_file:
+      - .devcontainer/.env
     volumes:
       - .:/workspace:delegated
       - /tmp/.X11-unix:/tmp/.X11-unix

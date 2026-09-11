@@ -30,4 +30,8 @@ if [ ! -L /home/node/.claude.json ]; then
   ln -sf "${persisted_config}" /home/node/.claude.json
 fi
 
+echo "==> Registering CodeHealth MCP with Claude Code"
+cs-mcp --version >/dev/null 2>&1 || true
+claude mcp get codescene >/dev/null 2>&1 || claude mcp add --scope user codescene -- cs-mcp
+
 echo "==> Dev container ready"

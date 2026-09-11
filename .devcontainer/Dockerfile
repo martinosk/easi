@@ -44,6 +44,7 @@ ENV VISUAL=nano
 
 RUN mkdir -p /usr/local/share/npm-global /home/node/go /home/node/.claude \
   && chown -R node:node /usr/local/share/npm-global /home/node/go /home/node/.claude \
-  && echo 'export PS1="[easi-dev] %~ %# "' >> /home/node/.zshrc
+  && echo 'export PS1="[easi-dev] %~ %# "' >> /home/node/.zshrc \
+  && echo '[ -f /workspace/.devcontainer/cs-env.sh ] && eval "$(bash /workspace/.devcontainer/cs-env.sh --export)"' >> /home/node/.zshrc
 
 USER node

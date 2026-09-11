@@ -16,9 +16,7 @@
   "containerEnv": {
     "NODE_OPTIONS": "--max-old-space-size=4096",
     "CLAUDE_CONFIG_DIR": "/home/node/.claude",
-    "GOPATH": "/home/node/go",
-    "CS_ACCESS_TOKEN": "${localEnv:CS_ACCESS_TOKEN}",
-    "CS_ONPREM_URL": "${localEnv:CS_ONPREM_URL}"
+    "GOPATH": "/home/node/go"
   },
   "remoteEnv": {
     "PATH": "/usr/local/go/bin:/home/node/go/bin:${containerEnv:PATH}"
@@ -63,6 +61,7 @@
       }
     }
   },
+  "initializeCommand": "bash .devcontainer/cs-env.sh",
   "onCreateCommand": "sudo chown -R node:node /home/node/go /home/node/.npm /home/node/.claude /workspace/frontend/node_modules",
   "postCreateCommand": "bash .devcontainer/post-create.sh"
 }
