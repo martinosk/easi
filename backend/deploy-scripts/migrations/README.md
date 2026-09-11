@@ -34,6 +34,13 @@ The docker-compose configuration:
 - **backend service**: Starts only after migrations complete successfully
 - Backend uses `easi_app` (restricted) credentials
 
+#### Dev Container
+
+The dev container starts the same `postgres` and `migrate` services, so the schema is migrated
+before the workspace opens. Migrations added while the container is running are applied with
+`cd backend && make migrate`, which runs the migrate binary against `postgres:5432` with the
+Compose defaults and is safe to repeat.
+
 #### Manual Execution
 
 Build and run the migration binary directly:

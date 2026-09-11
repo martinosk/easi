@@ -1,69 +1,19 @@
 #!/bin/bash
-
-# Integration test runner script
-# Requires a migrated PostgreSQL reachable via INTEGRATION_TEST_DB_* (defaults: localhost:5432, easi_app/localdev)
+# Runs every integration test package against the migrated PostgreSQL named by INTEGRATION_TEST_DB_*
+# (defaults: localhost:5432, easi_app/localdev; the dev container presets INTEGRATION_TEST_DB_HOST=postgres).
+# The auth package needs Dex (OIDC); it is skipped when Dex does not answer.
 
 set -e
 
+dex_url="${DEX_URL:-http://${DEX_HOST:-localhost}:5556/dex/.well-known/openid-configuration}"
+packages=$(go list -tags=integration ./...)
+
+if ! curl -sf -o /dev/null "$dex_url"; then
+  echo "Dex not reachable at $dex_url — skipping ./internal/auth/infrastructure/api"
+  packages=$(echo "$packages" | grep -v '/internal/auth/infrastructure/api$')
+fi
+
 echo "Running integration tests..."
-
-# Run integration tests for architecture modeling
-echo "Running architecture modeling integration tests..."
-go test -v -tags=integration ./internal/architecturemodeling/infrastructure/api/... -count=1
-
-echo ""
-
-# Run integration tests for architecture views
-echo "Running architecture views integration tests..."
-go test -v -tags=integration ./internal/architectureviews/infrastructure/api/... -count=1
-
-echo ""
-
-# Run integration tests for capability mapping
-echo "Running capability mapping integration tests..."
-go test -v -tags=integration ./internal/capabilitymapping/infrastructure/api/... -count=1
-
-echo ""
-
-# Run integration tests for auth
-echo "Running auth integration tests..."
-go test -v -tags=integration ./internal/auth/infrastructure/api/... -count=1
-
-echo ""
-
-# Run integration tests for importing
-echo "Running importing integration tests..."
-go test -v -tags=integration ./internal/importing/application/parsers/... -count=1
-
-echo ""
-
-# Run integration tests for database tenant isolation
-echo "Running database tenant isolation integration tests..."
-go test -v -tags=integration ./internal/infrastructure/database/... -count=1
-
-echo ""
-
-# Run integration tests for metamodel
-echo "Running metamodel integration tests..."
-go test -v -tags=integration ./internal/metamodel/infrastructure/api/... -count=1
-
-echo ""
-
-# Run integration tests for enterprise architecture
-echo "Running enterprise architecture integration tests..."
-go test -v -tags=integration ./internal/enterprisearchitecture/application/... -count=1
-
-echo ""
-
-# Run integration tests for audit
-echo "Running audit integration tests..."
-go test -v -tags=integration ./internal/audit/... -count=1
-
-echo ""
-
-# Run integration tests for test fixtures
-echo "Running test fixtures integration tests..."
-go test -v -tags=integration ./internal/testing/... -count=1
-
-echo ""
+# shellcheck disable=SC2086
+go test -tags=integration -count=1 $packages
 echo "✓ All integration tests complete!"

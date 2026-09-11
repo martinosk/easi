@@ -10,6 +10,8 @@ compatibility: opencode
 
 EASI's full stack (backend + Postgres + Dex OIDC) runs locally via Docker Compose at the repo root. Use `podman compose up --build -d` if it's not running already.
 
+Inside the dev container there is no Docker CLI: Postgres is already running and migrated at `postgres:5432`, the backend runs from source with `cd backend && make run` (port 8080), and Dex is not started — start it from the host with `podman compose up -d dex`; it joins the same `easi-network`.
+
 | Service | URL | Purpose |
 |---|---|---|
 | Frontend (Vite) | `http://localhost:5173` | What the user sees. Started via `npm run dev` from `frontend/`. |

@@ -127,7 +127,9 @@ service (`.devcontainer/docker-compose.yml`) that runs next to the same `postgre
 services as `docker-compose.yml`, so the database is created and migrated before the workspace
 starts. Inside the container the database is reachable as `postgres:5432`; integration tests pick
 that up through `INTEGRATION_TEST_DB_HOST`. Stop any host-side `docker-compose up` stack first,
-since both publish port 5432.
+since both publish port 5432. The container has no Docker CLI: run the backend with
+`cd backend && make run`, apply new migrations with `make migrate`, and start Dex or pgAdmin from
+the host (`podman compose up -d dex`) when you need them.
 
 ## Database
 PostgreSQL 17
@@ -141,14 +143,19 @@ make test
 ```
 
 ### Running backend integration tests
+Inside the dev container the database is already up and migrated:
 ```bash
-# Start db and run db migration
+cd backend
+make test-integration
+```
+On the host, start the stack first:
+```bash
 podman compose up -d
 cd backend
-# build and test backend
-make build
-./test_integration.sh
+make test-integration
 ```
+The auth package needs Dex and is skipped when it is not reachable. Details, including how to apply
+migrations added after the container started: `docs/backend/testing.md`.
 
 ### Running frontend unit tests
 ```bash

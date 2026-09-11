@@ -43,18 +43,18 @@ Full-stack — requires a running PostgreSQL database.
 - **Build tag**: `// +build integration` at top of file
 
 ```bash
-# Start the database first
-cd /workspace
-docker-compose up -d   # or: podman compose up -d
+# Dev container: the database is already up at postgres:5432 and migrated.
+# Host: start it first with `podman compose up -d` (or docker-compose up -d).
+cd backend
 
-# Run all integration tests
-cd backend && ./test_integration.sh
-
-# Or manually:
-go test -v -tags=integration ./internal/architecturemodeling/infrastructure/api/... -count=1
+# Run all integration tests (auth is skipped when Dex is unreachable)
+make test-integration
 
 # Run integration tests for a specific package
-go test -v -tags=integration ./...
+go test -v -tags=integration ./internal/onepagers/... -count=1
+
+# Migrations added after the database was created
+make migrate
 
 # Integration tests with coverage
 go test -v -tags=integration -coverprofile=coverage_integration.out \
@@ -69,7 +69,7 @@ go tool cover -html=coverage_integration.out -o coverage_integration.html
 | Unit | `_test.go` | none | None allowed |
 | Integration | `_integration_test.go` | `// +build integration` | PostgreSQL required |
 
-Running `go test ./...` (no tags) executes **only unit tests**. Integration tests are excluded by default — this keeps the standard test command fast and CI-safe without a database.
+Running `go test ./...` (no tags) executes **only unit tests**. Integration tests are excluded by default — this keeps the standard test command fast and CI-safe without a database. Never conclude "no database" from a failed probe of `localhost`: in the dev container the host is `postgres`, and `INTEGRATION_TEST_DB_HOST` already says so.
 
 ## Test Placement by Layer
 
@@ -88,6 +88,7 @@ Running `go test ./...` (no tags) executes **only unit tests**. Integration test
 3. **Never skip the build tag** on integration test files — without it, `go test ./...` will try to run them without a DB and fail
 4. **Use `-count=1`** on integration tests to bypass the test cache when verifying DB interactions
 5. **Run unit tests in CI without a database** — integration tests require the compose stack
+6. **Run the integration tests before claiming a change done** — routing and wiring mistakes (a chi mount shadowing a `GET`, a projector never subscribed) only show up there
 
 ## Rule: Tests Must Call the Production Type
 

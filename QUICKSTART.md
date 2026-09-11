@@ -11,9 +11,11 @@ A complete graphical architecture modeling tool with:
 ### 1. Start the Backend
 
 ```bash
-# SFrom the easi directory: Start PostgreSQL and backend (if not already running)
+# From the easi directory: Start PostgreSQL and backend (if not already running)
 docker-compose up -d
 ```
+In the dev container PostgreSQL is already running and migrated; start the backend with
+`cd backend && make run` instead.
 
 You should see:
 ```
