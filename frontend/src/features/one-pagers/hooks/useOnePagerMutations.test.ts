@@ -7,21 +7,17 @@ import { onePagersQueryKeys } from '../queryKeys';
 import type { CustomField, OnePagerConfiguration } from '../types';
 import {
   useChangeBuiltInFieldRequirement,
-  useDefineCustomField,
+  useChangeFieldRequirement,
   useIncludeBuiltInField,
   useReorderFields,
-  useRetireCustomField,
-  useSetNumberFieldBounds,
 } from './useOnePagerMutations';
 
 vi.mock('../api/onePagersApi', () => ({
   onePagersApi: {
-    defineCustomField: vi.fn(),
     reorderFields: vi.fn(),
     includeBuiltInField: vi.fn(),
     changeBuiltInFieldRequirement: vi.fn(),
-    retireCustomField: vi.fn(),
-    setNumberFieldBounds: vi.fn(),
+    changeFieldRequirement: vi.fn(),
   },
 }));
 
@@ -50,11 +46,8 @@ function buildConfiguration(overrides: Partial<OnePagerConfiguration> = {}): One
     modifiedBy: 'admin@example.com',
     _links: {
       self: { href: '/api/v1/one-pagers/configurations/vendor', method: 'GET' },
-      'x-define-custom-field': {
-        href: '/api/v1/one-pagers/configurations/vendor/custom-fields',
-        method: 'POST',
-      },
       'x-reorder': { href: '/api/v1/one-pagers/configurations/vendor/display-order', method: 'PUT' },
+      'x-attribute-schema': { href: '/api/v1/meta-model/subject-types/vendor/attributes', method: 'GET' },
     },
     ...overrides,
   };
@@ -68,8 +61,12 @@ function buildCustomField(overrides: Partial<CustomField> = {}): CustomField {
     required: false,
     helpText: '',
     active: true,
+    included: true,
     _links: {
-      'x-retire': { href: '/api/v1/one-pagers/configurations/vendor/custom-fields/field-1/retire', method: 'POST' },
+      'x-set-requirement': {
+        href: '/api/v1/one-pagers/configurations/vendor/custom-fields/field-1/requirement',
+        method: 'PUT',
+      },
     },
     ...overrides,
   };
@@ -89,30 +86,20 @@ describe('useOnePagerMutations', () => {
     vi.restoreAllMocks();
   });
 
-  it('defines a custom field and invalidates the configuration query', async () => {
-    const configuration = buildConfiguration();
-    const updated = buildConfiguration({ version: 2 });
-    vi.mocked(onePagersApi.defineCustomField).mockResolvedValue(updated);
+  it('changes a custom field requirement and invalidates the configuration query', async () => {
+    const field = buildCustomField();
+    vi.mocked(onePagersApi.changeFieldRequirement).mockResolvedValue(buildConfiguration({ version: 2 }));
     const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
-    const { result } = renderHook(() => useDefineCustomField('vendor'), { wrapper: createWrapper(queryClient) });
+    const { result } = renderHook(() => useChangeFieldRequirement('vendor'), { wrapper: createWrapper(queryClient) });
 
     await act(async () => {
-      await result.current.mutateAsync({
-        configuration,
-        request: { name: 'Business summary', fieldType: 'text', required: false, helpText: '', version: 1 },
-      });
+      await result.current.mutateAsync({ field, request: { required: true, version: 1 } });
     });
 
-    expect(onePagersApi.defineCustomField).toHaveBeenCalledWith(configuration, {
-      name: 'Business summary',
-      fieldType: 'text',
-      required: false,
-      helpText: '',
-      version: 1,
-    });
+    expect(onePagersApi.changeFieldRequirement).toHaveBeenCalledWith(field, { required: true, version: 1 });
     expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: onePagersQueryKeys.configuration('vendor') });
-    expect(toast.success).toHaveBeenCalledWith('Custom field defined');
+    expect(toast.success).toHaveBeenCalledWith('Requirement updated');
   });
 
   it('reorders fields', async () => {
@@ -175,33 +162,16 @@ describe('useOnePagerMutations', () => {
     expect(toast.success).toHaveBeenCalledWith('Requirement updated');
   });
 
-  it('sets number field bounds', async () => {
-    const field = buildCustomField({
-      type: 'number',
-      _links: { 'x-set-bounds': { href: '/api/v1/one-pagers/configurations/vendor/custom-fields/field-1/bounds', method: 'PUT' } },
-    });
-    vi.mocked(onePagersApi.setNumberFieldBounds).mockResolvedValue(buildConfiguration({ version: 2 }));
-
-    const { result } = renderHook(() => useSetNumberFieldBounds('vendor'), { wrapper: createWrapper(queryClient) });
-
-    await act(async () => {
-      await result.current.mutateAsync({ field, request: { min: 0, max: 5, version: 1 } });
-    });
-
-    expect(onePagersApi.setNumberFieldBounds).toHaveBeenCalledWith(field, { min: 0, max: 5, version: 1 });
-    expect(toast.success).toHaveBeenCalledWith('Bounds updated');
-  });
-
   it('surfaces a conflict message and refetches on 409', async () => {
     const field = buildCustomField();
     const conflict = new ApiError('Version conflict', 409);
-    vi.mocked(onePagersApi.retireCustomField).mockRejectedValue(conflict);
+    vi.mocked(onePagersApi.changeFieldRequirement).mockRejectedValue(conflict);
     const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
-    const { result } = renderHook(() => useRetireCustomField('vendor'), { wrapper: createWrapper(queryClient) });
+    const { result } = renderHook(() => useChangeFieldRequirement('vendor'), { wrapper: createWrapper(queryClient) });
 
     await act(async () => {
-      await expect(result.current.mutateAsync({ field, request: { version: 1 } })).rejects.toThrow();
+      await expect(result.current.mutateAsync({ field, request: { required: true, version: 1 } })).rejects.toThrow();
     });
 
     expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: onePagersQueryKeys.configuration('vendor') });
@@ -210,12 +180,12 @@ describe('useOnePagerMutations', () => {
 
   it('shows a generic error message on non-conflict failures', async () => {
     const field = buildCustomField();
-    vi.mocked(onePagersApi.retireCustomField).mockRejectedValue(new Error('Server exploded'));
+    vi.mocked(onePagersApi.changeFieldRequirement).mockRejectedValue(new Error('Server exploded'));
 
-    const { result } = renderHook(() => useRetireCustomField('vendor'), { wrapper: createWrapper(queryClient) });
+    const { result } = renderHook(() => useChangeFieldRequirement('vendor'), { wrapper: createWrapper(queryClient) });
 
     await act(async () => {
-      await expect(result.current.mutateAsync({ field, request: { version: 1 } })).rejects.toThrow();
+      await expect(result.current.mutateAsync({ field, request: { required: true, version: 1 } })).rejects.toThrow();
     });
 
     expect(toast.error).toHaveBeenCalledWith('Server exploded');

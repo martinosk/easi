@@ -25,8 +25,8 @@ var (
 	ErrNumberAboveMaximum     = errors.New("number value is above the field's maximum bound")
 )
 
-type ConfigurationDefinitions interface {
-	GetBySubjectType(ctx context.Context, subjectType string) (*readmodels.ConfigurationRecord, error)
+type CustomFieldDefinitions interface {
+	ForSubjectType(ctx context.Context, subjectType string) (readmodels.CustomFieldDefinitions, error)
 }
 
 type FactsLookup interface {
@@ -77,26 +77,21 @@ func parseFactsWriteInput(raw rawFactsWrite) (factsWriteInput, error) {
 
 func activeFieldDefinition(
 	ctx context.Context,
-	configs ConfigurationDefinitions,
+	definitions CustomFieldDefinitions,
 	subjectType, fieldID string,
 ) (readmodels.CustomFieldRecord, error) {
-	record, err := configs.GetBySubjectType(ctx, subjectType)
+	fields, err := definitions.ForSubjectType(ctx, subjectType)
 	if err != nil {
 		return readmodels.CustomFieldRecord{}, err
 	}
-	if record == nil {
+	field, found := fields.ByID(fieldID)
+	if !found {
 		return readmodels.CustomFieldRecord{}, ErrFieldNotDefined
 	}
-	for _, field := range record.Document.CustomFields {
-		if field.ID != fieldID {
-			continue
-		}
-		if !field.Active {
-			return readmodels.CustomFieldRecord{}, ErrFieldDefinitionRetired
-		}
-		return field, nil
+	if !field.Active {
+		return readmodels.CustomFieldRecord{}, ErrFieldDefinitionRetired
 	}
-	return readmodels.CustomFieldRecord{}, ErrFieldNotDefined
+	return field, nil
 }
 
 func validateSelectionOption(field readmodels.CustomFieldRecord, value valueobjects.FieldValue) error {
@@ -131,19 +126,19 @@ func validateNumberBounds(field readmodels.CustomFieldRecord, value valueobjects
 }
 
 type RecordFieldValueHandler struct {
-	repository *repositories.OnePagerFactsRepository
-	configs    ConfigurationDefinitions
-	facts      FactsLookup
-	subjects   ports.SubjectExistenceChecker
+	repository  *repositories.OnePagerFactsRepository
+	definitions CustomFieldDefinitions
+	facts       FactsLookup
+	subjects    ports.SubjectExistenceChecker
 }
 
 func NewRecordFieldValueHandler(
 	repository *repositories.OnePagerFactsRepository,
-	configs ConfigurationDefinitions,
+	definitions CustomFieldDefinitions,
 	facts FactsLookup,
 	subjects ports.SubjectExistenceChecker,
 ) *RecordFieldValueHandler {
-	return &RecordFieldValueHandler{repository: repository, configs: configs, facts: facts, subjects: subjects}
+	return &RecordFieldValueHandler{repository: repository, definitions: definitions, facts: facts, subjects: subjects}
 }
 
 func (h *RecordFieldValueHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
@@ -189,7 +184,7 @@ func (h *RecordFieldValueHandler) validateValue(
 	command *commands.RecordFieldValue,
 	input factsWriteInput,
 ) (valueobjects.FieldValue, error) {
-	field, err := activeFieldDefinition(ctx, h.configs, input.subjectRef.SubjectType().Value(), input.fieldID.Value())
+	field, err := activeFieldDefinition(ctx, h.definitions, input.subjectRef.SubjectType().Value(), input.fieldID.Value())
 	if err != nil {
 		return nil, err
 	}
@@ -229,17 +224,17 @@ func (h *RecordFieldValueHandler) loadOrCreateFacts(ctx context.Context, input f
 }
 
 type ClearFieldValueHandler struct {
-	repository *repositories.OnePagerFactsRepository
-	configs    ConfigurationDefinitions
-	facts      FactsLookup
+	repository  *repositories.OnePagerFactsRepository
+	definitions CustomFieldDefinitions
+	facts       FactsLookup
 }
 
 func NewClearFieldValueHandler(
 	repository *repositories.OnePagerFactsRepository,
-	configs ConfigurationDefinitions,
+	definitions CustomFieldDefinitions,
 	facts FactsLookup,
 ) *ClearFieldValueHandler {
-	return &ClearFieldValueHandler{repository: repository, configs: configs, facts: facts}
+	return &ClearFieldValueHandler{repository: repository, definitions: definitions, facts: facts}
 }
 
 func (h *ClearFieldValueHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
@@ -259,7 +254,7 @@ func (h *ClearFieldValueHandler) Handle(ctx context.Context, cmd cqrs.Command) (
 		return cqrs.EmptyResult(), err
 	}
 
-	if _, err := activeFieldDefinition(ctx, h.configs, input.subjectRef.SubjectType().Value(), input.fieldID.Value()); err != nil {
+	if _, err := activeFieldDefinition(ctx, h.definitions, input.subjectRef.SubjectType().Value(), input.fieldID.Value()); err != nil {
 		return cqrs.EmptyResult(), err
 	}
 

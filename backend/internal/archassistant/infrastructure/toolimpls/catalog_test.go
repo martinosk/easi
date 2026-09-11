@@ -68,5 +68,5 @@ func TestContextOwnedCatalogs_ToolCounts(t *testing.T) {
 	assert.Len(t, cmPL.AgentTools(), 34, "capabilitymapping")
 	assert.Len(t, vsPL.AgentTools(), 9, "valuestreams")
 	assert.Len(t, adPL.AgentTools(), 8, "architecturedirection")
-	assert.Len(t, mmPL.AgentTools(), 2, "metamodel")
+	assert.Len(t, mmPL.AgentTools(), 3, "metamodel")
 }

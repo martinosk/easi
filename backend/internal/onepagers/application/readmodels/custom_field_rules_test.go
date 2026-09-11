@@ -144,26 +144,36 @@ func TestCustomFieldRecord_NumberValueOutOfBounds(t *testing.T) {
 	}
 }
 
-func TestConfigurationDocument_CustomField_FindsByID(t *testing.T) {
+func TestCustomFieldDefinitions_ByID(t *testing.T) {
+	definitions := readmodels.CustomFieldDefinitions{
+		{ID: "hosting", Name: "Hosting model"},
+		{ID: "notes", Name: "Notes"},
+	}
+
+	field, found := definitions.ByID("notes")
+	assert.True(t, found)
+	assert.Equal(t, "Notes", field.Name)
+
+	_, found = definitions.ByID("missing")
+	assert.False(t, found)
+}
+
+func TestConfigurationDocument_RequiredCustomFieldIDs_OnlyIncludedRequiredFields(t *testing.T) {
 	document := readmodels.ConfigurationDocument{
-		CustomFields: []readmodels.CustomFieldRecord{
-			{ID: "hosting", Name: "Hosting model"},
-			{ID: "notes", Name: "Notes"},
+		CustomFields: []readmodels.FieldRequirementRecord{
+			{ID: "hosting", Required: true},
+			{ID: "notes", Required: false},
+			{ID: "excluded", Required: true},
+		},
+		DisplayOrder: []readmodels.FieldRefRecord{
+			{Kind: "builtIn", ID: "name"},
+			{Kind: "custom", ID: "hosting"},
+			{Kind: "custom", ID: "notes"},
 		},
 	}
 
-	field, found := document.CustomField("notes")
-
-	assert.True(t, found)
-	assert.Equal(t, "Notes", field.Name)
-}
-
-func TestConfigurationDocument_CustomField_NotFound(t *testing.T) {
-	document := readmodels.ConfigurationDocument{
-		CustomFields: []readmodels.CustomFieldRecord{{ID: "hosting", Name: "Hosting model"}},
-	}
-
-	_, found := document.CustomField("missing")
-
-	assert.False(t, found)
+	assert.Equal(t, []string{"hosting"}, document.RequiredCustomFieldIDs())
+	assert.Equal(t, []string{"hosting", "notes"}, document.IncludedCustomFieldIDs())
+	assert.True(t, document.CustomFieldRequired("excluded"))
+	assert.False(t, document.CustomFieldRequired("unknown"))
 }

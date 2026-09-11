@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { metadataQueryKeys } from '../../lib/appQueryKeys';
 import { capabilitiesMutationEffects } from '../capabilities/mutationEffects';
 import { componentsMutationEffects } from '../components/mutationEffects';
 import { onePagerQualityQueryKeys } from '../one-pager-quality/queryKeys';
@@ -29,6 +30,17 @@ describe('onePagersMutationEffects', () => {
       const effects = onePagersMutationEffects.configuration('vendor');
 
       expect(effects).toContainEqual(onePagersQueryKeys.completenessForSubjectType('vendor'));
+    });
+  });
+
+  describe('attributeSchema', () => {
+    it('invalidates the MetaModel schema and everything a configuration change invalidates', () => {
+      const effects = onePagersMutationEffects.attributeSchema('vendor');
+
+      expect(effects).toContainEqual(metadataQueryKeys.subjectAttributeSchema('vendor'));
+      for (const key of onePagersMutationEffects.configuration('vendor')) {
+        expect(effects).toContainEqual(key);
+      }
     });
   });
 

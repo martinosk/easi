@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"easi/backend/internal/onepagers/domain/aggregates"
-	"easi/backend/internal/onepagers/domain/events"
+	opevents "easi/backend/internal/onepagers/domain/events"
 	"easi/backend/internal/onepagers/domain/valueobjects"
 	domain "easi/backend/internal/shared/eventsourcing"
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
@@ -30,102 +30,72 @@ func newTestConfig(t *testing.T) (*aggregates.OnePagerConfiguration, valueobject
 	return config, userEmail
 }
 
-func mustName(t *testing.T, v string) valueobjects.FieldName {
-	t.Helper()
-	name, err := valueobjects.NewFieldName(v)
-	require.NoError(t, err)
-	return name
-}
-
-func mustType(t *testing.T, v string) valueobjects.FieldType {
-	t.Helper()
-	ft, err := valueobjects.NewFieldType(v)
-	require.NoError(t, err)
-	return ft
-}
-
-func mustLabel(t *testing.T, v string) valueobjects.OptionLabel {
-	t.Helper()
-	label, err := valueobjects.NewOptionLabel(v)
-	require.NoError(t, err)
-	return label
-}
-
-func TestOnePagerConfigurationDeserializers_AllEventsRoundTrip(t *testing.T) {
+func TestOnePagerConfigurationDeserializers_PresentationEventsRoundTrip(t *testing.T) {
 	config, userEmail := newTestConfig(t)
+	fieldID := valueobjects.NewFieldID()
 
-	textID, err := config.DefineCustomField(aggregates.DefineCustomFieldParams{
-		Name: mustName(t, "Business summary"),
-		Type: mustType(t, "text"),
-	}, userEmail)
-	require.NoError(t, err)
-
-	maturityID, err := config.DefineCustomField(aggregates.DefineCustomFieldParams{
-		Name: mustName(t, "Maturity score"),
-		Type: mustType(t, "number"),
-	}, userEmail)
-	require.NoError(t, err)
-	minBound := 0.0
-	maxBound := 5.0
-	require.NoError(t, config.SetNumberFieldBounds(maturityID, &minBound, &maxBound, userEmail))
-
-	selectionID, err := config.DefineCustomField(aggregates.DefineCustomFieldParams{
-		Name:         mustName(t, "Hosting model"),
-		Type:         mustType(t, "selection"),
-		OptionLabels: []valueobjects.OptionLabel{mustLabel(t, "On-prem"), mustLabel(t, "Cloud")},
-	}, userEmail)
-	require.NoError(t, err)
-
-	help, err := valueobjects.NewHelpText("A short summary")
-	require.NoError(t, err)
-	require.NoError(t, config.RenameCustomField(aggregates.RenameCustomFieldParams{
-		FieldID:  textID,
-		Name:     mustName(t, "Summary"),
-		HelpText: help,
-	}, userEmail))
-	require.NoError(t, config.ChangeCustomFieldRequirement(textID, true, userEmail))
+	require.NoError(t, config.IncludeCustomField(fieldID, userEmail))
+	require.NoError(t, config.ChangeCustomFieldRequirement(fieldID, true, userEmail))
+	require.NoError(t, config.ExcludeCustomField(fieldID, userEmail))
+	require.NoError(t, config.IncludeCustomField(fieldID, userEmail))
 	require.NoError(t, config.ExcludeBuiltInField("experts", userEmail))
 	require.NoError(t, config.IncludeBuiltInField("experts", userEmail))
 	require.NoError(t, config.ChangeBuiltInFieldRequirement("experts", true, userEmail))
-
-	_, err = config.AddSelectionOption(selectionID, mustLabel(t, "Hybrid"), userEmail)
-	require.NoError(t, err)
-	field, found := config.CustomFieldByID(selectionID)
-	require.True(t, found)
-	require.NoError(t, config.RetireSelectionOption(selectionID, field.Options()[0].ID(), userEmail))
-
-	require.NoError(t, config.RetireCustomField(textID, userEmail))
-	require.NoError(t, config.ReactivateCustomField(textID, userEmail))
 	require.NoError(t, config.ReorderFields(reverseOrder(config.DisplayOrder()), userEmail))
 
 	events := config.GetUncommittedChanges()
 	requireEventTypesPresent(t, events,
 		"OnePagerConfigurationCreated",
-		"CustomFieldDefined",
-		"CustomFieldRenamed",
+		"CustomFieldIncluded",
 		"CustomFieldRequirementChanged",
-		"CustomFieldRetired",
-		"CustomFieldReactivated",
+		"CustomFieldExcluded",
 		"BuiltInFieldIncluded",
 		"BuiltInFieldExcluded",
 		"BuiltInFieldRequirementChanged",
 		"OnePagerFieldsReordered",
-		"SelectionOptionAdded",
-		"SelectionOptionRetired",
-		"NumberFieldBoundsChanged",
 	)
 
-	loaded := roundTripAndLoad(t, config, len(events))
+	loaded := roundTripAndLoad(t, events, len(events))
 
 	assert.Equal(t, config.ID(), loaded.ID())
 	assert.Equal(t, config.Version(), loaded.Version())
 	assert.Equal(t, config.SubjectType().Value(), loaded.SubjectType().Value())
 	assert.Equal(t, config.DisplayOrder(), loaded.DisplayOrder())
-	assert.Equal(t, config.CustomFields(), loaded.CustomFields())
+	assert.True(t, loaded.IsCustomFieldRequired(fieldID))
+	assert.True(t, loaded.IsBuiltInRequired("experts"))
+}
+
+func legacyParams(configID string, version int) opevents.ModifyConfigurationParams {
+	return opevents.ModifyConfigurationParams{ConfigID: configID, TenantID: "tenant-123", Version: version, ModifiedBy: testAdminEmail}
+}
+
+func TestOnePagerConfigurationDeserializers_LegacySchemaEventsStillReplay(t *testing.T) {
+	config, _ := newTestConfig(t)
+	fieldID := valueobjects.NewFieldID()
+	optionID := valueobjects.NewOptionID().Value()
+	min := 0.0
+	history := append(config.GetUncommittedChanges(),
+		opevents.NewCustomFieldDefined(legacyParams(config.ID(), 2), opevents.CustomFieldData{
+			FieldID: fieldID.Value(), Name: "Hosting model", FieldType: "selection", Required: true,
+			Options: []opevents.SelectionOptionData{{ID: optionID, Label: "Cloud", Active: true}},
+		}),
+		opevents.NewCustomFieldRenamed(legacyParams(config.ID(), 3), opevents.FieldRenameData{FieldID: fieldID.Value(), NewName: "Deployment"}),
+		opevents.NewSelectionOptionAdded(legacyParams(config.ID(), 4), fieldID.Value(), valueobjects.NewOptionID().Value(), "Hybrid"),
+		opevents.NewSelectionOptionRetired(legacyParams(config.ID(), 5), fieldID.Value(), optionID),
+		opevents.NewNumberFieldBoundsChanged(legacyParams(config.ID(), 6), fieldID.Value(), &min, nil),
+		opevents.NewCustomFieldRetired(legacyParams(config.ID(), 7), fieldID.Value()),
+		opevents.NewCustomFieldReactivated(legacyParams(config.ID(), 8), fieldID.Value()),
+	)
+
+	loaded := roundTripAndLoad(t, history, len(history))
+
+	assert.Equal(t, 8, loaded.Version())
+	assert.True(t, loaded.IsCustomFieldIncluded(fieldID))
+	assert.True(t, loaded.IsCustomFieldRequired(fieldID))
 }
 
 func TestOnePagerEventDeserializers_CoverEveryConfigurationEventType(t *testing.T) {
-	for _, eventType := range events.ConfigurationEventTypes() {
+	for _, eventType := range opevents.ConfigurationEventTypes() {
 		assert.Truef(t, onePagerEventDeserializers.HasDeserializerFor(eventType),
 			"No deserializer registered for %q: the event store silently skips unknown event types, "+
 				"so the aggregate reloads a version lower than the stored one and every subsequent "+
@@ -134,7 +104,7 @@ func TestOnePagerEventDeserializers_CoverEveryConfigurationEventType(t *testing.
 }
 
 func TestOnePagerFactsEventDeserializers_CoverEveryFactsEventType(t *testing.T) {
-	for _, eventType := range events.FactsEventTypes() {
+	for _, eventType := range opevents.FactsEventTypes() {
 		assert.Truef(t, onePagerFactsEventDeserializers.HasDeserializerFor(eventType),
 			"No deserializer registered for %q", eventType)
 	}
@@ -159,9 +129,8 @@ func requireEventTypesPresent(t *testing.T, events []domain.DomainEvent, expecte
 	}
 }
 
-func roundTripAndLoad(t *testing.T, config *aggregates.OnePagerConfiguration, expectedEventCount int) *aggregates.OnePagerConfiguration {
+func roundTripAndLoad(t *testing.T, events []domain.DomainEvent, expectedEventCount int) *aggregates.OnePagerConfiguration {
 	t.Helper()
-	events := config.GetUncommittedChanges()
 	require.Len(t, events, expectedEventCount)
 
 	storedEvents := simulateEventStoreRoundTrip(t, events)

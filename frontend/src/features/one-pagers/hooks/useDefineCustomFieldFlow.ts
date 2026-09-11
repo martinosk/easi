@@ -1,58 +1,50 @@
 import { useState } from 'react';
+import type { DefineSubjectAttributeRequest, SubjectAttributeSchema } from '../../../api/types';
 import type { DefineCustomFieldFormData } from '../../../lib/schemas/onePagerConfiguration';
 import { hasLink } from '../../../utils/hateoas';
-import type { CustomField, DefineCustomFieldRequest, OnePagerConfiguration, OnePagerSubjectType } from '../types';
-import { useDefineCustomField, useSetNumberFieldBounds } from './useOnePagerMutations';
+import type { OnePagerConfiguration, OnePagerSubjectType } from '../types';
+import { useDefineAttribute } from './useAttributeSchemaMutations';
+import { useRequirementAfterDefinition } from './useRequirementAfterDefinition';
 
-function buildRequest(data: DefineCustomFieldFormData, version: number): DefineCustomFieldRequest {
+function bound(value: number | ''): number | undefined {
+  return value === '' ? undefined : value;
+}
+
+export function buildDefineRequest(data: DefineCustomFieldFormData, version: number): DefineSubjectAttributeRequest {
+  const isNumber = data.fieldType === 'number';
   return {
     name: data.name,
-    fieldType: data.fieldType,
-    required: data.required,
+    type: data.fieldType,
     helpText: data.helpText,
     options: data.fieldType === 'selection' ? data.options : undefined,
+    min: isNumber ? bound(data.min) : undefined,
+    max: isNumber ? bound(data.max) : undefined,
     version,
   };
 }
 
-function findDefinedNumberField(configuration: OnePagerConfiguration, name: string): CustomField | undefined {
-  return configuration.customFields.find((field) => field.type === 'number' && field.active && field.name === name);
+function definedAttributeId(schema: SubjectAttributeSchema, name: string): string | undefined {
+  return schema.attributes.find((attribute) => attribute.active && attribute.name === name)?.id;
 }
 
-function hasBoundsToApply(data: DefineCustomFieldFormData): boolean {
-  if (data.fieldType !== 'number') return false;
-  return data.min !== '' || data.max !== '';
-}
-
-export function useDefineCustomFieldFlow(subjectType: OnePagerSubjectType, configuration: OnePagerConfiguration | undefined) {
-  const defineField = useDefineCustomField(subjectType);
-  const setBounds = useSetNumberFieldBounds(subjectType);
+export function useDefineCustomFieldFlow(
+  subjectType: OnePagerSubjectType,
+  configuration: OnePagerConfiguration | undefined,
+  schema: SubjectAttributeSchema | undefined,
+) {
+  const defineAttribute = useDefineAttribute(subjectType);
+  const requirement = useRequirementAfterDefinition(subjectType, configuration);
   const [pendingNewField, setPendingNewField] = useState<DefineCustomFieldFormData | null>(null);
   const [formKey, setFormKey] = useState(0);
 
-  const applyBounds = (updated: OnePagerConfiguration, data: DefineCustomFieldFormData) => {
-    if (!hasBoundsToApply(data)) return;
-    const field = findDefinedNumberField(updated, data.name);
-    if (!field || !hasLink(field, 'x-set-bounds')) return;
-    setBounds.mutate({
-      field,
-      request: {
-        min: data.min === '' ? undefined : data.min,
-        max: data.max === '' ? undefined : data.max,
-        version: updated.version,
-      },
-    });
-  };
-
   const submit = (data: DefineCustomFieldFormData) => {
-    if (!configuration) return;
-    const request = buildRequest(data, configuration.version);
-    defineField.mutate(
-      { configuration, request },
+    if (!schema) return;
+    defineAttribute.mutate(
+      { schema, request: buildDefineRequest(data, schema.version) },
       {
         onSuccess: (updated) => {
           setFormKey((key) => key + 1);
-          applyBounds(updated, data);
+          if (data.required) requirement.awaitRequirementFor(definedAttributeId(updated, data.name));
         },
       },
     );
@@ -73,7 +65,7 @@ export function useDefineCustomFieldFlow(subjectType: OnePagerSubjectType, confi
   };
 
   return {
-    isSaving: defineField.isPending || setBounds.isPending,
+    isSaving: defineAttribute.isPending || requirement.isPending,
     formKey,
     pendingNewField,
     handleSubmit,

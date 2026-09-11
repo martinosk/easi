@@ -7,10 +7,18 @@ import (
 	"easi/backend/internal/onepagers/domain/valueobjects"
 )
 
-func assembleFields(document readmodels.ConfigurationDocument, subjectType valueobjects.SubjectType, snapshot *ports.SubjectSnapshot, factsByFieldID map[string]readmodels.FactRecord) []Field {
-	fields := make([]Field, 0, len(document.DisplayOrder))
-	for _, ref := range document.DisplayOrder {
-		if field, ok := buildField(ref, subjectType, snapshot, document, factsByFieldID); ok {
+type fieldAssemblyInput struct {
+	document       readmodels.ConfigurationDocument
+	definitions    readmodels.CustomFieldDefinitions
+	subjectType    valueobjects.SubjectType
+	snapshot       *ports.SubjectSnapshot
+	factsByFieldID map[string]readmodels.FactRecord
+}
+
+func assembleFields(input fieldAssemblyInput) []Field {
+	fields := make([]Field, 0, len(input.document.DisplayOrder))
+	for _, ref := range input.document.DisplayOrder {
+		if field, ok := buildField(ref, input); ok {
 			fields = append(fields, field)
 		}
 	}
@@ -25,12 +33,12 @@ func indexFactsByFieldID(facts []readmodels.FactRecord) map[string]readmodels.Fa
 	return byFieldID
 }
 
-func buildField(ref readmodels.FieldRefRecord, subjectType valueobjects.SubjectType, snapshot *ports.SubjectSnapshot, document readmodels.ConfigurationDocument, factsByFieldID map[string]readmodels.FactRecord) (Field, bool) {
+func buildField(ref readmodels.FieldRefRecord, input fieldAssemblyInput) (Field, bool) {
 	switch valueobjects.FieldRefKind(ref.Kind) {
 	case valueobjects.FieldRefKindBuiltIn:
-		return buildBuiltInField(ref.ID, subjectType, snapshot)
+		return buildBuiltInField(ref.ID, input.subjectType, input.snapshot)
 	case valueobjects.FieldRefKindCustom:
-		return buildCustomField(ref.ID, document, factsByFieldID)
+		return buildCustomField(ref.ID, input.definitions, input.factsByFieldID)
 	default:
 		return Field{}, false
 	}
@@ -48,8 +56,8 @@ func buildBuiltInField(entryID string, subjectType valueobjects.SubjectType, sna
 	}}, true
 }
 
-func buildCustomField(fieldID string, document readmodels.ConfigurationDocument, factsByFieldID map[string]readmodels.FactRecord) (Field, bool) {
-	record, found := document.CustomField(fieldID)
+func buildCustomField(fieldID string, definitions readmodels.CustomFieldDefinitions, factsByFieldID map[string]readmodels.FactRecord) (Field, bool) {
+	record, found := definitions.ByID(fieldID)
 	if !found || !record.Active {
 		return Field{}, false
 	}

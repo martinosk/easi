@@ -9,6 +9,7 @@ import (
 	"easi/backend/internal/metamodel/application/handlers"
 	"easi/backend/internal/metamodel/application/projectors"
 	"easi/backend/internal/metamodel/application/readmodels"
+	mmevents "easi/backend/internal/metamodel/domain/events"
 	"easi/backend/internal/metamodel/infrastructure/repositories"
 	mmPL "easi/backend/internal/metamodel/publishedlanguage"
 	sharedAPI "easi/backend/internal/shared/api"
@@ -74,6 +75,7 @@ func SetupMetaModelRoutes(deps MetaModelRoutesDeps) error {
 	links := NewMetaModelLinks(deps.Hateoas)
 	metaModelHandlers := NewMetaModelHandlers(deps.CommandBus, configReadModel, links, deps.SessionProvider)
 	strategyPillarsHandlers := NewStrategyPillarsHandlers(deps.CommandBus, configReadModel, links, deps.SessionProvider)
+	attributeHandlers := setupSubjectAttributeSchema(deps, links)
 
 	deps.Router.Route("/meta-model", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
@@ -94,7 +96,48 @@ func SetupMetaModelRoutes(deps MetaModelRoutesDeps) error {
 			r.Put("/strategy-pillars/{id}/fit-configuration", strategyPillarsHandlers.UpdatePillarFitConfiguration)
 			r.Delete("/strategy-pillars/{id}", strategyPillarsHandlers.DeleteStrategyPillar)
 		})
+
+		registerSubjectAttributeRoutes(r, attributeHandlers, deps.AuthMiddleware)
 	})
 
 	return nil
+}
+
+func setupSubjectAttributeSchema(deps MetaModelRoutesDeps, links *MetaModelLinks) *SubjectAttributeHandlers {
+	schemaRepo := repositories.NewSubjectAttributeSchemaRepository(deps.EventStore)
+	schemaReadModel := readmodels.NewSubjectAttributeSchemaReadModel(deps.DB)
+
+	schemaProjector := projectors.NewSubjectAttributeSchemaProjector(schemaReadModel)
+	for _, eventType := range mmevents.SubjectAttributeSchemaEventTypes() {
+		deps.EventBus.Subscribe(eventType, schemaProjector)
+	}
+
+	deps.CommandBus.Register("CreateSubjectAttributeSchema", handlers.NewCreateSubjectAttributeSchemaHandler(schemaRepo, schemaReadModel))
+	deps.CommandBus.Register("DefineSubjectAttribute", handlers.NewDefineSubjectAttributeHandler(schemaRepo))
+	deps.CommandBus.Register("RenameSubjectAttribute", handlers.NewRenameSubjectAttributeHandler(schemaRepo))
+	deps.CommandBus.Register("RetireSubjectAttribute", handlers.NewRetireSubjectAttributeHandler(schemaRepo))
+	deps.CommandBus.Register("ReactivateSubjectAttribute", handlers.NewReactivateSubjectAttributeHandler(schemaRepo))
+	deps.CommandBus.Register("AddSubjectAttributeOption", handlers.NewAddSubjectAttributeOptionHandler(schemaRepo))
+	deps.CommandBus.Register("RetireSubjectAttributeOption", handlers.NewRetireSubjectAttributeOptionHandler(schemaRepo))
+	deps.CommandBus.Register("SetSubjectAttributeBounds", handlers.NewSetSubjectAttributeBoundsHandler(schemaRepo))
+	deps.CommandBus.Register("ImportSubjectAttribute", handlers.NewImportSubjectAttributeHandler(schemaRepo, schemaReadModel))
+
+	return NewSubjectAttributeHandlers(deps.CommandBus, schemaReadModel, links, deps.SessionProvider)
+}
+
+func registerSubjectAttributeRoutes(r chi.Router, h *SubjectAttributeHandlers, authMiddleware AuthMiddleware) {
+	r.Route("/subject-types/{subjectType}/attributes", func(r chi.Router) {
+		r.With(authMiddleware.RequirePermission(authPL.PermMetaModelRead)).Get("/", h.GetSchema)
+
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authPL.PermMetaModelWrite))
+			r.Post("/", h.DefineAttribute)
+			r.Put("/{attributeID}", h.RenameAttribute)
+			r.Post("/{attributeID}/retire", h.RetireAttribute)
+			r.Post("/{attributeID}/reactivate", h.ReactivateAttribute)
+			r.Post("/{attributeID}/options", h.AddOption)
+			r.Post("/{attributeID}/options/{optionID}/retire", h.RetireOption)
+			r.Put("/{attributeID}/bounds", h.SetBounds)
+		})
+	})
 }

@@ -2,13 +2,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { ActionIcon, Badge, Group, Stack, TextInput } from '@mantine/core';
 import { useForm } from 'react-hook-form';
 import { type AddSelectionOptionFormData, addSelectionOptionSchema } from '../../../lib/schemas/onePagerConfiguration';
+import type { SubjectAttribute, SubjectAttributeOption } from '../../../api/types';
 import { hasLink } from '../../../utils/hateoas';
-import type { CustomField, SelectionOption } from '../types';
 
 interface SelectionOptionsEditorProps {
-  field: CustomField;
-  onAddOption: (field: CustomField, label: string) => void;
-  onRetireOption: (option: SelectionOption) => void;
+  attribute: SubjectAttribute;
+  onAddOption: (attribute: SubjectAttribute, label: string) => void;
+  onRetireOption: (option: SubjectAttributeOption) => void;
 }
 
 const DEFAULT_VALUES: AddSelectionOptionFormData = { label: '' };
@@ -17,8 +17,8 @@ function OptionBadge({
   option,
   onRetireOption,
 }: {
-  option: SelectionOption;
-  onRetireOption: (option: SelectionOption) => void;
+  option: SubjectAttributeOption;
+  onRetireOption: (option: SubjectAttributeOption) => void;
 }) {
   return (
     <Badge
@@ -45,7 +45,7 @@ function OptionBadge({
   );
 }
 
-export function SelectionOptionsEditor({ field, onAddOption, onRetireOption }: SelectionOptionsEditorProps) {
+export function SelectionOptionsEditor({ attribute, onAddOption, onRetireOption }: SelectionOptionsEditorProps) {
   const {
     register,
     handleSubmit,
@@ -58,16 +58,16 @@ export function SelectionOptionsEditor({ field, onAddOption, onRetireOption }: S
   });
 
   const submit = handleSubmit((data) => {
-    onAddOption(field, data.label);
+    onAddOption(attribute, data.label);
     reset(DEFAULT_VALUES);
   });
 
-  const canAddOption = hasLink(field, 'x-add-option');
+  const canAddOption = hasLink(attribute, 'x-add-option');
 
   return (
     <Stack gap="xs" pl="md">
       <Group gap="xs" wrap="wrap">
-        {(field.options ?? []).map((option) => (
+        {(attribute.options ?? []).map((option) => (
           <OptionBadge key={option.id} option={option} onRetireOption={onRetireOption} />
         ))}
       </Group>
@@ -79,15 +79,15 @@ export function SelectionOptionsEditor({ field, onAddOption, onRetireOption }: S
               placeholder="New option"
               {...register('label')}
               error={errors.label?.message}
-              data-testid={`one-pager-add-option-input-${field.id}`}
+              data-testid={`one-pager-add-option-input-${attribute.id}`}
             />
             <ActionIcon
               type="submit"
               size="sm"
               variant="light"
               disabled={!isValid}
-              aria-label={`Add option to ${field.name}`}
-              data-testid={`one-pager-add-option-submit-${field.id}`}
+              aria-label={`Add option to ${attribute.name}`}
+              data-testid={`one-pager-add-option-submit-${attribute.id}`}
             >
               +
             </ActionIcon>

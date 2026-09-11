@@ -11,10 +11,9 @@ import (
 )
 
 type SelectionOptionDTO struct {
-	ID     string      `json:"id"`
-	Label  string      `json:"label"`
-	Active bool        `json:"active"`
-	Links  types.Links `json:"_links,omitempty"`
+	ID     string `json:"id"`
+	Label  string `json:"label"`
+	Active bool   `json:"active"`
 }
 
 type CustomFieldDTO struct {
@@ -24,6 +23,7 @@ type CustomFieldDTO struct {
 	Required bool                 `json:"required"`
 	HelpText string               `json:"helpText"`
 	Active   bool                 `json:"active"`
+	Included bool                 `json:"included"`
 	Options  []SelectionOptionDTO `json:"options,omitempty"`
 	Min      *float64             `json:"min,omitempty"`
 	Max      *float64             `json:"max,omitempty"`
@@ -56,13 +56,19 @@ type OnePagerConfigurationDTO struct {
 	Links         types.Links       `json:"_links,omitempty"`
 }
 
-func BuildConfigurationDTO(record *readmodels.ConfigurationRecord, links *OnePagerLinks, actor sharedctx.Actor) OnePagerConfigurationDTO {
+type ConfigurationView struct {
+	Record      *readmodels.ConfigurationRecord
+	Definitions readmodels.CustomFieldDefinitions
+}
+
+func BuildConfigurationDTO(view ConfigurationView, links *OnePagerLinks, actor sharedctx.Actor) OnePagerConfigurationDTO {
+	record := view.Record
 	ctx := linkContext{subjectType: record.SubjectType, actor: actor}
 	return OnePagerConfigurationDTO{
 		ID:            record.ID,
 		SubjectType:   record.SubjectType,
 		BuiltInFields: buildBuiltInFieldDTOs(record, links, ctx),
-		CustomFields:  buildCustomFieldDTOs(record, links, ctx),
+		CustomFields:  buildCustomFieldDTOs(record, view.Definitions, links, ctx),
 		DisplayOrder:  buildDisplayOrderDTOs(record),
 		Version:       record.Version,
 		CreatedAt:     record.CreatedAt,
@@ -99,17 +105,22 @@ func buildBuiltInFieldDTOs(record *readmodels.ConfigurationRecord, links *OnePag
 	return dtos
 }
 
-func buildCustomFieldDTOs(record *readmodels.ConfigurationRecord, links *OnePagerLinks, ctx linkContext) []CustomFieldDTO {
-	dtos := make([]CustomFieldDTO, len(record.Document.CustomFields))
-	for i, field := range record.Document.CustomFields {
+func buildCustomFieldDTOs(record *readmodels.ConfigurationRecord, definitions readmodels.CustomFieldDefinitions, links *OnePagerLinks, ctx linkContext) []CustomFieldDTO {
+	included := make(map[string]bool)
+	for _, fieldID := range record.Document.IncludedCustomFieldIDs() {
+		included[fieldID] = true
+	}
+	dtos := make([]CustomFieldDTO, len(definitions))
+	for i, field := range definitions {
 		dto := CustomFieldDTO{
 			ID:       field.ID,
 			Name:     field.Name,
 			Type:     field.Type,
-			Required: field.Required,
+			Required: record.Document.CustomFieldRequired(field.ID),
 			HelpText: field.HelpText,
 			Active:   field.Active,
-			Options:  buildOptionDTOs(ctx, field, links),
+			Included: included[field.ID],
+			Options:  buildOptionDTOs(field),
 			Min:      field.Min,
 			Max:      field.Max,
 		}
@@ -119,20 +130,13 @@ func buildCustomFieldDTOs(record *readmodels.ConfigurationRecord, links *OnePage
 	return dtos
 }
 
-func buildOptionDTOs(ctx linkContext, field readmodels.CustomFieldRecord, links *OnePagerLinks) []SelectionOptionDTO {
+func buildOptionDTOs(field readmodels.CustomFieldRecord) []SelectionOptionDTO {
 	if len(field.Options) == 0 {
 		return nil
 	}
 	dtos := make([]SelectionOptionDTO, len(field.Options))
 	for i, option := range field.Options {
-		dto := SelectionOptionDTO{ID: option.ID, Label: option.Label, Active: option.Active}
-		dto.Links = links.optionLinks(optionLinkParams{
-			linkContext: ctx,
-			fieldID:     field.ID,
-			option:      dto,
-			fieldActive: field.Active,
-		})
-		dtos[i] = dto
+		dtos[i] = SelectionOptionDTO{ID: option.ID, Label: option.Label, Active: option.Active}
 	}
 	return dtos
 }

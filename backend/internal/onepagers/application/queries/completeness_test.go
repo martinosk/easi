@@ -11,10 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func singleCustomFieldConfig(field readmodels.CustomFieldRecord) *readmodels.ConfigurationRecord {
-	return &readmodels.ConfigurationRecord{
-		Document: readmodels.ConfigurationDocument{
-			CustomFields: []readmodels.CustomFieldRecord{field},
+func singleCustomFieldConfig(field fieldSpec) *testRecord {
+	return &testRecord{
+		Document: testDocument{
+			CustomFields: []fieldSpec{field},
 			DisplayOrder: []readmodels.FieldRefRecord{{Kind: "custom", ID: field.ID}},
 		},
 	}
@@ -28,24 +28,24 @@ func missingFieldIDs(result *queries.OnePager) []string {
 	return ids
 }
 
-func customFieldsConfig(fields ...readmodels.CustomFieldRecord) *readmodels.ConfigurationRecord {
+func customFieldsConfig(fields ...fieldSpec) *testRecord {
 	order := make([]readmodels.FieldRefRecord, len(fields))
 	for i, field := range fields {
 		order[i] = readmodels.FieldRefRecord{Kind: "custom", ID: field.ID}
 	}
-	return &readmodels.ConfigurationRecord{
-		Document: readmodels.ConfigurationDocument{CustomFields: fields, DisplayOrder: order},
+	return &testRecord{
+		Document: testDocument{CustomFields: fields, DisplayOrder: order},
 	}
 }
 
 func TestGet_CompletenessSingleRequiredFieldScenarios(t *testing.T) {
 	envelope := envelopeOf(t, "text", `"value"`)
-	requiredActiveField := readmodels.CustomFieldRecord{ID: "contract-link", Name: "Contract link", Type: "link", Required: true, Active: true}
-	requiredRetiredField := readmodels.CustomFieldRecord{ID: "contract-link", Name: "Contract link", Type: "link", Required: true, Active: false}
+	requiredActiveField := fieldSpec{ID: "contract-link", Name: "Contract link", Type: "link", Required: true, Active: true}
+	requiredRetiredField := fieldSpec{ID: "contract-link", Name: "Contract link", Type: "link", Required: true, Active: false}
 
 	cases := []struct {
 		name              string
-		config            *readmodels.ConfigurationRecord
+		config            *testRecord
 		facts             []readmodels.FactRecord
 		wantRequiredCount int
 		wantFilledCount   int
@@ -104,7 +104,7 @@ func TestGet_CompletenessMultipleCustomFieldScenarios(t *testing.T) {
 
 	cases := []struct {
 		name              string
-		fields            []readmodels.CustomFieldRecord
+		fields            []fieldSpec
 		facts             []readmodels.FactRecord
 		wantRequiredCount int
 		wantFilledCount   int
@@ -112,7 +112,7 @@ func TestGet_CompletenessMultipleCustomFieldScenarios(t *testing.T) {
 	}{
 		{
 			name: "both required fields filled",
-			fields: []readmodels.CustomFieldRecord{
+			fields: []fieldSpec{
 				{ID: "field-a", Name: "Field A", Type: "text", Required: true, Active: true},
 				{ID: "field-b", Name: "Field B", Type: "text", Required: true, Active: true},
 			},
@@ -125,7 +125,7 @@ func TestGet_CompletenessMultipleCustomFieldScenarios(t *testing.T) {
 		},
 		{
 			name: "missing required field is named",
-			fields: []readmodels.CustomFieldRecord{
+			fields: []fieldSpec{
 				{ID: "contract-link", Name: "Contract link", Type: "link", Required: true, Active: true},
 				{ID: "contact-person", Name: "Contact person", Type: "text", Required: true, Active: true},
 			},
@@ -138,7 +138,7 @@ func TestGet_CompletenessMultipleCustomFieldScenarios(t *testing.T) {
 		},
 		{
 			name: "optional field without value is not counted",
-			fields: []readmodels.CustomFieldRecord{
+			fields: []fieldSpec{
 				{ID: "required-field", Name: "Required field", Type: "text", Required: true, Active: true},
 				{ID: "notes", Name: "Notes", Type: "text", Required: false, Active: true},
 			},
@@ -163,9 +163,9 @@ func TestGet_CompletenessMultipleCustomFieldScenarios(t *testing.T) {
 }
 
 func TestGet_CompletenessIgnoresNonRequiredBuiltInFields(t *testing.T) {
-	config := &readmodels.ConfigurationRecord{
+	config := &testRecord{
 		SubjectType: "application",
-		Document: readmodels.ConfigurationDocument{
+		Document: testDocument{
 			DisplayOrder: []readmodels.FieldRefRecord{
 				{Kind: "builtIn", ID: "description"},
 			},
@@ -182,11 +182,11 @@ func TestGet_CompletenessIgnoresNonRequiredBuiltInFields(t *testing.T) {
 	assert.Empty(t, result.Completeness.MissingFields)
 }
 
-func requiredBuiltInConfig(entryID string) *readmodels.ConfigurationRecord {
-	return &readmodels.ConfigurationRecord{
+func requiredBuiltInConfig(entryID string) *testRecord {
+	return &testRecord{
 		SubjectType: "application",
-		Document: readmodels.ConfigurationDocument{
-			BuiltInFields: []readmodels.BuiltInFieldRecord{{ID: entryID, Required: true}},
+		Document: testDocument{
+			BuiltInFields: []readmodels.FieldRequirementRecord{{ID: entryID, Required: true}},
 			DisplayOrder:  []readmodels.FieldRefRecord{{Kind: "builtIn", ID: entryID}},
 		},
 	}
@@ -247,11 +247,11 @@ func TestGet_CompletenessRequiredBuiltInScenarios(t *testing.T) {
 
 func TestGet_CompletenessCombinesRequiredCustomAndBuiltIn(t *testing.T) {
 	envelope := envelopeOf(t, "text", `"value"`)
-	config := &readmodels.ConfigurationRecord{
+	config := &testRecord{
 		SubjectType: "application",
-		Document: readmodels.ConfigurationDocument{
-			CustomFields:  []readmodels.CustomFieldRecord{{ID: "contract-link", Name: "Contract link", Type: "link", Required: true, Active: true}},
-			BuiltInFields: []readmodels.BuiltInFieldRecord{{ID: "experts", Required: true}},
+		Document: testDocument{
+			CustomFields:  []fieldSpec{{ID: "contract-link", Name: "Contract link", Type: "link", Required: true, Active: true}},
+			BuiltInFields: []readmodels.FieldRequirementRecord{{ID: "experts", Required: true}},
 			DisplayOrder: []readmodels.FieldRefRecord{
 				{Kind: "custom", ID: "contract-link"},
 				{Kind: "builtIn", ID: "experts"},
@@ -268,10 +268,10 @@ func TestGet_CompletenessCombinesRequiredCustomAndBuiltIn(t *testing.T) {
 }
 
 func TestGet_CompletenessExcludedRequiredBuiltInDoesNotParticipate(t *testing.T) {
-	config := &readmodels.ConfigurationRecord{
+	config := &testRecord{
 		SubjectType: "application",
-		Document: readmodels.ConfigurationDocument{
-			BuiltInFields: []readmodels.BuiltInFieldRecord{{ID: "experts", Required: true}},
+		Document: testDocument{
+			BuiltInFields: []readmodels.FieldRequirementRecord{{ID: "experts", Required: true}},
 			DisplayOrder:  []readmodels.FieldRefRecord{{Kind: "builtIn", ID: "description"}},
 		},
 	}

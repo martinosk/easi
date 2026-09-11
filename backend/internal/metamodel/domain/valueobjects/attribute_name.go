@@ -8,11 +8,11 @@ import (
 )
 
 var (
-	ErrFieldNameEmpty     = errors.New("field name cannot be empty")
-	ErrFieldNameTooLong   = errors.New("field name cannot exceed 100 characters")
-	ErrHelpTextTooLong    = errors.New("help text cannot exceed 500 characters")
-	ErrOptionLabelEmpty   = errors.New("option label cannot be empty")
-	ErrOptionLabelTooLong = errors.New("option label cannot exceed 100 characters")
+	ErrAttributeNameEmpty   = errors.New("attribute name cannot be empty")
+	ErrAttributeNameTooLong = errors.New("attribute name cannot exceed 100 characters")
+	ErrHelpTextTooLong      = errors.New("help text cannot exceed 500 characters")
+	ErrOptionLabelEmpty     = errors.New("option label cannot be empty")
+	ErrOptionLabelTooLong   = errors.New("option label cannot exceed 100 characters")
 )
 
 func validatedLabel(value string, emptyErr, tooLongErr error) (string, error) {
@@ -26,35 +26,35 @@ func validatedLabel(value string, emptyErr, tooLongErr error) (string, error) {
 	return trimmed, nil
 }
 
-type FieldName struct {
+type AttributeName struct {
 	value string
 }
 
-func NewFieldName(value string) (FieldName, error) {
-	trimmed, err := validatedLabel(value, ErrFieldNameEmpty, ErrFieldNameTooLong)
+func NewAttributeName(value string) (AttributeName, error) {
+	trimmed, err := validatedLabel(value, ErrAttributeNameEmpty, ErrAttributeNameTooLong)
 	if err != nil {
-		return FieldName{}, err
+		return AttributeName{}, err
 	}
-	return FieldName{value: trimmed}, nil
+	return AttributeName{value: trimmed}, nil
 }
 
-func (f FieldName) Value() string {
-	return f.value
+func (a AttributeName) Value() string {
+	return a.value
 }
 
-func (f FieldName) EqualsIgnoreCase(other FieldName) bool {
-	return strings.EqualFold(f.value, other.value)
+func (a AttributeName) EqualsIgnoreCase(other AttributeName) bool {
+	return strings.EqualFold(a.value, other.value)
 }
 
-func (f FieldName) Equals(other domain.ValueObject) bool {
-	if o, ok := other.(FieldName); ok {
-		return f.value == o.value
+func (a AttributeName) Equals(other domain.ValueObject) bool {
+	if o, ok := other.(AttributeName); ok {
+		return a.value == o.value
 	}
 	return false
 }
 
-func (f FieldName) String() string {
-	return f.value
+func (a AttributeName) String() string {
+	return a.value
 }
 
 type HelpText struct {

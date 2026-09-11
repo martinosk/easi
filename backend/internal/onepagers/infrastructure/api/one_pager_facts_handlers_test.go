@@ -85,7 +85,7 @@ func newFactsHandlers(reader *fakeFactsReader, configs *fakeReader, bus *fakeCom
 	return NewOnePagerFactsHandlers(OnePagerFactsHandlersDeps{
 		CommandBus:      bus,
 		Facts:           reader,
-		Configs:         configs,
+		Definitions:     configs,
 		Links:           testLinks(),
 		SessionProvider: &fakeSessionProvider{email: "architect@example.com"},
 	})
@@ -289,7 +289,7 @@ func TestFactsWriteEndpoints_UnauthenticatedIs401(t *testing.T) {
 	h := NewOnePagerFactsHandlers(OnePagerFactsHandlersDeps{
 		CommandBus:      &fakeCommandBus{},
 		Facts:           &fakeFactsReader{},
-		Configs:         newFakeReader(applicationRecord()),
+		Definitions:     newFakeReader(applicationRecord()),
 		Links:           testLinks(),
 		SessionProvider: &fakeSessionProvider{err: errors.New("no session")},
 	})

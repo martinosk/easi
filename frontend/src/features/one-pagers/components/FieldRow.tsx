@@ -1,29 +1,25 @@
 import { ActionIcon, Badge, Checkbox, Group, Stack, Text } from '@mantine/core';
 import { IconPencil } from '@tabler/icons-react';
+import type { SubjectAttribute } from '../../../api/types';
 import { hasLink } from '../../../utils/hateoas';
-import type { BuiltInField, CustomField, SelectionOption } from '../types';
+import type { AttributeSchemaActions } from '../hooks/useAttributeSchemaActions';
+import type { PresentationActions } from '../hooks/useOnePagerFieldActions';
+import type { BuiltInField, CustomField } from '../types';
 import { NumberFieldBoundsEditor } from './NumberFieldBoundsEditor';
 import { SelectionOptionsEditor } from './SelectionOptionsEditor';
 
 export function isBuiltInField(field: BuiltInField | CustomField): field is BuiltInField {
-  return 'included' in field;
+  return 'included' in field && 'label' in field;
 }
 
 export interface FieldRowActions {
-  onMoveUp: (index: number) => void;
-  onMoveDown: (index: number) => void;
-  onRename: (field: CustomField) => void;
-  onToggleRequired: (field: CustomField, required: boolean) => void;
-  onRetireCustom: (field: CustomField) => void;
-  onExcludeBuiltIn: (field: BuiltInField) => void;
-  onToggleBuiltInRequired: (field: BuiltInField, required: boolean) => void;
-  onAddOption: (field: CustomField, label: string) => void;
-  onRetireOption: (option: SelectionOption) => void;
-  onSetBounds: (field: CustomField, min: number | undefined, max: number | undefined) => void;
+  presentation: PresentationActions;
+  schema: AttributeSchemaActions;
 }
 
 interface FieldRowProps {
   field: BuiltInField | CustomField;
+  attribute?: SubjectAttribute;
   index: number;
   isFirst: boolean;
   isLast: boolean;
@@ -34,13 +30,13 @@ interface FieldRowProps {
 function ReorderControls({ index, isFirst, isLast, canReorder, actions }: Omit<FieldRowProps, 'field'>) {
   if (!canReorder) return null;
   return (
-    <Group gap={2}>
+    <Group gap={0}>
       <ActionIcon
         size="sm"
         variant="subtle"
         disabled={isFirst}
         aria-label="Move up"
-        onClick={() => actions.onMoveUp(index)}
+        onClick={() => actions.presentation.onMoveUp(index)}
         data-testid={`one-pager-move-up-${index}`}
       >
         ↑
@@ -50,7 +46,7 @@ function ReorderControls({ index, isFirst, isLast, canReorder, actions }: Omit<F
         variant="subtle"
         disabled={isLast}
         aria-label="Move down"
-        onClick={() => actions.onMoveDown(index)}
+        onClick={() => actions.presentation.onMoveDown(index)}
         data-testid={`one-pager-move-down-${index}`}
       >
         ↓
@@ -59,7 +55,7 @@ function ReorderControls({ index, isFirst, isLast, canReorder, actions }: Omit<F
   );
 }
 
-function BuiltInRow({ field, actions }: { field: BuiltInField; actions: FieldRowActions }) {
+function BuiltInRow({ field, actions }: { field: BuiltInField; actions: PresentationActions }) {
   return (
     <Group justify="space-between" flex={1}>
       <Group gap="xs">
@@ -94,7 +90,42 @@ function BuiltInRow({ field, actions }: { field: BuiltInField; actions: FieldRow
   );
 }
 
-function CustomRow({ field, actions }: { field: CustomField; actions: FieldRowActions }) {
+interface CustomRowProps {
+  field: CustomField;
+  attribute?: SubjectAttribute;
+  actions: FieldRowActions;
+}
+
+function SchemaControls({ attribute, actions }: { attribute?: SubjectAttribute; actions: AttributeSchemaActions }) {
+  if (!attribute) return null;
+  return (
+    <>
+      {hasLink(attribute, 'x-rename') && (
+        <ActionIcon
+          variant="subtle"
+          aria-label={`Rename ${attribute.name}`}
+          onClick={() => actions.onRename(attribute)}
+          data-testid={`one-pager-rename-${attribute.id}`}
+        >
+          <IconPencil size={16} stroke={1.75} />
+        </ActionIcon>
+      )}
+      {hasLink(attribute, 'x-retire') && (
+        <ActionIcon
+          variant="subtle"
+          color="red"
+          aria-label={`Retire ${attribute.name}`}
+          onClick={() => actions.onRetire(attribute)}
+          data-testid={`one-pager-retire-${attribute.id}`}
+        >
+          −
+        </ActionIcon>
+      )}
+    </>
+  );
+}
+
+function CustomRow({ field, attribute, actions }: CustomRowProps) {
   return (
     <Stack gap="xs" flex={1}>
       <Group justify="space-between">
@@ -115,53 +146,33 @@ function CustomRow({ field, actions }: { field: CustomField; actions: FieldRowAc
               size="xs"
               label="Required"
               checked={field.required}
-              onChange={(e) => actions.onToggleRequired(field, e.currentTarget.checked)}
+              onChange={(e) => actions.presentation.onToggleRequired(field, e.currentTarget.checked)}
               data-testid={`one-pager-required-${field.id}`}
             />
           )}
-          {hasLink(field, 'x-rename') && (
-            <ActionIcon
-              variant="subtle"
-              aria-label={`Rename ${field.name}`}
-              onClick={() => actions.onRename(field)}
-              data-testid={`one-pager-rename-${field.id}`}
-            >
-              <IconPencil size={16} stroke={1.75} />
-            </ActionIcon>
-          )}
-          {hasLink(field, 'x-retire') && (
-            <ActionIcon
-              variant="subtle"
-              color="red"
-              aria-label={`Retire ${field.name}`}
-              onClick={() => actions.onRetireCustom(field)}
-              data-testid={`one-pager-retire-${field.id}`}
-            >
-              −
-            </ActionIcon>
-          )}
+          <SchemaControls attribute={attribute} actions={actions.schema} />
         </Group>
       </Group>
-      {field.type === 'selection' && (
+      {attribute?.type === 'selection' && (
         <SelectionOptionsEditor
-          field={field}
-          onAddOption={actions.onAddOption}
-          onRetireOption={actions.onRetireOption}
+          attribute={attribute}
+          onAddOption={actions.schema.onAddOption}
+          onRetireOption={actions.schema.onRetireOption}
         />
       )}
-      {field.type === 'number' && <NumberFieldBoundsEditor field={field} onSave={actions.onSetBounds} />}
+      {attribute?.type === 'number' && <NumberFieldBoundsEditor attribute={attribute} onSave={actions.schema.onSetBounds} />}
     </Stack>
   );
 }
 
-export function FieldRow({ field, index, isFirst, isLast, canReorder, actions }: FieldRowProps) {
+export function FieldRow({ field, attribute, index, isFirst, isLast, canReorder, actions }: FieldRowProps) {
   return (
     <Group align="flex-start" wrap="nowrap" data-testid={`one-pager-field-row-${index}`}>
       <ReorderControls index={index} isFirst={isFirst} isLast={isLast} canReorder={canReorder} actions={actions} />
       {isBuiltInField(field) ? (
-        <BuiltInRow field={field} actions={actions} />
+        <BuiltInRow field={field} actions={actions.presentation} />
       ) : (
-        <CustomRow field={field} actions={actions} />
+        <CustomRow field={field} attribute={attribute} actions={actions} />
       )}
     </Group>
   );

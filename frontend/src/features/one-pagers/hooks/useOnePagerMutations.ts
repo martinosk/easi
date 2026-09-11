@@ -5,17 +5,12 @@ import { invalidateFor } from '../../../lib/invalidateFor';
 import { onePagersApi } from '../api/onePagersApi';
 import { onePagersMutationEffects } from '../mutationEffects';
 import type {
-  AddSelectionOptionRequest,
   BuiltInField,
   ChangeRequirementRequest,
   CustomField,
-  DefineCustomFieldRequest,
   OnePagerConfiguration,
   OnePagerSubjectType,
-  RenameCustomFieldRequest,
   ReorderFieldsRequest,
-  SelectionOption,
-  SetNumberFieldBoundsRequest,
   VersionRequest,
 } from '../types';
 
@@ -57,15 +52,6 @@ function useOnePagerMutation<TVars>({
   });
 }
 
-export function useDefineCustomField(subjectType: OnePagerSubjectType) {
-  return useOnePagerMutation<{ configuration: OnePagerConfiguration; request: DefineCustomFieldRequest }>({
-    call: ({ configuration, request }) => onePagersApi.defineCustomField(configuration, request),
-    subjectType,
-    successMessage: 'Custom field defined',
-    failureMessage: 'Failed to define custom field',
-  });
-}
-
 export function useReorderFields(subjectType: OnePagerSubjectType) {
   return useOnePagerMutation<{ configuration: OnePagerConfiguration; request: ReorderFieldsRequest }>({
     call: ({ configuration, request }) => onePagersApi.reorderFields(configuration, request),
@@ -93,15 +79,6 @@ export function useExcludeBuiltInField(subjectType: OnePagerSubjectType) {
   });
 }
 
-export function useRenameCustomField(subjectType: OnePagerSubjectType) {
-  return useOnePagerMutation<{ field: CustomField; request: RenameCustomFieldRequest }>({
-    call: ({ field, request }) => onePagersApi.renameCustomField(field, request),
-    subjectType,
-    successMessage: 'Field renamed',
-    failureMessage: 'Failed to rename field',
-  });
-}
-
 export function useChangeFieldRequirement(subjectType: OnePagerSubjectType) {
   return useOnePagerMutation<{ field: CustomField; request: ChangeRequirementRequest }>({
     call: ({ field, request }) => onePagersApi.changeFieldRequirement(field, request),
@@ -117,50 +94,5 @@ export function useChangeBuiltInFieldRequirement(subjectType: OnePagerSubjectTyp
     subjectType,
     successMessage: 'Requirement updated',
     failureMessage: 'Failed to change requirement',
-  });
-}
-
-export function useRetireCustomField(subjectType: OnePagerSubjectType) {
-  return useOnePagerMutation<{ field: CustomField; request: VersionRequest }>({
-    call: ({ field, request }) => onePagersApi.retireCustomField(field, request),
-    subjectType,
-    successMessage: 'Field retired',
-    failureMessage: 'Failed to retire field',
-  });
-}
-
-export function useReactivateCustomField(subjectType: OnePagerSubjectType) {
-  return useOnePagerMutation<{ field: CustomField; request: VersionRequest }>({
-    call: ({ field, request }) => onePagersApi.reactivateCustomField(field, request),
-    subjectType,
-    successMessage: 'Field reactivated',
-    failureMessage: 'Failed to reactivate field',
-  });
-}
-
-export function useAddSelectionOption(subjectType: OnePagerSubjectType) {
-  return useOnePagerMutation<{ field: CustomField; request: AddSelectionOptionRequest }>({
-    call: ({ field, request }) => onePagersApi.addSelectionOption(field, request),
-    subjectType,
-    successMessage: 'Option added',
-    failureMessage: 'Failed to add option',
-  });
-}
-
-export function useRetireSelectionOption(subjectType: OnePagerSubjectType) {
-  return useOnePagerMutation<{ option: SelectionOption; request: VersionRequest }>({
-    call: ({ option, request }) => onePagersApi.retireSelectionOption(option, request),
-    subjectType,
-    successMessage: 'Option retired',
-    failureMessage: 'Failed to retire option',
-  });
-}
-
-export function useSetNumberFieldBounds(subjectType: OnePagerSubjectType) {
-  return useOnePagerMutation<{ field: CustomField; request: SetNumberFieldBoundsRequest }>({
-    call: ({ field, request }) => onePagersApi.setNumberFieldBounds(field, request),
-    subjectType,
-    successMessage: 'Bounds updated',
-    failureMessage: 'Failed to update bounds',
   });
 }

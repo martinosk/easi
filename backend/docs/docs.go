@@ -7621,6 +7621,692 @@ const docTemplate = `{
                 }
             }
         },
+        "/meta-model/subject-types/{subjectType}/attributes": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Retrieves the tenant's custom attribute schema for the given subject type, lazily creating an empty schema on first read. The schema is the MetaModel-owned vocabulary of custom attributes; how a one-pager displays or requires them is OnePagers configuration.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "meta-model"
+                ],
+                "summary": "Get the attribute schema of a subject type",
+                "parameters": [
+                    {
+                        "enum": [
+                            "capability",
+                            "application",
+                            "acquired-entity",
+                            "vendor",
+                            "internal-team"
+                        ],
+                        "type": "string",
+                        "description": "Subject type",
+                        "name": "subjectType",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_metamodel_infrastructure_api.SubjectAttributeSchemaDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Adds a typed custom attribute to the subject type's schema. Selection attributes require at least one option; number attributes may carry bounds. The new attribute is published to consuming contexts, which decide how to present it.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "meta-model"
+                ],
+                "summary": "Define a custom attribute",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Subject type",
+                        "name": "subjectType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Attribute definition",
+                        "name": "attribute",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_metamodel_infrastructure_api.DefineSubjectAttributeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/internal_metamodel_infrastructure_api.SubjectAttributeSchemaDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/meta-model/subject-types/{subjectType}/attributes/{attributeID}": {
+            "put": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Updates the name and help text of an active attribute. The attribute keeps its ID and type; supplying a different type is rejected because attribute types are immutable.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "meta-model"
+                ],
+                "summary": "Rename a custom attribute",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Subject type",
+                        "name": "subjectType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Attribute ID",
+                        "name": "attributeID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "New name and help text",
+                        "name": "attribute",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_metamodel_infrastructure_api.RenameSubjectAttributeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_metamodel_infrastructure_api.SubjectAttributeSchemaDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/meta-model/subject-types/{subjectType}/attributes/{attributeID}/bounds": {
+            "put": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Sets, tightens, loosens or clears the minimum and maximum bounds of an active number attribute. Bounds gate new facts only; recorded values are never altered. Setting bounds on a non-number attribute is rejected.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "meta-model"
+                ],
+                "summary": "Set a number attribute's bounds",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Subject type",
+                        "name": "subjectType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Attribute ID",
+                        "name": "attributeID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "New bounds",
+                        "name": "bounds",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_metamodel_infrastructure_api.SetAttributeBoundsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_metamodel_infrastructure_api.SubjectAttributeSchemaDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/meta-model/subject-types/{subjectType}/attributes/{attributeID}/options": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Adds a new active option to an active selection attribute.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "meta-model"
+                ],
+                "summary": "Add an option to a selection attribute",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Subject type",
+                        "name": "subjectType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Attribute ID",
+                        "name": "attributeID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Option label",
+                        "name": "option",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_metamodel_infrastructure_api.AddAttributeOptionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/internal_metamodel_infrastructure_api.SubjectAttributeSchemaDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/meta-model/subject-types/{subjectType}/attributes/{attributeID}/options/{optionID}/retire": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Retires an active option of a selection attribute. Retired options remain on the definition so recorded facts stay readable. The last active option cannot be retired.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "meta-model"
+                ],
+                "summary": "Retire a selection attribute option",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Subject type",
+                        "name": "subjectType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Attribute ID",
+                        "name": "attributeID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Option ID",
+                        "name": "optionID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Expected schema version",
+                        "name": "version",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_metamodel_infrastructure_api.SchemaVersionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_metamodel_infrastructure_api.SubjectAttributeSchemaDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/meta-model/subject-types/{subjectType}/attributes/{attributeID}/reactivate": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Reactivates a retired attribute with its original ID, type, options and bounds.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "meta-model"
+                ],
+                "summary": "Reactivate a retired custom attribute",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Subject type",
+                        "name": "subjectType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Attribute ID",
+                        "name": "attributeID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Expected schema version",
+                        "name": "version",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_metamodel_infrastructure_api.SchemaVersionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_metamodel_infrastructure_api.SubjectAttributeSchemaDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/meta-model/subject-types/{subjectType}/attributes/{attributeID}/retire": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Retires an active attribute. Consuming contexts stop offering it for editing while previously recorded facts stay readable. A retired attribute can be reactivated.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "meta-model"
+                ],
+                "summary": "Retire a custom attribute",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Subject type",
+                        "name": "subjectType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Attribute ID",
+                        "name": "attributeID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Expected schema version",
+                        "name": "version",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_metamodel_infrastructure_api.SchemaVersionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_metamodel_infrastructure_api.SubjectAttributeSchemaDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/one-pager-quality": {
             "get": {
                 "security": [
@@ -7732,7 +8418,7 @@ const docTemplate = `{
                         "CookieAuth": []
                     }
                 ],
-                "description": "Retrieves the tenant's one-pager configuration for the given subject type, lazily creating the default configuration (all catalog built-in fields in catalog order, no custom fields) on first read.",
+                "description": "Retrieves the tenant's one-pager configuration for the given subject type, lazily creating the default configuration (all catalog built-in fields in catalog order) on first read. Custom fields are defined in MetaModel (see the x-attribute-schema link); this configuration owns their inclusion, display order and required-ness.",
                 "produces": [
                     "application/json"
                 ],
@@ -8057,540 +8743,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/one-pagers/configurations/{subjectType}/custom-fields": {
-            "post": {
-                "security": [
-                    {
-                        "CookieAuth": []
-                    }
-                ],
-                "description": "Adds a typed custom field definition to the subject type's one-pager configuration. Selection fields require at least one option.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "one-pagers"
-                ],
-                "summary": "Define a custom field",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Subject type",
-                        "name": "subjectType",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Custom field definition",
-                        "name": "field",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_onepagers_infrastructure_api.DefineCustomFieldRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/internal_onepagers_infrastructure_api.OnePagerConfigurationDTO"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/one-pagers/configurations/{subjectType}/custom-fields/{fieldID}": {
-            "put": {
-                "security": [
-                    {
-                        "CookieAuth": []
-                    }
-                ],
-                "description": "Updates the display name and help text of an active custom field. The field keeps its ID, type, required flag, and display position. Supplying a fieldType different from the field's type is rejected: field types are immutable.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "one-pagers"
-                ],
-                "summary": "Rename a custom field",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Subject type",
-                        "name": "subjectType",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Field ID",
-                        "name": "fieldID",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "New display metadata",
-                        "name": "field",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_onepagers_infrastructure_api.RenameCustomFieldRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/internal_onepagers_infrastructure_api.OnePagerConfigurationDTO"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/one-pagers/configurations/{subjectType}/custom-fields/{fieldID}/bounds": {
-            "put": {
-                "security": [
-                    {
-                        "CookieAuth": []
-                    }
-                ],
-                "description": "Sets, tightens, loosens, or clears an active Number custom field's minimum and/or maximum bounds. Bounds only gate new facts writes; already-recorded values are never altered or hidden. Setting bounds on a non-Number field is rejected.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "one-pagers"
-                ],
-                "summary": "Set a Number field's bounds",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Subject type",
-                        "name": "subjectType",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Field ID",
-                        "name": "fieldID",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "New bounds",
-                        "name": "bounds",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_onepagers_infrastructure_api.SetNumberFieldBoundsRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/internal_onepagers_infrastructure_api.OnePagerConfigurationDTO"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/one-pagers/configurations/{subjectType}/custom-fields/{fieldID}/options": {
-            "post": {
-                "security": [
-                    {
-                        "CookieAuth": []
-                    }
-                ],
-                "description": "Adds a new active option to an active Selection custom field.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "one-pagers"
-                ],
-                "summary": "Add an option to a Selection field",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Subject type",
-                        "name": "subjectType",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Field ID",
-                        "name": "fieldID",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Option label",
-                        "name": "option",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_onepagers_infrastructure_api.AddSelectionOptionRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/internal_onepagers_infrastructure_api.OnePagerConfigurationDTO"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/one-pagers/configurations/{subjectType}/custom-fields/{fieldID}/options/{optionID}/retire": {
-            "post": {
-                "security": [
-                    {
-                        "CookieAuth": []
-                    }
-                ],
-                "description": "Retires an active option of a Selection custom field. Retired options remain on the definition. The last active option cannot be retired.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "one-pagers"
-                ],
-                "summary": "Retire a Selection field option",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Subject type",
-                        "name": "subjectType",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Field ID",
-                        "name": "fieldID",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Option ID",
-                        "name": "optionID",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Expected configuration version",
-                        "name": "version",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_onepagers_infrastructure_api.VersionRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/internal_onepagers_infrastructure_api.OnePagerConfigurationDTO"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/one-pagers/configurations/{subjectType}/custom-fields/{fieldID}/reactivate": {
-            "post": {
-                "security": [
-                    {
-                        "CookieAuth": []
-                    }
-                ],
-                "description": "Reactivates a retired custom field with its original ID, type, required flag, and options. The field re-enters the display order at the end.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "one-pagers"
-                ],
-                "summary": "Reactivate a retired custom field",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Subject type",
-                        "name": "subjectType",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Field ID",
-                        "name": "fieldID",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Expected configuration version",
-                        "name": "version",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_onepagers_infrastructure_api.VersionRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/internal_onepagers_infrastructure_api.OnePagerConfigurationDTO"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/one-pagers/configurations/{subjectType}/custom-fields/{fieldID}/requirement": {
             "put": {
                 "security": [
@@ -8631,95 +8783,6 @@ const docTemplate = `{
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/internal_onepagers_infrastructure_api.ChangeRequirementRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/internal_onepagers_infrastructure_api.OnePagerConfigurationDTO"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/one-pagers/configurations/{subjectType}/custom-fields/{fieldID}/retire": {
-            "post": {
-                "security": [
-                    {
-                        "CookieAuth": []
-                    }
-                ],
-                "description": "Retires an active custom field. The field leaves the display order but remains on the configuration and can be reactivated later.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "one-pagers"
-                ],
-                "summary": "Retire a custom field",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Subject type",
-                        "name": "subjectType",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Field ID",
-                        "name": "fieldID",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Expected configuration version",
-                        "name": "version",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_onepagers_infrastructure_api.VersionRequest"
                         }
                     }
                 ],
@@ -15822,6 +15885,34 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_metamodel_infrastructure_api.AddAttributeOptionRequest": {
+            "type": "object",
+            "properties": {
+                "label": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_metamodel_infrastructure_api.AttributeOptionDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "active": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_metamodel_infrastructure_api.BatchUpdateStrategyPillarsRequest": {
             "type": "object",
             "properties": {
@@ -15855,6 +15946,35 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_metamodel_infrastructure_api.DefineSubjectAttributeRequest": {
+            "type": "object",
+            "properties": {
+                "helpText": {
+                    "type": "string"
+                },
+                "max": {
+                    "type": "number"
+                },
+                "min": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "options": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "type": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
                 }
             }
         },
@@ -15901,6 +16021,45 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_metamodel_infrastructure_api.RenameSubjectAttributeRequest": {
+            "type": "object",
+            "properties": {
+                "helpText": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_metamodel_infrastructure_api.SchemaVersionRequest": {
+            "type": "object",
+            "properties": {
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_metamodel_infrastructure_api.SetAttributeBoundsRequest": {
+            "type": "object",
+            "properties": {
+                "max": {
+                    "type": "number"
+                },
+                "min": {
+                    "type": "number"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
         "internal_metamodel_infrastructure_api.StrategyPillarResponse": {
             "type": "object",
             "properties": {
@@ -15927,6 +16086,73 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_metamodel_infrastructure_api.SubjectAttributeDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "active": {
+                    "type": "boolean"
+                },
+                "helpText": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "max": {
+                    "type": "number"
+                },
+                "min": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "options": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_metamodel_infrastructure_api.AttributeOptionDTO"
+                    }
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_metamodel_infrastructure_api.SubjectAttributeSchemaDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "attributes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_metamodel_infrastructure_api.SubjectAttributeDTO"
+                    }
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "modifiedAt": {
+                    "type": "string"
+                },
+                "modifiedBy": {
+                    "type": "string"
+                },
+                "subjectType": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
                 }
             }
         },
@@ -15966,17 +16192,6 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
-                }
-            }
-        },
-        "internal_onepagers_infrastructure_api.AddSelectionOptionRequest": {
-            "type": "object",
-            "properties": {
-                "label": {
-                    "type": "string"
-                },
-                "version": {
-                    "type": "integer"
                 }
             }
         },
@@ -16086,6 +16301,9 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "included": {
+                    "type": "boolean"
+                },
                 "max": {
                     "type": "number"
                 },
@@ -16135,32 +16353,6 @@ const docTemplate = `{
                 },
                 "value": {
                     "$ref": "#/definitions/internal_onepagers_infrastructure_api.ValueEnvelopeDTO"
-                }
-            }
-        },
-        "internal_onepagers_infrastructure_api.DefineCustomFieldRequest": {
-            "type": "object",
-            "properties": {
-                "fieldType": {
-                    "type": "string"
-                },
-                "helpText": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "options": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "required": {
-                    "type": "boolean"
-                },
-                "version": {
-                    "type": "integer"
                 }
             }
         },
@@ -16449,23 +16641,6 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_onepagers_infrastructure_api.RenameCustomFieldRequest": {
-            "type": "object",
-            "properties": {
-                "fieldType": {
-                    "type": "string"
-                },
-                "helpText": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "version": {
-                    "type": "integer"
-                }
-            }
-        },
         "internal_onepagers_infrastructure_api.ReorderFieldsRequest": {
             "type": "object",
             "properties": {
@@ -16483,9 +16658,6 @@ const docTemplate = `{
         "internal_onepagers_infrastructure_api.SelectionOptionDTO": {
             "type": "object",
             "properties": {
-                "_links": {
-                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
-                },
                 "active": {
                     "type": "boolean"
                 },
@@ -16494,20 +16666,6 @@ const docTemplate = `{
                 },
                 "label": {
                     "type": "string"
-                }
-            }
-        },
-        "internal_onepagers_infrastructure_api.SetNumberFieldBoundsRequest": {
-            "type": "object",
-            "properties": {
-                "max": {
-                    "type": "number"
-                },
-                "min": {
-                    "type": "number"
-                },
-                "version": {
-                    "type": "integer"
                 }
             }
         },

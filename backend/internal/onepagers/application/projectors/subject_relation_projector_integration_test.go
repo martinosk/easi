@@ -57,8 +57,8 @@ func newRelationCacheFixture(t *testing.T) *relationCacheFixture {
 	index := readmodels.NewOnePagerSubjectIndexReadModel(tenantDB)
 	relations := readmodels.NewSubjectRelationCacheReadModel(tenantDB)
 	configs := readmodels.NewOnePagerConfigurationReadModel(tenantDB)
-	counter := queries.NewCompletenessIndicators(configs, readmodels.NewOnePagerFactsReadModel(tenantDB),
-		adapters.NewOnePagerBuiltInFieldSources(tenantDB))
+	counter := queries.NewCompletenessIndicators(configs, readmodels.NewCustomFieldDefinitionCacheReadModel(tenantDB),
+		readmodels.NewOnePagerFactsReadModel(tenantDB), adapters.NewOnePagerBuiltInFieldSources(tenantDB))
 	indexProjector := projectors.NewSubjectIndexProjector(index, counter, adapters.NewSubjectAuditAdapter(tenantDB), configs)
 	return &relationCacheFixture{
 		t: t, ctx: sharedctx.WithTenant(context.Background(), tenantID), tenant: tenant,
@@ -73,8 +73,8 @@ func (f *relationCacheFixture) requireBuiltIn(subjectType, entryID string) {
 		ID:          uuid.NewString(),
 		SubjectType: subjectType,
 		Document: readmodels.ConfigurationDocument{
-			CustomFields:  []readmodels.CustomFieldRecord{},
-			BuiltInFields: []readmodels.BuiltInFieldRecord{{ID: entryID, Required: true}},
+			CustomFields:  []readmodels.FieldRequirementRecord{},
+			BuiltInFields: []readmodels.FieldRequirementRecord{{ID: entryID, Required: true}},
 			DisplayOrder:  []readmodels.FieldRefRecord{{Kind: "builtIn", ID: entryID}},
 		},
 		Version: 1, CreatedAt: time.Now().UTC(), ModifiedAt: time.Now().UTC(), ModifiedBy: "admin",

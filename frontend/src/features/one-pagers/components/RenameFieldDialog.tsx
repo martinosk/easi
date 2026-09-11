@@ -2,27 +2,27 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Button, Group, Modal, Stack, Textarea, TextInput } from '@mantine/core';
 import { useForm } from 'react-hook-form';
 import { type RenameCustomFieldFormData, renameCustomFieldSchema } from '../../../lib/schemas/onePagerConfiguration';
-import type { CustomField } from '../types';
+import type { SubjectAttribute } from '../../../api/types';
 
 interface RenameFieldDialogProps {
-  field: CustomField;
+  attribute: SubjectAttribute;
   isSaving: boolean;
-  onSave: (field: CustomField, data: RenameCustomFieldFormData) => void;
+  onSave: (attribute: SubjectAttribute, data: RenameCustomFieldFormData) => void;
   onClose: () => void;
 }
 
-export function RenameFieldDialog({ field, isSaving, onSave, onClose }: RenameFieldDialogProps) {
+export function RenameFieldDialog({ attribute, isSaving, onSave, onClose }: RenameFieldDialogProps) {
   const {
     register,
     handleSubmit,
     formState: { errors, isValid },
   } = useForm<RenameCustomFieldFormData>({
     resolver: zodResolver(renameCustomFieldSchema),
-    defaultValues: { name: field.name, helpText: field.helpText },
+    defaultValues: { name: attribute.name, helpText: attribute.helpText },
     mode: 'onChange',
   });
 
-  const submit = handleSubmit((data) => onSave(field, data));
+  const submit = handleSubmit((data) => onSave(attribute, data));
 
   return (
     <Modal opened onClose={onClose} title="Rename field" centered data-testid="one-pager-rename-dialog">

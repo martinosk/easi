@@ -12,12 +12,6 @@ vi.mock('../api/onePagersApi', () => ({
     reorderFields: vi.fn(),
     includeBuiltInField: vi.fn(),
     excludeBuiltInField: vi.fn(),
-    renameCustomField: vi.fn(),
-    retireCustomField: vi.fn(),
-    reactivateCustomField: vi.fn(),
-    addSelectionOption: vi.fn(),
-    retireSelectionOption: vi.fn(),
-    setNumberFieldBounds: vi.fn(),
   },
 }));
 
@@ -59,6 +53,7 @@ function buildCustomField(overrides: Partial<CustomField> = {}): CustomField {
     required: false,
     helpText: '',
     active: true,
+    included: true,
     _links: {
       'x-set-requirement': {
         href: '/api/v1/one-pagers/configurations/application/custom-fields/field-1/requirement',
@@ -102,19 +97,17 @@ describe('useOnePagerFieldActions', () => {
     onRequireConfirmationNeeded = vi.fn(),
     onRequireBuiltInConfirmationNeeded = vi.fn(),
   ) {
-    const onRename = vi.fn();
     const hook = renderHook(
       () =>
         useOnePagerFieldActions(
           'application',
           configuration,
-          onRename,
           onRequireConfirmationNeeded,
           onRequireBuiltInConfirmationNeeded,
         ),
       { wrapper: createWrapper(queryClient) },
     );
-    return { ...hook, onRename, onRequireConfirmationNeeded, onRequireBuiltInConfirmationNeeded };
+    return { ...hook, onRequireConfirmationNeeded, onRequireBuiltInConfirmationNeeded };
   }
 
   type RenderedActions = ReturnType<typeof renderActions>;
@@ -191,21 +184,28 @@ describe('useOnePagerFieldActions', () => {
     expect(onRequireConfirmationNeeded).not.toHaveBeenCalled();
   });
 
-  it('onSetBounds mutates with the field and current configuration version', async () => {
-    const configuration = buildConfiguration();
-    const field = buildCustomField({
-      type: 'number',
-      _links: { 'x-set-bounds': { href: '/api/v1/one-pagers/configurations/application/custom-fields/field-1/bounds', method: 'PUT' } },
+  it('moves a field down by swapping adjacent display-order entries', async () => {
+    const configuration = buildConfiguration({
+      displayOrder: [
+        { kind: 'builtIn', id: 'name' },
+        { kind: 'custom', id: 'field-1' },
+      ],
     });
-    vi.mocked(onePagersApi.setNumberFieldBounds).mockResolvedValue(configuration);
+    vi.mocked(onePagersApi.reorderFields).mockResolvedValue(configuration);
     const { result } = renderActions(configuration);
 
     act(() => {
-      result.current.fieldActions.onSetBounds(field, 0, 5);
+      result.current.fieldActions.onMoveDown(0);
     });
 
     await waitFor(() =>
-      expect(onePagersApi.setNumberFieldBounds).toHaveBeenCalledWith(field, { min: 0, max: 5, version: 1 }),
+      expect(onePagersApi.reorderFields).toHaveBeenCalledWith(configuration, {
+        order: [
+          { kind: 'custom', id: 'field-1' },
+          { kind: 'builtIn', id: 'name' },
+        ],
+        version: 1,
+      }),
     );
   });
 

@@ -14,6 +14,7 @@ func TestCountsForSubjects_NoRequiredFields(t *testing.T) {
 	facts := &stubFilledCountsSource{}
 	sut := queries.NewCompletenessIndicators(
 		&stubConfigurationSource{record: indicatorConfigWith(indicatorField("notes", false, true))},
+		&stubConfigurationSource{record: indicatorConfigWith(indicatorField("notes", false, true))},
 		facts,
 		noBuiltInSources(),
 	)
@@ -34,6 +35,7 @@ func TestCountsForSubjects_CustomAndBuiltIn(t *testing.T) {
 	}}
 	sut := queries.NewCompletenessIndicators(
 		&stubConfigurationSource{record: requiredBuiltInIndicatorConfig(indicatorField("contract-link", true, true))},
+		&stubConfigurationSource{record: requiredBuiltInIndicatorConfig(indicatorField("contract-link", true, true))},
 		facts,
 		builtInSources(source),
 	)
@@ -49,6 +51,7 @@ func TestCountsForSubjects_EmptySubjects(t *testing.T) {
 	facts := &stubFilledCountsSource{}
 	sut := queries.NewCompletenessIndicators(
 		&stubConfigurationSource{record: requiredBuiltInIndicatorConfig()},
+		&stubConfigurationSource{record: requiredBuiltInIndicatorConfig()},
 		facts,
 		builtInSources(&countingSubjectSource{}),
 	)
@@ -62,6 +65,7 @@ func TestCountsForSubjects_EmptySubjects(t *testing.T) {
 
 func TestCountsForSubjects_ErrorPropagates(t *testing.T) {
 	sut := queries.NewCompletenessIndicators(
+		&stubConfigurationSource{err: assert.AnError},
 		&stubConfigurationSource{err: assert.AnError},
 		&stubFilledCountsSource{},
 		noBuiltInSources(),

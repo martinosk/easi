@@ -86,17 +86,23 @@ func loadConfig(t *testing.T, repo *repositories.OnePagerConfigurationRepository
 	return config
 }
 
-func defineTextField(t *testing.T, repo *repositories.OnePagerConfigurationRepository, configID, name string) string {
+func includeField(t *testing.T, repo *repositories.OnePagerConfigurationRepository, configID string) string {
 	t.Helper()
-	handler := NewDefineCustomFieldHandler(repo)
-	result, err := handler.Handle(context.Background(), &commands.DefineCustomField{
+	fieldID := valueobjects.NewFieldID().Value()
+	_, err := NewIncludeCustomFieldHandler(repo).Handle(context.Background(), &commands.IncludeCustomField{
 		ConfigID:   configID,
-		Name:       name,
-		FieldType:  "text",
+		FieldID:    fieldID,
 		ModifiedBy: "admin@example.com",
 	})
 	require.NoError(t, err)
-	return result.CreatedID
+	return fieldID
+}
+
+func mustFieldID(t *testing.T, raw string) valueobjects.FieldID {
+	t.Helper()
+	fieldID, err := valueobjects.NewFieldIDFromString(raw)
+	require.NoError(t, err)
+	return fieldID
 }
 
 func TestCreateOnePagerConfigurationHandler_CreatesWithDefaults(t *testing.T) {
@@ -106,7 +112,6 @@ func TestCreateOnePagerConfigurationHandler_CreatesWithDefaults(t *testing.T) {
 	config := loadConfig(t, repo, configID)
 	assert.Equal(t, "application", config.SubjectType().Value())
 	assert.Len(t, config.DisplayOrder(), 3)
-	assert.Empty(t, config.CustomFields())
 }
 
 func TestCreateOnePagerConfigurationHandler_ErrorPaths(t *testing.T) {
@@ -145,112 +150,55 @@ func TestCreateOnePagerConfigurationHandler_RejectsWrongCommandType(t *testing.T
 	repo := newTestRepo()
 	handler := NewCreateOnePagerConfigurationHandler(repo, &fakeLookup{})
 
-	_, err := handler.Handle(context.Background(), &commands.DefineCustomField{})
+	_, err := handler.Handle(context.Background(), &commands.IncludeCustomField{})
 
 	assert.ErrorIs(t, err, cqrs.ErrInvalidCommand)
 }
 
-func TestDefineCustomFieldHandler_AddsFieldAndReturnsFieldID(t *testing.T) {
+func TestIncludeCustomFieldHandler_AppendsFieldToDisplayOrder(t *testing.T) {
 	repo := newTestRepo()
 	configID := createConfiguration(t, repo)
 
-	handler := NewDefineCustomFieldHandler(repo)
-	result, err := handler.Handle(context.Background(), &commands.DefineCustomField{
-		ConfigID:     configID,
-		Name:         "Hosting model",
-		FieldType:    "selection",
-		Required:     true,
-		HelpText:     "Where it runs",
-		OptionLabels: []string{"On-prem", "Cloud"},
-		ModifiedBy:   "admin@example.com",
-	})
-
-	require.NoError(t, err)
-	require.NotEmpty(t, result.CreatedID)
+	fieldID := includeField(t, repo, configID)
 
 	config := loadConfig(t, repo, configID)
-	fields := config.CustomFields()
-	require.Len(t, fields, 1)
-	assert.Equal(t, result.CreatedID, fields[0].ID().Value())
-	assert.Equal(t, "selection", fields[0].Type().Value())
-	assert.True(t, fields[0].IsRequired())
-	assert.Len(t, fields[0].Options(), 2)
+	assert.True(t, config.IsCustomFieldIncluded(mustFieldID(t, fieldID)))
+	assert.Len(t, config.DisplayOrder(), 4)
 }
 
-func TestDefineCustomFieldHandler_RejectsInvalidFieldType(t *testing.T) {
+func TestIncludeCustomFieldHandler_RejectsInvalidFieldID(t *testing.T) {
 	repo := newTestRepo()
 	configID := createConfiguration(t, repo)
 
-	handler := NewDefineCustomFieldHandler(repo)
-	_, err := handler.Handle(context.Background(), &commands.DefineCustomField{
-		ConfigID:   configID,
-		Name:       "Broken",
-		FieldType:  "checkbox",
-		ModifiedBy: "admin@example.com",
+	_, err := NewIncludeCustomFieldHandler(repo).Handle(context.Background(), &commands.IncludeCustomField{
+		ConfigID: configID, FieldID: "not-a-uuid", ModifiedBy: "admin@example.com",
 	})
 
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, valueobjects.ErrInvalidFieldID)
 }
 
-func TestRenameCustomFieldHandler_RenamesField(t *testing.T) {
+func TestChangeRequirementAndExcludeHandlers(t *testing.T) {
 	repo := newTestRepo()
 	configID := createConfiguration(t, repo)
-	fieldID := defineTextField(t, repo, configID, "Contract")
-
-	handler := NewRenameCustomFieldHandler(repo)
-	_, err := handler.Handle(context.Background(), &commands.RenameCustomField{
-		ConfigID:   configID,
-		FieldID:    fieldID,
-		Name:       "Contract link",
-		HelpText:   "URL of the contract",
-		ModifiedBy: "admin@example.com",
-	})
-
-	require.NoError(t, err)
-	config := loadConfig(t, repo, configID)
-	assert.Equal(t, "Contract link", config.CustomFields()[0].Name().Value())
-}
-
-func TestRenameCustomFieldHandler_RejectsTypeChange(t *testing.T) {
-	repo := newTestRepo()
-	configID := createConfiguration(t, repo)
-	fieldID := defineTextField(t, repo, configID, "Contract")
-
-	handler := NewRenameCustomFieldHandler(repo)
-	_, err := handler.Handle(context.Background(), &commands.RenameCustomField{
-		ConfigID:      configID,
-		FieldID:       fieldID,
-		Name:          "Contract link",
-		RequestedType: "link",
-		ModifiedBy:    "admin@example.com",
-	})
-
-	assert.ErrorIs(t, err, aggregates.ErrFieldTypeImmutable)
-}
-
-func TestChangeRequirementAndRetireReactivateHandlers(t *testing.T) {
-	repo := newTestRepo()
-	configID := createConfiguration(t, repo)
-	fieldID := defineTextField(t, repo, configID, "Product owner")
+	fieldID := includeField(t, repo, configID)
 	ctx := context.Background()
 
 	_, err := NewChangeCustomFieldRequirementHandler(repo).Handle(ctx, &commands.ChangeCustomFieldRequirement{
 		ConfigID: configID, FieldID: fieldID, Required: true, ModifiedBy: "admin@example.com",
 	})
 	require.NoError(t, err)
-	assert.True(t, loadConfig(t, repo, configID).CustomFields()[0].IsRequired())
+	assert.True(t, loadConfig(t, repo, configID).IsCustomFieldRequired(mustFieldID(t, fieldID)))
 
-	_, err = NewRetireCustomFieldHandler(repo).Handle(ctx, &commands.RetireCustomField{
+	_, err = NewExcludeCustomFieldHandler(repo).Handle(ctx, &commands.ExcludeCustomField{
 		ConfigID: configID, FieldID: fieldID, ModifiedBy: "admin@example.com",
 	})
 	require.NoError(t, err)
-	assert.False(t, loadConfig(t, repo, configID).CustomFields()[0].IsActive())
+	assert.False(t, loadConfig(t, repo, configID).IsCustomFieldIncluded(mustFieldID(t, fieldID)))
 
-	_, err = NewReactivateCustomFieldHandler(repo).Handle(ctx, &commands.ReactivateCustomField{
+	_, err = NewExcludeCustomFieldHandler(repo).Handle(ctx, &commands.ExcludeCustomField{
 		ConfigID: configID, FieldID: fieldID, ModifiedBy: "admin@example.com",
 	})
-	require.NoError(t, err)
-	assert.True(t, loadConfig(t, repo, configID).CustomFields()[0].IsActive())
+	assert.ErrorIs(t, err, aggregates.ErrCustomFieldNotIncluded)
 }
 
 func TestBuiltInFieldHandlers_ExcludeAndInclude(t *testing.T) {
@@ -274,7 +222,7 @@ func TestBuiltInFieldHandlers_ExcludeAndInclude(t *testing.T) {
 func TestReorderFieldsHandler_AppliesNewOrder(t *testing.T) {
 	repo := newTestRepo()
 	configID := createConfiguration(t, repo)
-	fieldID := defineTextField(t, repo, configID, "Contract link")
+	fieldID := includeField(t, repo, configID)
 
 	handler := NewReorderOnePagerFieldsHandler(repo)
 	_, err := handler.Handle(context.Background(), &commands.ReorderOnePagerFields{
@@ -293,95 +241,8 @@ func TestReorderFieldsHandler_AppliesNewOrder(t *testing.T) {
 	assert.Equal(t, fieldID, order[1].RefID())
 }
 
-func TestSelectionOptionHandlers_AddAndRetire(t *testing.T) {
-	repo := newTestRepo()
-	configID := createConfiguration(t, repo)
-	ctx := context.Background()
-
-	defineHandler := NewDefineCustomFieldHandler(repo)
-	defineResult, err := defineHandler.Handle(ctx, &commands.DefineCustomField{
-		ConfigID:     configID,
-		Name:         "Hosting model",
-		FieldType:    "selection",
-		OptionLabels: []string{"On-prem", "Cloud"},
-		ModifiedBy:   "admin@example.com",
-	})
-	require.NoError(t, err)
-	fieldID := defineResult.CreatedID
-
-	addResult, err := NewAddSelectionOptionHandler(repo).Handle(ctx, &commands.AddSelectionOption{
-		ConfigID: configID, FieldID: fieldID, Label: "Hybrid", ModifiedBy: "admin@example.com",
-	})
-	require.NoError(t, err)
-	require.NotEmpty(t, addResult.CreatedID)
-
-	config := loadConfig(t, repo, configID)
-	options := config.CustomFields()[0].Options()
-	require.Len(t, options, 3)
-
-	_, err = NewRetireSelectionOptionHandler(repo).Handle(ctx, &commands.RetireSelectionOption{
-		ConfigID: configID, FieldID: fieldID, OptionID: options[0].ID().Value(), ModifiedBy: "admin@example.com",
-	})
-	require.NoError(t, err)
-
-	config = loadConfig(t, repo, configID)
-	assert.False(t, config.CustomFields()[0].Options()[0].IsActive())
-}
-
-func floatPtr(v float64) *float64 {
-	return &v
-}
-
-func defineNumberField(t *testing.T, repo *repositories.OnePagerConfigurationRepository, configID, name string) string {
-	t.Helper()
-	handler := NewDefineCustomFieldHandler(repo)
-	result, err := handler.Handle(context.Background(), &commands.DefineCustomField{
-		ConfigID:   configID,
-		Name:       name,
-		FieldType:  "number",
-		ModifiedBy: "admin@example.com",
-	})
-	require.NoError(t, err)
-	return result.CreatedID
-}
-
-func TestSetNumberFieldBoundsHandler_SetsBounds(t *testing.T) {
-	repo := newTestRepo()
-	configID := createConfiguration(t, repo)
-	fieldID := defineNumberField(t, repo, configID, "Maturity score")
-
-	handler := NewSetNumberFieldBoundsHandler(repo)
-	_, err := handler.Handle(context.Background(), &commands.SetNumberFieldBounds{
-		ConfigID: configID, FieldID: fieldID, Min: floatPtr(0), Max: floatPtr(5), ModifiedBy: "admin@example.com",
-	})
-
-	require.NoError(t, err)
-	field := loadConfig(t, repo, configID).CustomFields()[0]
-	assert.Equal(t, floatPtr(0), field.Min())
-	assert.Equal(t, floatPtr(5), field.Max())
-}
-
-func TestSetNumberFieldBoundsHandler_RejectsMinimumGreaterThanMaximum(t *testing.T) {
-	repo := newTestRepo()
-	configID := createConfiguration(t, repo)
-	fieldID := defineNumberField(t, repo, configID, "Maturity score")
-
-	handler := NewSetNumberFieldBoundsHandler(repo)
-	_, err := handler.Handle(context.Background(), &commands.SetNumberFieldBounds{
-		ConfigID: configID, FieldID: fieldID, Min: floatPtr(10), Max: floatPtr(5), ModifiedBy: "admin@example.com",
-	})
-
-	assert.ErrorIs(t, err, valueobjects.ErrMinExceedsMax)
-}
-
-func TestSetNumberFieldBoundsHandler_RejectsWrongCommandType(t *testing.T) {
-	repo := newTestRepo()
-	_, err := NewSetNumberFieldBoundsHandler(repo).Handle(context.Background(), &commands.CreateOnePagerConfiguration{})
-	assert.ErrorIs(t, err, cqrs.ErrInvalidCommand)
-}
-
 func TestModifyHandlers_RejectWrongCommandType(t *testing.T) {
 	repo := newTestRepo()
-	_, err := NewRenameCustomFieldHandler(repo).Handle(context.Background(), &commands.CreateOnePagerConfiguration{})
+	_, err := NewChangeCustomFieldRequirementHandler(repo).Handle(context.Background(), &commands.CreateOnePagerConfiguration{})
 	assert.ErrorIs(t, err, cqrs.ErrInvalidCommand)
 }

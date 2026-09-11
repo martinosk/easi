@@ -18,25 +18,40 @@ type MissingField struct {
 	Name    string
 }
 
-func computeCompleteness(document readmodels.ConfigurationDocument, subjectType valueobjects.SubjectType, snapshot *ports.SubjectSnapshot, factsByFieldID map[string]readmodels.FactRecord) Completeness {
+func computeCompleteness(document readmodels.ConfigurationDocument, definitions readmodels.CustomFieldDefinitions, subjectType valueobjects.SubjectType, snapshot *ports.SubjectSnapshot, factsByFieldID map[string]readmodels.FactRecord) Completeness {
 	completeness := Completeness{MissingFields: []MissingField{}}
-	completeness.addRequiredCustomFields(document, factsByFieldID)
+	completeness.addRequiredCustomFields(document, definitions, factsByFieldID)
 	completeness.addRequiredBuiltInFields(document, subjectType, snapshot)
 	return completeness
 }
 
-func (c *Completeness) addRequiredCustomFields(document readmodels.ConfigurationDocument, factsByFieldID map[string]readmodels.FactRecord) {
-	for _, field := range document.CustomFields {
-		if !field.Active || !field.Required {
-			continue
-		}
+func (c *Completeness) addRequiredCustomFields(document readmodels.ConfigurationDocument, definitions readmodels.CustomFieldDefinitions, factsByFieldID map[string]readmodels.FactRecord) {
+	for _, fieldID := range activeRequiredCustomFieldIDs(document, definitions) {
 		c.RequiredCount++
-		if factFilled(factsByFieldID, field.ID) {
+		if factFilled(factsByFieldID, fieldID) {
 			c.FilledCount++
 			continue
 		}
-		c.MissingFields = append(c.MissingFields, MissingField{FieldID: field.ID, Name: field.Name})
+		c.MissingFields = append(c.MissingFields, MissingField{FieldID: fieldID, Name: customFieldName(definitions, fieldID)})
 	}
+}
+
+func activeRequiredCustomFieldIDs(document readmodels.ConfigurationDocument, definitions readmodels.CustomFieldDefinitions) []string {
+	required := document.RequiredCustomFieldIDs()
+	active := make([]string, 0, len(required))
+	for _, fieldID := range required {
+		if field, found := definitions.ByID(fieldID); found && field.Active {
+			active = append(active, fieldID)
+		}
+	}
+	return active
+}
+
+func customFieldName(definitions readmodels.CustomFieldDefinitions, fieldID string) string {
+	if field, found := definitions.ByID(fieldID); found {
+		return field.Name
+	}
+	return fieldID
 }
 
 func (c *Completeness) addRequiredBuiltInFields(document readmodels.ConfigurationDocument, subjectType valueobjects.SubjectType, snapshot *ports.SubjectSnapshot) {

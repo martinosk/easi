@@ -13,9 +13,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func maturityConfig() *readmodels.ConfigurationRecord {
-	return &readmodels.ConfigurationRecord{
-		Document: readmodels.ConfigurationDocument{
+func maturityConfig() *testRecord {
+	return &testRecord{
+		Document: testDocument{
 			DisplayOrder: []readmodels.FieldRefRecord{{Kind: "builtIn", ID: "maturity"}},
 		},
 	}
@@ -41,8 +41,8 @@ func TestGet_ResolvesMaturitySectionForMaturityValue(t *testing.T) {
 }
 
 func TestGet_DoesNotCallMaturityScaleWhenNoMaturityValuePresent(t *testing.T) {
-	config := &readmodels.ConfigurationRecord{
-		Document: readmodels.ConfigurationDocument{
+	config := &testRecord{
+		Document: testDocument{
 			DisplayOrder: []readmodels.FieldRefRecord{{Kind: "builtIn", ID: "description"}},
 		},
 	}

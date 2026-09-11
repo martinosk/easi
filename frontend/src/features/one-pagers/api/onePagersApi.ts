@@ -1,11 +1,9 @@
 import { httpClient } from '../../../api/core/httpClient';
 import { followLink, getLink, type ResourceWithLinks } from '../../../utils/hateoas';
 import type {
-  AddSelectionOptionRequest,
   BuiltInField,
   ChangeRequirementRequest,
   CustomField,
-  DefineCustomFieldRequest,
   FieldValue,
   ImpactPreviewFieldKind,
   OnePagerCompletenessEntry,
@@ -16,10 +14,7 @@ import type {
   OnePagerSubjectType,
   OnePagerView,
   RecordFieldValueRequest,
-  RenameCustomFieldRequest,
   ReorderFieldsRequest,
-  SelectionOption,
-  SetNumberFieldBoundsRequest,
   VersionRequest,
 } from '../types';
 
@@ -39,9 +34,6 @@ export const onePagersApi = {
     return response.data;
   },
 
-  defineCustomField: (configuration: OnePagerConfiguration, request: DefineCustomFieldRequest) =>
-    sendCommand('post', configuration, 'x-define-custom-field', request),
-
   reorderFields: (configuration: OnePagerConfiguration, request: ReorderFieldsRequest) =>
     sendCommand('put', configuration, 'x-reorder', request),
 
@@ -51,28 +43,11 @@ export const onePagersApi = {
   excludeBuiltInField: (field: BuiltInField, request: VersionRequest) =>
     sendCommand('post', field, 'x-exclude', request),
 
-  renameCustomField: (field: CustomField, request: RenameCustomFieldRequest) =>
-    sendCommand('put', field, 'x-rename', request),
-
   changeFieldRequirement: (field: CustomField, request: ChangeRequirementRequest) =>
     sendCommand('put', field, 'x-set-requirement', request),
 
   changeBuiltInFieldRequirement: (field: BuiltInField, request: ChangeRequirementRequest) =>
     sendCommand('put', field, 'x-set-requirement', request),
-
-  retireCustomField: (field: CustomField, request: VersionRequest) => sendCommand('post', field, 'x-retire', request),
-
-  reactivateCustomField: (field: CustomField, request: VersionRequest) =>
-    sendCommand('post', field, 'x-reactivate', request),
-
-  addSelectionOption: (field: CustomField, request: AddSelectionOptionRequest) =>
-    sendCommand('post', field, 'x-add-option', request),
-
-  retireSelectionOption: (option: SelectionOption, request: VersionRequest) =>
-    sendCommand('post', option, 'x-retire', request),
-
-  setNumberFieldBounds: (field: CustomField, request: SetNumberFieldBoundsRequest) =>
-    sendCommand('put', field, 'x-set-bounds', request),
 
   async getImpactPreview(
     configuration: OnePagerConfiguration,

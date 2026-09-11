@@ -8,32 +8,25 @@ type CreateOnePagerConfiguration struct {
 
 func (c CreateOnePagerConfiguration) CommandName() string { return "CreateOnePagerConfiguration" }
 
-type DefineCustomField struct {
-	ConfigID     string
-	Name         string
-	FieldType    string
-	Required     bool
-	HelpText     string
-	OptionLabels []string
-	ModifiedBy   string
+type IncludeCustomField struct {
+	ConfigID   string
+	FieldID    string
+	ModifiedBy string
 }
 
-func (c DefineCustomField) CommandName() string     { return "DefineCustomField" }
-func (c DefineCustomField) ConfigurationID() string { return c.ConfigID }
-func (c DefineCustomField) ModifiedByEmail() string { return c.ModifiedBy }
+func (c IncludeCustomField) CommandName() string     { return "IncludeCustomField" }
+func (c IncludeCustomField) ConfigurationID() string { return c.ConfigID }
+func (c IncludeCustomField) ModifiedByEmail() string { return c.ModifiedBy }
 
-type RenameCustomField struct {
-	ConfigID      string
-	FieldID       string
-	Name          string
-	HelpText      string
-	RequestedType string
-	ModifiedBy    string
+type ExcludeCustomField struct {
+	ConfigID   string
+	FieldID    string
+	ModifiedBy string
 }
 
-func (c RenameCustomField) CommandName() string     { return "RenameCustomField" }
-func (c RenameCustomField) ConfigurationID() string { return c.ConfigID }
-func (c RenameCustomField) ModifiedByEmail() string { return c.ModifiedBy }
+func (c ExcludeCustomField) CommandName() string     { return "ExcludeCustomField" }
+func (c ExcludeCustomField) ConfigurationID() string { return c.ConfigID }
+func (c ExcludeCustomField) ModifiedByEmail() string { return c.ModifiedBy }
 
 type ChangeCustomFieldRequirement struct {
 	ConfigID   string
@@ -45,26 +38,6 @@ type ChangeCustomFieldRequirement struct {
 func (c ChangeCustomFieldRequirement) CommandName() string     { return "ChangeCustomFieldRequirement" }
 func (c ChangeCustomFieldRequirement) ConfigurationID() string { return c.ConfigID }
 func (c ChangeCustomFieldRequirement) ModifiedByEmail() string { return c.ModifiedBy }
-
-type RetireCustomField struct {
-	ConfigID   string
-	FieldID    string
-	ModifiedBy string
-}
-
-func (c RetireCustomField) CommandName() string     { return "RetireCustomField" }
-func (c RetireCustomField) ConfigurationID() string { return c.ConfigID }
-func (c RetireCustomField) ModifiedByEmail() string { return c.ModifiedBy }
-
-type ReactivateCustomField struct {
-	ConfigID   string
-	FieldID    string
-	ModifiedBy string
-}
-
-func (c ReactivateCustomField) CommandName() string     { return "ReactivateCustomField" }
-func (c ReactivateCustomField) ConfigurationID() string { return c.ConfigID }
-func (c ReactivateCustomField) ModifiedByEmail() string { return c.ModifiedBy }
 
 type IncludeBuiltInField struct {
 	ConfigID   string
@@ -111,37 +84,3 @@ type ReorderOnePagerFields struct {
 func (c ReorderOnePagerFields) CommandName() string     { return "ReorderOnePagerFields" }
 func (c ReorderOnePagerFields) ConfigurationID() string { return c.ConfigID }
 func (c ReorderOnePagerFields) ModifiedByEmail() string { return c.ModifiedBy }
-
-type AddSelectionOption struct {
-	ConfigID   string
-	FieldID    string
-	Label      string
-	ModifiedBy string
-}
-
-func (c AddSelectionOption) CommandName() string     { return "AddSelectionOption" }
-func (c AddSelectionOption) ConfigurationID() string { return c.ConfigID }
-func (c AddSelectionOption) ModifiedByEmail() string { return c.ModifiedBy }
-
-type SetNumberFieldBounds struct {
-	ConfigID   string
-	FieldID    string
-	Min        *float64
-	Max        *float64
-	ModifiedBy string
-}
-
-func (c SetNumberFieldBounds) CommandName() string     { return "SetNumberFieldBounds" }
-func (c SetNumberFieldBounds) ConfigurationID() string { return c.ConfigID }
-func (c SetNumberFieldBounds) ModifiedByEmail() string { return c.ModifiedBy }
-
-type RetireSelectionOption struct {
-	ConfigID   string
-	FieldID    string
-	OptionID   string
-	ModifiedBy string
-}
-
-func (c RetireSelectionOption) CommandName() string     { return "RetireSelectionOption" }
-func (c RetireSelectionOption) ConfigurationID() string { return c.ConfigID }
-func (c RetireSelectionOption) ModifiedByEmail() string { return c.ModifiedBy }

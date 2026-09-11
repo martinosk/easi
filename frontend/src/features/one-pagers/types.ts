@@ -37,24 +37,14 @@ export interface FieldRef {
   id: string;
 }
 
-export interface SelectionOptionLinks extends HATEOASLinks {
-  'x-retire'?: HATEOASLink;
-}
-
 export interface SelectionOption {
   id: string;
   label: string;
   active: boolean;
-  _links?: SelectionOptionLinks;
 }
 
 export interface CustomFieldLinks extends HATEOASLinks {
-  'x-rename'?: HATEOASLink;
   'x-set-requirement'?: HATEOASLink;
-  'x-retire'?: HATEOASLink;
-  'x-reactivate'?: HATEOASLink;
-  'x-add-option'?: HATEOASLink;
-  'x-set-bounds'?: HATEOASLink;
 }
 
 export interface CustomField {
@@ -64,6 +54,7 @@ export interface CustomField {
   required: boolean;
   helpText: string;
   active: boolean;
+  included?: boolean;
   options?: SelectionOption[];
   min?: number;
   max?: number;
@@ -87,9 +78,9 @@ export interface BuiltInField {
 export type ImpactPreviewFieldKind = 'custom' | 'builtIn';
 
 export interface OnePagerConfigurationLinks extends HATEOASLinks {
-  'x-define-custom-field'?: HATEOASLink;
   'x-reorder'?: HATEOASLink;
   'x-impact-preview'?: HATEOASLink;
+  'x-attribute-schema'?: HATEOASLink;
 }
 
 export interface OnePagerConfiguration {
@@ -109,35 +100,8 @@ export interface VersionRequest {
   version: number;
 }
 
-export interface DefineCustomFieldRequest {
-  name: string;
-  fieldType: OnePagerFieldType;
-  required: boolean;
-  helpText: string;
-  options?: string[];
-  version: number;
-}
-
-export interface RenameCustomFieldRequest {
-  name: string;
-  fieldType: OnePagerFieldType;
-  helpText: string;
-  version: number;
-}
-
 export interface ChangeRequirementRequest {
   required: boolean;
-  version: number;
-}
-
-export interface AddSelectionOptionRequest {
-  label: string;
-  version: number;
-}
-
-export interface SetNumberFieldBoundsRequest {
-  min?: number;
-  max?: number;
   version: number;
 }
 

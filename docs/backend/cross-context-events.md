@@ -124,8 +124,18 @@ const (
     PillarFitConfigurationUpdated = "PillarFitConfigurationUpdated"
     MaturityScaleConfigUpdated    = "MaturityScaleConfigUpdated"
     MaturityScaleConfigReset      = "MaturityScaleConfigReset"
+
+    SubjectAttributeDefined       = "SubjectAttributeDefined"
+    SubjectAttributeRenamed       = "SubjectAttributeRenamed"
+    SubjectAttributeRetired       = "SubjectAttributeRetired"
+    SubjectAttributeReactivated   = "SubjectAttributeReactivated"
+    SubjectAttributeOptionAdded   = "SubjectAttributeOptionAdded"
+    SubjectAttributeOptionRetired = "SubjectAttributeOptionRetired"
+    SubjectAttributeBoundsChanged = "SubjectAttributeBoundsChanged"
 )
 ```
+
+Payload structs for the `SubjectAttribute*` events live in `mmPL` itself (`subject_attribute_events.go`) so consumers decode them without importing `contracts`.
 
 ### Capability Mapping (`cmPL`)
 
@@ -390,6 +400,8 @@ All subscriptions are wired in `onepagers/infrastructure/api/routes.go` `SetupOn
 | Capability Mapping (`cmPL`) | `CapabilityCreated`, `SystemLinkedToCapability`, `SystemRealizationDeleted`, `CapabilityRealizationsInherited/Uninherited`, `CapabilityDependencyCreated/Deleted`, `CapabilityAssignedToDomain/UnassignedFromDomain`, `CapabilityParentChanged`, `BusinessDomainCreated/Updated/Deleted` | `SubjectRelationProjector` | `subject_relation_cache`, `business_domain_name_cache` | Relation built-in fields (realizations, dependencies, domains, parent/children) and domain labels |
 | Architecture Modeling (`archPL`) | `ComponentRelationCreated/Deleted`, `OriginLinkSet/Replaced/Cleared/Deleted` | `SubjectRelationProjector` | `subject_relation_cache` | Relation built-in fields (component relations, built-by / purchased-from / acquired-via and their reverse entries) |
 | MetaModel (`mmPL`) | `MetaModelConfigurationCreated`, `MaturityScaleConfigUpdated/Reset` | `MaturityScaleProjector` | `maturity_scale_cache` | Maturity-scale sections for rendering maturity fields |
+| MetaModel (`mmPL`) | `SubjectAttributeDefined/Renamed/Retired/Reactivated/OptionAdded/OptionRetired/BoundsChanged` | `CustomFieldDefinitionProjector` | `custom_field_definition_cache` (backfilled by migration 161) | Custom-field definitions for configuration, facts validation and rendering |
+| MetaModel (`mmPL`) | `SubjectAttributeDefined/Retired/Reactivated` | `CustomFieldInclusionReactor` (dispatches `IncludeCustomField` / `ExcludeCustomField`, creating the configuration when absent) | `one_pager_configurations` | Keeps the display order in step with the schema |
 
 Expert names arrive on the expert events themselves (`expertName`, `expertRole`, `contactInfo`), so no user cache is needed.
 
@@ -422,6 +434,7 @@ The second and only other integration channel (spec 209): a supplier declares a 
 | Architecture Modeling | `CreateApplicationComponent`, `CreateComponentRelation` | Importing | Import gateway |
 | Capability Mapping | `CreateCapability`, `UpdateCapabilityMetadata`, `LinkSystemToCapability`, `AssignCapabilityToDomain` | Importing | Import gateway |
 | Value Streams | `CreateValueStream`, `AddStage`, `AddStageCapability` | Importing | Import gateway |
+| MetaModel | `ImportSubjectAttribute` | OnePagers (`CustomFieldSchemaTransfer`, at startup) | Seed a legacy custom-field definition into the subject type's schema with its FieldID, options, bounds and active state preserved; no-op when the attribute ID already exists; `CreatedID` is the schema ID |
 
 ## Integration Rules (spec 209)
 

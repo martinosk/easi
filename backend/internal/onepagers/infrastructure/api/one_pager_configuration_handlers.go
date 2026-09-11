@@ -19,30 +19,39 @@ type ConfigurationReader interface {
 	GetBySubjectType(ctx context.Context, subjectType string) (*readmodels.ConfigurationRecord, error)
 }
 
+type DefinitionReader interface {
+	ForSubjectType(ctx context.Context, subjectType string) (readmodels.CustomFieldDefinitions, error)
+}
+
 type OnePagerConfigurationHandlers struct {
 	commandBus      cqrs.CommandBus
 	reader          ConfigurationReader
+	definitions     DefinitionReader
 	links           *OnePagerLinks
 	sessionProvider authPL.SessionProvider
 }
 
-func NewOnePagerConfigurationHandlers(
-	commandBus cqrs.CommandBus,
-	reader ConfigurationReader,
-	links *OnePagerLinks,
-	sessionProvider authPL.SessionProvider,
-) *OnePagerConfigurationHandlers {
+type OnePagerConfigurationHandlersDeps struct {
+	CommandBus      cqrs.CommandBus
+	Reader          ConfigurationReader
+	Definitions     DefinitionReader
+	Links           *OnePagerLinks
+	SessionProvider authPL.SessionProvider
+}
+
+func NewOnePagerConfigurationHandlers(deps OnePagerConfigurationHandlersDeps) *OnePagerConfigurationHandlers {
 	return &OnePagerConfigurationHandlers{
-		commandBus:      commandBus,
-		reader:          reader,
-		links:           links,
-		sessionProvider: sessionProvider,
+		commandBus:      deps.CommandBus,
+		reader:          deps.Reader,
+		definitions:     deps.Definitions,
+		links:           deps.Links,
+		sessionProvider: deps.SessionProvider,
 	}
 }
 
 // GetConfiguration godoc
 // @Summary Get the one-pager configuration for a subject type
-// @Description Retrieves the tenant's one-pager configuration for the given subject type, lazily creating the default configuration (all catalog built-in fields in catalog order, no custom fields) on first read.
+// @Description Retrieves the tenant's one-pager configuration for the given subject type, lazily creating the default configuration (all catalog built-in fields in catalog order) on first read. Custom fields are defined in MetaModel (see the x-attribute-schema link); this configuration owns their inclusion, display order and required-ness.
 // @Tags one-pagers
 // @Produce json
 // @Param subjectType path string true "Subject type" Enums(capability, application, acquired-entity, vendor, internal-team)
@@ -127,8 +136,13 @@ func (h *OnePagerConfigurationHandlers) createDefaultConfiguration(
 }
 
 func (h *OnePagerConfigurationHandlers) respondWithRecord(w http.ResponseWriter, r *http.Request, record *readmodels.ConfigurationRecord, status int) {
+	definitions, err := h.definitions.ForSubjectType(r.Context(), record.SubjectType)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve custom field definitions")
+		return
+	}
 	actor, _ := sharedctx.GetActor(r.Context())
-	dto := BuildConfigurationDTO(record, h.links, actor)
+	dto := BuildConfigurationDTO(ConfigurationView{Record: record, Definitions: definitions}, h.links, actor)
 	if status == http.StatusCreated {
 		w.Header().Set("Location", h.links.Base()+configurationPath(record.SubjectType))
 	}

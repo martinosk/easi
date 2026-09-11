@@ -7,3 +7,4 @@ export {
   type StrategyPillarsConfigurationWithVersion,
   strategyPillarsApi,
 } from './strategyPillarsApi';
+export { subjectAttributeSchemaApi } from './subjectAttributeSchemaApi';

@@ -7,6 +7,8 @@ const (
 	TypeCustomFieldRequirementChanged  = "CustomFieldRequirementChanged"
 	TypeCustomFieldRetired             = "CustomFieldRetired"
 	TypeCustomFieldReactivated         = "CustomFieldReactivated"
+	TypeCustomFieldIncluded            = "CustomFieldIncluded"
+	TypeCustomFieldExcluded            = "CustomFieldExcluded"
 	TypeBuiltInFieldIncluded           = "BuiltInFieldIncluded"
 	TypeBuiltInFieldExcluded           = "BuiltInFieldExcluded"
 	TypeBuiltInFieldRequirementChanged = "BuiltInFieldRequirementChanged"
@@ -27,6 +29,8 @@ func ConfigurationEventTypes() []string {
 		TypeCustomFieldRequirementChanged,
 		TypeCustomFieldRetired,
 		TypeCustomFieldReactivated,
+		TypeCustomFieldIncluded,
+		TypeCustomFieldExcluded,
 		TypeBuiltInFieldIncluded,
 		TypeBuiltInFieldExcluded,
 		TypeBuiltInFieldRequirementChanged,

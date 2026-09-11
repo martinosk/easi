@@ -20,8 +20,13 @@ type FactsSource interface {
 	GetForSubject(ctx context.Context, subject readmodels.SubjectKey) ([]readmodels.FactRecord, error)
 }
 
+type DefinitionSource interface {
+	ForSubjectType(ctx context.Context, subjectType string) (readmodels.CustomFieldDefinitions, error)
+}
+
 type OnePagerQueryDeps struct {
 	Configurations ConfigurationSource
+	Definitions    DefinitionSource
 	Facts          FactsSource
 	Subjects       map[string]ports.BuiltInFieldSource
 	MaturityScale  ports.MaturityScaleSource
@@ -89,10 +94,14 @@ func (q *OnePagerQuery) Get(ctx context.Context, subjectType valueobjects.Subjec
 	if err != nil {
 		return nil, fmt.Errorf("get one-pager facts for %s %s: %w", subjectType.Value(), subjectID, err)
 	}
+	definitions, err := q.deps.Definitions.ForSubjectType(ctx, subjectType.Value())
+	if err != nil {
+		return nil, fmt.Errorf("get custom field definitions for %s: %w", subjectType.Value(), err)
+	}
 
 	factsByFieldID := indexFactsByFieldID(facts)
-	fields := assembleFields(document, subjectType, snapshot, factsByFieldID)
-	completeness := computeCompleteness(document, subjectType, snapshot, factsByFieldID)
+	fields := assembleFields(fieldAssemblyInput{document: document, definitions: definitions, subjectType: subjectType, snapshot: snapshot, factsByFieldID: factsByFieldID})
+	completeness := computeCompleteness(document, definitions, subjectType, snapshot, factsByFieldID)
 
 	if err := q.applyMaturitySections(ctx, fields); err != nil {
 		return nil, err

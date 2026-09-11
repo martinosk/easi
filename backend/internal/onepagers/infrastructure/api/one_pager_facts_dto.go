@@ -45,7 +45,7 @@ type factsDTOParams struct {
 	subjectType string
 	subjectID   string
 	records     []readmodels.FactRecord
-	config      *readmodels.ConfigurationRecord
+	definitions readmodels.CustomFieldDefinitions
 	links       *OnePagerLinks
 	ctx         factsLinkContext
 }
@@ -56,8 +56,8 @@ func BuildFactsDTO(params factsDTOParams) OnePagerFactsDTO {
 		dto := FieldValueDTO{
 			FieldID:       record.FieldID,
 			DisplayText:   record.DisplayText,
-			RetiredOption: isRetiredOptionValue(record, params.config),
-			OutOfBounds:   isOutOfBoundsValue(record, params.config),
+			RetiredOption: isRetiredOptionValue(record, params.definitions),
+			OutOfBounds:   isOutOfBoundsValue(record, params.definitions),
 			ModifiedAt:    record.ModifiedAt,
 			ModifiedBy:    record.ModifiedBy,
 		}
@@ -76,22 +76,16 @@ func BuildFactsDTO(params factsDTOParams) OnePagerFactsDTO {
 	}
 }
 
-func isRetiredOptionValue(record readmodels.FactRecord, config *readmodels.ConfigurationRecord) bool {
-	if config == nil {
-		return false
-	}
-	field, found := config.Document.CustomField(record.FieldID)
+func isRetiredOptionValue(record readmodels.FactRecord, definitions readmodels.CustomFieldDefinitions) bool {
+	field, found := definitions.ByID(record.FieldID)
 	if !found {
 		return false
 	}
 	return field.RetiredOptionReferenced(record.Value)
 }
 
-func isOutOfBoundsValue(record readmodels.FactRecord, config *readmodels.ConfigurationRecord) bool {
-	if config == nil {
-		return false
-	}
-	field, found := config.Document.CustomField(record.FieldID)
+func isOutOfBoundsValue(record readmodels.FactRecord, definitions readmodels.CustomFieldDefinitions) bool {
+	field, found := definitions.ByID(record.FieldID)
 	if !found {
 		return false
 	}

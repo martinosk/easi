@@ -176,3 +176,47 @@ func (e NumberFieldBoundsChanged) EventData() map[string]interface{} {
 	data["max"] = e.Max
 	return data
 }
+
+type CustomFieldIncluded struct {
+	ConfigurationEventBase
+	FieldID string `json:"fieldId"`
+}
+
+func NewCustomFieldIncluded(params ModifyConfigurationParams, fieldID string) CustomFieldIncluded {
+	return CustomFieldIncluded{
+		ConfigurationEventBase: newConfigurationEventBase(params),
+		FieldID:                fieldID,
+	}
+}
+
+func (e CustomFieldIncluded) EventType() string {
+	return TypeCustomFieldIncluded
+}
+
+func (e CustomFieldIncluded) EventData() map[string]interface{} {
+	data := e.baseEventData()
+	data["fieldId"] = e.FieldID
+	return data
+}
+
+type CustomFieldExcluded struct {
+	ConfigurationEventBase
+	FieldID string `json:"fieldId"`
+}
+
+func NewCustomFieldExcluded(params ModifyConfigurationParams, fieldID string) CustomFieldExcluded {
+	return CustomFieldExcluded{
+		ConfigurationEventBase: newConfigurationEventBase(params),
+		FieldID:                fieldID,
+	}
+}
+
+func (e CustomFieldExcluded) EventType() string {
+	return TypeCustomFieldExcluded
+}
+
+func (e CustomFieldExcluded) EventData() map[string]interface{} {
+	data := e.baseEventData()
+	data["fieldId"] = e.FieldID
+	return data
+}

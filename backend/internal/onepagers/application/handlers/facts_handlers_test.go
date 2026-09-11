@@ -18,13 +18,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type fakeConfigReader struct {
-	record *readmodels.ConfigurationRecord
+type fakeDefinitions struct {
+	fields readmodels.CustomFieldDefinitions
 	err    error
 }
 
-func (f *fakeConfigReader) GetBySubjectType(_ context.Context, _ string) (*readmodels.ConfigurationRecord, error) {
-	return f.record, f.err
+func (f *fakeDefinitions) ForSubjectType(_ context.Context, _ string) (readmodels.CustomFieldDefinitions, error) {
+	return f.fields, f.err
 }
 
 type fakeFactsLookup struct {
@@ -51,13 +51,12 @@ func (f *fakeSubjects) SubjectExists(_ context.Context, _, _ string) (bool, erro
 	return f.exists, f.err
 }
 
-func configRecordWith(fields ...readmodels.CustomFieldRecord) *readmodels.ConfigurationRecord {
-	return &readmodels.ConfigurationRecord{
-		ID:          uuid.New().String(),
-		TenantID:    "tenant-123",
-		SubjectType: "application",
-		Document:    readmodels.ConfigurationDocument{CustomFields: fields},
-	}
+func floatPtr(v float64) *float64 {
+	return &v
+}
+
+func configRecordWith(fields ...readmodels.CustomFieldRecord) readmodels.CustomFieldDefinitions {
+	return fields
 }
 
 func activeField(fieldType string) readmodels.CustomFieldRecord {
@@ -75,27 +74,27 @@ func envelope(t *testing.T, valueType, rawValue string) valueobjects.ValueEnvelo
 }
 
 type factsTestEnv struct {
-	repo     *repositories.OnePagerFactsRepository
-	configs  *fakeConfigReader
-	lookup   *fakeFactsLookup
-	subjects *fakeSubjects
+	repo        *repositories.OnePagerFactsRepository
+	definitions *fakeDefinitions
+	lookup      *fakeFactsLookup
+	subjects    *fakeSubjects
 }
 
-func newFactsTestEnv(config *readmodels.ConfigurationRecord) *factsTestEnv {
+func newFactsTestEnv(config readmodels.CustomFieldDefinitions) *factsTestEnv {
 	return &factsTestEnv{
-		repo:     repositories.NewOnePagerFactsRepository(newInMemoryEventStore()),
-		configs:  &fakeConfigReader{record: config},
-		lookup:   newFakeFactsLookup(),
-		subjects: &fakeSubjects{exists: true},
+		repo:        repositories.NewOnePagerFactsRepository(newInMemoryEventStore()),
+		definitions: &fakeDefinitions{fields: config},
+		lookup:      newFakeFactsLookup(),
+		subjects:    &fakeSubjects{exists: true},
 	}
 }
 
 func (env *factsTestEnv) recordHandler() cqrs.CommandHandler {
-	return NewRecordFieldValueHandler(env.repo, env.configs, env.lookup, env.subjects)
+	return NewRecordFieldValueHandler(env.repo, env.definitions, env.lookup, env.subjects)
 }
 
 func (env *factsTestEnv) clearHandler() cqrs.CommandHandler {
-	return NewClearFieldValueHandler(env.repo, env.configs, env.lookup)
+	return NewClearFieldValueHandler(env.repo, env.definitions, env.lookup)
 }
 
 func subjectField(fieldID string) commands.FactsSubjectField {
@@ -223,7 +222,7 @@ func TestRecordFieldValueHandler_DefinitionValidation(t *testing.T) {
 
 	cases := []struct {
 		name    string
-		config  *readmodels.ConfigurationRecord
+		config  readmodels.CustomFieldDefinitions
 		fieldID string
 		value   valueobjects.ValueEnvelope
 		wantErr error

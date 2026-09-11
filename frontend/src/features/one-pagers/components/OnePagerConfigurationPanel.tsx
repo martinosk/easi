@@ -1,6 +1,9 @@
 import { Alert, Divider, Loader, Stack } from '@mantine/core';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import type { SubjectAttribute, SubjectAttributeSchema } from '../../../api/types';
+import { useSubjectAttributeSchema } from '../../../hooks/useSubjectAttributeSchema';
 import { hasLink } from '../../../utils/hateoas';
+import { useAttributeSchemaActions } from '../hooks/useAttributeSchemaActions';
 import { useDefineCustomFieldFlow } from '../hooks/useDefineCustomFieldFlow';
 import { useOnePagerConfiguration } from '../hooks/useOnePagerConfiguration';
 import { useOnePagerFieldActions } from '../hooks/useOnePagerFieldActions';
@@ -87,64 +90,75 @@ function RequireFieldDialogs({
   );
 }
 
+interface AddCustomFieldSectionProps {
+  schema: SubjectAttributeSchema | undefined;
+  flow: ReturnType<typeof useDefineCustomFieldFlow>;
+}
+
+function AddCustomFieldSection({ schema, flow }: AddCustomFieldSectionProps) {
+  if (!hasLink(schema, 'x-define')) return null;
+  return (
+    <>
+      <Divider label="Add a custom field" labelPosition="left" />
+      <AddCustomFieldForm key={flow.formKey} isSaving={flow.isSaving} onSubmit={flow.handleSubmit} />
+    </>
+  );
+}
+
+function loadFailureMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Failed to load the one-pager configuration';
+}
+
 export function OnePagerConfigurationPanel({ subjectType }: OnePagerConfigurationPanelProps) {
   const { data: configuration, isLoading, error } = useOnePagerConfiguration(subjectType);
-  const [renamingField, setRenamingField] = useState<CustomField | null>(null);
+  const { data: schema } = useSubjectAttributeSchema(subjectType, hasLink(configuration, 'x-attribute-schema'));
+  const [renamingAttribute, setRenamingAttribute] = useState<SubjectAttribute | null>(null);
   const [requireConfirmationField, setRequireConfirmationField] = useState<CustomField | null>(null);
   const [requireConfirmationBuiltIn, setRequireConfirmationBuiltIn] = useState<BuiltInField | null>(null);
   const {
     fieldActions,
     includeField,
-    reactivateField,
-    saveRename,
-    isRenaming,
     confirmRequireField,
     isConfirmingRequired,
     confirmRequireBuiltIn,
     isConfirmingBuiltInRequired,
-  } = useOnePagerFieldActions(
-    subjectType,
-    configuration,
-    setRenamingField,
-    setRequireConfirmationField,
-    setRequireConfirmationBuiltIn,
+  } = useOnePagerFieldActions(subjectType, configuration, setRequireConfirmationField, setRequireConfirmationBuiltIn);
+  const schemaActions = useAttributeSchemaActions(subjectType, schema, setRenamingAttribute);
+  const defineFieldFlow = useDefineCustomFieldFlow(subjectType, configuration, schema);
+  const attributesById = useMemo(
+    () => new Map((schema?.attributes ?? []).map((attribute) => [attribute.id, attribute])),
+    [schema],
   );
-  const defineFieldFlow = useDefineCustomFieldFlow(subjectType, configuration);
 
   if (isLoading) return <Loader data-testid="one-pager-loading" />;
   if (error || !configuration) {
     return (
       <Alert color="red" data-testid="one-pager-error">
-        {error instanceof Error ? error.message : 'Failed to load the one-pager configuration'}
+        {loadFailureMessage(error)}
       </Alert>
     );
   }
 
   return (
     <Stack gap="lg" data-testid={`one-pager-panel-${subjectType}`}>
-      <FieldList configuration={configuration} actions={fieldActions} />
+      <FieldList
+        configuration={configuration}
+        attributesById={attributesById}
+        actions={{ presentation: fieldActions, schema: schemaActions.actions }}
+      />
 
       <BuiltInFieldsCatalog fields={configuration.builtInFields} onInclude={includeField} />
-      <RetiredFieldsList fields={configuration.customFields} onReactivate={reactivateField} />
+      <RetiredFieldsList attributes={schema?.attributes ?? []} onReactivate={schemaActions.reactivateAttribute} />
 
-      {hasLink(configuration, 'x-define-custom-field') && (
-        <>
-          <Divider label="Add a custom field" labelPosition="left" />
-          <AddCustomFieldForm
-            key={defineFieldFlow.formKey}
-            isSaving={defineFieldFlow.isSaving}
-            onSubmit={defineFieldFlow.handleSubmit}
-          />
-        </>
-      )}
+      <AddCustomFieldSection schema={schema} flow={defineFieldFlow} />
 
-      {renamingField && (
+      {renamingAttribute && (
         <RenameFieldDialog
-          key={renamingField.id}
-          field={renamingField}
-          isSaving={isRenaming}
-          onSave={(field, data) => saveRename(field, data, () => setRenamingField(null))}
-          onClose={() => setRenamingField(null)}
+          key={renamingAttribute.id}
+          attribute={renamingAttribute}
+          isSaving={schemaActions.isRenaming}
+          onSave={(attribute, data) => schemaActions.saveRename(attribute, data, () => setRenamingAttribute(null))}
+          onClose={() => setRenamingAttribute(null)}
         />
       )}
 

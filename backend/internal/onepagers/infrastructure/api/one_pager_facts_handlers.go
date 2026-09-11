@@ -24,7 +24,7 @@ type OnePagerFactsHandlers struct {
 type OnePagerFactsHandlersDeps struct {
 	CommandBus      cqrs.CommandBus
 	Facts           FactsReader
-	Configs         ConfigurationReader
+	Definitions     DefinitionReader
 	Links           *OnePagerLinks
 	SessionProvider authPL.SessionProvider
 }
@@ -184,9 +184,9 @@ func (h *OnePagerFactsHandlers) respondWithFacts(
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve one-pager facts")
 		return
 	}
-	config, err := h.deps.Configs.GetBySubjectType(r.Context(), subjectType.Value())
+	definitions, err := h.deps.Definitions.ForSubjectType(r.Context(), subjectType.Value())
 	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve configuration")
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve custom field definitions")
 		return
 	}
 
@@ -195,7 +195,7 @@ func (h *OnePagerFactsHandlers) respondWithFacts(
 		subjectType: subjectType.Value(),
 		subjectID:   subjectID,
 		records:     records,
-		config:      config,
+		definitions: definitions,
 		links:       h.deps.Links,
 		ctx:         factsLinkContext{subjectType: subjectType.Value(), subjectID: subjectID, actor: actor},
 	})

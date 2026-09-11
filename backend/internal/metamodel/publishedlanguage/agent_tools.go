@@ -16,5 +16,11 @@ func AgentTools() []agenttools.AgentToolSpec {
 			Access: agenttools.AccessRead, Permission: "metamodel:read",
 			Method: "GET", Path: "/meta-model/maturity-scale",
 		},
+		{
+			Name: "get_subject_attributes", Description: "Get the custom attribute schema MetaModel defines for a subject type (capability, application, acquired-entity, vendor or internal-team): each attribute's name, type (text, number, date, link, selection, contact-person), help text, selection options, number bounds and whether it is active. One-pagers show these attributes as custom fields; which of them are required is one-pager configuration, not part of the schema.",
+			Access: agenttools.AccessRead, Permission: "metamodel:read",
+			Method: "GET", Path: "/meta-model/subject-types/{subjectType}/attributes",
+			PathParams: []agenttools.ParamSpec{agenttools.StringParam("subjectType", "Subject type: capability, application, acquired-entity, vendor or internal-team", true)},
+		},
 	}
 }

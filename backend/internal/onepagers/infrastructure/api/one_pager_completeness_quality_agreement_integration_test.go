@@ -48,7 +48,7 @@ func TestCompletenessEndpointAndQualityList_AgreeAfterARelationIsAdded(t *testin
 	index := readmodels.NewOnePagerSubjectIndexReadModel(tenantDB)
 	relations := readmodels.NewSubjectRelationCacheReadModel(tenantDB)
 	configs := readmodels.NewOnePagerConfigurationReadModel(tenantDB)
-	counter := queries.NewCompletenessIndicators(configs, readmodels.NewOnePagerFactsReadModel(tenantDB),
+	counter := queries.NewCompletenessIndicators(configs, readmodels.NewCustomFieldDefinitionCacheReadModel(tenantDB), readmodels.NewOnePagerFactsReadModel(tenantDB),
 		adapters.NewOnePagerBuiltInFieldSources(tenantDB))
 	indexProjector := projectors.NewSubjectIndexProjector(index, counter, adapters.NewSubjectAuditAdapter(tenantDB), configs)
 	relationProjector := projectors.NewSubjectRelationProjector(relations, readmodels.NewBusinessDomainNameCacheReadModel(tenantDB), indexProjector)
@@ -64,8 +64,8 @@ func TestCompletenessEndpointAndQualityList_AgreeAfterARelationIsAdded(t *testin
 	require.NoError(t, configs.Insert(ctx, readmodels.ConfigurationRecord{
 		ID: uuid.NewString(), SubjectType: "capability",
 		Document: readmodels.ConfigurationDocument{
-			CustomFields:  []readmodels.CustomFieldRecord{},
-			BuiltInFields: []readmodels.BuiltInFieldRecord{{ID: "depends-on", Required: true}},
+			CustomFields:  []readmodels.FieldRequirementRecord{},
+			BuiltInFields: []readmodels.FieldRequirementRecord{{ID: "depends-on", Required: true}},
 			DisplayOrder:  []readmodels.FieldRefRecord{{Kind: "builtIn", ID: "depends-on"}},
 		},
 		Version: 1, CreatedAt: time.Now().UTC(), ModifiedAt: time.Now().UTC(), ModifiedBy: "admin",

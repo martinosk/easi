@@ -17,9 +17,9 @@ type SubjectsWithValueCounter interface {
 }
 
 type ImpactPreviewDeps struct {
-	Configurations ConfigurationSource
-	Facts          SubjectsWithValueCounter
-	Subjects       map[string]ports.BuiltInFieldSource
+	Definitions DefinitionSource
+	Facts       SubjectsWithValueCounter
+	Subjects    map[string]ports.BuiltInFieldSource
 }
 
 type PreviewField struct {
@@ -83,7 +83,7 @@ func (q *ImpactPreviewQuery) customPreview(ctx context.Context, scope previewSco
 	if fieldID == "" {
 		return q.impactPreview(scope.subjectType, fieldID, scope.population, 0), nil
 	}
-	if err := q.ensureFieldConfigured(ctx, scope.subjectType, fieldID); err != nil {
+	if err := q.ensureFieldDefined(ctx, scope.subjectType, fieldID); err != nil {
 		return nil, err
 	}
 	withValue, err := q.deps.Facts.CountSubjectsWithValue(ctx, scope.subjectType.Value(), fieldID)
@@ -117,15 +117,12 @@ func (q *ImpactPreviewQuery) countPopulation(ctx context.Context, subjectType va
 	return population, nil
 }
 
-func (q *ImpactPreviewQuery) ensureFieldConfigured(ctx context.Context, subjectType valueobjects.SubjectType, fieldID string) error {
-	config, err := q.deps.Configurations.GetBySubjectType(ctx, subjectType.Value())
+func (q *ImpactPreviewQuery) ensureFieldDefined(ctx context.Context, subjectType valueobjects.SubjectType, fieldID string) error {
+	definitions, err := q.deps.Definitions.ForSubjectType(ctx, subjectType.Value())
 	if err != nil {
-		return fmt.Errorf("get one-pager configuration for subject type %s: %w", subjectType.Value(), err)
+		return fmt.Errorf("get custom field definitions for subject type %s: %w", subjectType.Value(), err)
 	}
-	if config == nil {
-		return ErrFieldNotConfigured
-	}
-	if _, found := config.Document.CustomField(fieldID); !found {
+	if _, found := definitions.ByID(fieldID); !found {
 		return ErrFieldNotConfigured
 	}
 	return nil

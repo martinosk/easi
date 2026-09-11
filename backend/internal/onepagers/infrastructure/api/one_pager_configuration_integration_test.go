@@ -19,6 +19,7 @@ import (
 	authPL "easi/backend/internal/auth/publishedlanguage"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
+	metamodelAPI "easi/backend/internal/metamodel/infrastructure/api"
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
@@ -49,7 +50,18 @@ type integrationContext struct {
 	createdIDs []string
 }
 
+type integrationOptions struct {
+	metaModel    bool
+	tenants      authPL.TenantDirectory
+	beforeRoutes func(ic *integrationContext)
+}
+
 func setupIntegration(t *testing.T) *integrationContext {
+	t.Helper()
+	return setupIntegrationWith(t, integrationOptions{})
+}
+
+func setupIntegrationWith(t *testing.T, opts integrationOptions) *integrationContext {
 	t.Helper()
 
 	dbHost := getEnv("INTEGRATION_TEST_DB_HOST", "localhost")
@@ -74,9 +86,18 @@ func setupIntegration(t *testing.T) *integrationContext {
 			db.Exec("DELETE FROM onepagers.one_pager_configurations WHERE id = $1", id)
 			db.Exec("DELETE FROM infrastructure.events WHERE aggregate_id = $1", id)
 		}
-		db.Exec("DELETE FROM onepagers.one_pager_configurations WHERE tenant_id = $1", ic.tenantID)
+		for _, table := range []string{
+			"onepagers.one_pager_configurations",
+			"onepagers.custom_field_definition_cache",
+			"metamodel.subject_attribute_schemas",
+		} {
+			db.Exec("DELETE FROM "+table+" WHERE tenant_id = $1", ic.tenantID)
+		}
 		db.Close()
 	})
+	if opts.beforeRoutes != nil {
+		opts.beforeRoutes(ic)
+	}
 
 	scsManager := scs.New()
 	scsManager.Store = memstore.New()
@@ -93,6 +114,18 @@ func setupIntegration(t *testing.T) *integrationContext {
 	router.Use(scsManager.LoadAndSave)
 	router.Use(ic.tenantAndActorMiddleware())
 
+	if opts.metaModel {
+		require.NoError(t, metamodelAPI.SetupMetaModelRoutes(metamodelAPI.MetaModelRoutesDeps{
+			Router:          router,
+			CommandBus:      commandBus,
+			EventStore:      eventStore,
+			EventBus:        eventBus,
+			DB:              tenantDB,
+			Hateoas:         sharedAPI.NewHATEOASLinks("/api/v1"),
+			AuthMiddleware:  allowAllMiddleware{},
+			SessionProvider: sessionManager,
+		}))
+	}
 	require.NoError(t, SetupOnePagersRoutes(OnePagersRoutesDeps{
 		Router:          router,
 		CommandBus:      commandBus,
@@ -102,6 +135,7 @@ func setupIntegration(t *testing.T) *integrationContext {
 		Hateoas:         sharedAPI.NewHATEOASLinks("/api/v1"),
 		AuthMiddleware:  allowAllMiddleware{},
 		SessionProvider: sessionManager,
+		Tenants:         opts.tenants,
 	}))
 	ic.router = router
 	ic.cookies = sessionCookies(t, scsManager, sessionManager, ic.tenantID)
@@ -238,83 +272,14 @@ func TestGetConfiguration_LazilyCreatesDefault_Integration(t *testing.T) {
 	assert.ElementsMatch(t, []string{"name", "description", "experts"}, included)
 	assert.Empty(t, dto.CustomFields)
 	assert.Contains(t, dto.Links, "self")
-	assert.Contains(t, dto.Links, "x-define-custom-field")
+	assert.Contains(t, dto.Links, "x-reorder")
+	assert.Contains(t, dto.Links, "x-attribute-schema")
 
 	second := ic.getConfiguration(t)
 	assert.Equal(t, dto.ID, second.ID)
 
 	count := ic.countAsTenant(t, "SELECT COUNT(*) FROM onepagers.one_pager_configurations WHERE tenant_id = $1", ic.tenantID)
 	assert.Equal(t, 1, count)
-}
-
-func TestDefineCustomField_Integration(t *testing.T) {
-	ic := setupIntegration(t)
-	dto := ic.getConfiguration(t)
-
-	rec := ic.do(t, http.MethodPost, "/one-pagers/configurations/application/custom-fields", map[string]any{
-		"name":      "Hosting model",
-		"fieldType": "selection",
-		"options":   []string{"On-prem", "Cloud"},
-		"version":   dto.Version,
-	})
-	require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
-
-	var updated OnePagerConfigurationDTO
-	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &updated))
-	require.Len(t, updated.CustomFields, 1)
-	assert.Equal(t, "Hosting model", updated.CustomFields[0].Name)
-	assert.Equal(t, 2, updated.Version)
-	assert.Len(t, updated.DisplayOrder, 4)
-
-	stale := ic.do(t, http.MethodPost, "/one-pagers/configurations/application/custom-fields", map[string]any{
-		"name":      "Another",
-		"fieldType": "text",
-		"version":   dto.Version,
-	})
-	assert.Equal(t, http.StatusConflict, stale.Code)
-}
-
-func TestSetNumberFieldBounds_Integration(t *testing.T) {
-	ic := setupIntegration(t)
-	dto := ic.getConfiguration(t)
-
-	defineRec := ic.do(t, http.MethodPost, "/one-pagers/configurations/application/custom-fields", map[string]any{
-		"name":      "Maturity score",
-		"fieldType": "number",
-		"version":   dto.Version,
-	})
-	require.Equal(t, http.StatusCreated, defineRec.Code, defineRec.Body.String())
-	var defined OnePagerConfigurationDTO
-	require.NoError(t, json.Unmarshal(defineRec.Body.Bytes(), &defined))
-	fieldID := defined.CustomFields[0].ID
-
-	boundsRec := ic.do(t, http.MethodPut, fmt.Sprintf("/one-pagers/configurations/application/custom-fields/%s/bounds", fieldID), map[string]any{
-		"min":     0,
-		"max":     5,
-		"version": defined.Version,
-	})
-	require.Equal(t, http.StatusOK, boundsRec.Code, boundsRec.Body.String())
-
-	var bounded OnePagerConfigurationDTO
-	require.NoError(t, json.Unmarshal(boundsRec.Body.Bytes(), &bounded))
-	require.NotNil(t, bounded.CustomFields[0].Min)
-	require.NotNil(t, bounded.CustomFields[0].Max)
-	assert.Equal(t, 0.0, *bounded.CustomFields[0].Min)
-	assert.Equal(t, 5.0, *bounded.CustomFields[0].Max)
-
-	stale := ic.do(t, http.MethodPut, fmt.Sprintf("/one-pagers/configurations/application/custom-fields/%s/bounds", fieldID), map[string]any{
-		"min":     0,
-		"max":     3,
-		"version": defined.Version,
-	})
-	assert.Equal(t, http.StatusConflict, stale.Code)
-
-	invalid := ic.do(t, http.MethodPut, fmt.Sprintf("/one-pagers/configurations/application/custom-fields/%s/bounds", fieldID), map[string]any{
-		"min":     10,
-		"max":     5,
-		"version": bounded.Version,
-	})
-	assert.Equal(t, http.StatusBadRequest, invalid.Code)
 }
 
 func findBuiltInField(dto OnePagerConfigurationDTO, id string) (BuiltInFieldDTO, bool) {

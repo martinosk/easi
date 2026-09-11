@@ -1,20 +1,20 @@
-import type { RenameCustomFieldFormData } from '../../../lib/schemas/onePagerConfiguration';
 import { hasLink } from '../../../utils/hateoas';
-import type { FieldRowActions } from '../components/FieldRow';
 import type { BuiltInField, CustomField, FieldRef, OnePagerConfiguration, OnePagerSubjectType } from '../types';
 import {
-  useAddSelectionOption,
   useChangeBuiltInFieldRequirement,
   useChangeFieldRequirement,
   useExcludeBuiltInField,
   useIncludeBuiltInField,
-  useReactivateCustomField,
-  useRenameCustomField,
   useReorderFields,
-  useRetireCustomField,
-  useRetireSelectionOption,
-  useSetNumberFieldBounds,
 } from './useOnePagerMutations';
+
+export interface PresentationActions {
+  onMoveUp: (index: number) => void;
+  onMoveDown: (index: number) => void;
+  onToggleRequired: (field: CustomField, required: boolean) => void;
+  onExcludeBuiltIn: (field: BuiltInField) => void;
+  onToggleBuiltInRequired: (field: BuiltInField, required: boolean) => void;
+}
 
 function swapAdjacent(order: FieldRef[], index: number, direction: -1 | 1): FieldRef[] | null {
   const target = index + direction;
@@ -27,21 +27,14 @@ function swapAdjacent(order: FieldRef[], index: number, direction: -1 | 1): Fiel
 export function useOnePagerFieldActions(
   subjectType: OnePagerSubjectType,
   configuration: OnePagerConfiguration | undefined,
-  onRename: (field: CustomField) => void,
   onRequireConfirmationNeeded: (field: CustomField) => void,
   onRequireBuiltInConfirmationNeeded: (field: BuiltInField) => void,
 ) {
   const reorder = useReorderFields(subjectType);
   const includeBuiltIn = useIncludeBuiltInField(subjectType);
   const excludeBuiltIn = useExcludeBuiltInField(subjectType);
-  const rename = useRenameCustomField(subjectType);
   const changeRequirement = useChangeFieldRequirement(subjectType);
   const changeBuiltInRequirement = useChangeBuiltInFieldRequirement(subjectType);
-  const retireCustom = useRetireCustomField(subjectType);
-  const reactivateCustom = useReactivateCustomField(subjectType);
-  const addOption = useAddSelectionOption(subjectType);
-  const retireOption = useRetireSelectionOption(subjectType);
-  const setBounds = useSetNumberFieldBounds(subjectType);
 
   const version = configuration?.version;
 
@@ -51,10 +44,9 @@ export function useOnePagerFieldActions(
     if (order) reorder.mutate({ configuration, request: { order, version } });
   };
 
-  const fieldActions: FieldRowActions = {
+  const fieldActions: PresentationActions = {
     onMoveUp: (index) => move(index, -1),
     onMoveDown: (index) => move(index, 1),
-    onRename,
     onToggleRequired: (field, required) => {
       if (version === undefined) return;
       if (required && hasLink(configuration, 'x-impact-preview')) {
@@ -62,10 +54,6 @@ export function useOnePagerFieldActions(
         return;
       }
       changeRequirement.mutate({ field, request: { required, version } });
-    },
-    onRetireCustom: (field) => {
-      if (version === undefined) return;
-      retireCustom.mutate({ field, request: { version } });
     },
     onExcludeBuiltIn: (field) => {
       if (version === undefined) return;
@@ -79,36 +67,11 @@ export function useOnePagerFieldActions(
       }
       changeBuiltInRequirement.mutate({ field, request: { required, version } });
     },
-    onAddOption: (field, label) => {
-      if (version === undefined) return;
-      addOption.mutate({ field, request: { label, version } });
-    },
-    onRetireOption: (option) => {
-      if (version === undefined) return;
-      retireOption.mutate({ option, request: { version } });
-    },
-    onSetBounds: (field, min, max) => {
-      if (version === undefined) return;
-      setBounds.mutate({ field, request: { min, max, version } });
-    },
   };
 
   const includeField = (field: BuiltInField) => {
     if (version === undefined) return;
     includeBuiltIn.mutate({ field, request: { version } });
-  };
-
-  const reactivateField = (field: CustomField) => {
-    if (version === undefined) return;
-    reactivateCustom.mutate({ field, request: { version } });
-  };
-
-  const saveRename = (field: CustomField, data: RenameCustomFieldFormData, onSaved: () => void) => {
-    if (version === undefined) return;
-    rename.mutate(
-      { field, request: { name: data.name, helpText: data.helpText, fieldType: field.type, version } },
-      { onSuccess: onSaved },
-    );
   };
 
   const confirmRequireField = (field: CustomField, onDone: () => void) => {
@@ -124,9 +87,6 @@ export function useOnePagerFieldActions(
   return {
     fieldActions,
     includeField,
-    reactivateField,
-    saveRename,
-    isRenaming: rename.isPending,
     confirmRequireField,
     isConfirmingRequired: changeRequirement.isPending,
     confirmRequireBuiltIn,

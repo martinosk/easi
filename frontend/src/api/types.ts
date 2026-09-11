@@ -905,3 +905,67 @@ export interface RelationshipConflictError {
   originEntityName: string;
   relationshipType: string;
 }
+
+export type SubjectAttributeType = 'text' | 'number' | 'date' | 'link' | 'selection' | 'contact-person';
+
+export interface SubjectAttributeOption {
+  id: string;
+  label: string;
+  active: boolean;
+  _links?: HATEOASLinks;
+}
+
+export interface SubjectAttribute {
+  id: string;
+  name: string;
+  type: SubjectAttributeType;
+  helpText: string;
+  active: boolean;
+  options?: SubjectAttributeOption[];
+  min?: number;
+  max?: number;
+  _links?: HATEOASLinks;
+}
+
+export interface SubjectAttributeSchema {
+  id: string;
+  subjectType: string;
+  attributes: SubjectAttribute[];
+  version: number;
+  createdAt: string;
+  modifiedAt: string;
+  modifiedBy: string;
+  _links: HATEOASLinks;
+}
+
+export interface SchemaVersionRequest {
+  version: number;
+}
+
+export interface DefineSubjectAttributeRequest {
+  name: string;
+  type: SubjectAttributeType;
+  helpText: string;
+  options?: string[];
+  min?: number;
+  max?: number;
+  version: number;
+}
+
+export interface RenameSubjectAttributeRequest {
+  name: string;
+  helpText: string;
+  type: SubjectAttributeType;
+  version: number;
+}
+
+export interface AddAttributeOptionRequest {
+  label: string;
+  version: number;
+}
+
+export interface SetAttributeBoundsRequest {
+  min?: number;
+  max?: number;
+  version: number;
+}

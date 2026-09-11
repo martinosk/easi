@@ -37,7 +37,7 @@ var coreContextExpectedSpecToolNames = []string{
 	"get_value_stream_capabilities",
 	"create_value_stream_stage", "update_value_stream_stage",
 	"reorder_value_stream_stages", "add_stage_capability",
-	"get_strategy_pillars", "get_maturity_scale",
+	"get_strategy_pillars", "get_maturity_scale", "get_subject_attributes",
 }
 
 var architectureDirectionSpecToolNames = []string{

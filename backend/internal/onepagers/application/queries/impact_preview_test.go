@@ -6,7 +6,6 @@ import (
 
 	"easi/backend/internal/onepagers/application/ports"
 	"easi/backend/internal/onepagers/application/queries"
-	"easi/backend/internal/onepagers/application/readmodels"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,9 +28,9 @@ func (f *countingValueCounter) CountSubjectsWithValue(_ context.Context, subject
 
 func buildImpactPreviewDeps(subjectType string, subjects *countingSubjectSource, configs *countingConfigSource, facts *countingValueCounter) queries.ImpactPreviewDeps {
 	return queries.ImpactPreviewDeps{
-		Configurations: configs,
-		Facts:          facts,
-		Subjects:       map[string]ports.BuiltInFieldSource{subjectType: subjects},
+		Definitions: configs,
+		Facts:       facts,
+		Subjects:    map[string]ports.BuiltInFieldSource{subjectType: subjects},
 	}
 }
 
@@ -41,7 +40,7 @@ func customField() queries.PreviewField {
 
 func TestPreview_ExistingFieldAffectedCountIsPopulationMinusFilled(t *testing.T) {
 	subjects := &countingSubjectSource{count: 100}
-	configs := &countingConfigSource{record: singleCustomFieldConfig(readmodels.CustomFieldRecord{ID: "contract-link", Name: "Contract link", Active: true})}
+	configs := &countingConfigSource{record: singleCustomFieldConfig(fieldSpec{ID: "contract-link", Name: "Contract link", Active: true})}
 	facts := &countingValueCounter{count: 63}
 
 	query := queries.NewImpactPreviewQuery(buildImpactPreviewDeps("application", subjects, configs, facts))
@@ -74,7 +73,7 @@ func TestPreview_NewFieldAffectedCountIsFullPopulation(t *testing.T) {
 
 func TestPreview_AffectedCountClampsToZero(t *testing.T) {
 	subjects := &countingSubjectSource{count: 5}
-	configs := &countingConfigSource{record: singleCustomFieldConfig(readmodels.CustomFieldRecord{ID: "contract-link", Active: true})}
+	configs := &countingConfigSource{record: singleCustomFieldConfig(fieldSpec{ID: "contract-link", Active: true})}
 	facts := &countingValueCounter{count: 9}
 
 	query := queries.NewImpactPreviewQuery(buildImpactPreviewDeps("application", subjects, configs, facts))
@@ -87,7 +86,7 @@ func TestPreview_AffectedCountClampsToZero(t *testing.T) {
 
 func TestPreview_UnknownFieldIDReturnsFieldNotConfigured(t *testing.T) {
 	subjects := &countingSubjectSource{count: 100}
-	configs := &countingConfigSource{record: singleCustomFieldConfig(readmodels.CustomFieldRecord{ID: "other-field", Active: true})}
+	configs := &countingConfigSource{record: singleCustomFieldConfig(fieldSpec{ID: "other-field", Active: true})}
 	facts := &countingValueCounter{}
 
 	query := queries.NewImpactPreviewQuery(buildImpactPreviewDeps("application", subjects, configs, facts))
@@ -113,7 +112,7 @@ func TestPreview_NilConfigurationWithFieldIDReturnsFieldNotConfigured(t *testing
 
 func TestPreview_RetiredFieldIsStillConfigured(t *testing.T) {
 	subjects := &countingSubjectSource{count: 10}
-	configs := &countingConfigSource{record: singleCustomFieldConfig(readmodels.CustomFieldRecord{ID: "contract-link", Active: false})}
+	configs := &countingConfigSource{record: singleCustomFieldConfig(fieldSpec{ID: "contract-link", Active: false})}
 	facts := &countingValueCounter{count: 4}
 
 	query := queries.NewImpactPreviewQuery(buildImpactPreviewDeps("application", subjects, configs, facts))
@@ -129,9 +128,9 @@ func TestPreview_MissingSubjectSourceReturnsError(t *testing.T) {
 	facts := &countingValueCounter{}
 
 	query := queries.NewImpactPreviewQuery(queries.ImpactPreviewDeps{
-		Configurations: configs,
-		Facts:          facts,
-		Subjects:       map[string]ports.BuiltInFieldSource{},
+		Definitions: configs,
+		Facts:       facts,
+		Subjects:    map[string]ports.BuiltInFieldSource{},
 	})
 
 	_, err := query.Preview(context.Background(), mustSubjectType(t, "vendor"), queries.PreviewField{})

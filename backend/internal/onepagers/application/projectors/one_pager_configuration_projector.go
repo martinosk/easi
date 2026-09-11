@@ -60,7 +60,7 @@ func (p *OnePagerConfigurationProjector) handleCreated(ctx context.Context, even
 		TenantID:    event.TenantID,
 		SubjectType: event.SubjectType,
 		Document: readmodels.ConfigurationDocument{
-			CustomFields: []readmodels.CustomFieldRecord{},
+			CustomFields: []readmodels.FieldRequirementRecord{},
 			DisplayOrder: displayOrder,
 		},
 		Version:    1,
@@ -73,18 +73,20 @@ func (p *OnePagerConfigurationProjector) handleCreated(ctx context.Context, even
 type documentMutation func(doc readmodels.ConfigurationDocument, eventData []byte) (readmodels.ConfigurationDocument, error)
 
 var documentMutations = map[string]documentMutation{
-	events.TypeCustomFieldDefined:             mutate(applyCustomFieldDefined),
-	events.TypeCustomFieldRenamed:             mutate(applyCustomFieldRenamed),
+	events.TypeCustomFieldDefined:             mutate(applyLegacyCustomFieldDefined),
+	events.TypeCustomFieldRenamed:             mutate(applyMetadataOnly[events.CustomFieldRenamed]),
 	events.TypeCustomFieldRequirementChanged:  mutate(applyCustomFieldRequirementChanged),
 	events.TypeCustomFieldRetired:             mutate(applyCustomFieldRetired),
 	events.TypeCustomFieldReactivated:         mutate(applyCustomFieldReactivated),
+	events.TypeCustomFieldIncluded:            mutate(applyCustomFieldIncluded),
+	events.TypeCustomFieldExcluded:            mutate(applyCustomFieldExcluded),
 	events.TypeBuiltInFieldIncluded:           mutate(applyBuiltInFieldIncluded),
 	events.TypeBuiltInFieldExcluded:           mutate(applyBuiltInFieldExcluded),
 	events.TypeBuiltInFieldRequirementChanged: mutate(applyBuiltInFieldRequirementChanged),
 	events.TypeOnePagerFieldsReordered:        mutate(applyFieldsReordered),
-	events.TypeSelectionOptionAdded:           mutate(applySelectionOptionAdded),
-	events.TypeSelectionOptionRetired:         mutate(applySelectionOptionRetired),
-	events.TypeNumberFieldBoundsChanged:       mutate(applyNumberFieldBoundsChanged),
+	events.TypeSelectionOptionAdded:           mutate(applyMetadataOnly[events.SelectionOptionAdded]),
+	events.TypeSelectionOptionRetired:         mutate(applyMetadataOnly[events.SelectionOptionRetired]),
+	events.TypeNumberFieldBoundsChanged:       mutate(applyMetadataOnly[events.NumberFieldBoundsChanged]),
 }
 
 func mutate[E any](apply func(doc readmodels.ConfigurationDocument, event *E) readmodels.ConfigurationDocument) documentMutation {
@@ -126,50 +128,51 @@ func (p *OnePagerConfigurationProjector) applyMutation(ctx context.Context, even
 	})
 }
 
-func applyCustomFieldDefined(doc readmodels.ConfigurationDocument, event *events.CustomFieldDefined) readmodels.ConfigurationDocument {
-	options := make([]readmodels.OptionRecord, len(event.Options))
-	for i, option := range event.Options {
-		options[i] = readmodels.OptionRecord{ID: option.ID, Label: option.Label, Active: option.Active}
-	}
-	doc.CustomFields = append(doc.CustomFields, readmodels.CustomFieldRecord{
-		ID:       event.FieldID,
-		Name:     event.Name,
-		Type:     event.FieldType,
-		Required: event.Required,
-		HelpText: event.HelpText,
-		Active:   true,
-		Options:  options,
-	})
-	doc.DisplayOrder = append(doc.DisplayOrder, readmodels.FieldRefRecord{Kind: "custom", ID: event.FieldID})
+func applyMetadataOnly[E any](doc readmodels.ConfigurationDocument, _ *E) readmodels.ConfigurationDocument {
 	return doc
 }
 
-func applyCustomFieldRenamed(doc readmodels.ConfigurationDocument, event *events.CustomFieldRenamed) readmodels.ConfigurationDocument {
-	return updateField(doc, event.FieldID, func(field *readmodels.CustomFieldRecord) {
-		field.Name = event.NewName
-		field.HelpText = event.NewHelpText
-	})
+func applyLegacyCustomFieldDefined(doc readmodels.ConfigurationDocument, event *events.CustomFieldDefined) readmodels.ConfigurationDocument {
+	doc = setRequirement(doc, event.FieldID, event.Required)
+	return includeCustomField(doc, event.FieldID)
 }
 
 func applyCustomFieldRequirementChanged(doc readmodels.ConfigurationDocument, event *events.CustomFieldRequirementChanged) readmodels.ConfigurationDocument {
-	return updateField(doc, event.FieldID, func(field *readmodels.CustomFieldRecord) {
-		field.Required = event.Required
-	})
+	return setRequirement(doc, event.FieldID, event.Required)
 }
 
 func applyCustomFieldRetired(doc readmodels.ConfigurationDocument, event *events.CustomFieldRetired) readmodels.ConfigurationDocument {
-	doc = updateField(doc, event.FieldID, func(field *readmodels.CustomFieldRecord) {
-		field.Active = false
-	})
-	doc.DisplayOrder = removeRef(doc.DisplayOrder, readmodels.FieldRefRecord{Kind: "custom", ID: event.FieldID})
-	return doc
+	return excludeCustomField(doc, event.FieldID)
 }
 
 func applyCustomFieldReactivated(doc readmodels.ConfigurationDocument, event *events.CustomFieldReactivated) readmodels.ConfigurationDocument {
-	doc = updateField(doc, event.FieldID, func(field *readmodels.CustomFieldRecord) {
-		field.Active = true
-	})
-	doc.DisplayOrder = append(doc.DisplayOrder, readmodels.FieldRefRecord{Kind: "custom", ID: event.FieldID})
+	return includeCustomField(doc, event.FieldID)
+}
+
+func applyCustomFieldIncluded(doc readmodels.ConfigurationDocument, event *events.CustomFieldIncluded) readmodels.ConfigurationDocument {
+	return includeCustomField(doc, event.FieldID)
+}
+
+func applyCustomFieldExcluded(doc readmodels.ConfigurationDocument, event *events.CustomFieldExcluded) readmodels.ConfigurationDocument {
+	return excludeCustomField(doc, event.FieldID)
+}
+
+func includeCustomField(doc readmodels.ConfigurationDocument, fieldID string) readmodels.ConfigurationDocument {
+	ref := readmodels.FieldRefRecord{Kind: "custom", ID: fieldID}
+	doc.DisplayOrder = append(removeRef(doc.DisplayOrder, ref), ref)
+	if _, found := requirementIndex(doc.CustomFields, fieldID); !found {
+		doc.CustomFields = append(copyRequirements(doc.CustomFields), readmodels.FieldRequirementRecord{ID: fieldID})
+	}
+	return doc
+}
+
+func excludeCustomField(doc readmodels.ConfigurationDocument, fieldID string) readmodels.ConfigurationDocument {
+	doc.DisplayOrder = removeRef(doc.DisplayOrder, readmodels.FieldRefRecord{Kind: "custom", ID: fieldID})
+	return doc
+}
+
+func setRequirement(doc readmodels.ConfigurationDocument, fieldID string, required bool) readmodels.ConfigurationDocument {
+	doc.CustomFields = withRequirement(doc.CustomFields, fieldID, required)
 	return doc
 }
 
@@ -184,18 +187,32 @@ func applyBuiltInFieldExcluded(doc readmodels.ConfigurationDocument, event *even
 }
 
 func applyBuiltInFieldRequirementChanged(doc readmodels.ConfigurationDocument, event *events.BuiltInFieldRequirementChanged) readmodels.ConfigurationDocument {
-	fields := make([]readmodels.BuiltInFieldRecord, len(doc.BuiltInFields))
-	copy(fields, doc.BuiltInFields)
-	for i := range fields {
-		if fields[i].ID == event.EntryID {
-			fields[i].Required = event.Required
-			doc.BuiltInFields = fields
-			return doc
+	doc.BuiltInFields = withRequirement(doc.BuiltInFields, event.EntryID, event.Required)
+	return doc
+}
+
+func withRequirement(records []readmodels.FieldRequirementRecord, id string, required bool) []readmodels.FieldRequirementRecord {
+	updated := copyRequirements(records)
+	if index, found := requirementIndex(updated, id); found {
+		updated[index].Required = required
+		return updated
+	}
+	return append(updated, readmodels.FieldRequirementRecord{ID: id, Required: required})
+}
+
+func requirementIndex(records []readmodels.FieldRequirementRecord, id string) (int, bool) {
+	for i, record := range records {
+		if record.ID == id {
+			return i, true
 		}
 	}
-	fields = append(fields, readmodels.BuiltInFieldRecord{ID: event.EntryID, Required: event.Required})
-	doc.BuiltInFields = fields
-	return doc
+	return 0, false
+}
+
+func copyRequirements(records []readmodels.FieldRequirementRecord) []readmodels.FieldRequirementRecord {
+	copied := make([]readmodels.FieldRequirementRecord, len(records))
+	copy(copied, records)
+	return copied
 }
 
 func applyFieldsReordered(doc readmodels.ConfigurationDocument, event *events.OnePagerFieldsReordered) readmodels.ConfigurationDocument {
@@ -204,43 +221,6 @@ func applyFieldsReordered(doc readmodels.ConfigurationDocument, event *events.On
 		order[i] = readmodels.FieldRefRecord{Kind: ref.Kind, ID: ref.ID}
 	}
 	doc.DisplayOrder = order
-	return doc
-}
-
-func applySelectionOptionAdded(doc readmodels.ConfigurationDocument, event *events.SelectionOptionAdded) readmodels.ConfigurationDocument {
-	return updateField(doc, event.FieldID, func(field *readmodels.CustomFieldRecord) {
-		field.Options = append(field.Options, readmodels.OptionRecord{ID: event.OptionID, Label: event.Label, Active: true})
-	})
-}
-
-func applySelectionOptionRetired(doc readmodels.ConfigurationDocument, event *events.SelectionOptionRetired) readmodels.ConfigurationDocument {
-	return updateField(doc, event.FieldID, func(field *readmodels.CustomFieldRecord) {
-		for i := range field.Options {
-			if field.Options[i].ID == event.OptionID {
-				field.Options[i].Active = false
-				return
-			}
-		}
-	})
-}
-
-func applyNumberFieldBoundsChanged(doc readmodels.ConfigurationDocument, event *events.NumberFieldBoundsChanged) readmodels.ConfigurationDocument {
-	return updateField(doc, event.FieldID, func(field *readmodels.CustomFieldRecord) {
-		field.Min = event.Min
-		field.Max = event.Max
-	})
-}
-
-func updateField(doc readmodels.ConfigurationDocument, fieldID string, modify func(*readmodels.CustomFieldRecord)) readmodels.ConfigurationDocument {
-	fields := make([]readmodels.CustomFieldRecord, len(doc.CustomFields))
-	copy(fields, doc.CustomFields)
-	for i := range fields {
-		if fields[i].ID == fieldID {
-			modify(&fields[i])
-			break
-		}
-	}
-	doc.CustomFields = fields
 	return doc
 }
 

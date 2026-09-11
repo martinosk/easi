@@ -13,17 +13,82 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type fieldSpec struct {
+	ID       string
+	Name     string
+	Type     string
+	HelpText string
+	Required bool
+	Active   bool
+	Options  []readmodels.OptionRecord
+	Min      *float64
+	Max      *float64
+}
+
+func (f fieldSpec) definition() readmodels.CustomFieldRecord {
+	return readmodels.CustomFieldRecord{
+		ID: f.ID, Name: f.Name, Type: f.Type, HelpText: f.HelpText, Active: f.Active, Options: f.Options, Min: f.Min, Max: f.Max,
+	}
+}
+
+type testDocument struct {
+	CustomFields  []fieldSpec
+	BuiltInFields []readmodels.FieldRequirementRecord
+	DisplayOrder  []readmodels.FieldRefRecord
+}
+
+type testRecord struct {
+	SubjectType string
+	Document    testDocument
+}
+
+func (r *testRecord) configuration() *readmodels.ConfigurationRecord {
+	if r == nil {
+		return nil
+	}
+	requirements := make([]readmodels.FieldRequirementRecord, len(r.Document.CustomFields))
+	for i, field := range r.Document.CustomFields {
+		requirements[i] = readmodels.FieldRequirementRecord{ID: field.ID, Required: field.Required}
+	}
+	return &readmodels.ConfigurationRecord{
+		SubjectType: r.SubjectType,
+		Document: readmodels.ConfigurationDocument{
+			CustomFields:  requirements,
+			BuiltInFields: r.Document.BuiltInFields,
+			DisplayOrder:  r.Document.DisplayOrder,
+		},
+	}
+}
+
+func (r *testRecord) definitions() readmodels.CustomFieldDefinitions {
+	if r == nil {
+		return nil
+	}
+	definitions := make(readmodels.CustomFieldDefinitions, len(r.Document.CustomFields))
+	for i, field := range r.Document.CustomFields {
+		definitions[i] = field.definition()
+	}
+	return definitions
+}
+
 type countingConfigSource struct {
-	calls          int
-	gotSubjectType string
-	record         *readmodels.ConfigurationRecord
-	err            error
+	calls           int
+	definitionCalls int
+	gotSubjectType  string
+	record          *testRecord
+	err             error
+	definitionsErr  error
 }
 
 func (f *countingConfigSource) GetBySubjectType(_ context.Context, subjectType string) (*readmodels.ConfigurationRecord, error) {
 	f.calls++
 	f.gotSubjectType = subjectType
-	return f.record, f.err
+	return f.record.configuration(), f.err
+}
+
+func (f *countingConfigSource) ForSubjectType(_ context.Context, _ string) (readmodels.CustomFieldDefinitions, error) {
+	f.definitionCalls++
+	return f.record.definitions(), f.definitionsErr
 }
 
 type countingFactsSource struct {
@@ -120,6 +185,7 @@ type depsParams struct {
 func buildDeps(p depsParams) queries.OnePagerQueryDeps {
 	return queries.OnePagerQueryDeps{
 		Configurations: p.configs,
+		Definitions:    p.configs,
 		Facts:          p.facts,
 		Subjects:       map[string]ports.BuiltInFieldSource{p.subjectType: p.subjects},
 		MaturityScale:  p.maturity,

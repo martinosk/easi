@@ -93,7 +93,7 @@ flowchart LR
 |----------|-----------|--------------|-------------|
 | Auth | every other context | Published Language | Permission constants and the auth middleware contract; `UserCreated` into name caches (Capability Mapping, Architecture Direction, OnePagers); `TenantCreated` into local defaults (MetaModel, Arch Assistant) and Auth's own first-admin invitation; `EnsureInvitation` command (Access Delegation) |
 | Architecture Modeling | Capability Mapping, Architecture Views, Architecture Direction, Access Delegation, OnePagers | Customer-Supplier | Component / vendor / acquired-entity / team lifecycle events into local caches |
-| MetaModel | Capability Mapping, Architecture Direction, OnePagers | Published Language | Pillar, fit and maturity-scale configuration events into local caches |
+| MetaModel | Capability Mapping, Architecture Direction, OnePagers | Published Language | Pillar, fit, maturity-scale and subject-attribute-schema events into local caches; `ImportSubjectAttribute` command (OnePagers) |
 | Capability Mapping | Architecture Direction, Value Streams, Access Delegation, OnePagers | Customer-Supplier | Capability, domain, realization, dependency, fit and importance lifecycle events into local caches |
 | Architecture Views | Access Delegation | Customer-Supplier | View lifecycle into the artifact name cache; deletion revokes grants |
 | Architecture Modeling, Capability Mapping, Value Streams | Importing | Open Host Service | Published import commands dispatched through the command bus |

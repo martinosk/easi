@@ -181,6 +181,7 @@ func setupQueryCountRouter(t *testing.T, tenantID string) *queryCountContext {
 			"onepagers.subject_relation_cache",
 			"onepagers.one_pager_subject_index",
 			"onepagers.maturity_scale_cache",
+			"onepagers.custom_field_definition_cache",
 		} {
 			_, _ = db.Exec("DELETE FROM "+table+" WHERE tenant_id = $1", tenantID)
 		}
@@ -241,14 +242,18 @@ func seedOnePagerQueryCountScenario(t *testing.T, qc *queryCountContext, fieldCo
 		"maturityValue": 42,
 	})
 
+	definitions := readmodels.NewCustomFieldDefinitionCacheReadModel(qc.tenantDB)
 	customFields := make([]readmodels.CustomFieldRecord, fieldCount)
+	requirements := make([]readmodels.FieldRequirementRecord, fieldCount)
 	displayOrder := []readmodels.FieldRefRecord{{Kind: "builtIn", ID: "maturity"}}
 	for i := 0; i < fieldCount; i++ {
 		fieldID := uuid.New().String()
 		customFields[i] = readmodels.CustomFieldRecord{ID: fieldID, Name: fmt.Sprintf("Field %d", i), Type: "text", Active: true}
+		requirements[i] = readmodels.FieldRequirementRecord{ID: fieldID}
 		displayOrder = append(displayOrder, readmodels.FieldRefRecord{Kind: "custom", ID: fieldID})
+		require.NoError(t, definitions.Save(ctx, readmodels.SubjectDefinition{SubjectType: "capability", Field: customFields[i]}))
 	}
-	qc.seedConfiguration(t, readmodels.ConfigurationDocument{CustomFields: customFields, DisplayOrder: displayOrder})
+	qc.seedConfiguration(t, readmodels.ConfigurationDocument{CustomFields: requirements, DisplayOrder: displayOrder})
 
 	factsModel := readmodels.NewOnePagerFactsReadModel(qc.tenantDB)
 	now := time.Now().UTC()

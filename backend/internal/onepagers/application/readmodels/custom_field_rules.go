@@ -64,12 +64,3 @@ func (f CustomFieldRecord) numberValue(value *valueobjects.ValueEnvelope) (float
 	}
 	return number.Value(), true
 }
-
-func (d ConfigurationDocument) CustomField(fieldID string) (CustomFieldRecord, bool) {
-	for _, field := range d.CustomFields {
-		if field.ID == fieldID {
-			return field, true
-		}
-	}
-	return CustomFieldRecord{}, false
-}

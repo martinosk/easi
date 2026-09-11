@@ -8,30 +8,22 @@ import (
 	"easi/backend/internal/shared/cqrs"
 )
 
-func NewDefineCustomFieldHandler(repository *repositories.OnePagerConfigurationRepository) cqrs.CommandHandler {
-	return newModifyHandler(repository, defineCustomField)
+func NewIncludeCustomFieldHandler(repository *repositories.OnePagerConfigurationRepository) cqrs.CommandHandler {
+	return newModifyHandler(repository, fieldAction(
+		func(c *commands.IncludeCustomField) string { return c.FieldID },
+		(*aggregates.OnePagerConfiguration).IncludeCustomField,
+	))
 }
 
-func NewRenameCustomFieldHandler(repository *repositories.OnePagerConfigurationRepository) cqrs.CommandHandler {
-	return newModifyHandler(repository, renameCustomField)
+func NewExcludeCustomFieldHandler(repository *repositories.OnePagerConfigurationRepository) cqrs.CommandHandler {
+	return newModifyHandler(repository, fieldAction(
+		func(c *commands.ExcludeCustomField) string { return c.FieldID },
+		(*aggregates.OnePagerConfiguration).ExcludeCustomField,
+	))
 }
 
 func NewChangeCustomFieldRequirementHandler(repository *repositories.OnePagerConfigurationRepository) cqrs.CommandHandler {
 	return newModifyHandler(repository, changeCustomFieldRequirement)
-}
-
-func NewRetireCustomFieldHandler(repository *repositories.OnePagerConfigurationRepository) cqrs.CommandHandler {
-	return newModifyHandler(repository, fieldAction(
-		func(c *commands.RetireCustomField) string { return c.FieldID },
-		(*aggregates.OnePagerConfiguration).RetireCustomField,
-	))
-}
-
-func NewReactivateCustomFieldHandler(repository *repositories.OnePagerConfigurationRepository) cqrs.CommandHandler {
-	return newModifyHandler(repository, fieldAction(
-		func(c *commands.ReactivateCustomField) string { return c.FieldID },
-		(*aggregates.OnePagerConfiguration).ReactivateCustomField,
-	))
 }
 
 func NewIncludeBuiltInFieldHandler(repository *repositories.OnePagerConfigurationRepository) cqrs.CommandHandler {
@@ -48,81 +40,6 @@ func NewChangeBuiltInFieldRequirementHandler(repository *repositories.OnePagerCo
 
 func NewReorderOnePagerFieldsHandler(repository *repositories.OnePagerConfigurationRepository) cqrs.CommandHandler {
 	return newModifyHandler(repository, reorderOnePagerFields)
-}
-
-func NewAddSelectionOptionHandler(repository *repositories.OnePagerConfigurationRepository) cqrs.CommandHandler {
-	return newModifyHandler(repository, addSelectionOption)
-}
-
-func NewRetireSelectionOptionHandler(repository *repositories.OnePagerConfigurationRepository) cqrs.CommandHandler {
-	return newModifyHandler(repository, retireSelectionOption)
-}
-
-func NewSetNumberFieldBoundsHandler(repository *repositories.OnePagerConfigurationRepository) cqrs.CommandHandler {
-	return newModifyHandler(repository, setNumberFieldBounds)
-}
-
-func defineCustomField(config *aggregates.OnePagerConfiguration, c *commands.DefineCustomField, modifiedBy valueobjects.UserEmail) (string, error) {
-	params, err := buildDefineParams(c)
-	if err != nil {
-		return "", err
-	}
-	fieldID, err := config.DefineCustomField(params, modifiedBy)
-	if err != nil {
-		return "", err
-	}
-	return fieldID.Value(), nil
-}
-
-func buildDefineParams(c *commands.DefineCustomField) (aggregates.DefineCustomFieldParams, error) {
-	name, err := valueobjects.NewFieldName(c.Name)
-	if err != nil {
-		return aggregates.DefineCustomFieldParams{}, err
-	}
-	fieldType, err := valueobjects.NewFieldType(c.FieldType)
-	if err != nil {
-		return aggregates.DefineCustomFieldParams{}, err
-	}
-	helpText, err := valueobjects.NewHelpText(c.HelpText)
-	if err != nil {
-		return aggregates.DefineCustomFieldParams{}, err
-	}
-	labels := make([]valueobjects.OptionLabel, len(c.OptionLabels))
-	for i, raw := range c.OptionLabels {
-		label, err := valueobjects.NewOptionLabel(raw)
-		if err != nil {
-			return aggregates.DefineCustomFieldParams{}, err
-		}
-		labels[i] = label
-	}
-	return aggregates.DefineCustomFieldParams{
-		Name:         name,
-		Type:         fieldType,
-		Required:     c.Required,
-		HelpText:     helpText,
-		OptionLabels: labels,
-	}, nil
-}
-
-func renameCustomField(config *aggregates.OnePagerConfiguration, c *commands.RenameCustomField, modifiedBy valueobjects.UserEmail) (string, error) {
-	fieldID, err := valueobjects.NewFieldIDFromString(c.FieldID)
-	if err != nil {
-		return "", err
-	}
-	name, err := valueobjects.NewFieldName(c.Name)
-	if err != nil {
-		return "", err
-	}
-	helpText, err := valueobjects.NewHelpText(c.HelpText)
-	if err != nil {
-		return "", err
-	}
-	return "", config.RenameCustomField(aggregates.RenameCustomFieldParams{
-		FieldID:       fieldID,
-		Name:          name,
-		HelpText:      helpText,
-		RequestedType: c.RequestedType,
-	}, modifiedBy)
 }
 
 func changeCustomFieldRequirement(config *aggregates.OnePagerConfiguration, c *commands.ChangeCustomFieldRequirement, modifiedBy valueobjects.UserEmail) (string, error) {
@@ -155,40 +72,4 @@ func reorderOnePagerFields(config *aggregates.OnePagerConfiguration, c *commands
 		order[i] = fieldRef
 	}
 	return "", config.ReorderFields(order, modifiedBy)
-}
-
-func addSelectionOption(config *aggregates.OnePagerConfiguration, c *commands.AddSelectionOption, modifiedBy valueobjects.UserEmail) (string, error) {
-	fieldID, err := valueobjects.NewFieldIDFromString(c.FieldID)
-	if err != nil {
-		return "", err
-	}
-	label, err := valueobjects.NewOptionLabel(c.Label)
-	if err != nil {
-		return "", err
-	}
-	optionID, err := config.AddSelectionOption(fieldID, label, modifiedBy)
-	if err != nil {
-		return "", err
-	}
-	return optionID.Value(), nil
-}
-
-func retireSelectionOption(config *aggregates.OnePagerConfiguration, c *commands.RetireSelectionOption, modifiedBy valueobjects.UserEmail) (string, error) {
-	fieldID, err := valueobjects.NewFieldIDFromString(c.FieldID)
-	if err != nil {
-		return "", err
-	}
-	optionID, err := valueobjects.NewOptionIDFromString(c.OptionID)
-	if err != nil {
-		return "", err
-	}
-	return "", config.RetireSelectionOption(fieldID, optionID, modifiedBy)
-}
-
-func setNumberFieldBounds(config *aggregates.OnePagerConfiguration, c *commands.SetNumberFieldBounds, modifiedBy valueobjects.UserEmail) (string, error) {
-	fieldID, err := valueobjects.NewFieldIDFromString(c.FieldID)
-	if err != nil {
-		return "", err
-	}
-	return "", config.SetNumberFieldBounds(fieldID, c.Min, c.Max, modifiedBy)
 }

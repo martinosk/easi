@@ -28,6 +28,12 @@ func floatPtr(v float64) *float64 {
 	return &v
 }
 
+const (
+	selectionFieldID = "9f0d5e69-0000-0000-0000-000000000001"
+	retiredFieldID   = "9f0d5e69-0000-0000-0000-000000000002"
+	numberFieldID    = "9f0d5e69-0000-0000-0000-000000000004"
+)
+
 func applicationRecord() *readmodels.ConfigurationRecord {
 	now := time.Now().UTC()
 	return &readmodels.ConfigurationRecord{
@@ -35,31 +41,19 @@ func applicationRecord() *readmodels.ConfigurationRecord {
 		TenantID:    "tenant-123",
 		SubjectType: "application",
 		Document: readmodels.ConfigurationDocument{
-			CustomFields: []readmodels.CustomFieldRecord{
-				{
-					ID: "9f0d5e69-0000-0000-0000-000000000001", Name: "Hosting model", Type: "selection",
-					Required: true, HelpText: "Where it runs", Active: true,
-					Options: []readmodels.OptionRecord{
-						{ID: "9f0d5e69-0000-0000-0000-00000000000a", Label: "On-prem", Active: false},
-						{ID: "9f0d5e69-0000-0000-0000-00000000000b", Label: "Cloud", Active: true},
-					},
-				},
-				{
-					ID: "9f0d5e69-0000-0000-0000-000000000002", Name: "Old field", Type: "text", Active: false,
-				},
-				{
-					ID: "9f0d5e69-0000-0000-0000-000000000004", Name: "Maturity score", Type: "number", Active: true,
-					Min: floatPtr(0), Max: floatPtr(5),
-				},
+			CustomFields: []readmodels.FieldRequirementRecord{
+				{ID: selectionFieldID, Required: true},
+				{ID: retiredFieldID, Required: true},
 			},
-			BuiltInFields: []readmodels.BuiltInFieldRecord{
+			BuiltInFields: []readmodels.FieldRequirementRecord{
 				{ID: "description", Required: true},
 				{ID: "experts", Required: true},
 			},
 			DisplayOrder: []readmodels.FieldRefRecord{
 				{Kind: "builtIn", ID: "name"},
-				{Kind: "custom", ID: "9f0d5e69-0000-0000-0000-000000000001"},
+				{Kind: "custom", ID: selectionFieldID},
 				{Kind: "builtIn", ID: "description"},
+				{Kind: "custom", ID: numberFieldID},
 			},
 		},
 		Version:    4,
@@ -69,8 +63,26 @@ func applicationRecord() *readmodels.ConfigurationRecord {
 	}
 }
 
+func applicationDefinitions() readmodels.CustomFieldDefinitions {
+	return readmodels.CustomFieldDefinitions{
+		{
+			ID: selectionFieldID, Name: "Hosting model", Type: "selection", HelpText: "Where it runs", Active: true,
+			Options: []readmodels.OptionRecord{
+				{ID: "9f0d5e69-0000-0000-0000-00000000000a", Label: "On-prem", Active: false},
+				{ID: "9f0d5e69-0000-0000-0000-00000000000b", Label: "Cloud", Active: true},
+			},
+		},
+		{ID: retiredFieldID, Name: "Old field", Type: "text", Active: false},
+		{ID: numberFieldID, Name: "Maturity score", Type: "number", Active: true, Min: floatPtr(0), Max: floatPtr(5)},
+	}
+}
+
+func applicationView() ConfigurationView {
+	return ConfigurationView{Record: applicationRecord(), Definitions: applicationDefinitions()}
+}
+
 func TestBuildConfigurationDTO_MergesCatalogWithInclusionState(t *testing.T) {
-	dto := BuildConfigurationDTO(applicationRecord(), testLinks(), stakeholderActor())
+	dto := BuildConfigurationDTO(applicationView(), testLinks(), stakeholderActor())
 
 	assert.Equal(t, "config-1", dto.ID)
 	assert.Equal(t, "application", dto.SubjectType)
@@ -87,29 +99,53 @@ func TestBuildConfigurationDTO_MergesCatalogWithInclusionState(t *testing.T) {
 	assert.False(t, inclusion["realized-capabilities"], "relation built-ins are listed but excluded by default")
 	assert.False(t, inclusion["built-by"])
 
-	require.Len(t, dto.CustomFields, 3)
-	assert.Equal(t, "Hosting model", dto.CustomFields[0].Name)
-	assert.False(t, dto.CustomFields[1].Active)
-	assert.Equal(t, floatPtr(0), dto.CustomFields[2].Min)
-	assert.Equal(t, floatPtr(5), dto.CustomFields[2].Max)
-
-	require.Len(t, dto.DisplayOrder, 3)
+	require.Len(t, dto.DisplayOrder, 4)
 	assert.Equal(t, "custom", dto.DisplayOrder[1].Kind)
 }
 
-func TestBuildConfigurationDTO_SelfLinkAlwaysPresent(t *testing.T) {
-	dto := BuildConfigurationDTO(applicationRecord(), testLinks(), stakeholderActor())
+func TestBuildConfigurationDTO_CustomFieldsMergeDefinitionsWithPresentationPolicy(t *testing.T) {
+	dto := BuildConfigurationDTO(applicationView(), testLinks(), stakeholderActor())
+
+	require.Len(t, dto.CustomFields, 3)
+	selection := dto.CustomFields[0]
+	assert.Equal(t, "Hosting model", selection.Name)
+	assert.Equal(t, "selection", selection.Type)
+	assert.Equal(t, "Where it runs", selection.HelpText)
+	assert.True(t, selection.Required, "required-ness comes from the configuration document")
+	assert.True(t, selection.Included)
+	assert.True(t, selection.Active)
+	require.Len(t, selection.Options, 2)
+	assert.False(t, selection.Options[0].Active)
+
+	retired := dto.CustomFields[1]
+	assert.False(t, retired.Active)
+	assert.False(t, retired.Included)
+	assert.True(t, retired.Required, "dormant requirement is reported as recorded")
+
+	number := dto.CustomFields[2]
+	assert.False(t, number.Required, "definition without a requirement record defaults to optional")
+	assert.True(t, number.Included)
+	assert.Equal(t, floatPtr(0), number.Min)
+	assert.Equal(t, floatPtr(5), number.Max)
+}
+
+func TestBuildConfigurationDTO_SelfAndAttributeSchemaLinksAlwaysPresent(t *testing.T) {
+	dto := BuildConfigurationDTO(applicationView(), testLinks(), stakeholderActor())
 
 	self, ok := dto.Links["self"]
 	require.True(t, ok)
 	assert.Equal(t, "/api/v1/one-pagers/configurations/application", self.Href)
 	assert.Equal(t, "GET", self.Method)
+
+	schema, ok := dto.Links["x-attribute-schema"]
+	require.True(t, ok, "the configuration names the MetaModel schema surface that owns the custom fields")
+	assert.Equal(t, "/api/v1/meta-model/subject-types/application/attributes", schema.Href)
+	assert.Equal(t, "GET", schema.Method)
 }
 
 func TestBuildConfigurationDTO_NoWriteAffordancesWithoutWritePermission(t *testing.T) {
-	dto := BuildConfigurationDTO(applicationRecord(), testLinks(), stakeholderActor())
+	dto := BuildConfigurationDTO(applicationView(), testLinks(), stakeholderActor())
 
-	assert.NotContains(t, dto.Links, "x-define-custom-field")
 	assert.NotContains(t, dto.Links, "x-reorder")
 	assert.NotContains(t, dto.Links, "x-impact-preview")
 	for _, field := range dto.BuiltInFields {
@@ -117,19 +153,13 @@ func TestBuildConfigurationDTO_NoWriteAffordancesWithoutWritePermission(t *testi
 	}
 	for _, field := range dto.CustomFields {
 		assert.Empty(t, field.Links, field.ID)
-		for _, option := range field.Options {
-			assert.Empty(t, option.Links)
-		}
 	}
 }
 
 func TestBuildConfigurationDTO_WriteAffordancesForAdmin(t *testing.T) {
-	dto := BuildConfigurationDTO(applicationRecord(), testLinks(), adminActor())
+	dto := BuildConfigurationDTO(applicationView(), testLinks(), adminActor())
 
-	define, ok := dto.Links["x-define-custom-field"]
-	require.True(t, ok)
-	assert.Equal(t, "/api/v1/one-pagers/configurations/application/custom-fields", define.Href)
-	assert.Equal(t, "POST", define.Method)
+	assert.NotContains(t, dto.Links, "x-define-custom-field", "schema definition moved to MetaModel")
 
 	reorder, ok := dto.Links["x-reorder"]
 	require.True(t, ok)
@@ -143,7 +173,7 @@ func TestBuildConfigurationDTO_WriteAffordancesForAdmin(t *testing.T) {
 }
 
 func TestBuildConfigurationDTO_BuiltInFieldLinksReflectInclusion(t *testing.T) {
-	dto := BuildConfigurationDTO(applicationRecord(), testLinks(), adminActor())
+	dto := BuildConfigurationDTO(applicationView(), testLinks(), adminActor())
 
 	for _, field := range dto.BuiltInFields {
 		if field.Included {
@@ -170,7 +200,7 @@ func builtInFieldByID(dto OnePagerConfigurationDTO, id string) (BuiltInFieldDTO,
 }
 
 func TestBuildConfigurationDTO_BuiltInRequiredFlagReflectsDocument(t *testing.T) {
-	dto := BuildConfigurationDTO(applicationRecord(), testLinks(), adminActor())
+	dto := BuildConfigurationDTO(applicationView(), testLinks(), adminActor())
 
 	description, ok := builtInFieldByID(dto, "description")
 	require.True(t, ok)
@@ -182,7 +212,7 @@ func TestBuildConfigurationDTO_BuiltInRequiredFlagReflectsDocument(t *testing.T)
 }
 
 func TestBuildConfigurationDTO_IncludedBuiltInHasSetRequirementLinkForAdmin(t *testing.T) {
-	dto := BuildConfigurationDTO(applicationRecord(), testLinks(), adminActor())
+	dto := BuildConfigurationDTO(applicationView(), testLinks(), adminActor())
 
 	description, ok := builtInFieldByID(dto, "description")
 	require.True(t, ok)
@@ -193,78 +223,41 @@ func TestBuildConfigurationDTO_IncludedBuiltInHasSetRequirementLinkForAdmin(t *t
 }
 
 func TestBuildConfigurationDTO_ExcludedBuiltInHasNoSetRequirementLink(t *testing.T) {
-	dto := BuildConfigurationDTO(applicationRecord(), testLinks(), adminActor())
+	dto := BuildConfigurationDTO(applicationView(), testLinks(), adminActor())
 
 	experts, ok := builtInFieldByID(dto, "experts")
 	require.True(t, ok)
 	assert.NotContains(t, experts.Links, "x-set-requirement", "excluded built-in exposes no set-requirement affordance")
 }
 
-func TestBuildConfigurationDTO_NoSetRequirementLinkWithoutWritePermission(t *testing.T) {
-	dto := BuildConfigurationDTO(applicationRecord(), testLinks(), stakeholderActor())
+func TestBuildConfigurationDTO_CustomFieldLinksCarryOnlyPresentationAffordances(t *testing.T) {
+	dto := BuildConfigurationDTO(applicationView(), testLinks(), adminActor())
 
-	description, ok := builtInFieldByID(dto, "description")
-	require.True(t, ok)
-	assert.NotContains(t, description.Links, "x-set-requirement")
-}
-
-func TestBuildConfigurationDTO_ActiveCustomFieldLinks(t *testing.T) {
-	dto := BuildConfigurationDTO(applicationRecord(), testLinks(), adminActor())
-
-	active := dto.CustomFields[0]
-	base := "/api/v1/one-pagers/configurations/application/custom-fields/" + active.ID
-	assert.Equal(t, base, active.Links["x-rename"].Href)
-	assert.Equal(t, "PUT", active.Links["x-rename"].Method)
-	assert.Equal(t, base+"/requirement", active.Links["x-set-requirement"].Href)
-	assert.Equal(t, base+"/retire", active.Links["x-retire"].Href)
-	assert.Equal(t, base+"/options", active.Links["x-add-option"].Href)
-	assert.NotContains(t, active.Links, "x-reactivate")
-
-	retiredOption := active.Options[0]
-	assert.Empty(t, retiredOption.Links)
-	activeOption := active.Options[1]
-	assert.Equal(t, base+"/options/"+activeOption.ID+"/retire", activeOption.Links["x-retire"].Href)
-}
-
-func TestBuildConfigurationDTO_RetiredCustomFieldOnlyReactivate(t *testing.T) {
-	dto := BuildConfigurationDTO(applicationRecord(), testLinks(), adminActor())
+	included := dto.CustomFields[0]
+	assert.Equal(t, map[string]bool{"x-set-requirement": true}, linkRelations(included.Links))
+	assert.Equal(t, "/api/v1/one-pagers/configurations/application/custom-fields/"+included.ID+"/requirement", included.Links["x-set-requirement"].Href)
+	assert.Equal(t, "PUT", included.Links["x-set-requirement"].Method)
 
 	retired := dto.CustomFields[1]
-	reactivate, ok := retired.Links["x-reactivate"]
-	require.True(t, ok)
-	assert.Equal(t, "POST", reactivate.Method)
-	assert.NotContains(t, retired.Links, "x-rename")
-	assert.NotContains(t, retired.Links, "x-retire")
-	assert.NotContains(t, retired.Links, "x-add-option")
+	assert.Empty(t, retired.Links, "retired attributes are managed in MetaModel, not on the one-pager configuration")
 }
 
-func TestBuildConfigurationDTO_NonSelectionFieldHasNoAddOption(t *testing.T) {
-	record := applicationRecord()
-	record.Document.CustomFields[0].Type = "text"
-	record.Document.CustomFields[0].Options = nil
-
-	dto := BuildConfigurationDTO(record, testLinks(), adminActor())
-
-	assert.NotContains(t, dto.CustomFields[0].Links, "x-add-option")
+func linkRelations(links map[string]sharedAPI.Link) map[string]bool {
+	relations := map[string]bool{}
+	for relation := range links {
+		relations[relation] = true
+	}
+	return relations
 }
 
-func TestBuildConfigurationDTO_NumberFieldHasSetBoundsLink(t *testing.T) {
-	dto := BuildConfigurationDTO(applicationRecord(), testLinks(), adminActor())
+func TestBuildConfigurationDTO_ExcludedCustomFieldHasNoSetRequirementLink(t *testing.T) {
+	view := applicationView()
+	view.Record.Document.DisplayOrder = view.Record.Document.DisplayOrder[:1]
 
-	numberField := dto.CustomFields[2]
-	base := "/api/v1/one-pagers/configurations/application/custom-fields/" + numberField.ID
-	assert.Equal(t, base+"/bounds", numberField.Links["x-set-bounds"].Href)
-	assert.Equal(t, "PUT", numberField.Links["x-set-bounds"].Method)
-}
+	dto := BuildConfigurationDTO(view, testLinks(), adminActor())
 
-func TestBuildConfigurationDTO_NonNumberFieldHasNoSetBoundsLink(t *testing.T) {
-	dto := BuildConfigurationDTO(applicationRecord(), testLinks(), adminActor())
-
-	assert.NotContains(t, dto.CustomFields[0].Links, "x-set-bounds")
-}
-
-func TestBuildConfigurationDTO_NoSetBoundsLinkWithoutWritePermission(t *testing.T) {
-	dto := BuildConfigurationDTO(applicationRecord(), testLinks(), stakeholderActor())
-
-	assert.NotContains(t, dto.CustomFields[2].Links, "x-set-bounds")
+	for _, field := range dto.CustomFields {
+		assert.False(t, field.Included, field.ID)
+		assert.Empty(t, field.Links, field.ID)
+	}
 }

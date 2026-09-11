@@ -20,15 +20,12 @@ func builtInSources(source ports.BuiltInFieldSource) map[string]ports.BuiltInFie
 	return map[string]ports.BuiltInFieldSource{"application": source}
 }
 
-func requiredBuiltInIndicatorConfig(customFields ...readmodels.CustomFieldRecord) *readmodels.ConfigurationRecord {
-	return &readmodels.ConfigurationRecord{
-		SubjectType: "application",
-		Document: readmodels.ConfigurationDocument{
-			CustomFields:  customFields,
-			BuiltInFields: []readmodels.BuiltInFieldRecord{{ID: "experts", Required: true}},
-			DisplayOrder:  []readmodels.FieldRefRecord{{Kind: "builtIn", ID: "experts"}},
-		},
-	}
+func requiredBuiltInIndicatorConfig(customFields ...indicatorSpec) *readmodels.ConfigurationRecord {
+	config := indicatorConfigWith(customFields...)
+	config.SubjectType = "application"
+	config.Document.BuiltInFields = []readmodels.FieldRequirementRecord{{ID: "experts", Required: true}}
+	config.Document.DisplayOrder = append(config.Document.DisplayOrder, readmodels.FieldRefRecord{Kind: "builtIn", ID: "experts"})
+	return config
 }
 
 type stubConfigurationSource struct {
@@ -40,6 +37,21 @@ type stubConfigurationSource struct {
 func (s *stubConfigurationSource) GetBySubjectType(_ context.Context, _ string) (*readmodels.ConfigurationRecord, error) {
 	s.calls++
 	return s.record, s.err
+}
+
+func (s *stubConfigurationSource) ForSubjectType(_ context.Context, _ string) (readmodels.CustomFieldDefinitions, error) {
+	if s.record == nil {
+		return nil, s.err
+	}
+	included := map[string]bool{}
+	for _, id := range s.record.Document.IncludedCustomFieldIDs() {
+		included[id] = true
+	}
+	var definitions readmodels.CustomFieldDefinitions
+	for _, field := range s.record.Document.CustomFields {
+		definitions = append(definitions, readmodels.CustomFieldRecord{ID: field.ID, Name: field.ID, Type: "text", Active: included[field.ID]})
+	}
+	return definitions, nil
 }
 
 type stubFilledCountsSource struct {
@@ -55,12 +67,25 @@ func (s *stubFilledCountsSource) FilledFieldCounts(_ context.Context, _ string, 
 	return s.counts, s.err
 }
 
-func indicatorField(id string, required, active bool) readmodels.CustomFieldRecord {
-	return readmodels.CustomFieldRecord{ID: id, Name: id, Type: "text", Required: required, Active: active}
+type indicatorSpec struct {
+	id       string
+	required bool
+	included bool
 }
 
-func indicatorConfigWith(fields ...readmodels.CustomFieldRecord) *readmodels.ConfigurationRecord {
-	return &readmodels.ConfigurationRecord{Document: readmodels.ConfigurationDocument{CustomFields: fields}}
+func indicatorField(id string, required, included bool) indicatorSpec {
+	return indicatorSpec{id: id, required: required, included: included}
+}
+
+func indicatorConfigWith(fields ...indicatorSpec) *readmodels.ConfigurationRecord {
+	document := readmodels.ConfigurationDocument{}
+	for _, field := range fields {
+		document.CustomFields = append(document.CustomFields, readmodels.FieldRequirementRecord{ID: field.id, Required: field.required})
+		if field.included {
+			document.DisplayOrder = append(document.DisplayOrder, readmodels.FieldRefRecord{Kind: "custom", ID: field.id})
+		}
+	}
+	return &readmodels.ConfigurationRecord{Document: document}
 }
 
 func TestForSubjects_IndicatorNotApplicable_SkipsFactsQuery(t *testing.T) {
@@ -76,7 +101,9 @@ func TestForSubjects_IndicatorNotApplicable_SkipsFactsQuery(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			facts := &stubFilledCountsSource{}
-			sut := queries.NewCompletenessIndicators(&stubConfigurationSource{record: tc.config}, facts, noBuiltInSources())
+			sut := queries.NewCompletenessIndicators(
+				&stubConfigurationSource{record: tc.config},
+				&stubConfigurationSource{record: tc.config}, facts, noBuiltInSources())
 
 			result, present, err := sut.ForSubjects(context.Background(), "application", []string{"app-1"})
 
@@ -145,7 +172,9 @@ func TestForSubjects_IndicatorValues(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			facts := &stubFilledCountsSource{counts: tc.counts}
-			sut := queries.NewCompletenessIndicators(&stubConfigurationSource{record: tc.config}, facts, noBuiltInSources())
+			sut := queries.NewCompletenessIndicators(
+				&stubConfigurationSource{record: tc.config},
+				&stubConfigurationSource{record: tc.config}, facts, noBuiltInSources())
 
 			result, present, err := sut.ForSubjects(context.Background(), "application", tc.subjectIDs)
 
@@ -182,7 +211,7 @@ func TestForSubjects_ErrorPropagation(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			sut := queries.NewCompletenessIndicators(tc.configs, tc.facts, noBuiltInSources())
+			sut := queries.NewCompletenessIndicators(tc.configs, tc.configs, tc.facts, noBuiltInSources())
 
 			result, present, err := sut.ForSubjects(context.Background(), "application", []string{"app-1"})
 
@@ -223,7 +252,9 @@ func TestForSubjects_RequiredBuiltInIncludedInIndicator(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			facts := &stubFilledCountsSource{counts: tc.counts}
 			source := &countingSubjectSource{filled: tc.filled}
-			sut := queries.NewCompletenessIndicators(&stubConfigurationSource{record: tc.config}, facts, builtInSources(source))
+			sut := queries.NewCompletenessIndicators(
+				&stubConfigurationSource{record: tc.config},
+				&stubConfigurationSource{record: tc.config}, facts, builtInSources(source))
 
 			result, present, err := sut.ForSubjects(context.Background(), "application", tc.subjectIDs)
 
@@ -240,6 +271,7 @@ func TestForSubjects_RequiredBuiltInIncludedInIndicator(t *testing.T) {
 func TestForSubjects_BuiltInFillErrorPropagates(t *testing.T) {
 	source := &countingSubjectSource{filledErr: assert.AnError}
 	sut := queries.NewCompletenessIndicators(
+		&stubConfigurationSource{record: requiredBuiltInIndicatorConfig()},
 		&stubConfigurationSource{record: requiredBuiltInIndicatorConfig()},
 		&stubFilledCountsSource{},
 		builtInSources(source),

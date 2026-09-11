@@ -4,7 +4,7 @@
 **OnePagers**
 
 ## Purpose
-Deliver the One-Pager — a stakeholder-facing fact sheet for a single subject entity. Tenant administrators shape it per subject type by choosing built-in fields and defining typed custom fields; architects record Field Values on subjects; anyone with the subject's read permission opens the composed, presentable sheet. The context owns the One-Pager Configuration and One-Pager Facts aggregates, the code-owned built-in field catalog, and the composed read; it does not own subject entities and reads their data only through its own ports.
+Deliver the One-Pager — a stakeholder-facing fact sheet for a single subject entity. Tenant administrators shape it per subject type by choosing built-in fields and the custom attributes MetaModel defines, ordering them and marking them required; architects record Field Values on subjects; anyone with the subject's read permission opens the composed, presentable sheet. The context owns the One-Pager Configuration and One-Pager Facts aggregates, the code-owned built-in field catalog, and the composed read; it does not own subject entities or the custom-field schema and reads both only through its own event-fed caches.
 
 **Key Stakeholders:**
 - Tenant Administrators (configure the field set per subject type)
@@ -26,16 +26,16 @@ Deliver the One-Pager — a stakeholder-facing fact sheet for a single subject e
 | **Relation Built-in Field** | A read-only built-in whose value is a list of references to related entities (each rendered by name, deep-linked to its own one-pager when it is a subject type); excluded by default, opt-in via the spec-175 include/exclude/reorder machinery |
 | **Built-in Field Catalog** | Code-owned, per-subject-type list of built-in field entries (stable ID, label) |
 | **Built-in Field Source** | Consumer-defined port through which the context reads a subject's built-in field data |
-| **Custom Field Definition** | Tenant-defined field: FieldID, display name, field type, required flag, help text, options |
+| **Custom Field Definition** | MetaModel's subject attribute (FieldID, name, type, help text, options, bounds, active) as cached by this context; presentation policy (inclusion, order, required flag) lives on the configuration |
 | **Field Type** | Value shape of a custom field: Text, Number, Date, Link, Selection, Contact Person |
 | **Field Value** | A typed, constructor-validated value for one custom field on one subject |
 | **Value Envelope** | Persistence shape of every Field Value: discriminated `{type, version, value}` |
-| **Display Order** | Single interleaved ordering over included built-in and active custom fields |
+| **Display Order** | Single interleaved ordering over included built-in and included custom fields |
 
 ## Inbound Communication
 
 **Commands** (from Frontend/API, REST under `/api/v1/one-pagers`):
-- Configuration writes, gated by `PermMetaModelWrite` under `/one-pagers/configurations/{subjectType}`: `DefineCustomField`, `RenameCustomField`, `ChangeCustomFieldRequirement`, `RetireCustomField`, `ReactivateCustomField`, `IncludeBuiltInField`, `ExcludeBuiltInField`, `ReorderOnePagerFields`, `AddSelectionOption`, `RetireSelectionOption`
+- Configuration writes, gated by `PermMetaModelWrite` under `/one-pagers/configurations/{subjectType}`: `ChangeCustomFieldRequirement`, `IncludeBuiltInField`, `ExcludeBuiltInField`, `ChangeBuiltInFieldRequirement`, `ReorderOnePagerFields`. `IncludeCustomField` / `ExcludeCustomField` are dispatched only by the in-context reactor on MetaModel's attribute events; schema changes go to MetaModel (`x-attribute-schema` on the configuration response)
 - Facts writes, gated by the subject's write permission under `/one-pagers/{subjectType}/{subjectID}/facts`: `RecordFieldValue`, `ClearFieldValue`
 
 **Queries served**:
@@ -47,12 +47,15 @@ Deliver the One-Pager — a stakeholder-facing fact sheet for a single subject e
 - Subject lifecycle and attributes → `one_pager_subject_index` (name, existence, completeness counters, and `built_in_fields`: the subject's **complete** published attribute set, keyed by the supplier's attribute names): `Capability*` incl. `CapabilityMetadataUpdated`, `CapabilityLevelChanged` and expert events (capabilitymapping); `ApplicationComponent*` incl. expert events, `AcquiredEntity*`, `Vendor*`, `InternalTeam*` (architecturemodeling). Deletion events also archive the subject's facts.
 - Relations → `subject_relation_cache` (+ `business_domain_name_cache` for domain labels): `SystemLinkedToCapability`, `SystemRealizationDeleted`, `CapabilityRealizationsInherited/Uninherited`, `CapabilityDependencyCreated/Deleted`, `CapabilityAssignedToDomain/UnassignedFromDomain`, `CapabilityParentChanged`, `BusinessDomain*` (capabilitymapping); `ComponentRelation*`, `OriginLink*` (architecturemodeling). Expert names travel on the expert events, so no user cache exists.
 - Rendering semantics → `maturity_scale_cache`: `MaturityScaleConfigUpdated/Reset`, `MetaModelConfigurationCreated` (metamodel)
+- Custom-field schema → `custom_field_definition_cache`: `SubjectAttributeDefined/Renamed/Retired/Reactivated/OptionAdded/OptionRetired/BoundsChanged` (metamodel). The same Defined / Retired / Reactivated events drive a reactor that includes or excludes the field on the subject type's configuration, creating the configuration when it does not exist yet.
 
-Every cache is backfilled by migration 148 from the suppliers' tables. Adding a built-in field over an attribute a supplier already publishes is a catalog change only; a genuinely new supplier attribute ships with a supplier event change and an OnePagers backfill.
+Every cache is backfilled by migration 148 (subjects) and 161 (definitions) from the suppliers' tables; definitions still pending transfer are handed to MetaModel at startup through its published `ImportSubjectAttribute` command, which preserves every FieldID. Adding a built-in field over an attribute a supplier already publishes is a catalog change only; a genuinely new supplier attribute ships with a supplier event change and an OnePagers backfill.
 
 ## Outbound Communication
 
 **Events published**: none — the context has no published language; its event types are internal aggregate mechanics. Machine-enforced by the boundary test, which asserts the `publishedlanguage` package does not exist.
+
+**Commands issued**: MetaModel's `ImportSubjectAttribute`, once per legacy definition, by the startup transfer.
 
 **Queries made**: none. The ports in `/backend/internal/onepagers/application/ports` (`BuiltInFieldSource` per subject type, `MaturityScaleSource`, `SubjectExistenceChecker`) are implemented inside the context over its own caches; the catalog-entry → published-attribute binding lives only in those adapters.
 
@@ -61,16 +64,16 @@ Every cache is backfilled by migration 148 from the suppliers' tables. Adding a 
 1. One configuration per (tenant, subject type): handler-level uniqueness check, DB unique constraint as backstop; the aggregate ID is an intrinsic UUID
 2. First configuration read lazily creates the default: every catalog built-in field, catalog order, no custom fields; creation is idempotent
 3. A configuration may only include built-in fields from the per-subject-type catalog
-4. Field identity is the FieldID; renaming never changes identity; field type is immutable — the path is retire-and-redefine
-5. Fields and selection options are retired, never deleted; reactivation restores identity, type, required flag, and options
-6. One interleaved display order over included built-in and active custom fields
-7. The required flag exists only on custom field definitions and never validates or blocks recorded data
-8. Active display names are unique per configuration, case-insensitive, across custom fields and included built-in labels
+4. A custom field enters the display order when MetaModel defines or reactivates the attribute and leaves it when MetaModel retires it; only included fields can be marked required
+5. One interleaved display order over included built-in and included custom fields
+6. The required flag is presentation policy, recorded uniformly for built-in and custom fields on the configuration; it never validates or blocks recorded data, and a dormant flag survives exclude-and-reinclude
+7. Facts writes validate against the cached definition: unknown or retired fields, undefined or retired options and out-of-bounds numbers are rejected
+8. Legacy schema events in configuration streams (`CustomFieldDefined` and friends) still replay their inclusion and requirement effects; no new ones are appended
 9. One facts aggregate per subject, created on first recorded value after a subject-existence check through the subject port
 10. Every Field Value is a typed, constructor-validated VO persisted as a Value Envelope; validation against the current configuration happens in the command handler
 11. Subject deletion archives the facts aggregate in its own stream and removes its read-model rows; archived facts reject further writes
 12. The composed read assembles at query time from OnePagers' own tables with a constant query count: one configuration read, one facts read, one subject-index read, at most one maturity-scale read, plus — per *included* relation built-in — one bounded relation-cache read joined to the subject index for names, so the total stays independent of the number of related entities and of the number of configured fields
-13. Retired fields never render on the one-pager; values referencing retired selection options render flagged, never invalid
+13. Fields whose definition is retired or unknown never render or count toward completeness; values referencing retired selection options render flagged, never invalid
 14. The composed read is authorized with the subject's own read permission; a missing configuration falls back to the catalog default without persisting
 
 ## Design Constraints
@@ -100,7 +103,7 @@ Every cache is backfilled by migration 148 from the suppliers' tables. Adding a 
 ### Key Packages
 - `domain/aggregates/` - OnePagerConfiguration and OnePagerFacts aggregates
 - `domain/catalog/` - code-owned built-in field catalog per subject type
-- `domain/valueobjects/` - SubjectType, SubjectRef, FieldID, FieldType, CustomField, FieldValue, ValueEnvelope
+- `domain/valueobjects/` - SubjectType, SubjectRef, FieldID, FieldRef, FieldValue, ValueEnvelope
 - `domain/events/` - configuration and facts events
 - `application/ports/` - BuiltInFieldSource, MaturityScaleSource, SubjectExistenceChecker
 - `application/queries/` - composed one-pager read assembly
@@ -109,7 +112,7 @@ Every cache is backfilled by migration 148 from the suppliers' tables. Adding a 
 
 ### Technical Patterns
 - **CQRS with Event Sourcing** in the shared event store; own PostgreSQL schema `onepagers` with RLS
-- **Read models**: `onepagers.one_pager_configurations` (one row per tenant + subject type) and `onepagers.one_pager_facts` (one row per subject + field, typed-value JSONB)
+- **Read models**: `onepagers.one_pager_configurations` (one row per tenant + subject type: display order and required flags), `onepagers.custom_field_definition_cache` (one row per field, projected from MetaModel) and `onepagers.one_pager_facts` (one row per subject + field, typed-value JSONB)
 - **Lazy default creation** on first configuration read, mirroring the MetaModel configuration precedent
 - **Optimistic concurrency** via aggregate version, conflicts surfaced as 409
 

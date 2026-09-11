@@ -4,7 +4,7 @@
 **MetaModel**
 
 ## Purpose
-Manage configurable meta-model elements that control how the architecture modeling tool behaves within each tenant. The meta-model defines the vocabulary and rules for modeling, allowing organizations to customize the tool to match their specific methodologies.
+Manage configurable meta-model elements that control how the architecture modeling tool behaves within each tenant. The meta-model defines the vocabulary and rules for modeling — the maturity scale, strategy pillars and the custom attribute schema of every subject type — allowing organizations to customize the tool to match their specific methodologies. How a consuming context presents an attribute (inclusion, order, required-ness) is that context's policy, not the meta-model's.
 
 **Key Stakeholders:**
 - Platform Administrators (configure tool behavior)
@@ -40,6 +40,10 @@ Manage configurable meta-model elements that control how the architecture modeli
 **Commands** (from Frontend/API):
 - `UpdateMaturityScale` - Modify maturity scale section names and boundaries
 - `ResetMaturityScale` - Restore maturity scale to default configuration
+- Subject attribute schema, per subject type under `/meta-model/subject-types/{subjectType}/attributes` (`PermMetaModelWrite`): `DefineSubjectAttribute`, `RenameSubjectAttribute`, `RetireSubjectAttribute`, `ReactivateSubjectAttribute`, `AddSubjectAttributeOption`, `RetireSubjectAttributeOption`, `SetSubjectAttributeBounds`
+
+**Commands** (published, from other contexts):
+- `ImportSubjectAttribute` - Seed an attribute with a preserved ID, options, bounds and active state; idempotent per attribute ID; creates the subject type's schema when absent (used by OnePagers' one-time transfer)
 
 **Events** (from other contexts):
 - From **Auth**:
@@ -60,6 +64,7 @@ Manage configurable meta-model elements that control how the architecture modeli
 - `MetaModelConfigurationCreated` - Default configuration provisioned
 - `MaturityScaleConfigUpdated` - Maturity scale modified
 - `MaturityScaleConfigReset` - Maturity scale reset to defaults
+- `SubjectAttributeDefined`, `SubjectAttributeRenamed`, `SubjectAttributeRetired`, `SubjectAttributeReactivated`, `SubjectAttributeOptionAdded`, `SubjectAttributeOptionRetired`, `SubjectAttributeBoundsChanged` - Custom attribute schema of a subject type changed (consumed by OnePagers)
 
 **Queries** (from other contexts):
 - Other contexts query MetaModel's read models for current configuration
@@ -83,6 +88,8 @@ Manage configurable meta-model elements that control how the architecture modeli
 | **Section** | A named range within the maturity scale (e.g., "Genesis" covering 0-24) |
 | **Section Boundary** | The min/max numeric values that define a section's range |
 | **Default Configuration** | The standard configuration provisioned for new tenants |
+| **Subject Attribute Schema** | Per-(tenant, subject type) set of custom attributes; its own aggregate, created lazily on first read |
+| **Subject Attribute** | A typed custom attribute (text, number, date, link, selection, contact-person) with help text, selection options, number bounds and an active/retired state; identity is the attribute ID, which consumers use as FieldID |
 
 ## Business Decisions
 
@@ -106,6 +113,13 @@ Manage configurable meta-model elements that control how the architecture modeli
 4. **Default Provisioning**:
    - New tenants automatically receive default configuration
    - Default: Genesis (0-24), Custom Built (25-49), Product (50-74), Commodity (75-99)
+
+5. **Subject Attribute Invariants**:
+   - Active attribute names are unique per subject type, case-insensitive
+   - Attribute type is immutable; the path is retire-and-redefine
+   - Selection attributes need at least one option, options are retired never deleted, the last active option cannot be retired
+   - Only number attributes carry bounds; minimum never exceeds maximum
+   - Attributes are retired, never deleted; reactivation restores identity, type, options and bounds
 
 ### Policy Decisions
 - Configuration changes are event-sourced for full audit trail
@@ -132,7 +146,6 @@ Manage configurable meta-model elements that control how the architecture modeli
 ## Open Questions
 
 1. **Strategy Pillar Configuration**: Should strategy pillars be configurable similar to maturity scale?
-2. **Element Type Configuration**: Should custom element types be definable per tenant?
 3. **Import/Export**: Should configuration be exportable for sharing between tenants?
 4. **Version History**: Should users be able to view/restore previous configurations?
 
@@ -148,7 +161,7 @@ Manage configurable meta-model elements that control how the architecture modeli
 
 ### Technical Patterns
 - **CQRS with Event Sourcing**: Full audit trail for configuration changes
-- **Aggregate per Tenant**: TenantID = Aggregate ID
+- **Aggregate per Tenant** for the configuration; one `SubjectAttributeSchema` aggregate per (tenant, subject type) so schema edits never contend with maturity or pillar edits
 - **Value Object Immutability**: All configuration elements are immutable value objects
 - **Event-Driven Provisioning**: Subscribe to TenantCreated for automatic setup
 
@@ -159,5 +172,5 @@ Manage configurable meta-model elements that control how the architecture modeli
 
 ### Cross-Context Integration
 - **Downstream of Auth**: Subscribes to `TenantCreated`
-- **Upstream to CapabilityMapping**: Provides configuration via read models/API
+- **Upstream to CapabilityMapping, Architecture Direction and OnePagers**: published events into their local caches; OnePagers seeds legacy attributes through the published `ImportSubjectAttribute` command
 - **Published Language**: Well-defined DTOs for configuration data

@@ -15,7 +15,7 @@ import (
 
 func TestGet_CallsEachCollaboratorExactlyOnce(t *testing.T) {
 	subjects := &countingSubjectSource{snapshot: snapshotNamed("Payments", nil)}
-	configs := &countingConfigSource{record: &readmodels.ConfigurationRecord{SubjectType: "capability"}}
+	configs := &countingConfigSource{record: &testRecord{SubjectType: "capability"}}
 	facts := &countingFactsSource{}
 	maturity := &countingMaturitySource{}
 
@@ -49,9 +49,9 @@ func TestGet_ReturnsErrSubjectNotFoundWhenFetchSubjectReturnsNil(t *testing.T) {
 
 func TestGet_PassesIncludedBuiltInEntryIDsToFetchSubject(t *testing.T) {
 	subjects := &countingSubjectSource{snapshot: snapshotNamed("Payments", nil)}
-	configs := &countingConfigSource{record: &readmodels.ConfigurationRecord{
+	configs := &countingConfigSource{record: &testRecord{
 		SubjectType: "capability",
-		Document: readmodels.ConfigurationDocument{
+		Document: testDocument{
 			DisplayOrder: []readmodels.FieldRefRecord{
 				{Kind: "builtIn", ID: "name"},
 				{Kind: "custom", ID: "field-1"},
@@ -74,9 +74,9 @@ func TestGet_ReturnsErrSubjectNotFoundWhenSubjectTypeMissingFromMap(t *testing.T
 	facts := &countingFactsSource{}
 
 	query := queries.NewOnePagerQuery(queries.OnePagerQueryDeps{
-		Configurations: configs,
-		Facts:          facts,
-		Subjects:       map[string]ports.BuiltInFieldSource{},
+		Definitions: configs,
+		Facts:       facts,
+		Subjects:    map[string]ports.BuiltInFieldSource{},
 	})
 
 	_, err := query.Get(context.Background(), mustSubjectType(t, "vendor"), "subject-1")
@@ -88,7 +88,7 @@ func TestGet_ReturnsErrSubjectNotFoundWhenSubjectTypeMissingFromMap(t *testing.T
 
 func TestGet_SetsSubjectHeaderFields(t *testing.T) {
 	subjects := &countingSubjectSource{snapshot: snapshotNamed("Payments Capability", nil)}
-	configs := &countingConfigSource{record: &readmodels.ConfigurationRecord{SubjectType: "capability"}}
+	configs := &countingConfigSource{record: &testRecord{SubjectType: "capability"}}
 	facts := &countingFactsSource{}
 
 	query := queries.NewOnePagerQuery(buildDeps(depsParams{subjectType: "capability", subjects: subjects, configs: configs, facts: facts}))

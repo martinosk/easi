@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func getApplicationOnePager(t *testing.T, config *readmodels.ConfigurationRecord, snapshotFields map[string]ports.BuiltInFieldValue, facts []readmodels.FactRecord) (*queries.OnePager, error) {
+func getApplicationOnePager(t *testing.T, config *testRecord, snapshotFields map[string]ports.BuiltInFieldValue, facts []readmodels.FactRecord) (*queries.OnePager, error) {
 	t.Helper()
 	subjects := &countingSubjectSource{snapshot: snapshotNamed("App", snapshotFields)}
 	query := queries.NewOnePagerQuery(buildDeps(depsParams{
@@ -26,10 +26,10 @@ func getApplicationOnePager(t *testing.T, config *readmodels.ConfigurationRecord
 }
 
 func TestGet_InterleavesBuiltInAndCustomFieldsInConfiguredOrder(t *testing.T) {
-	config := &readmodels.ConfigurationRecord{
+	config := &testRecord{
 		SubjectType: "application",
-		Document: readmodels.ConfigurationDocument{
-			CustomFields: []readmodels.CustomFieldRecord{
+		Document: testDocument{
+			CustomFields: []fieldSpec{
 				{ID: "contract-link", Name: "Contract link", Type: "link", Active: true},
 			},
 			DisplayOrder: []readmodels.FieldRefRecord{
@@ -55,8 +55,8 @@ func TestGet_InterleavesBuiltInAndCustomFieldsInConfiguredOrder(t *testing.T) {
 }
 
 func TestGet_BuiltInFieldResolvesLabelAndValueFromCatalogAndSnapshot(t *testing.T) {
-	config := &readmodels.ConfigurationRecord{
-		Document: readmodels.ConfigurationDocument{
+	config := &testRecord{
+		Document: testDocument{
 			DisplayOrder: []readmodels.FieldRefRecord{{Kind: "builtIn", ID: "description"}},
 		},
 	}
@@ -86,8 +86,8 @@ func TestGet_DisplayOrderEntryEdgeCases(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			config := &readmodels.ConfigurationRecord{
-				Document: readmodels.ConfigurationDocument{DisplayOrder: []readmodels.FieldRefRecord{tc.ref}},
+			config := &testRecord{
+				Document: testDocument{DisplayOrder: []readmodels.FieldRefRecord{tc.ref}},
 			}
 
 			result, err := getApplicationOnePager(t, config, nil, nil)
@@ -102,9 +102,9 @@ func TestGet_DisplayOrderEntryEdgeCases(t *testing.T) {
 }
 
 func TestGet_SkipsRetiredCustomFieldEvenWithRecordedValue(t *testing.T) {
-	config := &readmodels.ConfigurationRecord{
-		Document: readmodels.ConfigurationDocument{
-			CustomFields: []readmodels.CustomFieldRecord{{ID: "old-field", Name: "Old", Type: "text", Active: false}},
+	config := &testRecord{
+		Document: testDocument{
+			CustomFields: []fieldSpec{{ID: "old-field", Name: "Old", Type: "text", Active: false}},
 			DisplayOrder: []readmodels.FieldRefRecord{{Kind: "custom", ID: "old-field"}},
 		},
 	}
@@ -118,9 +118,9 @@ func TestGet_SkipsRetiredCustomFieldEvenWithRecordedValue(t *testing.T) {
 }
 
 func TestGet_EmptyOptionalCustomFieldIsPresentWithNilValue(t *testing.T) {
-	config := &readmodels.ConfigurationRecord{
-		Document: readmodels.ConfigurationDocument{
-			CustomFields: []readmodels.CustomFieldRecord{{ID: "notes", Name: "Notes", Type: "text", HelpText: "Optional notes", Active: true}},
+	config := &testRecord{
+		Document: testDocument{
+			CustomFields: []fieldSpec{{ID: "notes", Name: "Notes", Type: "text", HelpText: "Optional notes", Active: true}},
 			DisplayOrder: []readmodels.FieldRefRecord{{Kind: "custom", ID: "notes"}},
 		},
 	}
@@ -141,9 +141,9 @@ func TestGet_EmptyOptionalCustomFieldIsPresentWithNilValue(t *testing.T) {
 
 func TestGet_CustomFieldWithRecordedValueRendersValueAndDisplayText(t *testing.T) {
 	envelope := envelopeOf(t, "text", `"Runs on shared cluster"`)
-	config := &readmodels.ConfigurationRecord{
-		Document: readmodels.ConfigurationDocument{
-			CustomFields: []readmodels.CustomFieldRecord{{ID: "hosting-notes", Name: "Hosting notes", Type: "text", Active: true}},
+	config := &testRecord{
+		Document: testDocument{
+			CustomFields: []fieldSpec{{ID: "hosting-notes", Name: "Hosting notes", Type: "text", Active: true}},
 			DisplayOrder: []readmodels.FieldRefRecord{{Kind: "custom", ID: "hosting-notes"}},
 		},
 	}
@@ -198,9 +198,9 @@ func TestGet_SelectionFieldDisplayText(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			envelope := envelopeOf(t, "selection", fmt.Sprintf(`{"optionId":%q}`, tc.selectedOptionID))
-			config := &readmodels.ConfigurationRecord{
-				Document: readmodels.ConfigurationDocument{
-					CustomFields: []readmodels.CustomFieldRecord{{
+			config := &testRecord{
+				Document: testDocument{
+					CustomFields: []fieldSpec{{
 						ID: "hosting", Name: "Hosting model", Type: "selection", Active: true,
 						Options: tc.options,
 					}},
@@ -240,9 +240,9 @@ func TestGet_NumberFieldDisplayAndBoundsFlag(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			envelope := envelopeOf(t, "number", tc.recordedValue)
-			config := &readmodels.ConfigurationRecord{
-				Document: readmodels.ConfigurationDocument{
-					CustomFields: []readmodels.CustomFieldRecord{{
+			config := &testRecord{
+				Document: testDocument{
+					CustomFields: []fieldSpec{{
 						ID: "maturity", Name: "Maturity score", Type: "number", Active: true,
 						Min: tc.min, Max: tc.max,
 					}},
@@ -262,9 +262,9 @@ func TestGet_NumberFieldDisplayAndBoundsFlag(t *testing.T) {
 }
 
 func TestGet_FactsForFieldsOutsideDisplayOrderDoNotAppear(t *testing.T) {
-	config := &readmodels.ConfigurationRecord{
-		Document: readmodels.ConfigurationDocument{
-			CustomFields: []readmodels.CustomFieldRecord{{ID: "notes", Name: "Notes", Type: "text", Active: true}},
+	config := &testRecord{
+		Document: testDocument{
+			CustomFields: []fieldSpec{{ID: "notes", Name: "Notes", Type: "text", Active: true}},
 			DisplayOrder: []readmodels.FieldRefRecord{{Kind: "custom", ID: "notes"}},
 		},
 	}

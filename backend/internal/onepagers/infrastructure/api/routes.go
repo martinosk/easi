@@ -41,18 +41,32 @@ type OnePagersRoutesDeps struct {
 }
 
 type subjectCaches struct {
-	index     *readmodels.OnePagerSubjectIndexReadModel
-	relations *readmodels.SubjectRelationCacheReadModel
-	domains   *readmodels.BusinessDomainNameCacheReadModel
-	maturity  *readmodels.MaturityScaleCacheReadModel
+	index       *readmodels.OnePagerSubjectIndexReadModel
+	relations   *readmodels.SubjectRelationCacheReadModel
+	domains     *readmodels.BusinessDomainNameCacheReadModel
+	maturity    *readmodels.MaturityScaleCacheReadModel
+	definitions *readmodels.CustomFieldDefinitionCacheReadModel
 }
 
 func newSubjectCaches(db *database.TenantAwareDB) subjectCaches {
 	return subjectCaches{
-		index:     readmodels.NewOnePagerSubjectIndexReadModel(db),
-		relations: readmodels.NewSubjectRelationCacheReadModel(db),
-		domains:   readmodels.NewBusinessDomainNameCacheReadModel(db),
-		maturity:  readmodels.NewMaturityScaleCacheReadModel(db),
+		index:       readmodels.NewOnePagerSubjectIndexReadModel(db),
+		relations:   readmodels.NewSubjectRelationCacheReadModel(db),
+		domains:     readmodels.NewBusinessDomainNameCacheReadModel(db),
+		maturity:    readmodels.NewMaturityScaleCacheReadModel(db),
+		definitions: readmodels.NewCustomFieldDefinitionCacheReadModel(db),
+	}
+}
+
+func (c subjectCaches) subscribeSchemaConsumers(bus events.EventBus, configs *readmodels.OnePagerConfigurationReadModel, commandBus cqrs.CommandBus) {
+	definitionProjector := projectors.NewCustomFieldDefinitionProjector(c.definitions)
+	for _, eventType := range projectors.CustomFieldDefinitionEventTypes() {
+		bus.Subscribe(eventType, definitionProjector)
+	}
+
+	inclusionReactor := projectors.NewCustomFieldInclusionReactor(configs, commandBus)
+	for _, eventType := range projectors.CustomFieldInclusionEventTypes() {
+		bus.Subscribe(eventType, inclusionReactor)
 	}
 }
 
@@ -88,6 +102,7 @@ func SetupOnePagersRoutes(deps OnePagersRoutesDeps) error {
 	}
 
 	registerCommands(deps.CommandBus, repo, readModel)
+	caches.subscribeSchemaConsumers(deps.EventBus, readModel, deps.CommandBus)
 
 	factsRepo := repositories.NewOnePagerFactsRepository(deps.EventStore)
 	factsReadModel := readmodels.NewOnePagerFactsReadModel(deps.DB)
@@ -102,22 +117,28 @@ func SetupOnePagersRoutes(deps OnePagersRoutesDeps) error {
 		deps.EventBus.Subscribe(eventType, deletionReactor)
 	}
 
-	completenessCounter := queries.NewCompletenessIndicators(readModel, factsReadModel, builtInFields)
+	completenessCounter := queries.NewCompletenessIndicators(readModel, caches.definitions, factsReadModel, builtInFields)
 	caches.subscribeProjectors(deps.EventBus, projectors.NewSubjectIndexProjector(caches.index, completenessCounter, deps.SubjectAudit, readModel))
 
 	registerFactsCommands(deps.CommandBus, factsCommandWiring{
-		repo:     factsRepo,
-		configs:  readModel,
-		facts:    factsReadModel,
-		subjects: adapters.NewSubjectExistenceChecker(caches.index),
+		repo:        factsRepo,
+		definitions: caches.definitions,
+		facts:       factsReadModel,
+		subjects:    adapters.NewSubjectExistenceChecker(caches.index),
 	})
 
 	links := NewOnePagerLinks(deps.Hateoas)
-	configHandlers := NewOnePagerConfigurationHandlers(deps.CommandBus, readModel, links, deps.SessionProvider)
+	configHandlers := NewOnePagerConfigurationHandlers(OnePagerConfigurationHandlersDeps{
+		CommandBus:      deps.CommandBus,
+		Reader:          readModel,
+		Definitions:     caches.definitions,
+		Links:           links,
+		SessionProvider: deps.SessionProvider,
+	})
 	impactPreviewQuery := queries.NewImpactPreviewQuery(queries.ImpactPreviewDeps{
-		Configurations: readModel,
-		Facts:          factsReadModel,
-		Subjects:       builtInFields,
+		Definitions: caches.definitions,
+		Facts:       factsReadModel,
+		Subjects:    builtInFields,
 	})
 	impactPreviewHandlers := NewImpactPreviewHandlers(impactPreviewQuery, links)
 	registerRoutes(deps.Router, configHandlers, impactPreviewHandlers, deps.AuthMiddleware)
@@ -125,12 +146,13 @@ func SetupOnePagersRoutes(deps OnePagersRoutesDeps) error {
 	factsHandlers := NewOnePagerFactsHandlers(OnePagerFactsHandlersDeps{
 		CommandBus:      deps.CommandBus,
 		Facts:           factsReadModel,
-		Configs:         readModel,
+		Definitions:     caches.definitions,
 		Links:           links,
 		SessionProvider: deps.SessionProvider,
 	})
 	onePagerQuery := queries.NewOnePagerQuery(queries.OnePagerQueryDeps{
 		Configurations: readModel,
+		Definitions:    caches.definitions,
 		Facts:          factsReadModel,
 		Subjects:       builtInFields,
 		MaturityScale:  adapters.NewMaturityScaleSource(caches.maturity),
@@ -145,27 +167,31 @@ func SetupOnePagersRoutes(deps OnePagersRoutesDeps) error {
 	qualityHandlers := NewOnePagerQualityHandlers(caches.index, links)
 	deps.Router.Get("/one-pager-quality", qualityHandlers.GetQualityList)
 
-	return archiveRetiredSubjectFacts(deps, caches.index, factsReadModel)
+	return runStartupJobs(deps, caches, factsReadModel)
 }
 
-func archiveRetiredSubjectFacts(deps OnePagersRoutesDeps, index *readmodels.OnePagerSubjectIndexReadModel, facts *readmodels.OnePagerFactsReadModel) error {
+func runStartupJobs(deps OnePagersRoutesDeps, caches subjectCaches, facts *readmodels.OnePagerFactsReadModel) error {
 	if deps.Tenants == nil {
 		return nil
 	}
-	archival := projectors.NewRetiredSubjectArchival(deps.Tenants, index, facts, deps.CommandBus)
-	return archival.Run(context.Background())
+	archival := projectors.NewRetiredSubjectArchival(deps.Tenants, caches.index, facts, deps.CommandBus)
+	if err := archival.Run(context.Background()); err != nil {
+		return err
+	}
+	transfer := projectors.NewCustomFieldSchemaTransfer(deps.Tenants, caches.definitions, deps.CommandBus)
+	return transfer.Run(context.Background())
 }
 
 type factsCommandWiring struct {
-	repo     *repositories.OnePagerFactsRepository
-	configs  *readmodels.OnePagerConfigurationReadModel
-	facts    *readmodels.OnePagerFactsReadModel
-	subjects ports.SubjectExistenceChecker
+	repo        *repositories.OnePagerFactsRepository
+	definitions *readmodels.CustomFieldDefinitionCacheReadModel
+	facts       *readmodels.OnePagerFactsReadModel
+	subjects    ports.SubjectExistenceChecker
 }
 
 func registerFactsCommands(commandBus *cqrs.InMemoryCommandBus, wiring factsCommandWiring) {
-	commandBus.Register("RecordFieldValue", handlers.NewRecordFieldValueHandler(wiring.repo, wiring.configs, wiring.facts, wiring.subjects))
-	commandBus.Register("ClearFieldValue", handlers.NewClearFieldValueHandler(wiring.repo, wiring.configs, wiring.facts))
+	commandBus.Register("RecordFieldValue", handlers.NewRecordFieldValueHandler(wiring.repo, wiring.definitions, wiring.facts, wiring.subjects))
+	commandBus.Register("ClearFieldValue", handlers.NewClearFieldValueHandler(wiring.repo, wiring.definitions, wiring.facts))
 	commandBus.Register("ArchiveOnePagerFacts", handlers.NewArchiveOnePagerFactsHandler(wiring.repo))
 }
 
@@ -215,18 +241,13 @@ func registerCommands(
 	readModel *readmodels.OnePagerConfigurationReadModel,
 ) {
 	commandBus.Register("CreateOnePagerConfiguration", handlers.NewCreateOnePagerConfigurationHandler(repo, readModel))
-	commandBus.Register("DefineCustomField", handlers.NewDefineCustomFieldHandler(repo))
-	commandBus.Register("RenameCustomField", handlers.NewRenameCustomFieldHandler(repo))
+	commandBus.Register("IncludeCustomField", handlers.NewIncludeCustomFieldHandler(repo))
+	commandBus.Register("ExcludeCustomField", handlers.NewExcludeCustomFieldHandler(repo))
 	commandBus.Register("ChangeCustomFieldRequirement", handlers.NewChangeCustomFieldRequirementHandler(repo))
-	commandBus.Register("RetireCustomField", handlers.NewRetireCustomFieldHandler(repo))
-	commandBus.Register("ReactivateCustomField", handlers.NewReactivateCustomFieldHandler(repo))
 	commandBus.Register("IncludeBuiltInField", handlers.NewIncludeBuiltInFieldHandler(repo))
 	commandBus.Register("ExcludeBuiltInField", handlers.NewExcludeBuiltInFieldHandler(repo))
 	commandBus.Register("ChangeBuiltInFieldRequirement", handlers.NewChangeBuiltInFieldRequirementHandler(repo))
 	commandBus.Register("ReorderOnePagerFields", handlers.NewReorderOnePagerFieldsHandler(repo))
-	commandBus.Register("AddSelectionOption", handlers.NewAddSelectionOptionHandler(repo))
-	commandBus.Register("RetireSelectionOption", handlers.NewRetireSelectionOptionHandler(repo))
-	commandBus.Register("SetNumberFieldBounds", handlers.NewSetNumberFieldBoundsHandler(repo))
 }
 
 func registerRoutes(router chi.Router, h *OnePagerConfigurationHandlers, previewHandlers *ImpactPreviewHandlers, authMiddleware AuthMiddleware) {
@@ -239,14 +260,7 @@ func registerRoutes(router chi.Router, h *OnePagerConfigurationHandlers, preview
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequirePermission(authPL.PermMetaModelWrite))
 			r.Get("/impact-preview", previewHandlers.GetImpactPreview)
-			r.Post("/custom-fields", h.DefineCustomField)
-			r.Put("/custom-fields/{fieldID}", h.RenameCustomField)
 			r.Put("/custom-fields/{fieldID}/requirement", h.ChangeCustomFieldRequirement)
-			r.Post("/custom-fields/{fieldID}/retire", h.RetireCustomField)
-			r.Post("/custom-fields/{fieldID}/reactivate", h.ReactivateCustomField)
-			r.Post("/custom-fields/{fieldID}/options", h.AddSelectionOption)
-			r.Post("/custom-fields/{fieldID}/options/{optionID}/retire", h.RetireSelectionOption)
-			r.Put("/custom-fields/{fieldID}/bounds", h.SetNumberFieldBounds)
 			r.Post("/built-in-fields/{entryID}/include", h.IncludeBuiltInField)
 			r.Post("/built-in-fields/{entryID}/exclude", h.ExcludeBuiltInField)
 			r.Put("/built-in-fields/{entryID}/requirement", h.ChangeBuiltInFieldRequirement)

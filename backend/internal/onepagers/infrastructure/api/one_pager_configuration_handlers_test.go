@@ -14,7 +14,6 @@ import (
 	"easi/backend/internal/onepagers/application/handlers"
 	"easi/backend/internal/onepagers/application/readmodels"
 	"easi/backend/internal/onepagers/domain/aggregates"
-	"easi/backend/internal/onepagers/domain/valueobjects"
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
@@ -27,11 +26,12 @@ import (
 
 type fakeReader struct {
 	bySubjectType map[string]*readmodels.ConfigurationRecord
+	definitions   readmodels.CustomFieldDefinitions
 	err           error
 }
 
 func newFakeReader(records ...*readmodels.ConfigurationRecord) *fakeReader {
-	reader := &fakeReader{bySubjectType: map[string]*readmodels.ConfigurationRecord{}}
+	reader := &fakeReader{bySubjectType: map[string]*readmodels.ConfigurationRecord{}, definitions: applicationDefinitions()}
 	for _, record := range records {
 		reader.bySubjectType[record.SubjectType] = record
 	}
@@ -43,6 +43,10 @@ func (f *fakeReader) GetBySubjectType(_ context.Context, subjectType string) (*r
 		return nil, f.err
 	}
 	return f.bySubjectType[subjectType], nil
+}
+
+func (f *fakeReader) ForSubjectType(_ context.Context, _ string) (readmodels.CustomFieldDefinitions, error) {
+	return f.definitions, nil
 }
 
 type fakeCommandBus struct {
@@ -70,12 +74,13 @@ func (f *fakeSessionProvider) GetCurrentUserEmail(_ context.Context) (string, er
 }
 
 func newHandlers(reader *fakeReader, bus *fakeCommandBus) *OnePagerConfigurationHandlers {
-	return NewOnePagerConfigurationHandlers(
-		bus,
-		reader,
-		testLinks(),
-		&fakeSessionProvider{email: "admin@example.com"},
-	)
+	return NewOnePagerConfigurationHandlers(OnePagerConfigurationHandlersDeps{
+		CommandBus:      bus,
+		Reader:          reader,
+		Definitions:     reader,
+		Links:           testLinks(),
+		SessionProvider: &fakeSessionProvider{email: "admin@example.com"},
+	})
 }
 
 type requestSpec struct {
@@ -136,7 +141,9 @@ func TestGetConfiguration_ReturnsExistingConfiguration(t *testing.T) {
 	dto := decodeDTO(t, rec)
 	assert.Equal(t, "config-1", dto.ID)
 	assert.Empty(t, bus.dispatched)
-	assert.NotContains(t, dto.Links, "x-define-custom-field")
+	assert.NotContains(t, dto.Links, "x-reorder")
+	assert.Contains(t, dto.Links, "x-attribute-schema")
+	require.Len(t, dto.CustomFields, 3, "custom fields come from the definition cache")
 }
 
 func TestGetConfiguration_LazilyCreatesDefaultOnFirstRead(t *testing.T) {
@@ -167,7 +174,7 @@ func TestGetConfiguration_LazilyCreatesDefaultOnFirstRead(t *testing.T) {
 	require.Len(t, bus.dispatched, 1)
 	dto := decodeDTO(t, rec)
 	assert.Equal(t, "vendor", dto.SubjectType)
-	assert.Contains(t, dto.Links, "x-define-custom-field")
+	assert.Contains(t, dto.Links, "x-reorder")
 }
 
 func TestGetConfiguration_RecoversWhenConcurrentCreateWins(t *testing.T) {
@@ -205,93 +212,44 @@ func TestGetConfiguration_UnknownSubjectTypeIs404(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, rec.Code)
 }
 
-func defineCustomFieldRequest(t *testing.T, body map[string]any) (*httptest.ResponseRecorder, *http.Request) {
+func changeRequirementRequest(t *testing.T, body map[string]any) (*httptest.ResponseRecorder, *http.Request) {
 	t.Helper()
 	return requestFor(t, requestSpec{
-		method:      http.MethodPost,
-		path:        "/one-pagers/configurations/application/custom-fields",
+		method:      http.MethodPut,
+		path:        "/one-pagers/configurations/application/custom-fields/" + testFieldID + "/requirement",
 		body:        body,
 		subjectType: "application",
+		params:      map[string]string{"fieldID": testFieldID},
 		actor:       adminActor(),
 	})
 }
 
-func TestDefineCustomField_DispatchesCommandAndReturns201(t *testing.T) {
+func TestChangeCustomFieldRequirement_StaleVersionIs409WithoutDispatch(t *testing.T) {
 	reader := newFakeReader(applicationRecord())
 	bus := &fakeCommandBus{}
 	h := newHandlers(reader, bus)
 
-	body := map[string]any{
-		"name":      "Contract link",
-		"fieldType": "link",
-		"required":  true,
-		"helpText":  "URL",
-		"version":   4,
-	}
-	rec, req := defineCustomFieldRequest(t, body)
-	h.DefineCustomField(rec, req)
-
-	assert.Equal(t, http.StatusCreated, rec.Code)
-	require.Len(t, bus.dispatched, 1)
-	cmd, ok := bus.dispatched[0].(*commands.DefineCustomField)
-	require.True(t, ok)
-	assert.Equal(t, "config-1", cmd.ConfigID)
-	assert.Equal(t, "Contract link", cmd.Name)
-	assert.Equal(t, "link", cmd.FieldType)
-	assert.True(t, cmd.Required)
-	assert.Equal(t, "admin@example.com", cmd.ModifiedBy)
-	assert.Equal(t, "/api/v1/one-pagers/configurations/application", rec.Header().Get("Location"))
-}
-
-func TestDefineCustomField_StaleVersionIs409WithoutDispatch(t *testing.T) {
-	reader := newFakeReader(applicationRecord())
-	bus := &fakeCommandBus{}
-	h := newHandlers(reader, bus)
-
-	rec, req := defineCustomFieldRequest(t, map[string]any{"name": "Contract link", "fieldType": "link", "version": 3})
-	h.DefineCustomField(rec, req)
+	rec, req := changeRequirementRequest(t, map[string]any{"required": true, "version": 3})
+	h.ChangeCustomFieldRequirement(rec, req)
 
 	assert.Equal(t, http.StatusConflict, rec.Code)
 	assert.Empty(t, bus.dispatched)
 }
 
-func TestDefineCustomField_DomainConflictMapsTo409(t *testing.T) {
+func TestChangeCustomFieldRequirement_DomainConflictMapsTo409(t *testing.T) {
 	reader := newFakeReader(applicationRecord())
 	bus := &fakeCommandBus{onDispatch: func(cqrs.Command) (cqrs.CommandResult, error) {
-		return cqrs.EmptyResult(), aggregates.ErrDuplicateFieldName
+		return cqrs.EmptyResult(), aggregates.ErrCustomFieldNotIncluded
 	}}
 	h := newHandlers(reader, bus)
 
-	rec, req := defineCustomFieldRequest(t, map[string]any{"name": "Hosting model", "fieldType": "text", "version": 4})
-	h.DefineCustomField(rec, req)
-
-	assert.Equal(t, http.StatusConflict, rec.Code)
-}
-
-func TestRenameCustomField_TypeChangeAttemptMapsTo409(t *testing.T) {
-	reader := newFakeReader(applicationRecord())
-	bus := &fakeCommandBus{onDispatch: func(cmd cqrs.Command) (cqrs.CommandResult, error) {
-		rename, ok := cmd.(*commands.RenameCustomField)
-		require.True(t, ok)
-		assert.Equal(t, "text", rename.RequestedType)
-		return cqrs.EmptyResult(), aggregates.ErrFieldTypeImmutable
-	}}
-	h := newHandlers(reader, bus)
-
-	rec, req := requestFor(t, requestSpec{
-		method:      http.MethodPut,
-		path:        "/one-pagers/configurations/application/custom-fields/9f0d5e69-0000-0000-0000-000000000001",
-		body:        map[string]any{"name": "Hosting", "fieldType": "text", "version": 4},
-		subjectType: "application",
-		params:      map[string]string{"fieldID": "9f0d5e69-0000-0000-0000-000000000001"},
-		actor:       adminActor(),
-	})
-	h.RenameCustomField(rec, req)
+	rec, req := changeRequirementRequest(t, map[string]any{"required": true, "version": 4})
+	h.ChangeCustomFieldRequirement(rec, req)
 
 	assert.Equal(t, http.StatusConflict, rec.Code)
 	var errResponse sharedAPI.ErrorResponse
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &errResponse))
-	assert.Contains(t, errResponse.Message, "immutable")
+	assert.Contains(t, errResponse.Message, "not included")
 }
 
 func TestReorderFields_DispatchesOrderRefs(t *testing.T) {
@@ -324,10 +282,7 @@ func TestReorderFields_DispatchesOrderRefs(t *testing.T) {
 	assert.Equal(t, commands.FieldRefInput{Kind: "custom", ID: "9f0d5e69-0000-0000-0000-000000000001"}, cmd.Order[0])
 }
 
-const (
-	testFieldID  = "9f0d5e69-0000-0000-0000-000000000001"
-	testOptionID = "9f0d5e69-0000-0000-0000-00000000000b"
-)
+const testFieldID = selectionFieldID
 
 type writeEndpointCase struct {
 	name     string
@@ -381,31 +336,6 @@ func TestWriteEndpoints_DispatchFieldLifecycleCommands(t *testing.T) {
 			},
 			status: http.StatusOK,
 		},
-		{
-			name:   "retire field",
-			invoke: (*OnePagerConfigurationHandlers).RetireCustomField,
-			method: http.MethodPost, path: "/custom-fields/" + testFieldID + "/retire",
-			params: map[string]string{"fieldID": testFieldID},
-			body:   map[string]any{"version": 4},
-			expected: func(t *testing.T, cmd cqrs.Command) {
-				c, ok := cmd.(*commands.RetireCustomField)
-				require.True(t, ok)
-				assert.Equal(t, testFieldID, c.FieldID)
-			},
-			status: http.StatusOK,
-		},
-		{
-			name:   "reactivate field",
-			invoke: (*OnePagerConfigurationHandlers).ReactivateCustomField,
-			method: http.MethodPost, path: "/custom-fields/" + testFieldID + "/reactivate",
-			params: map[string]string{"fieldID": testFieldID},
-			body:   map[string]any{"version": 4},
-			expected: func(t *testing.T, cmd cqrs.Command) {
-				_, ok := cmd.(*commands.ReactivateCustomField)
-				require.True(t, ok)
-			},
-			status: http.StatusOK,
-		},
 	})
 }
 
@@ -454,119 +384,18 @@ func TestWriteEndpoints_DispatchBuiltInFieldCommands(t *testing.T) {
 	})
 }
 
-func TestWriteEndpoints_DispatchSelectionOptionCommands(t *testing.T) {
-	runWriteEndpointCases(t, []writeEndpointCase{
-		{
-			name:   "add option",
-			invoke: (*OnePagerConfigurationHandlers).AddSelectionOption,
-			method: http.MethodPost, path: "/custom-fields/" + testFieldID + "/options",
-			params: map[string]string{"fieldID": testFieldID},
-			body:   map[string]any{"label": "Hybrid", "version": 4},
-			expected: func(t *testing.T, cmd cqrs.Command) {
-				c, ok := cmd.(*commands.AddSelectionOption)
-				require.True(t, ok)
-				assert.Equal(t, "Hybrid", c.Label)
-			},
-			status: http.StatusCreated,
-		},
-		{
-			name:   "retire option",
-			invoke: (*OnePagerConfigurationHandlers).RetireSelectionOption,
-			method: http.MethodPost, path: "/custom-fields/" + testFieldID + "/options/" + testOptionID + "/retire",
-			params: map[string]string{"fieldID": testFieldID, "optionID": testOptionID},
-			body:   map[string]any{"version": 4},
-			expected: func(t *testing.T, cmd cqrs.Command) {
-				c, ok := cmd.(*commands.RetireSelectionOption)
-				require.True(t, ok)
-				assert.Equal(t, testOptionID, c.OptionID)
-			},
-			status: http.StatusOK,
-		},
-	})
-}
-
-func TestSetNumberFieldBounds_DispatchesCommandAndReturns200(t *testing.T) {
-	reader := newFakeReader(applicationRecord())
-	bus := &fakeCommandBus{}
-	h := newHandlers(reader, bus)
-
-	numberFieldID := "9f0d5e69-0000-0000-0000-000000000004"
-	rec, req := requestFor(t, requestSpec{
-		method:      http.MethodPut,
-		path:        "/one-pagers/configurations/application/custom-fields/" + numberFieldID + "/bounds",
-		body:        map[string]any{"min": float64(0), "max": float64(5), "version": 4},
-		subjectType: "application",
-		params:      map[string]string{"fieldID": numberFieldID},
-		actor:       adminActor(),
-	})
-	h.SetNumberFieldBounds(rec, req)
-
-	assert.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	require.Len(t, bus.dispatched, 1)
-	cmd, ok := bus.dispatched[0].(*commands.SetNumberFieldBounds)
-	require.True(t, ok)
-	assert.Equal(t, numberFieldID, cmd.FieldID)
-	require.NotNil(t, cmd.Min)
-	assert.Equal(t, 0.0, *cmd.Min)
-	require.NotNil(t, cmd.Max)
-	assert.Equal(t, 5.0, *cmd.Max)
-}
-
-func TestSetNumberFieldBounds_OmittedBoundsAreNil(t *testing.T) {
-	reader := newFakeReader(applicationRecord())
-	bus := &fakeCommandBus{}
-	h := newHandlers(reader, bus)
-
-	numberFieldID := "9f0d5e69-0000-0000-0000-000000000004"
-	rec, req := requestFor(t, requestSpec{
-		method:      http.MethodPut,
-		path:        "/one-pagers/configurations/application/custom-fields/" + numberFieldID + "/bounds",
-		body:        map[string]any{"version": 4},
-		subjectType: "application",
-		params:      map[string]string{"fieldID": numberFieldID},
-		actor:       adminActor(),
-	})
-	h.SetNumberFieldBounds(rec, req)
-
-	assert.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	require.Len(t, bus.dispatched, 1)
-	cmd, ok := bus.dispatched[0].(*commands.SetNumberFieldBounds)
-	require.True(t, ok)
-	assert.Nil(t, cmd.Min)
-	assert.Nil(t, cmd.Max)
-}
-
-func TestSetNumberFieldBounds_DomainConflictMapsTo409(t *testing.T) {
-	reader := newFakeReader(applicationRecord())
-	bus := &fakeCommandBus{onDispatch: func(cqrs.Command) (cqrs.CommandResult, error) {
-		return cqrs.EmptyResult(), valueobjects.ErrMinExceedsMax
-	}}
-	h := newHandlers(reader, bus)
-
-	numberFieldID := "9f0d5e69-0000-0000-0000-000000000004"
-	rec, req := requestFor(t, requestSpec{
-		method:      http.MethodPut,
-		path:        "/one-pagers/configurations/application/custom-fields/" + numberFieldID + "/bounds",
-		body:        map[string]any{"min": float64(10), "max": float64(5), "version": 4},
-		subjectType: "application",
-		params:      map[string]string{"fieldID": numberFieldID},
-		actor:       adminActor(),
-	})
-	h.SetNumberFieldBounds(rec, req)
-
-	assert.Equal(t, http.StatusBadRequest, rec.Code)
-}
-
 func TestWriteEndpoint_UnauthenticatedIs401(t *testing.T) {
-	h := NewOnePagerConfigurationHandlers(
-		&fakeCommandBus{},
-		newFakeReader(applicationRecord()),
-		testLinks(),
-		&fakeSessionProvider{err: errors.New("no session")},
-	)
+	reader := newFakeReader(applicationRecord())
+	h := NewOnePagerConfigurationHandlers(OnePagerConfigurationHandlersDeps{
+		CommandBus:      &fakeCommandBus{},
+		Reader:          reader,
+		Definitions:     reader,
+		Links:           testLinks(),
+		SessionProvider: &fakeSessionProvider{err: errors.New("no session")},
+	})
 
-	rec, req := defineCustomFieldRequest(t, map[string]any{"name": "X", "fieldType": "text", "version": 4})
-	h.DefineCustomField(rec, req)
+	rec, req := changeRequirementRequest(t, map[string]any{"required": true, "version": 4})
+	h.ChangeCustomFieldRequirement(rec, req)
 
 	assert.Equal(t, http.StatusUnauthorized, rec.Code)
 }

@@ -33,6 +33,8 @@ var onePagerEventDeserializers = repository.NewEventDeserializers(
 		"CustomFieldRenamed":             repository.JSONDeserializer[events.CustomFieldRenamed],
 		"CustomFieldRequirementChanged":  repository.JSONDeserializer[events.CustomFieldRequirementChanged],
 		"CustomFieldRetired":             repository.JSONDeserializer[events.CustomFieldRetired],
+		"CustomFieldIncluded":            repository.JSONDeserializer[events.CustomFieldIncluded],
+		"CustomFieldExcluded":            repository.JSONDeserializer[events.CustomFieldExcluded],
 		"CustomFieldReactivated":         repository.JSONDeserializer[events.CustomFieldReactivated],
 		"BuiltInFieldIncluded":           repository.JSONDeserializer[events.BuiltInFieldIncluded],
 		"BuiltInFieldExcluded":           repository.JSONDeserializer[events.BuiltInFieldExcluded],

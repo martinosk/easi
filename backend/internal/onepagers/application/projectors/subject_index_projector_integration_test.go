@@ -60,8 +60,8 @@ func newIndexProjectorFixture(t *testing.T) *indexProjectorFixture {
 	tenantDB := database.NewTenantAwareDB(db)
 	index := readmodels.NewOnePagerSubjectIndexReadModel(tenantDB)
 	configs := readmodels.NewOnePagerConfigurationReadModel(tenantDB)
-	counter := queries.NewCompletenessIndicators(configs, readmodels.NewOnePagerFactsReadModel(tenantDB),
-		adapters.NewOnePagerBuiltInFieldSources(tenantDB))
+	counter := queries.NewCompletenessIndicators(configs, readmodels.NewCustomFieldDefinitionCacheReadModel(tenantDB),
+		readmodels.NewOnePagerFactsReadModel(tenantDB), adapters.NewOnePagerBuiltInFieldSources(tenantDB))
 
 	return &indexProjectorFixture{
 		t: t, ctx: sharedctx.WithTenant(context.Background(), tenantID), tenant: tenant, tenantDB: tenantDB,
@@ -82,8 +82,8 @@ func (f *indexProjectorFixture) seedCreationEvent(actorID, actorEmail string, at
 
 func descriptionConfigDocument(required bool) readmodels.ConfigurationDocument {
 	return readmodels.ConfigurationDocument{
-		CustomFields:  []readmodels.CustomFieldRecord{},
-		BuiltInFields: []readmodels.BuiltInFieldRecord{{ID: "description", Required: required}},
+		CustomFields:  []readmodels.FieldRequirementRecord{},
+		BuiltInFields: []readmodels.FieldRequirementRecord{{ID: "description", Required: required}},
 		DisplayOrder:  []readmodels.FieldRefRecord{{Kind: "builtIn", ID: "description"}},
 	}
 }
@@ -139,8 +139,8 @@ func (f *indexProjectorFixture) rowFor(subjectType, subjectID string) (readmodel
 
 func acquisitionDateConfigDocument(required bool) readmodels.ConfigurationDocument {
 	return readmodels.ConfigurationDocument{
-		CustomFields:  []readmodels.CustomFieldRecord{},
-		BuiltInFields: []readmodels.BuiltInFieldRecord{{ID: "acquisition-date", Required: required}},
+		CustomFields:  []readmodels.FieldRequirementRecord{},
+		BuiltInFields: []readmodels.FieldRequirementRecord{{ID: "acquisition-date", Required: required}},
 		DisplayOrder:  []readmodels.FieldRefRecord{{Kind: "builtIn", ID: "acquisition-date"}},
 	}
 }
