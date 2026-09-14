@@ -1,7 +1,7 @@
 # 218 — Modelling Rule Set: Capability Naming Validation
 
 > **Status:** pending
-> **Depends on:** [217_CustomFieldSchemaInMetaModel](217_CustomFieldSchemaInMetaModel_pending.md)
+> **Depends on:** [217_CustomFieldSchemaInMetaModel](217_CustomFieldSchemaInMetaModel_done.md)
 > **Roadmap alignment:** SD5 / H1-3
 
 ---
