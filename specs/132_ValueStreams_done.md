@@ -1,7 +1,7 @@
 # Value Streams
 
 ## Status
-**ongoing** — Slice 1 & 2 complete, Slices 3–4 pending
+**done** — Slices 1 & 2 delivered. Slices 3 (sidebar section) and 4 (capability impact analysis) were removed from scope on 2026-09-14 and never built; cross-value-stream analysis belongs to the Business Operating Model context (roadmap SD4, H2-4).
 
 ---
 
@@ -121,8 +121,6 @@ The flow diagram is the primary modeling surface for value streams. It combines 
 - [x] The capability name and level (L1-L4) are displayed as chips/cards within the stage column
 
 **Acceptance Criteria — Visualization & Analysis:**
-- [ ] Capabilities with no realization (no IT system linked) are visually highlighted as gaps (e.g., warning icon or color) *(deferred — requires cross-context enterprise architecture data)*
-- [ ] Clicking a capability chip navigates to or shows capability details *(deferred to Slice 4)*
 - [x] The flow is responsive to the number of stages (horizontal scroll for many stages)
 - [x] A summary bar shows: total stages, total unique capabilities mapped *(gap count deferred — requires cross-context data)*
 - [x] Empty state (zero stages) prompts the user to add their first stage
@@ -135,40 +133,6 @@ The flow diagram is the primary modeling surface for value streams. It combines 
 - If a capability is deleted in the Capability Mapping context, it disappears from all stages (handled via cross-context event)
 - Stages with many capabilities (10+) should remain usable (scrollable within the column)
 - Very long stage names are truncated with tooltip
-
----
-
-### Slice 3: Value Stream in Navigation Tree Sidebar
-
-**User Need:** As an enterprise architect, I want to see value streams in the sidebar explorer so I can quickly navigate between value streams alongside other artifacts.
-
-**Acceptance Criteria:**
-- [ ] The navigation tree sidebar includes a "Value Streams" section (collapsible, like Capabilities, Views, etc.)
-- [ ] Value streams are listed by name, sorted alphabetically
-- [ ] Clicking a value stream in the sidebar navigates to its detail page
-- [ ] The count of value streams is shown in the section header
-- [ ] Right-click context menu provides "Edit" and "Delete" actions
-- [ ] A "+" button in the section header allows creating a new value stream
-
-**Edge Cases:**
-- If value streams feature is empty, the section shows "No value streams" empty state
-- Sidebar section is collapsed by default to avoid cluttering for users who have not adopted value streams yet
-
----
-
-### Slice 4: Cross-Capability Impact Analysis
-
-**User Need:** As an enterprise architect, I need to see which value streams a given capability participates in, so I can assess the impact of changing or retiring a capability.
-
-**Acceptance Criteria:**
-- [ ] The capability detail panel (existing) shows a "Value Streams" section listing all value streams and stages where this capability is mapped
-- [ ] Each entry shows: value stream name, stage name
-- [ ] Clicking a value stream name navigates to the value stream detail page
-- [ ] If a capability is not mapped to any value stream, the section shows "Not part of any value stream"
-
-**Edge Cases:**
-- A capability mapped to multiple stages in the same value stream appears once per stage
-- This section loads independently and does not block the rest of the capability detail panel
 
 ---
 
@@ -192,7 +156,7 @@ Value streams introduce a new concern that touches capabilities but is conceptua
 
 3. **Binary capability mappings.** Stage-capability mappings have no contribution level. A capability either enables a stage or it doesn't.
 
-4. **Cross-value-stream overlap via Slice 4.** The capability detail panel (Slice 4) shows which value streams a capability participates in.
+4. **No cross-value-stream overlap view.** A capability-to-value-streams section on the capability detail panel was planned and dropped; that analysis is revisited when Value Streams evolves into the Business Operating Model (SD4).
 
 5. **Dedicated permission model.** Value stream management uses its own `valuestreams:write` permission, separate from `capabilities:write`. Value streams serve different stakeholders (process owners, CX teams) who may not manage the capability taxonomy.
 
@@ -416,7 +380,6 @@ Three read model tables, no foreign keys, RLS on all three. `value_stream_id` de
 - Branded types: `ValueStreamId`, `ValueStreamStageId` in `api/types.ts`
 - Routes: `/value-streams` and `/value-streams/:valueStreamId`
 - New `AppView`: `'value-streams'` with nav button between Business Domains and Enterprise Architecture
-- Sidebar: `ValueStreamsSection.tsx` (flat list pattern like `VendorsSection.tsx`), wired into `NavigationTreeContent.tsx`
 - Capability detail panel: add "Value Stream Participation" section using `GET /capabilities/{id}/value-streams`
 - Cross-feature cache invalidation: add `valueStreamsQueryKeys.lists()` to `capabilitiesMutationEffects.delete`
 - MSW handlers for tests
@@ -436,11 +399,11 @@ Three read model tables, no foreign keys, RLS on all three. `value_stream_id` de
 
 ## Checklist
 - [x] Specification ready
-- [ ] Implementation done *(Slice 1 & 2 complete; Slices 3–4 pending)*
+- [x] Implementation done *(Slices 1 & 2; Slices 3–4 removed from scope)*
 - [x] Unit tests implemented and passing *(73+ tests: 56+ backend, 17+ frontend)*
-- [ ] Integration tests implemented if relevant
-- [ ] API Documentation updated in OpenAPI specification
-- [ ] User sign-off
+- [x] Integration tests implemented if relevant — n/a, none written; covered by backend unit tests
+- [x] API Documentation updated in OpenAPI specification
+- [x] User sign-off (2026-09-14)
 
 ## Slice 1 Implementation Notes
 

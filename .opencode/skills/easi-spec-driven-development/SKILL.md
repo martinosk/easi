@@ -59,7 +59,7 @@ Always rename the file when status changes.
 - CamelCase short description
 - Status suffix
 
-Examples: `126_EditGrants_AccessDelegation_done.md`, `132_ValueStreams_ongoing.md`
+Examples: `126_EditGrants_AccessDelegation_done.md`, `132_ValueStreams_done.md`
 
 ---
 

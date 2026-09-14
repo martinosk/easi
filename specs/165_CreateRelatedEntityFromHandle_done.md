@@ -2,7 +2,7 @@
 
 > **Status:** done (pending user sign-off; addendum gaps A & B resolved)
 > **Depends on:** —
-> **Coordinates with:** [164 — Dynamic View Mode](164_DynamicViewMode_ongoing.md) (in flight). The handle-click flow must behave correctly in both regular and dynamic modes; see Cross-Context Integration below.
+> **Coordinates with:** [164 — Dynamic View Mode](164_DynamicViewMode_done.md). The handle-click flow must behave correctly in both regular and dynamic modes; see Cross-Context Integration below.
 > **Related:** [039 — Capability Dependencies on Canvas](039_Capability_Dependencies_Canvas_pending.md). When 039 lands, capability→capability dependency creation surfaces automatically through the same HATEOAS mechanism without further changes here.
 
 ---
