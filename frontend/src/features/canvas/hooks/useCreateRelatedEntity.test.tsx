@@ -41,6 +41,11 @@ vi.mock('../../origin-entities/hooks', () => ({
   useLinkComponentToInternalTeam: () => ({ mutateAsync: linkComponentToInternalTeamMutate }),
 }));
 
+const attachComponentMutate = vi.fn().mockResolvedValue(undefined);
+vi.mock('../../components/hooks/useComponentContainment', () => ({
+  useAttachComponentById: () => ({ mutateAsync: attachComponentMutate }),
+}));
+
 vi.mock('../../views/hooks/useViews', () => ({
   useAddComponentToView: () => ({ mutateAsync: addComponentToViewMutate }),
   useAddCapabilityToView: () => ({ mutateAsync: addCapabilityToViewMutate }),
@@ -193,6 +198,28 @@ async function runFlow(args: StartArgs) {
   });
   return result;
 }
+
+const composedPartEntry: RelatedLink = {
+  href: '/api/v1/components',
+  methods: ['POST'],
+  title: 'Component (composed part)',
+  targetType: 'component',
+  relationType: 'component-part-composition',
+};
+
+describe('useCreateRelatedEntity — containment', () => {
+  it('attaches the new component as a part of the clicked component and places it on the view', async () => {
+    await runFlow({ entry: composedPartEntry, sourceEntityId: 'comp-suite', newEntityId: 'comp-new' });
+
+    expect(attachComponentMutate).toHaveBeenCalledWith({
+      partId: 'comp-new',
+      request: { parentId: 'comp-suite', kind: 'composition' },
+    });
+    expect(addComponentToViewMutate).toHaveBeenCalledWith(
+      expect.objectContaining({ viewId: 'v1', request: expect.objectContaining({ componentId: 'comp-new' }) }),
+    );
+  });
+});
 
 describe('useCreateRelatedEntity — pending state', () => {
   it('starts with no pending creation', () => {

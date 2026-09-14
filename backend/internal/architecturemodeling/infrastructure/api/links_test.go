@@ -34,10 +34,43 @@ func marshaledXRelated(t *testing.T, dto any) []map[string]any {
 
 func componentRelatedFor(t *testing.T, role sharedctx.Role) []types.RelatedLink {
 	t.Helper()
+	return componentRelatedForComponent(t, role, standaloneComponent())
+}
+
+func componentRelatedForComponent(t *testing.T, role sharedctx.Role, component *readmodels.ApplicationComponentDTO) []types.RelatedLink {
+	t.Helper()
 	h := sharedAPI.NewHATEOASLinks("/api/v1")
 	links := NewArchitectureModelingLinks(h)
 	actor := sharedctx.NewActor("u1", "u@example.com", role)
-	return links.ComponentXRelatedForActor(actor)
+	return links.ComponentXRelatedForActor(component, actor)
+}
+
+func TestComponentXRelatedForActor_PartEntriesOnlyForComponentsThatCanAcceptParts(t *testing.T) {
+	cases := []struct {
+		name      string
+		component *readmodels.ApplicationComponentDTO
+		offered   bool
+	}{
+		{"standalone offers part entries", standaloneComponent(), true},
+		{"populated parent offers part entries", parentComponent(), true},
+		{"part offers no part entries", partComponent(), false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			entries := componentRelatedForComponent(t, sharedctx.RoleArchitect, tc.component)
+
+			for _, relationType := range []string{"component-part-composition", "component-part-aggregation"} {
+				entry := findRelated(entries, relationType)
+				if tc.offered {
+					require.NotNil(t, entry, "expected %s", relationType)
+					assert.Equal(t, "component", entry.TargetType)
+					assert.Equal(t, []string{"POST"}, entry.Methods)
+				} else {
+					assert.Nil(t, entry, "did not expect %s", relationType)
+				}
+			}
+		})
+	}
 }
 
 func findRelated(items []types.RelatedLink, relationType string) *types.RelatedLink {

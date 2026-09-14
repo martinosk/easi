@@ -17,6 +17,33 @@ function makeItems(count: number): ContextMenuItem[] {
 
 const menuRoot = () => screen.getByTestId('context-menu');
 
+describe.each<{ variant: ContextMenuVariant; count: number }>([
+  { variant: 'radial', count: 3 },
+  { variant: 'linear', count: 8 },
+])('ContextMenu $variant outside pointer-down', ({ variant, count }) => {
+  it('closes on a pointer-down outside the menu even when the event never bubbles to the document', () => {
+    const onClose = vi.fn();
+    render(<ContextMenu x={100} y={100} items={makeItems(count)} variant={variant} onClose={onClose} />);
+    const pane = document.createElement('div');
+    document.body.appendChild(pane);
+    pane.addEventListener('pointerdown', (e) => e.stopImmediatePropagation());
+
+    pane.dispatchEvent(new Event('pointerdown', { bubbles: true, cancelable: true }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    pane.remove();
+  });
+
+  it('stays open on a pointer-down inside the menu', () => {
+    const onClose = vi.fn();
+    render(<ContextMenu x={100} y={100} items={makeItems(count)} variant={variant} onClose={onClose} />);
+
+    screen.getAllByRole('menuitem')[0].dispatchEvent(new Event('pointerdown', { bubbles: true, cancelable: true }));
+
+    expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
 describe('ContextMenu', () => {
   it('returns null when items are empty', () => {
     render(<ContextMenu x={50} y={50} items={[]} onClose={vi.fn()} />);

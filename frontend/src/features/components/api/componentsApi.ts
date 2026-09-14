@@ -2,6 +2,7 @@ import { httpClient } from '../../../api/core/httpClient';
 import { fetchAllPaginated } from '../../../api/core/pagination';
 import type {
   AddComponentExpertRequest,
+  AttachComponentRequest,
   Component,
   ComponentId,
   ComponentStatistics,
@@ -75,6 +76,16 @@ export const componentsApi = {
 
   async classifyHosting(component: Component, hosting: HostingClassification): Promise<Component> {
     const response = await httpClient.put<Component>(followLink(component, 'x-classify-hosting'), { hosting });
+    return response.data;
+  },
+
+  async attachToParent(component: Component, request: AttachComponentRequest): Promise<Component> {
+    const response = await httpClient.put<Component>(followLink(component, 'x-attach-to'), request);
+    return response.data;
+  },
+
+  async detach(component: Component): Promise<Component> {
+    const response = await httpClient.delete<Component>(followLink(component, 'x-detach'));
     return response.data;
   },
 

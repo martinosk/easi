@@ -14,6 +14,9 @@ const (
 
 	ApplicationHostingClassified = "ApplicationHostingClassified"
 
+	ComponentAttached = "ComponentAttached"
+	ComponentDetached = "ComponentDetached"
+
 	ComponentRelationCreated = "ComponentRelationCreated"
 	ComponentRelationUpdated = "ComponentRelationUpdated"
 	ComponentRelationDeleted = "ComponentRelationDeleted"

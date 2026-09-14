@@ -301,7 +301,8 @@ func enrichComponentDTO(r *http.Request, hateoas *ArchitectureModelingLinks, com
 	component.Links = hateoas.ComponentLinksForActor(component.ID, actor)
 	hateoas.AddOwnershipAffordances(component.Links, component.ID, component.OwnershipState, actor)
 	hateoas.AddHostingAffordances(component.Links, component.ID, actor)
-	component.XRelated = hateoas.ComponentXRelatedForActor(actor)
+	hateoas.AddContainmentAffordances(component.Links, component, actor)
+	component.XRelated = hateoas.ComponentXRelatedForActor(component, actor)
 	for i := range component.Experts {
 		e := component.Experts[i]
 		component.Experts[i].Links = hateoas.ComponentExpertLinksForActor(sharedAPI.ExpertParams{

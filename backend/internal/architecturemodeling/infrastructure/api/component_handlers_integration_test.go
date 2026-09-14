@@ -177,7 +177,7 @@ func setupHandlers(db *sql.DB) (*ComponentHandlers, *readmodels.ApplicationCompo
 	relationReadModel := readmodels.NewComponentRelationReadModel(tenantDB)
 	createHandler := handlers.NewCreateApplicationComponentHandler(componentRepo)
 	updateHandler := handlers.NewUpdateApplicationComponentHandler(componentRepo)
-	deleteHandler := handlers.NewDeleteApplicationComponentHandler(componentRepo, relationReadModel, commandBus)
+	deleteHandler := handlers.NewDeleteApplicationComponentHandler(componentRepo, relationReadModel, readModel, commandBus)
 	deleteRelationHandler := handlers.NewDeleteComponentRelationHandler(relationRepo)
 	commandBus.Register("CreateApplicationComponent", createHandler)
 	commandBus.Register("UpdateApplicationComponent", updateHandler)

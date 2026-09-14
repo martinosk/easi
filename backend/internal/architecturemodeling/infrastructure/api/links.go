@@ -3,6 +3,7 @@ package api
 import (
 	"maps"
 
+	"easi/backend/internal/architecturemodeling/application/readmodels"
 	"easi/backend/internal/architecturemodeling/domain/valueobjects"
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
@@ -103,6 +104,11 @@ func (h *ArchitectureModelingLinks) gatedRelated(specs []relatedLinkSpec, actor 
 	return related
 }
 
+var (
+	componentComposedPart   = relatedLinkSpec{HrefSuffix: "/components", Title: "Component (composed part)", TargetType: "component", RelationType: "component-part-composition"}
+	componentAggregatedPart = relatedLinkSpec{HrefSuffix: "/components", Title: "Component (aggregated part)", TargetType: "component", RelationType: "component-part-aggregation"}
+)
+
 var componentXRelatedSpecs = []relatedLinkSpec{
 	componentTriggersSpec,
 	componentServesSpec,
@@ -111,8 +117,14 @@ var componentXRelatedSpecs = []relatedLinkSpec{
 	componentBuiltBy,
 }
 
-func (h *ArchitectureModelingLinks) ComponentXRelatedForActor(actor sharedctx.Actor) []types.RelatedLink {
-	return h.gatedRelated(componentXRelatedSpecs, actor)
+var componentPartSpecs = []relatedLinkSpec{componentComposedPart, componentAggregatedPart}
+
+func (h *ArchitectureModelingLinks) ComponentXRelatedForActor(component *readmodels.ApplicationComponentDTO, actor sharedctx.Actor) []types.RelatedLink {
+	specs := componentXRelatedSpecs
+	if component.PartOf == nil {
+		specs = append(append([]relatedLinkSpec{}, specs...), componentPartSpecs...)
+	}
+	return h.gatedRelated(specs, actor)
 }
 
 func (h *ArchitectureModelingLinks) AcquiredEntityXRelatedForActor(actor sharedctx.Actor) []types.RelatedLink {

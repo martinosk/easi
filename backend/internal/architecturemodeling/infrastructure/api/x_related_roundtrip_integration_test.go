@@ -61,7 +61,7 @@ func newXRelatedFixture(db *sql.DB) *xRelatedFixture {
 	relationRepo := repositories.NewComponentRelationRepository(eventStore)
 	createComp := handlers.NewCreateApplicationComponentHandler(componentRepo)
 	updateComp := handlers.NewUpdateApplicationComponentHandler(componentRepo)
-	deleteComp := handlers.NewDeleteApplicationComponentHandler(componentRepo, relationReadM, commandBus)
+	deleteComp := handlers.NewDeleteApplicationComponentHandler(componentRepo, relationReadM, componentReadM, commandBus)
 	createRel := handlers.NewCreateComponentRelationHandler(relationRepo)
 	deleteRel := handlers.NewDeleteComponentRelationHandler(relationRepo)
 	commandBus.Register("CreateApplicationComponent", createComp)

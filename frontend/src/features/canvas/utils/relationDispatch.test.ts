@@ -39,6 +39,22 @@ const cases: PlanCase[] = [
     },
   },
   {
+    label: 'component-part-composition attaches the new component as a composed part of the source',
+    relationType: 'component-part-composition',
+    source: 'comp-suite',
+    next: 'comp-new',
+    targetType: 'component',
+    expected: { kind: 'component-containment', partId: 'comp-new', parentId: 'comp-suite', containmentKind: 'composition' },
+  },
+  {
+    label: 'component-part-aggregation attaches the new component as an aggregated part of the source',
+    relationType: 'component-part-aggregation',
+    source: 'comp-platform',
+    next: 'comp-new',
+    targetType: 'component',
+    expected: { kind: 'component-containment', partId: 'comp-new', parentId: 'comp-platform', containmentKind: 'aggregation' },
+  },
+  {
     label: 'capability-parent puts the new capability as child',
     relationType: 'capability-parent',
     source: 'cap-source',

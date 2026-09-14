@@ -1,4 +1,4 @@
-import { Box, ColorSwatch, Group, TextInput, UnstyledButton } from '@mantine/core';
+import { Box, ColorSwatch, Group, Text, TextInput, UnstyledButton } from '@mantine/core';
 import { IconBox } from '@tabler/icons-react';
 import React, { useMemo, useState } from 'react';
 import type { Component, HostingClassification, OwnershipState, View } from '../../../../api/types';
@@ -71,6 +71,27 @@ const EditingItem: React.FC<EditingItemProps> = ({
   </div>
 );
 
+function containmentAnnotationText(component: Component): string | null {
+  if (component.partOf) return `in ${component.partOf.name}`;
+  const partCount = component.parts?.length ?? 0;
+  if (partCount === 0) return null;
+  return partCount === 1 ? '1 part' : `${partCount} parts`;
+}
+
+interface ContainmentAnnotationProps {
+  component: Component;
+}
+
+const ContainmentAnnotation: React.FC<ContainmentAnnotationProps> = ({ component }) => {
+  const text = containmentAnnotationText(component);
+  if (!text) return null;
+  return (
+    <Text component="span" size="xs" c="dimmed" ml="xs" truncate data-testid="containment-annotation">
+      {text}
+    </Text>
+  );
+};
+
 interface ComponentItemProps {
   component: Component;
   onePagerComplete?: boolean;
@@ -111,6 +132,7 @@ const ComponentItem: React.FC<ComponentItemProps> = ({
       <IconBox size={16} stroke={1.75} />
     </span>
     <span className={classes.label}>{component.name}</span>
+    <ContainmentAnnotation component={component} />
     <OnePagerIncompleteIndicator id={component.id} complete={onePagerComplete} />
     {showColorIndicator && <ColorIndicator customColor={customColor} />}
   </UnstyledButton>

@@ -9,6 +9,7 @@ import { AuditHistorySection } from '../../audit';
 import { OnePagerActionButton } from '../../one-pagers/components/OnePagerActionButton';
 import { useUpdateComponent } from '../hooks/useComponents';
 import { AddComponentExpertDialog } from './AddComponentExpertDialog';
+import { ComponentContainmentSection } from './ComponentContainmentSection';
 import { ComponentExpertsList } from './ComponentExpertsList';
 import { ComponentFitScores } from './ComponentFitScores';
 import { ComponentHostingSection } from './ComponentHostingSection';
@@ -175,6 +176,7 @@ export const ComponentDetailsContent: React.FC<ComponentDetailsContentProps> = (
       <NameAndDescription component={component} />
       <ComponentOwnershipSection component={component} />
       <ComponentHostingSection component={component} />
+      <ComponentContainmentSection component={component} />
       <ExpertsSection component={component} />
       <DetailField label="Created">
         <Text size="sm" c="dimmed">

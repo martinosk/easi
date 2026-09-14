@@ -122,6 +122,25 @@ export interface ComponentStatistics {
   _links?: HATEOASLinks;
 }
 
+export type ContainmentKind = 'composition' | 'aggregation';
+
+export interface ContainmentParent {
+  id: ComponentId;
+  name: string;
+  kind: ContainmentKind;
+}
+
+export interface ContainmentPart {
+  id: ComponentId;
+  name: string;
+  kind: ContainmentKind;
+}
+
+export interface AttachComponentRequest {
+  parentId: ComponentId;
+  kind: ContainmentKind;
+}
+
 export interface Component {
   id: ComponentId;
   name: string;
@@ -130,6 +149,8 @@ export interface Component {
   ownershipState: OwnershipState;
   owner?: ComponentOwner;
   hosting: HostingClassification;
+  partOf?: ContainmentParent;
+  parts?: ContainmentPart[];
   createdAt: string;
   _links: HATEOASLinks;
 }

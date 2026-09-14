@@ -1,6 +1,7 @@
 export * from './businessDomain';
 export * from './capability';
 export * from './component';
+export * from './containment';
 export * from './editGrant';
 export * from './invitation';
 export * from './journey';

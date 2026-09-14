@@ -38,7 +38,7 @@ func NewApplicationFixtures(tc *TestContext) *ApplicationFixtures {
 
 	createComponentHandler := handlers.NewCreateApplicationComponentHandler(componentRepo)
 	updateComponentHandler := handlers.NewUpdateApplicationComponentHandler(componentRepo)
-	deleteComponentHandler := handlers.NewDeleteApplicationComponentHandler(componentRepo, relationReadModel, tc.CommandBus)
+	deleteComponentHandler := handlers.NewDeleteApplicationComponentHandler(componentRepo, relationReadModel, componentReadModel, tc.CommandBus)
 	createRelationHandler := handlers.NewCreateComponentRelationHandler(relationRepo)
 	updateRelationHandler := handlers.NewUpdateComponentRelationHandler(relationRepo)
 	deleteRelationHandler := handlers.NewDeleteComponentRelationHandler(relationRepo)

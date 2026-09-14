@@ -39,6 +39,7 @@ import { type GenerateViewTarget, type InviteTarget, NodeContextMenu } from './c
 import { DynamicModeContainer } from './DynamicModeContainer';
 import { BulkConfirmationDialog } from './dialogs/BulkConfirmationDialog';
 import { DeleteConfirmationWrapper } from './dialogs/DeleteConfirmationWrapper';
+import { ContainmentMarkerDefs } from './ContainmentMarkerDefs';
 import { HandleCreateController } from './HandleCreateController';
 import { withDynamicExpansion } from './withDynamicExpansion';
 
@@ -126,7 +127,7 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
       onEdgeContextMenu,
       closeMenus,
     } = useContextMenu(internalNodes);
-    const { deleteTarget, isDeleting, setDeleteTarget, handleDeleteConfirm, handleDeleteCancel } =
+    const { deleteTarget, deleteTargetComponent, isDeleting, setDeleteTarget, handleDeleteConfirm, handleDeleteCancel } =
       useDeleteConfirmation();
     const [inviteTarget, setInviteTarget] = useState<InviteTarget | null>(null);
 
@@ -227,6 +228,7 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
             }}
             maskColor="rgba(0, 0, 0, 0.1)"
           />
+          <ContainmentMarkerDefs />
         </ReactFlow>
 
         <CanvasCommandsPortal>
@@ -251,6 +253,7 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
 
         <DeleteConfirmationWrapper
           deleteTarget={deleteTarget}
+          deleteTargetComponent={deleteTargetComponent}
           isDeleting={isDeleting}
           onConfirm={handleDeleteConfirm}
           onCancel={handleDeleteCancel}

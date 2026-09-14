@@ -3,6 +3,8 @@ import { MarkerType } from '@xyflow/react';
 import type {
   Capability,
   CapabilityRealization,
+  Component,
+  ContainmentKind,
   OriginRelationship,
   OriginRelationshipType,
   Relation,
@@ -135,6 +137,54 @@ export function createParentEdges(
       };
     })
     .filter((e): e is Edge => e !== null);
+}
+
+const CONTAINMENT_EDGE_LABELS: Record<ContainmentKind, string> = {
+  composition: 'Composes',
+  aggregation: 'Aggregates',
+};
+
+export const CONTAINMENT_MARKER_IDS: Record<ContainmentKind, string> = {
+  composition: 'containment-composition-diamond',
+  aggregation: 'containment-aggregation-diamond',
+};
+
+export function createContainmentEdges(
+  viewComponents: ViewComponent[],
+  components: Component[],
+  ctx: EdgeCreationContext,
+): Edge[] {
+  const componentIdsOnCanvas = new Set(viewComponents.map((vc) => vc.componentId));
+
+  return components
+    .filter((part) => part.partOf && componentIdsOnCanvas.has(part.id) && componentIdsOnCanvas.has(part.partOf.id))
+    .map((part) => {
+      const parent = part.partOf!;
+      const edgeId = `containment-${parent.id}-${part.id}`;
+      const isSelected = ctx.selectedEdgeId === edgeId;
+      const { sourceHandle, targetHandle } = resolveHandles(ctx, parent.id, part.id);
+      const containmentColor = ctx.isClassicScheme ? CLASSIC_EDGE_COLOR : resolveToken('--color-gray-700', '#3D4A54');
+
+      return {
+        id: edgeId,
+        source: parent.id,
+        target: part.id,
+        sourceHandle,
+        targetHandle,
+        label: CONTAINMENT_EDGE_LABELS[parent.kind],
+        type: ctx.edgeType,
+        animated: isSelected,
+        ...buildEdgeVisuals({
+          color: containmentColor,
+          isSelected,
+          selectedStrokeWidth: 3,
+          unselectedStrokeWidth: 2,
+          unselectedFontWeight: 600,
+        }),
+        markerStart: CONTAINMENT_MARKER_IDS[parent.kind],
+        markerEnd: undefined,
+      };
+    });
 }
 
 interface RealizationVisibility {

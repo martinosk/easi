@@ -12,6 +12,7 @@ import {
 import { useAppStore } from '../../../store/appStore';
 import type { RelatedLink, RelatedTargetType } from '../../../utils/xRelated';
 import { useChangeCapabilityParent, useLinkSystemToCapability } from '../../capabilities/hooks/useCapabilities';
+import { useAttachComponentById } from '../../components/hooks/useComponentContainment';
 import {
   useLinkComponentToAcquiredEntity,
   useLinkComponentToInternalTeam,
@@ -49,6 +50,7 @@ export interface UseCreateRelatedEntityResult {
 
 function useRelationDispatcher(): (spec: RelationCallSpec) => Promise<void> {
   const createRelation = useCreateRelation();
+  const attachComponent = useAttachComponentById();
   const changeCapabilityParent = useChangeCapabilityParent();
   const linkSystemToCapability = useLinkSystemToCapability();
   const linkAcquiredEntity = useLinkComponentToAcquiredEntity();
@@ -63,6 +65,12 @@ function useRelationDispatcher(): (spec: RelationCallSpec) => Promise<void> {
             sourceComponentId: toComponentId(spec.sourceComponentId),
             targetComponentId: toComponentId(spec.targetComponentId),
             relationType: spec.relationSubType,
+          });
+          return;
+        case 'component-containment':
+          await attachComponent.mutateAsync({
+            partId: toComponentId(spec.partId),
+            request: { parentId: toComponentId(spec.parentId), kind: spec.containmentKind },
           });
           return;
         case 'capability-parent':
@@ -97,7 +105,15 @@ function useRelationDispatcher(): (spec: RelationCallSpec) => Promise<void> {
           return;
       }
     },
-    [createRelation, changeCapabilityParent, linkSystemToCapability, linkAcquiredEntity, linkVendor, linkInternalTeam],
+    [
+      createRelation,
+      attachComponent,
+      changeCapabilityParent,
+      linkSystemToCapability,
+      linkAcquiredEntity,
+      linkVendor,
+      linkInternalTeam,
+    ],
   );
 }
 

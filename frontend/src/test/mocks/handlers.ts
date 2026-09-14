@@ -142,6 +142,29 @@ export const handlers = [
     return HttpResponse.json(component);
   }),
 
+  http.put(`${BASE_URL}/api/v1/components/:id/containment`, async ({ params, request }) => {
+    const body = (await request.json()) as { parentId: Component['id']; kind: 'composition' | 'aggregation' };
+    const parent = getComponent(body.parentId);
+    if (!parent) {
+      return new HttpResponse(null, { status: 400 });
+    }
+    const component = updateComponent(toComponentId(params.id as string), {
+      partOf: { id: parent.id, name: parent.name, kind: body.kind },
+    });
+    if (!component) {
+      return new HttpResponse(null, { status: 404 });
+    }
+    return HttpResponse.json(component);
+  }),
+
+  http.delete(`${BASE_URL}/api/v1/components/:id/containment`, ({ params }) => {
+    const component = updateComponent(toComponentId(params.id as string), { partOf: undefined });
+    if (!component) {
+      return new HttpResponse(null, { status: 404 });
+    }
+    return HttpResponse.json(component);
+  }),
+
   http.post(`${BASE_URL}/api/v1/components`, async ({ request }) => {
     const body = (await request.json()) as Record<string, unknown>;
     const component = addComponent(body);

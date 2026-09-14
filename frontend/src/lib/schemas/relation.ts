@@ -29,6 +29,25 @@ export const createRelationSchema = z
 
 export type CreateRelationFormData = z.infer<typeof createRelationSchema>;
 
+export const connectionKindSchema = z.enum(['Triggers', 'Serves', 'composition', 'aggregation']);
+
+export type ConnectionKind = z.infer<typeof connectionKindSchema>;
+
+export const connectComponentsSchema = z
+  .object({
+    sourceComponentId: z.string().min(1, 'Source component is required'),
+    targetComponentId: z.string().min(1, 'Target component is required'),
+    connectionKind: connectionKindSchema,
+    name: relationNameSchema,
+    description: relationDescriptionSchema,
+  })
+  .refine((data) => data.sourceComponentId !== data.targetComponentId, {
+    message: 'Source and target components must be different',
+    path: ['targetComponentId'],
+  });
+
+export type ConnectComponentsFormData = z.infer<typeof connectComponentsSchema>;
+
 export const realizationLevelSchema = z.enum(['Full', 'Partial', 'Planned']);
 
 export type RealizationLevelType = z.infer<typeof realizationLevelSchema>;

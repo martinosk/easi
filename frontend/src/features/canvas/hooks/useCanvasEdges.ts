@@ -4,11 +4,13 @@ import type { Relation, View, ViewCapability, ViewComponent } from '../../../api
 import { isOriginEntity, toNodeId } from '../../../constants/entityIdentifiers';
 import { useAppStore } from '../../../store/appStore';
 import { useCapabilities, useRealizations } from '../../capabilities/hooks/useCapabilities';
+import { useComponents } from '../../components/hooks/useComponents';
 import { useOriginRelationshipsQuery } from '../../origin-entities/hooks/useOriginRelationships';
 import { useRelations } from '../../relations/hooks/useRelations';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
 import type { EntityRef } from '../utils/dynamicMode';
 import {
+  createContainmentEdges,
   createOriginRelationshipEdges,
   createParentEdges,
   createRealizationEdges,
@@ -50,6 +52,7 @@ export const useCanvasEdges = (nodes: Node[]): Edge[] => {
   const selectedEdgeId = useAppStore((state) => state.selectedEdgeId);
   const { currentView, currentViewId } = useCurrentView();
   const { data: capabilities = [] } = useCapabilities();
+  const { data: components = [] } = useComponents();
   const { data: originRelationships = [] } = useOriginRelationshipsQuery();
   const { data: capabilityRealizations = [] } = useRealizations();
   const dynamicViewId = useAppStore((state) => state.dynamicViewId);
@@ -70,6 +73,7 @@ export const useCanvasEdges = (nodes: Node[]): Edge[] => {
     return [
       ...createRelationEdges(relationsBetweenCanvasComponents(relations, componentIdsOnCanvas), ctx),
       ...createParentEdges(projection.capabilities, capabilities, ctx),
+      ...createContainmentEdges(projection.components, components, ctx),
       ...createRealizationEdges(capabilityRealizations, projection.capabilities, projection.components, ctx),
       ...createOriginRelationshipEdges(originRelationships, originEntityNodeIds, componentIdsOnCanvas, ctx),
     ];
@@ -79,6 +83,7 @@ export const useCanvasEdges = (nodes: Node[]): Edge[] => {
     currentView,
     nodes,
     capabilities,
+    components,
     capabilityRealizations,
     originRelationships,
     draftActive,

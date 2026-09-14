@@ -217,6 +217,8 @@ var excludedRoutes = map[string]string{
 	"PUT /components/*/ownership":                                    "ownership stewardship — reserved for UI in spec 214 slice",
 	"DELETE /components/*/ownership":                                 "ownership stewardship — reserved for UI in spec 214 slice",
 	"PUT /components/*/hosting":                                      "hosting classification — reserved for UI in spec 215 slice",
+	"PUT /components/*/containment":                                  "application composition — structural edit reserved for UI in spec 216 slice",
+	"DELETE /components/*/containment":                               "application composition — structural edit reserved for UI in spec 216 slice",
 	"POST /components/*/experts":                                     "expert management — operational, not architecture exploration",
 	"DELETE /components/*/experts":                                   "expert management — operational, not architecture exploration",
 	"GET /components/*/fit-comparisons":                              "fit comparison view — composite UI visualization",

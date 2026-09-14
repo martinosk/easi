@@ -1,6 +1,6 @@
 # 216 — Application Composition
 
-> **Status:** pending
+> **Status:** done
 > **Depends on:** —
 > **Roadmap alignment:** SD6 / H1-2
 
@@ -103,14 +103,14 @@ Feature: Application containment, maximum two levels, composition or aggregation
 
 ## Acceptance Criteria
 
-- [ ] Attach and detach operate per rules 1–3, each raising its own domain event carrying the part and parent references; attach also carries the kind
-- [ ] Rules 1–2 are enforced inside one aggregate, so two conflicting attach commands can never both succeed
-- [ ] Component detail responses carry the parent reference with its kind, and the list of parts with their kinds
-- [ ] Deleting a parent deletes composed parts and releases aggregated parts per rule 5, parts first, then the parent
-- [ ] The delete confirmation for a parent names the composed parts that will be deleted and the aggregated parts that will be released
-- [ ] Affordances appear exactly per rule 8, including their absence on parts and on populated parents
-- [ ] Relations, realisations, experts, ownership, hosting and one-pagers of a part are unaffected by attach, detach and release
-- [ ] Existing components read as standalone after deployment
+- [x] Attach and detach operate per rules 1–3, each raising its own domain event carrying the part and parent references; attach also carries the kind (`ComponentAttached`, `ComponentDetached`)
+- [x] Rules 1–2 are enforced inside one aggregate, so two conflicting attach commands can never both succeed (`ComponentContainments`, one per tenant, registry `component_containment_aggregates` as backstop)
+- [x] Component detail responses carry the parent reference with its kind (`partOf`), and the list of parts with their kinds (`parts`); list rows carry both as well
+- [x] Deleting a parent deletes composed parts and releases aggregated parts per rule 5, parts first, then the parent
+- [x] The delete confirmation for a parent names the composed parts that will be deleted and the aggregated parts that will be released (navigation tree and canvas)
+- [x] Affordances appear exactly per rule 8, including their absence on parts and on populated parents (`x-attach-to` = `PUT /components/{id}/containment`, `x-detach` = `DELETE /components/{id}/containment`)
+- [x] Relations, realisations, experts, ownership, hosting and one-pagers of a part are unaffected by attach, detach and release
+- [x] Existing components read as standalone after deployment (nullable `parent_component_id`/`containment_kind`, migration 163)
 
 ---
 
@@ -142,7 +142,13 @@ Nullable parent reference and kind columns on the component read model, projecte
 
 ### Frontend
 
-Components feature: a "Part of" / "Contains" section on the details panel with attach (parent and kind picker) and detach actions; the parts list shows each part's kind. The components list shows containment as an annotation. The attach picker offers only components that are not themselves parts, and the server rejects any ineligible target regardless. The delete confirmation for a parent lists what will be deleted and what will be released. Views and canvases render components exactly as today.
+Containment is edited on the canvas, like every other connection between components, and only read on the details panel.
+
+- **Attach by drag-connect**: dragging a connection between two components opens the existing connection dialog; besides Triggers and Serves it offers "Part of (composition)" and "Part of (aggregation)" when the source carries `x-attach-to` and the target is not itself a part. The source becomes the part, the target the parent. The server rejects any ineligible pair regardless.
+- **Attach by handle click**: a component that can accept parts advertises `x-related` entries "Component (composed part)" and "Component (aggregated part)"; picking one creates a new component and attaches it as a part of the clicked component.
+- **Containment edge**: a part and its parent that are both on the canvas are joined by a containment edge from parent to part in UML notation: a diamond at the parent end, filled for "Composes" and hollow for "Aggregates", no arrowhead at the part end. Its context menu offers "Detach Part" when the part carries `x-detach`; the confirmation explains the part becomes standalone.
+- **Details panel**: a read-only "Composition" section shows "Part of" with the kind, or the parts with their kinds, or "Standalone". No attach or detach action lives there.
+- The components list shows containment as an annotation. The delete confirmation for a parent, in the tree and on the canvas, lists what will be deleted and what will be released.
 
 ### Cross-Context Integration
 
@@ -175,9 +181,9 @@ None. Containment events are published for future read sides; no consumer in thi
 
 ## Checklist
 
-- [ ] Specification ready
-- [ ] Implementation done
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
-- [ ] API documentation updated
-- [ ] User sign-off
+- [x] Specification ready
+- [x] Implementation done
+- [x] Unit tests implemented and passing
+- [x] Integration tests implemented if relevant
+- [x] API documentation updated
+- [x] User sign-off

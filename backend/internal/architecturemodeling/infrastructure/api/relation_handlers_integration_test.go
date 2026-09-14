@@ -568,7 +568,7 @@ func setupCascadeTestDependencies(testCtx *testContext) *cascadeTestDependencies
 	relationRepo := repositories.NewComponentRelationRepository(eventStore)
 
 	createComponentHandler := handlers.NewCreateApplicationComponentHandler(componentRepo)
-	deleteComponentHandler := handlers.NewDeleteApplicationComponentHandler(componentRepo, relationReadModel, commandBus)
+	deleteComponentHandler := handlers.NewDeleteApplicationComponentHandler(componentRepo, relationReadModel, componentReadModel, commandBus)
 	createRelationHandler := handlers.NewCreateComponentRelationHandler(relationRepo)
 	deleteRelationHandler := handlers.NewDeleteComponentRelationHandler(relationRepo)
 

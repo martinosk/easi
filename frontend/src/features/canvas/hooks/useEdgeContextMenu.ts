@@ -23,7 +23,7 @@ export interface EdgeContextMenu {
   y: number;
   edgeId: string;
   edgeName: string;
-  edgeType: 'relation' | 'parent' | 'realization' | 'origin-relationship';
+  edgeType: 'relation' | 'parent' | 'containment' | 'realization' | 'origin-relationship';
   realizationId?: string;
   capabilityId?: CapabilityId;
   componentId?: ComponentId;
@@ -53,6 +53,20 @@ function resolveParentEdge(edge: Edge, position: MenuPosition): EdgeContextMenu 
     edgeId: edge.id,
     edgeName: 'Parent',
     edgeType: 'parent',
+  };
+}
+
+function resolveContainmentEdge(edge: Edge, components: Component[], position: MenuPosition): EdgeContextMenu | null {
+  const part = components.find((c) => c.id === edge.target);
+  if (!part?.partOf) return null;
+
+  return {
+    ...position,
+    edgeId: edge.id,
+    edgeName: `${part.partOf.name} contains ${part.name}`,
+    edgeType: 'containment',
+    componentId: part.id,
+    _links: part._links,
   };
 }
 
@@ -129,6 +143,9 @@ function resolveEdgeContextMenu(
 ): EdgeContextMenu | null {
   if (edge.id.startsWith('parent-')) {
     return resolveParentEdge(edge, position);
+  }
+  if (edge.id.startsWith('containment-')) {
+    return resolveContainmentEdge(edge, deps.components, position);
   }
   if (edge.id.startsWith('realization-')) {
     return resolveRealizationEdge(edge, deps, position);

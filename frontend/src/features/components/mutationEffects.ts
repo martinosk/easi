@@ -61,6 +61,13 @@ export const componentsMutationEffects = {
     componentsQueryKeys.statistics(),
     auditQueryKeys.history(componentId),
   ],
+
+  containment: (partId: string, parentId: string) => [
+    componentsQueryKeys.lists(),
+    componentsQueryKeys.detail(partId),
+    componentsQueryKeys.detail(parentId),
+    auditQueryKeys.history(partId),
+  ],
 };
 
 export const fitScoresMutationEffects = {

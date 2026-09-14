@@ -92,3 +92,14 @@ func TestSpliceXRelated_ReturnsInputUnchangedWhenRelatedEmpty(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, string(in), string(out))
 }
+
+func TestLookupRelationEndpoint_ContainmentTypesResolveToTheContainmentResource(t *testing.T) {
+	for _, relationType := range []string{"component-part-composition", "component-part-aggregation"} {
+		t.Run(relationType, func(t *testing.T) {
+			endpoint, ok := LookupRelationEndpoint(relationType)
+
+			assert.True(t, ok)
+			assert.Equal(t, RelationEndpoint{Path: "/api/v1/components/{id}/containment", Method: "PUT"}, endpoint)
+		})
+	}
+}

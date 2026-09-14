@@ -1,11 +1,10 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { Alert, Button, Group, Modal, Select, Stack, Textarea, TextInput } from '@mantine/core';
-import React, { useEffect, useState } from 'react';
-import { type Control, Controller, type FieldErrors, type UseFormRegister, useForm } from 'react-hook-form';
-import { toComponentId } from '../../../api/types';
-import { type CreateRelationFormData, createRelationSchema } from '../../../lib/schemas';
-import { useComponents } from '../../components/hooks/useComponents';
-import { useCreateRelation } from '../hooks/useRelations';
+import type React from 'react';
+import { type Control, Controller, type FieldErrors, type UseFormRegister } from 'react-hook-form';
+import type { ConnectComponentsFormData, ConnectionKind } from '../../../lib/schemas';
+import { CONTAINMENT_KIND_DESCRIPTIONS } from '../../components/utils/containment';
+import { useConnectionDialog } from '../hooks/useConnectionDialog';
+import { connectionKindOptions, isContainmentKind } from '../utils/connectionKinds';
 
 interface CreateRelationDialogProps {
   isOpen: boolean;
@@ -14,33 +13,19 @@ interface CreateRelationDialogProps {
   targetComponentId?: string;
 }
 
-const RELATION_TYPE_OPTIONS = [
-  { value: 'Triggers', label: 'Triggers' },
-  { value: 'Serves', label: 'Serves' },
-];
-
-function getDefaultValues(initialSource?: string, initialTarget?: string): CreateRelationFormData {
-  return {
-    sourceComponentId: initialSource || '',
-    targetComponentId: initialTarget || '',
-    relationType: 'Triggers',
-    name: '',
-    description: '',
-  };
-}
-
 function getTargetError(fieldError?: string, hasSameSourceAndTarget?: boolean): string | undefined {
   return fieldError || (hasSameSourceAndTarget ? 'Source and target components must be different' : undefined);
 }
 
 interface ComponentSelectFieldsProps {
-  control: Control<CreateRelationFormData>;
-  errors: FieldErrors<CreateRelationFormData>;
+  control: Control<ConnectComponentsFormData>;
+  errors: FieldErrors<ConnectComponentsFormData>;
   componentOptions: { value: string; label: string }[];
   isPending: boolean;
   initialSource?: string;
   initialTarget?: string;
   hasSameSourceAndTarget: boolean;
+  isContainment: boolean;
 }
 
 function ComponentSelectFields({
@@ -51,6 +36,7 @@ function ComponentSelectFields({
   initialSource,
   initialTarget,
   hasSameSourceAndTarget,
+  isContainment,
 }: ComponentSelectFieldsProps) {
   return (
     <>
@@ -59,7 +45,7 @@ function ComponentSelectFields({
         control={control}
         render={({ field }) => (
           <Select
-            label="Source Component"
+            label={isContainment ? 'Part' : 'Source Component'}
             placeholder="Select source component"
             data={componentOptions}
             required
@@ -78,7 +64,7 @@ function ComponentSelectFields({
         control={control}
         render={({ field }) => (
           <Select
-            label="Target Component"
+            label={isContainment ? 'Parent' : 'Target Component'}
             placeholder="Select target component"
             data={componentOptions}
             required
@@ -96,31 +82,14 @@ function ComponentSelectFields({
 }
 
 interface RelationDetailFieldsProps {
-  control: Control<CreateRelationFormData>;
-  register: UseFormRegister<CreateRelationFormData>;
-  errors: FieldErrors<CreateRelationFormData>;
+  register: UseFormRegister<ConnectComponentsFormData>;
+  errors: FieldErrors<ConnectComponentsFormData>;
   isPending: boolean;
 }
 
-function RelationDetailFields({ control, register, errors, isPending }: RelationDetailFieldsProps) {
+function RelationDetailFields({ register, errors, isPending }: RelationDetailFieldsProps) {
   return (
     <>
-      <Controller
-        name="relationType"
-        control={control}
-        render={({ field }) => (
-          <Select
-            label="Relation Type"
-            data={RELATION_TYPE_OPTIONS}
-            required
-            withAsterisk
-            disabled={isPending}
-            data-testid="relation-type-select"
-            {...field}
-          />
-        )}
-      />
-
       <TextInput
         label="Name"
         placeholder="Enter relation name (optional)"
@@ -143,15 +112,48 @@ function RelationDetailFields({ control, register, errors, isPending }: Relation
   );
 }
 
+interface ConnectionKindFieldProps {
+  control: Control<ConnectComponentsFormData>;
+  isPending: boolean;
+  connectionKind: ConnectionKind;
+  containmentAllowed: boolean;
+}
+
+function ConnectionKindField({ control, isPending, connectionKind, containmentAllowed }: ConnectionKindFieldProps) {
+  const description = isContainmentKind(connectionKind) ? CONTAINMENT_KIND_DESCRIPTIONS[connectionKind] : undefined;
+
+  return (
+    <Controller
+      name="connectionKind"
+      control={control}
+      render={({ field }) => (
+        <Select
+          label="Relation Type"
+          description={description}
+          data={connectionKindOptions(containmentAllowed)}
+          required
+          withAsterisk
+          allowDeselect={false}
+          disabled={isPending}
+          data-testid="relation-type-select"
+          {...field}
+        />
+      )}
+    />
+  );
+}
+
 function FormActions({
   isPending,
   isValid,
   hasSameSourceAndTarget,
+  isContainment,
   onCancel,
 }: {
   isPending: boolean;
   isValid: boolean;
   hasSameSourceAndTarget: boolean;
+  isContainment: boolean;
   onCancel: () => void;
 }) {
   return (
@@ -165,7 +167,7 @@ function FormActions({
         disabled={!isValid || hasSameSourceAndTarget}
         data-testid="create-relation-submit"
       >
-        Create Relation
+        {isContainment ? 'Attach' : 'Create Relation'}
       </Button>
     </Group>
   );
@@ -177,89 +179,49 @@ export const CreateRelationDialog: React.FC<CreateRelationDialogProps> = ({
   sourceComponentId: initialSource,
   targetComponentId: initialTarget,
 }) => {
-  const [backendError, setBackendError] = useState<string | null>(null);
-
-  const { data: components = [] } = useComponents();
-  const createRelationMutation = useCreateRelation();
-
+  const dialog = useConnectionDialog({ isOpen, onClose, initialSource, initialTarget });
   const {
     register,
     handleSubmit,
     control,
-    reset,
-    watch,
     formState: { errors, isValid },
-  } = useForm<CreateRelationFormData>({
-    resolver: zodResolver(createRelationSchema),
-    defaultValues: getDefaultValues(initialSource, initialTarget),
-    mode: 'onChange',
-  });
-
-  useEffect(() => {
-    if (isOpen) {
-      reset(getDefaultValues(initialSource, initialTarget));
-      setBackendError(null);
-    }
-  }, [isOpen, initialSource, initialTarget, reset]);
-
-  const onSubmit = async (data: CreateRelationFormData) => {
-    setBackendError(null);
-    try {
-      await createRelationMutation.mutateAsync({
-        sourceComponentId: toComponentId(data.sourceComponentId),
-        targetComponentId: toComponentId(data.targetComponentId),
-        relationType: data.relationType,
-        name: data.name || undefined,
-        description: data.description || undefined,
-      });
-      onClose();
-    } catch (err) {
-      setBackendError(err instanceof Error ? err.message : 'Failed to create relation');
-    }
-  };
-
-  const componentOptions = components.map((c) => ({
-    value: c.id,
-    label: c.name,
-  }));
-
-  const sourceComponentId = watch('sourceComponentId');
-  const targetComponentId = watch('targetComponentId');
-  const hasSameSourceAndTarget = Boolean(
-    sourceComponentId && targetComponentId && sourceComponentId === targetComponentId,
-  );
+  } = dialog.form;
 
   return (
     <Modal opened={isOpen} onClose={onClose} title="Create Relation" centered data-testid="create-relation-dialog">
-      <form onSubmit={handleSubmit(onSubmit)}>
+      <form onSubmit={handleSubmit(dialog.onSubmit)}>
         <Stack gap="md">
           <ComponentSelectFields
             control={control}
             errors={errors}
-            componentOptions={componentOptions}
-            isPending={createRelationMutation.isPending}
+            componentOptions={dialog.componentOptions}
+            isPending={dialog.isPending}
             initialSource={initialSource}
             initialTarget={initialTarget}
-            hasSameSourceAndTarget={hasSameSourceAndTarget}
+            hasSameSourceAndTarget={dialog.hasSameSourceAndTarget}
+            isContainment={dialog.isContainment}
           />
 
-          <RelationDetailFields
+          <ConnectionKindField
             control={control}
-            register={register}
-            errors={errors}
-            isPending={createRelationMutation.isPending}
+            isPending={dialog.isPending}
+            connectionKind={dialog.connectionKind}
+            containmentAllowed={dialog.containmentAllowed}
           />
 
-          {backendError && (
+          {!dialog.isContainment && <RelationDetailFields register={register} errors={errors} isPending={dialog.isPending} />}
+
+          {dialog.backendError && (
             <Alert color="red" data-testid="create-relation-error">
-              {backendError}
+              {dialog.backendError}
             </Alert>
           )}
 
           <FormActions
-            isPending={createRelationMutation.isPending}
+            isPending={dialog.isPending}
             isValid={isValid}
-            hasSameSourceAndTarget={hasSameSourceAndTarget}
+            hasSameSourceAndTarget={dialog.hasSameSourceAndTarget}
+            isContainment={dialog.isContainment}
             onCancel={onClose}
           />
         </Stack>

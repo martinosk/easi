@@ -15,7 +15,7 @@ import { hasLink } from '../../../../utils/hateoas';
 import type { EdgeContextMenu as EdgeContextMenuType } from '../../hooks/useContextMenu';
 
 export type DeleteTarget = {
-  type: 'relation-from-model' | 'parent-relation' | 'realization' | 'origin-relationship';
+  type: 'relation-from-model' | 'parent-relation' | 'containment' | 'realization' | 'origin-relationship';
   id: string;
   name: string;
   childId?: string;
@@ -55,6 +55,28 @@ function buildParentEdgeItems(
         onClose();
       },
       isDanger: true,
+    },
+  ];
+}
+
+function buildContainmentEdgeItems(
+  menu: EdgeContextMenuType,
+  onRequestDelete: (target: DeleteTarget) => void,
+  onClose: () => void,
+): ContextMenuItem[] {
+  if (!menu.componentId || !hasLink({ _links: menu._links }, 'x-detach')) return [];
+
+  return [
+    {
+      label: 'Detach Part',
+      description: 'Make the part a standalone application again',
+      icon: <LinkOffIcon />,
+      onClick: () => {
+        onRequestDelete({ type: 'containment', id: menu.edgeId, name: menu.edgeName, componentId: menu.componentId });
+        onClose();
+      },
+      isDanger: true,
+      ariaLabel: 'Detach part from parent',
     },
   ];
 }
@@ -154,6 +176,7 @@ export const EdgeContextMenu = ({ menu, onClose, onRequestDelete }: EdgeContextM
 
   const edgeTypeHandlers: Record<EdgeContextMenuType['edgeType'], () => ContextMenuItem[]> = {
     parent: () => buildParentEdgeItems(menu, onRequestDelete, onClose),
+    containment: () => buildContainmentEdgeItems(menu, onRequestDelete, onClose),
     realization: () => buildRealizationEdgeItems(menu, canDelete, onRequestDelete, onClose),
     'origin-relationship': () => buildOriginRelationshipEdgeItems(menu, canDelete, onRequestDelete, onClose),
     relation: () => buildRelationEdgeItems(menu, canDelete, onRequestDelete, onClose),

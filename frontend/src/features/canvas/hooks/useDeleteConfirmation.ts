@@ -21,6 +21,7 @@ import {
   useChangeCapabilityParent,
   useDeleteRealization,
 } from '../../capabilities/hooks/useCapabilities';
+import { useDetachComponent } from '../../components/hooks/useComponentContainment';
 import { useComponents, useDeleteComponent } from '../../components/hooks/useComponents';
 import {
   useDeleteAcquiredEntity,
@@ -39,6 +40,7 @@ export type DeleteTargetType =
   | 'relation-from-model'
   | 'capability-from-model'
   | 'parent-relation'
+  | 'containment'
   | 'realization'
   | 'origin-entity-from-model'
   | 'origin-relationship';
@@ -117,6 +119,7 @@ function hasOriginRelationshipData(target: DeleteTarget): boolean {
 
 function useDeleteHandlers() {
   const deleteComponentMutation = useDeleteComponent();
+  const detachComponentMutation = useDetachComponent();
   const deleteRelationMutation = useDeleteRelation();
   const cascadeDeleteCapabilityMutation = useCascadeDeleteCapability();
   const changeCapabilityParentMutation = useChangeCapabilityParent();
@@ -176,6 +179,11 @@ function useDeleteHandlers() {
           newParentId: null,
         });
       },
+      containment: async (target, _viewId, lookups) => {
+        const part = lookups.components.find((c) => c.id === target.componentId);
+        if (!part) return;
+        await detachComponentMutation.mutateAsync(part);
+      },
       realization: async (target) => {
         if (!hasRealizationData(target)) return;
         await deleteRealizationMutation.mutateAsync({
@@ -203,6 +211,7 @@ function useDeleteHandlers() {
     }),
     [
       deleteComponentMutation,
+      detachComponentMutation,
       deleteRelationMutation,
       cascadeDeleteCapabilityMutation,
       changeCapabilityParentMutation,
@@ -243,8 +252,15 @@ export const useDeleteConfirmation = () => {
     setDeleteTarget(null);
   }, []);
 
+  const deleteTargetComponent = useMemo(
+    () =>
+      deleteTarget?.type === 'component-from-model' ? components.find((c) => c.id === deleteTarget.id) : undefined,
+    [deleteTarget, components],
+  );
+
   return {
     deleteTarget,
+    deleteTargetComponent,
     isDeleting,
     setDeleteTarget,
     handleDeleteConfirm,

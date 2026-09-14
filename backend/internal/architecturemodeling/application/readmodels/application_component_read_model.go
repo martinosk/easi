@@ -16,16 +16,18 @@ import (
 )
 
 type ApplicationComponentDTO struct {
-	ID             string              `json:"id"`
-	Name           string              `json:"name"`
-	Description    string              `json:"description,omitempty"`
-	CreatedAt      time.Time           `json:"createdAt"`
-	OwnershipState string              `json:"ownershipState"`
-	Owner          *ComponentOwnerDTO  `json:"owner,omitempty"`
-	Hosting        string              `json:"hosting"`
-	Experts        []ExpertDTO         `json:"experts,omitempty"`
-	Links          types.Links         `json:"_links,omitempty"`
-	XRelated       []types.RelatedLink `json:"-"`
+	ID             string                `json:"id"`
+	Name           string                `json:"name"`
+	Description    string                `json:"description,omitempty"`
+	CreatedAt      time.Time             `json:"createdAt"`
+	OwnershipState string                `json:"ownershipState"`
+	Owner          *ComponentOwnerDTO    `json:"owner,omitempty"`
+	Hosting        string                `json:"hosting"`
+	PartOf         *ContainmentParentDTO `json:"partOf,omitempty"`
+	Parts          []ContainmentPartDTO  `json:"parts,omitempty"`
+	Experts        []ExpertDTO           `json:"experts,omitempty"`
+	Links          types.Links           `json:"_links,omitempty"`
+	XRelated       []types.RelatedLink   `json:"-"`
 }
 
 type ComponentOwnerDTO struct {
@@ -38,7 +40,9 @@ const componentSelect = `SELECT c.id, c.name, c.description, c.created_at, c.own
 	CASE
 		WHEN c.owner_kind = 'user' THEN (SELECT COALESCE(NULLIF(u.name, ''), u.email) FROM architecturemodeling.user_names u WHERE u.tenant_id = c.tenant_id AND u.user_id = c.owner_id)
 		WHEN c.owner_kind = 'team' THEN (SELECT t.name FROM architecturemodeling.internal_teams t WHERE t.tenant_id = c.tenant_id AND t.id = c.owner_id AND t.is_deleted = FALSE)
-	END AS owner_name
+	END AS owner_name,
+	c.parent_component_id, c.containment_kind,
+	(SELECT p.name FROM architecturemodeling.application_components p WHERE p.tenant_id = c.tenant_id AND p.id = c.parent_component_id) AS parent_name
 	FROM architecturemodeling.application_components c`
 
 func (d ApplicationComponentDTO) MarshalJSON() ([]byte, error) {
@@ -159,6 +163,11 @@ func (rm *ApplicationComponentReadModel) GetByID(ctx context.Context, id string)
 		}
 
 		dto.Experts, err = rm.fetchExperts(ctx, tx, tenantID.Value(), id)
+		if err != nil {
+			return err
+		}
+		partsByParent, err := rm.fetchPartsByParent(ctx, tx, tenantID.Value(), []string{id})
+		dto.Parts = partsByParent[id]
 		return err
 	})
 
@@ -232,7 +241,7 @@ func (rm *ApplicationComponentReadModel) queryComponents(ctx context.Context, te
 		if err != nil {
 			return err
 		}
-		return rm.loadExpertsForComponents(ctx, tx, tenantID, components)
+		return rm.loadCollectionsForComponents(ctx, tx, tenantID, components)
 	})
 
 	return components, err
@@ -283,7 +292,7 @@ func (rm *ApplicationComponentReadModel) GetAllPaginated(ctx context.Context, q 
 			return err
 		}
 
-		return rm.loadExpertsForComponents(ctx, tx, tenantID.Value(), components)
+		return rm.loadCollectionsForComponents(ctx, tx, tenantID.Value(), components)
 	})
 
 	if err != nil {
@@ -323,12 +332,15 @@ func (rm *ApplicationComponentReadModel) queryPaginatedComponents(ctx context.Co
 
 func scanComponent(scan func(dest ...any) error) (ApplicationComponentDTO, error) {
 	var dto ApplicationComponentDTO
-	var ownerKind, ownerID, ownerName sql.NullString
-	if err := scan(&dto.ID, &dto.Name, &dto.Description, &dto.CreatedAt, &dto.OwnershipState, &ownerKind, &ownerID, &dto.Hosting, &ownerName); err != nil {
+	var ownerKind, ownerID, ownerName, parentID, containmentKind, parentName sql.NullString
+	if err := scan(&dto.ID, &dto.Name, &dto.Description, &dto.CreatedAt, &dto.OwnershipState, &ownerKind, &ownerID, &dto.Hosting, &ownerName, &parentID, &containmentKind, &parentName); err != nil {
 		return dto, err
 	}
 	if ownerKind.Valid && ownerID.Valid {
 		dto.Owner = &ComponentOwnerDTO{Kind: ownerKind.String, ID: ownerID.String, Name: ownerName.String}
+	}
+	if parentID.Valid && containmentKind.Valid {
+		dto.PartOf = &ContainmentParentDTO{ID: parentID.String, Name: parentName.String, Kind: containmentKind.String}
 	}
 	return dto, nil
 }
@@ -441,6 +453,13 @@ func (rm *ApplicationComponentReadModel) fetchExperts(ctx context.Context, tx *s
 		experts = append(experts, expert)
 	}
 	return experts, rows.Err()
+}
+
+func (rm *ApplicationComponentReadModel) loadCollectionsForComponents(ctx context.Context, tx *sql.Tx, tenantID string, components []ApplicationComponentDTO) error {
+	if err := rm.loadExpertsForComponents(ctx, tx, tenantID, components); err != nil {
+		return err
+	}
+	return rm.loadPartsForComponents(ctx, tx, tenantID, components)
 }
 
 func (rm *ApplicationComponentReadModel) loadExpertsForComponents(ctx context.Context, tx *sql.Tx, tenantID string, components []ApplicationComponentDTO) error {

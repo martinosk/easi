@@ -19,13 +19,15 @@ type RelationEndpoint struct {
 }
 
 var relationEndpoints = map[string]RelationEndpoint{
-	"component-triggers":     {Path: "/api/v1/relations", Method: "POST"},
-	"component-serves":       {Path: "/api/v1/relations", Method: "POST"},
-	"capability-parent":      {Path: "/api/v1/capabilities/{id}/parent", Method: "PATCH"},
-	"capability-realization": {Path: "/api/v1/capabilities/{id}/systems", Method: "POST"},
-	"origin-acquired-via":    {Path: "/api/v1/components/{id}/origin/acquired-via", Method: "PUT"},
-	"origin-purchased-from":  {Path: "/api/v1/components/{id}/origin/purchased-from", Method: "PUT"},
-	"origin-built-by":        {Path: "/api/v1/components/{id}/origin/built-by", Method: "PUT"},
+	"component-triggers":         {Path: "/api/v1/relations", Method: "POST"},
+	"component-serves":           {Path: "/api/v1/relations", Method: "POST"},
+	"component-part-composition": {Path: "/api/v1/components/{id}/containment", Method: "PUT"},
+	"component-part-aggregation": {Path: "/api/v1/components/{id}/containment", Method: "PUT"},
+	"capability-parent":          {Path: "/api/v1/capabilities/{id}/parent", Method: "PATCH"},
+	"capability-realization":     {Path: "/api/v1/capabilities/{id}/systems", Method: "POST"},
+	"origin-acquired-via":        {Path: "/api/v1/components/{id}/origin/acquired-via", Method: "PUT"},
+	"origin-purchased-from":      {Path: "/api/v1/components/{id}/origin/purchased-from", Method: "PUT"},
+	"origin-built-by":            {Path: "/api/v1/components/{id}/origin/built-by", Method: "PUT"},
 }
 
 func LookupRelationEndpoint(relationType string) (RelationEndpoint, bool) {

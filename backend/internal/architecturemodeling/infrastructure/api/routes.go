@@ -39,6 +39,7 @@ type repositorySet struct {
 	vendor              *repositories.VendorRepository
 	internalTeam        *repositories.InternalTeamRepository
 	componentOriginLink *repositories.ComponentOriginLinkRepository
+	containments        *repositories.ComponentContainmentsRepository
 }
 
 type readModelSet struct {
@@ -58,6 +59,7 @@ type httpHandlerSet struct {
 	expert             *ComponentExpertHandlers
 	ownership          *ComponentOwnershipHandlers
 	hosting            *ComponentHostingHandlers
+	containment        *ComponentContainmentHandlers
 	relation           *RelationHandlers
 	acquiredEntity     *AcquiredEntityHandlers
 	vendor             *VendorHandlers
@@ -73,6 +75,7 @@ func newRepositorySet(eventStore eventstore.EventStore) *repositorySet {
 		vendor:              repositories.NewVendorRepository(eventStore),
 		internalTeam:        repositories.NewInternalTeamRepository(eventStore),
 		componentOriginLink: repositories.NewComponentOriginLinkRepository(eventStore),
+		containments:        repositories.NewComponentContainmentsRepository(eventStore),
 	}
 }
 
@@ -113,6 +116,9 @@ func subscribeOwnershipProjectors(eventBus events.EventBus, rm *readModelSet, co
 	eventBus.Subscribe(authPL.UserCreated, projectors.NewUserNameCacheProjector(rm.userNames))
 	eventBus.Subscribe(archPL.InternalTeamDeleted, projectors.NewTeamOwnershipDeletionReactor(rm.component, commandBus))
 	eventBus.Subscribe(archPL.ApplicationHostingClassified, projectors.NewApplicationHostingProjector(rm.component))
+	containmentProjector := projectors.NewComponentContainmentProjector(rm.component)
+	eventBus.Subscribe(archPL.ComponentAttached, containmentProjector)
+	eventBus.Subscribe(archPL.ComponentDetached, containmentProjector)
 }
 
 func subscribeComponentProjectors(eventBus events.EventBus, component, relation events.EventHandler) {
@@ -155,7 +161,9 @@ func registerCommandHandlers(bus *cqrs.InMemoryCommandBus, repos *repositorySet,
 func registerComponentCommandHandlers(bus *cqrs.InMemoryCommandBus, repos *repositorySet, rm *readModelSet) {
 	bus.Register("CreateApplicationComponent", handlers.NewCreateApplicationComponentHandler(repos.component))
 	bus.Register("UpdateApplicationComponent", handlers.NewUpdateApplicationComponentHandler(repos.component))
-	bus.Register("DeleteApplicationComponent", handlers.NewDeleteApplicationComponentHandler(repos.component, rm.relation, bus))
+	bus.Register("DeleteApplicationComponent", handlers.NewDeleteApplicationComponentHandler(repos.component, rm.relation, rm.component, bus))
+	bus.Register("AttachComponent", handlers.NewAttachComponentHandler(repos.containments, rm.component, rm.component))
+	bus.Register("DetachComponent", handlers.NewDetachComponentHandler(repos.containments, rm.component))
 	bus.Register("AddApplicationComponentExpert", handlers.NewAddApplicationComponentExpertHandler(repos.component))
 	bus.Register("RemoveApplicationComponentExpert", handlers.NewRemoveApplicationComponentExpertHandler(repos.component))
 	bus.Register("NominateApplicationComponentOwner", handlers.NewNominateApplicationComponentOwnerHandler(repos.component, rm.userNames, rm.internalTeam))
@@ -192,6 +200,7 @@ func newHTTPHandlerSet(bus *cqrs.InMemoryCommandBus, rm *readModelSet, hateoas *
 		expert:         NewComponentExpertHandlers(bus, rm.component),
 		ownership:      NewComponentOwnershipHandlers(bus, rm.component, links),
 		hosting:        NewComponentHostingHandlers(bus, rm.component, links),
+		containment:    NewComponentContainmentHandlers(bus, rm.component, links),
 		relation:       NewRelationHandlers(bus, rm.relation, links),
 		acquiredEntity: NewAcquiredEntityHandlers(bus, rm.acquiredEntity, links),
 		vendor:         NewVendorHandlers(bus, rm.vendor, links),
@@ -237,6 +246,8 @@ func registerComponentRoutes(r chi.Router, h *httpHandlerSet, auth AuthMiddlewar
 			r.Put("/{id}/ownership", h.ownership.AssignOwner)
 			r.Delete("/{id}/ownership", h.ownership.ClearOwnership)
 			r.Put("/{id}/hosting", h.hosting.ClassifyHosting)
+			r.Put("/{id}/containment", h.containment.AttachComponent)
+			r.Delete("/{id}/containment", h.containment.DetachComponent)
 			r.Put("/{componentId}/origin/acquired-via", h.originRelationship.CreateAcquiredViaRelationship)
 			r.Put("/{componentId}/origin/purchased-from", h.originRelationship.CreatePurchasedFromRelationship)
 			r.Put("/{componentId}/origin/built-by", h.originRelationship.CreateBuiltByRelationship)

@@ -1,0 +1,20 @@
+.defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.filledDiamond {
+  fill: context-stroke;
+  stroke: context-stroke;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.hollowDiamond {
+  fill: var(--surface);
+  stroke: context-stroke;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}

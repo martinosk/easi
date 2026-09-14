@@ -31,13 +31,14 @@ import (
 )
 
 type componentStack struct {
-	component *ComponentHandlers
-	ownership *ComponentOwnershipHandlers
-	hosting   *ComponentHostingHandlers
-	readModel *readmodels.ApplicationComponentReadModel
-	userNames *readmodels.UserNameCacheReadModel
-	teams     *readmodels.InternalTeamReadModel
-	eventBus  events.EventBus
+	component   *ComponentHandlers
+	ownership   *ComponentOwnershipHandlers
+	hosting     *ComponentHostingHandlers
+	containment *ComponentContainmentHandlers
+	readModel   *readmodels.ApplicationComponentReadModel
+	userNames   *readmodels.UserNameCacheReadModel
+	teams       *readmodels.InternalTeamReadModel
+	eventBus    events.EventBus
 }
 
 func setupComponentStack(db *sql.DB) *componentStack {
@@ -54,6 +55,10 @@ func setupComponentStack(db *sql.DB) *componentStack {
 
 	componentProjector := projectors.NewApplicationComponentProjector(readModel)
 	eventBus.Subscribe(archPL.ApplicationComponentCreated, componentProjector)
+	eventBus.Subscribe(archPL.ApplicationComponentDeleted, componentProjector)
+	containmentProjector := projectors.NewComponentContainmentProjector(readModel)
+	eventBus.Subscribe(archPL.ComponentAttached, containmentProjector)
+	eventBus.Subscribe(archPL.ComponentDetached, containmentProjector)
 	ownershipProjector := projectors.NewApplicationOwnershipProjector(readModel)
 	eventBus.Subscribe(archPL.ApplicationOwnerNominated, ownershipProjector)
 	eventBus.Subscribe(archPL.ApplicationOwnershipConfirmed, ownershipProjector)
@@ -69,15 +74,20 @@ func setupComponentStack(db *sql.DB) *componentStack {
 	commandBus.Register("AssignApplicationComponentOwner", handlers.NewAssignApplicationComponentOwnerHandler(componentRepo, userNames, teams))
 	commandBus.Register("ClearApplicationComponentOwnership", handlers.NewClearApplicationComponentOwnershipHandler(componentRepo))
 	commandBus.Register("ClassifyApplicationHosting", handlers.NewClassifyApplicationHostingHandler(componentRepo))
+	containmentsRepo := repositories.NewComponentContainmentsRepository(eventStore)
+	commandBus.Register("AttachComponent", handlers.NewAttachComponentHandler(containmentsRepo, readModel, readModel))
+	commandBus.Register("DetachComponent", handlers.NewDetachComponentHandler(containmentsRepo, readModel))
+	commandBus.Register("DeleteApplicationComponent", handlers.NewDeleteApplicationComponentHandler(componentRepo, readmodels.NewComponentRelationReadModel(tenantDB), readModel, commandBus))
 
 	return &componentStack{
-		component: NewComponentHandlers(commandBus, readModel, links),
-		ownership: NewComponentOwnershipHandlers(commandBus, readModel, links),
-		hosting:   NewComponentHostingHandlers(commandBus, readModel, links),
-		readModel: readModel,
-		userNames: userNames,
-		teams:     teams,
-		eventBus:  eventBus,
+		component:   NewComponentHandlers(commandBus, readModel, links),
+		ownership:   NewComponentOwnershipHandlers(commandBus, readModel, links),
+		hosting:     NewComponentHostingHandlers(commandBus, readModel, links),
+		containment: NewComponentContainmentHandlers(commandBus, readModel, links),
+		readModel:   readModel,
+		userNames:   userNames,
+		teams:       teams,
+		eventBus:    eventBus,
 	}
 }
 

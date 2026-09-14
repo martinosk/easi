@@ -33,4 +33,14 @@ func init() {
 	registry.RegisterConflict(aggregates.ErrOwnershipNotUnknown, "Ownership can only be nominated or assigned while it is unknown")
 	registry.RegisterConflict(aggregates.ErrNoNominationToConfirm, "No nominated owner to confirm")
 	registry.RegisterConflict(aggregates.ErrNoOwnershipToClear, "Ownership is already unknown")
+
+	registry.RegisterNotFound(repositories.ErrComponentContainmentsNotFound, "Component containments not found")
+	registry.RegisterNotFound(handlers.ErrPartComponentNotFound, "Component not found")
+	registry.RegisterValidation(handlers.ErrParentComponentNotFound, "Referenced parent component does not exist")
+	registry.RegisterValidation(valueobjects.ErrInvalidContainmentKind, "Containment kind must be composition or aggregation")
+	registry.RegisterConflict(aggregates.ErrSelfContainment, "A component cannot be part of itself")
+	registry.RegisterConflict(aggregates.ErrPartAlreadyAttached, "Component is already part of another component")
+	registry.RegisterConflict(aggregates.ErrPartHasParts, "A component that has parts cannot become a part")
+	registry.RegisterConflict(aggregates.ErrParentIsPart, "A component that is a part cannot accept parts")
+	registry.RegisterConflict(aggregates.ErrNotAPart, "Component is not part of any component")
 }
