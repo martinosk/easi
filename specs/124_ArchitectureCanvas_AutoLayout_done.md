@@ -1,7 +1,7 @@
 # Spec 124: Architecture Canvas Auto-Layout
 
 ## Status
-pending
+done — implemented in commit 1d962d03 (2026-02-02, "re-introduce auto-layout"): `frontend/src/utils/autoLayout.ts`, `useAutoLayout`, `AutoLayoutButton`, with unit tests. Position persistence was later consolidated by spec 192. Closed 2026-09-14 without the original checklist being ticked; the feature has been in use since.
 
 ## Overview
 Enable automatic layout of architecture canvas views with intelligent positioning based on entity types and relationships. The auto-layout algorithm arranges capabilities hierarchically (L1-L4), positions application components based on their realization relationships, and places origin entities according to their relationships with applications. The architecture must support extensibility for future entity types.
