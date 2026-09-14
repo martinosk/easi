@@ -1,7 +1,7 @@
 # Value Stream Future Enhancements
 
 ## Status
-**pending**
+**superseded** by roadmap decision SD4 (2026-08-31): Value Streams evolves into the Business Operating Model context (H2-4) rather than growing as a process-modelling tool, so these enhancements would build on an aggregate the roadmap replaces. The H2-4 design doc decides which ideas survive; only Audit History UI is context-neutral. Marked 2026-09-14.
 
 ---
 

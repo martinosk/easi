@@ -1,6 +1,6 @@
 # 169 — Discover: Candidate Themes
 
-> **Status:** pending
+> **Status:** superseded by roadmap decision SD1 (2026-08-31, spec 213). Candidates were resolved by linking to an Enterprise Capability or a Direction; both concepts are retired and their code removed, so this spec cannot be implemented as written. If a pre-decision queue is still wanted, it returns as a journey kind in Architecture Direction under a new spec. Marked 2026-09-14.
 > **Depends on:** [167 — Direction on an Enterprise Capability](167_Direction_Aggregate_Capture_done.md)
 
 ---
