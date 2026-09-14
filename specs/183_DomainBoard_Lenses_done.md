@@ -1,6 +1,6 @@
 # 183 — Domain Board Lenses: Now / Journey / Target
 
-> **Status:** ongoing
+> **Status:** done
 > **Depends on:** 180 (TIME assessments), 181 (realization roles), 182 (journeys)
 > **Design doc:** [`docs/specs/capability-journeys.md`](../docs/specs/capability-journeys.md)
 
@@ -190,4 +190,4 @@ None beyond read-model queries.
 - [x] Unit tests implemented and passing
 - [x] Integration tests implemented if relevant (component-integration tests over the lens provider; no backend changes, so no server integration tests)
 - [x] API documentation updated (none — read-side frontend slice, no new endpoints)
-- [ ] User sign-off
+- [x] User sign-off (2026-09-14)

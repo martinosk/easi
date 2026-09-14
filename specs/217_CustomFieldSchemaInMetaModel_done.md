@@ -1,6 +1,6 @@
 # 217 — Custom-Field Schema in MetaModel
 
-> **Status:** ongoing
+> **Status:** done
 > **Depends on:** —
 > **Roadmap alignment:** SD5 / H1-3
 
@@ -125,4 +125,4 @@ New published language: MetaModel schema events consumed by OnePagers. No other 
 - [x] Unit tests implemented and passing
 - [x] Integration tests implemented if relevant (cross-context define/retire flow and legacy transfer; compiled, to be run against the compose database)
 - [x] API documentation updated
-- [ ] User sign-off
+- [x] User sign-off (2026-09-14)
