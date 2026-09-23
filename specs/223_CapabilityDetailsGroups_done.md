@@ -1,6 +1,6 @@
 # 223 — Capability Details: Collapsible, Re-arrangeable Groups
 
-> **Status:** ongoing
+> **Status:** done
 > **Depends on:** 220 (capability details edited in place), 211 (maturity journeys)
 > **Roadmap alignment:** outside roadmap: presentation only; the capability panel that 220 unified is regrouped, no domain or contract change. Respects SD6's principle that every affordance is a HATEOAS link.
 
@@ -168,4 +168,4 @@ None.
 - [x] Unit tests implemented and passing
 - [x] Integration tests implemented if relevant (mock-mode Playwright scenario; no backend change)
 - [x] API documentation updated (no API change)
-- [ ] User sign-off
+- [x] User sign-off

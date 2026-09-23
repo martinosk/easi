@@ -1,6 +1,6 @@
 # 224 — Application Details: Collapsible, Re-arrangeable Groups
 
-> **Status:** ongoing
+> **Status:** done
 > **Depends on:** 223 (capability details groups, details shell), 219 (application details edited in place), 214 (application ownership), 215 (application hosting), 216 (application composition)
 > **Roadmap alignment:** outside roadmap: presentation only; the application panel that 219 unified is regrouped on the details shell that 223 introduced, no domain or contract change. Respects SD6's affordance-as-link principle.
 
@@ -139,4 +139,4 @@ None.
 - [x] Unit tests implemented and passing
 - [x] Integration tests implemented if relevant (mock-mode Playwright scenario; no backend change)
 - [x] API documentation updated (no API change)
-- [ ] User sign-off
+- [x] User sign-off

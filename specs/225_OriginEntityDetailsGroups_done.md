@@ -1,6 +1,6 @@
 # 225 — Origin Entity Details: Collapsible, Re-arrangeable Groups
 
-> **Status:** ongoing
+> **Status:** done
 > **Depends on:** 223 (capability details groups, details shell), 224 (application details groups), 221 (origin entity details edited in place)
 > **Roadmap alignment:** outside roadmap: presentation only; the origin entity panel that 221 unified moves onto the details shell, no domain or contract change. Respects SD6's affordance-as-link principle.
 
@@ -138,4 +138,4 @@ None.
 - [x] Unit tests implemented and passing
 - [x] Integration tests implemented if relevant (mock-mode Playwright scenario; no backend change)
 - [x] API documentation updated (no API change)
-- [ ] User sign-off
+- [x] User sign-off
