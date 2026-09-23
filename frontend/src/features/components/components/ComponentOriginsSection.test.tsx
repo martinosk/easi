@@ -21,7 +21,12 @@ const BASE = {
   _links: SELF_LINKS,
 };
 
-const acquiredVia = (id: string, name: string) => ({ id, acquiredEntityId: `ae-${id}`, acquiredEntityName: name, ...BASE });
+const acquiredVia = (id: string, name: string) => ({
+  id,
+  acquiredEntityId: `ae-${id}`,
+  acquiredEntityName: name,
+  ...BASE,
+});
 const purchasedFrom = (id: string, name: string) => ({ id, vendorId: `v-${id}`, vendorName: name, ...BASE });
 const builtBy = (id: string, name: string) => ({ id, internalTeamId: `it-${id}`, internalTeamName: name, ...BASE });
 
@@ -76,14 +81,13 @@ describe('ComponentOriginsSection', () => {
   });
 
   describe('empty state', () => {
-    it('should render nothing when no origins exist', async () => {
+    it('shows an empty state when no origins exist', async () => {
       mockOriginsResponse({});
 
       renderComponent('comp-123' as ComponentId);
 
-      await waitFor(() => {
-        expect(screen.queryByText('Origins')).not.toBeInTheDocument();
-      });
+      expect(await screen.findByText('no origin recorded')).toBeInTheDocument();
+      expect(screen.queryByText('Origins')).not.toBeInTheDocument();
     });
   });
 
@@ -138,7 +142,7 @@ describe('ComponentOriginsSection', () => {
       });
     });
 
-    it('should render section header when origins are present', async () => {
+    it('renders the origins without a heading of its own', async () => {
       mockOriginsResponse({
         acquiredVia: [acquiredVia('rel-1', 'TechCorp')],
         purchasedFrom: [purchasedFrom('rel-2', 'SAP')],
@@ -147,9 +151,8 @@ describe('ComponentOriginsSection', () => {
 
       renderComponent('comp-123' as ComponentId);
 
-      await waitFor(() => {
-        expect(screen.getByText('Origins')).toBeInTheDocument();
-      });
+      expect(await screen.findByText('TechCorp')).toBeInTheDocument();
+      expect(screen.queryByText('Origins')).not.toBeInTheDocument();
     });
   });
 

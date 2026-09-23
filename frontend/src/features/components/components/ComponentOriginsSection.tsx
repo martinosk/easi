@@ -4,7 +4,6 @@ import { useQuery } from '@tanstack/react-query';
 import React from 'react';
 import { httpClient } from '../../../api/core/httpClient';
 import type { ComponentId, HATEOASLinks, OriginRelationshipType } from '../../../api/types';
-import { DetailField } from '../../../components/shared/DetailField';
 import { componentsQueryKeys } from '../queryKeys';
 
 interface ComponentOriginsSectionProps {
@@ -129,38 +128,38 @@ export const ComponentOriginsSection: React.FC<ComponentOriginsSectionProps> = (
 
   if (isLoading) {
     return (
-      <DetailField label="Origins">
-        <Text size="sm" c="dimmed">
-          Loading...
-        </Text>
-      </DetailField>
+      <Text size="sm" c="dimmed">
+        Loading...
+      </Text>
     );
   }
 
   if (origins.length === 0) {
-    return null;
+    return (
+      <Text size="sm" c="dimmed" fs="italic">
+        no origin recorded
+      </Text>
+    );
   }
 
   return (
-    <DetailField label="Origins">
-      <Stack gap={0}>
-        {origins.map((origin, index) => (
-          <React.Fragment key={origin.id}>
-            {index > 0 && <Divider />}
-            <Group gap="sm" py="xs" wrap="nowrap">
-              {getRelationshipTypeIcon(origin.relationshipType)}
-              <Box flex={1}>
-                <Text size="sm" fw={500}>
-                  {origin.originEntityName}
-                </Text>
-                <Text size="xs" c={getRelationshipTypeColor(origin.relationshipType)}>
-                  {getRelationshipTypeLabel(origin.relationshipType)}
-                </Text>
-              </Box>
-            </Group>
-          </React.Fragment>
-        ))}
-      </Stack>
-    </DetailField>
+    <Stack gap={0}>
+      {origins.map((origin, index) => (
+        <React.Fragment key={origin.id}>
+          {index > 0 && <Divider />}
+          <Group gap="sm" py="xs" wrap="nowrap">
+            {getRelationshipTypeIcon(origin.relationshipType)}
+            <Box flex={1}>
+              <Text size="sm" fw={500}>
+                {origin.originEntityName}
+              </Text>
+              <Text size="xs" c={getRelationshipTypeColor(origin.relationshipType)}>
+                {getRelationshipTypeLabel(origin.relationshipType)}
+              </Text>
+            </Box>
+          </Group>
+        </React.Fragment>
+      ))}
+    </Stack>
   );
 };

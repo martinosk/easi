@@ -1,7 +1,6 @@
 import { Badge, Group, Stack, Text } from '@mantine/core';
 import type React from 'react';
 import type { Component, ContainmentKind } from '../../../api/types';
-import { DetailField } from '../../../components/shared/DetailField';
 import { CONTAINMENT_KIND_LABELS } from '../utils/containment';
 
 const CONTAINMENT_KIND_COLORS: Record<ContainmentKind, string> = {
@@ -65,16 +64,14 @@ export const ComponentContainmentSection: React.FC<ComponentContainmentSectionPr
   const isStandalone = !component.partOf && (component.parts ?? []).length === 0;
 
   return (
-    <DetailField label="Composition">
-      <Stack gap="xs" data-testid="containment-section">
-        <PartOfLine component={component} />
-        <PartsList component={component} />
-        {isStandalone && (
-          <Text size="sm" c="dimmed">
-            Standalone
-          </Text>
-        )}
-      </Stack>
-    </DetailField>
+    <Stack gap="xs" data-testid="containment-section">
+      <PartOfLine component={component} />
+      <PartsList component={component} />
+      {isStandalone && (
+        <Text size="sm" c="dimmed">
+          Standalone
+        </Text>
+      )}
+    </Stack>
   );
 };

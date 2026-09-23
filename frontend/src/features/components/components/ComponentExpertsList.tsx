@@ -1,6 +1,7 @@
-import { Box, Button, CloseButton, Group, Stack, Text } from '@mantine/core';
+import { Button, CloseButton, Group, Stack, Text } from '@mantine/core';
 import React from 'react';
 import type { ComponentId, Expert } from '../../../api/types';
+import { DetailField } from '../../../components/shared/DetailField';
 import { hasLink } from '../../../utils/hateoas';
 import { useRemoveComponentExpert } from '../hooks/useComponents';
 
@@ -24,10 +25,7 @@ export const ComponentExpertsList: React.FC<ComponentExpertsListProps> = ({
   };
 
   return (
-    <Box>
-      <Text size="sm" fw={500} mb="xs">
-        Experts
-      </Text>
+    <DetailField label="Experts">
       {experts?.length ? (
         <Stack gap="xs">
           {experts.map((expert, i) => (
@@ -62,6 +60,6 @@ export const ComponentExpertsList: React.FC<ComponentExpertsListProps> = ({
           + Add Expert
         </Button>
       )}
-    </Box>
+    </DetailField>
   );
 };

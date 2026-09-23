@@ -2,6 +2,8 @@ import { Anchor, Badge, Group, Stack, Text } from '@mantine/core';
 import React, { useState } from 'react';
 import type { Capability, CapabilityRealization, Component } from '../../../api/types';
 import { DetailField } from '../../../components/shared/DetailField';
+import type { DetailGroup } from '../../../components/shared/DetailGroups';
+import { DetailsShell } from '../../../components/shared/DetailsShell';
 import { InlineTextField } from '../../../components/shared/InlineTextField';
 import { componentDescriptionSchema, componentNameSchema } from '../../../lib/schemas';
 import { hasLink } from '../../../utils/hateoas';
@@ -15,6 +17,8 @@ import { ComponentFitScores } from './ComponentFitScores';
 import { ComponentHostingSection } from './ComponentHostingSection';
 import { ComponentOriginsSection } from './ComponentOriginsSection';
 import { ComponentOwnershipSection } from './ComponentOwnershipSection';
+
+const LAYOUT_KEY = 'application-details-layout';
 
 interface ComponentDetailsContentProps {
   component: Component;
@@ -70,18 +74,22 @@ interface RealizationsFieldProps {
 }
 
 const RealizationsField: React.FC<RealizationsFieldProps> = ({ realizations, capabilities }) => {
-  if (realizations.length === 0) return null;
+  if (realizations.length === 0) {
+    return (
+      <Text size="sm" c="dimmed" fs="italic">
+        realises no capability
+      </Text>
+    );
+  }
 
   const directRealizations = realizations.filter((r) => r.origin === 'Direct');
   const inheritedRealizations = realizations.filter((r) => r.origin === 'Inherited');
 
   return (
-    <DetailField label="Realizes Capabilities">
-      <Stack gap="sm">
-        <RealizationListItems realizations={directRealizations} capabilities={capabilities} origin="Direct" />
-        <RealizationListItems realizations={inheritedRealizations} capabilities={capabilities} origin="Inherited" />
-      </Stack>
-    </DetailField>
+    <Stack gap="sm">
+      <RealizationListItems realizations={directRealizations} capabilities={capabilities} origin="Direct" />
+      <RealizationListItems realizations={inheritedRealizations} capabilities={capabilities} origin="Inherited" />
+    </Stack>
   );
 };
 
@@ -105,43 +113,61 @@ const TypeField: React.FC<TypeFieldProps> = ({ referenceUrl }) => {
   );
 };
 
-interface NameAndDescriptionProps {
+interface FieldProps {
   component: Component;
 }
 
-const NameAndDescription: React.FC<NameAndDescriptionProps> = ({ component }) => {
+function useComponentRecordEdit(component: Component) {
   const updateMutation = useUpdateComponent();
   const canEdit = hasLink(component, 'edit');
+  const save = (patch: { name?: string; description?: string }) =>
+    updateMutation.mutateAsync({
+      component,
+      request: { name: component.name, description: component.description, ...patch },
+    });
+  return { canEdit, save };
+}
 
-  const saveName = (name: string) =>
-    updateMutation.mutateAsync({ component, request: { name, description: component.description } });
-  const saveDescription = (description: string) =>
-    updateMutation.mutateAsync({ component, request: { name: component.name, description: description || undefined } });
+const NameField: React.FC<FieldProps> = ({ component }) => {
+  const { canEdit, save } = useComponentRecordEdit(component);
 
   return (
-    <>
-      <InlineTextField
-        value={component.name}
-        canEdit={canEdit}
-        schema={componentNameSchema}
-        onSave={saveName}
-        editLabel="Edit name"
-        testId="component-name"
-      />
-      <InlineTextField
-        label="Description"
-        value={component.description ?? ''}
-        canEdit={canEdit}
-        schema={componentDescriptionSchema}
-        onSave={saveDescription}
-        editLabel="Edit description"
-        emptyPrompt="Add a description"
-        multiline
-        testId="component-description"
-      />
-    </>
+    <InlineTextField
+      value={component.name}
+      canEdit={canEdit}
+      schema={componentNameSchema}
+      onSave={(name) => save({ name })}
+      editLabel="Edit name"
+      testId="component-name"
+    />
   );
 };
+
+const DescriptionField: React.FC<FieldProps> = ({ component }) => {
+  const { canEdit, save } = useComponentRecordEdit(component);
+
+  return (
+    <InlineTextField
+      label="Description"
+      value={component.description ?? ''}
+      canEdit={canEdit}
+      schema={componentDescriptionSchema}
+      onSave={(description) => save({ description: description || undefined })}
+      editLabel="Edit description"
+      emptyPrompt="Add a description"
+      multiline
+      testId="component-description"
+    />
+  );
+};
+
+const CreatedField: React.FC<FieldProps> = ({ component }) => (
+  <DetailField label="Created">
+    <Text size="sm" c="dimmed">
+      {new Date(component.createdAt).toLocaleString()}
+    </Text>
+  </DetailField>
+);
 
 interface ExpertsSectionProps {
   component: Component;
@@ -158,38 +184,73 @@ const ExpertsSection: React.FC<ExpertsSectionProps> = ({ component }) => {
         canAddExpert={hasLink(component, 'x-add-expert')}
         onAddClick={() => setAddExpertOpen(true)}
       />
-      <AddComponentExpertDialog isOpen={addExpertOpen} onClose={() => setAddExpertOpen(false)} componentId={component.id} />
+      <AddComponentExpertDialog
+        isOpen={addExpertOpen}
+        onClose={() => setAddExpertOpen(false)}
+        componentId={component.id}
+      />
     </>
   );
 };
 
-export const ComponentDetailsContent: React.FC<ComponentDetailsContentProps> = ({
-  component,
-  realizations,
-  capabilities,
-  viewMembership,
-}) => {
-  const formattedDate = new Date(component.createdAt).toLocaleString();
+function buildGroups({ component, realizations, capabilities }: ComponentDetailsContentProps): DetailGroup[] {
+  return [
+    {
+      id: 'description',
+      title: 'Description',
+      content: (
+        <Stack gap="sm">
+          <DescriptionField component={component} />
+          <TypeField referenceUrl={component._links.describedby?.href} />
+        </Stack>
+      ),
+    },
+    {
+      id: 'ownership',
+      title: 'Ownership',
+      content: (
+        <Stack gap="sm">
+          <ComponentOwnershipSection component={component} />
+          <ComponentHostingSection component={component} />
+        </Stack>
+      ),
+    },
+    { id: 'composition', title: 'Composition', content: <ComponentContainmentSection component={component} /> },
+    {
+      id: 'metadata',
+      title: 'Metadata',
+      content: (
+        <Stack gap="sm">
+          <ExpertsSection component={component} />
+          <CreatedField component={component} />
+        </Stack>
+      ),
+    },
+    {
+      id: 'realisations',
+      title: 'Realises capabilities',
+      content: <RealizationsField realizations={realizations} capabilities={capabilities} />,
+    },
+    { id: 'origins', title: 'Origins', content: <ComponentOriginsSection componentId={component.id} /> },
+    { id: 'fit', title: 'Fit scores', content: <ComponentFitScores componentId={component.id} /> },
+  ];
+}
+
+export const ComponentDetailsContent: React.FC<ComponentDetailsContentProps> = (props) => {
+  const { component, viewMembership } = props;
 
   return (
-    <Stack gap="sm" p="md" data-testid="component-details-panel">
-      <NameAndDescription component={component} />
-      <ComponentOwnershipSection component={component} />
-      <ComponentHostingSection component={component} />
-      <ComponentContainmentSection component={component} />
-      <ExpertsSection component={component} />
-      <DetailField label="Created">
-        <Text size="sm" c="dimmed">
-          {formattedDate}
-        </Text>
-      </DetailField>
-      <TypeField referenceUrl={component._links.describedby?.href} />
-      <RealizationsField realizations={realizations} capabilities={capabilities} />
-      <ComponentOriginsSection componentId={component.id} />
-      <ComponentFitScores componentId={component.id} />
-      {viewMembership}
-      <OnePagerActionButton subject={component} subjectType="application" subjectId={component.id} />
-      <AuditHistorySection aggregateId={component.id} />
-    </Stack>
+    <DetailsShell
+      layoutKey={LAYOUT_KEY}
+      heading={<NameField component={component} />}
+      groups={buildGroups(props)}
+      viewMembership={viewMembership}
+      footer={
+        <>
+          <OnePagerActionButton subject={component} subjectType="application" subjectId={component.id} />
+          <AuditHistorySection aggregateId={component.id} />
+        </>
+      }
+    />
   );
 };

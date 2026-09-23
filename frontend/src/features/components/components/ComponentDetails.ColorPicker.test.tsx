@@ -1,4 +1,4 @@
-﻿import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+﻿import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { HttpResponse, http } from 'msw';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -20,7 +20,7 @@ vi.mock('../../views/hooks/useCurrentView', () => ({
 }));
 
 vi.mock('./ComponentFitScores', () => ({
-  ComponentFitScores: () => null,
+  ComponentFitScores: () => <div data-testid="fit-scores-stub" />,
 }));
 
 vi.mock('./ComponentOriginsSection', () => ({
@@ -102,13 +102,23 @@ describe('ComponentDetails - ColorPicker Integration', () => {
   };
 
   describe('Color picker visibility', () => {
-    it('groups the colour control and view removal under an "In this view" section', async () => {
+    it('groups the colour control and view removal under an "In this view" group after Fit scores', async () => {
       renderComponentDetails(createMockView('custom'));
 
-      const section = await screen.findByTestId('view-membership-section');
-      expect(section).toHaveTextContent('In this view');
+      const group = await screen.findByTestId('detail-group-view');
+      expect(within(group).getByRole('button', { name: 'In this view' })).toBeInTheDocument();
+      const section = within(group).getByTestId('view-membership-section');
       expect(section).toContainElement(screen.getByTestId('color-picker'));
       expect(section).toContainElement(screen.getByRole('button', { name: 'Remove from View' }));
+      const fit = screen.getByTestId('detail-group-fit');
+      expect(fit.compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('renders no view group when the application is not on the current view', async () => {
+      renderComponentDetails({ ...createMockView('custom'), components: [] });
+
+      await screen.findByRole('heading', { name: 'Test Component' });
+      expect(screen.queryByTestId('detail-group-view')).not.toBeInTheDocument();
     });
 
     it('should show color picker in component details panel', async () => {

@@ -1,4 +1,4 @@
-import { Box, Button, ColorSwatch, Divider, Group, Paper, Stack, Text, Textarea, Title } from '@mantine/core';
+import { Box, Button, ColorSwatch, Group, Paper, Stack, Text, Textarea } from '@mantine/core';
 import React, { useMemo, useState } from 'react';
 import type { ApplicationFitScore, ComponentId, StrategyPillar } from '../../../api/types';
 import { useStrategyPillarsConfig } from '../../../hooks/useStrategyPillarsSettings';
@@ -298,15 +298,15 @@ export const ComponentFitScores: React.FC<ComponentFitScoresProps> = ({ componen
   };
 
   if (enabledPillars.length === 0) {
-    return null;
+    return (
+      <Text size="sm" c="dimmed" fs="italic">
+        no strategic pillars configured
+      </Text>
+    );
   }
 
   return (
-    <Stack gap="xs" mt="xs">
-      <Divider />
-      <Title order={6} c="dimmed" tt="uppercase">
-        Strategic Fit Scores
-      </Title>
+    <Stack gap="xs">
       <Text size="xs" c="dimmed">
         Rate how well this application supports each strategic pillar
       </Text>

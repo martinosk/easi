@@ -1,8 +1,16 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { HttpResponse, http } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { Component, ComponentId, HATEOASLinks } from '../../../api/types';
-import { buildComponent, buildExpert, renderWithProviders, seedDb, server } from '../../../test/helpers';
+import {
+  buildComponent,
+  buildExpert,
+  detailGroupIds,
+  fieldLabelsIn,
+  renderWithProviders,
+  seedDb,
+  server,
+} from '../../../test/helpers';
 import { ComponentDetailsPanel } from './ComponentDetailsPanel';
 
 const API_BASE = 'http://localhost:8080';
@@ -19,13 +27,19 @@ function editableLinks(id: string): HATEOASLinks {
   };
 }
 
+const FIELD_LABEL = /^(Description|Type|Ownership|Hosting|Experts|Created)$/;
+
 function renderPanel(component: Component, extra: React.ReactNode = undefined) {
   seedDb({ components: [component], capabilities: [] });
   return renderWithProviders(<ComponentDetailsPanel componentId={component.id} viewMembership={extra} />);
 }
 
 describe('ComponentDetailsPanel', () => {
-  it('renders the application name as the heading and every section in order', async () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('renders the application name above the groups and arranges the sections into the default groups', async () => {
     renderPanel(
       buildComponent({
         id: 'comp-1' as ComponentId,
@@ -36,25 +50,83 @@ describe('ComponentDetailsPanel', () => {
       }),
     );
 
-    expect(await screen.findByRole('heading', { name: 'Billing Service' })).toBeInTheDocument();
+    const heading = await screen.findByRole('heading', { name: 'Billing Service' });
     expect(screen.queryByText('Application Details')).not.toBeInTheDocument();
-
-    const labels = screen
-      .getAllByText(/^(Description|Ownership|Hosting|Experts|Created|Type)$/)
-      .map((element) => element.textContent);
-    expect(labels).toEqual(['Description', 'Ownership', 'Hosting', 'Experts', 'Created', 'Type']);
+    expect(detailGroupIds()).toEqual([
+      'detail-group-description',
+      'detail-group-ownership',
+      'detail-group-composition',
+      'detail-group-metadata',
+      'detail-group-realisations',
+      'detail-group-origins',
+      'detail-group-fit',
+    ]);
+    const description = screen.getByTestId('detail-group-description');
+    expect(heading.compareDocumentPosition(description) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(description).queryByRole('heading')).not.toBeInTheDocument();
+    expect(fieldLabelsIn(within(description), FIELD_LABEL)).toEqual(['Description', 'Type']);
+    expect(fieldLabelsIn(within(screen.getByTestId('detail-group-ownership')), FIELD_LABEL)).toEqual([
+      'Ownership',
+      'Hosting',
+    ]);
+    expect(
+      within(screen.getByTestId('detail-group-composition')).getByTestId('containment-section'),
+    ).toBeInTheDocument();
+    expect(fieldLabelsIn(within(screen.getByTestId('detail-group-metadata')), FIELD_LABEL)).toEqual([
+      'Experts',
+      'Created',
+    ]);
     expect(screen.getByText('Jane', { exact: false })).toBeInTheDocument();
+    expect(screen.getAllByText('Composition', { selector: 'span' })).toHaveLength(1);
+  });
+
+  it('renders an empty state in the list groups instead of omitting them', async () => {
+    renderPanel(buildComponent({ id: 'comp-1' as ComponentId, name: 'Billing Service' }));
+
+    await screen.findByRole('heading', { name: 'Billing Service' });
+    expect(
+      within(screen.getByTestId('detail-group-realisations')).getByText('realises no capability'),
+    ).toBeInTheDocument();
+    expect(
+      await within(screen.getByTestId('detail-group-origins')).findByText('no origin recorded'),
+    ).toBeInTheDocument();
+    expect(
+      await within(screen.getByTestId('detail-group-fit')).findByText('no strategic pillars configured'),
+    ).toBeInTheDocument();
+  });
+
+  it('renders the one-pager action and history below the groups', async () => {
+    renderPanel(
+      buildComponent({
+        id: 'comp-1' as ComponentId,
+        name: 'Billing Service',
+        _links: {
+          ...editableLinks('comp-1'),
+          'x-one-pager': { href: '/api/v1/one-pagers/application/comp-1', method: 'GET' },
+        },
+      }),
+    );
+
+    const lastGroup = (await screen.findAllByTestId(/^detail-group-/)).at(-1) as HTMLElement;
+    const onePager = screen.getByRole('button', { name: 'One-Pager' });
+    const history = screen.getByRole('button', { name: /^History/ });
+    expect(lastGroup.compareDocumentPosition(onePager) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(onePager.compareDocumentPosition(history) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('never offers a whole-record Edit action', async () => {
-    renderPanel(buildComponent({ id: 'comp-1' as ComponentId, name: 'Billing Service', _links: editableLinks('comp-1') }));
+    renderPanel(
+      buildComponent({ id: 'comp-1' as ComponentId, name: 'Billing Service', _links: editableLinks('comp-1') }),
+    );
 
     await screen.findByRole('heading', { name: 'Billing Service' });
     expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
   });
 
   it('renames the application in place when the edit link is present', async () => {
-    renderPanel(buildComponent({ id: 'comp-1' as ComponentId, name: 'Billing Service', _links: editableLinks('comp-1') }));
+    renderPanel(
+      buildComponent({ id: 'comp-1' as ComponentId, name: 'Billing Service', _links: editableLinks('comp-1') }),
+    );
 
     fireEvent.click(await screen.findByRole('button', { name: 'Edit name' }));
     fireEvent.change(screen.getByTestId('component-name-input'), { target: { value: 'Billing Platform' } });
@@ -109,7 +181,7 @@ describe('ComponentDetailsPanel', () => {
     await screen.findByRole('heading', { name: 'Billing Service' });
     expect(screen.queryByRole('button', { name: 'Edit name' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Add a description' })).not.toBeInTheDocument();
-    expect(screen.queryByText('Description')).not.toBeInTheDocument();
+    expect(screen.queryByText('Description', { selector: 'label' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '+ Add Expert' })).not.toBeInTheDocument();
     expect(screen.getByTestId('hosting-badge')).toBeInTheDocument();
   });
@@ -126,25 +198,39 @@ describe('ComponentDetailsPanel', () => {
     expect(await screen.findByRole('button', { name: '+ Add Expert' })).toBeInTheDocument();
   });
 
-  it('shows no view-membership section unless the host supplies one', async () => {
+  it('shows no view group unless the host supplies view membership', async () => {
     renderPanel(buildComponent({ id: 'comp-1' as ComponentId, name: 'Billing Service' }));
 
     await screen.findByRole('heading', { name: 'Billing Service' });
-    expect(screen.queryByText('In this view')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('detail-group-view')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Remove from View' })).not.toBeInTheDocument();
     expect(screen.queryByTestId('color-picker')).not.toBeInTheDocument();
   });
 
-  it('renders the view-membership section supplied by the host after the application sections', async () => {
+  it('renders the view membership supplied by the host as an "In this view" group after Fit scores', async () => {
     renderPanel(
       buildComponent({ id: 'comp-1' as ComponentId, name: 'Billing Service' }),
-      <div data-testid="host-slot">In this view</div>,
+      <div data-testid="host-slot">colour</div>,
     );
 
-    const panel = await screen.findByTestId('component-details-panel');
-    const slot = within(panel).getByTestId('host-slot');
-    const typeLabel = within(panel).getByText('Type');
-    expect(typeLabel.compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await screen.findByRole('heading', { name: 'Billing Service' });
+    expect(detailGroupIds().slice(-2)).toEqual(['detail-group-fit', 'detail-group-view']);
+    const view = within(screen.getByTestId('detail-group-view'));
+    expect(view.getByRole('button', { name: 'In this view' })).toBeInTheDocument();
+    expect(view.getByTestId('host-slot')).toBeInTheDocument();
+  });
+
+  it('remembers a collapsed group and a moved group across panels', async () => {
+    const first = renderPanel(buildComponent({ id: 'comp-1' as ComponentId, name: 'Billing Service' }));
+    await screen.findByRole('heading', { name: 'Billing Service' });
+    fireEvent.click(screen.getByRole('button', { name: 'Metadata' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Move Fit scores up' }));
+    first.unmount();
+
+    renderPanel(buildComponent({ id: 'comp-1' as ComponentId, name: 'Billing Service' }));
+    await screen.findByRole('heading', { name: 'Billing Service' });
+    expect(detailGroupIds().slice(-2)).toEqual(['detail-group-fit', 'detail-group-origins']);
+    expect(screen.getByRole('button', { name: 'Metadata' })).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('loads the application through the detail query when it is not in the list cache', async () => {

@@ -1,4 +1,4 @@
-import { Button, Group, Stack, Text } from '@mantine/core';
+import { Button, Group, Stack } from '@mantine/core';
 import type React from 'react';
 import toast from 'react-hot-toast';
 import type { ComponentId, View, ViewComponent, ViewId } from '../../../api/types';
@@ -68,25 +68,33 @@ const ColorPickerField: React.FC<ColorPickerFieldProps> = ({
   );
 };
 
-interface SectionBodyProps {
+export interface ComponentViewMembership {
   view: View;
   componentInView: ViewComponent;
+}
+
+export function useComponentViewMembership(componentId: string): ComponentViewMembership | null {
+  const { currentView } = useCurrentView();
+  const componentInView = currentView?.components.find((vc) => vc.componentId === toComponentId(componentId));
+  if (!currentView || !componentInView) return null;
+  if (!hasLink(componentInView, 'x-update-color') && !hasLink(componentInView, 'x-remove')) return null;
+  return { view: currentView, componentInView };
+}
+
+interface ComponentViewMembershipSectionProps extends ComponentViewMembership {
   onRemoveFromView: () => void;
 }
 
-const SectionBody: React.FC<SectionBodyProps> = ({ view, componentInView, onRemoveFromView }) => {
+export const ComponentViewMembershipSection: React.FC<ComponentViewMembershipSectionProps> = ({
+  view,
+  componentInView,
+  onRemoveFromView,
+}) => {
   const { handleColorChange, handleClearColor } = useComponentColorHandlers(view.id, componentInView.componentId);
-  const canUpdateColor = hasLink(componentInView, 'x-update-color');
-  const canRemove = hasLink(componentInView, 'x-remove');
-
-  if (!canUpdateColor && !canRemove) return null;
 
   return (
     <Stack gap="sm" data-testid="view-membership-section">
-      <Text size="sm" fw={500}>
-        In this view
-      </Text>
-      {canUpdateColor && (
+      {hasLink(componentInView, 'x-update-color') && (
         <ColorPickerField
           componentInView={componentInView}
           colorScheme={view.colorScheme || 'maturity'}
@@ -94,7 +102,7 @@ const SectionBody: React.FC<SectionBodyProps> = ({ view, componentInView, onRemo
           onClearColor={handleClearColor}
         />
       )}
-      {canRemove && (
+      {hasLink(componentInView, 'x-remove') && (
         <Group justify="flex-start">
           <Button variant="default" size="xs" onClick={onRemoveFromView}>
             Remove from View
@@ -103,20 +111,4 @@ const SectionBody: React.FC<SectionBodyProps> = ({ view, componentInView, onRemo
       )}
     </Stack>
   );
-};
-
-interface ComponentViewMembershipSectionProps {
-  componentId: string;
-  onRemoveFromView: () => void;
-}
-
-export const ComponentViewMembershipSection: React.FC<ComponentViewMembershipSectionProps> = ({
-  componentId,
-  onRemoveFromView,
-}) => {
-  const { currentView } = useCurrentView();
-  const componentInView = currentView?.components.find((vc) => vc.componentId === toComponentId(componentId));
-  if (!currentView || !componentInView) return null;
-
-  return <SectionBody view={currentView} componentInView={componentInView} onRemoveFromView={onRemoveFromView} />;
 };
