@@ -89,15 +89,17 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
   };
 
   describe('View membership section', () => {
-    it('renders custom colour and Remove from View in one "In this view" section after realising applications', async () => {
+    it('renders custom colour and Remove from View in one "In this view" group after realising applications', async () => {
       renderCapabilityDetails(createMockView('custom'));
 
-      const section = await screen.findByTestId('view-membership-section');
-      expect(section).toHaveTextContent('In this view');
+      const group = await screen.findByTestId('detail-group-view');
+      expect(within(group).getByRole('button', { name: 'In this view' })).toBeInTheDocument();
+      const section = within(group).getByTestId('view-membership-section');
       expect(within(section).getByTestId('color-picker')).toBeInTheDocument();
       expect(within(section).getByRole('button', { name: 'Remove from View' })).toBeInTheDocument();
       const realising = screen.getByText('Realising applications');
-      expect(realising.compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(realising.compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(screen.queryByTestId('detail-group-transition')).not.toBeInTheDocument();
       expect(screen.queryByText('Capability Details')).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
     });
@@ -106,6 +108,7 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
       renderCapabilityDetails({ ...createMockView('custom'), capabilities: [] });
 
       await screen.findByRole('heading', { name: 'Test Capability' });
+      expect(screen.queryByTestId('detail-group-view')).not.toBeInTheDocument();
       expect(screen.queryByTestId('view-membership-section')).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Remove from View' })).not.toBeInTheDocument();
     });
@@ -115,6 +118,7 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
       renderCapabilityDetails({ ...view, capabilities: [{ ...view.capabilities[0], _links: {} }] });
 
       await screen.findByRole('heading', { name: 'Test Capability' });
+      expect(screen.queryByTestId('detail-group-view')).not.toBeInTheDocument();
       expect(screen.queryByTestId('view-membership-section')).not.toBeInTheDocument();
     });
   });

@@ -119,7 +119,6 @@ export function JourneySection({
   return (
     <Stack gap="xs" data-testid="journey-section">
       <AncestorJourneys journeys={hierarchyJourneys.ancestors} onNavigate={onNavigateToCapability} />
-      <DrawerSectionHeader>Transition</DrawerSectionHeader>
       {displayJourneys.length === 0 && <Text className={classes.empty}>No change planned.</Text>}
       <CaptureAffordance wrapper={wrapper} capability={capability} realizations={realizations} />
       {displayJourneys.map((journey) => (

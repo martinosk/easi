@@ -1,4 +1,4 @@
-import { Drawer, Stack, Text } from '@mantine/core';
+import { Drawer, Text } from '@mantine/core';
 import type { BusinessDomain, Capability, CapabilityId, CapabilityRealization, ComponentId } from '../../../api/types';
 import { CapabilityDetailsPanel } from '../../capabilities/components/CapabilityDetailsPanel';
 import type { CapabilityHierarchyJourneys } from '../lens/hierarchyJourneys';
@@ -15,34 +15,6 @@ export interface CapabilityDrawerProps {
   onClose: () => void;
   onChipClick: (componentId: ComponentId) => void;
   onNavigateToCapability: (capabilityId: string) => void;
-}
-
-interface DomainContextProps {
-  capability: Capability;
-  domain: BusinessDomain | null;
-  realizations: CapabilityRealization[];
-  hierarchyJourneys: CapabilityHierarchyJourneys;
-  onNavigateToCapability: (capabilityId: string) => void;
-}
-
-function DomainContext({
-  capability,
-  domain,
-  realizations,
-  hierarchyJourneys,
-  onNavigateToCapability,
-}: DomainContextProps) {
-  return (
-    <Stack gap="md">
-      <JourneySection
-        capability={capability}
-        realizations={realizations}
-        hierarchyJourneys={hierarchyJourneys}
-        onNavigateToCapability={onNavigateToCapability}
-      />
-      {domain && <StrategicImportanceSection domain={domain} capabilityId={capability.id} />}
-    </Stack>
-  );
 }
 
 export function CapabilityDrawer({
@@ -74,15 +46,15 @@ export function CapabilityDrawer({
         <CapabilityDetailsPanel
           capabilityId={capability.id}
           onApplicationClick={onChipClick}
-          domainContext={
-            <DomainContext
+          transition={
+            <JourneySection
               capability={capability}
-              domain={domain}
               realizations={getRealizationsForCapability(capability.id)}
               hierarchyJourneys={hierarchyJourneys}
               onNavigateToCapability={onNavigateToCapability}
             />
           }
+          strategicImportance={domain && <StrategicImportanceSection domain={domain} capabilityId={capability.id} />}
         />
       )}
     </Drawer>

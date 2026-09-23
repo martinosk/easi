@@ -1,6 +1,7 @@
-import { Box, Button, Group, Loader, SegmentedControl, Stack, Text, Textarea, Title } from '@mantine/core';
+import { Button, ColorSwatch, Group, Loader, SegmentedControl, Stack, Text, Textarea } from '@mantine/core';
 import React, { useMemo, useState } from 'react';
 import type { BusinessDomain, CapabilityId, StrategyImportance } from '../../../api/types';
+import { DetailField } from '../../../components/shared/DetailField';
 import { useStrategyPillarsConfig } from '../../../hooks/useStrategyPillarsSettings';
 import { canCreate } from '../../../utils/hateoas';
 import {
@@ -38,16 +39,13 @@ interface ScoreDotsProps {
 
 function ScoreDots({ value }: ScoreDotsProps) {
   return (
-    <Group gap={4}>
+    <Group gap="xs">
       {SCORE_RANGE.map((s) => (
-        <Box
+        <ColorSwatch
           key={s}
-          w={10}
-          h={10}
-          style={{
-            borderRadius: '50%',
-            background: s <= value ? 'var(--mantine-color-blue-6)' : 'var(--mantine-color-gray-3)',
-          }}
+          size="xs"
+          color={s <= value ? 'var(--mantine-color-blue-6)' : 'var(--mantine-color-gray-3)'}
+          withShadow={false}
         />
       ))}
     </Group>
@@ -345,40 +343,41 @@ export function StrategicImportanceSection({ domain, capabilityId }: StrategicIm
   const isSaving = setImportanceMutation.isPending || updateImportanceMutation.isPending;
 
   return (
-    <Stack gap="sm" mt="md">
-      <Title order={5}>Strategic Importance</Title>
-      <Text size="sm" c="dimmed">
-        Rate how important this capability is for {domain.name}
-      </Text>
-      {isLoading ? (
-        <Group gap="xs">
-          <Loader size="xs" />
-          <Text size="sm" c="dimmed">
-            Loading...
-          </Text>
-        </Group>
-      ) : (
-        <Stack gap="md">
-          {activePillars.map((pillar) => (
-            <ImportanceRow
-              key={pillar.id}
-              pillar={pillar}
-              importance={getImportanceForPillar(pillar.id)}
-              canAddImportance={canAddImportance}
-              isEditing={editing.editingPillarId === pillar.id}
-              editScore={editing.editScore}
-              editRationale={editing.editRationale}
-              onEdit={() => editing.startEditing(pillar.id, getImportanceForPillar(pillar.id))}
-              onCancel={editing.stopEditing}
-              onScoreChange={editing.setEditScore}
-              onRationaleChange={editing.setEditRationale}
-              onSave={() => handleSave(pillar.id)}
-              onDelete={() => handleDelete(pillar.id)}
-              isSaving={isSaving}
-            />
-          ))}
-        </Stack>
-      )}
-    </Stack>
+    <DetailField label="Strategic importance">
+      <Stack gap="sm">
+        <Text size="sm" c="dimmed">
+          Rate how important this capability is for {domain.name}
+        </Text>
+        {isLoading ? (
+          <Group gap="xs">
+            <Loader size="xs" />
+            <Text size="sm" c="dimmed">
+              Loading...
+            </Text>
+          </Group>
+        ) : (
+          <Stack gap="md">
+            {activePillars.map((pillar) => (
+              <ImportanceRow
+                key={pillar.id}
+                pillar={pillar}
+                importance={getImportanceForPillar(pillar.id)}
+                canAddImportance={canAddImportance}
+                isEditing={editing.editingPillarId === pillar.id}
+                editScore={editing.editScore}
+                editRationale={editing.editRationale}
+                onEdit={() => editing.startEditing(pillar.id, getImportanceForPillar(pillar.id))}
+                onCancel={editing.stopEditing}
+                onScoreChange={editing.setEditScore}
+                onRationaleChange={editing.setEditRationale}
+                onSave={() => handleSave(pillar.id)}
+                onDelete={() => handleDelete(pillar.id)}
+                isSaving={isSaving}
+              />
+            ))}
+          </Stack>
+        )}
+      </Stack>
+    </DetailField>
   );
 }

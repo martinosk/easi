@@ -1,4 +1,4 @@
-import { Button, Group, Stack, Text } from '@mantine/core';
+import { Button, Group, Stack } from '@mantine/core';
 import type React from 'react';
 import toast from 'react-hot-toast';
 import type { CapabilityId, View, ViewCapability, ViewId } from '../../../api/types';
@@ -67,25 +67,33 @@ const ColorPickerField: React.FC<ColorPickerFieldProps> = ({
   );
 };
 
-interface SectionBodyProps {
+export interface CapabilityViewMembership {
   view: View;
   capabilityInView: ViewCapability;
+}
+
+export function useCapabilityViewMembership(capabilityId: CapabilityId): CapabilityViewMembership | null {
+  const { currentView } = useCurrentView();
+  const capabilityInView = currentView?.capabilities.find((vc) => vc.capabilityId === capabilityId);
+  if (!currentView || !capabilityInView) return null;
+  if (!hasLink(capabilityInView, 'x-update-color') && !hasLink(capabilityInView, 'x-remove')) return null;
+  return { view: currentView, capabilityInView };
+}
+
+interface CapabilityViewMembershipSectionProps extends CapabilityViewMembership {
   onRemoveFromView: () => void;
 }
 
-const SectionBody: React.FC<SectionBodyProps> = ({ view, capabilityInView, onRemoveFromView }) => {
+export const CapabilityViewMembershipSection: React.FC<CapabilityViewMembershipSectionProps> = ({
+  view,
+  capabilityInView,
+  onRemoveFromView,
+}) => {
   const { handleColorChange, handleClearColor } = useCapabilityColorHandlers(view.id, capabilityInView.capabilityId);
-  const canUpdateColor = hasLink(capabilityInView, 'x-update-color');
-  const canRemove = hasLink(capabilityInView, 'x-remove');
-
-  if (!canUpdateColor && !canRemove) return null;
 
   return (
     <Stack gap="sm" data-testid="view-membership-section">
-      <Text size="sm" fw={500}>
-        In this view
-      </Text>
-      {canUpdateColor && (
+      {hasLink(capabilityInView, 'x-update-color') && (
         <ColorPickerField
           capabilityInView={capabilityInView}
           colorScheme={view.colorScheme || 'maturity'}
@@ -93,7 +101,7 @@ const SectionBody: React.FC<SectionBodyProps> = ({ view, capabilityInView, onRem
           onClearColor={handleClearColor}
         />
       )}
-      {canRemove && (
+      {hasLink(capabilityInView, 'x-remove') && (
         <Group justify="flex-start">
           <Button variant="default" size="xs" onClick={onRemoveFromView}>
             Remove from View
@@ -102,20 +110,4 @@ const SectionBody: React.FC<SectionBodyProps> = ({ view, capabilityInView, onRem
       )}
     </Stack>
   );
-};
-
-interface CapabilityViewMembershipSectionProps {
-  capabilityId: CapabilityId;
-  onRemoveFromView: () => void;
-}
-
-export const CapabilityViewMembershipSection: React.FC<CapabilityViewMembershipSectionProps> = ({
-  capabilityId,
-  onRemoveFromView,
-}) => {
-  const { currentView } = useCurrentView();
-  const capabilityInView = currentView?.capabilities.find((vc) => vc.capabilityId === capabilityId);
-  if (!currentView || !capabilityInView) return null;
-
-  return <SectionBody view={currentView} capabilityInView={capabilityInView} onRemoveFromView={onRemoveFromView} />;
 };

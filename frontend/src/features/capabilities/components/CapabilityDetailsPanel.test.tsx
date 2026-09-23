@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { HttpResponse, http } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { Capability, CapabilityId, HATEOASLinks } from '../../../api/types';
 import { metadataQueryKeys } from '../../../lib/appQueryKeys';
 import { buildCapability, buildExpert, renderWithProviders, seedDb, server } from '../../../test/helpers';
@@ -52,7 +52,19 @@ function fullCapability(links: HATEOASLinks): Capability {
 
 interface RenderOptions {
   viewMembership?: React.ReactNode;
-  domainContext?: React.ReactNode;
+  transition?: React.ReactNode;
+  strategicImportance?: React.ReactNode;
+}
+
+const FIELD_LABEL =
+  /^(Description|Level|Status|Maturity|Ownership Model|Primary Owner|EA Owner|Tags|Experts|Created|Realising applications)$/;
+
+function groupIds(): (string | null)[] {
+  return screen.getAllByTestId(/^detail-group-/).map((element) => element.getAttribute('data-testid'));
+}
+
+function labelsIn(scope: ReturnType<typeof within>): (string | null)[] {
+  return scope.getAllByText(FIELD_LABEL, { selector: 'label' }).map((element) => element.textContent);
 }
 
 function renderPanel(capability: Capability, slots: RenderOptions = {}) {
@@ -61,33 +73,63 @@ function renderPanel(capability: Capability, slots: RenderOptions = {}) {
 }
 
 describe('CapabilityDetailsPanel', () => {
-  it('renders the capability name as the heading and every section in order', async () => {
-    renderPanel(fullCapability(editableLinks('cap-1')));
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('renders the capability name above the groups and arranges the sections into the default groups', async () => {
+    renderPanel(fullCapability(editableLinks('cap-1')), {
+      transition: <div data-testid="transition-slot">Plan journey</div>,
+      strategicImportance: <div data-testid="importance-slot">Pillars</div>,
+    });
 
     expect(await screen.findByRole('heading', { name: 'Order Management' })).toBeInTheDocument();
     expect(screen.queryByText('Capability Details')).not.toBeInTheDocument();
 
-    const labels = screen
-      .getAllByText(
-        /^(Description|Level|Status|Maturity|Ownership Model|Primary Owner|EA Owner|Tags|Experts|Created|Realising applications)$/,
-      )
-      .map((element) => element.textContent);
-    expect(labels).toEqual([
-      'Description',
-      'Level',
-      'Status',
-      'Maturity',
+    expect(groupIds()).toEqual([
+      'detail-group-description',
+      'detail-group-transition',
+      'detail-group-fitness',
+      'detail-group-metadata',
+      'detail-group-realisations',
+    ]);
+    const heading = screen.getByRole('heading', { name: 'Order Management' });
+    const firstGroup = screen.getByTestId('detail-group-description');
+    expect(heading.compareDocumentPosition(firstGroup) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(firstGroup).queryByRole('heading')).not.toBeInTheDocument();
+    expect(labelsIn(within(firstGroup))).toEqual(['Description', 'Level', 'Status']);
+    expect(within(screen.getByTestId('detail-group-transition')).getByTestId('transition-slot')).toBeInTheDocument();
+    const fitness = within(screen.getByTestId('detail-group-fitness'));
+    expect(fitness.getByTestId('importance-slot')).toBeInTheDocument();
+    expect(labelsIn(fitness)).toEqual(['Maturity']);
+    expect(labelsIn(within(screen.getByTestId('detail-group-metadata')))).toEqual([
       'Ownership Model',
       'Primary Owner',
       'EA Owner',
       'Tags',
       'Experts',
       'Created',
-      'Realising applications',
     ]);
+    expect(screen.getAllByText('Realising applications')).toHaveLength(1);
     expect(screen.getByText('Jane', { exact: false })).toBeInTheDocument();
     expect(screen.getByText('Alice Smith')).toBeInTheDocument();
     expect(screen.queryByText('user-1')).not.toBeInTheDocument();
+  });
+
+  it('renders the one-pager action and history below the groups', async () => {
+    renderPanel({
+      ...fullCapability(editableLinks('cap-1')),
+      _links: {
+        ...editableLinks('cap-1'),
+        'x-one-pager': { href: '/api/v1/one-pagers/capability/cap-1', method: 'GET' },
+      },
+    });
+
+    const lastGroup = (await screen.findAllByTestId(/^detail-group-/)).at(-1) as HTMLElement;
+    const onePager = screen.getByRole('button', { name: 'One-Pager' });
+    const history = screen.getByRole('button', { name: /^History/ });
+    expect(lastGroup.compareDocumentPosition(onePager) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(onePager.compareDocumentPosition(history) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('never offers a whole-record Edit action', async () => {
@@ -124,7 +166,7 @@ describe('CapabilityDetailsPanel', () => {
     renderPanel({ ...capability, _links: readOnlyLinks('cap-1') });
     await screen.findByRole('heading', { name: 'Order Management' });
     expect(screen.queryByRole('button', { name: 'Add a description' })).not.toBeInTheDocument();
-    expect(screen.queryByText('Description')).not.toBeInTheDocument();
+    expect(screen.queryByText('Description', { selector: 'label' })).not.toBeInTheDocument();
   });
 
   it('changes status in place through x-update-metadata, sending the other metadata unchanged', async () => {
@@ -198,19 +240,41 @@ describe('CapabilityDetailsPanel', () => {
     expect(screen.getAllByText('Experts')).toHaveLength(1);
   });
 
-  it('renders the view-membership slot after realising applications and the domain slot above the fields', async () => {
+  it('renders the view-membership slot as an "In this view" group after realising applications', async () => {
     renderPanel(fullCapability(editableLinks('cap-1')), {
-      viewMembership: <div data-testid="view-slot">In this view</div>,
-      domainContext: <div data-testid="domain-slot">Sales</div>,
+      viewMembership: <div data-testid="view-slot">colour</div>,
     });
 
     await screen.findByRole('heading', { name: 'Order Management' });
-    const heading = screen.getByRole('heading', { name: 'Order Management' });
-    const domainSlot = screen.getByTestId('domain-slot');
-    const viewSlot = screen.getByTestId('view-slot');
-    const realising = screen.getByText('Realising applications');
-    expect(domainSlot.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(realising.compareDocumentPosition(viewSlot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(groupIds()).toEqual([
+      'detail-group-description',
+      'detail-group-fitness',
+      'detail-group-metadata',
+      'detail-group-realisations',
+      'detail-group-view',
+    ]);
+    const view = within(screen.getByTestId('detail-group-view'));
+    expect(view.getByRole('button', { name: 'In this view' })).toBeInTheDocument();
+    expect(view.getByTestId('view-slot')).toBeInTheDocument();
+    expect(screen.queryByText('Transition')).not.toBeInTheDocument();
+  });
+
+  it('remembers a collapsed group and a moved group across panels', async () => {
+    const first = renderPanel(fullCapability(editableLinks('cap-1')));
+    await screen.findByRole('heading', { name: 'Order Management' });
+    fireEvent.click(screen.getByRole('button', { name: 'Metadata' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Move Fitness up' }));
+    first.unmount();
+
+    renderPanel(fullCapability(editableLinks('cap-1')));
+    await screen.findByRole('heading', { name: 'Order Management' });
+    expect(groupIds()).toEqual([
+      'detail-group-fitness',
+      'detail-group-description',
+      'detail-group-metadata',
+      'detail-group-realisations',
+    ]);
+    expect(screen.getByRole('button', { name: 'Metadata' })).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('does not offer view-scoped actions without a view-membership slot', async () => {

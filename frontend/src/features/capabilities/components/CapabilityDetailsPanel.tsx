@@ -6,17 +6,13 @@ import { CapabilityDetailsContent } from './CapabilityDetailsContent';
 
 export interface CapabilityDetailsPanelProps {
   capabilityId: string;
+  transition?: React.ReactNode;
+  strategicImportance?: React.ReactNode;
   viewMembership?: React.ReactNode;
-  domainContext?: React.ReactNode;
   onApplicationClick?: (componentId: ComponentId) => void;
 }
 
-export function CapabilityDetailsPanel({
-  capabilityId,
-  viewMembership,
-  domainContext,
-  onApplicationClick,
-}: CapabilityDetailsPanelProps) {
+export function CapabilityDetailsPanel({ capabilityId, ...slots }: CapabilityDetailsPanelProps) {
   const id = capabilityId as CapabilityId;
   const listQuery = useCapabilities();
   const fromList = listQuery.data?.find((c) => c.id === id);
@@ -24,16 +20,7 @@ export function CapabilityDetailsPanel({
 
   const capability = fromList ?? detailQuery.data;
 
-  if (capability) {
-    return (
-      <CapabilityDetailsContent
-        capability={capability}
-        viewMembership={viewMembership}
-        domainContext={domainContext}
-        onApplicationClick={onApplicationClick}
-      />
-    );
-  }
+  if (capability) return <CapabilityDetailsContent capability={capability} {...slots} />;
   if (listQuery.isPending || detailQuery.isPending) return <DetailPanelLoading />;
   return <DetailPanelFailure message="Failed to load capability" />;
 }

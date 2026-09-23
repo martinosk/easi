@@ -1,7 +1,6 @@
 import { Group, Stack, Text } from '@mantine/core';
 import { useMemo } from 'react';
 import type { BusinessDomainId, Capability, CapabilityRealization, ComponentId } from '../../../api/types';
-import { DetailField } from '../../../components/shared/DetailField';
 import { useAppStore } from '../../../store/appStore';
 import { AppChip } from '../../business-domains/components/AppChip';
 import { RealizationAssessment } from '../../business-domains/components/RealizationAssessment';
@@ -91,24 +90,20 @@ export function CapabilityRealizationsSection({ capability, onApplicationClick }
   );
   const handleClick = onApplicationClick ?? selectNode;
 
+  if (realizations.length === 0) return <Text className={classes.empty}>no realising application mapped</Text>;
+
   return (
-    <DetailField label="Realising applications">
-      {realizations.length === 0 ? (
-        <Text className={classes.empty}>no realising application mapped</Text>
-      ) : (
-        <Stack gap="xs">
-          {realizations.map((realization) => (
-            <RealizationRow
-              key={realization.id}
-              realization={realization}
-              domainIds={domainIds}
-              assessments={assessments}
-              roles={roles}
-              onApplicationClick={handleClick}
-            />
-          ))}
-        </Stack>
-      )}
-    </DetailField>
+    <Stack gap="xs">
+      {realizations.map((realization) => (
+        <RealizationRow
+          key={realization.id}
+          realization={realization}
+          domainIds={domainIds}
+          assessments={assessments}
+          roles={roles}
+          onApplicationClick={handleClick}
+        />
+      ))}
+    </Stack>
   );
 }

@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Capability, CapabilityRealization } from '../../../api/types';
@@ -15,8 +15,10 @@ import type {
 import { NO_HIERARCHY_JOURNEYS } from '../lens/hierarchyJourneys';
 import { CapabilityDrawer } from './CapabilityDrawer';
 
+let mockPillars: { id: string; name: string; active: boolean }[] = [];
+
 vi.mock('../../../hooks/useStrategyPillarsSettings', () => ({
-  useStrategyPillarsConfig: () => ({ data: { data: [] } }),
+  useStrategyPillarsConfig: () => ({ data: { data: mockPillars } }),
 }));
 
 vi.mock('../hooks/useStrategyImportance', () => ({
@@ -144,6 +146,8 @@ function renderDrawer(capability: Capability | null, { realizations = [], onChip
 
 describe('CapabilityDrawer', () => {
   beforeEach(() => {
+    localStorage.clear();
+    mockPillars = [];
     mockGetAssessment.mockReset().mockReturnValue(undefined);
     mockGetRollup.mockReset().mockReturnValue(undefined);
     mockCanAssess = false;
@@ -179,14 +183,29 @@ describe('CapabilityDrawer', () => {
     expect(screen.getByRole('button', { name: 'Edit name' })).toBeInTheDocument();
   });
 
-  it('renders the journey and strategic importance sections above the capability fields', async () => {
+  it('places the journey section in the Transition group and strategic importance in the Fitness group', async () => {
+    mockPillars = [{ id: 'pillar-1', name: 'Growth', active: true }];
     renderDrawer(cap('l2-a', 'Booking Management', 'L2'));
 
-    const heading = await screen.findByRole('heading', { name: 'Booking Management' });
-    const journey = screen.getByTestId('journey-section');
-    expect(journey.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getByText('Transition')).toBeInTheDocument();
-    expect(screen.getByText('No change planned.')).toBeInTheDocument();
+    await screen.findByRole('heading', { name: 'Booking Management' });
+    const groups = screen.getAllByTestId(/^detail-group-/).map((element) => element.getAttribute('data-testid'));
+    expect(groups).toEqual([
+      'detail-group-description',
+      'detail-group-transition',
+      'detail-group-fitness',
+      'detail-group-metadata',
+      'detail-group-realisations',
+    ]);
+    const transition = within(screen.getByTestId('detail-group-transition'));
+    expect(transition.getByRole('button', { name: 'Transition' })).toBeInTheDocument();
+    expect(transition.getByTestId('journey-section')).toBeInTheDocument();
+    expect(transition.getByText('No change planned.')).toBeInTheDocument();
+    expect(screen.getAllByText('Transition')).toHaveLength(1);
+    const fitness = within(screen.getByTestId('detail-group-fitness'));
+    expect(fitness.getByText('Strategic importance')).toBeInTheDocument();
+    expect(fitness.getByText('Growth')).toBeInTheDocument();
+    expect(fitness.getByText('Maturity')).toBeInTheDocument();
+    expect(screen.queryByTestId('detail-group-view')).not.toBeInTheDocument();
   });
 
   it('renders a row per realising application with level, origin note, and notes', async () => {
