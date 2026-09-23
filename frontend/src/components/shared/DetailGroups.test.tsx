@@ -18,7 +18,7 @@ function Harness({ groups }: { groups: DetailGroup[] }) {
   return <DetailGroups groups={groups} layout={layout} />;
 }
 
-function headerTitles(): string[] {
+function headerTitles(): (string | null)[] {
   return screen.getAllByTestId(/^detail-group-/).map((item) => item.getAttribute('data-testid'));
 }
 

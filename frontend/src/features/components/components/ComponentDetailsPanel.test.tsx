@@ -77,7 +77,7 @@ describe('ComponentDetailsPanel', () => {
       'Created',
     ]);
     expect(screen.getByText('Jane', { exact: false })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Composition', exact: true })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Composition$/ })).toBeInTheDocument();
     expect(screen.queryByText('Composition', { selector: 'label' })).not.toBeInTheDocument();
   });
 
