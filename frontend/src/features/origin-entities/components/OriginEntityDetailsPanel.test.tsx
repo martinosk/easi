@@ -1,6 +1,6 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { HttpResponse, http } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { AcquiredEntity, HATEOASLinks, InternalTeam, Vendor } from '../../../api/types';
 import { toAcquiredEntityId, toInternalTeamId, toVendorId } from '../../../api/types';
 import {
@@ -8,6 +8,8 @@ import {
   buildInternalTeam,
   buildOriginRelationship,
   buildVendor,
+  detailGroupIds,
+  fieldLabelsIn,
   renderWithProviders,
   seedDb,
   server,
@@ -60,15 +62,18 @@ function team(links: HATEOASLinks): InternalTeam {
   });
 }
 
-function labelsOnScreen(): string[] {
-  return screen
-    .getAllByText(
-      /^(Acquisition Date|Integration Status|Implementation Partner|Department|Contact Person|Notes|Created|Type|Applications \(\d+\))$/,
-    )
-    .map((element) => element.textContent ?? '');
+const FIELD_LABEL =
+  /^(Acquisition Date|Integration Status|Implementation Partner|Department|Contact Person|Notes|Created|Type)$/;
+
+function labelsInGroup(groupId: string): (string | null)[] {
+  return fieldLabelsIn(within(screen.getByTestId(`detail-group-${groupId}`)), FIELD_LABEL);
 }
 
 describe('OriginEntityDetailsPanel', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
   describe('acquired entity', () => {
     it('renders the name as the heading and every section in order', async () => {
       seedDb({
@@ -83,17 +88,20 @@ describe('OriginEntityDetailsPanel', () => {
       });
       renderWithProviders(<OriginEntityDetailsPanel entityType="acquired" entityId="ae-1" />);
 
-      expect(await screen.findByRole('heading', { name: 'Nordic Cargo' })).toBeInTheDocument();
+      const heading = await screen.findByRole('heading', { name: 'Nordic Cargo' });
       expect(screen.queryByText('Acquired Entity Details')).not.toBeInTheDocument();
-      expect(labelsOnScreen()).toEqual([
-        'Acquisition Date',
-        'Integration Status',
-        'Notes',
-        'Created',
-        'Type',
-        'Applications (1)',
+      expect(detailGroupIds()).toEqual([
+        'detail-group-description',
+        'detail-group-metadata',
+        'detail-group-applications',
       ]);
-      expect(screen.getByText('Phoenix')).toBeInTheDocument();
+      const description = screen.getByTestId('detail-group-description');
+      expect(heading.compareDocumentPosition(description) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(within(description).queryByRole('heading')).not.toBeInTheDocument();
+      expect(labelsInGroup('description')).toEqual(['Acquisition Date', 'Integration Status', 'Notes']);
+      expect(labelsInGroup('metadata')).toEqual(['Created', 'Type']);
+      expect(screen.getByTestId('group-count-applications')).toHaveTextContent('1');
+      expect(within(screen.getByTestId('detail-group-applications')).getByText('Phoenix')).toBeInTheDocument();
       expect(screen.getByText('In Progress')).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'One-Pager' })).toBeInTheDocument();
@@ -183,7 +191,8 @@ describe('OriginEntityDetailsPanel', () => {
 
       expect(await screen.findByRole('heading', { name: 'SAP' })).toBeInTheDocument();
       expect(screen.queryByText('Vendor Details')).not.toBeInTheDocument();
-      expect(labelsOnScreen()).toEqual(['Implementation Partner', 'Notes', 'Created', 'Type']);
+      expect(labelsInGroup('description')).toEqual(['Implementation Partner', 'Notes']);
+      expect(labelsInGroup('metadata')).toEqual(['Created', 'Type']);
 
       fireEvent.click(screen.getByRole('button', { name: 'Edit implementation partner' }));
       fireEvent.change(screen.getByTestId('origin-entity-implementation-partner-input'), {
@@ -204,19 +213,19 @@ describe('OriginEntityDetailsPanel', () => {
 
       expect(await screen.findByRole('heading', { name: 'Platform Team' })).toBeInTheDocument();
       expect(screen.queryByText('Internal Team Details')).not.toBeInTheDocument();
-      expect(labelsOnScreen()).toEqual(['Department', 'Contact Person', 'Notes', 'Created', 'Type']);
+      expect(labelsInGroup('description')).toEqual(['Department', 'Contact Person', 'Notes']);
       expect(screen.getByRole('button', { name: 'Add a department' })).toBeInTheDocument();
       unmount();
 
       seedDb({ internalTeams: [{ ...team(readOnlyLinks('internal-teams/team-1')), department: undefined }] });
       renderWithProviders(<OriginEntityDetailsPanel entityType="team" entityId="team-1" />);
       await screen.findByRole('heading', { name: 'Platform Team' });
-      expect(screen.queryByText('Department')).not.toBeInTheDocument();
+      expect(screen.queryByText('Department', { selector: 'label' })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Add a department' })).not.toBeInTheDocument();
     });
   });
 
-  it('renders the view-membership slot after the applications list and nothing view-scoped without it', async () => {
+  it('renders the view-membership slot as an "In this view" group after Applications and nothing view-scoped without it', async () => {
     seedDb({
       vendors: [vendor(editableLinks('vendors/vendor-1'))],
       originRelationships: [
@@ -231,19 +240,42 @@ describe('OriginEntityDetailsPanel', () => {
       <OriginEntityDetailsPanel
         entityType="vendor"
         entityId="vendor-1"
-        viewMembership={<div data-testid="view-slot">In this view</div>}
+        viewMembership={<div data-testid="view-slot">remove</div>}
       />,
     );
 
     await screen.findByRole('heading', { name: 'SAP' });
-    const applications = screen.getByText('Applications (1)');
-    const slot = screen.getByTestId('view-slot');
-    expect(applications.compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(detailGroupIds().slice(-2)).toEqual(['detail-group-applications', 'detail-group-view']);
+    const view = within(screen.getByTestId('detail-group-view'));
+    expect(view.getByRole('button', { name: 'In this view' })).toBeInTheDocument();
+    expect(view.getByTestId('view-slot')).toBeInTheDocument();
     unmount();
 
     renderWithProviders(<OriginEntityDetailsPanel entityType="vendor" entityId="vendor-1" />);
     await screen.findByRole('heading', { name: 'SAP' });
-    expect(screen.queryByText('In this view')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('detail-group-view')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Remove from View' })).not.toBeInTheDocument();
+  });
+
+  it('keeps the Applications group with an empty state and a zero count when nothing is related', async () => {
+    seedDb({ vendors: [vendor(readOnlyLinks('vendors/vendor-1'))] });
+    renderWithProviders(<OriginEntityDetailsPanel entityType="vendor" entityId="vendor-1" />);
+
+    await screen.findByRole('heading', { name: 'SAP' });
+    expect(screen.getByTestId('group-count-applications')).toHaveTextContent('0');
+    expect(
+      within(screen.getByTestId('detail-group-applications')).getByText('no related application'),
+    ).toBeInTheDocument();
+  });
+
+  it('renders the one-pager action and history below the groups', async () => {
+    seedDb({ vendors: [vendor(editableLinks('vendors/vendor-1'))] });
+    renderWithProviders(<OriginEntityDetailsPanel entityType="vendor" entityId="vendor-1" />);
+
+    const lastGroup = (await screen.findAllByTestId(/^detail-group-/)).at(-1) as HTMLElement;
+    const onePager = screen.getByRole('button', { name: 'One-Pager' });
+    const history = screen.getByRole('button', { name: /^History/ });
+    expect(lastGroup.compareDocumentPosition(onePager) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(onePager.compareDocumentPosition(history) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

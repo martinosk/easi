@@ -17,6 +17,7 @@ import {
   InternalTeamDetailsPanel,
   OriginEntityViewMembershipSection,
   OriginRelationshipDetails,
+  useOriginEntityViewMembership,
   VendorDetailsPanel,
 } from '../../features/origin-entities';
 import { RealizationDetails, RelationDetails } from '../../features/relations';
@@ -42,7 +43,8 @@ const NodeDetail: React.FC<NodeDetailProps> = ({
   onRemoveFromView,
   onRemoveCapabilityFromView,
 }) => {
-  const viewMembership = <OriginEntityViewMembershipSection entityId={entityId} />;
+  const membership = useOriginEntityViewMembership(entityId);
+  const viewMembership = membership && <OriginEntityViewMembershipSection {...membership} />;
   switch (entityType) {
     case 'acquired':
       return <AcquiredEntityDetailsPanel entityId={entityId} viewMembership={viewMembership} />;

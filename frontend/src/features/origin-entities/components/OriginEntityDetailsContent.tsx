@@ -10,6 +10,8 @@ import type {
   Vendor,
 } from '../../../api/types';
 import { DetailField } from '../../../components/shared/DetailField';
+import type { DetailGroup } from '../../../components/shared/DetailGroups';
+import { DetailsShell } from '../../../components/shared/DetailsShell';
 import { InlineDateField } from '../../../components/shared/InlineDateField';
 import { InlineSelectField } from '../../../components/shared/InlineSelectField';
 import { InlineTextField } from '../../../components/shared/InlineTextField';
@@ -33,6 +35,7 @@ import {
 } from './originEntityFields';
 
 const TEST_ID = 'origin-entity';
+const LAYOUT_KEY = 'origin-entity-details-layout';
 
 const SUBJECT_TYPES: Record<OriginEntityType, OnePagerSubjectType> = {
   acquired: 'acquired-entity',
@@ -113,23 +116,24 @@ function Field<E>({ field, entity, canEdit, onSave }: FieldProps<E>) {
   }
 }
 
+type FieldPart = 'name' | 'fields';
+
 interface EntityFieldsProps<E extends ResourceWithLinks & { name: string }, R> {
   entity: E;
   definition: OriginEntityDefinition<E, R>;
   save: (request: R) => Promise<unknown>;
+  part: FieldPart;
 }
 
 function EntityFields<E extends ResourceWithLinks & { name: string }, R extends object>({
   entity,
   definition,
   save,
+  part,
 }: EntityFieldsProps<E, R>) {
   const canEdit = hasLink(entity, 'edit');
-  const saveField = (key: string, value: string) =>
-    save({ ...definition.toRequest(entity), [key]: value || undefined } as R);
-
-  return (
-    <>
+  if (part === 'name') {
+    return (
       <InlineTextField
         value={entity.name}
         canEdit={canEdit}
@@ -138,6 +142,14 @@ function EntityFields<E extends ResourceWithLinks & { name: string }, R extends 
         editLabel="Edit name"
         testId={`${TEST_ID}-name`}
       />
+    );
+  }
+
+  const saveField = (key: string, value: string) =>
+    save({ ...definition.toRequest(entity), [key]: value || undefined } as R);
+
+  return (
+    <>
       {definition.fields.map((field) => (
         <Field key={field.key} field={field} entity={entity} canEdit={canEdit} onSave={saveField} />
       ))}
@@ -167,20 +179,38 @@ function useSaveOriginEntity(entityType: OriginEntityType): SaveOriginEntity {
   }
 }
 
-function TypedFields({ entityType, entity }: { entityType: OriginEntityType; entity: OriginEntity }) {
+interface TypedFieldsProps {
+  entityType: OriginEntityType;
+  entity: OriginEntity;
+  part: FieldPart;
+}
+
+function TypedFields({ entityType, entity, part }: TypedFieldsProps) {
   const save = useSaveOriginEntity(entityType);
   const saveFor = (target: OriginEntity) => (request: object) => save(target, request);
 
   switch (entityType) {
     case 'acquired':
       return (
-        <EntityFields entity={entity as AcquiredEntity} definition={acquiredEntityDefinition} save={saveFor(entity)} />
+        <EntityFields
+          entity={entity as AcquiredEntity}
+          definition={acquiredEntityDefinition}
+          save={saveFor(entity)}
+          part={part}
+        />
       );
     case 'vendor':
-      return <EntityFields entity={entity as Vendor} definition={vendorDefinition} save={saveFor(entity)} />;
+      return (
+        <EntityFields entity={entity as Vendor} definition={vendorDefinition} save={saveFor(entity)} part={part} />
+      );
     case 'team':
       return (
-        <EntityFields entity={entity as InternalTeam} definition={internalTeamDefinition} save={saveFor(entity)} />
+        <EntityFields
+          entity={entity as InternalTeam}
+          definition={internalTeamDefinition}
+          save={saveFor(entity)}
+          part={part}
+        />
       );
   }
 }
@@ -198,23 +228,60 @@ export interface OriginEntityDetailsContentProps {
   viewMembership?: React.ReactNode;
 }
 
-export const OriginEntityDetailsContent: React.FC<OriginEntityDetailsContentProps> = ({
-  entityType,
-  entity,
-  relationships,
-  viewMembership,
-}) => (
-  <Stack gap="sm">
-    <TypedFields entityType={entityType} entity={entity} />
-    <DetailField label="Created">
-      <Text size="sm" c="dimmed">
-        {new Date(entity.createdAt).toLocaleString()}
-      </Text>
-    </DetailField>
-    <DetailField label="Type">{TYPE_LABELS[entityType]}</DetailField>
-    <OriginEntityRelationshipsList relationships={relationships} relationshipLabel={RELATIONSHIP_LABELS[entityType]} />
-    {viewMembership}
-    <OnePagerActionButton subject={entity} subjectType={SUBJECT_TYPES[entityType]} subjectId={entity.id} />
-    <AuditHistorySection aggregateId={entity.id} />
-  </Stack>
-);
+function buildGroups({ entityType, entity, relationships }: OriginEntityDetailsContentProps): DetailGroup[] {
+  return [
+    {
+      id: 'description',
+      title: 'Description',
+      content: (
+        <Stack gap="sm">
+          <TypedFields entityType={entityType} entity={entity} part="fields" />
+        </Stack>
+      ),
+    },
+    {
+      id: 'metadata',
+      title: 'Metadata',
+      content: (
+        <Stack gap="sm">
+          <DetailField label="Created">
+            <Text size="sm" c="dimmed">
+              {new Date(entity.createdAt).toLocaleString()}
+            </Text>
+          </DetailField>
+          <DetailField label="Type">{TYPE_LABELS[entityType]}</DetailField>
+        </Stack>
+      ),
+    },
+    {
+      id: 'applications',
+      title: 'Applications',
+      count: relationships.length,
+      content: (
+        <OriginEntityRelationshipsList
+          relationships={relationships}
+          relationshipLabel={RELATIONSHIP_LABELS[entityType]}
+        />
+      ),
+    },
+  ];
+}
+
+export const OriginEntityDetailsContent: React.FC<OriginEntityDetailsContentProps> = (props) => {
+  const { entityType, entity, viewMembership } = props;
+
+  return (
+    <DetailsShell
+      layoutKey={LAYOUT_KEY}
+      heading={<TypedFields entityType={entityType} entity={entity} part="name" />}
+      groups={buildGroups(props)}
+      viewMembership={viewMembership}
+      footer={
+        <>
+          <OnePagerActionButton subject={entity} subjectType={SUBJECT_TYPES[entityType]} subjectId={entity.id} />
+          <AuditHistorySection aggregateId={entity.id} />
+        </>
+      }
+    />
+  );
+};

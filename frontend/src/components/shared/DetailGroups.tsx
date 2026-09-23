@@ -1,4 +1,4 @@
-import { Accordion, ActionIcon, Group } from '@mantine/core';
+import { Accordion, ActionIcon, Badge, Group } from '@mantine/core';
 import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 import type React from 'react';
 import classes from './DetailGroups.module.css';
@@ -8,6 +8,7 @@ export interface DetailGroup {
   id: string;
   title: string;
   content: React.ReactNode;
+  count?: number;
 }
 
 interface MoveControlProps {
@@ -40,7 +41,16 @@ interface GroupItemProps {
 const GroupItem: React.FC<GroupItemProps> = ({ group, previous, next, onSwap }) => (
   <Accordion.Item value={group.id} data-testid={`detail-group-${group.id}`}>
     <Group gap={0} wrap="nowrap" className={classes.header}>
-      <Accordion.Control>{group.title}</Accordion.Control>
+      <Accordion.Control>
+        <Group gap="xs" wrap="nowrap">
+          {group.title}
+          {group.count !== undefined && (
+            <Badge size="xs" variant="light" color="gray" data-testid={`group-count-${group.id}`}>
+              {group.count}
+            </Badge>
+          )}
+        </Group>
+      </Accordion.Control>
       <MoveControl title={group.title} direction="up" neighbour={previous} onMove={onSwap} />
       <MoveControl title={group.title} direction="down" neighbour={next} onMove={onSwap} />
     </Group>

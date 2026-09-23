@@ -77,7 +77,8 @@ describe('ComponentDetailsPanel', () => {
       'Created',
     ]);
     expect(screen.getByText('Jane', { exact: false })).toBeInTheDocument();
-    expect(screen.getAllByText('Composition', { selector: 'span' })).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Composition', exact: true })).toBeInTheDocument();
+    expect(screen.queryByText('Composition', { selector: 'label' })).not.toBeInTheDocument();
   });
 
   it('renders an empty state in the list groups instead of omitting them', async () => {

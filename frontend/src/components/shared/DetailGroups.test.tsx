@@ -67,6 +67,13 @@ describe('DetailGroups', () => {
     expect(screen.getByRole('button', { name: 'Move Three up' })).toBeDisabled();
   });
 
+  it('shows a count badge in the header when the group carries one', () => {
+    renderWithProviders(<Harness groups={[{ ...ALL_GROUPS[0], count: 3 }, ALL_GROUPS[1]]} />, { withRouter: false });
+
+    expect(screen.getByTestId('group-count-one')).toHaveTextContent('3');
+    expect(screen.queryByTestId('group-count-two')).not.toBeInTheDocument();
+  });
+
   it('disables the edge moves of the rendered groups, not of the stored order', () => {
     renderWithProviders(<Harness groups={[ALL_GROUPS[1], ALL_GROUPS[2]]} />, { withRouter: false });
 

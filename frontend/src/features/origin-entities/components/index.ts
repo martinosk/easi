@@ -4,6 +4,6 @@ export { CreateInternalTeamDialog } from './CreateInternalTeamDialog';
 export { CreateVendorDialog } from './CreateVendorDialog';
 export { InternalTeamDetailsPanel } from './InternalTeamDetailsPanel';
 export { OriginEntityDetailsPanel } from './OriginEntityDetailsPanel';
-export { OriginEntityViewMembershipSection } from './OriginEntityViewMembershipSection';
+export { OriginEntityViewMembershipSection, useOriginEntityViewMembership } from './OriginEntityViewMembershipSection';
 export { OriginRelationshipDetails } from './OriginRelationshipDetails';
 export { VendorDetailsPanel } from './VendorDetailsPanel';
