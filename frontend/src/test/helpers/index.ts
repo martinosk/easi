@@ -10,6 +10,7 @@ export {
   seedDb,
 } from '../mocks/db';
 export { server } from '../mocks/server';
+export { detailGroupIds, fieldLabelsIn } from './detailGroups';
 export {
   buildAcquiredEntity,
   buildBusinessDomain,

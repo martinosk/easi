@@ -3,7 +3,15 @@ import { HttpResponse, http } from 'msw';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Capability, CapabilityId, HATEOASLinks } from '../../../api/types';
 import { metadataQueryKeys } from '../../../lib/appQueryKeys';
-import { buildCapability, buildExpert, renderWithProviders, seedDb, server } from '../../../test/helpers';
+import {
+  buildCapability,
+  buildExpert,
+  detailGroupIds,
+  fieldLabelsIn,
+  renderWithProviders,
+  seedDb,
+  server,
+} from '../../../test/helpers';
 import { CapabilityDetailsPanel } from './CapabilityDetailsPanel';
 
 const API_BASE = 'http://localhost:8080';
@@ -59,12 +67,8 @@ interface RenderOptions {
 const FIELD_LABEL =
   /^(Description|Level|Status|Maturity|Ownership Model|Primary Owner|EA Owner|Tags|Experts|Created|Realising applications)$/;
 
-function groupIds(): (string | null)[] {
-  return screen.getAllByTestId(/^detail-group-/).map((element) => element.getAttribute('data-testid'));
-}
-
 function labelsIn(scope: ReturnType<typeof within>): (string | null)[] {
-  return scope.getAllByText(FIELD_LABEL, { selector: 'label' }).map((element) => element.textContent);
+  return fieldLabelsIn(scope, FIELD_LABEL);
 }
 
 function renderPanel(capability: Capability, slots: RenderOptions = {}) {
@@ -86,7 +90,7 @@ describe('CapabilityDetailsPanel', () => {
     expect(await screen.findByRole('heading', { name: 'Order Management' })).toBeInTheDocument();
     expect(screen.queryByText('Capability Details')).not.toBeInTheDocument();
 
-    expect(groupIds()).toEqual([
+    expect(detailGroupIds()).toEqual([
       'detail-group-description',
       'detail-group-transition',
       'detail-group-fitness',
@@ -246,7 +250,7 @@ describe('CapabilityDetailsPanel', () => {
     });
 
     await screen.findByRole('heading', { name: 'Order Management' });
-    expect(groupIds()).toEqual([
+    expect(detailGroupIds()).toEqual([
       'detail-group-description',
       'detail-group-fitness',
       'detail-group-metadata',
@@ -268,7 +272,7 @@ describe('CapabilityDetailsPanel', () => {
 
     renderPanel(fullCapability(editableLinks('cap-1')));
     await screen.findByRole('heading', { name: 'Order Management' });
-    expect(groupIds()).toEqual([
+    expect(detailGroupIds()).toEqual([
       'detail-group-fitness',
       'detail-group-description',
       'detail-group-metadata',

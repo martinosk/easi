@@ -1,8 +1,8 @@
 import { Stack } from '@mantine/core';
 import type React from 'react';
 import type { Capability, ComponentId } from '../../../api/types';
-import { type DetailGroup, DetailGroups } from '../../../components/shared/DetailGroups';
-import { useDetailGroupLayout } from '../../../components/shared/useDetailGroupLayout';
+import type { DetailGroup } from '../../../components/shared/DetailGroups';
+import { DetailsShell } from '../../../components/shared/DetailsShell';
 import { AuditHistorySection } from '../../audit';
 import { OnePagerActionButton } from '../../one-pagers/components/OnePagerActionButton';
 import {
@@ -19,7 +19,6 @@ import {
 import { CapabilityRealizationsSection } from './CapabilityRealizationsSection';
 
 const LAYOUT_KEY = 'capability-details-layout';
-const DEFAULT_ORDER = ['description', 'transition', 'fitness', 'metadata', 'realisations', 'view'] as const;
 
 export interface CapabilityDetailsContentProps {
   capability: Capability;
@@ -33,10 +32,9 @@ function buildGroups({
   capability,
   transition,
   strategicImportance,
-  viewMembership,
   onApplicationClick,
 }: CapabilityDetailsContentProps): DetailGroup[] {
-  const groups: DetailGroup[] = [
+  return [
     {
       id: 'description',
       title: 'Description',
@@ -48,6 +46,7 @@ function buildGroups({
         </Stack>
       ),
     },
+    { id: 'transition', title: 'Transition', content: transition },
     {
       id: 'fitness',
       title: 'Fitness',
@@ -76,21 +75,23 @@ function buildGroups({
       content: <CapabilityRealizationsSection capability={capability} onApplicationClick={onApplicationClick} />,
     },
   ];
-  if (transition) groups.push({ id: 'transition', title: 'Transition', content: transition });
-  if (viewMembership) groups.push({ id: 'view', title: 'In this view', content: viewMembership });
-  return groups;
 }
 
 export const CapabilityDetailsContent: React.FC<CapabilityDetailsContentProps> = (props) => {
-  const layout = useDetailGroupLayout(LAYOUT_KEY, DEFAULT_ORDER);
-  const { capability } = props;
+  const { capability, viewMembership } = props;
 
   return (
-    <Stack gap="sm">
-      <NameField capability={capability} />
-      <DetailGroups groups={buildGroups(props)} layout={layout} />
-      <OnePagerActionButton subject={capability} subjectType="capability" subjectId={capability.id} />
-      <AuditHistorySection aggregateId={capability.id} />
-    </Stack>
+    <DetailsShell
+      layoutKey={LAYOUT_KEY}
+      heading={<NameField capability={capability} />}
+      groups={buildGroups(props)}
+      viewMembership={viewMembership}
+      footer={
+        <>
+          <OnePagerActionButton subject={capability} subjectType="capability" subjectId={capability.id} />
+          <AuditHistorySection aggregateId={capability.id} />
+        </>
+      }
+    />
   );
 };

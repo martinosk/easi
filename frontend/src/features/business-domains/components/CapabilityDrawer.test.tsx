@@ -3,7 +3,13 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Capability, CapabilityRealization } from '../../../api/types';
 import { toCapabilityId, toComponentId } from '../../../api/types';
-import { buildBusinessDomain, buildCapabilityRealization, renderWithProviders, seedDb } from '../../../test/helpers';
+import {
+  buildBusinessDomain,
+  buildCapabilityRealization,
+  detailGroupIds,
+  renderWithProviders,
+  seedDb,
+} from '../../../test/helpers';
 import { buildCapabilityAt as cap } from '../../../test/helpers/entityBuilders';
 import type {
   RealizationRoleAssignment,
@@ -188,8 +194,7 @@ describe('CapabilityDrawer', () => {
     renderDrawer(cap('l2-a', 'Booking Management', 'L2'));
 
     await screen.findByRole('heading', { name: 'Booking Management' });
-    const groups = screen.getAllByTestId(/^detail-group-/).map((element) => element.getAttribute('data-testid'));
-    expect(groups).toEqual([
+    expect(detailGroupIds()).toEqual([
       'detail-group-description',
       'detail-group-transition',
       'detail-group-fitness',

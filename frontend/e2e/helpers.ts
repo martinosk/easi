@@ -66,3 +66,9 @@ export async function saveView(page: Page): Promise<void> {
   await saveButton.click();
   await expect(saveButton).toBeDisabled();
 }
+
+export function detailGroupIds(surface: Locator): Promise<(string | undefined)[]> {
+  return surface
+    .locator('[data-testid^="detail-group-"]')
+    .evaluateAll((items) => items.map((item) => (item as HTMLElement).dataset.testid));
+}

@@ -1,16 +1,11 @@
-import { expect, type Locator, type Page, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
+import { detailGroupIds } from '../helpers';
 
 const SHOTS = process.env.EASI_E2E_SHOTS;
 
 async function openPage(page: Page, path: string): Promise<void> {
   await page.goto(path);
   await page.waitForSelector('[data-testid="main-region"] > *', { timeout: 30000 });
-}
-
-function groupIds(surface: Locator): Promise<(string | undefined)[]> {
-  return surface
-    .locator('[data-testid^="detail-group-"]')
-    .evaluateAll((items) => items.map((item) => (item as HTMLElement).dataset.testid));
 }
 
 async function snapshot(page: Page, name: string): Promise<void> {
@@ -27,7 +22,7 @@ test.describe('capability details arranged in groups (spec 223)', () => {
     const drawer = page.getByTestId('capability-drawer');
     await expect(drawer.getByRole('heading', { name: 'Customer Account Creation' })).toBeVisible();
     await expect(drawer.getByTestId('detail-group-realisations')).toBeVisible();
-    expect(await groupIds(drawer)).toEqual([
+    expect(await detailGroupIds(drawer)).toEqual([
       'detail-group-description',
       'detail-group-transition',
       'detail-group-fitness',
@@ -38,10 +33,13 @@ test.describe('capability details arranged in groups (spec 223)', () => {
     await snapshot(page, 'drawer-default');
 
     await drawer.getByRole('button', { name: 'Metadata', exact: true }).click();
-    await expect(drawer.getByRole('button', { name: 'Metadata', exact: true })).toHaveAttribute('aria-expanded', 'false');
+    await expect(drawer.getByRole('button', { name: 'Metadata', exact: true })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
     await expect(drawer.getByTestId('detail-group-metadata').getByRole('region')).toBeHidden();
     await drawer.getByRole('button', { name: 'Move Fitness up' }).click();
-    expect(await groupIds(drawer)).toEqual([
+    expect(await detailGroupIds(drawer)).toEqual([
       'detail-group-description',
       'detail-group-fitness',
       'detail-group-transition',
@@ -61,14 +59,17 @@ test.describe('capability details arranged in groups (spec 223)', () => {
 
     const details = page.getByTestId('details-pane');
     await expect(details.getByTestId('detail-group-realisations')).toBeVisible();
-    expect((await groupIds(details)).slice(0, 4)).toEqual([
+    expect((await detailGroupIds(details)).slice(0, 4)).toEqual([
       'detail-group-description',
       'detail-group-fitness',
       'detail-group-metadata',
       'detail-group-realisations',
     ]);
     await expect(details.getByTestId('detail-group-transition')).toHaveCount(0);
-    await expect(details.getByRole('button', { name: 'Metadata', exact: true })).toHaveAttribute('aria-expanded', 'false');
+    await expect(details.getByRole('button', { name: 'Metadata', exact: true })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
     await snapshot(page, 'canvas-rearranged');
   });
 });
