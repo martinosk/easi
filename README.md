@@ -131,9 +131,11 @@ Open the repository in VS Code and choose "Reopen in Container". The `workspace`
 repository root). It starts postgres, migrate, dex and pgadmin next to itself and joins their
 network; the backend and frontend images are not started because you run both from source:
 `cd backend && make run` and `cd frontend && npm run dev`, forwarded to the host browser on 8080
-and 5173. Inside the container the database is `postgres:5432` (`INTEGRATION_TEST_DB_HOST` is
-preset) and Dex is forwarded to `localhost:5556`, so the issuer URL is the same as on the host.
-Apply migrations added later with `make migrate`.
+and 5173. The workspace carries the same backend environment as the backend image (`.env` overrides
+apply to both), with the database at `postgres:5432` (`INTEGRATION_TEST_DB_HOST` is preset). The
+workspace container itself forwards Dex to `localhost:5556`, so the issuer URL is the same as on
+the host and the forward lives as long as the container. Apply migrations added later with
+`make migrate`.
 
 The host commands above also work while the dev container is open: the stack's containers are
 recreated (the database volume is kept) and the workspace reconnects by name. The backend and

@@ -6,8 +6,8 @@ help: ## Display this help screen
 build: ## Build the application
 	go build -o bin/api cmd/api/main.go
 
-run: ## Run the application
-	go run cmd/api/main.go
+run: ## Run the application from source with the dev-auth build tag (AUTH_MODE=bypass allowed)
+	go run -tags devauth cmd/api/main.go
 
 test: ## Run tests
 	go test -v ./...

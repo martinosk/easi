@@ -70,7 +70,7 @@ npm run lint
 make build          # go build -o bin/api cmd/api/main.go
 
 # Run
-make run            # go run cmd/api/main.go
+make run            # go run -tags devauth cmd/api/main.go
 
 # Unit tests
 make test           # go test -v ./...

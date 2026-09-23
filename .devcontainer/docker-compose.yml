@@ -8,7 +8,7 @@ services:
     # Rootless podman: map host user (uid/gid 1000) to the container's node user
     # so bind-mounted workspace files are writable.
     userns_mode: keep-id
-    command: sleep infinity
+    command: ["sh", "-c", "socat TCP-LISTEN:5556,fork,reuseaddr TCP:dex:5556 & exec sleep infinity"]
     env_file:
       - .devcontainer/.env
     volumes:
@@ -22,6 +22,15 @@ services:
       DISPLAY: ":0"
       INTEGRATION_TEST_DB_HOST: postgres
       DB_CONN_STRING: host=postgres port=5432 user=easi_app password=localdev dbname=easi sslmode=disable
+      AUTH_MODE: ${AUTH_MODE:-local_oidc}
+      PORT: 8080
+      PLATFORM_ADMIN_API_KEY: ${PLATFORM_ADMIN_API_KEY:-localdev}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-easi-test-secret}
+      OIDC_REDIRECT_URL: http://localhost:8080/api/v1/auth/callback
+      ALLOWED_ORIGINS: http://localhost:3000,http://localhost:5173
+      FRONTEND_URL: http://localhost:5173/
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-105b52c2af25870943e36ded5a7ca51927715ca4bae962b9c72b9268b4ccb43a}
+      AGENT_TOKEN_SECRET: ${AGENT_TOKEN_SECRET:-easi-local-agent-token-secret-do-not-use-in-production}
     networks:
       - easi-network
 
