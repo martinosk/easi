@@ -105,6 +105,17 @@ Bounded-context and capability evolution follows the strategy register in `docs/
 
 ---
 
+## Definition of Done
+
+Before claiming any code change is done or committing, all of the following must pass. A narrower check is never a substitute for the build.
+
+| Layer    | Required                                                                                 |
+|----------|------------------------------------------------------------------------------------------|
+| Frontend | `npm run build` (runs `tsc -b`, which also type-checks test files), `npm run test`, `npm run lint` |
+| Backend  | `make build`, `make test`, `golangci-lint run ./...`                                      |
+
+`tsc --noEmit -p tsconfig.app.json` only covers app sources and misses test-file type errors; it does not count.
+
 ## Code Health
 
 Before claiming any code change is done, run the `easi-codehealth` skill on every modified and untracked file in the change set.
