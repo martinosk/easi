@@ -96,6 +96,12 @@ func (h *HATEOASLinks) AddEditGrantsLink(links Links, actor sharedctx.Actor, per
 	}
 }
 
+func (h *HATEOASLinks) AddStewardshipsLink(links Links, actor sharedctx.Actor, domainID string) {
+	if actor.CanRead("domains") {
+		links["x-stewardships"] = h.Get("/stewardships?domainId=" + url.QueryEscape(domainID))
+	}
+}
+
 func (h *HATEOASLinks) ReferenceDocLink(resourceType string) string {
 	return h.base + "/reference/" + resourceType
 }

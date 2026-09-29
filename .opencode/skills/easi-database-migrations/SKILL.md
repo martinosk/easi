@@ -59,6 +59,7 @@ Core domains use event sourcing. Events are stored in PostgreSQL. Each bounded c
 | `metamodel` | MetaModel | CQRS/ES | `metamodel/` |
 | `valuestreams` | Value Streams | CQRS/ES | `valuestreams/` |
 | `accessdelegation` | Access Delegation | CQRS/ES | `accessdelegation/` |
+| `stewardship` | Stewardship | CQRS/ES | `stewardship/` |
 | `releases` | Releases | CRUD | `releases/` |
 | `archassistant` | Arch Assistant | CRUD | `archassistant/` |
 | `importing` | Importing | CRUD | `importing/` |

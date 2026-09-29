@@ -191,3 +191,16 @@ func TestRealizationLinksForActor_StakeholderGetsNoEditOrDelete(t *testing.T) {
 	assert.False(t, hasDelete, "stakeholder must not see delete")
 	assert.Equal(t, "/api/v1/capability-realizations/real1", result["self"].Href)
 }
+
+func TestBusinessDomainLinksForActor_CarriesStewardshipsForReaders(t *testing.T) {
+	links := NewCapabilityMappingLinks(sharedAPI.NewHATEOASLinks("/api/v1"))
+
+	for _, role := range []sharedctx.Role{sharedctx.RoleArchitect, sharedctx.RoleStakeholder} {
+		domainLinks := links.BusinessDomainLinksForActor("bd-1", false, sharedctx.NewActor("u1", "u@example.com", role))
+
+		link, ok := domainLinks["x-stewardships"]
+		require.True(t, ok, role)
+		assert.Equal(t, "/api/v1/stewardships?domainId=bd-1", link.Href)
+		assert.Equal(t, "GET", link.Method)
+	}
+}

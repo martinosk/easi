@@ -130,6 +130,7 @@ func (h *CapabilityMappingLinks) BusinessDomainLinksForActor(id string, hasCaps 
 		links["delete"] = h.Del(p)
 	}
 	h.AddEditGrantsLink(links, actor, "domains")
+	h.AddStewardshipsLink(links, actor, id)
 	return links
 }
 

@@ -2,6 +2,7 @@ import { ContextMenu } from '../../../components/shared/ContextMenu';
 import { DeleteCapabilityDialog } from '../../capabilities/components/DeleteCapabilityDialog';
 import { InviteToEditDialog } from '../../edit-grants/components/InviteToEditDialog';
 import { useCreateEditGrant } from '../../edit-grants/hooks/useEditGrants';
+import { StewardsDialog } from '../../stewardship';
 import { ApplicationDrawer } from '../components/ApplicationDrawer';
 import { CapabilityDrawer } from '../components/CapabilityDrawer';
 import { CapabilityMapView } from '../components/CapabilityMapView';
@@ -77,6 +78,13 @@ export function BusinessDomainsPage() {
           }}
           artifactType={domainContextMenu.domainToInvite.artifactType}
           artifactId={domainContextMenu.domainToInvite.id}
+        />
+      )}
+
+      {domainContextMenu.domainForStewards && (
+        <StewardsDialog
+          target={domainContextMenu.domainForStewards}
+          onClose={() => domainContextMenu.setDomainForStewards(null)}
         />
       )}
 

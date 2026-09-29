@@ -25,6 +25,7 @@ import (
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
+	stewardshipAPI "easi/backend/internal/stewardship/infrastructure/api"
 	valuestreamsAPI "easi/backend/internal/valuestreams/infrastructure/api"
 
 	"github.com/go-chi/chi/v5"
@@ -254,6 +255,16 @@ func setupDomainRoutes(r chi.Router, deps routerDependencies) {
 		SessionProvider: deps.authDeps.SessionManager,
 		Tenants:         authAPI.NewTenantDirectory(deps.db.DB()),
 	}), "one-pagers routes")
+
+	mustSetup(stewardshipAPI.SetupRoutes(stewardshipAPI.RoutesDeps{
+		Router:         r,
+		CommandBus:     deps.commandBus,
+		EventStore:     deps.eventStore,
+		EventBus:       deps.eventBus,
+		DB:             deps.db,
+		HATEOAS:        deps.hateoas,
+		AuthMiddleware: deps.authDeps.AuthMiddleware,
+	}), "stewardship routes")
 }
 
 func setupSupportRoutes(r chi.Router, deps routerDependencies) {

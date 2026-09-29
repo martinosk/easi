@@ -8,12 +8,12 @@ The plan-of-record for EASI's capability and bounded-context evolution: settled 
 |----|----------|-----------|
 | SD1 | The EnterpriseCapability concept is retired outright, and Direction, Standard Application and Composition retire with it — each was a statement about an enterprise capability with no surface of its own. Architecture Direction becomes the planning context: journeys, TIME assessments, realisation roles. TIME suggestion and assessment unify on one value object, with the suggestion shown beside the assessment it advises. Amended 2026-08-31; the earlier reading (demote EnterpriseCapability to the subject of a Direction) is superseded. | C2, C3 |
 | SD2 | Maturity is an outcome a plan targets, not a rating on a catalog entry: a maturity journey declares the maturity uplift it will deliver, over a period, through milestones that need not be technical. EnterpriseStrategicImportance retires unreplaced — it never had a surface. Strategic fit analysis (capability × pillar) is unaffected; it is owned by Capability Mapping and never referenced an enterprise capability. | A4 |
-| SD3 | CMDB sync (ServiceNow) auto-registers discovered applications in ownership state Unknown/orphaned, stamped with provenance; stewards promote them. Sync never overwrites a curated field. | G2 |
+| SD3 | CMDB sync (ServiceNow) auto-registers discovered applications in ownership state Unknown/orphaned, stamped with provenance; whoever curates the record promotes them. Sync never overwrites a curated field. Clarified 2026-09-29: "steward" in the per-concern sense of spec 226 sees orphaned applications as attention items and routes them; promotion itself is ordinary curation. | G2 |
 | SD4 | Value Streams evolves into the Business Operating Model context: BusinessRole and BusinessObject aggregates, linked to capabilities through a reified but hidden, unnamed process aggregate. Capability Mapping does not grow. | A3, B4 |
 | SD5 | MetaModel owns the custom-field schema (moved from OnePagers) and the modelling rule set: capability-naming standards (AI-evaluated, override recorded), composition depth, required attributes. OnePagers trends toward pure presentation. | G1, D1 |
 | SD6 | ApplicationComponent carries an ownership state machine (Unknown/orphaned → Nominated → Owned or Managed; owner is an identity or team reference, never free text), a hosting classification (on-prem, cloud, SaaS, third-party hosted, unknown), and composition capped at two levels, exposed as HATEOAS affordances. | B1, A2, B3 |
 | SD7 | Importing evolves into the Integrations anti-corruption layer: external identity mapping, sync runs, per-attribute reconciliation, provenance on every synced fact. All writes go through published commands. ServiceNow is the first adapter, MS Forms the second. | G2 |
-| SD8 | Every new analysis surface is a pure read-side context over published events — stewardship, dashboards, export, cross-context impact. Adding an analysis costs a projector, never a contract. | C4, C6, F5, G3 |
+| SD8 | Every new analysis surface is a pure read-side context over published events — stewardship, dashboards, export, cross-context impact. Adding an analysis costs a projector, never a contract. Clarified 2026-09-29: the stewardship *assignment* (who answers for which concern in which domain) is a small write-side fact owned by the stewardship context; the analysis over it remains a pure read side. | C4, C6, F5, G3 |
 
 ## Standing Invariants
 
@@ -46,7 +46,7 @@ Exit: coverage assessment re-scored — boundary smells 3 → 1, contexts 15 →
 |------|-------|-----------|-------|--------|
 | H2-4 | Business Operating Model: BusinessRole, BusinessObject, hidden process, capability links | SD4 | — | not started |
 | H2-5 | Integrations context and ServiceNow adapter: identity map, sync runs, reconciliation, provenance | SD7, SD3 | — | not started |
-| H2-6 | Stewardship read side: orphaned, stale and incomplete items ranked, routed via invite-to-edit | SD8 | — | not started |
+| H2-6 | Stewardship: per-(domain, concern) assignment (write side), then orphaned, stale and incomplete items ranked, routed via invite-to-edit | SD8 | 226 ([design doc](../specs/personal-home.md)) | design approved 2026-09-28; 226 implemented 2026-09-29, awaiting sign-off |
 
 ### Horizon 3 — depth on demand (pulled by usage, not scheduled)
 

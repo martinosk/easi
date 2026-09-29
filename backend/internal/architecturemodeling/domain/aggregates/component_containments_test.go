@@ -18,10 +18,10 @@ func containmentKind(t *testing.T, value string) valueobjects.ContainmentKind {
 	return kind
 }
 
-func attachedContainments(t *testing.T, part, parent valueobjects.ComponentID, kind string) *ComponentContainments {
+func attachedContainments(t *testing.T, part, parent valueobjects.ComponentID) *ComponentContainments {
 	t.Helper()
 	containments := NewComponentContainments()
-	require.NoError(t, containments.Attach(part, parent, containmentKind(t, kind)))
+	require.NoError(t, containments.Attach(part, parent, containmentKind(t, valueobjects.ContainmentComposition)))
 	containments.MarkChangesAsCommitted()
 	return containments
 }
@@ -64,7 +64,7 @@ func TestComponentContainments_AttachRejectsRuleViolations(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			containments := attachedContainments(t, quoting, crm, valueobjects.ContainmentComposition)
+			containments := attachedContainments(t, quoting, crm)
 
 			err := containments.Attach(tc.part, tc.parent, containmentKind(t, valueobjects.ContainmentAggregation))
 
@@ -76,7 +76,7 @@ func TestComponentContainments_AttachRejectsRuleViolations(t *testing.T) {
 
 func TestComponentContainments_ParentMayAcceptSeveralParts(t *testing.T) {
 	quoting, billing, crm := valueobjects.NewComponentID(), valueobjects.NewComponentID(), valueobjects.NewComponentID()
-	containments := attachedContainments(t, quoting, crm, valueobjects.ContainmentComposition)
+	containments := attachedContainments(t, quoting, crm)
 
 	require.NoError(t, containments.Attach(billing, crm, containmentKind(t, valueobjects.ContainmentAggregation)))
 
@@ -86,7 +86,7 @@ func TestComponentContainments_ParentMayAcceptSeveralParts(t *testing.T) {
 
 func TestComponentContainments_DetachReleasesPart(t *testing.T) {
 	quoting, crm := valueobjects.NewComponentID(), valueobjects.NewComponentID()
-	containments := attachedContainments(t, quoting, crm, valueobjects.ContainmentComposition)
+	containments := attachedContainments(t, quoting, crm)
 
 	require.NoError(t, containments.Detach(quoting))
 
@@ -101,7 +101,7 @@ func TestComponentContainments_DetachReleasesPart(t *testing.T) {
 
 func TestComponentContainments_DetachedPartCanAttachElsewhere(t *testing.T) {
 	quoting, crm, erp := valueobjects.NewComponentID(), valueobjects.NewComponentID(), valueobjects.NewComponentID()
-	containments := attachedContainments(t, quoting, crm, valueobjects.ContainmentComposition)
+	containments := attachedContainments(t, quoting, crm)
 	require.NoError(t, containments.Detach(quoting))
 
 	require.NoError(t, containments.Attach(quoting, erp, containmentKind(t, valueobjects.ContainmentAggregation)))

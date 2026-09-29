@@ -10288,6 +10288,285 @@
                 }
             }
         },
+        "/stewardships": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Lists every concern in fixed order with its steward (or null when unassigned), attribution and the domain architect as fallback. Callers holding domains:write receive x-assign on every concern and x-release on assigned ones.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "stewardships"
+                ],
+                "summary": "List the stewardships of a business domain",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Business domain ID",
+                        "name": "domainId",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_stewardship_infrastructure_api.DomainStewardshipsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/stewardships/{domainId}/{concern}": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Returns the concern with its steward, or a null steward when unassigned.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "stewardships"
+                ],
+                "summary": "Get the stewardship of one concern in a business domain",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Business domain ID",
+                        "name": "domainId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Concern (ownership, assessment, documentation, planning, structure)",
+                        "name": "concern",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_stewardship_application_readmodels.ConcernStewardshipDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Makes the given active user the steward of the concern, replacing any current steward. Assigning the current steward again changes nothing.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "stewardships"
+                ],
+                "summary": "Assign the steward of a concern in a business domain",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Business domain ID",
+                        "name": "domainId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Concern (ownership, assessment, documentation, planning, structure)",
+                        "name": "concern",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Steward",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_stewardship_infrastructure_api.AssignStewardRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_stewardship_application_readmodels.ConcernStewardshipDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Ends the stewardship of the concern; it reads as unassigned. Releasing an unassigned concern changes nothing.",
+                "tags": [
+                    "stewardships"
+                ],
+                "summary": "Release the steward of a concern in a business domain",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Business domain ID",
+                        "name": "domainId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Concern (ownership, assessment, documentation, planning, structure)",
+                        "name": "concern",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/strategic-fit-analysis/{pillarId}": {
             "get": {
                 "security": [
@@ -14213,6 +14492,43 @@
                 }
             }
         },
+        "easi_backend_internal_stewardship_application_readmodels.ConcernStewardshipDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "assignedAt": {
+                    "type": "string"
+                },
+                "assignedBy": {
+                    "type": "string"
+                },
+                "concern": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "steward": {
+                    "$ref": "#/definitions/easi_backend_internal_stewardship_application_readmodels.PersonDTO"
+                }
+            }
+        },
+        "easi_backend_internal_stewardship_application_readmodels.PersonDTO": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "easi_backend_internal_valuestreams_application_readmodels.StageCapabilityMappingDTO": {
             "type": "object",
             "properties": {
@@ -16958,6 +17274,37 @@
                 },
                 "title": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_stewardship_infrastructure_api.AssignStewardRequest": {
+            "type": "object",
+            "properties": {
+                "stewardId": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_stewardship_infrastructure_api.DomainStewardshipsResponse": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_stewardship_application_readmodels.ConcernStewardshipDTO"
+                    }
+                },
+                "domainId": {
+                    "type": "string"
+                },
+                "domainName": {
+                    "type": "string"
+                },
+                "fallback": {
+                    "$ref": "#/definitions/easi_backend_internal_stewardship_application_readmodels.PersonDTO"
                 }
             }
         },

@@ -6,10 +6,12 @@ import {
   ShareIcon,
   TrashIcon,
   UserPlusIcon,
+  UsersIcon,
 } from '../../../components/shared/ContextMenu';
 import { copyToClipboard, generateDomainShareUrl } from '../../../utils/clipboard';
-import { hasLink } from '../../../utils/hateoas';
+import { getLink, hasLink } from '../../../utils/hateoas';
 import type { ArtifactType } from '../../edit-grants/types';
+import type { StewardsTarget } from '../../stewardship';
 
 interface DomainContextMenuState {
   x: number;
@@ -30,6 +32,7 @@ interface UseDomainContextMenuProps {
 export function useDomainContextMenu({ onEdit, onDelete }: UseDomainContextMenuProps) {
   const [contextMenu, setContextMenu] = useState<DomainContextMenuState | null>(null);
   const [domainToInvite, setDomainToInvite] = useState<DomainInviteTarget | null>(null);
+  const [domainForStewards, setDomainForStewards] = useState<StewardsTarget | null>(null);
 
   const handleContextMenu = (e: React.MouseEvent, domain: BusinessDomain) => {
     setContextMenu({ x: e.clientX, y: e.clientY, domain });
@@ -45,6 +48,18 @@ export function useDomainContextMenu({ onEdit, onDelete }: UseDomainContextMenuP
         icon: <UserPlusIcon />,
         onClick: () => {
           setDomainToInvite({ id: menu.domain.id, artifactType: 'domain' });
+        },
+      });
+    }
+
+    const stewardshipsHref = getLink(menu.domain, 'x-stewardships');
+    if (stewardshipsHref) {
+      items.push({
+        label: 'Stewards...',
+        description: 'See who answers for each concern',
+        icon: <UsersIcon />,
+        onClick: () => {
+          setDomainForStewards({ domainId: menu.domain.id, domainName: menu.domain.name, stewardshipsHref });
         },
       });
     }
@@ -93,5 +108,7 @@ export function useDomainContextMenu({ onEdit, onDelete }: UseDomainContextMenuP
     closeContextMenu,
     domainToInvite,
     setDomainToInvite,
+    domainForStewards,
+    setDomainForStewards,
   };
 }

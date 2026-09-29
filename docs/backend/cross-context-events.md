@@ -203,6 +203,17 @@ const (
 )
 ```
 
+### Stewardship (`pl` inside the context)
+
+```go
+const (
+    StewardAssigned = "StewardAssigned"
+    StewardReleased = "StewardReleased"
+)
+```
+
+`StewardAssigned` states the current steward of a (domain, concern) pair; `StewardReleased` ends it. Neither carries the previous steward. No context consumes them yet (spec 226).
+
 ### Value Streams (`vsPL`)
 
 ```go
@@ -404,6 +415,16 @@ All subscriptions are wired in `onepagers/infrastructure/api/routes.go` `SetupOn
 | MetaModel (`mmPL`) | `SubjectAttributeDefined/Retired/Reactivated` | `CustomFieldInclusionReactor` (dispatches `IncludeCustomField` / `ExcludeCustomField`, creating the configuration when absent) | `one_pager_configurations` | Keeps the display order in step with the schema |
 
 Expert names arrive on the expert events themselves (`expertName`, `expertRole`, `contactInfo`), so no user cache is needed.
+
+### Stewardship consumes from:
+
+All subscriptions are wired in `stewardship/infrastructure/api/routes.go` `SetupRoutes()`; both caches are backfilled by migration 167 (spec 226).
+
+| Supplier | Events | Projector | Cache | Purpose |
+|----------|--------|-----------|-------|---------|
+| Capability Mapping (`capPL`) | `BusinessDomainCreated/Updated` | `DomainCacheProjector` | `domain_cache` (existence, name, domain architect id) | Domain existence for commands and reads; fallback to the domain architect |
+| Capability Mapping (`capPL`) | `BusinessDomainDeleted` | `DomainDeletionReactor` (dispatches `ReleaseSteward` per live stewardship as `system:domain-deleted`, then forgets the domain) | `domain_cache` | Domain deletion releases its stewardships |
+| Auth (`authPL`) | `UserCreated`, `UserDisabled`, `UserEnabled` | `UserCacheProjector` | `user_cache` (name, email, active) | Steward and fallback names; only active users are assignable |
 
 ## Adding a New Cross-Context Event
 

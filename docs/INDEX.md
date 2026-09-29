@@ -27,6 +27,7 @@ Quick reference for navigating EASI documentation.
 | ArchitectureViews | [docs/architecture/ArchitectureViews.md](architecture/ArchitectureViews.md) | Supporting | Implemented |
 | MetaModel | [docs/architecture/MetaModel.md](architecture/MetaModel.md) | Supporting | Implemented |
 | AccessDelegation | [docs/architecture/README.md](architecture/README.md) | Supporting | Implemented |
+| Stewardship | [docs/architecture/Stewardship.md](architecture/Stewardship.md) | Supporting | Specified (spec 226) |
 | ArchAssistant | [docs/architecture/ArchAssistant.md](architecture/ArchAssistant.md) | Supporting | Implemented |
 | ArchitectureDirection | [docs/architecture/ArchitectureDirection.md](architecture/ArchitectureDirection.md) | Core | Implemented |
 | OnePagers | [docs/architecture/OnePagers.md](architecture/OnePagers.md) | Supporting | Implemented |
@@ -49,6 +50,7 @@ The middle tier exists so a decision shared by many slices is stated once and ca
 | [capability-journeys.md](specs/capability-journeys.md) | Journeys, TIME assessment per realisation, realisation roles, board lenses | 180–184, 195–197, 205 |
 | [configurable-one-pagers.md](specs/configurable-one-pagers.md) | One-pager configuration, fields, facts, completeness | 175, 177, 185, 186, 188 |
 | [enterprise-capability.md](specs/enterprise-capability.md) | Retiring the enterprise capability; maturity as a journey; one TIME vocabulary | 210–213 |
+| [personal-home.md](specs/personal-home.md) | Personal home: per-concern domain stewardship, attention items, journeys in motion | 226 |
 
 ## Core Rules
 

@@ -13,6 +13,7 @@ backend:metamodel,easi/backend/internal/metamodel/**
 backend:onepagers,easi/backend/internal/onepagers/**
 backend:releases,easi/backend/internal/releases/**
 backend:shared,easi/backend/internal/shared/**
+backend:stewardship,easi/backend/internal/stewardship/**
 backend:testing,easi/backend/internal/testing/**
 backend:valuestreams,easi/backend/internal/valuestreams/**
 deployment,easi/k8s/**
@@ -48,6 +49,7 @@ frontend:shared,easi/frontend/src/store/**
 frontend:shared,easi/frontend/src/test/**
 frontend:shared,easi/frontend/src/theme/**
 frontend:shared,easi/frontend/src/utils/**
+frontend:stewardship,easi/frontend/src/features/stewardship/**
 frontend:strategic-fit,easi/frontend/src/features/strategic-fit/**
 frontend:users,easi/frontend/src/features/users/**
 frontend:value-streams,easi/frontend/src/features/value-streams/**
