@@ -28,7 +28,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -64,10 +64,11 @@ func setupUserTestDB(t *testing.T) (*userTestContext, func()) {
 	}
 
 	cleanup := func() {
-		for _, id := range ctx.createdIDs {
-			db.Exec("DELETE FROM auth.users WHERE id = $1", id)
-			db.Exec("DELETE FROM infrastructure.events WHERE aggregate_id = $1", id)
-		}
+		ids := pq.Array(ctx.createdIDs)
+		withTenantTx(t, db, func(tx *sql.Tx) {
+			execInTx(t, tx, "DELETE FROM auth.users WHERE id::text = ANY($1)", ids)
+			execInTx(t, tx, "DELETE FROM infrastructure.events WHERE aggregate_id = ANY($1)", ids)
+		})
 		db.Close()
 	}
 
@@ -86,10 +87,25 @@ func newUserTestFixture(t *testing.T) (*userTestContext, *userTestFixture) {
 
 func (ctx *userTestContext) demoteExistingAdmins(t *testing.T) {
 	t.Helper()
-	_, err := ctx.db.Exec("SET app.current_tenant = 'acme'")
-	require.NoError(t, err)
-	_, err = ctx.db.Exec("UPDATE auth.users SET role = 'architect' WHERE role = 'admin'")
-	require.NoError(t, err)
+	var demoted []string
+	withTenantTx(t, ctx.db, func(tx *sql.Tx) {
+		rows, err := tx.Query("UPDATE auth.users SET role = 'architect' WHERE role = 'admin' RETURNING id::text")
+		require.NoError(t, err)
+		defer rows.Close()
+		for rows.Next() {
+			var id string
+			require.NoError(t, rows.Scan(&id))
+			demoted = append(demoted, id)
+		}
+		require.NoError(t, rows.Err())
+	})
+	t.Cleanup(func() {
+		withTenantTx(t, ctx.db, func(tx *sql.Tx) {
+			for _, id := range demoted {
+				execInTx(t, tx, "UPDATE auth.users SET role = 'admin' WHERE id = $1", id)
+			}
+		})
+	})
 }
 
 type userTestFixture struct {

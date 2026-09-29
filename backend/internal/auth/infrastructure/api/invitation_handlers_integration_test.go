@@ -27,7 +27,7 @@ import (
 	"easi/backend/internal/shared/events"
 
 	"github.com/go-chi/chi/v5"
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -36,11 +36,6 @@ type invitationTestContext struct {
 	db         *sql.DB
 	testID     string
 	createdIDs []string
-}
-
-func (ctx *invitationTestContext) setTenantContext(t *testing.T) {
-	_, err := ctx.db.Exec(fmt.Sprintf("SET app.current_tenant = '%s'", testTenantID()))
-	require.NoError(t, err)
 }
 
 func setupInvitationTestDB(t *testing.T) (*invitationTestContext, func()) {
@@ -68,10 +63,12 @@ func setupInvitationTestDB(t *testing.T) (*invitationTestContext, func()) {
 	}
 
 	cleanup := func() {
-		for _, id := range ctx.createdIDs {
-			db.Exec("DELETE FROM auth.invitations WHERE id = $1", id)
-			db.Exec("DELETE FROM infrastructure.events WHERE aggregate_id = $1", id)
-		}
+		ids := pq.Array(ctx.createdIDs)
+		withTenantTx(t, db, func(tx *sql.Tx) {
+			execInTx(t, tx, "DELETE FROM auth.users WHERE id::text = ANY($1)", ids)
+			execInTx(t, tx, "DELETE FROM auth.invitations WHERE id::text = ANY($1)", ids)
+			execInTx(t, tx, "DELETE FROM infrastructure.events WHERE aggregate_id = ANY($1)", ids)
+		})
 		db.Close()
 	}
 
@@ -82,20 +79,28 @@ func (ctx *invitationTestContext) trackID(id string) {
 	ctx.createdIDs = append(ctx.createdIDs, id)
 }
 
-func execAsTenant(t *testing.T, db *sql.DB, query string, args ...interface{}) {
+func withTenantTx(t *testing.T, db *sql.DB, fn func(tx *sql.Tx)) {
 	t.Helper()
 
 	tx, err := db.Begin()
 	require.NoError(t, err)
 	defer func() { _ = tx.Rollback() }()
 
-	_, err = tx.Exec(fmt.Sprintf("SET LOCAL app.current_tenant = '%s'", testTenantID()))
-	require.NoError(t, err)
-
-	_, err = tx.Exec(query, args...)
-	require.NoError(t, err)
+	execInTx(t, tx, fmt.Sprintf("SET LOCAL app.current_tenant = '%s'", testTenantID()))
+	fn(tx)
 
 	require.NoError(t, tx.Commit())
+}
+
+func execInTx(t *testing.T, tx *sql.Tx, query string, args ...interface{}) {
+	t.Helper()
+	_, err := tx.Exec(query, args...)
+	require.NoError(t, err)
+}
+
+func execAsTenant(t *testing.T, db *sql.DB, query string, args ...interface{}) {
+	t.Helper()
+	withTenantTx(t, db, func(tx *sql.Tx) { execInTx(t, tx, query, args...) })
 }
 
 type testRequest struct {
@@ -462,6 +467,7 @@ func TestLoginService_ValidInvitationCreatesUser_Integration(t *testing.T) {
 	result, err := fixture.loginService.ProcessLogin(ctx, email, "Test User")
 	require.NoError(t, err)
 	require.NotNil(t, result)
+	testCtx.trackID(result.UserID.String())
 
 	assert.Equal(t, email, result.Email)
 	assert.Equal(t, "stakeholder", result.Role)
@@ -477,8 +483,6 @@ func TestLoginService_ValidInvitationCreatesUser_Integration(t *testing.T) {
 	acceptedInvitation, err := fixture.invitationReadModel.GetByID(ctx, invitationID)
 	require.NoError(t, err)
 	assert.Equal(t, "accepted", acceptedInvitation.Status)
-
-	defer testCtx.db.Exec("DELETE FROM auth.users WHERE email = $1", email)
 }
 
 func TestLoginService_ExpiredInvitationMarkedAsExpired_Integration(t *testing.T) {

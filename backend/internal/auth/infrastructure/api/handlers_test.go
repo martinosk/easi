@@ -315,6 +315,7 @@ func (idp *idpWithTokenEndpoint) handleTokenRequest(w http.ResponseWriter) {
 }
 
 func TestGetCallback_SuccessfulExchange(t *testing.T) {
+	t.Setenv("FRONTEND_URL", "")
 	idp := createMockIdPWithTokenEndpoint(t)
 	defer idp.server.Close()
 
