@@ -72,6 +72,15 @@ describe('InlineSelectField', () => {
     await waitFor(() => expect(screen.queryByTestId('status-input')).not.toBeInTheDocument());
   });
 
+  it('says so when there is nothing to pick', async () => {
+    renderField({ value: '', options: [], emptyPrompt: 'Set a status', nothingFoundMessage: 'No statuses' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Set a status' }));
+    fireEvent.click(screen.getByTestId('status-input'));
+
+    expect(await screen.findByText('No statuses')).toBeInTheDocument();
+  });
+
   it('cancels without saving', () => {
     const { onSave } = renderField();
 

@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../test/helpers';
@@ -134,13 +134,14 @@ describe('StewardsDialog', () => {
     renderDialog();
 
     await screen.findByText('Mette Gram');
-    expect(screen.queryByTestId('steward-select-assessment')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('steward-assessment-edit')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('steward-ownership-edit')).not.toBeInTheDocument();
     expect(screen.queryByTestId('release-steward-ownership')).not.toBeInTheDocument();
     expect(mockUseActiveUsers).toHaveBeenCalled();
     expect(mockUseActiveUsers).not.toHaveBeenCalledWith({ enabled: true });
   });
 
-  it('lets writers assign a steward through the x-assign link', async () => {
+  it('lets writers pick a steward from a searchable list and assigns through x-assign', async () => {
     vi.mocked(stewardshipApi.getDomainStewardships).mockResolvedValue(stewardships({ writable: true }));
     vi.mocked(stewardshipApi.assign).mockResolvedValue(
       concern('assessment', { steward: 'Jonas Holm', writable: true }),
@@ -148,15 +149,28 @@ describe('StewardsDialog', () => {
 
     renderDialog();
 
-    const select = await screen.findByTestId('steward-select-assessment');
-    await userEvent.click(select);
-    const listbox = document.getElementById(select.getAttribute('aria-controls') ?? '') as HTMLElement;
-    await userEvent.click(within(listbox).getByRole('option', { name: 'Jonas Holm', hidden: true }));
+    await userEvent.click(await screen.findByTestId('steward-assessment-edit'));
+    const input = screen.getByTestId('steward-assessment-input');
+    await userEvent.type(input, 'Jon');
+    await userEvent.click(await screen.findByRole('option', { name: 'Jonas Holm', hidden: true }));
+    await userEvent.click(screen.getByTestId('steward-assessment-save'));
 
     await waitFor(() =>
       expect(stewardshipApi.assign).toHaveBeenCalledWith({ href: itemHref('assessment'), method: 'PUT' }, 'jonas-id'),
     );
     expect(mockUseActiveUsers).toHaveBeenCalledWith({ enabled: true });
+  });
+
+  it('tells writers when there are no active users to pick', async () => {
+    mockUseActiveUsers.mockReturnValue({ data: [] });
+    vi.mocked(stewardshipApi.getDomainStewardships).mockResolvedValue(stewardships({ writable: true }));
+
+    renderDialog();
+
+    await userEvent.click(await screen.findByTestId('steward-planning-edit'));
+    await userEvent.click(screen.getByTestId('steward-planning-input'));
+
+    expect(await screen.findByText('No active users')).toBeInTheDocument();
   });
 
   it('lets writers release an assigned steward through the x-release link', async () => {

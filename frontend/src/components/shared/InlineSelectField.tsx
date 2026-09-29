@@ -20,12 +20,14 @@ export interface InlineSelectFieldProps {
   emptyPrompt?: string;
   renderValue?: (value: string, label: string) => React.ReactNode;
   searchable?: boolean;
+  nothingFoundMessage?: string;
 }
 
 interface EditorProps {
   initialValue: string;
   options: InlineSelectOption[];
   searchable: boolean;
+  nothingFoundMessage?: string;
   testId: string;
   onSave: (value: string) => Promise<unknown>;
   onDone: () => void;
@@ -35,7 +37,7 @@ function parseSelection(draft: string): { ok: true; value: string } | { ok: fals
   return draft ? { ok: true, value: draft } : { ok: false, message: 'A value is required' };
 }
 
-function Editor({ initialValue, options, searchable, testId, onSave, onDone }: EditorProps) {
+function Editor({ initialValue, options, searchable, nothingFoundMessage, testId, onSave, onDone }: EditorProps) {
   const [draft, setDraft] = useState(initialValue);
   const { error, saving, commit } = useInlineCommit({ initialValue, parse: parseSelection, onSave, onDone });
 
@@ -55,6 +57,7 @@ function Editor({ initialValue, options, searchable, testId, onSave, onDone }: E
           onKeyDown={handleKeyDown}
           data={options}
           searchable={searchable}
+          nothingFoundMessage={nothingFoundMessage}
           error={error}
           disabled={saving}
           size="sm"
@@ -78,6 +81,7 @@ export function InlineSelectField({
   emptyPrompt,
   renderValue,
   searchable = false,
+  nothingFoundMessage,
 }: InlineSelectFieldProps) {
   const [editing, setEditing] = useState(false);
 
@@ -91,6 +95,7 @@ export function InlineSelectField({
       initialValue={value}
       options={options}
       searchable={searchable}
+      nothingFoundMessage={nothingFoundMessage}
       testId={testId}
       onSave={onSave}
       onDone={() => setEditing(false)}

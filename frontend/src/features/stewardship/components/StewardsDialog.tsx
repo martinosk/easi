@@ -1,4 +1,6 @@
-import { Alert, Box, Button, Group, Loader, Modal, Paper, Select, Stack, Text } from '@mantine/core';
+import { Alert, Box, Button, Group, Loader, Modal, Paper, Stack, Text } from '@mantine/core';
+import { DetailField } from '../../../components/shared/DetailField';
+import { InlineSelectField } from '../../../components/shared/InlineSelectField';
 import { getLinkObject, hasLink } from '../../../utils/hateoas';
 import { useActiveUsers } from '../../users/hooks/useUsers';
 import { useAssignSteward, useDomainStewardships, useReleaseSteward } from '../hooks/useStewardships';
@@ -38,44 +40,46 @@ function StewardControl({ domainId, item, candidates }: Omit<ConcernRowProps, 'f
   const release = useReleaseSteward(domainId);
   const assignLink = getLinkObject(item, 'x-assign');
   const releaseLink = getLinkObject(item, 'x-release');
-  const busy = assign.isPending || release.isPending;
+  const steward = item.steward;
 
-  if (!assignLink) {
-    return <Text size="sm">{item.steward ? personName(item.steward) : 'Unassigned'}</Text>;
+  if (!assignLink && !steward) {
+    return (
+      <DetailField label="Steward">
+        <Text size="sm">Unassigned</Text>
+      </DetailField>
+    );
   }
 
   return (
-    <Group gap="xs" wrap="nowrap">
-      <Box className={classes.stewardControl}>
-        <Select
-          aria-label={`${item.label} steward`}
-          placeholder="Unassigned"
-          data={optionsIncludingSteward(candidates, item.steward)}
-          value={item.steward?.id ?? null}
-          searchable
-          allowDeselect={false}
-          disabled={busy}
-          data-testid={`steward-select-${item.concern}`}
-          onChange={(stewardId) => {
-            if (stewardId && stewardId !== item.steward?.id) {
-              assign.mutate({ link: assignLink, stewardId });
-            }
-          }}
-        />
-      </Box>
+    <Stack gap="xs">
+      <InlineSelectField
+        label="Steward"
+        value={steward?.id ?? ''}
+        options={optionsIncludingSteward(candidates, steward)}
+        canEdit={!!assignLink}
+        onSave={(stewardId) => assign.mutateAsync({ link: assignLink!, stewardId })}
+        editLabel={`Change ${item.label.toLowerCase()} steward`}
+        emptyPrompt="Assign a steward"
+        testId={`steward-${item.concern}`}
+        searchable
+        nothingFoundMessage="No active users"
+        renderValue={(_, label) => <Text size="sm">{steward ? personName(steward) : label}</Text>}
+      />
       {releaseLink && (
-        <Button
-          variant="subtle"
-          color="red"
-          size="xs"
-          disabled={busy}
-          data-testid={`release-steward-${item.concern}`}
-          onClick={() => release.mutate(releaseLink)}
-        >
-          Release
-        </Button>
+        <Group justify="flex-end">
+          <Button
+            variant="subtle"
+            color="red"
+            size="compact-xs"
+            disabled={release.isPending}
+            data-testid={`release-steward-${item.concern}`}
+            onClick={() => release.mutate(releaseLink)}
+          >
+            Release
+          </Button>
+        </Group>
       )}
-    </Group>
+    </Stack>
   );
 }
 
@@ -94,7 +98,9 @@ function ConcernRow({ domainId, item, fallback, candidates }: ConcernRowProps) {
             </Text>
           )}
         </Stack>
-        <StewardControl domainId={domainId} item={item} candidates={candidates} />
+        <Box className={classes.stewardControl}>
+          <StewardControl domainId={domainId} item={item} candidates={candidates} />
+        </Box>
       </Group>
     </Paper>
   );
