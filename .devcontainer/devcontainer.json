@@ -62,6 +62,6 @@
     }
   },
   "initializeCommand": "bash .devcontainer/cs-env.sh",
-  "onCreateCommand": "sudo chown -R node:node /home/node/go /home/node/.npm /home/node/.claude /workspace/frontend/node_modules",
+  "onCreateCommand": "sudo chown -R node:node /home/node/go /home/node/.npm /home/node/.claude /workspace/frontend/node_modules /usr/local/share/npm-global/lib/node_modules/@anthropic-ai",
   "postCreateCommand": "bash .devcontainer/post-create.sh"
 }
