@@ -176,4 +176,4 @@ No schema change. The subject index is read as it is; the returned previous valu
 - [x] Unit tests implemented and passing
 - [x] Integration tests implemented if relevant
 - [x] API documentation updated
-- [ ] User sign-off
+- [x] User sign-off
