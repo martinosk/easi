@@ -12,7 +12,10 @@ backend/internal/metamodel/publishedlanguage/events.go
 backend/internal/accessdelegation/publishedlanguage/events.go
 backend/internal/valuestreams/publishedlanguage/events.go
 backend/internal/architecturedirection/publishedlanguage/events.go
+backend/internal/auth/publishedlanguage/events.go
+backend/internal/importing/publishedlanguage/events.go
 backend/internal/onepagers/publishedlanguage/events.go
+backend/internal/stewardship/publishedlanguage/events.go
 ```
 
 These packages contain **only constants**. No structs, no constructors, no logic.
@@ -89,6 +92,16 @@ const (
     ApplicationComponentDeleted       = "ApplicationComponentDeleted"
     ApplicationComponentExpertAdded   = "ApplicationComponentExpertAdded"
     ApplicationComponentExpertRemoved = "ApplicationComponentExpertRemoved"
+
+    ApplicationOwnerNominated     = "ApplicationOwnerNominated"
+    ApplicationOwnershipConfirmed = "ApplicationOwnershipConfirmed"
+    ApplicationOwnerAssigned      = "ApplicationOwnerAssigned"
+    ApplicationOwnershipCleared   = "ApplicationOwnershipCleared"
+
+    ApplicationHostingClassified = "ApplicationHostingClassified"
+
+    ComponentAttached = "ComponentAttached"
+    ComponentDetached = "ComponentDetached"
 
     ComponentRelationCreated = "ComponentRelationCreated"
     ComponentRelationUpdated = "ComponentRelationUpdated"
@@ -197,10 +210,9 @@ const (
 
 ```go
 const (
-    EditGrantActivated         = "EditGrantActivated"
-    EditGrantRevoked           = "EditGrantRevoked"
-    EditGrantExpired           = "EditGrantExpired"
-    EditGrantForNonUserCreated = "EditGrantForNonUserCreated"
+    EditGrantActivated = "EditGrantActivated"
+    EditGrantRevoked   = "EditGrantRevoked"
+    EditGrantExpired   = "EditGrantExpired"
 )
 ```
 
@@ -235,17 +247,6 @@ const (
 
 ```go
 const (
-    DirectionDrafted                   = "DirectionDrafted"
-    DirectionProposed                  = "DirectionProposed"
-    DirectionAgreed                    = "DirectionAgreed"
-    DirectionRejected                  = "DirectionRejected"
-    DirectionNarrativeUpdated          = "DirectionNarrativeUpdated"
-    DirectionHorizonChanged            = "DirectionHorizonChanged"
-    DirectionPlacementsChanged         = "DirectionPlacementsChanged"
-    DirectionSourceCapabilitiesChanged = "DirectionSourceCapabilitiesChanged"
-
-    StandardApplicationSet = "StandardApplicationSet"
-
     TimeAssessmentRecorded = "TimeAssessmentRecorded"
     TimeAssessmentRemoved  = "TimeAssessmentRemoved"
 
@@ -283,6 +284,21 @@ const (
     TenantCreated = "TenantCreated"
 )
 ```
+
+### Importing (`importPL`)
+
+```go
+const (
+    ImportSessionCreated   = "ImportSessionCreated"
+    ImportStarted          = "ImportStarted"
+    ImportProgressUpdated  = "ImportProgressUpdated"
+    ImportCompleted        = "ImportCompleted"
+    ImportFailed           = "ImportFailed"
+    ImportSessionCancelled = "ImportSessionCancelled"
+)
+```
+
+Consumed only inside Importing (`ImportSessionProjector`); no other context subscribes.
 
 ### OnePagers (`opPL`)
 
@@ -379,7 +395,7 @@ Every event subscription that crosses a bounded context boundary is documented b
 
 Auth publishes `TenantCreated` itself (Platform was merged into Auth, spec 209 amendment 2026-08-30) and reacts to it in-context with `TenantCreatedReactor` to create the first-admin invitation; tenant, domain and OIDC reads are live queries against `auth.tenants`, `auth.tenant_domains` and `auth.tenant_oidc_configs`.
 
-Access Delegation invites a grantee without an account by dispatching Auth's published command `EnsureInvitation` (see [Published Commands](#published-commands)); `EditGrantForNonUserCreated` is published when an invitation was created, for audit.
+Access Delegation invites a grantee without an account by dispatching Auth's published command `EnsureInvitation` (see [Published Commands](#published-commands)); when an invitation was created it writes an audit log line, no event.
 
 ### Architecture Direction consumes from:
 
@@ -442,8 +458,8 @@ Follow this checklist when a bounded context needs to publish an event for anoth
 1. **Add the constant** to the publisher's `publishedlanguage/events.go`
 2. **Create or update the projector/handler** in the consuming context using local deserialization structs
 3. **Wire the subscription** in the consumer's route setup function (`SubscribeEvents` or `setupEventSubscriptions`)
-4. **Update this document** -- add entries to both the catalogue and the subscription registry
-5. **Update the architecture README** -- add the event to the Published Language Catalogue table and update the context map if a new integration path is introduced
+4. **Update this document** -- add entries to both the catalogue and the subscription registry. `backend/internal/architecture_docs_test.go` fails when a `publishedlanguage/*events.go` constant is missing from the catalogue, when the catalogue lists a constant that does not exist, or when a registry table's Event/Events column names an event its supplier does not publish (shorthand `CapabilityCreated/Updated` and `` `CapabilityCreated` / `Updated` `` is expanded against the supplier's constants)
+5. **Update the architecture README** -- update the context map if a new integration path is introduced
 
 ### Checklist for deletion events
 
