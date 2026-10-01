@@ -265,4 +265,4 @@ Feature `stewardship` under `/frontend/src/features/`: API client, query keys, `
 - [x] Unit tests implemented and passing
 - [x] Integration tests implemented if relevant
 - [x] API documentation updated
-- [ ] User sign-off
+- [x] User sign-off
