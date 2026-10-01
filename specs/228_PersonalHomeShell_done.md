@@ -512,4 +512,4 @@ The E2E stack runs as a single bypass identity, so anchor-less roles and permiss
 - [x] Unit tests implemented and passing
 - [x] Integration tests implemented if relevant
 - [x] API documentation updated
-- [ ] User sign-off
+- [x] User sign-off
