@@ -16,7 +16,7 @@ func NewCaches(db *database.TenantAwareDB) *Caches {
 }
 
 func (c *Caches) SaveCapability(ctx context.Context, capability home.CachedCapability) error {
-	return c.store.exec(ctx, "cache capability "+capability.ID, `
+	return c.store.exec(ctx, "cache capability "+string(capability.ID), `
 		INSERT INTO stewardship.capability_cache (tenant_id, capability_id, name, level, parent_id, status)
 		VALUES ($1, $2, $3, $4, NULLIF($5, ''), 'Active')
 		ON CONFLICT (tenant_id, capability_id) DO UPDATE SET

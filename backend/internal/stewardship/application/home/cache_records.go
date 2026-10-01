@@ -6,6 +6,12 @@ type CapabilityID string
 
 type DomainID string
 
+type ComponentID string
+
+type RealizationID string
+
+type EditGrantID string
+
 type CachedAssignment struct {
 	CapabilityID CapabilityID
 	DomainID     DomainID
@@ -13,7 +19,7 @@ type CachedAssignment struct {
 
 type CachedPlacement struct {
 	CapabilityID CapabilityID
-	ParentID     string
+	ParentID     CapabilityID
 	Level        string
 }
 
@@ -24,16 +30,16 @@ type CachedCapabilityMetadata struct {
 }
 
 type CachedCapability struct {
-	ID       string
+	ID       CapabilityID
 	Name     string
 	Level    string
-	ParentID string
+	ParentID CapabilityID
 }
 
 type CachedRealization struct {
-	ID           string
-	CapabilityID string
-	ComponentID  string
+	ID           RealizationID
+	CapabilityID CapabilityID
+	ComponentID  ComponentID
 }
 
 const (
@@ -43,21 +49,21 @@ const (
 )
 
 type CachedOwnership struct {
-	ComponentID string
+	ComponentID ComponentID
 	State       string
 	OwnerKind   string
 	OwnerID     string
 }
 
 type CachedTimeAssessment struct {
-	CapabilityID string
-	ComponentID  string
+	CapabilityID CapabilityID
+	ComponentID  ComponentID
 	Grade        string
 	AssessedAt   time.Time
 }
 
 type CachedEditGrant struct {
-	ID           string
+	ID           EditGrantID
 	ArtifactType string
 	ArtifactID   string
 	GranteeEmail string

@@ -65,8 +65,6 @@ func (l *landscape) must(err error) {
 	require.NoError(l.t, err)
 }
 
-type componentID string
-
 type ownership struct {
 	state string
 	kind  string
@@ -82,7 +80,9 @@ func capabilityArtifact(id home.CapabilityID) artifact {
 	return artifact{kind: "capability", id: string(id)}
 }
 
-func componentArtifact(id componentID) artifact { return artifact{kind: "component", id: string(id)} }
+func componentArtifact(id home.ComponentID) artifact {
+	return artifact{kind: "component", id: string(id)}
+}
 
 func (l *landscape) domain(name string) home.DomainID {
 	id := uuid.NewString()
@@ -96,7 +96,7 @@ func (l *landscape) architect(domainID home.DomainID, name string, architect per
 
 func (l *landscape) capability(name, level string, parentID home.CapabilityID) home.CapabilityID {
 	id := home.CapabilityID(uuid.NewString())
-	l.must(l.caches.SaveCapability(l.ctx, home.CachedCapability{ID: string(id), Name: name, Level: level, ParentID: string(parentID)}))
+	l.must(l.caches.SaveCapability(l.ctx, home.CachedCapability{ID: id, Name: name, Level: level, ParentID: parentID}))
 	return id
 }
 
@@ -106,30 +106,30 @@ func (l *landscape) l1In(domainID home.DomainID, name string) home.CapabilityID 
 	return id
 }
 
-func (l *landscape) application(name string) componentID {
-	id := uuid.NewString()
+func (l *landscape) application(name string) home.ComponentID {
+	id := home.ComponentID(uuid.NewString())
 	l.must(l.caches.SaveApplication(l.ctx, id, name))
-	return componentID(id)
+	return id
 }
 
-func (l *landscape) realise(capabilityID home.CapabilityID, component componentID) {
-	l.must(l.caches.SaveRealization(l.ctx, home.CachedRealization{ID: uuid.NewString(), CapabilityID: string(capabilityID), ComponentID: string(component)}))
+func (l *landscape) realise(capabilityID home.CapabilityID, component home.ComponentID) {
+	l.must(l.caches.SaveRealization(l.ctx, home.CachedRealization{ID: home.RealizationID(uuid.NewString()), CapabilityID: capabilityID, ComponentID: component}))
 }
 
-func (l *landscape) grade(capabilityID home.CapabilityID, component componentID, grade string) {
-	l.must(l.caches.SaveTimeAssessment(l.ctx, home.CachedTimeAssessment{CapabilityID: string(capabilityID), ComponentID: string(component), Grade: grade, AssessedAt: time.Now()}))
+func (l *landscape) grade(capabilityID home.CapabilityID, component home.ComponentID, grade string) {
+	l.must(l.caches.SaveTimeAssessment(l.ctx, home.CachedTimeAssessment{CapabilityID: capabilityID, ComponentID: component, Grade: grade, AssessedAt: time.Now()}))
 }
 
 func (l *landscape) eaOwner(capabilityID home.CapabilityID, owner string) {
 	l.must(l.caches.SetCapabilityMetadata(l.ctx, home.CachedCapabilityMetadata{CapabilityID: capabilityID, EAOwner: owner}))
 }
 
-func (l *landscape) own(component componentID, o ownership) {
-	l.must(l.caches.SetOwnership(l.ctx, home.CachedOwnership{ComponentID: string(component), State: o.state, OwnerKind: o.kind, OwnerID: o.owner}))
+func (l *landscape) own(component home.ComponentID, o ownership) {
+	l.must(l.caches.SetOwnership(l.ctx, home.CachedOwnership{ComponentID: component, State: o.state, OwnerKind: o.kind, OwnerID: o.owner}))
 }
 
-func (l *landscape) grant(target artifact, email string, expiresAt time.Time) string {
-	id := uuid.NewString()
+func (l *landscape) grant(target artifact, email string, expiresAt time.Time) home.EditGrantID {
+	id := home.EditGrantID(uuid.NewString())
 	l.must(l.caches.SaveEditGrant(l.ctx, home.CachedEditGrant{ID: id, ArtifactType: target.kind, ArtifactID: target.id, GranteeEmail: email, ExpiresAt: expiresAt}))
 	return id
 }

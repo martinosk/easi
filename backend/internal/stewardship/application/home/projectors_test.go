@@ -52,37 +52,37 @@ func (r *recordingCaches) DeleteAssignmentsOfCapability(_ context.Context, id Ca
 func (r *recordingCaches) DeleteAssignmentsToDomain(_ context.Context, id DomainID) error {
 	return r.record("DeleteAssignmentsToDomain %s", id)
 }
-func (r *recordingCaches) SaveApplication(_ context.Context, id, name string) error {
+func (r *recordingCaches) SaveApplication(_ context.Context, id ComponentID, name string) error {
 	return r.record("SaveApplication %s %s", id, name)
 }
 func (r *recordingCaches) SetOwnership(_ context.Context, o CachedOwnership) error {
 	return r.record("SetOwnership %s %s %s %s", o.ComponentID, o.State, o.OwnerKind, o.OwnerID)
 }
-func (r *recordingCaches) DeleteApplication(_ context.Context, id string) error {
+func (r *recordingCaches) DeleteApplication(_ context.Context, id ComponentID) error {
 	return r.record("DeleteApplication %s", id)
 }
 func (r *recordingCaches) SaveRealization(_ context.Context, c CachedRealization) error {
 	return r.record("SaveRealization %s %s %s", c.ID, c.CapabilityID, c.ComponentID)
 }
-func (r *recordingCaches) DeleteRealization(_ context.Context, id string) error {
+func (r *recordingCaches) DeleteRealization(_ context.Context, id RealizationID) error {
 	return r.record("DeleteRealization %s", id)
 }
-func (r *recordingCaches) DeleteRealizationsOfCapability(_ context.Context, id string) error {
+func (r *recordingCaches) DeleteRealizationsOfCapability(_ context.Context, id CapabilityID) error {
 	return r.record("DeleteRealizationsOfCapability %s", id)
 }
-func (r *recordingCaches) DeleteRealizationsOfComponent(_ context.Context, id string) error {
+func (r *recordingCaches) DeleteRealizationsOfComponent(_ context.Context, id ComponentID) error {
 	return r.record("DeleteRealizationsOfComponent %s", id)
 }
 func (r *recordingCaches) SaveTimeAssessment(_ context.Context, a CachedTimeAssessment) error {
 	return r.record("SaveTimeAssessment %s %s %s %s", a.CapabilityID, a.ComponentID, a.Grade, a.AssessedAt.Format(time.RFC3339))
 }
-func (r *recordingCaches) DeleteTimeAssessment(_ context.Context, capabilityID, componentID string) error {
+func (r *recordingCaches) DeleteTimeAssessment(_ context.Context, capabilityID CapabilityID, componentID ComponentID) error {
 	return r.record("DeleteTimeAssessment %s %s", capabilityID, componentID)
 }
 func (r *recordingCaches) SaveEditGrant(_ context.Context, g CachedEditGrant) error {
 	return r.record("SaveEditGrant %s %s %s %s %s", g.ID, g.ArtifactType, g.ArtifactID, g.GranteeEmail, g.ExpiresAt.Format(time.RFC3339))
 }
-func (r *recordingCaches) DeleteEditGrant(_ context.Context, id string) error {
+func (r *recordingCaches) DeleteEditGrant(_ context.Context, id EditGrantID) error {
 	return r.record("DeleteEditGrant %s", id)
 }
 

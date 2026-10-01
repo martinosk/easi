@@ -17,7 +17,7 @@ type background struct {
 	engagement, finance          home.DomainID
 	customerManagement, profiles home.CapabilityID
 	invoicing, ledger            home.CapabilityID
-	crm, portal, billing, erp    componentID
+	crm, portal, billing, erp    home.ComponentID
 }
 
 func seedBackground(l *landscape) background {
@@ -25,9 +25,9 @@ func seedBackground(l *landscape) background {
 	b.customerManagement = l.l1In(b.engagement, "Customer Management")
 	b.profiles = l.capability("Customer Profiles", "L2", b.customerManagement)
 	planned := l.capability("Loyalty", "L2", b.customerManagement)
-	l.must(l.caches.SetCapabilityMetadata(l.ctx, home.CachedCapabilityMetadata{CapabilityID: home.CapabilityID(planned), Status: "Planned"}))
+	l.must(l.caches.SetCapabilityMetadata(l.ctx, home.CachedCapabilityMetadata{CapabilityID: planned, Status: "Planned"}))
 	deprecated := l.capability("Segmentation", "L3", b.profiles)
-	l.must(l.caches.SetCapabilityMetadata(l.ctx, home.CachedCapabilityMetadata{CapabilityID: home.CapabilityID(deprecated), Status: "Deprecated"}))
+	l.must(l.caches.SetCapabilityMetadata(l.ctx, home.CachedCapabilityMetadata{CapabilityID: deprecated, Status: "Deprecated"}))
 	accounting := l.l1In(b.finance, "Accounting")
 	b.invoicing = l.capability("Invoicing", "L2", accounting)
 	b.ledger = l.capability("Ledger", "L2", accounting)
@@ -173,12 +173,12 @@ func TestAnchors_GrantExclusions(t *testing.T) {
 		{"deleted capability", func(email string) {
 			gone := l.capability("Gone", "L1", "")
 			l.grant(capabilityArtifact(gone), email, now.Add(time.Hour))
-			l.must(l.caches.DeleteCapability(l.ctx, home.CapabilityID(gone)))
+			l.must(l.caches.DeleteCapability(l.ctx, gone))
 		}},
 		{"deleted application", func(email string) {
 			gone := l.application("Legacy Portal")
 			l.grant(componentArtifact(gone), email, now.Add(time.Hour))
-			l.must(l.caches.DeleteApplication(l.ctx, string(gone)))
+			l.must(l.caches.DeleteApplication(l.ctx, gone))
 		}},
 	}
 	for _, tt := range tests {
@@ -212,7 +212,7 @@ func TestAnchors_ReleasedStewardshipIsNoAnchor(t *testing.T) {
 func TestHome_CapabilityInSeveralDomains(t *testing.T) {
 	l := newLandscape(t)
 	b := seedBackground(l)
-	l.must(l.caches.AssignToDomain(l.ctx, home.CachedAssignment{CapabilityID: home.CapabilityID(b.customerManagement), DomainID: home.DomainID(b.finance)}))
+	l.must(l.caches.AssignToDomain(l.ctx, home.CachedAssignment{CapabilityID: b.customerManagement, DomainID: b.finance}))
 	alice := newPerson()
 	l.architect(b.finance, "Finance", alice)
 	jonas := newPerson()
@@ -228,7 +228,7 @@ func TestHome_ReparentedCapabilityFollowsItsNewL1(t *testing.T) {
 	jonas := newPerson()
 	l.eaOwner(b.profiles, jonas.id)
 	accounting := l.l1In(b.finance, "Treasury")
-	l.must(l.caches.MoveCapability(l.ctx, home.CachedPlacement{CapabilityID: home.CapabilityID(b.profiles), ParentID: string(accounting), Level: "L2"}))
+	l.must(l.caches.MoveCapability(l.ctx, home.CachedPlacement{CapabilityID: b.profiles, ParentID: accounting, Level: "L2"}))
 	mette := newPerson()
 	l.steward(b.engagement, "structure", mette)
 
@@ -297,7 +297,7 @@ func TestHome_TimeIgnoresAssessmentsOfDeletedRealisationsAndCountsStaleGrades(t 
 	b := seedBackground(l)
 	alice := newPerson()
 	l.architect(b.finance, "Finance", alice)
-	l.must(l.caches.SaveTimeAssessment(l.ctx, home.CachedTimeAssessment{CapabilityID: string(b.invoicing), ComponentID: string(b.billing), Grade: "Migrate", AssessedAt: time.Now().AddDate(-3, 0, 0)}))
+	l.must(l.caches.SaveTimeAssessment(l.ctx, home.CachedTimeAssessment{CapabilityID: b.invoicing, ComponentID: b.billing, Grade: "Migrate", AssessedAt: time.Now().AddDate(-3, 0, 0)}))
 	l.grade(b.invoicing, b.erp, "Invest")
 
 	assert.Equal(t, &home.TimeTile{Total: 2, Shares: &home.TimeShares{Migrate: 50, NotAssessed: 50}}, l.home(alice.caller()).Portfolio.Time)

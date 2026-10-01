@@ -11,59 +11,59 @@ import (
 )
 
 type ApplicationCacheWriter interface {
-	SaveApplication(ctx context.Context, componentID, name string) error
+	SaveApplication(ctx context.Context, componentID ComponentID, name string) error
 	SetOwnership(ctx context.Context, ownership CachedOwnership) error
-	DeleteApplication(ctx context.Context, componentID string) error
+	DeleteApplication(ctx context.Context, componentID ComponentID) error
 }
 
 type RealizationCacheWriter interface {
 	SaveRealization(ctx context.Context, realization CachedRealization) error
-	DeleteRealization(ctx context.Context, realizationID string) error
-	DeleteRealizationsOfCapability(ctx context.Context, capabilityID string) error
-	DeleteRealizationsOfComponent(ctx context.Context, componentID string) error
+	DeleteRealization(ctx context.Context, realizationID RealizationID) error
+	DeleteRealizationsOfCapability(ctx context.Context, capabilityID CapabilityID) error
+	DeleteRealizationsOfComponent(ctx context.Context, componentID ComponentID) error
 }
 
 type TimeAssessmentCacheWriter interface {
 	SaveTimeAssessment(ctx context.Context, assessment CachedTimeAssessment) error
-	DeleteTimeAssessment(ctx context.Context, capabilityID, componentID string) error
+	DeleteTimeAssessment(ctx context.Context, capabilityID CapabilityID, componentID ComponentID) error
 }
 
 type EditGrantCacheWriter interface {
 	SaveEditGrant(ctx context.Context, grant CachedEditGrant) error
-	DeleteEditGrant(ctx context.Context, grantID string) error
+	DeleteEditGrant(ctx context.Context, grantID EditGrantID) error
 }
 
 type applicationPayload struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID   ComponentID `json:"id"`
+	Name string      `json:"name"`
 }
 
 type ownershipPayload struct {
-	ComponentID    string `json:"componentId"`
-	OwnerKind      string `json:"ownerKind"`
-	OwnerID        string `json:"ownerId"`
-	OwnershipState string `json:"ownershipState"`
+	ComponentID    ComponentID `json:"componentId"`
+	OwnerKind      string      `json:"ownerKind"`
+	OwnerID        string      `json:"ownerId"`
+	OwnershipState string      `json:"ownershipState"`
 }
 
 type realizationPayload struct {
-	ID           string `json:"id"`
-	CapabilityID string `json:"capabilityId"`
-	ComponentID  string `json:"componentId"`
+	ID           RealizationID `json:"id"`
+	CapabilityID CapabilityID  `json:"capabilityId"`
+	ComponentID  ComponentID   `json:"componentId"`
 }
 
 type timeAssessmentPayload struct {
-	CapabilityID string    `json:"capabilityId"`
-	ComponentID  string    `json:"componentId"`
-	Grade        string    `json:"grade"`
-	OccurredOn   time.Time `json:"occurredOn"`
+	CapabilityID CapabilityID `json:"capabilityId"`
+	ComponentID  ComponentID  `json:"componentId"`
+	Grade        string       `json:"grade"`
+	OccurredOn   time.Time    `json:"occurredOn"`
 }
 
 type editGrantPayload struct {
-	ID           string    `json:"id"`
-	ArtifactType string    `json:"artifactType"`
-	ArtifactID   string    `json:"artifactId"`
-	GranteeEmail string    `json:"granteeEmail"`
-	ExpiresAt    time.Time `json:"expiresAt"`
+	ID           EditGrantID `json:"id"`
+	ArtifactType string      `json:"artifactType"`
+	ArtifactID   string      `json:"artifactId"`
+	GranteeEmail string      `json:"granteeEmail"`
+	ExpiresAt    time.Time   `json:"expiresAt"`
 }
 
 type ApplicationCacheProjector struct{ projections }
@@ -101,13 +101,13 @@ func NewRealizationCacheProjector(cache RealizationCacheWriter) *RealizationCach
 		capPL.SystemLinkedToCapability: on(func(ctx context.Context, p realizationPayload) error {
 			return cache.SaveRealization(ctx, CachedRealization(p))
 		}),
-		capPL.SystemRealizationDeleted: on(func(ctx context.Context, p idPayload) error {
+		capPL.SystemRealizationDeleted: on(func(ctx context.Context, p idPayload[RealizationID]) error {
 			return cache.DeleteRealization(ctx, p.ID)
 		}),
-		capPL.CapabilityDeleted: on(func(ctx context.Context, p idPayload) error {
+		capPL.CapabilityDeleted: on(func(ctx context.Context, p idPayload[CapabilityID]) error {
 			return cache.DeleteRealizationsOfCapability(ctx, p.ID)
 		}),
-		amPL.ApplicationComponentDeleted: on(func(ctx context.Context, p idPayload) error {
+		amPL.ApplicationComponentDeleted: on(func(ctx context.Context, p idPayload[ComponentID]) error {
 			return cache.DeleteRealizationsOfComponent(ctx, p.ID)
 		}),
 	}}
@@ -129,7 +129,7 @@ func NewTimeAssessmentCacheProjector(cache TimeAssessmentCacheWriter) *TimeAsses
 type EditGrantCacheProjector struct{ projections }
 
 func NewEditGrantCacheProjector(cache EditGrantCacheWriter) *EditGrantCacheProjector {
-	forget := on(func(ctx context.Context, p idPayload) error { return cache.DeleteEditGrant(ctx, p.ID) })
+	forget := on(func(ctx context.Context, p idPayload[EditGrantID]) error { return cache.DeleteEditGrant(ctx, p.ID) })
 	return &EditGrantCacheProjector{projections{
 		adPL.EditGrantActivated: on(func(ctx context.Context, p editGrantPayload) error {
 			return cache.SaveEditGrant(ctx, CachedEditGrant(p))
