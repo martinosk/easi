@@ -70,21 +70,30 @@ func (rm *OnePagerSubjectIndexReadModel) Delete(ctx context.Context, subject Sub
 	)
 }
 
-func (rm *OnePagerSubjectIndexReadModel) ApplySubjectChange(ctx context.Context, change SubjectChange) error {
-	return rm.exec(ctx,
+const completenessTransitionReturning = `RETURNING idx.subject_id, previous.required_count, previous.filled_count, idx.required_count, idx.filled_count`
+
+func (rm *OnePagerSubjectIndexReadModel) ApplySubjectChange(ctx context.Context, change SubjectChange) ([]CompletenessTransition, error) {
+	return rm.queryTransitions(ctx,
 		fmt.Sprintf("apply subject change for %s %s", change.Subject.SubjectType, change.Subject.SubjectID),
-		`UPDATE onepagers.one_pager_subject_index
-		SET name = CASE WHEN $4 = '' THEN name ELSE $4 END,
+		`WITH previous AS (
+			SELECT subject_id, required_count, filled_count FROM onepagers.one_pager_subject_index
+			WHERE tenant_id = $1 AND subject_type = $2 AND subject_id = $3
+			FOR UPDATE
+		)
+		UPDATE onepagers.one_pager_subject_index AS idx
+		SET name = CASE WHEN $4 = '' THEN idx.name ELSE $4 END,
 			required_count = $5, filled_count = $6, last_updated_at = $7
-		WHERE tenant_id = $1 AND subject_type = $2 AND subject_id = $3`,
+		FROM previous
+		WHERE idx.tenant_id = $1 AND idx.subject_type = $2 AND idx.subject_id = previous.subject_id
+		`+completenessTransitionReturning,
 		change.Subject.SubjectType, change.Subject.SubjectID, change.Name,
 		change.Counts.Required, change.Counts.Filled, change.OccurredAt,
 	)
 }
 
-func (rm *OnePagerSubjectIndexReadModel) ApplyCompleteness(ctx context.Context, subjectType string, required int, filledBySubject map[string]int) error {
+func (rm *OnePagerSubjectIndexReadModel) ApplyCompleteness(ctx context.Context, subjectType string, required int, filledBySubject map[string]int) ([]CompletenessTransition, error) {
 	if len(filledBySubject) == 0 {
-		return nil
+		return nil, nil
 	}
 	subjectIDs := make([]string, 0, len(filledBySubject))
 	filledCounts := make([]int64, 0, len(filledBySubject))
@@ -92,14 +101,54 @@ func (rm *OnePagerSubjectIndexReadModel) ApplyCompleteness(ctx context.Context, 
 		subjectIDs = append(subjectIDs, subjectID)
 		filledCounts = append(filledCounts, int64(filled))
 	}
-	return rm.exec(ctx,
+	return rm.queryTransitions(ctx,
 		fmt.Sprintf("apply completeness for %d %s subjects", len(subjectIDs), subjectType),
-		`UPDATE onepagers.one_pager_subject_index AS idx
+		`WITH previous AS (
+			SELECT subject_id, required_count, filled_count FROM onepagers.one_pager_subject_index
+			WHERE tenant_id = $1 AND subject_type = $2 AND subject_id = ANY($4::text[])
+			FOR UPDATE
+		)
+		UPDATE onepagers.one_pager_subject_index AS idx
 		SET required_count = $3, filled_count = filled.count
-		FROM unnest($4::text[], $5::int[]) AS filled(subject_id, count)
-		WHERE idx.tenant_id = $1 AND idx.subject_type = $2 AND idx.subject_id = filled.subject_id`,
+		FROM previous JOIN unnest($4::text[], $5::int[]) AS filled(subject_id, count) ON filled.subject_id = previous.subject_id
+		WHERE idx.tenant_id = $1 AND idx.subject_type = $2 AND idx.subject_id = previous.subject_id
+		`+completenessTransitionReturning,
 		subjectType, required, pq.Array(subjectIDs), pq.Array(filledCounts),
 	)
+}
+
+func (rm *OnePagerSubjectIndexReadModel) queryTransitions(ctx context.Context, description, query string, args ...any) ([]CompletenessTransition, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var transitions []CompletenessTransition
+	err = rm.db.RunInTx(ctx, func(ctx context.Context) error {
+		tx, _ := database.TxFromContext(ctx)
+		rows, queryErr := tx.QueryContext(ctx, query, append([]any{tenantID.Value()}, args...)...)
+		if queryErr != nil {
+			return queryErr
+		}
+		transitions, queryErr = scanTransitions(rows)
+		return queryErr
+	})
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", description, err)
+	}
+	return transitions, nil
+}
+
+func scanTransitions(rows *sql.Rows) ([]CompletenessTransition, error) {
+	defer func() { _ = rows.Close() }()
+	var transitions []CompletenessTransition
+	for rows.Next() {
+		var t CompletenessTransition
+		if err := rows.Scan(&t.SubjectID, &t.Previous.Required, &t.Previous.Filled, &t.Current.Required, &t.Current.Filled); err != nil {
+			return nil, err
+		}
+		transitions = append(transitions, t)
+	}
+	return transitions, rows.Err()
 }
 
 type SubjectCompleteness struct {

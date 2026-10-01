@@ -53,7 +53,7 @@ Every cache is backfilled by migration 148 (subjects) and 161 (definitions) from
 
 ## Outbound Communication
 
-**Events published**: none — the context has no published language; its event types are internal aggregate mechanics. Machine-enforced by the boundary test, which asserts the `publishedlanguage` package does not exist.
+**Events published**: `SubjectCompletenessRecalculated` (spec 227) — published by the subject-index projector whenever a subject's completeness or missing count changes; projection-published, never stored, so consumers backfill from `one_pager_subject_index`. No consumer yet. Every other event type is internal aggregate mechanics. Machine-enforced by the boundary test, which asserts the `publishedlanguage` package declares only that constant.
 
 **Commands issued**: MetaModel's `ImportSubjectAttribute`, once per legacy definition, by the startup transfer.
 
@@ -92,7 +92,7 @@ Every cache is backfilled by migration 148 (subjects) and 161 (definitions) from
 ## Boundary Health
 
 - **Zero cross-context imports**: machine-enforced by `/backend/internal/onepagers/architecture_boundary_test.go` — only `internal/shared`, other contexts' `publishedlanguage` packages, and shared eventstore/database infrastructure are importable
-- **No published language**: the context publishes nothing; consumers of its data go through its REST API only
+- **One published event**: `SubjectCompletenessRecalculated` is the whole published language; its suppliers must not consume it (`TestContextDependencyGraphIsAcyclic`)
 - **Catalog binding integrity**: every catalog entry resolves against the cached published attribute set, enforced by per-subject-type adapter tests inside the context; the composition root wires nothing for OnePagers (`TestCompositionRootOnlyRegistersRoutes`)
 
 ## Architecture Notes

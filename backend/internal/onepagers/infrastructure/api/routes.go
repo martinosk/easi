@@ -118,7 +118,13 @@ func SetupOnePagersRoutes(deps OnePagersRoutesDeps) error {
 	}
 
 	completenessCounter := queries.NewCompletenessIndicators(readModel, caches.definitions, factsReadModel, builtInFields)
-	caches.subscribeProjectors(deps.EventBus, projectors.NewSubjectIndexProjector(caches.index, completenessCounter, deps.SubjectAudit, readModel))
+	caches.subscribeProjectors(deps.EventBus, projectors.NewSubjectIndexProjector(projectors.SubjectIndexProjectorDeps{
+		Store:     caches.index,
+		Counter:   completenessCounter,
+		Audit:     deps.SubjectAudit,
+		Configs:   readModel,
+		Publisher: deps.EventBus,
+	}))
 
 	registerFactsCommands(deps.CommandBus, factsCommandWiring{
 		repo:        factsRepo,

@@ -1,0 +1,3 @@
+package publishedlanguage
+
+const SubjectCompletenessRecalculated = "SubjectCompletenessRecalculated"

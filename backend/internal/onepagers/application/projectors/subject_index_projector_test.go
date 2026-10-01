@@ -12,6 +12,7 @@ import (
 	"easi/backend/internal/onepagers/application/projectors"
 	"easi/backend/internal/onepagers/application/readmodels"
 	opevents "easi/backend/internal/onepagers/domain/events"
+	domain "easi/backend/internal/shared/eventsourcing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -42,6 +43,16 @@ type fakeIndexStore struct {
 	merges        []mergedAttributes
 	expertChanges []expertChange
 	idsByType     map[string][]string
+	counts        map[readmodels.SubjectKey]readmodels.CompletenessCounts
+}
+
+func (f *fakeIndexStore) transition(subject readmodels.SubjectKey, current readmodels.CompletenessCounts) []readmodels.CompletenessTransition {
+	previous, exists := f.counts[subject]
+	if !exists {
+		return nil
+	}
+	f.counts[subject] = current
+	return []readmodels.CompletenessTransition{{SubjectID: subject.SubjectID, Previous: previous, Current: current}}
 }
 
 func (f *fakeIndexStore) MergeAttributes(_ context.Context, subject readmodels.SubjectKey, attributes readmodels.SubjectAttributes) error {
@@ -65,6 +76,10 @@ func cachedAttributes(t *testing.T, values map[string]any) readmodels.SubjectAtt
 
 func (f *fakeIndexStore) Upsert(_ context.Context, record readmodels.SubjectIndexRecord) error {
 	f.upserts = append(f.upserts, record)
+	if f.counts == nil {
+		f.counts = map[readmodels.SubjectKey]readmodels.CompletenessCounts{}
+	}
+	f.counts[subjectKey(record.SubjectType, record.SubjectID)] = readmodels.CompletenessCounts{Required: record.RequiredCount, Filled: record.FilledCount}
 	return nil
 }
 
@@ -73,14 +88,18 @@ func (f *fakeIndexStore) Delete(_ context.Context, subject readmodels.SubjectKey
 	return nil
 }
 
-func (f *fakeIndexStore) ApplySubjectChange(_ context.Context, change readmodels.SubjectChange) error {
+func (f *fakeIndexStore) ApplySubjectChange(_ context.Context, change readmodels.SubjectChange) ([]readmodels.CompletenessTransition, error) {
 	f.changes = append(f.changes, change)
-	return nil
+	return f.transition(change.Subject, change.Counts), nil
 }
 
-func (f *fakeIndexStore) ApplyCompleteness(_ context.Context, subjectType string, required int, filledBySubject map[string]int) error {
+func (f *fakeIndexStore) ApplyCompleteness(_ context.Context, subjectType string, required int, filledBySubject map[string]int) ([]readmodels.CompletenessTransition, error) {
 	f.recomputes = append(f.recomputes, appliedCompleteness{subjectType: subjectType, required: required, filled: filledBySubject})
-	return nil
+	var transitions []readmodels.CompletenessTransition
+	for subjectID, filled := range filledBySubject {
+		transitions = append(transitions, f.transition(subjectKey(subjectType, subjectID), readmodels.CompletenessCounts{Required: required, Filled: filled})...)
+	}
+	return transitions, nil
 }
 
 func (f *fakeIndexStore) SubjectIDs(_ context.Context, subjectType string) ([]string, error) {
@@ -120,24 +139,51 @@ func (f fakeConfigLookup) GetByID(_ context.Context, id string) (*readmodels.Con
 	return &readmodels.ConfigurationRecord{ID: id, SubjectType: subjectType}, nil
 }
 
+type fakePublisher struct {
+	calls     int
+	published []domain.DomainEvent
+}
+
+func (f *fakePublisher) Publish(_ context.Context, events []domain.DomainEvent) error {
+	f.calls++
+	f.published = append(f.published, events...)
+	return nil
+}
+
 type projectorFakes struct {
-	store   *fakeIndexStore
-	counter fakeCounter
-	audit   fakeAuditReader
-	lookup  fakeConfigLookup
+	store     *fakeIndexStore
+	counter   fakeCounter
+	audit     fakeAuditReader
+	lookup    fakeConfigLookup
+	publisher *fakePublisher
 }
 
 type projectorHarness struct {
 	t         *testing.T
 	store     *fakeIndexStore
+	publisher *fakePublisher
 	projector *projectors.SubjectIndexProjector
 }
 
+func newSubjectIndexProjector(fakes projectorFakes) *projectors.SubjectIndexProjector {
+	return projectors.NewSubjectIndexProjector(projectors.SubjectIndexProjectorDeps{
+		Store:     fakes.store,
+		Counter:   fakes.counter,
+		Audit:     fakes.audit,
+		Configs:   fakes.lookup,
+		Publisher: fakes.publisher,
+	})
+}
+
 func newHarness(t *testing.T, fakes projectorFakes) *projectorHarness {
+	if fakes.publisher == nil {
+		fakes.publisher = &fakePublisher{}
+	}
 	return &projectorHarness{
 		t:         t,
 		store:     fakes.store,
-		projector: projectors.NewSubjectIndexProjector(fakes.store, fakes.counter, fakes.audit, fakes.lookup),
+		publisher: fakes.publisher,
+		projector: newSubjectIndexProjector(fakes),
 	}
 }
 
@@ -247,7 +293,7 @@ func TestSubjectIndexProjector_ExpertEvents_ResolveSubjectFromContextIdKey(t *te
 
 func TestSubjectIndexProjector_SubjectUpdateWithoutSubjectId_Errors(t *testing.T) {
 	store := &fakeIndexStore{}
-	projector := projectors.NewSubjectIndexProjector(store, fakeCounter{}, fakeAuditReader{}, fakeConfigLookup{})
+	projector := newSubjectIndexProjector(projectorFakes{store: store, publisher: &fakePublisher{}})
 
 	err := projector.ProjectEvent(context.Background(), capPL.CapabilityExpertAdded, time.Now(), []byte(`{"expertName":"Jane"}`))
 

@@ -109,18 +109,20 @@ func TestSubjectIndex_CRUDRoundtrip(t *testing.T) {
 	f := newIndexFixture(t)
 	f.seed(seedRow{subjectType: "application", subjectID: "app-1", name: "Alpha", email: "a@x.com", required: 2, filled: 1})
 
-	require.NoError(t, f.rm.ApplySubjectChange(f.ctx, readmodels.SubjectChange{
+	_, err := f.rm.ApplySubjectChange(f.ctx, readmodels.SubjectChange{
 		Subject: readmodels.SubjectKey{SubjectType: "application", SubjectID: "app-1"},
 		Name:    "Alpha Renamed", Counts: readmodels.CompletenessCounts{Required: 2, Filled: 2},
 		OccurredAt: f.baseTime.Add(48 * time.Hour),
-	}))
+	})
+	require.NoError(t, err)
 	page, _, err := f.rm.Page(f.ctx, readmodels.SubjectIndexQuery{SubjectTypes: []string{"application"}, Sort: readmodels.SortName, Order: readmodels.OrderAsc, Limit: 10})
 	require.NoError(t, err)
 	require.Len(t, page, 1)
 	assert.Equal(t, "Alpha Renamed", page[0].Name)
 	assert.Equal(t, readmodels.SignalComplete, page[0].Signal())
 
-	require.NoError(t, f.rm.ApplyCompleteness(f.ctx, "application", 3, map[string]int{"app-1": 1}))
+	_, err = f.rm.ApplyCompleteness(f.ctx, "application", 3, map[string]int{"app-1": 1})
+	require.NoError(t, err)
 	page, _, _ = f.rm.Page(f.ctx, readmodels.SubjectIndexQuery{SubjectTypes: []string{"application"}, Sort: readmodels.SortName, Limit: 10})
 	assert.Equal(t, readmodels.SignalIncomplete, page[0].Signal())
 
@@ -139,7 +141,8 @@ func TestSubjectIndex_ApplyCompletenessBatchesAllSubjectsOfType(t *testing.T) {
 	f.seed(seedRow{subjectType: "application", subjectID: "app-2", name: "Beta", email: "b@x.com", required: 1, filled: 0})
 	f.seed(seedRow{subjectType: "vendor", subjectID: "ven-1", name: "Vend", email: "v@x.com", required: 1, filled: 0})
 
-	require.NoError(t, f.rm.ApplyCompleteness(f.ctx, "application", 2, map[string]int{"app-1": 2, "app-2": 1}))
+	_, err := f.rm.ApplyCompleteness(f.ctx, "application", 2, map[string]int{"app-1": 2, "app-2": 1})
+	require.NoError(t, err)
 
 	apps := f.allPages(readmodels.SubjectIndexQuery{SubjectTypes: []string{"application"}, Sort: readmodels.SortName, Order: readmodels.OrderAsc, Limit: 10})
 	require.Len(t, apps, 2)
@@ -152,6 +155,35 @@ func TestSubjectIndex_ApplyCompletenessBatchesAllSubjectsOfType(t *testing.T) {
 	require.Len(t, vendors, 1)
 	assert.Equal(t, 1, vendors[0].RequiredCount)
 	assert.Equal(t, 0, vendors[0].FilledCount)
+}
+
+func TestSubjectIndex_CompletenessWritesReturnPreviousAndCurrentCounts(t *testing.T) {
+	f := newIndexFixture(t)
+	f.seed(seedRow{subjectType: "application", subjectID: "app-1", name: "Alpha", email: "a@x.com", required: 3, filled: 1})
+	f.seed(seedRow{subjectType: "application", subjectID: "app-2", name: "Beta", email: "b@x.com", required: 3, filled: 3})
+
+	transitions, err := f.rm.ApplyCompleteness(f.ctx, "application", 4, map[string]int{"app-1": 2, "app-2": 3, "app-missing": 1})
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []readmodels.CompletenessTransition{
+		{SubjectID: "app-1", Previous: readmodels.CompletenessCounts{Required: 3, Filled: 1}, Current: readmodels.CompletenessCounts{Required: 4, Filled: 2}},
+		{SubjectID: "app-2", Previous: readmodels.CompletenessCounts{Required: 3, Filled: 3}, Current: readmodels.CompletenessCounts{Required: 4, Filled: 3}},
+	}, transitions, "only existing rows transition")
+
+	transitions, err = f.rm.ApplySubjectChange(f.ctx, readmodels.SubjectChange{
+		Subject: readmodels.SubjectKey{SubjectType: "application", SubjectID: "app-1"},
+		Counts:  readmodels.CompletenessCounts{Required: 4, Filled: 4}, OccurredAt: f.baseTime,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []readmodels.CompletenessTransition{
+		{SubjectID: "app-1", Previous: readmodels.CompletenessCounts{Required: 4, Filled: 2}, Current: readmodels.CompletenessCounts{Required: 4, Filled: 4}},
+	}, transitions)
+
+	transitions, err = f.rm.ApplySubjectChange(f.ctx, readmodels.SubjectChange{
+		Subject: readmodels.SubjectKey{SubjectType: "application", SubjectID: "app-missing"},
+		Counts:  readmodels.CompletenessCounts{Required: 4, Filled: 4}, OccurredAt: f.baseTime,
+	})
+	require.NoError(t, err)
+	assert.Empty(t, transitions)
 }
 
 func TestSubjectIndex_PaginationIsTotalOrderPerSort(t *testing.T) {

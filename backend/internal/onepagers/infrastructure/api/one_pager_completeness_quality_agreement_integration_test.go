@@ -18,6 +18,7 @@ import (
 	"easi/backend/internal/onepagers/infrastructure/adapters"
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
+	"easi/backend/internal/shared/events"
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 	"easi/backend/internal/testing/testdb"
 
@@ -50,7 +51,9 @@ func TestCompletenessEndpointAndQualityList_AgreeAfterARelationIsAdded(t *testin
 	configs := readmodels.NewOnePagerConfigurationReadModel(tenantDB)
 	counter := queries.NewCompletenessIndicators(configs, readmodels.NewCustomFieldDefinitionCacheReadModel(tenantDB), readmodels.NewOnePagerFactsReadModel(tenantDB),
 		adapters.NewOnePagerBuiltInFieldSources(tenantDB))
-	indexProjector := projectors.NewSubjectIndexProjector(index, counter, adapters.NewSubjectAuditAdapter(tenantDB), configs)
+	indexProjector := projectors.NewSubjectIndexProjector(projectors.SubjectIndexProjectorDeps{
+		Store: index, Counter: counter, Audit: adapters.NewSubjectAuditAdapter(tenantDB), Configs: configs, Publisher: events.NewInMemoryEventBus(),
+	})
 	relationProjector := projectors.NewSubjectRelationProjector(relations, readmodels.NewBusinessDomainNameCacheReadModel(tenantDB), indexProjector)
 
 	require.NoError(t, index.Upsert(ctx, readmodels.SubjectIndexRecord{

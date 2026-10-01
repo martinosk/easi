@@ -33,3 +33,34 @@ func TestSubjectIndexRecordSignal(t *testing.T) {
 		})
 	}
 }
+
+func TestCompletenessTransitionChanged(t *testing.T) {
+	cases := []struct {
+		name     string
+		previous readmodels.CompletenessCounts
+		current  readmodels.CompletenessCounts
+		changed  bool
+	}{
+		{"filling the last missing field", readmodels.CompletenessCounts{Required: 3, Filled: 2}, readmodels.CompletenessCounts{Required: 3, Filled: 3}, true},
+		{"clearing a required field", readmodels.CompletenessCounts{Required: 4, Filled: 4}, readmodels.CompletenessCounts{Required: 4, Filled: 3}, true},
+		{"missing count alone changes", readmodels.CompletenessCounts{Required: 5, Filled: 2}, readmodels.CompletenessCounts{Required: 5, Filled: 3}, true},
+		{"nothing changes", readmodels.CompletenessCounts{Required: 3, Filled: 1}, readmodels.CompletenessCounts{Required: 3, Filled: 1}, false},
+		{"required and filled grow together", readmodels.CompletenessCounts{Required: 2, Filled: 2}, readmodels.CompletenessCounts{Required: 3, Filled: 3}, false},
+		{"over-filled stays complete", readmodels.CompletenessCounts{Required: 2, Filled: 3}, readmodels.CompletenessCounts{Required: 2, Filled: 2}, false},
+		{"requirements removed", readmodels.CompletenessCounts{Required: 1, Filled: 1}, readmodels.CompletenessCounts{Required: 0, Filled: 0}, true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			transition := readmodels.CompletenessTransition{SubjectID: "s-1", Previous: tc.previous, Current: tc.current}
+			assert.Equal(t, tc.changed, transition.Changed())
+		})
+	}
+}
+
+func TestCompletenessCountsSignalAndMissing(t *testing.T) {
+	counts := readmodels.CompletenessCounts{Required: 3, Filled: 1}
+	assert.Equal(t, readmodels.SignalIncomplete, counts.Signal())
+	assert.Equal(t, 2, counts.Missing())
+	assert.Equal(t, readmodels.SignalNotApplicable, readmodels.CompletenessCounts{}.Signal())
+}

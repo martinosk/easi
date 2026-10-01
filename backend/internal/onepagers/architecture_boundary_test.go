@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -110,15 +111,63 @@ func forbiddenImports(path string) ([]string, error) {
 	return forbidden, nil
 }
 
-func TestOnePagersExposesNoPublishedLanguage(t *testing.T) {
-	root, err := filepath.Abs(".")
+func TestOnePagersPublishesOnlySubjectCompletenessRecalculated(t *testing.T) {
+	declared, err := publishedLanguageDeclarations(filepath.Join(".", "publishedlanguage"))
 	if err != nil {
-		t.Fatalf("failed to resolve onepagers root: %v", err)
+		t.Fatalf("failed to parse onepagers publishedlanguage: %v", err)
 	}
 
-	if _, err := os.Stat(filepath.Join(root, "publishedlanguage")); !os.IsNotExist(err) {
-		t.Error("BOUNDARY VIOLATION: internal/onepagers must not expose a publishedlanguage package — onepagers publishes no events to other contexts; its event types are internal aggregate mechanics")
+	if !slices.Equal(declared, []string{"const SubjectCompletenessRecalculated"}) {
+		t.Errorf("BOUNDARY VIOLATION: internal/onepagers/publishedlanguage must declare only the constant SubjectCompletenessRecalculated, found %v — a new published event needs its own spec", declared)
 	}
+}
+
+func publishedLanguageDeclarations(dir string) ([]string, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	var declared []string
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") {
+			declared = append(declared, "file "+entry.Name())
+			continue
+		}
+		file, err := parser.ParseFile(token.NewFileSet(), filepath.Join(dir, entry.Name()), nil, 0)
+		if err != nil {
+			return nil, err
+		}
+		declared = append(declared, fileDeclarations(file)...)
+	}
+	return declared, nil
+}
+
+func fileDeclarations(file *ast.File) []string {
+	var declared []string
+	for _, decl := range file.Decls {
+		gen, ok := decl.(*ast.GenDecl)
+		if !ok {
+			declared = append(declared, "func")
+			continue
+		}
+		declared = append(declared, genDeclarations(gen)...)
+	}
+	return declared
+}
+
+func genDeclarations(gen *ast.GenDecl) []string {
+	var declared []string
+	for _, spec := range gen.Specs {
+		value, ok := spec.(*ast.ValueSpec)
+		if !ok {
+			declared = append(declared, gen.Tok.String())
+			continue
+		}
+		for _, name := range value.Names {
+			declared = append(declared, gen.Tok.String()+" "+name.Name)
+		}
+	}
+	return declared
 }
 
 func TestArchitectureBoundary(t *testing.T) {

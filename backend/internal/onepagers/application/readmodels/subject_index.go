@@ -39,8 +39,18 @@ type SubjectChange struct {
 	OccurredAt time.Time
 }
 
-func (r SubjectIndexRecord) Signal() string {
-	switch r.CompletenessBucket() {
+type CompletenessTransition struct {
+	SubjectID string
+	Previous  CompletenessCounts
+	Current   CompletenessCounts
+}
+
+func (t CompletenessTransition) Changed() bool {
+	return t.Previous.Signal() != t.Current.Signal() || t.Previous.Missing() != t.Current.Missing()
+}
+
+func (c CompletenessCounts) Signal() string {
+	switch c.bucket() {
 	case bucketNotApplicable:
 		return SignalNotApplicable
 	case bucketComplete:
@@ -50,20 +60,32 @@ func (r SubjectIndexRecord) Signal() string {
 	}
 }
 
-func (r SubjectIndexRecord) CompletenessBucket() int {
-	if r.RequiredCount == 0 {
+func (c CompletenessCounts) bucket() int {
+	if c.Required == 0 {
 		return bucketNotApplicable
 	}
-	if r.FilledCount >= r.RequiredCount {
+	if c.Filled >= c.Required {
 		return bucketComplete
 	}
 	return bucketIncomplete
 }
 
+func (c CompletenessCounts) Missing() int {
+	return max(c.Required-c.Filled, 0)
+}
+
+func (r SubjectIndexRecord) counts() CompletenessCounts {
+	return CompletenessCounts{Required: r.RequiredCount, Filled: r.FilledCount}
+}
+
+func (r SubjectIndexRecord) Signal() string {
+	return r.counts().Signal()
+}
+
+func (r SubjectIndexRecord) CompletenessBucket() int {
+	return r.counts().bucket()
+}
+
 func (r SubjectIndexRecord) MissingCount() int {
-	missing := r.RequiredCount - r.FilledCount
-	if missing < 0 {
-		return 0
-	}
-	return missing
+	return r.counts().Missing()
 }

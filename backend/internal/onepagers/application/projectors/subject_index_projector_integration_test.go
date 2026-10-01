@@ -34,6 +34,7 @@ type indexProjectorFixture struct {
 	index     *readmodels.OnePagerSubjectIndexReadModel
 	configs   *readmodels.OnePagerConfigurationReadModel
 	projector *projectors.SubjectIndexProjector
+	publisher *fakePublisher
 	configID  string
 	appID     string
 }
@@ -63,10 +64,13 @@ func newIndexProjectorFixture(t *testing.T) *indexProjectorFixture {
 	counter := queries.NewCompletenessIndicators(configs, readmodels.NewCustomFieldDefinitionCacheReadModel(tenantDB),
 		readmodels.NewOnePagerFactsReadModel(tenantDB), adapters.NewOnePagerBuiltInFieldSources(tenantDB))
 
+	publisher := &fakePublisher{}
 	return &indexProjectorFixture{
 		t: t, ctx: sharedctx.WithTenant(context.Background(), tenantID), tenant: tenant, tenantDB: tenantDB,
-		index: index, configs: configs, appID: "app-e2e",
-		projector: projectors.NewSubjectIndexProjector(index, counter, adapters.NewSubjectAuditAdapter(tenantDB), configs),
+		index: index, configs: configs, appID: "app-e2e", publisher: publisher,
+		projector: projectors.NewSubjectIndexProjector(projectors.SubjectIndexProjectorDeps{
+			Store: index, Counter: counter, Audit: adapters.NewSubjectAuditAdapter(tenantDB), Configs: configs, Publisher: publisher,
+		}),
 	}
 }
 
@@ -174,6 +178,13 @@ func TestSubjectIndexProjector_EndToEnd_OverOwnedCaches(t *testing.T) {
 	f.project(amPL.ApplicationComponentDeleted, created.Add(3*time.Hour), map[string]any{"id": f.appID})
 	_, found = f.row()
 	assert.False(t, found, "deleted subject no longer appears")
+
+	h := &projectorHarness{t: t, publisher: f.publisher}
+	assert.Equal(t, []publishedCompleteness{
+		{"application", f.appID, "incomplete", 1, 1},
+		{"application", f.appID, "complete", 1, 0},
+		{"application", f.appID, "not-applicable", 0, 0},
+	}, h.publishedCompleteness(), "each completeness change is published once, deletion publishes nothing")
 }
 
 func TestSubjectIndexProjector_Created_ComputesCompletenessFromTheJustWrittenAttributes(t *testing.T) {

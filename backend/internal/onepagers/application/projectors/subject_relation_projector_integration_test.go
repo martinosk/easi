@@ -59,7 +59,9 @@ func newRelationCacheFixture(t *testing.T) *relationCacheFixture {
 	configs := readmodels.NewOnePagerConfigurationReadModel(tenantDB)
 	counter := queries.NewCompletenessIndicators(configs, readmodels.NewCustomFieldDefinitionCacheReadModel(tenantDB),
 		readmodels.NewOnePagerFactsReadModel(tenantDB), adapters.NewOnePagerBuiltInFieldSources(tenantDB))
-	indexProjector := projectors.NewSubjectIndexProjector(index, counter, adapters.NewSubjectAuditAdapter(tenantDB), configs)
+	indexProjector := projectors.NewSubjectIndexProjector(projectors.SubjectIndexProjectorDeps{
+		Store: index, Counter: counter, Audit: adapters.NewSubjectAuditAdapter(tenantDB), Configs: configs, Publisher: &fakePublisher{},
+	})
 	return &relationCacheFixture{
 		t: t, ctx: sharedctx.WithTenant(context.Background(), tenantID), tenant: tenant,
 		index: index, relations: relations, configs: configs,

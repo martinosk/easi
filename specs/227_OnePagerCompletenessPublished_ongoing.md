@@ -1,6 +1,6 @@
 # 227 — One-Pager Completeness Published
 
-> **Status:** pending
+> **Status:** ongoing
 > **Depends on:** 208 (completeness served by OnePagers from the subject index), 209 (events-only integration)
 > **Roadmap alignment:** `SD8 / H2-6` — slice B of [`docs/specs/personal-home.md`](../docs/specs/personal-home.md) (decision D6)
 
@@ -109,15 +109,15 @@ Feature: One-pager completeness is published
 
 ## Acceptance Criteria
 
-- [ ] `onepagers/publishedlanguage` exists with the single constant `SubjectCompletenessRecalculated`; `TestOnePagersExposesNoPublishedLanguage` is replaced by a guard asserting the package declares only that constant
-- [ ] Each subject-index write path (create, subject update, fact recorded/cleared/archived, configuration change, relation recompute) publishes per rules 2–3, with a projector test per path covering the change and the no-change case
-- [ ] A new subject publishes its first completeness, including `not-applicable` for a type with no requirements
-- [ ] Deleting a subject publishes nothing
-- [ ] The event payload carries every field of rule 1; a payload test pins the field names
-- [ ] One-Pager Quality and the completeness map return identical results before and after (existing tests unchanged and passing)
-- [ ] `docs/backend/cross-context-events.md` lists OnePagers' published event with a note that it is projection-published and needs a backfill; `docs/architecture/OnePagers.md` no longer says "Events published: none"
-- [ ] Every BDD scenario has at least one corresponding test
-- [ ] Every modified file scores 10.0 per `easi-codehealth`
+- [x] `onepagers/publishedlanguage` exists with the single constant `SubjectCompletenessRecalculated`; `TestOnePagersExposesNoPublishedLanguage` is replaced by a guard asserting the package declares only that constant
+- [x] Each subject-index write path (create, subject update, fact recorded/cleared/archived, configuration change, relation recompute) publishes per rules 2–3, with a projector test per path covering the change and the no-change case
+- [x] A new subject publishes its first completeness, including `not-applicable` for a type with no requirements
+- [x] Deleting a subject publishes nothing
+- [x] The event payload carries every field of rule 1; a payload test pins the field names
+- [x] One-Pager Quality and the completeness map return identical results before and after (existing tests unchanged and passing)
+- [x] `docs/backend/cross-context-events.md` lists OnePagers' published event with a note that it is projection-published and needs a backfill; `docs/architecture/OnePagers.md` no longer says "Events published: none"
+- [x] Every BDD scenario has at least one corresponding test
+- [x] Every modified file scores 10.0 per `easi-codehealth`
 
 ---
 
@@ -130,7 +130,7 @@ OnePagers owns the event. No other context changes in this slice.
 ### Domain Model
 
 - **`SubjectCompletenessRecalculated`** — an event struct in `onepagers/domain/events` in the `EffectiveImportanceRecalculated` shape (`BaseEvent` plus `EventData()`), aggregate id = subject id.
-- **Change detection** — the subject-index store returns the previous (completeness, missing count) for every row it writes, from the same statement (`UPDATE … RETURNING` against the pre-update values, or a read-before-write in the transaction). The projector compares previous and new values and collects events for changed subjects. Today no store method returns previous state; this is the one structural change.
+- **Change detection** — the subject-index store returns a `CompletenessTransition` (previous and current required/filled counts) for every row it writes, from one statement: a `FOR UPDATE` CTE reads the pre-update values and the `UPDATE … RETURNING` joins them. A newly created subject is published unconditionally ("from no row"). The projector compares previous and new values and collects events for changed subjects. Today no store method returns previous state; this is the one structural change.
 - The projector receives `events.EventBus` from `SetupRoutes` (already available as `deps.EventBus`) and publishes the collected events once per handled event.
 
 ### API Surface
@@ -172,8 +172,8 @@ No schema change. The subject index is read as it is; the returned previous valu
 ## Checklist
 
 - [x] Specification ready
-- [ ] Implementation done
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
-- [ ] API documentation updated
+- [x] Implementation done
+- [x] Unit tests implemented and passing
+- [x] Integration tests implemented if relevant
+- [x] API documentation updated
 - [ ] User sign-off

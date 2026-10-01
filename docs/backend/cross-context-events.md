@@ -12,6 +12,7 @@ backend/internal/metamodel/publishedlanguage/events.go
 backend/internal/accessdelegation/publishedlanguage/events.go
 backend/internal/valuestreams/publishedlanguage/events.go
 backend/internal/architecturedirection/publishedlanguage/events.go
+backend/internal/onepagers/publishedlanguage/events.go
 ```
 
 These packages contain **only constants**. No structs, no constructors, no logic.
@@ -282,6 +283,14 @@ const (
     TenantCreated = "TenantCreated"
 )
 ```
+
+### OnePagers (`opPL`)
+
+```go
+const SubjectCompletenessRecalculated = "SubjectCompletenessRecalculated"
+```
+
+Projection-published (spec 227): the `SubjectIndexProjector` publishes it, in the transaction of the index write, for every subject whose completeness or missing count changed, including a new subject's first computation; deletions publish nothing. Payload: `subjectType`, `subjectId`, `completeness` (`complete` | `incomplete` | `not-applicable`), `requiredCount`, `missingCount`, `recalculatedAt`. It is not stored and cannot be replayed, so a consumer seeds its cache with a backfill migration from `onepagers.one_pager_subject_index`. Contexts OnePagers consumes from (Architecture Modeling, Capability Mapping, MetaModel, Auth) must not subscribe — the dependency graph would cycle. The boundary test asserts the package declares only this constant.
 
 ## Cross-Context Subscription Registry
 

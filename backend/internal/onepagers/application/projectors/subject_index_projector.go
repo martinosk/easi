@@ -18,8 +18,8 @@ import (
 type SubjectIndexStore interface {
 	Upsert(ctx context.Context, record readmodels.SubjectIndexRecord) error
 	Delete(ctx context.Context, subject readmodels.SubjectKey) error
-	ApplySubjectChange(ctx context.Context, change readmodels.SubjectChange) error
-	ApplyCompleteness(ctx context.Context, subjectType string, required int, filledBySubject map[string]int) error
+	ApplySubjectChange(ctx context.Context, change readmodels.SubjectChange) ([]readmodels.CompletenessTransition, error)
+	ApplyCompleteness(ctx context.Context, subjectType string, required int, filledBySubject map[string]int) ([]readmodels.CompletenessTransition, error)
 	SubjectIDs(ctx context.Context, subjectType string) ([]string, error)
 	MergeAttributes(ctx context.Context, subject readmodels.SubjectKey, attributes readmodels.SubjectAttributes) error
 	ApplyExpertChange(ctx context.Context, subject readmodels.SubjectKey, expert readmodels.SubjectExpert, added bool) error
@@ -33,15 +33,34 @@ type ConfigurationLookup interface {
 	GetByID(ctx context.Context, id string) (*readmodels.ConfigurationRecord, error)
 }
 
-type SubjectIndexProjector struct {
-	store   SubjectIndexStore
-	counter CompletenessCounter
-	audit   ports.SubjectAuditReader
-	configs ConfigurationLookup
+type CompletenessPublisher interface {
+	Publish(ctx context.Context, events []domain.DomainEvent) error
 }
 
-func NewSubjectIndexProjector(store SubjectIndexStore, counter CompletenessCounter, audit ports.SubjectAuditReader, configs ConfigurationLookup) *SubjectIndexProjector {
-	return &SubjectIndexProjector{store: store, counter: counter, audit: audit, configs: configs}
+type SubjectIndexProjectorDeps struct {
+	Store     SubjectIndexStore
+	Counter   CompletenessCounter
+	Audit     ports.SubjectAuditReader
+	Configs   ConfigurationLookup
+	Publisher CompletenessPublisher
+}
+
+type SubjectIndexProjector struct {
+	store     SubjectIndexStore
+	counter   CompletenessCounter
+	audit     ports.SubjectAuditReader
+	configs   ConfigurationLookup
+	publisher CompletenessPublisher
+}
+
+func NewSubjectIndexProjector(deps SubjectIndexProjectorDeps) *SubjectIndexProjector {
+	return &SubjectIndexProjector{
+		store:     deps.Store,
+		counter:   deps.Counter,
+		audit:     deps.Audit,
+		configs:   deps.Configs,
+		publisher: deps.Publisher,
+	}
 }
 
 var subjectTypeByCreationEvent = map[string]string{
@@ -193,7 +212,11 @@ func (p *SubjectIndexProjector) onCreated(ctx context.Context, event projectedEv
 		return err
 	}
 
-	return p.recompute(ctx, subject.SubjectType, []string{subject.SubjectID})
+	transitions, err := p.applyCompleteness(ctx, subject.SubjectType, []string{subject.SubjectID})
+	if err != nil {
+		return err
+	}
+	return p.publish(ctx, subject.SubjectType, transitions)
 }
 
 func (p *SubjectIndexProjector) onDeleted(ctx context.Context, event projectedEvent) error {
@@ -222,12 +245,16 @@ func (p *SubjectIndexProjector) onSubjectChanged(ctx context.Context, event proj
 	if err != nil {
 		return err
 	}
-	return p.store.ApplySubjectChange(ctx, readmodels.SubjectChange{
+	transitions, err := p.store.ApplySubjectChange(ctx, readmodels.SubjectChange{
 		Subject:    subject,
 		Name:       changed.Name,
 		Counts:     counts,
 		OccurredAt: event.occurredAt,
 	})
+	if err != nil {
+		return err
+	}
+	return p.publish(ctx, subject.SubjectType, changedOnly(transitions))
 }
 
 func (p *SubjectIndexProjector) countsFor(ctx context.Context, subject readmodels.SubjectKey) (readmodels.CompletenessCounts, error) {
@@ -304,15 +331,48 @@ func (p *SubjectIndexProjector) Recompute(ctx context.Context, subjectType strin
 }
 
 func (p *SubjectIndexProjector) recompute(ctx context.Context, subjectType string, subjectIDs []string) error {
+	transitions, err := p.applyCompleteness(ctx, subjectType, subjectIDs)
+	if err != nil {
+		return err
+	}
+	return p.publish(ctx, subjectType, changedOnly(transitions))
+}
+
+func (p *SubjectIndexProjector) applyCompleteness(ctx context.Context, subjectType string, subjectIDs []string) ([]readmodels.CompletenessTransition, error) {
 	if len(subjectIDs) == 0 {
-		return nil
+		return nil, nil
 	}
 	required, filled, err := p.counter.CountsForSubjects(ctx, subjectType, subjectIDs)
 	if err != nil {
-		return fmt.Errorf("compute completeness for %s subjects: %w", subjectType, err)
+		return nil, fmt.Errorf("compute completeness for %s subjects: %w", subjectType, err)
 	}
-	if err := p.store.ApplyCompleteness(ctx, subjectType, required, filled); err != nil {
-		return fmt.Errorf("apply completeness for %s subjects: %w", subjectType, err)
+	transitions, err := p.store.ApplyCompleteness(ctx, subjectType, required, filled)
+	if err != nil {
+		return nil, fmt.Errorf("apply completeness for %s subjects: %w", subjectType, err)
+	}
+	return transitions, nil
+}
+
+func changedOnly(transitions []readmodels.CompletenessTransition) []readmodels.CompletenessTransition {
+	return slices.DeleteFunc(transitions, func(t readmodels.CompletenessTransition) bool { return !t.Changed() })
+}
+
+func (p *SubjectIndexProjector) publish(ctx context.Context, subjectType string, transitions []readmodels.CompletenessTransition) error {
+	if len(transitions) == 0 {
+		return nil
+	}
+	recalculated := make([]domain.DomainEvent, 0, len(transitions))
+	for _, t := range transitions {
+		recalculated = append(recalculated, opevents.NewSubjectCompletenessRecalculated(opevents.SubjectCompleteness{
+			SubjectType:   subjectType,
+			SubjectID:     t.SubjectID,
+			Completeness:  t.Current.Signal(),
+			RequiredCount: t.Current.Required,
+			MissingCount:  t.Current.Missing(),
+		}))
+	}
+	if err := p.publisher.Publish(ctx, recalculated); err != nil {
+		return fmt.Errorf("publish completeness of %d %s subjects: %w", len(recalculated), subjectType, err)
 	}
 	return nil
 }
