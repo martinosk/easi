@@ -1,6 +1,6 @@
 import { Menu, Tooltip, UnstyledButton } from '@mantine/core';
 import { useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import logo from '../../assets/logo.svg';
 import type { AppView } from '../../routes/routePaths';
 import { ROUTES } from '../../routes/routePaths';
@@ -8,6 +8,7 @@ import { useUserStore } from '../../store/userStore';
 import {
   BusinessDomainsIcon,
   CanvasIcon,
+  HomeIcon,
   MoreIcon,
   OnePagerQualityIcon,
   ReleaseNotesIcon,
@@ -41,7 +42,8 @@ interface NavEntry {
 }
 
 const NAV_ENTRIES: readonly NavEntry[] = [
-  { view: 'canvas', route: ROUTES.HOME, label: 'Architecture Canvas', testId: 'nav-canvas', icon: CanvasIcon },
+  { view: 'home', route: ROUTES.HOME, label: 'Home', testId: 'nav-home', icon: HomeIcon },
+  { view: 'canvas', route: ROUTES.CANVAS, label: 'Architecture Canvas', testId: 'nav-canvas', icon: CanvasIcon },
   {
     view: 'business-domains',
     route: ROUTES.BUSINESS_DOMAINS,
@@ -218,10 +220,10 @@ export function AppNavigation({ currentView, onOpenReleaseNotes, chatButton }: A
 
   return (
     <header className={classes.header} data-testid="app-navigation">
-      <div className={classes.brand}>
-        <img src={logo} alt="easi logo" className={classes.logo} />
+      <UnstyledButton component={Link} to={ROUTES.HOME} className={classes.brand} aria-label="EASI home">
+        <img src={logo} alt="" className={classes.logo} />
         <span className={classes.wordmark}>easi</span>
-      </div>
+      </UnstyledButton>
 
       <PrimaryNav currentView={currentView} onNavigate={handleNavigate} />
 

@@ -9,6 +9,7 @@ import (
 
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/stewardship/application/commands"
+	"easi/backend/internal/stewardship/domain/events"
 	"easi/backend/internal/stewardship/domain/valueobjects"
 )
 
@@ -24,7 +25,7 @@ func TestReleaseSteward_EndsTheStewardship(t *testing.T) {
 	_, err = f.releaseHandler().Handle(context.Background(), release("domain-1", "assessment"))
 
 	require.NoError(t, err)
-	assert.True(t, f.repo.only().IsReleased())
+	assert.IsType(t, events.StewardReleased{}, f.repo.recorded[len(f.repo.recorded)-1])
 	_, live, _ := f.repo.FindLiveStewardshipID(context.Background(), "domain-1", "assessment")
 	assert.False(t, live)
 }

@@ -9,6 +9,7 @@ import (
 
 	domain "easi/backend/internal/shared/eventsourcing"
 	"easi/backend/internal/stewardship/domain/aggregates"
+	"easi/backend/internal/stewardship/domain/events"
 	"easi/backend/internal/stewardship/domain/valueobjects"
 )
 
@@ -39,9 +40,23 @@ func TestStewardshipDeserializers_RoundTrip(t *testing.T) {
 	loaded, err := aggregates.LoadStewardshipFromHistory(deserialized)
 	require.NoError(t, err)
 	assert.Equal(t, original.ID(), loaded.ID())
-	assert.Equal(t, "domain-1", loaded.DomainID())
-	assert.Equal(t, "planning", loaded.Concern().Value())
-	assert.Equal(t, "jonas", loaded.Steward().Value())
-	assert.Equal(t, original.AssignedAt().UTC(), loaded.AssignedAt().UTC())
-	assert.True(t, loaded.IsReleased())
+	assert.Equal(t, 3, loaded.Version())
+	assert.ErrorIs(t, loaded.Assign(mette, "bob@example.com"), aggregates.ErrStewardshipReleased)
+}
+
+func TestStewardshipDeserializers_RestoreEveryRecordedField(t *testing.T) {
+	concern, _ := valueobjects.NewConcern("planning")
+	mette, _ := valueobjects.NewStewardRef("mette", valueobjects.UserActive)
+	original, err := aggregates.NewStewardship(aggregates.Assignment{DomainID: "domain-1", Concern: concern, Steward: mette, AssignedBy: "alice@example.com"})
+	require.NoError(t, err)
+	require.NoError(t, original.Release("bob@example.com"))
+	raised := original.GetUncommittedChanges()
+
+	deserialized, err := stewardshipEventDeserializers.Deserialize(storedCopies(t, raised))
+
+	require.NoError(t, err)
+	require.Len(t, deserialized, 2)
+	assigned, released := deserialized[0].(events.StewardAssigned), deserialized[1].(events.StewardReleased)
+	assert.Equal(t, raised[0].EventData(), assigned.EventData())
+	assert.Equal(t, raised[1].EventData(), released.EventData())
 }

@@ -443,13 +443,20 @@ Expert names arrive on the expert events themselves (`expertName`, `expertRole`,
 
 ### Stewardship consumes from:
 
-All subscriptions are wired in `stewardship/infrastructure/api/routes.go` `SetupRoutes()`; both caches are backfilled by migration 167 (spec 226).
+All subscriptions are wired in `stewardship/infrastructure/api/routes.go` `SetupRoutes()` and, for the home read side, `home_routes.go` `setupHome()`. The domain and user caches are backfilled by migration 167 (spec 226); the home caches by migration 169 (spec 228). The home projectors live in `stewardship/application/home`, apart from the write side.
 
 | Supplier | Events | Projector | Cache | Purpose |
 |----------|--------|-----------|-------|---------|
 | Capability Mapping (`capPL`) | `BusinessDomainCreated/Updated` | `DomainCacheProjector` | `domain_cache` (existence, name, domain architect id) | Domain existence for commands and reads; fallback to the domain architect |
 | Capability Mapping (`capPL`) | `BusinessDomainDeleted` | `DomainDeletionReactor` (dispatches `ReleaseSteward` per live stewardship as `system:domain-deleted`, then forgets the domain) | `domain_cache` | Domain deletion releases its stewardships |
 | Auth (`authPL`) | `UserCreated`, `UserDisabled`, `UserEnabled` | `UserCacheProjector` | `user_cache` (name, email, active) | Steward and fallback names; only active users are assignable |
+| Capability Mapping (`capPL`) | `CapabilityCreated/Updated/Deleted`, `CapabilityMetadataUpdated`, `CapabilityParentChanged`, `CapabilityLevelChanged` | `CapabilityCacheProjector` | `capability_cache` (name, level, parent, status, EA owner) | Home portfolio, effective domains and EA-owner anchors |
+| Capability Mapping (`capPL`) | `CapabilityAssignedToDomain/UnassignedFromDomain`, `CapabilityDeleted`, `BusinessDomainDeleted` | `DomainAssignmentCacheProjector` | `domain_assignment_cache` (L1 capability, domain) | Effective domains of capabilities and applications |
+| Capability Mapping (`capPL`) | `SystemLinkedToCapability`, `SystemRealizationDeleted`, `CapabilityDeleted` | `RealizationCacheProjector` | `realization_cache` (direct realizations only) | Portfolio applications and the TIME distribution |
+| Architecture Modeling (`archPL`) | `ApplicationComponentDeleted` | `RealizationCacheProjector` | `realization_cache` | Forget the realizations of a deleted application |
+| Architecture Modeling (`archPL`) | `ApplicationComponentCreated/Updated/Deleted`, `ApplicationOwnerNominated`, `ApplicationOwnershipConfirmed`, `ApplicationOwnerAssigned`, `ApplicationOwnershipCleared` | `ApplicationCacheProjector` | `application_cache` (name, ownership state, owner kind and id) | Application-owner anchors and portfolio applications |
+| Architecture Direction (`directionPL`) | `TimeAssessmentRecorded`, `TimeAssessmentRemoved` | `TimeAssessmentCacheProjector` | `time_assessment_cache` (grade per capability–application pair) | TIME tile and dominant grade on My Work |
+| Access Delegation (`adPL`) | `EditGrantActivated`, `EditGrantRevoked`, `EditGrantExpired` | `EditGrantCacheProjector` | `edit_grant_cache` (artifact, grantee e-mail, expiry; personal data) | Edit-grant anchors; expiry is evaluated at read time |
 
 ## Adding a New Cross-Context Event
 

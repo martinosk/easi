@@ -23,14 +23,18 @@ export async function resetBackendData(request: APIRequestContext): Promise<void
   await deleteAll(request, '/api/v1/components');
 }
 
-export async function openApp(page: Page, request: APIRequestContext): Promise<void> {
-  await resetBackendData(request);
+export async function dismissReleaseNotes(page: Page, request: APIRequestContext): Promise<void> {
   const response = await request.get(`${API_URL}/api/v1/version`);
   const { version } = (await response.json()) as { version: string };
   await page.addInitScript((dismissedVersion) => {
     localStorage.setItem('releaseNotesPreferences', JSON.stringify({ dismissedVersion, dismissMode: 'forever' }));
   }, version);
-  await page.goto('/');
+}
+
+export async function openApp(page: Page, request: APIRequestContext): Promise<void> {
+  await resetBackendData(request);
+  await dismissReleaseNotes(page, request);
+  await page.goto('/canvas');
   await page.waitForSelector('[data-testid="canvas-loaded"]', { state: 'visible', timeout: 30000 });
   await page.waitForTimeout(500);
 }

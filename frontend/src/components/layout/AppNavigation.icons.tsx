@@ -1,6 +1,7 @@
 import {
   IconClipboardCheck,
   IconDots,
+  IconHome,
   IconMap2,
   IconMessage,
   IconRoute,
@@ -13,6 +14,8 @@ import {
 
 const ICON_SIZE = 18;
 const ICON_STROKE = 1.75;
+
+export const HomeIcon = <IconHome size={ICON_SIZE} stroke={ICON_STROKE} />;
 
 export const CanvasIcon = <IconTopologyStar3 size={ICON_SIZE} stroke={ICON_STROKE} />;
 

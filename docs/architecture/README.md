@@ -15,7 +15,7 @@ All locations are relative to `/backend/internal/`.
 | Architecture Direction | Core | Plan and track change on domain capabilities: TIME assessments with composed suggestions, realisation roles, and capability journeys | `architecturedirection/` | [Canvas](./ArchitectureDirection.md) |
 | Value Streams | Core | Model value streams with stages and map business capabilities to each stage | `valuestreams/` | — |
 | Access Delegation | Supporting | Manage temporary edit grants for specific users on specific artifacts | `accessdelegation/` | — |
-| Stewardship | Supporting | Record who answers for which concern in which business domain; attention items over published events | `stewardship/` | [Canvas](./Stewardship.md) |
+| Stewardship | Supporting | Record who answers for which concern in which business domain; compose each user's Home from their anchors over published events | `stewardship/` | [Canvas](./Stewardship.md) |
 | Importing | Supporting | Import components, capabilities and value streams from files through the owning contexts' published commands | `importing/` | — |
 | OnePagers | Supporting | Configure per-subject-type one-pager fact sheets, record facts, render one-pagers, report completeness | `onepagers/` | [Canvas](./OnePagers.md) |
 | Arch Assistant | Supporting | AI-powered conversational assistant for exploring and modifying enterprise architecture | `archassistant/` | [Canvas](./ArchAssistant.md) |
@@ -70,6 +70,10 @@ flowchart LR
     ACD -->|command EnsureInvitation| AU
 
     ST -->|domain lifecycle → domain cache, deletion releases stewardships| CM
+    ST -->|capability, domain-assignment, realization lifecycle → home caches| CM
+    ST -->|component lifecycle and ownership → application cache| AM
+    ST -->|TimeAssessmentRecorded/Removed → TIME cache| ADR
+    ST -->|edit-grant lifecycle → edit-grant cache| ACD
     ST -->|UserCreated, UserDisabled, UserEnabled → user cache| AU
 
     OP -->|subject lifecycle, fields, relations → subject index and caches| AM
@@ -97,9 +101,11 @@ flowchart LR
 | Upstream | Downstream | Relationship | Integration |
 |----------|-----------|--------------|-------------|
 | Auth | every other context | Published Language | Permission constants and the auth middleware contract; `UserCreated` into name caches (Capability Mapping, Architecture Direction, OnePagers), with `UserDisabled` / `UserEnabled` into the Stewardship user cache; `TenantCreated` into local defaults (MetaModel, Arch Assistant) and Auth's own first-admin invitation; `EnsureInvitation` command (Access Delegation) |
-| Architecture Modeling | Capability Mapping, Architecture Views, Architecture Direction, Access Delegation, OnePagers | Customer-Supplier | Component / vendor / acquired-entity / team lifecycle events into local caches |
+| Architecture Modeling | Capability Mapping, Architecture Views, Architecture Direction, Access Delegation, OnePagers, Stewardship | Customer-Supplier | Component / vendor / acquired-entity / team lifecycle and application ownership events into local caches |
 | MetaModel | Capability Mapping, Architecture Direction, OnePagers | Published Language | Pillar, fit, maturity-scale and subject-attribute-schema events into local caches; `ImportSubjectAttribute` command (OnePagers) |
 | Capability Mapping | Architecture Direction, Value Streams, Access Delegation, Stewardship, OnePagers | Customer-Supplier | Capability, domain, realization, dependency, fit and importance lifecycle events into local caches |
+| Architecture Direction | OnePagers, Stewardship | Customer-Supplier | Subject lifecycle into the one-pager index; TIME assessments into the Stewardship home cache |
+| Access Delegation | Stewardship | Published Language | Edit-grant lifecycle into the Stewardship home cache; expiry evaluated at read time |
 | Architecture Views | Access Delegation | Customer-Supplier | View lifecycle into the artifact name cache; deletion revokes grants |
 | Architecture Modeling, Capability Mapping, Value Streams | Importing | Open Host Service | Published import commands dispatched through the command bus |
 | Any context with a public API | Arch Assistant | Open Host Service | Loopback HTTP (agent tool execution); tools are declared in each context's published language against the `shared/agenttools` contract |

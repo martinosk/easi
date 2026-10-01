@@ -1,13 +1,15 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { metadataApi } from '../api/metadata';
 import type { View, ViewId } from '../api/types';
 import { toViewId } from '../api/types';
 import { useCreateView, useViews } from '../features/views/hooks/useViews';
 import { metadataQueryKeys } from '../lib/appQueryKeys';
-import { clearParams, deepLinkParams, getParamValue } from '../lib/deepLinks';
+import { clearParams, deepLinkParams, readDeepLink } from '../lib/deepLinks';
 import { useAppStore } from '../store/appStore';
+
+let initializationInFlight = false;
 
 function findDefaultView(views: View[]): View {
   return views.find((v) => v.isDefault) ?? views[0];
@@ -23,21 +25,16 @@ function selectInitialView(viewId: ViewId, selector: InitialViewSelector): void 
   selector.setOpenViewIds([viewId]);
 }
 
-function resolveViewFromDeepLink(views: View[], selector: InitialViewSelector): void {
-  const viewIdFromUrl = getParamValue(deepLinkParams.VIEW.param);
-  if (!viewIdFromUrl) {
-    selectInitialView(findDefaultView(views).id, selector);
-    return;
-  }
+function consumeViewLink(views: View[]): View | undefined {
+  const viewIdFromUrl = readDeepLink(deepLinkParams.VIEW);
+  if (viewIdFromUrl === null) return undefined;
+
+  clearParams([deepLinkParams.VIEW.param]);
+  if (viewIdFromUrl === '') return undefined;
 
   const linkedView = views.find((v) => v.id === toViewId(viewIdFromUrl));
-  if (linkedView) {
-    selectInitialView(linkedView.id, selector);
-  } else {
-    toast.error('The linked view does not exist');
-    selectInitialView(findDefaultView(views).id, selector);
-  }
-  clearParams([deepLinkParams.VIEW.param]);
+  if (!linkedView) toast.error('The linked view does not exist');
+  return linkedView;
 }
 
 function usePrefetchMetadata(): void {
@@ -51,13 +48,22 @@ function usePrefetchMetadata(): void {
   }, [queryClient]);
 }
 
-function canInitialize(
-  isInitialized: boolean,
-  isLoadingViews: boolean,
-  views: View[] | undefined,
-  isInitializing: boolean,
-): boolean {
-  return !isInitialized && !isLoadingViews && !!views && !isInitializing;
+function canInitialize(views: View[] | undefined, isLoadingViews: boolean): views is View[] {
+  const settled = useAppStore.getState().isInitialized || initializationInFlight;
+  return !settled && !isLoadingViews && views !== undefined;
+}
+
+function useLinkedViewOnReturn(views: View[] | undefined, isInitialized: boolean): void {
+  const setCurrentViewId = useAppStore((state) => state.setCurrentViewId);
+  const openView = useAppStore((state) => state.openView);
+
+  useEffect(() => {
+    if (!isInitialized || !views) return;
+    const linkedView = consumeViewLink(views);
+    if (!linkedView) return;
+    openView(linkedView.id);
+    setCurrentViewId(linkedView.id);
+  }, [isInitialized, views, openView, setCurrentViewId]);
 }
 
 export function useAppInitialization() {
@@ -68,9 +74,9 @@ export function useAppInitialization() {
   const setInitialized = useAppStore((state) => state.setInitialized);
   const currentViewId = useAppStore((state) => state.currentViewId);
   const isInitialized = useAppStore((state) => state.isInitialized);
-  const isInitializingRef = useRef(false);
 
   usePrefetchMetadata();
+  useLinkedViewOnReturn(views, isInitialized);
 
   const createDefaultView = useCallback(async () => {
     const newView = await createViewMutation.mutateAsync({
@@ -82,37 +88,30 @@ export function useAppInitialization() {
   }, [createViewMutation, setCurrentViewId, setOpenViewIds]);
 
   useEffect(() => {
-    if (!canInitialize(isInitialized, isLoadingViews, views, isInitializingRef.current) || !views) return;
+    if (!canInitialize(views, isLoadingViews)) return;
 
-    isInitializingRef.current = true;
-    const availableViews = views;
+    initializationInFlight = true;
 
     const initializeView = async () => {
       try {
-        if (availableViews.length === 0) {
+        if (views.length === 0) {
           await createDefaultView();
         } else {
-          resolveViewFromDeepLink(availableViews, { setCurrentViewId, setOpenViewIds });
+          const initialView = consumeViewLink(views) ?? findDefaultView(views);
+          selectInitialView(initialView.id, { setCurrentViewId, setOpenViewIds });
         }
         setInitialized(true);
         toast.success('Data loaded successfully');
       } catch (error) {
         console.error('Failed to initialize:', error);
         toast.error('Failed to initialize application');
-        isInitializingRef.current = false;
+      } finally {
+        initializationInFlight = false;
       }
     };
 
     initializeView();
-  }, [
-    views,
-    isLoadingViews,
-    isInitialized,
-    setInitialized,
-    createDefaultView,
-    setCurrentViewId,
-    setOpenViewIds,
-  ]);
+  }, [views, isLoadingViews, setInitialized, createDefaultView, setCurrentViewId, setOpenViewIds]);
 
   return {
     isLoading: isLoadingViews || (!isInitialized && !viewsError),

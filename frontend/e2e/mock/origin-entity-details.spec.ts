@@ -8,7 +8,7 @@ async function openPage(page: Page, path: string): Promise<void> {
 test.describe('origin entity details edited in place (spec 221)', () => {
   test('renames a vendor from the canvas details pane and the tree follows', async ({ page }) => {
     test.slow();
-    await openPage(page, '/');
+    await openPage(page, '/canvas');
     await page.getByRole('button', { name: /Vendors/ }).click();
     await page.getByTestId('tree-item').filter({ hasText: 'SAP' }).first().click();
 
@@ -26,7 +26,7 @@ test.describe('origin entity details edited in place (spec 221)', () => {
 
   test("changes an acquired entity's integration status in place", async ({ page }) => {
     test.slow();
-    await openPage(page, '/');
+    await openPage(page, '/canvas');
     await page.getByRole('button', { name: /Acquired Entities/ }).click();
     await page.getByTestId('tree-item').filter({ hasText: 'Nordic Cargo' }).first().click();
 

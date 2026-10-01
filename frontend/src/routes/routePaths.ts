@@ -1,4 +1,5 @@
 export type AppView =
+  | 'home'
   | 'canvas'
   | 'business-domains'
   | 'value-streams'

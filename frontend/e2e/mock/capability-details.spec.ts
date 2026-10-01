@@ -8,7 +8,7 @@ async function openPage(page: Page, path: string): Promise<void> {
 test.describe('capability details edited in place (spec 220)', () => {
   test('renames the capability from the canvas details pane and the tree follows', async ({ page }) => {
     test.slow();
-    await openPage(page, '/');
+    await openPage(page, '/canvas');
     await page.getByTestId('capability-tree-item-cap-fraud-prevention').click();
 
     const details = page.getByTestId('details-pane');

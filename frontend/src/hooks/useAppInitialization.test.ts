@@ -7,7 +7,7 @@ import { useAppStore } from '../store/appStore';
 import { useAppInitialization } from './useAppInitialization';
 
 const mockCreateViewMutateAsync = vi.fn();
-const mockGetParamValue = vi.fn();
+const mockReadDeepLink = vi.fn();
 const mockClearParams = vi.fn();
 
 vi.mock('../features/views/hooks/useViews', () => ({
@@ -26,9 +26,9 @@ vi.mock('react-hot-toast', () => ({
 }));
 
 vi.mock('../lib/deepLinks', () => ({
-  getParamValue: (...args: unknown[]) => mockGetParamValue(...args),
+  readDeepLink: (...args: unknown[]) => mockReadDeepLink(...args),
   clearParams: (...args: unknown[]) => mockClearParams(...args),
-  deepLinkParams: { VIEW: { param: 'view', routes: ['*'] } },
+  deepLinkParams: { VIEW: { param: 'view', routes: ['/canvas'] } },
 }));
 
 const { useViews } = await import('../features/views/hooks/useViews');
@@ -86,10 +86,12 @@ function renderInitializationHook() {
 describe('useAppInitialization', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetParamValue.mockReturnValue(null);
+    mockReadDeepLink.mockReturnValue(null);
+    mockClearParams.mockImplementation(() => mockReadDeepLink.mockReturnValue(null));
     useAppStore.setState({
       currentViewId: null,
       isInitialized: false,
+      openViewIds: [],
     });
   });
 
@@ -97,6 +99,7 @@ describe('useAppInitialization', () => {
     useAppStore.setState({
       currentViewId: null,
       isInitialized: false,
+      openViewIds: [],
     });
   });
 
@@ -194,6 +197,72 @@ describe('useAppInitialization', () => {
         unmount();
       });
     });
+
+    it('should not start a second creation when the canvas is reopened while the first is in flight', async () => {
+      const createdView = createMockView({ id: 'new-view' as ViewId, name: 'Default View' });
+      let finishCreation: (view: View) => void = () => {};
+      mockCreateViewMutateAsync.mockReturnValue(
+        new Promise<View>((resolve) => {
+          finishCreation = resolve;
+        }),
+      );
+      mockUseViewsReturn({ views: [] });
+
+      const first = renderInitializationHook();
+      await waitFor(() => {
+        expect(mockCreateViewMutateAsync).toHaveBeenCalledTimes(1);
+      });
+      await act(async () => {
+        first.unmount();
+      });
+
+      const second = renderInitializationHook();
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(mockCreateViewMutateAsync).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        finishCreation(createdView);
+      });
+      await waitFor(() => {
+        expect(second.result.current.isInitialized).toBe(true);
+      });
+
+      expect(mockCreateViewMutateAsync).toHaveBeenCalledTimes(1);
+      expect(useAppStore.getState().currentViewId).toBe('new-view');
+
+      await act(async () => {
+        second.unmount();
+      });
+    });
+
+    it('should allow a new attempt after a failed creation', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      mockCreateViewMutateAsync.mockRejectedValueOnce(new Error('Failed to create view'));
+      mockUseViewsReturn({ views: [] });
+
+      const first = renderInitializationHook();
+      await waitFor(() => {
+        expect(mockToast.error).toHaveBeenCalledWith('Failed to initialize application');
+      });
+      await act(async () => {
+        first.unmount();
+      });
+
+      mockCreateViewMutateAsync.mockResolvedValue(createMockView({ id: 'new-view' as ViewId }));
+      const second = renderInitializationHook();
+      await waitFor(() => {
+        expect(second.result.current.isInitialized).toBe(true);
+      });
+
+      expect(mockCreateViewMutateAsync).toHaveBeenCalledTimes(2);
+      consoleSpy.mockRestore();
+
+      await act(async () => {
+        second.unmount();
+      });
+    });
   });
 
   describe('when already initialized', () => {
@@ -238,7 +307,7 @@ describe('useAppInitialization', () => {
         createMockView({ id: 'view-1' as ViewId, isDefault: true }),
         createMockView({ id: 'view-linked' as ViewId, isDefault: false }),
       ];
-      mockGetParamValue.mockReturnValue('view-linked');
+      mockReadDeepLink.mockReturnValue('view-linked');
       mockUseViewsReturn({ views });
 
       const { result, unmount } = renderInitializationHook();
@@ -257,7 +326,7 @@ describe('useAppInitialization', () => {
 
     it('should show error and fall back to default when view ID is invalid', async () => {
       const views = [createMockView({ id: 'view-default' as ViewId, isDefault: true })];
-      mockGetParamValue.mockReturnValue('non-existent-view');
+      mockReadDeepLink.mockReturnValue('non-existent-view');
       mockUseViewsReturn({ views });
 
       const { result, unmount } = renderInitializationHook();
@@ -272,6 +341,91 @@ describe('useAppInitialization', () => {
 
       await act(async () => {
         unmount();
+      });
+    });
+
+    it('should clear an empty view parameter and select the default view without an error', async () => {
+      const views = [createMockView({ id: 'view-default' as ViewId, isDefault: true })];
+      mockReadDeepLink.mockReturnValue('');
+      mockUseViewsReturn({ views });
+
+      const { result, unmount } = renderInitializationHook();
+
+      await waitFor(() => {
+        expect(result.current.isInitialized).toBe(true);
+      });
+
+      expect(useAppStore.getState().currentViewId).toBe('view-default');
+      expect(mockClearParams).toHaveBeenCalledWith(['view']);
+      expect(mockToast.error).not.toHaveBeenCalled();
+
+      await act(async () => {
+        unmount();
+      });
+    });
+
+    it('should leave the URL alone when there is no view parameter', async () => {
+      mockUseViewsReturn({ views: [createMockView({ id: 'view-default' as ViewId, isDefault: true })] });
+
+      const { result, unmount } = renderInitializationHook();
+
+      await waitFor(() => {
+        expect(result.current.isInitialized).toBe(true);
+      });
+
+      expect(mockClearParams).not.toHaveBeenCalled();
+
+      await act(async () => {
+        unmount();
+      });
+    });
+
+    describe('when the canvas is reopened after initialisation', () => {
+      const views = [
+        createMockView({ id: 'view-1' as ViewId, isDefault: true }),
+        createMockView({ id: 'view-linked' as ViewId, isDefault: false }),
+      ];
+
+      beforeEach(() => {
+        useAppStore.setState({
+          currentViewId: 'view-1' as ViewId,
+          isInitialized: true,
+          openViewIds: ['view-1' as ViewId],
+        });
+        mockUseViewsReturn({ views });
+      });
+
+      it('should open the linked view next to the open ones and clear the parameter', async () => {
+        mockReadDeepLink.mockReturnValue('view-linked');
+
+        const { unmount } = renderInitializationHook();
+
+        await waitFor(() => {
+          expect(useAppStore.getState().currentViewId).toBe('view-linked');
+        });
+        expect(useAppStore.getState().openViewIds).toEqual(['view-1', 'view-linked']);
+        expect(mockClearParams).toHaveBeenCalledWith(['view']);
+        expect(mockToast.success).not.toHaveBeenCalled();
+
+        await act(async () => {
+          unmount();
+        });
+      });
+
+      it('should keep the current view and report a linked view that does not exist', async () => {
+        mockReadDeepLink.mockReturnValue('non-existent-view');
+
+        const { unmount } = renderInitializationHook();
+
+        await waitFor(() => {
+          expect(mockToast.error).toHaveBeenCalledWith('The linked view does not exist');
+        });
+        expect(useAppStore.getState().currentViewId).toBe('view-1');
+        expect(mockClearParams).toHaveBeenCalledWith(['view']);
+
+        await act(async () => {
+          unmount();
+        });
       });
     });
   });

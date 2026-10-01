@@ -17,7 +17,7 @@ test.describe('origin entity details arranged in groups (spec 225)', () => {
     page,
   }) => {
     test.slow();
-    await openPage(page, '/');
+    await openPage(page, '/canvas');
     await page.getByRole('button', { name: /Vendors/ }).click();
     await page.getByTestId('tree-item').filter({ hasText: 'SAP' }).first().click();
 

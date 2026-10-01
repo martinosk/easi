@@ -2,10 +2,13 @@ import { generatePath } from 'react-router-dom';
 import { ROUTES } from '../../routes/routePaths';
 import { deepLinkParams } from './registry';
 
+export function generateViewPath(viewId: string): string {
+  const search = new URLSearchParams({ [deepLinkParams.VIEW.param]: viewId });
+  return `${ROUTES.CANVAS}?${search}`;
+}
+
 export function generateViewShareUrl(viewId: string): string {
-  const url = new URL(window.location.origin);
-  url.searchParams.set(deepLinkParams.VIEW.param, viewId);
-  return url.toString();
+  return new URL(generateViewPath(viewId), window.location.origin).toString();
 }
 
 export function generateDomainShareUrl(domainId: string): string {

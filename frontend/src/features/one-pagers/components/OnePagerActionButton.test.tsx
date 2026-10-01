@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
+import { ROUTES } from '../../../routes/routePaths';
 import { theme } from '../../../theme/mantine';
 import { OnePagerActionButton } from './OnePagerActionButton';
 
@@ -33,21 +34,21 @@ describe('OnePagerActionButton', () => {
     expect(screen.queryByRole('button', { name: 'One-Pager' })).not.toBeInTheDocument();
   });
 
-  it('navigates to the one-pager route when clicked', async () => {
+  it('navigates from the canvas to the one-pager route when clicked', async () => {
     const user = userEvent.setup();
     const subject = {
       _links: { 'x-one-pager': { href: '/api/v1/one-pagers/vendor/vendor-1', method: 'GET' as const } },
     };
 
     render(
-      <MemoryRouter initialEntries={['/']}>
+      <MemoryRouter initialEntries={[ROUTES.CANVAS]}>
         <MantineProvider theme={theme}>
           <Routes>
             <Route
-              path="/"
+              path={ROUTES.CANVAS}
               element={<OnePagerActionButton subject={subject} subjectType="vendor" subjectId="vendor-1" />}
             />
-            <Route path="/one-pagers/:subjectType/:subjectId" element={<div>One-Pager Page</div>} />
+            <Route path={ROUTES.ONE_PAGER_DETAIL} element={<div>One-Pager Page</div>} />
           </Routes>
         </MantineProvider>
       </MemoryRouter>,

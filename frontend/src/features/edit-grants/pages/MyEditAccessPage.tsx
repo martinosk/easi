@@ -1,7 +1,9 @@
 import { Anchor, Center, Container, Loader, Paper, Stack, Table, Text, Title } from '@mantine/core';
 import { Link } from 'react-router-dom';
+import { hasLink } from '../../../utils/hateoas';
 import { useMyEditGrants } from '../hooks/useEditGrants';
 import type { EditGrant } from '../types';
+import { artifactPath } from '../utils/artifactPath';
 import classes from './MyEditAccessPage.module.css';
 
 function formatDate(iso: string): string {
@@ -14,11 +16,10 @@ function formatDate(iso: string): string {
 
 function ArtifactCell({ grant }: { grant: EditGrant }) {
   const name = grant.artifactName || 'Deleted artifact';
-  const href = grant._links?.artifact?.href;
 
-  if (href) {
+  if (hasLink(grant, 'artifact')) {
     return (
-      <Anchor component={Link} to={href} fw={500}>
+      <Anchor component={Link} to={artifactPath(grant)} fw={500}>
         {name}
       </Anchor>
     );

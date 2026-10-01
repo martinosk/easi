@@ -46,7 +46,7 @@ Exit: coverage assessment re-scored — boundary smells 3 → 1, contexts 15 →
 |------|-------|-----------|-------|--------|
 | H2-4 | Business Operating Model: BusinessRole, BusinessObject, hidden process, capability links | SD4 | — | not started |
 | H2-5 | Integrations context and ServiceNow adapter: identity map, sync runs, reconciliation, provenance | SD7, SD3 | — | not started |
-| H2-6 | Stewardship: per-(domain, concern) assignment (write side), then orphaned, stale and incomplete items ranked, routed via invite-to-edit | SD8 | 226–231 ([design doc](../specs/personal-home.md)) | design approved 2026-09-28; 226 implemented 2026-09-29, awaiting sign-off; 227 implemented 2026-10-01, awaiting sign-off; 228–231 specified 2026-09-29, awaiting approval |
+| H2-6 | Stewardship: per-(domain, concern) assignment (write side), then orphaned, stale and incomplete items ranked, routed via invite-to-edit | SD8 | 226–231 ([design doc](../specs/personal-home.md)) | design approved 2026-09-28; 226 implemented 2026-09-29, awaiting sign-off; 227 implemented 2026-10-01, awaiting sign-off; 228 implemented 2026-10-01, awaiting sign-off; 229–231 specified 2026-09-29, awaiting approval |
 
 ### Horizon 3 — depth on demand (pulled by usage, not scheduled)
 

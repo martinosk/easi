@@ -1,0 +1,32 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.invest {
+  background: var(--status-positive-bg);
+  color: var(--status-positive);
+}
+
+.tolerate {
+  background: var(--status-neutral-bg);
+  color: var(--status-neutral);
+}
+
+.migrate {
+  background: var(--status-progress-bg);
+  color: var(--status-progress);
+}
+
+.eliminate {
+  background: var(--status-danger-bg);
+  color: var(--status-danger);
+}

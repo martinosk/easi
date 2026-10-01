@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { generateDomainShareUrl, generateOnePagerShareUrl, generateViewShareUrl } from './generators';
+import { generateDomainShareUrl, generateOnePagerShareUrl, generateViewPath, generateViewShareUrl } from './generators';
 
 function setLocationOrigin(origin: string) {
   Object.defineProperty(window, 'location', {
@@ -21,12 +21,12 @@ describe('deepLinks generators', () => {
   });
 
   describe('generateViewShareUrl', () => {
-    it('should generate URL with view parameter', () => {
+    it('should generate a canvas URL with view parameter', () => {
       setLocationOrigin('https://app.example.com');
 
       const url = generateViewShareUrl('view-123');
 
-      expect(url).toBe('https://app.example.com/?view=view-123');
+      expect(url).toBe('https://app.example.com/canvas?view=view-123');
     });
 
     it('should URL-encode special characters in view ID', () => {
@@ -34,7 +34,17 @@ describe('deepLinks generators', () => {
 
       const url = generateViewShareUrl('view with spaces');
 
-      expect(url).toBe('https://app.example.com/?view=view+with+spaces');
+      expect(url).toBe('https://app.example.com/canvas?view=view+with+spaces');
+    });
+  });
+
+  describe('generateViewPath', () => {
+    it('should generate a router path on the canvas with the view parameter', () => {
+      expect(generateViewPath('view-123')).toBe('/canvas?view=view-123');
+    });
+
+    it('should URL-encode special characters in view ID', () => {
+      expect(generateViewPath('a&b=c')).toBe('/canvas?view=a%26b%3Dc');
     });
   });
 

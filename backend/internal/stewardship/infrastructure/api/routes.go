@@ -54,6 +54,7 @@ func SetupRoutes(deps RoutesDeps) error {
 		NewStewardshipLinks(deps.HATEOAS),
 	)
 	RegisterRoutes(deps.Router, httpHandlers, deps.AuthMiddleware)
+	setupHome(deps)
 	return nil
 }
 

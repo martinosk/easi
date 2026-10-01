@@ -52,6 +52,7 @@ import {
   updateVendor,
   updateView,
 } from './db';
+import { homeHandlers } from './home';
 import { onePagerCompletenessHandlers } from './onePagerCompleteness';
 import { spec180Handlers } from './spec180/handlers';
 import { spec181Handlers } from './spec181/handlers';
@@ -105,6 +106,7 @@ export const handlers = [
   ...assistantStatusHandlers,
   ...onePagerCompletenessHandlers,
   ...componentStatisticsHandlers,
+  ...homeHandlers,
   ...spec180Handlers,
   ...spec181Handlers,
   ...spec182Handlers,

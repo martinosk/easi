@@ -7,7 +7,7 @@ async function openPage(page: Page, path: string): Promise<void> {
 
 test.describe('application details edited in place (spec 219)', () => {
   test('renames the application from the canvas details pane and the tree follows', async ({ page }) => {
-    await openPage(page, '/');
+    await openPage(page, '/canvas');
     await page.getByTestId('tree-item').filter({ hasText: 'Phoenix' }).first().click();
 
     const details = page.getByTestId('details-pane');

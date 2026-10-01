@@ -1,9 +1,14 @@
 import React from 'react';
 import { Center, Loader, Stack, Text } from '@mantine/core';
+import { type ScreenFill, screenFillProps } from './screenFill';
 
-export const LoadingScreen: React.FC = () => {
+interface LoadingScreenProps {
+  fill?: ScreenFill;
+}
+
+export const LoadingScreen: React.FC<LoadingScreenProps> = ({ fill = 'viewport' }) => {
   return (
-    <Center mih="100vh">
+    <Center {...screenFillProps(fill)} data-testid="loading-screen">
       <Stack align="center" gap="lg">
         <Loader size="lg" />
         <Text>Loading component modeler...</Text>

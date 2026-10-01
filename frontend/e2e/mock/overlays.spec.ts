@@ -1,7 +1,8 @@
 import { expect, type Locator, type Page, test } from '@playwright/test';
 
 const PAGES = [
-  { name: 'canvas', path: '/' },
+  { name: 'home', path: '/' },
+  { name: 'canvas', path: '/canvas' },
   { name: 'business domains', path: '/business-domains' },
   { name: 'value streams', path: '/value-streams' },
   { name: 'strategic fit', path: '/strategic-fit' },
@@ -35,7 +36,7 @@ async function expectTopmost(overlay: Locator): Promise<void> {
 
 test.describe('context menu', () => {
   test('is topmost when opened from the explorer tree', async ({ page }) => {
-    await openPage(page, '/');
+    await openPage(page, '/canvas');
     await page.getByTestId('tree-item').first().click({ button: 'right' });
     const menu = page.getByTestId('context-menu');
     await expectTopmost(menu.getByRole('menuitem').first());

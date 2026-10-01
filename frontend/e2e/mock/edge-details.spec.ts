@@ -1,7 +1,7 @@
 import { expect, type Page, test } from '@playwright/test';
 
 async function openCanvas(page: Page): Promise<void> {
-  await page.goto('/');
+  await page.goto('/canvas');
   await page.waitForSelector('[data-testid="main-region"] > *', { timeout: 30000 });
   await page.locator('.react-flow__edge').first().waitFor({ timeout: 30000 });
 }

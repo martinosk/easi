@@ -1,5 +1,6 @@
 import { UnstyledButton } from '@mantine/core';
 import type { CapabilityRealization, ComponentId, TimeGrade } from '../../../api/types';
+import { TimeGradeBadge } from '../../architecture-direction/components/TimeGradeBadge';
 import type { RealizationRole } from '../../architecture-direction/types';
 import type { AssessedRealization } from '../hooks/domainBoardViewModel';
 import classes from './AppChip.module.css';
@@ -21,29 +22,9 @@ const ROLE_CLASS: Record<RealizationRole, string> = {
   legacy: classes.roleLegacy,
 };
 
-const GRADE_CLASS: Record<TimeGrade, string> = {
-  Invest: classes.gradeInvest,
-  Tolerate: classes.gradeTolerate,
-  Migrate: classes.gradeMigrate,
-  Eliminate: classes.gradeEliminate,
-};
-
-const GRADE_LETTER: Record<TimeGrade, string> = {
-  Invest: 'I',
-  Tolerate: 'T',
-  Migrate: 'M',
-  Eliminate: 'E',
-};
-
 function GradeBadge({ componentId, grade }: { componentId: ComponentId; grade: TimeGrade }) {
   return (
-    <span
-      className={[classes.gradeBadge, GRADE_CLASS[grade]].join(' ')}
-      title={`${grade} — for this capability`}
-      data-testid={`app-chip-grade-${componentId}`}
-    >
-      {GRADE_LETTER[grade]}
-    </span>
+    <TimeGradeBadge grade={grade} title={`${grade} — for this capability`} testId={`app-chip-grade-${componentId}`} />
   );
 }
 

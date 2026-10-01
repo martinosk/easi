@@ -4,6 +4,7 @@
 //
 // Scanned locations (approvedLocationPatterns):
 //   - */application/readmodels/*.go    — read model query definitions
+//   - */application/*/readmodels/*.go  — read model queries of a read-side sub-package
 //   - */application/projectors/*.go    — event projectors that write to read models
 //   - */infrastructure/repositories/*.go — aggregate persistence
 //   - */infrastructure/repository/*.go  — aggregate persistence (singular variant)
@@ -52,7 +53,7 @@ var unqualifiedPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)\bDELETE\s+FROM\s+"?([a-zA-Z_]\w*)"?`),
 }
 
-var ctePattern = regexp.MustCompile(`(?i)\bWITH\s+(?:RECURSIVE\s+)?(\w+)\s+AS\s*\(`)
+var ctePattern = regexp.MustCompile(`(?i)(?:\bWITH\s+(?:RECURSIVE\s+)?|\),\s*)(\w+)\s*(?:\([\w\s,]*\)\s*)?AS\s*\(`)
 
 var sqlStatementPattern = regexp.MustCompile(`(?i)(\bSELECT\b.*\bFROM\b|\bINSERT\s+INTO\b|\bUPDATE\b.*\bSET\b|\bDELETE\s+FROM\b)`)
 
@@ -60,11 +61,12 @@ var sqlKeywords = map[string]bool{
 	"select": true, "set": true, "where": true, "values": true,
 	"not": true, "null": true, "exists": true, "only": true,
 	"table": true, "index": true, "if": true, "as": true,
-	"unnest": true,
+	"unnest": true, "lateral": true,
 }
 
 var approvedLocationPatterns = []string{
 	"*/application/readmodels/*.go",
+	"*/application/*/readmodels/*.go",
 	"*/application/projectors/*.go",
 	"*/infrastructure/repositories/*.go",
 	"*/infrastructure/repository/*.go",

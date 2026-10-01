@@ -2,7 +2,7 @@ import { Button, Center, Group, MantineProvider, Stack, Text, Title } from '@man
 import { QueryClientProvider } from '@tanstack/react-query';
 import { type ComponentProps, type ComponentType, lazy, StrictMode, Suspense, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter } from 'react-router-dom';
 import '@fontsource-variable/inter/index.css';
 import '@fontsource-variable/schibsted-grotesk/index.css';
 import '@fontsource-variable/spline-sans-mono/index.css';
@@ -10,13 +10,10 @@ import '@mantine/core/styles.css';
 import './theme/tokens.css';
 import './theme/skins.css';
 import './index.css';
-import App from './App.tsx';
 import { ErrorBoundary } from './components/shared/ErrorBoundary.tsx';
 import { DialogProvider } from './contexts/dialogs';
-import { LoginPage } from './features/auth/pages/LoginPage.tsx';
 import { queryClient } from './lib/queryClient';
-import { ROUTES } from './routes/routePaths.ts';
-import { ProtectedRoute } from './routes/routes.tsx';
+import { AppRoutes } from './routes/AppRoutes.tsx';
 import { useUserStore } from './store/userStore.ts';
 import { theme } from './theme/mantine';
 import { initSkin } from './theme/skin';
@@ -87,24 +84,7 @@ function renderApp() {
             <BrowserRouter basename={basename}>
               <SessionInitializer>
                 <DialogProvider>
-                  <Routes>
-                    <Route path={ROUTES.LOGIN} element={<LoginPage />} />
-                    <Route element={<ProtectedRoute />}>
-                      <Route path={ROUTES.HOME} element={<App view="canvas" />} />
-                      <Route path={ROUTES.CANVAS} element={<Navigate to={ROUTES.HOME} replace />} />
-                      <Route path={ROUTES.BUSINESS_DOMAINS} element={<App view="business-domains" />} />
-                      <Route path={ROUTES.BUSINESS_DOMAIN_DETAIL} element={<App view="business-domains" />} />
-                      <Route path={`${ROUTES.VALUE_STREAMS}/*`} element={<App view="value-streams" />} />
-                      <Route path={ROUTES.STRATEGIC_FIT} element={<App view="strategic-fit" />} />
-                      <Route path={ROUTES.INVITATIONS} element={<App view="invitations" />} />
-                      <Route path={ROUTES.USERS} element={<App view="users" />} />
-                      <Route path="/settings/*" element={<App view="settings" />} />
-                      <Route path={ROUTES.MY_EDIT_ACCESS} element={<App view="my-edit-access" />} />
-                      <Route path={`${ROUTES.ONE_PAGERS}/*`} element={<App view="one-pagers" />} />
-                      <Route path={ROUTES.ONE_PAGER_QUALITY} element={<App view="one-pager-quality" />} />
-                    </Route>
-                    <Route path="*" element={<Navigate to={ROUTES.HOME} replace />} />
-                  </Routes>
+                  <AppRoutes />
                 </DialogProvider>
               </SessionInitializer>
             </BrowserRouter>

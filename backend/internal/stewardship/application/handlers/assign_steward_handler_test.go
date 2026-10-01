@@ -22,11 +22,10 @@ func TestAssignSteward_CreatesAStewardshipForAnUnassignedConcern(t *testing.T) {
 	result, err := f.assignHandler().Handle(context.Background(), assign("mette", "assessment"))
 
 	require.NoError(t, err)
-	s := f.repo.only()
-	require.NotNil(t, s)
-	assert.Equal(t, s.ID(), result.CreatedID)
-	assert.Equal(t, "mette", s.Steward().Value())
-	assert.Equal(t, "alice@example.com", s.AssignedBy())
+	assigned := f.repo.lastAssigned(t)
+	assert.Equal(t, assigned.ID, result.CreatedID)
+	assert.Equal(t, "mette", assigned.StewardID)
+	assert.Equal(t, "alice@example.com", assigned.AssignedBy)
 }
 
 func TestAssignSteward_ReplacesTheStewardOfAStewardedConcern(t *testing.T) {
@@ -38,7 +37,7 @@ func TestAssignSteward_ReplacesTheStewardOfAStewardedConcern(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Len(t, f.repo.byID, 1)
-	assert.Equal(t, "jonas", f.repo.only().Steward().Value())
+	assert.Equal(t, "jonas", f.repo.lastAssigned(t).StewardID)
 }
 
 func TestAssignSteward_TheCurrentStewardAgainRecordsNothing(t *testing.T) {
@@ -51,7 +50,7 @@ func TestAssignSteward_TheCurrentStewardAgainRecordsNothing(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, savesBefore, f.repo.saves)
-	assert.Equal(t, "alice@example.com", f.repo.only().AssignedBy())
+	assert.Equal(t, "alice@example.com", f.repo.lastAssigned(t).AssignedBy)
 }
 
 func TestAssignSteward_OneUserMayStewardManyConcerns(t *testing.T) {

@@ -7,17 +7,17 @@ import { AppNavigation } from './components/layout/AppNavigation';
 import { ErrorBoundary, FeatureErrorFallback } from './components/shared/ErrorBoundary';
 import { ErrorScreen } from './components/shared/ErrorScreen';
 import { LoadingFallback } from './components/shared/LoadingFallback';
-import { LoadingScreen } from './components/shared/LoadingScreen';
 import { useDialogContext } from './contexts/dialogs';
 import { ReleaseNotesOverlay } from './contexts/releases/components/ReleaseNotesOverlay';
 import { ChatButton, useAssistantAvailability, useChatStore } from './features/chat';
-import { useAppInitialization } from './hooks/useAppInitialization';
 import { useUnloadGuard } from './hooks/useUnloadGuard';
 import { useReleaseNotes } from './contexts/releases/store/useReleaseNotes';
 import type { AppView } from './routes/routePaths';
 import { useUserStore } from './store/userStore';
 
-const CanvasContainer = lazy(() => import('./features/canvas/CanvasContainer'));
+const CanvasView = lazy(() => import('./features/canvas/CanvasView'));
+
+const HomePage = lazy(() => import('./features/home').then((module) => ({ default: module.HomePage })));
 
 const DialogManager = lazy(() =>
   import('./components/shared/DialogManager').then((module) => ({ default: module.DialogManager })),
@@ -102,7 +102,8 @@ function LazyFeatureView({ featureName, children }: { featureName: string; child
 }
 
 const mainViews: Record<AppView, { featureName: string; Component: ComponentType }> = {
-  canvas: { featureName: 'Canvas', Component: CanvasContainer },
+  home: { featureName: 'Home', Component: HomePage },
+  canvas: { featureName: 'Canvas', Component: CanvasView },
   'business-domains': { featureName: 'Business Domains', Component: BusinessDomainsRouter },
   'value-streams': { featureName: 'Value Streams', Component: ValueStreamsRouter },
   invitations: { featureName: 'Invitations', Component: InvitationsPage },
@@ -139,7 +140,6 @@ function App({ view }: AppProps) {
   const closeChat = useChatStore((state) => state.closePanel);
   const { openDialog } = useDialogContext();
 
-  const { isLoading, error } = useAppInitialization();
   const { showOverlay: showReleaseNotes, release, dismiss: dismissReleaseNotes } = useReleaseNotes();
 
   const openReleaseNotesBrowser = useCallback(() => {
@@ -155,22 +155,6 @@ function App({ view }: AppProps) {
           onRetry={() => (window.location.href = '/easi/login')}
           retryLabel="Back to Login"
         />
-      </AppLayout>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <AppLayout>
-        <LoadingScreen />
-      </AppLayout>
-    );
-  }
-
-  if (error) {
-    return (
-      <AppLayout>
-        <ErrorScreen error={error.message} onRetry={() => window.location.reload()} />
       </AppLayout>
     );
   }

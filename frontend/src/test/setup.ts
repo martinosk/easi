@@ -3,6 +3,7 @@ import { act, cleanup } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, beforeEach, expect } from 'vitest';
 import { resetAssistantStatus } from './mocks/assistantStatus';
 import { resetDb } from './mocks/db';
+import { resetHome } from './mocks/home';
 import { resetOnePagerCompleteness } from './mocks/onePagerCompleteness';
 import { server } from './mocks/server';
 import { resetSpec180Db } from './mocks/spec180/store';
@@ -69,6 +70,7 @@ beforeEach(() => {
   resetAssistantStatus();
   resetDb();
   resetOnePagerCompleteness();
+  resetHome();
   resetSpec180Db();
   resetSpec181Db();
   resetSpec182Db();

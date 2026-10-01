@@ -6497,6 +6497,43 @@ const docTemplate = `{
                 }
             }
         },
+        "/home": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Composes the home of the signed-in user: their scope (anchors: stewardships, architected domains, EA-owned capabilities, owned or nominated applications, active edit grants), the portfolio tiles over that scope and My Work. Scope kind is personal with any anchor, otherwise tenant for callers holding domains:write and empty for everyone else. Sections the caller may not read are omitted; the response is never 403. Takes no parameters: every anchor is resolved from the session.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "home"
+                ],
+                "summary": "Get the caller's home",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_stewardship_infrastructure_api.HomeResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/imports": {
             "post": {
                 "description": "Uploads an ArchiMate Open Exchange XML file and creates a new import session for preview",
@@ -14496,6 +14533,240 @@ const docTemplate = `{
                 }
             }
         },
+        "easi_backend_internal_stewardship_application_home.CapabilityTile": {
+            "type": "object",
+            "properties": {
+                "byStatus": {
+                    "$ref": "#/definitions/easi_backend_internal_stewardship_application_home.StatusBreakdown"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "easi_backend_internal_stewardship_application_home.CountTile": {
+            "type": "object",
+            "properties": {
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "easi_backend_internal_stewardship_application_home.DomainRef": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "easi_backend_internal_stewardship_application_home.DomainTile": {
+            "type": "object",
+            "properties": {
+                "names": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "easi_backend_internal_stewardship_application_home.MyWork": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_stewardship_application_home.WorkItem"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "easi_backend_internal_stewardship_application_home.Portfolio": {
+            "type": "object",
+            "properties": {
+                "applications": {
+                    "$ref": "#/definitions/easi_backend_internal_stewardship_application_home.CountTile"
+                },
+                "capabilities": {
+                    "$ref": "#/definitions/easi_backend_internal_stewardship_application_home.CapabilityTile"
+                },
+                "domains": {
+                    "$ref": "#/definitions/easi_backend_internal_stewardship_application_home.DomainTile"
+                },
+                "time": {
+                    "$ref": "#/definitions/easi_backend_internal_stewardship_application_home.TimeTile"
+                }
+            }
+        },
+        "easi_backend_internal_stewardship_application_home.Relation": {
+            "type": "string",
+            "enum": [
+                "ea-owner",
+                "owner",
+                "nominated",
+                "edit-grant"
+            ],
+            "x-enum-varnames": [
+                "RelationEAOwner",
+                "RelationOwner",
+                "RelationNominated",
+                "RelationEditGrant"
+            ]
+        },
+        "easi_backend_internal_stewardship_application_home.Scope": {
+            "type": "object",
+            "properties": {
+                "architectedDomainCount": {
+                    "type": "integer"
+                },
+                "architectedDomains": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_stewardship_application_home.DomainRef"
+                    }
+                },
+                "eaOwnedCapabilities": {
+                    "type": "integer"
+                },
+                "editGrants": {
+                    "type": "integer"
+                },
+                "kind": {
+                    "$ref": "#/definitions/easi_backend_internal_stewardship_application_home.ScopeKind"
+                },
+                "ownedApplications": {
+                    "type": "integer"
+                },
+                "stewardships": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_stewardship_application_home.ScopeStewardship"
+                    }
+                }
+            }
+        },
+        "easi_backend_internal_stewardship_application_home.ScopeKind": {
+            "type": "string",
+            "enum": [
+                "personal",
+                "tenant",
+                "empty"
+            ],
+            "x-enum-varnames": [
+                "ScopeKindPersonal",
+                "ScopeKindTenant",
+                "ScopeKindEmpty"
+            ]
+        },
+        "easi_backend_internal_stewardship_application_home.ScopeStewardship": {
+            "type": "object",
+            "properties": {
+                "concern": {
+                    "type": "string"
+                },
+                "concernLabel": {
+                    "type": "string"
+                },
+                "domain": {
+                    "$ref": "#/definitions/easi_backend_internal_stewardship_application_home.DomainRef"
+                }
+            }
+        },
+        "easi_backend_internal_stewardship_application_home.StatusBreakdown": {
+            "type": "object",
+            "properties": {
+                "active": {
+                    "type": "integer"
+                },
+                "deprecated": {
+                    "type": "integer"
+                },
+                "planned": {
+                    "type": "integer"
+                }
+            }
+        },
+        "easi_backend_internal_stewardship_application_home.SubjectType": {
+            "type": "string",
+            "enum": [
+                "capability",
+                "application"
+            ],
+            "x-enum-varnames": [
+                "SubjectCapability",
+                "SubjectApplication"
+            ]
+        },
+        "easi_backend_internal_stewardship_application_home.TimeShares": {
+            "type": "object",
+            "properties": {
+                "eliminate": {
+                    "type": "integer"
+                },
+                "invest": {
+                    "type": "integer"
+                },
+                "migrate": {
+                    "type": "integer"
+                },
+                "notAssessed": {
+                    "type": "integer"
+                },
+                "tolerate": {
+                    "type": "integer"
+                }
+            }
+        },
+        "easi_backend_internal_stewardship_application_home.TimeTile": {
+            "type": "object",
+            "properties": {
+                "shares": {
+                    "$ref": "#/definitions/easi_backend_internal_stewardship_application_home.TimeShares"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "easi_backend_internal_stewardship_application_home.WorkItem": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "dominantGrade": {
+                    "type": "string"
+                },
+                "grantExpiresOn": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "level": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "relation": {
+                    "$ref": "#/definitions/easi_backend_internal_stewardship_application_home.Relation"
+                },
+                "subjectType": {
+                    "$ref": "#/definitions/easi_backend_internal_stewardship_application_home.SubjectType"
+                }
+            }
+        },
         "easi_backend_internal_stewardship_application_readmodels.ConcernStewardshipDTO": {
             "type": "object",
             "properties": {
@@ -17309,6 +17580,23 @@ const docTemplate = `{
                 },
                 "fallback": {
                     "$ref": "#/definitions/easi_backend_internal_stewardship_application_readmodels.PersonDTO"
+                }
+            }
+        },
+        "internal_stewardship_infrastructure_api.HomeResponse": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "myWork": {
+                    "$ref": "#/definitions/easi_backend_internal_stewardship_application_home.MyWork"
+                },
+                "portfolio": {
+                    "$ref": "#/definitions/easi_backend_internal_stewardship_application_home.Portfolio"
+                },
+                "scope": {
+                    "$ref": "#/definitions/easi_backend_internal_stewardship_application_home.Scope"
                 }
             }
         },

@@ -51,7 +51,6 @@ func TestNewStewardship_RaisesStewardAssignedWithAttribution(t *testing.T) {
 	assert.Equal(t, "alice@example.com", assigned.AssignedBy)
 	assert.False(t, assigned.AssignedAt.IsZero())
 	assert.NotEmpty(t, s.ID())
-	assert.Equal(t, "mette", s.Steward().Value())
 }
 
 func TestNewStewardship_RequiresTheDomain(t *testing.T) {
@@ -75,19 +74,25 @@ func TestAssign_ReplacesTheStewardInOneEvent(t *testing.T) {
 	assigned := raised[0].(events.StewardAssigned)
 	assert.Equal(t, "jonas", assigned.StewardID)
 	assert.Equal(t, "bob@example.com", assigned.AssignedBy)
-	assert.Equal(t, "jonas", s.Steward().Value())
+}
+
+func TestAssign_TheReplacementBecomesTheCurrentSteward(t *testing.T) {
+	s := newAssessmentStewardship(t)
+	require.NoError(t, s.Assign(steward(t, "jonas"), "bob@example.com"))
+	s.MarkChangesAsCommitted()
+
+	require.NoError(t, s.Assign(steward(t, "jonas"), "bob@example.com"))
+
+	assert.Empty(t, s.GetUncommittedChanges())
 }
 
 func TestAssign_TheCurrentStewardAgainChangesNothing(t *testing.T) {
 	s := newAssessmentStewardship(t)
 	s.MarkChangesAsCommitted()
-	originalAt := s.AssignedAt()
 
 	require.NoError(t, s.Assign(steward(t, "mette"), "bob@example.com"))
 
 	assert.Empty(t, s.GetUncommittedChanges())
-	assert.Equal(t, "alice@example.com", s.AssignedBy())
-	assert.Equal(t, originalAt, s.AssignedAt())
 }
 
 func TestAssign_RequiresTheActor(t *testing.T) {
@@ -116,7 +121,6 @@ func TestRelease_RaisesStewardReleased(t *testing.T) {
 	assert.Equal(t, "assessment", released.Concern)
 	assert.Equal(t, "system:domain-deleted", released.ReleasedBy)
 	assert.False(t, released.ReleasedAt.IsZero())
-	assert.True(t, s.IsReleased())
 }
 
 func TestRelease_TwiceChangesNothing(t *testing.T) {
@@ -134,21 +138,35 @@ func TestRelease_RequiresTheActor(t *testing.T) {
 	assert.ErrorIs(t, s.Release(""), ErrActorRequired)
 }
 
-func TestLoadStewardshipFromHistory_RestoresTheCurrentSteward(t *testing.T) {
+func loadedAfterReplacement(t *testing.T) *Stewardship {
+	t.Helper()
 	original := newAssessmentStewardship(t)
 	require.NoError(t, original.Assign(steward(t, "jonas"), "bob@example.com"))
-	history := append([]domain.DomainEvent{}, original.GetUncommittedChanges()...)
-
-	loaded, err := LoadStewardshipFromHistory(history)
-
+	loaded, err := LoadStewardshipFromHistory(append([]domain.DomainEvent{}, original.GetUncommittedChanges()...))
 	require.NoError(t, err)
 	assert.Equal(t, original.ID(), loaded.ID())
-	assert.Equal(t, "domain-1", loaded.DomainID())
-	assert.Equal(t, "assessment", loaded.Concern().Value())
-	assert.Equal(t, "jonas", loaded.Steward().Value())
-	assert.Equal(t, "bob@example.com", loaded.AssignedBy())
-	assert.False(t, loaded.IsReleased())
 	assert.Equal(t, 2, loaded.Version())
+	return loaded
+}
+
+func TestLoadStewardshipFromHistory_RestoresTheCurrentSteward(t *testing.T) {
+	loaded := loadedAfterReplacement(t)
+
+	require.NoError(t, loaded.Assign(steward(t, "jonas"), "carol@example.com"))
+
+	assert.Empty(t, loaded.GetUncommittedChanges())
+}
+
+func TestLoadStewardshipFromHistory_RestoresTheDomainAndConcern(t *testing.T) {
+	loaded := loadedAfterReplacement(t)
+
+	require.NoError(t, loaded.Release("carol@example.com"))
+
+	raised := loaded.GetUncommittedChanges()
+	require.Len(t, raised, 1)
+	released := raised[0].(events.StewardReleased)
+	assert.Equal(t, "domain-1", released.DomainID)
+	assert.Equal(t, "assessment", released.Concern)
 }
 
 func TestLoadStewardshipFromHistory_RejectsACorruptConcern(t *testing.T) {

@@ -3,7 +3,6 @@ package aggregates
 import (
 	"errors"
 	"fmt"
-	"time"
 
 	domain "easi/backend/internal/shared/eventsourcing"
 	"easi/backend/internal/stewardship/domain/events"
@@ -20,12 +19,10 @@ var (
 
 type Stewardship struct {
 	domain.AggregateRoot
-	domainID   string
-	concern    valueobjects.Concern
-	steward    valueobjects.StewardRef
-	assignedBy string
-	assignedAt time.Time
-	released   bool
+	domainID string
+	concern  valueobjects.Concern
+	steward  valueobjects.StewardRef
+	released bool
 }
 
 type Assignment struct {
@@ -128,14 +125,5 @@ func (s *Stewardship) applyAssigned(evt events.StewardAssigned) error {
 	s.domainID = evt.DomainID
 	s.concern = concern
 	s.steward = valueobjects.RecordedStewardRef(evt.StewardID)
-	s.assignedBy = evt.AssignedBy
-	s.assignedAt = evt.AssignedAt
 	return nil
 }
-
-func (s *Stewardship) DomainID() string                 { return s.domainID }
-func (s *Stewardship) Concern() valueobjects.Concern    { return s.concern }
-func (s *Stewardship) Steward() valueobjects.StewardRef { return s.steward }
-func (s *Stewardship) AssignedBy() string               { return s.assignedBy }
-func (s *Stewardship) AssignedAt() time.Time            { return s.assignedAt }
-func (s *Stewardship) IsReleased() bool                 { return s.released }

@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import { useParams } from 'react-router-dom';
 import type { BusinessDomain, BusinessDomainId, Capability, CapabilityId, ComponentId } from '../../../api/types';
 import { useMaturityColorScale } from '../../../hooks/useMaturityColorScale';
-import { clearParams, deepLinkParams, getParamValue } from '../../../lib/deepLinks';
+import { clearParams, deepLinkParams, readDeepLink } from '../../../lib/deepLinks';
 import { useUserStore } from '../../../store/userStore';
 import { buildHierarchyJourneys, NO_HIERARCHY_JOURNEYS } from '../lens/hierarchyJourneys';
 import type { JourneyIndex } from '../lens/journeyIndex';
@@ -39,7 +39,7 @@ function useDomainDeepLink(domains: BusinessDomain[], isLoading: boolean, onFoun
   useEffect(() => {
     if (isLoading || processedRef.current) return;
 
-    const domainIdFromUrl = pathDomainId ?? getParamValue(deepLinkParams.DOMAIN.param);
+    const domainIdFromUrl = pathDomainId ?? readDeepLink(deepLinkParams.DOMAIN);
     if (!domainIdFromUrl) return;
 
     processedRef.current = true;
@@ -66,7 +66,7 @@ function useCapabilityDeepLink(
     if (isLoading || processedRef.current) return;
     if (allCapabilities.length === 0) return;
 
-    const capabilityIdFromUrl = getParamValue(deepLinkParams.CAPABILITY.param);
+    const capabilityIdFromUrl = readDeepLink(deepLinkParams.CAPABILITY);
     if (!capabilityIdFromUrl) return;
 
     processedRef.current = true;

@@ -6,6 +6,7 @@ import {
   toRealizationId,
   toRelationId,
   toVendorId,
+  toViewId,
 } from '../../api/types';
 import {
   buildAcquiredEntity,
@@ -114,6 +115,7 @@ export function seedDevData(): void {
         ],
         capabilities: [{ capabilityId: toCapabilityId('cap-account-creation'), x: 100, y: 450 }],
       }),
+      buildView({ id: toViewId('view-integration-landscape'), name: 'Integration Landscape' }),
     ],
     acquiredEntities: [
       buildAcquiredEntity({

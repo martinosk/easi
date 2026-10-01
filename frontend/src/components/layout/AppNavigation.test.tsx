@@ -1,5 +1,6 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../test/helpers';
 import { AppNavigation } from './AppNavigation';
@@ -14,6 +15,10 @@ const mockState = {
 vi.mock('../../store/userStore', () => ({
   useUserStore: <T,>(selector: (state: typeof mockState) => T): T => selector(mockState),
 }));
+
+function LocationProbe() {
+  return <div data-testid="location">{useLocation().pathname}</div>;
+}
 
 const MEASURED = { full: 100, compact: 40, more: 40 };
 let navWidth = 1000;
@@ -55,6 +60,49 @@ describe('AppNavigation', () => {
     vi.unstubAllGlobals();
     if (originalOffsetWidth) Object.defineProperty(HTMLElement.prototype, 'offsetWidth', originalOffsetWidth);
     else Reflect.deleteProperty(HTMLElement.prototype, 'offsetWidth');
+  });
+
+  it('shows a Home entry that is active on Home', () => {
+    renderWithProviders(<AppNavigation currentView="home" />);
+
+    expect(screen.getByTestId('nav-home')).toHaveTextContent('Home');
+    expect(screen.getByTestId('nav-home')).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByTestId('nav-canvas')).not.toHaveAttribute('aria-current');
+  });
+
+  it('navigates the canvas entry to /canvas', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <>
+        <AppNavigation currentView="home" />
+        <LocationProbe />
+      </>,
+    );
+
+    await user.click(screen.getByTestId('nav-canvas'));
+
+    expect(screen.getByTestId('location')).toHaveTextContent('/canvas');
+  });
+
+  it('navigates the Home entry to /', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <>
+        <AppNavigation currentView="canvas" />
+        <LocationProbe />
+      </>,
+      { routerProps: { initialEntries: ['/canvas'] } },
+    );
+
+    await user.click(screen.getByTestId('nav-home'));
+
+    expect(screen.getByTestId('location').textContent).toBe('/');
+  });
+
+  it('links the logo to Home', () => {
+    renderWithProviders(<AppNavigation currentView="canvas" />, { routerProps: { initialEntries: ['/canvas'] } });
+
+    expect(screen.getByRole('link', { name: 'EASI home' })).toHaveAttribute('href', '/');
   });
 
   it('shows the One-Pager Quality nav entry when the session link is present', () => {
@@ -130,14 +178,15 @@ describe('AppNavigation', () => {
     const user = userEvent.setup();
     renderWithProviders(<AppNavigation currentView="canvas" />);
 
+    expect(screen.getByTestId('nav-home')).toBeInTheDocument();
     expect(screen.getByTestId('nav-canvas')).toBeInTheDocument();
-    expect(screen.getByTestId('nav-business-domains')).toBeInTheDocument();
+    expect(screen.queryByTestId('nav-business-domains')).not.toBeInTheDocument();
     expect(screen.queryByTestId('nav-users')).not.toBeInTheDocument();
 
     await user.click(screen.getByTestId('nav-more'));
     const menu = await screen.findByTestId('nav-more-menu');
     expect(within(menu).getByTestId('nav-users-overflow')).toHaveTextContent('Users');
-    expect(within(menu).getByTestId('nav-value-streams-overflow')).toBeInTheDocument();
+    expect(within(menu).getByTestId('nav-business-domains-overflow')).toBeInTheDocument();
     expect(within(menu).queryByTestId('nav-canvas-overflow')).not.toBeInTheDocument();
   });
 
