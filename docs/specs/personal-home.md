@@ -1,10 +1,11 @@
 # Design: Personal Home
 
-> Status: approved 2026-09-28 — Phase-1 design document; slice A in spec 226
+> Status: approved 2026-09-28 — Phase-1 design document; slices in specs 226–231
 > Author: agent + maosk
 > Date: 2026-09-28
 > Roadmap: moves H2-6 (stewardship read side) and H3-9 (dashboards & KPIs read side), decision SD8 in [`../architecture/ROADMAP.md`](../architecture/ROADMAP.md). Mockup: [`/mockups/easi-home-dashboard-laptop-1600x803-2x.png`](../../mockups/easi-home-dashboard-laptop-1600x803-2x.png).
 > Reviewed 2026-09-28 (user decisions): accountability is per domain **and per concern**, not one domain owner (D2); the mockup's capability approval lifecycle and recent views are dropped; application criticality is a separate spec outside this family; `/` becomes Home and the canvas moves to `/canvas`.
+> Refined 2026-09-29 while specifying slices B–F (pending user approval): the completeness event is `SubjectCompletenessRecalculated` (spec 135 naming for projection-published events); the overdue rule lives in the shared kernel and Architecture Direction serves it to the timeline (refines D10); journeys (E) precede attention items (D) because the planning checks read the journey cache; edit-grant expiry moves from an attention item to My Work; a slice F moves the timeline onto the served overdue state.
 
 ## Problem Statement
 
@@ -115,17 +116,18 @@ A new `home` feature renders the composed `home` response with Mantine primitive
 | D7 | **Steward sees, fixer fixes** | The steward of (domain, concern) is who the item appears for; the invite-to-edit target is the subject's owner, falling back to the domain architect. Alternative — route everything to the steward — rejected: an accountable person is usually not the one who edits the record. |
 | D8 | **Application health is a derived composite with named checks, not a stored attribute** (criticality is a separate spec, user decision 2026-09-28) | Every check reads an event the read side already has. Criticality is a first-class application attribute in the SD6 shape and is specified outside this family; until it lands the home treats all applications in scope alike. |
 | D9 | **Empty scope falls back to the tenant for readers, to a guided empty state for everyone else** | An admin or architect with no anchors is a portfolio-wide reader by role; a stakeholder with no anchors has nothing to steward and is told how to get scope (be assigned a stewardship, own an application, hold an edit grant). |
-| D10 | **Overdue moves into the read side** | Two computations of "overdue" (timeline model, home) would drift; the read side becomes the single definition and the timeline consumes it later. |
+| D10 | **Overdue moves to the server** (refined 2026-09-29, spec 229 decision 1) | Two computations of "overdue" (timeline model, home) would drift. The rule lives in the shared kernel; the stewardship read side uses it for the home and Architecture Direction serves it to the timeline (slice F), since the timeline reads journeys from their owner. |
 | D11 | **`/` is Home; the canvas is at `/canvas`** (user decision 2026-09-28) | The route constant already exists and redirects today; the navigation entry is unchanged. |
 
 ## Slice Map
 
 Each slice becomes its own numbered spec and is deployable alone.
 
-| Slice | Content | Depends on |
-|-------|---------|------------|
-| A | Stewardship context, write side: `Stewardship` aggregate and concerns, published events, domain-deletion release, `stewardships` resource, *Stewards…* dialog from the domain menu on the board | — |
-| B | OnePagers published language: `SubjectCompletenessChanged` raised from the subject-index projector, backfill-safe | — |
-| C | Home shell: stewardship caches and backfills for subjects, anchors, realisations, ownership, TIME, edit grants; scope resolution; `home` with scope summary, portfolio counts, TIME distribution and My Work; `/` becomes Home, canvas at `/canvas` | A |
-| D | Attention items: checks per concern (unowned, nominated awaiting confirmation, unrealised capability, no EA owner, unassessed or stale TIME, incomplete one-pager, Eliminate without journey, edit grant expiring); ranking; fixer routing via invite-to-edit; `attention-items` list behind "View all" | B, C |
-| E | Journeys in motion: journey and milestone caches, overdue computed server-side, journey strip on Home | C |
+| Slice | Spec | Content | Depends on |
+|-------|------|---------|------------|
+| A | 226 | Stewardship context, write side: `Stewardship` aggregate and concerns, published events, domain-deletion release, `stewardships` resource, *Stewards…* dialog from the domain menu on the board | — |
+| B | 227 | OnePagers published language: `SubjectCompletenessRecalculated` published by the subject-index projector on change; consumers backfill from the index | — |
+| C | 228 | Home shell: caches and backfills for capabilities, domain assignments, applications and ownership, realisations, TIME, edit grants, user e-mail; scope resolution from anchors; `home` with scope, portfolio tiles and TIME distribution, My Work with grant expiry; `/` becomes Home, canvas at `/canvas`, old `/?view=` links redirect | A |
+| E | 229 | Journeys in motion: journey and milestone caches, shared-kernel quarter rule, Journey Health on Home with the timeline's counts | C |
+| D | 230 | Attention items: twelve checks across the five concerns, visibility by stewardship, architecture and anchors, ranking, fixer routing via a pre-filled invite-to-edit, `attention-items` list at `/attention`, application health on My Work | B, C, E |
+| F | 231 | Timeline reads served overdue: Architecture Direction serves `overdue` and `currentPeriod` with the shared rule; the timeline model stops computing it | E |
