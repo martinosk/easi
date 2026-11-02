@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createMantineTestWrapper } from '../../../test/helpers';
+import { MantineTestWrapper } from '../../../test/helpers';
 import type { ArtifactCreator } from '../utils/filterByCreator';
 import { CreatedByFilter } from './CreatedByFilter';
 
@@ -24,7 +24,6 @@ describe('CreatedByFilter', () => {
       selectedCreatorIds?: string[];
     } = {},
   ) {
-    const { Wrapper } = createMantineTestWrapper();
     return render(
       <CreatedByFilter
         artifactCreators={props.artifactCreators ?? []}
@@ -32,7 +31,7 @@ describe('CreatedByFilter', () => {
         selectedCreatorIds={props.selectedCreatorIds ?? []}
         onSelectionChange={onSelectionChange}
       />,
-      { wrapper: Wrapper },
+      { wrapper: MantineTestWrapper },
     );
   }
 

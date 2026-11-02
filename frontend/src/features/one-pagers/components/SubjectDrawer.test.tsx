@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createMantineTestWrapper } from '../../../test/helpers';
+import { MantineTestWrapper } from '../../../test/helpers';
 import type { OnePagerSubjectType } from '../types';
 import { SubjectDrawer } from './SubjectDrawer';
 
@@ -33,9 +33,8 @@ vi.mock('../../origin-entities/components/InternalTeamDetailsPanel', () => ({
 }));
 
 function renderDrawer(subjectType: OnePagerSubjectType, subjectId: string, onClose = vi.fn()) {
-  const { Wrapper } = createMantineTestWrapper();
   render(<SubjectDrawer opened onClose={onClose} subjectType={subjectType} subjectId={subjectId} />, {
-    wrapper: Wrapper,
+    wrapper: MantineTestWrapper,
   });
   return onClose;
 }

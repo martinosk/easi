@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Capability, CapabilityId, View, ViewId } from '../../../api/types';
 import type { AppStore } from '../../../store/appStore';
 import { useAppStore } from '../../../store/appStore';
-import { createMantineTestWrapper, seedDb, server } from '../../../test/helpers';
+import { MantineTestWrapper, seedDb, server } from '../../../test/helpers';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { CapabilityDetails } from './CapabilityDetails';
 
@@ -78,11 +78,10 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
       isLoading: false,
       error: null,
     });
-    const { Wrapper } = createMantineTestWrapper();
     return render(<CapabilityDetails onRemoveFromView={vi.fn()} />, {
       wrapper: ({ children }) => (
         <MemoryRouter>
-          <Wrapper>{children}</Wrapper>
+          <MantineTestWrapper>{children}</MantineTestWrapper>
         </MemoryRouter>
       ),
     });

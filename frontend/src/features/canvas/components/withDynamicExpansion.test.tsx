@@ -16,6 +16,13 @@ function InnerStub({ data }: { data: { label: string }; id: string; selected?: b
   return <div data-testid="inner-node">{data.label}</div>;
 }
 
+let renderCount = 0;
+
+function CountingInner({ data }: { data: { label: string }; id: string; selected?: boolean }) {
+  renderCount++;
+  return <div>{data.label}</div>;
+}
+
 function Wrapper({ children }: { children: ReactNode }) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return (
@@ -44,11 +51,7 @@ describe('withDynamicExpansion', () => {
 
   it('does not enter an infinite render loop when disabled', () => {
     useAppStore.setState({ dynamicViewId: null });
-    let renderCount = 0;
-    function CountingInner(props: { data: { label: string }; id: string; selected?: boolean }) {
-      renderCount++;
-      return <div>{props.data.label}</div>;
-    }
+    renderCount = 0;
     const Wrapped = withDynamicExpansion(CountingInner);
 
     render(
@@ -68,11 +71,7 @@ describe('withDynamicExpansion', () => {
         dynamicOriginal: { entities: [{ id: 'comp-1', type: 'component' }], positions: { 'comp-1': { x: 0, y: 0 } } },
       });
     });
-    let renderCount = 0;
-    function CountingInner(props: { data: { label: string }; id: string; selected?: boolean }) {
-      renderCount++;
-      return <div>{props.data.label}</div>;
-    }
+    renderCount = 0;
     const Wrapped = withDynamicExpansion(CountingInner);
 
     render(

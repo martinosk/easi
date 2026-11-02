@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Capability, CapabilityId } from '../../../api/types';
 import type { AppStore } from '../../../store/appStore';
 import { useAppStore } from '../../../store/appStore';
-import { createMantineTestWrapper, seedDb } from '../../../test/helpers';
+import { MantineTestWrapper, seedDb } from '../../../test/helpers';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { CapabilityDetails } from './CapabilityDetails';
 
@@ -35,12 +35,10 @@ function renderPanel(hasOnePagerLink: boolean) {
     selector({ selectedCapabilityId: 'cap-1', selectCapability: vi.fn() } as unknown as AppStore),
   );
   vi.mocked(useCurrentView).mockReturnValue({ currentView: null, currentViewId: null, isLoading: false, error: null });
-
-  const { Wrapper } = createMantineTestWrapper();
   return render(<CapabilityDetails onRemoveFromView={vi.fn()} />, {
     wrapper: ({ children }) => (
       <MemoryRouter>
-        <Wrapper>{children}</Wrapper>
+        <MantineTestWrapper>{children}</MantineTestWrapper>
       </MemoryRouter>
     ),
   });

@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { HttpResponse, http } from 'msw';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ComponentId, HATEOASLinks } from '../../../api/types';
-import { createMantineTestWrapper, seedDb, server } from '../../../test/helpers';
+import { MantineTestWrapper, seedDb, server } from '../../../test/helpers';
 import { buildComponent } from '../../../test/helpers/entityBuilders';
 import { CreateRelationDialog } from './CreateRelationDialog';
 
@@ -30,7 +30,6 @@ const readOnly = buildComponent({
 });
 
 function renderDialog(sourceComponentId: string, targetComponentId: string) {
-  const { Wrapper } = createMantineTestWrapper();
   const onClose = vi.fn();
   render(
     <CreateRelationDialog
@@ -39,7 +38,7 @@ function renderDialog(sourceComponentId: string, targetComponentId: string) {
       sourceComponentId={sourceComponentId}
       targetComponentId={targetComponentId}
     />,
-    { wrapper: Wrapper },
+    { wrapper: MantineTestWrapper },
   );
   return onClose;
 }

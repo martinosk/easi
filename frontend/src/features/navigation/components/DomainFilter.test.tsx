@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createMantineTestWrapper } from '../../../test/helpers';
+import { MantineTestWrapper } from '../../../test/helpers';
 import { DomainFilter } from './DomainFilter';
 
 describe('DomainFilter', () => {
@@ -17,14 +17,13 @@ describe('DomainFilter', () => {
   ];
 
   function renderFilter(props: { domains?: Array<{ id: string; name: string }>; selectedDomainIds?: string[] } = {}) {
-    const { Wrapper } = createMantineTestWrapper();
     return render(
       <DomainFilter
         domains={props.domains ?? defaultDomains}
         selectedDomainIds={props.selectedDomainIds ?? []}
         onSelectionChange={onSelectionChange}
       />,
-      { wrapper: Wrapper },
+      { wrapper: MantineTestWrapper },
     );
   }
 

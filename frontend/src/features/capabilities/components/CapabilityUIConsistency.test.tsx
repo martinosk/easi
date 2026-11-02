@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Capability, CapabilityId, Component, ComponentId, View, ViewId } from '../../../api/types';
 import type { AppStore } from '../../../store/appStore';
 import { useAppStore } from '../../../store/appStore';
-import { createMantineTestWrapper, seedDb } from '../../../test/helpers';
+import { MantineTestWrapper, seedDb } from '../../../test/helpers';
 import { NavigationTree } from '../../navigation/components/NavigationTree';
 
 vi.mock('../../../store/appStore', () => ({
@@ -32,8 +32,7 @@ function setupMockStore(overrides: Record<string, unknown> = {}) {
 }
 
 function renderNavigationTree(props: Record<string, unknown> = {}) {
-  const { Wrapper } = createMantineTestWrapper();
-  return render(<NavigationTree {...props} />, { wrapper: Wrapper });
+  return render(<NavigationTree {...props} />, { wrapper: MantineTestWrapper });
 }
 
 function expandButtonFor(capabilityName: string) {
@@ -315,10 +314,9 @@ describe('Capability UI Consistency', () => {
     describe('Context Menu item structure comparison', () => {
       it('should have matching menu structure for capability and component tree items', async () => {
         setupMockStore();
-        const { Wrapper } = createMantineTestWrapper();
 
         const { rerender } = render(<NavigationTree onEditCapability={vi.fn()} onEditComponent={vi.fn()} />, {
-          wrapper: Wrapper,
+          wrapper: MantineTestWrapper,
         });
 
         await waitFor(() => {

@@ -18,13 +18,11 @@ vi.mock('../api/chatApi', () => ({
 import { chatApi } from '../api/chatApi';
 
 function createWrapper(queryClient: QueryClient) {
-  return function Wrapper({ children }: { children: ReactNode }) {
-    return (
-      <TestProviders withRouter={false} queryClient={queryClient}>
-        {children}
-      </TestProviders>
-    );
-  };
+  return ({ children }: { children: ReactNode }) => (
+    <TestProviders withRouter={false} queryClient={queryClient}>
+      {children}
+    </TestProviders>
+  );
 }
 
 describe('useConversations', () => {

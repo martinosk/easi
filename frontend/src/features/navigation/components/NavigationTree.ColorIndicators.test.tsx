@@ -4,7 +4,7 @@ import type { CapabilityId, ComponentId, View } from '../../../api/types';
 import { toViewId } from '../../../api/types';
 import type { AppStore } from '../../../store/appStore';
 import { useAppStore } from '../../../store/appStore';
-import { createMantineTestWrapper, seedDb } from '../../../test/helpers';
+import { MantineTestWrapper, seedDb } from '../../../test/helpers';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { NavigationTree } from './NavigationTree';
 
@@ -119,12 +119,10 @@ describe('NavigationTree - Custom Color Indicators', () => {
       isLoading: false,
       error: null,
     });
-    const { Wrapper } = createMantineTestWrapper();
-    return render(<NavigationTree />, { wrapper: Wrapper });
+    return render(<NavigationTree />, { wrapper: MantineTestWrapper });
   };
 
   const renderWithRerender = (currentView: View) => {
-    const { Wrapper } = createMantineTestWrapper();
     vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
       selector(createMockStore() as unknown as AppStore),
     );
@@ -134,7 +132,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
       isLoading: false,
       error: null,
     });
-    return { ...render(<NavigationTree />, { wrapper: Wrapper }), Wrapper };
+    return render(<NavigationTree />, { wrapper: MantineTestWrapper });
   };
 
   const switchView = (nextView: View) => {

@@ -4,7 +4,7 @@ import { HttpResponse, http } from 'msw';
 import type React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ComponentId } from '../../../api/types';
-import { createMantineTestWrapper, seedDb, server } from '../../../test/helpers';
+import { MantineTestWrapper, seedDb, server } from '../../../test/helpers';
 import { CreateRelationDialog } from './CreateRelationDialog';
 
 const API_BASE = 'http://localhost:8080';
@@ -15,8 +15,9 @@ describe('CreateRelationDialog', () => {
   const mockOnClose = vi.fn();
 
   const renderDialog = (props: Partial<React.ComponentProps<typeof CreateRelationDialog>> = {}) => {
-    const { Wrapper } = createMantineTestWrapper();
-    return render(<CreateRelationDialog isOpen={true} onClose={mockOnClose} {...props} />, { wrapper: Wrapper });
+    return render(<CreateRelationDialog isOpen={true} onClose={mockOnClose} {...props} />, {
+      wrapper: MantineTestWrapper,
+    });
   };
 
   const renderPrefilledDialog = () => renderDialog({ sourceComponentId: '1', targetComponentId: '2' });

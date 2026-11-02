@@ -30,7 +30,7 @@ export {
   buildViewComponent,
   resetIdCounter,
 } from './entityBuilders';
-export { createMantineTestWrapper, MantineTestWrapper } from './mantineTestWrapper';
+export { MantineTestWrapper } from './mantineTestWrapper';
 export {
   createTestQueryClient,
   type RenderWithProvidersOptions,
