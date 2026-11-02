@@ -106,7 +106,7 @@ describe('BoardCapabilityCard — Journey lens', () => {
     expect(chips.find((c) => c.textContent === 'Seabook')).toHaveAttribute('data-variant', 'legacy');
     expect(chips.find((c) => c.textContent === 'Phoenix')).toHaveAttribute('data-variant', 'future');
     expect(screen.getByTestId('status-pill-in-flight')).toHaveTextContent('in flight');
-    expect(screen.getByTestId('journey-progress-fill')).toHaveStyle('--journey-progress: 60%');
+    expect(screen.getByTestId('journey-progress-fill').style.getPropertyValue('--journey-progress')).toBe('60%');
   });
 
   it('renders a completed journey with the standard chip, a full bar and a done pill', () => {

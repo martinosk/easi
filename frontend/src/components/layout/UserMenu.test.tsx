@@ -36,10 +36,10 @@ describe('UserMenu', () => {
   it('renders the initials avatar with the header skin colour, not the Mantine blue palette', () => {
     renderWithProviders(<UserMenu />);
 
-    const avatar = screen.getByText('AL').closest('.mantine-Avatar-root');
+    const avatar = screen.getByText('AL').closest<HTMLElement>('.mantine-Avatar-root');
 
     expect(avatar).toHaveClass(classes.avatar);
-    expect(avatar).not.toHaveStyle({ '--avatar-bg': 'var(--mantine-color-blue-light)' });
+    expect(avatar?.style.getPropertyValue('--avatar-bg')).not.toContain('--mantine-color-blue');
   });
 
   it('shows a Settings item for users with metamodel:write that navigates to settings', async () => {
