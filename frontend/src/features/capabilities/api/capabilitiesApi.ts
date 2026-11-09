@@ -146,6 +146,11 @@ export const capabilitiesApi = {
     return response.data;
   },
 
+  async addRealization(capability: Capability, request: LinkSystemToCapabilityRequest): Promise<CapabilityRealization> {
+    const response = await httpClient.post<CapabilityRealization>(followLink(capability, 'x-add-realization'), request);
+    return response.data;
+  },
+
   async updateRealization(
     realization: CapabilityRealization,
     request: UpdateRealizationRequest,

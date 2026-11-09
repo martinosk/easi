@@ -159,7 +159,7 @@ func (h *LinkSystemToCapabilityHandler) buildInheritanceAdditions(ctx context.Co
 			ComponentName:        componentName,
 			RealizationLevel:     "Full",
 			Notes:                "",
-			Origin:               "Inherited",
+			Origin:               readmodels.OriginInherited,
 			SourceRealizationID:  realization.ID(),
 			SourceCapabilityID:   capability.ID(),
 			SourceCapabilityName: capability.Name().Value(),

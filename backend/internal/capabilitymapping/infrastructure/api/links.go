@@ -1,6 +1,7 @@
 package api
 
 import (
+	"easi/backend/internal/capabilitymapping/application/readmodels"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
@@ -44,6 +45,7 @@ func (h *CapabilityMappingLinks) capabilityBaseForActor(id string, actor sharedc
 			"x-add-expert":      h.Post(p + "/experts"),
 			"x-update-metadata": h.Put(p + "/metadata"),
 			"x-add-tag":         h.Post(p + "/tags"),
+			"x-add-realization": h.Post(p + "/systems"),
 		},
 	})
 	if actor.CanDelete("capabilities") {
@@ -100,12 +102,15 @@ func (h *CapabilityMappingLinks) DependencyLinks(id, srcCapID, tgtCapID string) 
 	}
 }
 
-func (h *CapabilityMappingLinks) RealizationLinksForActor(id, capID, compID string, actor sharedctx.Actor) sharedAPI.Links {
-	p := "/capability-realizations/" + id
+func (h *CapabilityMappingLinks) RealizationLinksForActor(r readmodels.RealizationDTO, actor sharedctx.Actor) sharedAPI.Links {
+	p := "/capability-realizations/" + r.ID
 	links := sharedAPI.Links{
 		"self":         h.Get(p),
-		"x-capability": h.Get("/capabilities/" + capID),
-		"x-component":  h.Get("/components/" + compID),
+		"x-capability": h.Get("/capabilities/" + r.CapabilityID),
+		"x-component":  h.Get("/components/" + r.ComponentID),
+	}
+	if r.Origin != readmodels.OriginDirect {
+		return links
 	}
 	if actor.CanWrite("capabilities") {
 		links["edit"] = h.Put(p)

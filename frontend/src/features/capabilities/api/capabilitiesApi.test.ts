@@ -1,6 +1,6 @@
 import { HttpResponse, http } from 'msw';
 import { describe, expect, it } from 'vitest';
-import type { CapabilityId } from '../../../api/types';
+import type { CapabilityId, ComponentId } from '../../../api/types';
 import { buildCapability, server } from '../../../test/helpers';
 import { capabilitiesApi } from './capabilitiesApi';
 
@@ -48,5 +48,29 @@ describe('capabilitiesApi link following', () => {
     await capabilitiesApi.addTag(capability, { tag: 'core' });
 
     expect(received).toEqual({ tag: 'core' });
+  });
+
+  it('adds a realization through the x-add-realization link', async () => {
+    const capability = buildCapability({
+      id: 'cap-1' as CapabilityId,
+      _links: {
+        self: { href: '/api/v1/capabilities/cap-1', method: 'GET' },
+        'x-add-realization': { href: '/api/v1/linked/cap-1/systems', method: 'POST' },
+      },
+    });
+    let received: unknown;
+    server.use(
+      http.post(`${API_BASE}/api/v1/linked/cap-1/systems`, async ({ request }) => {
+        received = await request.json();
+        return HttpResponse.json({ id: 'real-1' }, { status: 201 });
+      }),
+    );
+
+    await capabilitiesApi.addRealization(capability, {
+      componentId: 'comp-1' as ComponentId,
+      realizationLevel: 'Partial',
+    });
+
+    expect(received).toEqual({ componentId: 'comp-1', realizationLevel: 'Partial' });
   });
 });

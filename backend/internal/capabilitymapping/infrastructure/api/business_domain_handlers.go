@@ -490,7 +490,7 @@ func (h *BusinessDomainHandlers) toRealizationGroupDTOs(groups []readmodels.Capa
 func (h *BusinessDomainHandlers) addRealizationLinks(realizations []readmodels.RealizationDTO, actor sharedctx.Actor) []readmodels.RealizationDTO {
 	result := make([]readmodels.RealizationDTO, len(realizations))
 	for i, r := range realizations {
-		r.Links = h.hateoas.RealizationLinksForActor(r.ID, r.CapabilityID, r.ComponentID, actor)
+		r.Links = h.hateoas.RealizationLinksForActor(r, actor)
 		result[i] = r
 	}
 	return result

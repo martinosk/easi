@@ -110,7 +110,7 @@ func (h *RealizationHandlers) LinkSystemToCapability(w http.ResponseWriter, r *h
 	}
 
 	actor, _ := sharedctx.GetActor(r.Context())
-	realization.Links = h.hateoas.RealizationLinksForActor(realization.ID, realization.CapabilityID, realization.ComponentID, actor)
+	realization.Links = h.hateoas.RealizationLinksForActor(*realization, actor)
 
 	location := fmt.Sprintf("/api/v1/capability-realizations/%s", realization.ID)
 	w.Header().Set("Location", location)
@@ -168,7 +168,7 @@ func (h *RealizationHandlers) respondRealizations(
 func (h *RealizationHandlers) enrichRealizationLinks(r *http.Request, realizations []readmodels.RealizationDTO) {
 	actor, _ := sharedctx.GetActor(r.Context())
 	for i := range realizations {
-		realizations[i].Links = h.hateoas.RealizationLinksForActor(realizations[i].ID, realizations[i].CapabilityID, realizations[i].ComponentID, actor)
+		realizations[i].Links = h.hateoas.RealizationLinksForActor(realizations[i], actor)
 	}
 }
 
@@ -250,7 +250,7 @@ func (h *RealizationHandlers) UpdateRealization(w http.ResponseWriter, r *http.R
 	}
 
 	actor, _ := sharedctx.GetActor(r.Context())
-	realization.Links = h.hateoas.RealizationLinksForActor(realization.ID, realization.CapabilityID, realization.ComponentID, actor)
+	realization.Links = h.hateoas.RealizationLinksForActor(*realization, actor)
 
 	sharedAPI.RespondJSON(w, http.StatusOK, realization)
 }

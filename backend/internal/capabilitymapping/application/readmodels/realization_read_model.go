@@ -13,6 +13,11 @@ import (
 	"github.com/lib/pq"
 )
 
+const (
+	OriginDirect    = "Direct"
+	OriginInherited = "Inherited"
+)
+
 type RealizationDTO struct {
 	ID                   string      `json:"id"`
 	CapabilityID         string      `json:"capabilityId"`

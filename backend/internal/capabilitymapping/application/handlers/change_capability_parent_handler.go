@@ -195,7 +195,7 @@ func (h *ChangeCapabilityParentHandler) buildInheritanceAdditions(ctx context.Co
 				ComponentName:        realization.ComponentName,
 				RealizationLevel:     "Full",
 				Notes:                "",
-				Origin:               "Inherited",
+				Origin:               readmodels.OriginInherited,
 				SourceRealizationID:  sourceID,
 				SourceCapabilityID:   sourceCapabilityID,
 				SourceCapabilityName: sourceCapabilityName,
@@ -228,14 +228,14 @@ func (h *ChangeCapabilityParentHandler) collectAncestorIDs(ctx context.Context, 
 }
 
 func resolveSourceRealizationID(realization readmodels.RealizationDTO) string {
-	if realization.Origin == "Inherited" && realization.SourceRealizationID != "" {
+	if realization.Origin == readmodels.OriginInherited && realization.SourceRealizationID != "" {
 		return realization.SourceRealizationID
 	}
 	return realization.ID
 }
 
 func buildInheritanceSource(realization readmodels.RealizationDTO, capability *readmodels.CapabilityDTO) (string, string, string) {
-	if realization.Origin == "Inherited" && realization.SourceRealizationID != "" {
+	if realization.Origin == readmodels.OriginInherited && realization.SourceRealizationID != "" {
 		return realization.SourceRealizationID, realization.SourceCapabilityID, realization.SourceCapabilityName
 	}
 
