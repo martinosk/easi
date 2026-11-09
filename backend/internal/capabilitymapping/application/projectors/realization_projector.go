@@ -89,7 +89,7 @@ func (p *RealizationProjector) handleSystemLinked(ctx context.Context, eventData
 		ComponentName:    componentName,
 		RealizationLevel: event.RealizationLevel,
 		Notes:            event.Notes,
-		Origin:           "Direct",
+		Origin:           readmodels.OriginDirect,
 		LinkedAt:         event.LinkedAt,
 	}
 

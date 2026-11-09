@@ -224,6 +224,12 @@ export function updateRelation(id: RelationId, updates: Partial<Relation>): Rela
   return updateIn(db.relations, id, updates);
 }
 
+export function removeCapabilityRealization(id: CapabilityRealization['id']): boolean {
+  const before = db.capabilityRealizations.length;
+  db.capabilityRealizations = db.capabilityRealizations.filter((r) => r.id !== id);
+  return db.capabilityRealizations.length < before;
+}
+
 export function updateCapabilityRealization(
   id: CapabilityRealization['id'],
   updates: Partial<CapabilityRealization>,

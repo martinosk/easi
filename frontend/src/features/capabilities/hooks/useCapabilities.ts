@@ -238,6 +238,17 @@ export function useLinkSystemToCapability() {
   });
 }
 
+export function useAddRealization() {
+  return useCapabilityMutation({
+    mutationFn: ({ capability, request }: { capability: Capability; request: LinkSystemToCapabilityRequest }) =>
+      capabilitiesApi.addRealization(capability, request),
+    getEffects: (_, { capability, request }) =>
+      capabilitiesMutationEffects.linkSystem({ capabilityId: capability.id, componentId: request.componentId }),
+    successMessage: 'Application added',
+    errorMessage: 'Failed to add application',
+  });
+}
+
 export function useUpdateRealization() {
   return useCapabilityMutation({
     mutationFn: (context: { realization: CapabilityRealization; request: UpdateRealizationRequest }) =>

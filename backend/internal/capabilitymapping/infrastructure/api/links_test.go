@@ -161,37 +161,6 @@ func TestCapabilityLinksForActor_StakeholderGetsNoMetadataOrTagLinks(t *testing.
 	assert.False(t, hasEdit, "stakeholder must not see edit")
 }
 
-func TestRealizationLinksForActor_ArchitectGetsEditAndDelete(t *testing.T) {
-	h := sharedAPI.NewHATEOASLinks("/api/v1")
-	links := NewCapabilityMappingLinks(h)
-	actor := sharedctx.NewActor("u1", "u@example.com", sharedctx.RoleArchitect)
-
-	result := links.RealizationLinksForActor("real1", "cap1", "comp1", actor)
-
-	edit, ok := result["edit"]
-	require.True(t, ok, "architect must see edit")
-	assert.Equal(t, "PUT", edit.Method)
-	assert.Equal(t, "/api/v1/capability-realizations/real1", edit.Href)
-	_, hasDelete := result["delete"]
-	assert.True(t, hasDelete, "architect must see delete")
-	assert.Equal(t, "/api/v1/capabilities/cap1", result["x-capability"].Href)
-	assert.Equal(t, "/api/v1/components/comp1", result["x-component"].Href)
-}
-
-func TestRealizationLinksForActor_StakeholderGetsNoEditOrDelete(t *testing.T) {
-	h := sharedAPI.NewHATEOASLinks("/api/v1")
-	links := NewCapabilityMappingLinks(h)
-	actor := sharedctx.NewActor("u1", "u@example.com", sharedctx.RoleStakeholder)
-
-	result := links.RealizationLinksForActor("real1", "cap1", "comp1", actor)
-
-	_, hasEdit := result["edit"]
-	_, hasDelete := result["delete"]
-	assert.False(t, hasEdit, "stakeholder must not see edit")
-	assert.False(t, hasDelete, "stakeholder must not see delete")
-	assert.Equal(t, "/api/v1/capability-realizations/real1", result["self"].Href)
-}
-
 func TestBusinessDomainLinksForActor_CarriesStewardshipsForReaders(t *testing.T) {
 	links := NewCapabilityMappingLinks(sharedAPI.NewHATEOASLinks("/api/v1"))
 
@@ -202,5 +171,62 @@ func TestBusinessDomainLinksForActor_CarriesStewardshipsForReaders(t *testing.T)
 		require.True(t, ok, role)
 		assert.Equal(t, "/api/v1/stewardships?domainId=bd-1", link.Href)
 		assert.Equal(t, "GET", link.Method)
+	}
+}
+
+func TestRealizationLinksForActor_EditAndDeleteOnlyOnDirectRealizationsForPermittedActors(t *testing.T) {
+	links := NewCapabilityMappingLinks(sharedAPI.NewHATEOASLinks("/api/v1"))
+	tests := []struct {
+		name          string
+		role          sharedctx.Role
+		origin        string
+		wantMutations bool
+	}{
+		{"architect on direct", sharedctx.RoleArchitect, readmodels.OriginDirect, true},
+		{"stakeholder on direct", sharedctx.RoleStakeholder, readmodels.OriginDirect, false},
+		{"architect on inherited", sharedctx.RoleArchitect, readmodels.OriginInherited, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			realization := readmodels.RealizationDTO{ID: "real1", CapabilityID: "cap1", ComponentID: "comp1", Origin: tt.origin}
+
+			result := links.RealizationLinksForActor(realization, sharedctx.NewActor("u1", "u@example.com", tt.role))
+
+			assert.Equal(t, "/api/v1/capability-realizations/real1", result["self"].Href)
+			assert.Equal(t, "/api/v1/capabilities/cap1", result["x-capability"].Href)
+			assert.Equal(t, "/api/v1/components/comp1", result["x-component"].Href)
+			if !tt.wantMutations {
+				assert.NotContains(t, result, "edit")
+				assert.NotContains(t, result, "delete")
+				return
+			}
+			assert.Equal(t, types.Link{Href: "/api/v1/capability-realizations/real1", Method: "PUT"}, result["edit"])
+			assert.Equal(t, types.Link{Href: "/api/v1/capability-realizations/real1", Method: "DELETE"}, result["delete"])
+		})
+	}
+}
+
+func TestCapabilityLinksForActor_AddRealizationRequiresCapabilitiesWrite(t *testing.T) {
+	links := NewCapabilityMappingLinks(sharedAPI.NewHATEOASLinks("/api/v1"))
+	tests := []struct {
+		name    string
+		actor   sharedctx.Actor
+		wantAdd bool
+	}{
+		{"architect", sharedctx.NewActor("u1", "u@example.com", sharedctx.RoleArchitect), true},
+		{"stakeholder", sharedctx.NewActor("u1", "u@example.com", sharedctx.RoleStakeholder), false},
+		{"edit-grant holder without write", sharedctx.NewActor("u1", "u@example.com", sharedctx.RoleStakeholder).
+			WithEditGrants(map[string]map[string]bool{"capabilities": {"cap1": true}}), false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := links.CapabilityLinksForActor("cap1", "", tt.actor)
+
+			if !tt.wantAdd {
+				assert.NotContains(t, result, "x-add-realization")
+				return
+			}
+			assert.Equal(t, types.Link{Href: "/api/v1/capabilities/cap1/systems", Method: "POST"}, result["x-add-realization"])
+		})
 	}
 }

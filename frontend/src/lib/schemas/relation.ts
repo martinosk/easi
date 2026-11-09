@@ -56,3 +56,10 @@ export const realizationNotesSchema = z
   .string()
   .max(1000, 'Notes must be 1000 characters or less')
   .transform((val) => val.trim());
+
+export const addRealizationSchema = z.object({
+  componentId: z.string().min(1, 'Select an application'),
+  realizationLevel: realizationLevelSchema,
+});
+
+export type AddRealizationFormData = z.infer<typeof addRealizationSchema>;

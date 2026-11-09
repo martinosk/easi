@@ -23,6 +23,7 @@ import { assistantStatusHandlers } from './assistantStatus';
 import { componentStatisticsHandlers } from './componentStatistics';
 import {
   addCapability,
+  addCapabilityRealization,
   addComponent,
   addRelation,
   getAcquiredEntities,
@@ -43,6 +44,7 @@ import {
   getVendors,
   getView,
   getViews,
+  removeCapabilityRealization,
   updateAcquiredEntity,
   updateCapability,
   updateCapabilityRealization,
@@ -256,6 +258,25 @@ export const handlers = [
       data: realizations,
       _links: { self: `/api/v1/capabilities/${params.id}/systems` },
     });
+  }),
+
+  http.post(`${BASE_URL}/api/v1/capabilities/:id/systems`, async ({ params, request }) => {
+    const body = (await request.json()) as Pick<CapabilityRealization, 'componentId' | 'realizationLevel' | 'notes'>;
+    const component = getComponent(toComponentId(body.componentId));
+    const created = addCapabilityRealization({
+      capabilityId: toCapabilityId(params.id as string),
+      componentId: toComponentId(body.componentId),
+      componentName: component?.name,
+      realizationLevel: body.realizationLevel,
+      notes: body.notes,
+      origin: 'Direct',
+    });
+    return HttpResponse.json(created, { status: 201 });
+  }),
+
+  http.delete(`${BASE_URL}/api/v1/capability-realizations/:id`, ({ params }) => {
+    const removed = removeCapabilityRealization(toRealizationId(params.id as string));
+    return new HttpResponse(null, { status: removed ? 204 : 404 });
   }),
 
   http.get(`${BASE_URL}/api/v1/capability-realizations/by-component/:componentId`, ({ params }) => {

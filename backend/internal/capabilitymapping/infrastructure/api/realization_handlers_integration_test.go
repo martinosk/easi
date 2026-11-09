@@ -21,6 +21,7 @@ import (
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
 	sharedAPI "easi/backend/internal/shared/api"
+	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
 
@@ -82,11 +83,13 @@ func newCapabilityAggregate(t *testing.T, name, level string, parentID string) *
 	return capability
 }
 
-func TestLinkSystemToCapability_InheritsToAncestors_Integration(t *testing.T) {
-	testCtx, cleanup := setupTestDB(t)
-	defer cleanup()
-	testCtx.setTenantContext(t)
+type linkedHierarchy struct {
+	handlers         *RealizationHandlers
+	l1ID, l2ID, l3ID string
+}
 
+func linkComponentToNewL3(t *testing.T, testCtx *testContext) linkedHierarchy {
+	t.Helper()
 	tenantDB := database.NewTenantAwareDB(testCtx.db)
 	h, capabilityRepo := setupRealizationHandlers(tenantDB)
 
@@ -137,6 +140,18 @@ func TestLinkSystemToCapability_InheritsToAncestors_Integration(t *testing.T) {
 	time.Sleep(150 * time.Millisecond)
 	testCtx.setTenantContext(t)
 
+	return linkedHierarchy{handlers: h, l1ID: l1ID, l2ID: l2ID, l3ID: l3ID}
+}
+
+func TestLinkSystemToCapability_InheritsToAncestors_Integration(t *testing.T) {
+	testCtx, cleanup := setupTestDB(t)
+	defer cleanup()
+	testCtx.setTenantContext(t)
+
+	linked := linkComponentToNewL3(t, testCtx)
+	l1ID, l2ID, l3ID := linked.l1ID, linked.l2ID, linked.l3ID
+	var err error
+
 	var directCount int
 	err = testCtx.db.QueryRow(
 		"SELECT COUNT(*) FROM capabilitymapping.capability_realizations WHERE tenant_id = $1 AND capability_id = $2 AND origin = 'Direct'",
@@ -152,4 +167,43 @@ func TestLinkSystemToCapability_InheritsToAncestors_Integration(t *testing.T) {
 	).Scan(&inheritedCount)
 	require.NoError(t, err)
 	assert.Equal(t, 2, inheritedCount)
+}
+
+func getSystemsAsArchitect(t *testing.T, h *RealizationHandlers, capabilityID string) []readmodels.RealizationDTO {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/capabilities/"+capabilityID+"/systems", nil)
+	req = withTestTenant(req)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", capabilityID)
+	ctx := context.WithValue(req.Context(), chi.RouteCtxKey, rctx)
+	ctx = sharedctx.WithActor(ctx, sharedctx.NewActor("u1", "u@example.com", sharedctx.RoleArchitect))
+	w := httptest.NewRecorder()
+	h.GetSystemsByCapability(w, req.WithContext(ctx))
+	require.Equal(t, http.StatusOK, w.Code)
+
+	var response struct {
+		Data []readmodels.RealizationDTO `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+	require.Len(t, response.Data, 1)
+	return response.Data
+}
+
+func TestGetSystemsByCapability_OnlyDirectRealizationsCarryEditAndDelete_Integration(t *testing.T) {
+	testCtx, cleanup := setupTestDB(t)
+	defer cleanup()
+	testCtx.setTenantContext(t)
+
+	linked := linkComponentToNewL3(t, testCtx)
+
+	direct := getSystemsAsArchitect(t, linked.handlers, linked.l3ID)[0]
+	assert.Equal(t, readmodels.OriginDirect, direct.Origin)
+	assert.Contains(t, direct.Links, "edit")
+	assert.Contains(t, direct.Links, "delete")
+
+	inherited := getSystemsAsArchitect(t, linked.handlers, linked.l2ID)[0]
+	assert.Equal(t, readmodels.OriginInherited, inherited.Origin)
+	assert.NotContains(t, inherited.Links, "edit")
+	assert.NotContains(t, inherited.Links, "delete")
+	assert.Contains(t, inherited.Links, "self")
 }

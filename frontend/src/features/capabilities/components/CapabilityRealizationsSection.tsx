@@ -1,7 +1,10 @@
-import { Group, Stack, Text } from '@mantine/core';
-import { useMemo } from 'react';
+import { ActionIcon, Button, Group, Stack, Text } from '@mantine/core';
+import { IconPlus, IconTrash } from '@tabler/icons-react';
+import { useMemo, useState } from 'react';
 import type { BusinessDomainId, Capability, CapabilityRealization, ComponentId } from '../../../api/types';
+import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
 import { useAppStore } from '../../../store/appStore';
+import { canDelete, hasLink } from '../../../utils/hateoas';
 import { AppChip } from '../../business-domains/components/AppChip';
 import { RealizationAssessment } from '../../business-domains/components/RealizationAssessment';
 import { RealizationRoleControl } from '../../business-domains/components/RealizationRoleControl';
@@ -11,9 +14,46 @@ import {
 } from '../../business-domains/hooks/useCapabilityAssessments';
 import { type CapabilityRoles, useCapabilityRoles } from '../../business-domains/hooks/useCapabilityRoles';
 import { useStrategyImportanceByCapability } from '../../business-domains/hooks/useStrategyImportance';
-import { useCapabilityRealizations } from '../hooks/useCapabilities';
+import { useCapabilityRealizations, useDeleteRealization } from '../hooks/useCapabilities';
+import { AddRealizationDialog } from './AddRealizationDialog';
 import classes from './CapabilityRealizationsSection.module.css';
 import { RealizationFitContext } from './RealizationFitContext';
+
+function RemoveRealizationControl({ realization }: { realization: CapabilityRealization }) {
+  const [confirming, setConfirming] = useState(false);
+  const deleteRealization = useDeleteRealization();
+  const name = realization.componentName ?? realization.componentId;
+
+  const handleConfirm = () => {
+    deleteRealization.mutate(realization, { onSuccess: () => setConfirming(false) });
+  };
+
+  return (
+    <>
+      <ActionIcon
+        variant="subtle"
+        color="gray"
+        size="sm"
+        aria-label={`Remove ${name}`}
+        onClick={() => setConfirming(true)}
+      >
+        <IconTrash size="1rem" />
+      </ActionIcon>
+      {confirming && (
+        <ConfirmationDialog
+          title="Remove realising application"
+          message="Remove this application from the capability's realising applications?"
+          itemName={name}
+          confirmText="Remove"
+          onConfirm={handleConfirm}
+          onCancel={() => setConfirming(false)}
+          isLoading={deleteRealization.isPending}
+          error={deleteRealization.error ? deleteRealization.error.message : null}
+        />
+      )}
+    </>
+  );
+}
 
 interface RealizationRowProps {
   realization: CapabilityRealization;
@@ -33,9 +73,12 @@ function RealizationRow({ realization, domainIds, assessments, roles, onApplicat
 
   return (
     <div className={classes.realizationRow} data-testid={`drawer-realization-${realization.id}`}>
-      <Group gap="xs" wrap="wrap">
-        <AppChip realization={assessed} onClick={onApplicationClick} />
-        <Text size="sm">{realization.realizationLevel}</Text>
+      <Group gap="xs" wrap="wrap" justify="space-between">
+        <Group gap="xs" wrap="wrap">
+          <AppChip realization={assessed} onClick={onApplicationClick} />
+          <Text size="sm">{realization.realizationLevel}</Text>
+        </Group>
+        {canDelete(realization) && <RemoveRealizationControl realization={realization} />}
       </Group>
       {realization.origin === 'Inherited' && (
         <Text className={classes.realizationMeta}>
@@ -73,6 +116,28 @@ function RealizationRow({ realization, domainIds, assessments, roles, onApplicat
   );
 }
 
+function AddRealizationControl({
+  capability,
+  realizations,
+}: {
+  capability: Capability;
+  realizations: CapabilityRealization[];
+}) {
+  const [adding, setAdding] = useState(false);
+  if (!hasLink(capability, 'x-add-realization')) return null;
+
+  return (
+    <Group justify="flex-start">
+      <Button variant="subtle" size="xs" leftSection={<IconPlus size="1rem" />} onClick={() => setAdding(true)}>
+        Add application
+      </Button>
+      {adding && (
+        <AddRealizationDialog capability={capability} realizations={realizations} onClose={() => setAdding(false)} />
+      )}
+    </Group>
+  );
+}
+
 export interface CapabilityRealizationsSectionProps {
   capability: Capability;
   onApplicationClick?: (componentId: ComponentId) => void;
@@ -90,10 +155,9 @@ export function CapabilityRealizationsSection({ capability, onApplicationClick }
   );
   const handleClick = onApplicationClick ?? selectNode;
 
-  if (realizations.length === 0) return <Text className={classes.empty}>no realising application mapped</Text>;
-
   return (
     <Stack gap="xs">
+      {realizations.length === 0 && <Text className={classes.empty}>no realising application mapped</Text>}
       {realizations.map((realization) => (
         <RealizationRow
           key={realization.id}
@@ -104,6 +168,7 @@ export function CapabilityRealizationsSection({ capability, onApplicationClick }
           onApplicationClick={handleClick}
         />
       ))}
+      <AddRealizationControl capability={capability} realizations={realizations} />
     </Stack>
   );
 }
