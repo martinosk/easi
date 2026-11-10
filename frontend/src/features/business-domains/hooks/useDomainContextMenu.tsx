@@ -74,10 +74,10 @@ export function useDomainContextMenu({ onEdit, onDelete }: UseDomainContextMenuP
       },
     });
 
-    if (menu.domain._links.update) {
+    if (hasLink(menu.domain, 'edit')) {
       items.push({
         label: 'Edit',
-        description: 'Open the edit panel',
+        description: 'Rename or change the description and architect',
         icon: <PencilIcon />,
         onClick: () => {
           onEdit(menu.domain);
