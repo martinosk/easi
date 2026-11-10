@@ -521,3 +521,27 @@ func TestFilterUsersByRole_Integration(t *testing.T) {
 func stringPtr(s string) *string {
 	return &s
 }
+
+func TestIntegration_UserReadModel_ActiveRoleFollowsUserStatus(t *testing.T) {
+	testCtx, fixture := newUserTestFixture(t)
+	spec := testCtx.newUserSpec("active-role", valueobjects.RoleArchitect)
+	userID := testCtx.createUser(t, spec)
+
+	activeRoles := func() (string, string) {
+		byEmail, err := fixture.readModel.GetActiveRoleByEmail(tenantContext(), spec.email)
+		require.NoError(t, err)
+		byID, err := fixture.readModel.GetActiveRoleByUserID(tenantContext(), userID)
+		require.NoError(t, err)
+		return byEmail, byID
+	}
+
+	byEmail, byID := activeRoles()
+	assert.Equal(t, "architect", byEmail)
+	assert.Equal(t, "architect", byID)
+
+	execAsTenant(t, testCtx.db, "UPDATE auth.users SET status = 'disabled' WHERE id = $1", userID)
+
+	byEmail, byID = activeRoles()
+	assert.Empty(t, byEmail, "a disabled user has no active role by e-mail")
+	assert.Empty(t, byID, "a disabled user has no active role by id")
+}

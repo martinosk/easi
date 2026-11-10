@@ -96,6 +96,7 @@ func (h *SessionHandlers) GetCurrentSession(w http.ResponseWriter, r *http.Reque
 	}
 
 	if user.Status != valueobjects.UserStatusActive.String() {
+		_ = h.sessionManager.ClearSession(r.Context())
 		sharedAPI.RespondError(w, http.StatusUnauthorized, nil, "Account is not active")
 		return
 	}

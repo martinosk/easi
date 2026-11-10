@@ -257,19 +257,12 @@ func TestDeleteCurrentSession_Success(t *testing.T) {
 	assert.Equal(t, http.StatusNoContent, rec.Code)
 }
 
-func TestGetCurrentSession_DisabledUser_Unauthorized(t *testing.T) {
-	handlers, scsManager, sessionManager := setupSessionTestHandler(
-		&mockUserRepository{user: &UserDTO{
-			ID:     uuid.New(),
-			Email:  "john@acme.com",
-			Name:   "John Doe",
-			Role:   "architect",
-			Status: "disabled",
-		}},
+func serveCurrentSession(user *UserDTO, scsManager *scs.SessionManager, sessionManager *session.SessionManager, cookies []*http.Cookie) int {
+	handlers := NewSessionHandlers(
+		sessionManager,
+		&mockUserRepository{user: user},
 		&mockTenantRepository{tenant: &TenantDTO{ID: "acme", Name: "Acme Corporation"}},
 	)
-
-	cookies := createAuthenticatedSession(t, sessionTestContext{sessionManager, scsManager}, "acme", "john@acme.com")
 
 	req := httptest.NewRequest(http.MethodGet, "/auth/sessions/current", nil)
 	for _, c := range cookies {
@@ -281,6 +274,19 @@ func TestGetCurrentSession_DisabledUser_Unauthorized(t *testing.T) {
 	router.Use(scsManager.LoadAndSave)
 	router.Get("/auth/sessions/current", handlers.GetCurrentSession)
 	router.ServeHTTP(rec, req)
+	return rec.Code
+}
 
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+func TestGetCurrentSession_DisabledUser_UnauthorizedAndSessionDestroyed(t *testing.T) {
+	_, scsManager, sessionManager := setupSessionTestHandler(&mockUserRepository{}, &mockTenantRepository{})
+	cookies := createAuthenticatedSession(t, sessionTestContext{sessionManager, scsManager}, "acme", "john@acme.com")
+	john := func(status string) *UserDTO {
+		return &UserDTO{ID: uuid.New(), Email: "john@acme.com", Name: "John Doe", Role: "architect", Status: status}
+	}
+
+	disabledStatus := serveCurrentSession(john("disabled"), scsManager, sessionManager, cookies)
+	reEnabledStatus := serveCurrentSession(john("active"), scsManager, sessionManager, cookies)
+
+	assert.Equal(t, http.StatusUnauthorized, disabledStatus)
+	assert.Equal(t, http.StatusUnauthorized, reEnabledStatus, "re-enabling the user must not revive the old session")
 }

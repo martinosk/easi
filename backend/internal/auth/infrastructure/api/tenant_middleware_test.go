@@ -14,6 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"easi/backend/internal/auth/application/readmodels"
+	"easi/backend/internal/auth/domain/valueobjects"
 	"easi/backend/internal/auth/infrastructure/session"
 	"easi/backend/internal/shared/agenttoken"
 	sharedctx "easi/backend/internal/shared/context"
@@ -254,11 +256,7 @@ func TestTenantMiddlewareWithAgentToken_RejectsWhenRoleNotFound(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, rec.Code)
 }
 
-func serveWithSessionLookup(t *testing.T, lookup UserRoleLookup) (int, bool) {
-	t.Helper()
-	fixture := newSessionTestFixture()
-	cookies := fixture.storeAuthenticatedSession(t, "acme", "user@acme.com")
-
+func serveSessionRequest(fixture *sessionTestFixture, cookies []*http.Cookie, lookup UserRoleLookup) (int, bool) {
 	reached := false
 	router := chi.NewRouter()
 	router.Use(fixture.scsManager.LoadAndSave)
@@ -277,6 +275,13 @@ func serveWithSessionLookup(t *testing.T, lookup UserRoleLookup) (int, bool) {
 	return rec.Code, reached
 }
 
+func serveWithSessionLookup(t *testing.T, lookup UserRoleLookup) (int, bool) {
+	t.Helper()
+	fixture := newSessionTestFixture()
+	cookies := fixture.storeAuthenticatedSession(t, "acme", "user@acme.com")
+	return serveSessionRequest(fixture, cookies, lookup)
+}
+
 func TestTenantMiddlewareWithSession_RejectsSessionOfUserWithoutActiveRole(t *testing.T) {
 	status, reached := serveWithSessionLookup(t, &mockRoleLookup{role: ""})
 
@@ -284,9 +289,69 @@ func TestTenantMiddlewareWithSession_RejectsSessionOfUserWithoutActiveRole(t *te
 	assert.False(t, reached, "a disabled or unknown user's session must not reach the handler")
 }
 
+func TestTenantMiddlewareWithSession_DestroysSessionOfInactiveUser(t *testing.T) {
+	fixture := newSessionTestFixture()
+	cookies := fixture.storeAuthenticatedSession(t, "acme", "user@acme.com")
+
+	disabledStatus, _ := serveSessionRequest(fixture, cookies, &mockRoleLookup{role: ""})
+	reEnabledStatus, reached := serveSessionRequest(fixture, cookies, &mockRoleLookup{role: "architect"})
+
+	assert.Equal(t, http.StatusUnauthorized, disabledStatus)
+	assert.Equal(t, http.StatusUnauthorized, reEnabledStatus, "re-enabling the user must not revive the old session")
+	assert.False(t, reached)
+}
+
 func TestTenantMiddlewareWithSession_FailsClosedWhenUserLookupFails(t *testing.T) {
 	status, reached := serveWithSessionLookup(t, &mockRoleLookup{role: "admin", err: assert.AnError})
 
 	assert.Equal(t, http.StatusInternalServerError, status)
 	assert.False(t, reached)
+}
+
+func TestTenantMiddlewareWithSession_FailsClosedWithoutUserLookup(t *testing.T) {
+	status, reached := serveWithSessionLookup(t, nil)
+
+	assert.Equal(t, http.StatusInternalServerError, status)
+	assert.False(t, reached)
+}
+
+type stubUserByEmail struct {
+	user *readmodels.UserDTO
+}
+
+func (s stubUserByEmail) GetByEmail(_ context.Context, _ string) (*readmodels.UserDTO, error) {
+	return s.user, nil
+}
+
+func serveWithPermissionGate(t *testing.T, user *readmodels.UserDTO) int {
+	t.Helper()
+	fixture := newSessionTestFixture()
+	cookies := fixture.storeAuthenticatedSession(t, "acme", "user@acme.com")
+	gate := NewAuthMiddleware(fixture.sessionManager).WithUserReadModel(stubUserByEmail{user: user})
+
+	router := chi.NewRouter()
+	router.Use(fixture.scsManager.LoadAndSave)
+	router.With(gate.RequirePermission(valueobjects.PermComponentsRead)).Get("/test", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	for _, c := range cookies {
+		req.AddCookie(c)
+	}
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	return rec.Code
+}
+
+func TestRequirePermission_AdmitsActiveUserHoldingThePermission(t *testing.T) {
+	status := serveWithPermissionGate(t, &readmodels.UserDTO{Role: "architect", Status: "active"})
+
+	assert.Equal(t, http.StatusOK, status)
+}
+
+func TestRequirePermission_RejectsDisabledUserHoldingThePermission(t *testing.T) {
+	status := serveWithPermissionGate(t, &readmodels.UserDTO{Role: "architect", Status: "disabled"})
+
+	assert.Equal(t, http.StatusUnauthorized, status)
 }
