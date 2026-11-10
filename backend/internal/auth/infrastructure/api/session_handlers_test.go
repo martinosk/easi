@@ -256,3 +256,31 @@ func TestDeleteCurrentSession_Success(t *testing.T) {
 
 	assert.Equal(t, http.StatusNoContent, rec.Code)
 }
+
+func TestGetCurrentSession_DisabledUser_Unauthorized(t *testing.T) {
+	handlers, scsManager, sessionManager := setupSessionTestHandler(
+		&mockUserRepository{user: &UserDTO{
+			ID:     uuid.New(),
+			Email:  "john@acme.com",
+			Name:   "John Doe",
+			Role:   "architect",
+			Status: "disabled",
+		}},
+		&mockTenantRepository{tenant: &TenantDTO{ID: "acme", Name: "Acme Corporation"}},
+	)
+
+	cookies := createAuthenticatedSession(t, sessionTestContext{sessionManager, scsManager}, "acme", "john@acme.com")
+
+	req := httptest.NewRequest(http.MethodGet, "/auth/sessions/current", nil)
+	for _, c := range cookies {
+		req.AddCookie(c)
+	}
+	rec := httptest.NewRecorder()
+
+	router := chi.NewRouter()
+	router.Use(scsManager.LoadAndSave)
+	router.Get("/auth/sessions/current", handlers.GetCurrentSession)
+	router.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+}

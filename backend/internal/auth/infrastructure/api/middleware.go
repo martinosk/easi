@@ -137,6 +137,9 @@ func (m *AuthMiddleware) checkPermission(ctx context.Context, email string, perm
 	if user == nil {
 		return &authError{"User not found", http.StatusForbidden}
 	}
+	if !user.IsActive() {
+		return &authError{"Unauthorized", http.StatusUnauthorized}
+	}
 
 	role, err := valueobjects.RoleFromString(user.Role)
 	if err != nil {

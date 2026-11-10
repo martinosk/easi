@@ -95,6 +95,11 @@ func (h *SessionHandlers) GetCurrentSession(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	if user.Status != valueobjects.UserStatusActive.String() {
+		sharedAPI.RespondError(w, http.StatusUnauthorized, nil, "Account is not active")
+		return
+	}
+
 	tenant, err := h.tenantRepo.GetByID(r.Context(), authSession.TenantID())
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusUnauthorized, err, "Tenant not found")

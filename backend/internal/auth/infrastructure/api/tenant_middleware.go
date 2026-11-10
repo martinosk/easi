@@ -16,8 +16,8 @@ import (
 )
 
 type UserRoleLookup interface {
-	GetRoleByEmail(ctx context.Context, email string) (string, error)
-	GetRoleByUserID(ctx context.Context, userID string) (string, error)
+	GetActiveRoleByEmail(ctx context.Context, email string) (string, error)
+	GetActiveRoleByUserID(ctx context.Context, userID string) (string, error)
 }
 
 func TenantMiddlewareWithSession(sessionManager *session.SessionManager, userRoleLookup UserRoleLookup) func(http.Handler) http.Handler {
@@ -66,7 +66,10 @@ func buildSessionContext(r *http.Request, sessionManager *session.SessionManager
 	}
 	ctx := sharedctx.WithTenant(r.Context(), info.tenantID)
 
-	role := resolveUserRole(ctx, info.userEmail, userRoleLookup)
+	role, err := resolveUserRole(ctx, info.userEmail, userRoleLookup)
+	if err != nil {
+		return nil, err
+	}
 	actor := sharedctx.NewActor(info.userID, info.userEmail, role)
 	ctx = sharedctx.WithActor(ctx, actor)
 	logTenantContext(r, info.tenantID)
@@ -110,19 +113,26 @@ func tryAgentTokenAuth(r *http.Request, userRoleLookup UserRoleLookup) (context.
 	return ctx, nil
 }
 
-func resolveUserRole(ctx context.Context, email string, lookup UserRoleLookup) sharedctx.Role {
+func resolveUserRole(ctx context.Context, email string, lookup UserRoleLookup) (sharedctx.Role, error) {
 	if lookup == nil {
-		return ""
+		return "", nil
 	}
-	roleStr, _ := lookup.GetRoleByEmail(ctx, email)
-	return sharedctx.Role(roleStr)
+	roleStr, err := lookup.GetActiveRoleByEmail(ctx, email)
+	if err != nil {
+		log.Printf("Failed to resolve user for session: %v", err)
+		return "", tenantError{"Internal server error", http.StatusInternalServerError}
+	}
+	if roleStr == "" {
+		return "", tenantError{"Account is not active", http.StatusUnauthorized}
+	}
+	return sharedctx.Role(roleStr), nil
 }
 
 func resolveUserRoleByUserID(ctx context.Context, userID string, lookup UserRoleLookup) (sharedctx.Role, error) {
 	if lookup == nil {
 		return "", fmt.Errorf("missing role lookup")
 	}
-	roleStr, err := lookup.GetRoleByUserID(ctx, userID)
+	roleStr, err := lookup.GetActiveRoleByUserID(ctx, userID)
 	if err != nil {
 		return "", err
 	}

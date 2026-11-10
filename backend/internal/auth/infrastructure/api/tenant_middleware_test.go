@@ -23,13 +23,14 @@ import (
 type mockRoleLookup struct {
 	role     string
 	roleByID map[string]string
+	err      error
 }
 
-func (m *mockRoleLookup) GetRoleByEmail(_ context.Context, _ string) (string, error) {
-	return m.role, nil
+func (m *mockRoleLookup) GetActiveRoleByEmail(_ context.Context, _ string) (string, error) {
+	return m.role, m.err
 }
 
-func (m *mockRoleLookup) GetRoleByUserID(_ context.Context, userID string) (string, error) {
+func (m *mockRoleLookup) GetActiveRoleByUserID(_ context.Context, userID string) (string, error) {
 	if m.roleByID != nil {
 		return m.roleByID[userID], nil
 	}
@@ -251,4 +252,41 @@ func TestTenantMiddlewareWithAgentToken_RejectsWhenRoleNotFound(t *testing.T) {
 	router.ServeHTTP(rec, req)
 
 	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+}
+
+func serveWithSessionLookup(t *testing.T, lookup UserRoleLookup) (int, bool) {
+	t.Helper()
+	fixture := newSessionTestFixture()
+	cookies := fixture.storeAuthenticatedSession(t, "acme", "user@acme.com")
+
+	reached := false
+	router := chi.NewRouter()
+	router.Use(fixture.scsManager.LoadAndSave)
+	router.Use(TenantMiddlewareWithSession(fixture.sessionManager, lookup))
+	router.Get("/test", func(w http.ResponseWriter, r *http.Request) {
+		reached = true
+		w.WriteHeader(http.StatusOK)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	for _, c := range cookies {
+		req.AddCookie(c)
+	}
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	return rec.Code, reached
+}
+
+func TestTenantMiddlewareWithSession_RejectsSessionOfUserWithoutActiveRole(t *testing.T) {
+	status, reached := serveWithSessionLookup(t, &mockRoleLookup{role: ""})
+
+	assert.Equal(t, http.StatusUnauthorized, status)
+	assert.False(t, reached, "a disabled or unknown user's session must not reach the handler")
+}
+
+func TestTenantMiddlewareWithSession_FailsClosedWhenUserLookupFails(t *testing.T) {
+	status, reached := serveWithSessionLookup(t, &mockRoleLookup{role: "admin", err: assert.AnError})
+
+	assert.Equal(t, http.StatusInternalServerError, status)
+	assert.False(t, reached)
 }
