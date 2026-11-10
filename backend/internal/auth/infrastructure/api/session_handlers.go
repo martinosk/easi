@@ -152,7 +152,19 @@ func (h *SessionHandlers) buildSessionLinks(userID uuid.UUID, role valueobjects.
 		links["x-one-pager-quality"] = "/api/v1/one-pager-quality"
 	}
 
+	if canImport(role) {
+		links["x-imports"] = importsLink
+	}
+
 	return links
+}
+
+const importsLink = "/api/v1/imports"
+
+func canImport(role valueobjects.Role) bool {
+	return role.HasPermission(valueobjects.PermComponentsWrite) &&
+		role.HasPermission(valueobjects.PermCapabilitiesWrite) &&
+		role.HasPermission(valueobjects.PermValueStreamsWrite)
 }
 
 func canReadAnySubject(role valueobjects.Role) bool {

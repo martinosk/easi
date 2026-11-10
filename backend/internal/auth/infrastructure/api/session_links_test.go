@@ -67,3 +67,27 @@ func TestBuildSessionLinks_NoAssistantPermission_NoAssistantLinks(t *testing.T) 
 	assert.NotContains(t, links, "x-assistant")
 	assert.NotContains(t, links, "x-assistant-write")
 }
+
+func TestBuildSessionLinks_ImportsEntryPoint(t *testing.T) {
+	cases := []struct {
+		name    string
+		role    valueobjects.Role
+		present bool
+	}{
+		{"admin may import", valueobjects.RoleAdmin, true},
+		{"architect may import", valueobjects.RoleArchitect, true},
+		{"stakeholder may not import", valueobjects.RoleStakeholder, false},
+	}
+
+	handlers := &SessionHandlers{}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			links := handlers.buildSessionLinks(uuid.New(), tc.role)
+			link, ok := links["x-imports"]
+			assert.Equal(t, tc.present, ok)
+			if tc.present {
+				assert.Equal(t, "/api/v1/imports", link)
+			}
+		})
+	}
+}

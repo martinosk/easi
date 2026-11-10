@@ -2,7 +2,9 @@ package api
 
 import (
 	"context"
+	"net/http"
 
+	authPL "easi/backend/internal/auth/publishedlanguage"
 	"easi/backend/internal/importing/application/handlers"
 	"easi/backend/internal/importing/application/projectors"
 	"easi/backend/internal/importing/application/readmodels"
@@ -18,7 +20,18 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+type AuthMiddleware interface {
+	RequirePermission(permission authPL.Permission) func(http.Handler) http.Handler
+}
+
+var importPermissions = []authPL.Permission{
+	authPL.PermComponentsWrite,
+	authPL.PermCapabilitiesWrite,
+	authPL.PermValueStreamsWrite,
+}
+
 type ImportingRoutesDeps struct {
+	AuthMiddleware   AuthMiddleware
 	CommandBus       *cqrs.InMemoryCommandBus
 	EventStore       eventstore.EventStore
 	EventBus         events.EventBus
@@ -60,12 +73,19 @@ func SetupImportingRoutes(r chi.Router, deps ImportingRoutesDeps) error {
 
 	importHandlers := NewImportHandlers(deps.CommandBus, readModel)
 
+	registerRoutes(r, importHandlers, deps.AuthMiddleware)
+
+	return nil
+}
+
+func registerRoutes(r chi.Router, importHandlers *ImportHandlers, authMiddleware AuthMiddleware) {
 	r.Route("/imports", func(r chi.Router) {
+		for _, permission := range importPermissions {
+			r.Use(authMiddleware.RequirePermission(permission))
+		}
 		r.Post("/", importHandlers.CreateImportSession)
 		r.Get("/{id}", importHandlers.GetImportSession)
 		r.Post("/{id}/confirm", importHandlers.ConfirmImport)
 		r.Delete("/{id}", importHandlers.DeleteImportSession)
 	})
-
-	return nil
 }

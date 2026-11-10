@@ -32,6 +32,7 @@ export interface SessionLinks {
   tenant: string;
   'x-assistant-status'?: string;
   'x-one-pager-quality'?: string;
+  'x-imports'?: string;
   [key: string]: string | undefined;
 }
 
