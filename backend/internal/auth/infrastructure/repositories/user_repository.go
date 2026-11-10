@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/google/uuid"
 )
@@ -29,29 +28,27 @@ func NewUserRepository(db *sql.DB) *UserRepository {
 }
 
 func (r *UserRepository) GetByEmail(ctx context.Context, tenantID, email string) (*User, error) {
-	conn, err := r.db.Conn(ctx)
+	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
-		return nil, fmt.Errorf("failed to acquire connection: %w", err)
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer func() { _ = conn.Close() }()
+	defer func() { _ = tx.Rollback() }()
 
-	escapedTenantID := strings.ReplaceAll(tenantID, "'", "''")
-	_, err = conn.ExecContext(ctx, fmt.Sprintf("SET app.current_tenant = '%s'", escapedTenantID))
-	if err != nil {
+	if _, err := tx.ExecContext(ctx, "SELECT set_config('app.current_tenant', $1, true)", tenantID); err != nil {
 		return nil, fmt.Errorf("failed to set tenant context: %w", err)
 	}
 
 	var user User
 	var name sql.NullString
 
-	err = conn.QueryRowContext(ctx,
+	err = tx.QueryRowContext(ctx,
 		`SELECT id, email, name, role, status
 		 FROM auth.users
 		 WHERE tenant_id = $1 AND email = $2`,
 		tenantID, email,
 	).Scan(&user.ID, &user.Email, &name, &user.Role, &user.Status)
 
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrUserNotFound
 	}
 	if err != nil {

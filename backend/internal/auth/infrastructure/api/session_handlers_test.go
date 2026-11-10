@@ -256,3 +256,37 @@ func TestDeleteCurrentSession_Success(t *testing.T) {
 
 	assert.Equal(t, http.StatusNoContent, rec.Code)
 }
+
+func serveCurrentSession(user *UserDTO, scsManager *scs.SessionManager, sessionManager *session.SessionManager, cookies []*http.Cookie) int {
+	handlers := NewSessionHandlers(
+		sessionManager,
+		&mockUserRepository{user: user},
+		&mockTenantRepository{tenant: &TenantDTO{ID: "acme", Name: "Acme Corporation"}},
+	)
+
+	req := httptest.NewRequest(http.MethodGet, "/auth/sessions/current", nil)
+	for _, c := range cookies {
+		req.AddCookie(c)
+	}
+	rec := httptest.NewRecorder()
+
+	router := chi.NewRouter()
+	router.Use(scsManager.LoadAndSave)
+	router.Get("/auth/sessions/current", handlers.GetCurrentSession)
+	router.ServeHTTP(rec, req)
+	return rec.Code
+}
+
+func TestGetCurrentSession_DisabledUser_UnauthorizedAndSessionDestroyed(t *testing.T) {
+	_, scsManager, sessionManager := setupSessionTestHandler(&mockUserRepository{}, &mockTenantRepository{})
+	cookies := createAuthenticatedSession(t, sessionTestContext{sessionManager, scsManager}, "acme", "john@acme.com")
+	john := func(status string) *UserDTO {
+		return &UserDTO{ID: uuid.New(), Email: "john@acme.com", Name: "John Doe", Role: "architect", Status: status}
+	}
+
+	disabledStatus := serveCurrentSession(john("disabled"), scsManager, sessionManager, cookies)
+	reEnabledStatus := serveCurrentSession(john("active"), scsManager, sessionManager, cookies)
+
+	assert.Equal(t, http.StatusUnauthorized, disabledStatus)
+	assert.Equal(t, http.StatusUnauthorized, reEnabledStatus, "re-enabling the user must not revive the old session")
+}

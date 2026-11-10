@@ -6588,6 +6588,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
+                    "403": {
+                        "description": "Caller lacks components, capabilities, value streams or domains write permission",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
                     "413": {
                         "description": "File exceeds maximum size",
                         "schema": {
@@ -6647,6 +6653,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
+                    "403": {
+                        "description": "Caller lacks components, capabilities, value streams or domains write permission",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
                     "404": {
                         "description": "Import session not found",
                         "schema": {
@@ -6682,6 +6694,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Missing import session ID",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Caller lacks components, capabilities, value streams or domains write permission",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
@@ -6735,6 +6753,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Missing import session ID",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Caller lacks components, capabilities, value streams or domains write permission",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }

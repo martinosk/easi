@@ -3,6 +3,7 @@ import { lazy, Suspense, useState } from 'react';
 import { useBusinessDomains } from '../../features/business-domains';
 import { ImportButton } from '../../features/importing';
 import { ColorSchemeSelector, EdgeTypeSelector } from '../../features/views';
+import { useUserStore } from '../../store/userStore';
 
 const ImportDialog = lazy(() =>
   import('../../features/importing/components/ImportDialog').then((module) => ({ default: module.ImportDialog })),
@@ -11,14 +12,19 @@ const ImportDialog = lazy(() =>
 export function CanvasViewControls() {
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const { domains } = useBusinessDomains();
+  const mayImport = useUserStore((state) => Boolean(state.sessionLinks?.['x-imports']));
 
   return (
     <>
       <Group gap="xs" wrap="nowrap" data-testid="canvas-view-controls">
         <EdgeTypeSelector />
         <ColorSchemeSelector />
-        <Divider orientation="vertical" />
-        <ImportButton onClick={() => setIsImportDialogOpen(true)} />
+        {mayImport && (
+          <>
+            <Divider orientation="vertical" />
+            <ImportButton onClick={() => setIsImportDialogOpen(true)} />
+          </>
+        )}
       </Group>
       {isImportDialogOpen && (
         <Suspense fallback={null}>

@@ -14,9 +14,13 @@ import (
 	"github.com/alexedwards/scs/v2"
 )
 
+type UserByEmailLookup interface {
+	GetByEmail(ctx context.Context, email string) (*readmodels.UserDTO, error)
+}
+
 type AuthMiddleware struct {
 	sessionManager *session.SessionManager
-	userReadModel  *readmodels.UserReadModel
+	userReadModel  UserByEmailLookup
 }
 
 func NewAuthMiddleware(sessionManager *session.SessionManager) *AuthMiddleware {
@@ -25,7 +29,7 @@ func NewAuthMiddleware(sessionManager *session.SessionManager) *AuthMiddleware {
 	}
 }
 
-func (m *AuthMiddleware) WithUserReadModel(userReadModel *readmodels.UserReadModel) *AuthMiddleware {
+func (m *AuthMiddleware) WithUserReadModel(userReadModel UserByEmailLookup) *AuthMiddleware {
 	m.userReadModel = userReadModel
 	return m
 }
@@ -136,6 +140,9 @@ func (m *AuthMiddleware) checkPermission(ctx context.Context, email string, perm
 	}
 	if user == nil {
 		return &authError{"User not found", http.StatusForbidden}
+	}
+	if !user.IsActive() {
+		return &authError{"Unauthorized", http.StatusUnauthorized}
 	}
 
 	role, err := valueobjects.RoleFromString(user.Role)

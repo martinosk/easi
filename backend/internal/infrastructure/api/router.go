@@ -270,6 +270,7 @@ func setupDomainRoutes(r chi.Router, deps routerDependencies) {
 func setupSupportRoutes(r chi.Router, deps routerDependencies) {
 	mustSetup(releasesAPI.SetupReleasesRoutes(r, deps.db.DB()), "releases routes")
 	mustSetup(importingAPI.SetupImportingRoutes(r, importingAPI.ImportingRoutesDeps{
+		AuthMiddleware:   deps.authDeps.AuthMiddleware,
 		CommandBus:       deps.commandBus,
 		EventStore:       deps.eventStore,
 		EventBus:         deps.eventBus,

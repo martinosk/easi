@@ -95,6 +95,12 @@ func (h *SessionHandlers) GetCurrentSession(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	if user.Status != valueobjects.UserStatusActive.String() {
+		_ = h.sessionManager.ClearSession(r.Context())
+		sharedAPI.RespondError(w, http.StatusUnauthorized, nil, "Account is not active")
+		return
+	}
+
 	tenant, err := h.tenantRepo.GetByID(r.Context(), authSession.TenantID())
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusUnauthorized, err, "Tenant not found")
@@ -147,7 +153,20 @@ func (h *SessionHandlers) buildSessionLinks(userID uuid.UUID, role valueobjects.
 		links["x-one-pager-quality"] = "/api/v1/one-pager-quality"
 	}
 
+	if canImport(role) {
+		links["x-imports"] = importsLink
+	}
+
 	return links
+}
+
+const importsLink = "/api/v1/imports"
+
+func canImport(role valueobjects.Role) bool {
+	return role.HasPermission(valueobjects.PermComponentsWrite) &&
+		role.HasPermission(valueobjects.PermCapabilitiesWrite) &&
+		role.HasPermission(valueobjects.PermValueStreamsWrite) &&
+		role.HasPermission(valueobjects.PermDomainsWrite)
 }
 
 func canReadAnySubject(role valueobjects.Role) bool {

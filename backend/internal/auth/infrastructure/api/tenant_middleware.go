@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -16,8 +17,8 @@ import (
 )
 
 type UserRoleLookup interface {
-	GetRoleByEmail(ctx context.Context, email string) (string, error)
-	GetRoleByUserID(ctx context.Context, userID string) (string, error)
+	GetActiveRoleByEmail(ctx context.Context, email string) (string, error)
+	GetActiveRoleByUserID(ctx context.Context, userID string) (string, error)
 }
 
 func TenantMiddlewareWithSession(sessionManager *session.SessionManager, userRoleLookup UserRoleLookup) func(http.Handler) http.Handler {
@@ -33,6 +34,9 @@ func TenantMiddlewareWithSession(sessionManager *session.SessionManager, userRol
 			}
 
 			if err != nil {
+				if errors.Is(err, errAccountInactive) {
+					_ = sessionManager.ClearSession(r.Context())
+				}
 				handleTenantError(w, err)
 				return
 			}
@@ -66,7 +70,10 @@ func buildSessionContext(r *http.Request, sessionManager *session.SessionManager
 	}
 	ctx := sharedctx.WithTenant(r.Context(), info.tenantID)
 
-	role := resolveUserRole(ctx, info.userEmail, userRoleLookup)
+	role, err := resolveUserRole(ctx, info.userEmail, userRoleLookup)
+	if err != nil {
+		return nil, err
+	}
 	actor := sharedctx.NewActor(info.userID, info.userEmail, role)
 	ctx = sharedctx.WithActor(ctx, actor)
 	logTenantContext(r, info.tenantID)
@@ -110,19 +117,27 @@ func tryAgentTokenAuth(r *http.Request, userRoleLookup UserRoleLookup) (context.
 	return ctx, nil
 }
 
-func resolveUserRole(ctx context.Context, email string, lookup UserRoleLookup) sharedctx.Role {
+func resolveUserRole(ctx context.Context, email string, lookup UserRoleLookup) (sharedctx.Role, error) {
 	if lookup == nil {
-		return ""
+		log.Println("No user lookup configured for session authentication")
+		return "", tenantError{"Internal server error", http.StatusInternalServerError}
 	}
-	roleStr, _ := lookup.GetRoleByEmail(ctx, email)
-	return sharedctx.Role(roleStr)
+	roleStr, err := lookup.GetActiveRoleByEmail(ctx, email)
+	if err != nil {
+		log.Printf("Failed to resolve user for session: %v", err)
+		return "", tenantError{"Internal server error", http.StatusInternalServerError}
+	}
+	if roleStr == "" {
+		return "", errAccountInactive
+	}
+	return sharedctx.Role(roleStr), nil
 }
 
 func resolveUserRoleByUserID(ctx context.Context, userID string, lookup UserRoleLookup) (sharedctx.Role, error) {
 	if lookup == nil {
 		return "", fmt.Errorf("missing role lookup")
 	}
-	roleStr, err := lookup.GetRoleByUserID(ctx, userID)
+	roleStr, err := lookup.GetActiveRoleByUserID(ctx, userID)
 	if err != nil {
 		return "", err
 	}
@@ -138,6 +153,8 @@ type tenantError struct {
 }
 
 func (e tenantError) Error() string { return e.message }
+
+var errAccountInactive = tenantError{"Account is not active", http.StatusUnauthorized}
 
 func extractTenantFromHeader(r *http.Request) (sharedvo.TenantID, error) {
 	tenantIDStr := r.Header.Get("X-Tenant-ID")

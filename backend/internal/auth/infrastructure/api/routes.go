@@ -314,6 +314,13 @@ func handleBypassSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	permissions := valueobjects.PermissionsToStrings(role.Permissions())
+	links := map[string]string{
+		"self":   "/api/v1/auth/sessions/current",
+		"logout": "/api/v1/auth/sessions/current",
+	}
+	if canImport(role) {
+		links["x-imports"] = importsLink
+	}
 	response := CurrentSessionResponse{
 		ID: identity.TenantID,
 		User: CurrentSessionUser{
@@ -328,10 +335,7 @@ func handleBypassSession(w http.ResponseWriter, r *http.Request) {
 			Name: identity.TenantName,
 		},
 		ExpiresAt: time.Now().Add(24 * time.Hour),
-		Links: map[string]string{
-			"self":   "/api/v1/auth/sessions/current",
-			"logout": "/api/v1/auth/sessions/current",
-		},
+		Links:     links,
 	}
 	sharedAPI.RespondJSON(w, http.StatusOK, response)
 }

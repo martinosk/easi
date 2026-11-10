@@ -30,8 +30,19 @@ type UserDTO struct {
 	LastLoginAt  *time.Time `json:"lastLoginAt,omitempty"`
 }
 
+func (u UserDTO) IsActive() bool {
+	return u.Status == "active"
+}
+
 func (u UserDTO) IsActiveAdmin() bool {
-	return u.Role == "admin" && u.Status == "active"
+	return u.Role == "admin" && u.IsActive()
+}
+
+func (u *UserDTO) ActiveRole() string {
+	if u == nil || !u.IsActive() {
+		return ""
+	}
+	return u.Role
 }
 
 type UserEventData struct {
@@ -69,18 +80,15 @@ func (rm *UserReadModel) GetByEmail(ctx context.Context, email string) (*UserDTO
 	return rm.getByField(ctx, "email", email)
 }
 
-func (rm *UserReadModel) GetRoleByEmail(ctx context.Context, email string) (string, error) {
+func (rm *UserReadModel) GetActiveRoleByEmail(ctx context.Context, email string) (string, error) {
 	user, err := rm.GetByEmail(ctx, email)
 	if err != nil {
 		return "", err
 	}
-	if user == nil {
-		return "", nil
-	}
-	return user.Role, nil
+	return user.ActiveRole(), nil
 }
 
-func (rm *UserReadModel) GetRoleByUserID(ctx context.Context, userID string) (string, error) {
+func (rm *UserReadModel) GetActiveRoleByUserID(ctx context.Context, userID string) (string, error) {
 	id, err := uuid.Parse(userID)
 	if err != nil {
 		return "", err
@@ -90,10 +98,7 @@ func (rm *UserReadModel) GetRoleByUserID(ctx context.Context, userID string) (st
 	if err != nil {
 		return "", err
 	}
-	if user == nil {
-		return "", nil
-	}
-	return user.Role, nil
+	return user.ActiveRole(), nil
 }
 
 func (rm *UserReadModel) getByField(ctx context.Context, field string, value interface{}) (*UserDTO, error) {
