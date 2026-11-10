@@ -29,6 +29,16 @@ func (m *permissionSetMiddleware) RequirePermission(permission authPL.Permission
 	}
 }
 
+var allImportPermissions = []string{"components:write", "capabilities:write", "valuestreams:write", "domains:write"}
+
+func holding(permissions []string) map[string]bool {
+	held := make(map[string]bool, len(permissions))
+	for _, permission := range permissions {
+		held[permission] = true
+	}
+	return held
+}
+
 var importRoutes = []struct {
 	method string
 	path   string
@@ -51,17 +61,15 @@ func TestImportRoutes_RequireEveryWritePermissionAnImportExercises(t *testing.T)
 	auth := &permissionSetMiddleware{}
 	registerRoutes(chi.NewRouter(), NewImportHandlers(nil, nil), auth)
 
-	assert.ElementsMatch(t, []string{"components:write", "capabilities:write", "valuestreams:write"}, auth.required)
+	assert.ElementsMatch(t, allImportPermissions, auth.required)
 }
 
 func TestImportRoutes_ForbiddenForReadOnlyCaller(t *testing.T) {
 	for _, route := range importRoutes {
 		t.Run(route.method+" "+route.path, func(t *testing.T) {
-			auth := &permissionSetMiddleware{held: map[string]bool{
-				"components:read":   true,
-				"capabilities:read": true,
-				"valuestreams:read": true,
-			}}
+			auth := &permissionSetMiddleware{held: holding([]string{
+				"components:read", "capabilities:read", "valuestreams:read", "domains:read",
+			})}
 
 			assert.Equal(t, http.StatusForbidden, serveImportRoute(auth, route.method, route.path))
 		})
@@ -69,9 +77,9 @@ func TestImportRoutes_ForbiddenForReadOnlyCaller(t *testing.T) {
 }
 
 func TestImportRoutes_ForbiddenWhenOneWritePermissionIsMissing(t *testing.T) {
-	for _, missing := range []string{"components:write", "capabilities:write", "valuestreams:write"} {
+	for _, missing := range allImportPermissions {
 		t.Run(missing, func(t *testing.T) {
-			held := map[string]bool{"components:write": true, "capabilities:write": true, "valuestreams:write": true}
+			held := holding(allImportPermissions)
 			delete(held, missing)
 			auth := &permissionSetMiddleware{held: held}
 

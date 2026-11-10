@@ -6589,7 +6589,7 @@ const docTemplate = `{
                         }
                     },
                     "403": {
-                        "description": "Caller lacks components, capabilities or value streams write permission",
+                        "description": "Caller lacks components, capabilities, value streams or domains write permission",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
@@ -6654,7 +6654,7 @@ const docTemplate = `{
                         }
                     },
                     "403": {
-                        "description": "Caller lacks components, capabilities or value streams write permission",
+                        "description": "Caller lacks components, capabilities, value streams or domains write permission",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
@@ -6699,7 +6699,7 @@ const docTemplate = `{
                         }
                     },
                     "403": {
-                        "description": "Caller lacks components, capabilities or value streams write permission",
+                        "description": "Caller lacks components, capabilities, value streams or domains write permission",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
@@ -6758,7 +6758,7 @@ const docTemplate = `{
                         }
                     },
                     "403": {
-                        "description": "Caller lacks components, capabilities or value streams write permission",
+                        "description": "Caller lacks components, capabilities, value streams or domains write permission",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }

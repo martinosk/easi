@@ -63,7 +63,7 @@ func NewImportHandlers(
 // @Failure 413 {object} sharedAPI.ErrorResponse "File exceeds maximum size"
 // @Failure 415 {object} sharedAPI.ErrorResponse "Unsupported media type"
 // @Failure 422 {object} sharedAPI.ErrorResponse "Invalid ArchiMate format"
-// @Failure 403 {object} sharedAPI.ErrorResponse "Caller lacks components, capabilities or value streams write permission"
+// @Failure 403 {object} sharedAPI.ErrorResponse "Caller lacks components, capabilities, value streams or domains write permission"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
 // @Router /imports [post]
 func (h *ImportHandlers) CreateImportSession(w http.ResponseWriter, r *http.Request) {
@@ -154,7 +154,7 @@ func (h *ImportHandlers) parseUploadedFile(w http.ResponseWriter, r *http.Reques
 // @Success 200 {object} readmodels.ImportSessionDTO "Import session details"
 // @Failure 400 {object} sharedAPI.ErrorResponse "Missing import session ID"
 // @Failure 404 {object} sharedAPI.ErrorResponse "Import session not found"
-// @Failure 403 {object} sharedAPI.ErrorResponse "Caller lacks components, capabilities or value streams write permission"
+// @Failure 403 {object} sharedAPI.ErrorResponse "Caller lacks components, capabilities, value streams or domains write permission"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
 // @Router /imports/{id} [get]
 func (h *ImportHandlers) GetImportSession(w http.ResponseWriter, r *http.Request) {
@@ -193,7 +193,7 @@ func (h *ImportHandlers) GetImportSession(w http.ResponseWriter, r *http.Request
 // @Failure 400 {object} sharedAPI.ErrorResponse "Missing import session ID"
 // @Failure 404 {object} sharedAPI.ErrorResponse "Import session not found"
 // @Failure 409 {object} sharedAPI.ErrorResponse "Import already started or completed"
-// @Failure 403 {object} sharedAPI.ErrorResponse "Caller lacks components, capabilities or value streams write permission"
+// @Failure 403 {object} sharedAPI.ErrorResponse "Caller lacks components, capabilities, value streams or domains write permission"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
 // @Router /imports/{id}/confirm [post]
 func (h *ImportHandlers) ConfirmImport(w http.ResponseWriter, r *http.Request) {
@@ -261,7 +261,7 @@ func (h *ImportHandlers) ConfirmImport(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} sharedAPI.ErrorResponse "Missing import session ID"
 // @Failure 404 {object} sharedAPI.ErrorResponse "Import session not found"
 // @Failure 409 {object} sharedAPI.ErrorResponse "Cannot cancel import that has already started or completed"
-// @Failure 403 {object} sharedAPI.ErrorResponse "Caller lacks components, capabilities or value streams write permission"
+// @Failure 403 {object} sharedAPI.ErrorResponse "Caller lacks components, capabilities, value streams or domains write permission"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
 // @Router /imports/{id} [delete]
 func (h *ImportHandlers) DeleteImportSession(w http.ResponseWriter, r *http.Request) {

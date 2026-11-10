@@ -164,7 +164,8 @@ const importsLink = "/api/v1/imports"
 func canImport(role valueobjects.Role) bool {
 	return role.HasPermission(valueobjects.PermComponentsWrite) &&
 		role.HasPermission(valueobjects.PermCapabilitiesWrite) &&
-		role.HasPermission(valueobjects.PermValueStreamsWrite)
+		role.HasPermission(valueobjects.PermValueStreamsWrite) &&
+		role.HasPermission(valueobjects.PermDomainsWrite)
 }
 
 func canReadAnySubject(role valueobjects.Role) bool {

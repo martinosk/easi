@@ -28,6 +28,7 @@ var importPermissions = []authPL.Permission{
 	authPL.PermComponentsWrite,
 	authPL.PermCapabilitiesWrite,
 	authPL.PermValueStreamsWrite,
+	authPL.PermDomainsWrite,
 }
 
 type ImportingRoutesDeps struct {
