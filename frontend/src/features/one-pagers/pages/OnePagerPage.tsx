@@ -28,6 +28,7 @@ import {
   type OnePagerView,
   type OnePagerViewField,
 } from '../types';
+import classes from './OnePagerPage.module.css';
 
 const NOT_FOUND_MESSAGE = 'One-pager not found';
 
@@ -230,7 +231,7 @@ function OnePagerSheet({ view }: { view: OnePagerView }) {
     : undefined;
 
   return (
-    <Box p="xl">
+    <Box p="xl" className={classes.page} data-testid="one-pager-page">
       <Paper shadow="sm" radius="lg" p="xl">
         <Stack gap="lg">
           <Group justify="space-between" align="flex-start" wrap="nowrap">
