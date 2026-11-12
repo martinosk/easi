@@ -13,7 +13,12 @@ vi.mock('react-hot-toast', () => ({
 }));
 
 vi.mock('../../views/hooks/useCurrentView', () => ({
-  useCurrentView: () => ({ currentView: { id: 'v1', _links: { edit: { href: '/x', method: 'PUT' } } }, currentViewId: 'v1' as ViewId, isLoading: false, error: null }),
+  useCurrentView: () => ({
+    currentView: { id: 'v1', _links: { edit: { href: '/x', method: 'PUT' } } },
+    currentViewId: 'v1' as ViewId,
+    isLoading: false,
+    error: null,
+  }),
 }));
 
 const createRelationMutate = vi.fn().mockResolvedValue({ id: 'rel-1' });
@@ -172,8 +177,7 @@ afterEach(() => {
   resetStore();
 });
 
-const renderOrchestrator = () =>
-  renderHook(() => useCreateRelatedEntity(), { wrapper: createWrapper() });
+const renderOrchestrator = () => renderHook(() => useCreateRelatedEntity(), { wrapper: createWrapper() });
 
 interface StartArgs {
   entry: RelatedLink;
@@ -464,9 +468,7 @@ describe('useCreateRelatedEntity — dynamic mode', () => {
     enableDynamicMode();
     await runFlow({ entry: servesEntry, sourceEntityId: 'comp-source', newEntityId: 'comp-new' });
 
-    expect(createRelationMutate).toHaveBeenCalledWith(
-      expect.objectContaining({ relationType: 'Serves' }),
-    );
+    expect(createRelationMutate).toHaveBeenCalledWith(expect.objectContaining({ relationType: 'Serves' }));
   });
 
   it('dispatches a capability-parent relation immediately when the source is a capability', async () => {

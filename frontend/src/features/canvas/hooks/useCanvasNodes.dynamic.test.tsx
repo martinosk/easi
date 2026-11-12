@@ -2,8 +2,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAppStore } from '../../../store/appStore';
-import { useCanvasNodes } from './useCanvasNodes';
 import { useCanvasEdges } from './useCanvasEdges';
+import { useCanvasNodes } from './useCanvasNodes';
 
 const createWrapper = () => {
   const queryClient = new QueryClient({

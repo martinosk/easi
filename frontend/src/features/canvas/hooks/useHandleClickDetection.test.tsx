@@ -5,27 +5,27 @@ import { useHandleClickDetection } from './useHandleClickDetection';
 
 type ClickFn = Parameters<typeof useHandleClickDetection>[0];
 
-const Harness: React.FC<{ onHandleClick: ClickFn; threshold?: number }> = ({
-  onHandleClick,
-  threshold,
-}) => {
+const Harness: React.FC<{ onHandleClick: ClickFn; threshold?: number }> = ({ onHandleClick, threshold }) => {
   useHandleClickDetection(onHandleClick, threshold);
   return (
     <div>
       <div data-id="comp-1">
-        <div className="react-flow__handle react-flow__handle-right" data-handlepos="right" data-testid="h-right-source" />
-        <div className="react-flow__handle react-flow__handle-right" data-handlepos="right" data-testid="h-right-target" />
+        <div
+          className="react-flow__handle react-flow__handle-right"
+          data-handlepos="right"
+          data-testid="h-right-source"
+        />
+        <div
+          className="react-flow__handle react-flow__handle-right"
+          data-handlepos="right"
+          data-testid="h-right-target"
+        />
         <div className="react-flow__handle react-flow__handle-left" data-handlepos="left" data-testid="h-left" />
       </div>
       <div data-id="comp-2">
         <div className="react-flow__handle react-flow__handle-top" data-handlepos="top" data-testid="h-top-2" />
       </div>
-      <div
-        className="react-flow__handle"
-        data-nodeid="rf-comp-99"
-        data-handlepos="left"
-        data-testid="rf-handle"
-      />
+      <div className="react-flow__handle" data-nodeid="rf-comp-99" data-handlepos="left" data-testid="rf-handle" />
       <div data-testid="not-a-handle" />
     </div>
   );

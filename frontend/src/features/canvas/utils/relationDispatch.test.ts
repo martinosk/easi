@@ -44,7 +44,12 @@ const cases: PlanCase[] = [
     source: 'comp-suite',
     next: 'comp-new',
     targetType: 'component',
-    expected: { kind: 'component-containment', partId: 'comp-new', parentId: 'comp-suite', containmentKind: 'composition' },
+    expected: {
+      kind: 'component-containment',
+      partId: 'comp-new',
+      parentId: 'comp-suite',
+      containmentKind: 'composition',
+    },
   },
   {
     label: 'component-part-aggregation attaches the new component as an aggregated part of the source',
@@ -52,7 +57,12 @@ const cases: PlanCase[] = [
     source: 'comp-platform',
     next: 'comp-new',
     targetType: 'component',
-    expected: { kind: 'component-containment', partId: 'comp-new', parentId: 'comp-platform', containmentKind: 'aggregation' },
+    expected: {
+      kind: 'component-containment',
+      partId: 'comp-new',
+      parentId: 'comp-platform',
+      containmentKind: 'aggregation',
+    },
   },
   {
     label: 'capability-parent puts the new capability as child',
