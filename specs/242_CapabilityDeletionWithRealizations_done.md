@@ -10,7 +10,7 @@
 
 Deleting a capability that applications realize is broken in three ways.
 
-1. **The confirmed delete fails.** Cascade-deleting a capability fails with `404 Failed to delete capability` whenever an application realizes any capability below it. Realizations are inherited upwards automatically, so this covers almost every real subtree. The cascade deletes every realization stored on the capabilities in scope, inherited ones included. An inherited realization is a projection of a direct realization on a descendant and has no realization behind it, so deleting it fails as not found and the whole cascade rolls back. Found on 2026-11-12 while verifying spec 234; failed cascades roll back, so no stored data is damaged.
+1. **The confirmed delete fails.** Cascade-deleting a capability fails with `404 Failed to delete capability` whenever an application realizes any capability below it. Realizations are inherited upwards automatically, so this covers almost every real subtree. The cascade deletes every realization stored on the capabilities in scope, inherited ones included. An inherited realization is a projection of a direct realization on a descendant and has no realization behind it, so deleting it fails as not found and the whole cascade rolls back. Found on 2026-11-12 while verifying spec 234. The cascade had no enclosing transaction, so a failed cascade left the realizations it deleted before the 404 deleted (see Persistence).
 2. **The delete dialog misinforms.** It offers "Also delete N application realizations that only realise these capabilities". The backend has ignored that flag since 2026-05-25: the realizations are always removed and the applications never are, ticked or not. Its counts also include inherited realization rows, so one application realizing one child is counted twice.
 3. **The canvas deletes without warning.** Deleting a capability from the model on the canvas skips the impact confirmation: a realized capability loses its realizations silently, and a capability with children fails with a conflict instead of offering the cascade.
 
@@ -94,8 +94,8 @@ Feature: Deleting capabilities that applications realize
 2. **Every inherited realization in scope has its source in scope.** Realizations are inherited from descendants to ancestors only, so deleting the subtree's direct realizations removes every realization in scope.
 3. **Inherited realizations outside the subtree are cleaned up too.** Deleting a direct realization removes the realizations inherited from it on every ancestor (existing behaviour of `SystemRealizationDeleted`); inherited realizations from other sources stay. An ancestor that the same application still realizes through a surviving branch keeps its inherited realization, re-derived from the surviving source. Reparenting a capability follows the same rule.
 4. **Deleting a capability never deletes an application.** Applications belong to Architecture Modeling; Capability Mapping only removes its own realizations.
-5. **The impact shown is the impact executed.** The confirmation lists exactly the direct realizations the delete will remove, each once, and nothing the delete will not do.
-6. **Every capability delete is confirmed with its impact.** The capability tree, business domain page and canvas all use the same impact confirmation. A multi-selection lists the realizations of every selected capability. Confirmation stays disabled until every impact has loaded; a failed load offers a retry.
+5. **The impact shown is the impact executed.** The confirmation lists exactly the direct realizations the delete will remove, each once, and nothing the delete will not do. The delete request carries the realization IDs the user confirmed; if the realizations in scope differ when the delete runs, it is rejected with 409 and nothing is deleted.
+6. **Every capability delete is confirmed with its impact.** The capability tree, business domain page and canvas all use the same impact confirmation, and so do the multi-select "Delete from Model" actions in the tree and on the canvas. A selected capability already inside another selected capability's cascade is deleted by that cascade, and its realizations are listed once. A multi-selection lists the realizations of every selected capability. Confirmation stays disabled until every impact has loaded; a failed load offers a retry.
 7. **The cascade is all-or-nothing.** The whole cascade runs in one transaction, so any failure rolls back every delete it made. Before this spec each aggregate save committed on its own.
 
 ---
@@ -115,6 +115,9 @@ Feature: Deleting capabilities that applications realize
 - [x] `delete-impact` returns `"realizations": []`, never `null`, when nothing is realized
 - [x] Deleting several selected capabilities lists the realizations of all of them; confirmation stays disabled until every impact has loaded, and a failed load offers a retry
 - [x] Deleting a capability, linking a system and deleting a realization refresh application and capability one-pager completeness
+- [x] A delete whose realizations changed after the impact was confirmed is rejected with 409, deletes nothing, and the dialog shows the refreshed impact
+- [x] The tree and canvas multi-select "Delete from Model" confirmations list the realizations that will be removed and delete capabilities through the cascade with the confirmed realization IDs
+- [x] Confirmation stays disabled while an impact is refreshing
 
 ---
 
@@ -130,7 +133,7 @@ No new aggregates, events or commands. The cascade-delete handler dispatches `De
 
 ### API Surface
 
-- `DELETE /capabilities/{id}`: a cascade that failed with 404 now succeeds with 204. The Swagger description drops the `deleteRealisingApplications` option.
+- `DELETE /capabilities/{id}`: a cascade that failed with 404 now succeeds with 204. The Swagger description drops the `deleteRealisingApplications` option. The body adds `confirmedRealizationIds`: the realization IDs from the delete impact the user confirmed. A mismatch returns 409 with an `x-delete-impact` link.
 - `GET /capabilities/{id}/delete-impact`: the split into `realizationsOnDeletedCapabilities` and `realizationsOnRetainedCapabilities` is replaced by one list of the direct realizations the delete will remove. The split classified applications by whether they could be deleted, which no longer happens. The delete dialog is the only consumer.
 
 ### Persistence
@@ -142,7 +145,7 @@ No schema change and no migration. Failed cascades were not rolled back before t
 - The delete dialog lists the realizations to be removed (application and capability), states that the applications are kept, and drops the checkbox. The delete request and the cascade-delete mutation effects drop the application-deletion flag.
 - The canvas "delete from model" action for a capability opens the delete dialog instead of deleting directly.
 - Cache invalidation after a capability delete now always refreshes application one-pager completeness (an application can lose its last realized capability); linking a system and deleting a realization refresh application and capability completeness too. Views were already refreshed by spec 234.
-- Multi-selected deletes load the impact of every selected capability (`useDeleteImpacts`) and list all their realizations.
+- Every capability delete goes through one deletion plan (`useCapabilityDeletionPlan`): it loads the impact of each selected capability, leaves capabilities covered by a selected ancestor to that cascade, de-duplicates realizations, and sends each delete with its confirmed realization IDs. The delete dialog and the tree and canvas bulk confirmations share it and the realization list. The plain `useDeleteCapability` path, its API call and its mutation effects were removed as dead code.
 
 ### Cross-Context Integration
 

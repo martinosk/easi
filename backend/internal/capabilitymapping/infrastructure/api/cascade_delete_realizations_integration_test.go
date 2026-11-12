@@ -128,7 +128,7 @@ func (r *realizedHierarchy) cascadeDeleteFailingToSave(t *testing.T, node, faili
 		DependencyRM:     readmodels.NewDependencyReadModel(tenantDB),
 		CommandBus:       r.capabilities.commandBus,
 	})
-	_, err := handler.Handle(tenantContext(), &commands.CascadeDeleteCapability{ID: node.ID, Cascade: true})
+	_, err := handler.Handle(tenantContext(), &commands.CascadeDeleteCapability{ID: node.ID, Cascade: true, ConfirmedRealizationIDs: r.confirmedRealizationIDs(t, node)})
 	return err
 }
 
@@ -158,7 +158,12 @@ func (r *realizedHierarchy) inheritedSource(t *testing.T, node hierarchyNode, co
 
 func (r *realizedHierarchy) cascadeDelete(t *testing.T, node hierarchyNode) int {
 	t.Helper()
-	body := mustMarshal(DeleteCapabilityRequest{Cascade: true})
+	return r.cascadeDeleteConfirming(t, node, r.confirmedRealizationIDs(t, node))
+}
+
+func (r *realizedHierarchy) cascadeDeleteConfirming(t *testing.T, node hierarchyNode, confirmedRealizationIDs []string) int {
+	t.Helper()
+	body := mustMarshal(DeleteCapabilityRequest{Cascade: true, ConfirmedRealizationIDs: confirmedRealizationIDs})
 	w, req := makeRequest(t, http.MethodDelete, "/api/v1/capabilities/"+node.ID, body, map[string]string{"id": node.ID})
 	r.capabilities.DeleteCapability(w, req)
 	return w.Code
@@ -267,12 +272,7 @@ func TestGetDeleteImpact_ListsEachDirectRealizationOnce_Integration(t *testing.T
 	invoicing := hierarchy.child(t, "Invoicing", accounting)
 	billing := hierarchy.realize(t, "Billing", invoicing)
 
-	w, req := makeRequest(t, http.MethodGet, "/api/v1/capabilities/"+finance.ID+"/delete-impact", nil, map[string]string{"id": finance.ID})
-	hierarchy.capabilities.GetDeleteImpact(w, req)
-	require.Equal(t, http.StatusOK, w.Code)
-
-	var response DeleteImpactResponse
-	require.NoError(t, json.NewDecoder(w.Body).Decode(&response))
+	response := hierarchy.deleteImpact(t, finance)
 	require.Len(t, response.Realizations, 1)
 	assert.Equal(t, billing, response.Realizations[0].ComponentID)
 	assert.Equal(t, invoicing.ID, response.Realizations[0].CapabilityID)
@@ -340,4 +340,40 @@ func TestCascadeDelete_FailureAfterEarlierDeletes_RollsBackEverything_Integratio
 		require.NoError(t, err)
 		assert.NotNil(t, capability, "%s was deleted", node.Name)
 	}
+}
+
+func (r *realizedHierarchy) deleteImpact(t *testing.T, node hierarchyNode) DeleteImpactResponse {
+	t.Helper()
+	w, req := makeRequest(t, http.MethodGet, "/api/v1/capabilities/"+node.ID+"/delete-impact", nil, map[string]string{"id": node.ID})
+	r.capabilities.GetDeleteImpact(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+
+	var response DeleteImpactResponse
+	require.NoError(t, json.NewDecoder(w.Body).Decode(&response))
+	return response
+}
+
+func (r *realizedHierarchy) confirmedRealizationIDs(t *testing.T, node hierarchyNode) []string {
+	t.Helper()
+	ids := []string{}
+	for _, realization := range r.deleteImpact(t, node).Realizations {
+		ids = append(ids, realization.ID)
+	}
+	return ids
+}
+
+func TestCascadeDelete_RealizationLinkedAfterConfirmation_RejectsAndDeletesNothing_Integration(t *testing.T) {
+	hierarchy := newRealizedHierarchy(t)
+	finance := hierarchy.root(t, "Finance")
+	invoicing := hierarchy.child(t, "Invoicing", finance)
+	billing := hierarchy.realize(t, "Billing", invoicing)
+	confirmed := hierarchy.confirmedRealizationIDs(t, finance)
+	ledger := hierarchy.realize(t, "Ledger", invoicing)
+
+	assert.Equal(t, http.StatusConflict, hierarchy.cascadeDeleteConfirming(t, finance, confirmed))
+
+	assert.Equal(t, map[string]string{billing: readmodels.OriginDirect, ledger: readmodels.OriginDirect}, hierarchy.componentOrigins(t, invoicing))
+	capability, err := hierarchy.capabilities.readModel.GetByID(tenantContext(), finance.ID)
+	require.NoError(t, err)
+	assert.NotNil(t, capability)
 }

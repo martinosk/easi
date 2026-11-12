@@ -2202,7 +2202,7 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "Deletes a business capability. If the capability has descendants, cascade:true must be set in the request body. Direct realizations of every deleted capability are removed; the realizing applications are kept.",
+                "description": "Deletes a business capability. If the capability has descendants, cascade:true must be set in the request body. Direct realizations of every deleted capability are removed; the realizing applications are kept. confirmedRealizationIds must list exactly the realizations from the delete impact; if they differ the delete is rejected with 409.",
                 "consumes": [
                     "application/json"
                 ],
@@ -16296,6 +16296,12 @@ const docTemplate = `{
             "properties": {
                 "cascade": {
                     "type": "boolean"
+                },
+                "confirmedRealizationIds": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },

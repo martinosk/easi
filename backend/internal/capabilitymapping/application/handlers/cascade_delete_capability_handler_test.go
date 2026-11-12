@@ -257,7 +257,7 @@ func TestCascadeDelete_DispatchesRealizationDeleteCommands(t *testing.T) {
 
 	handler := NewCascadeDeleteCapabilityHandler(deps)
 
-	_, err := handler.Handle(context.Background(), &commands.CascadeDeleteCapability{ID: root.ID()})
+	_, err := handler.Handle(context.Background(), &commands.CascadeDeleteCapability{ID: root.ID(), ConfirmedRealizationIDs: []string{"real-1"}})
 	require.NoError(t, err)
 
 	require.Len(t, cmdBus.dispatched, 1)
@@ -303,7 +303,7 @@ func TestCascadeDelete_DispatchesDeletesOnlyForDirectRealizations(t *testing.T) 
 
 	handler := NewCascadeDeleteCapabilityHandler(deps)
 
-	_, err := handler.Handle(context.Background(), &commands.CascadeDeleteCapability{ID: root.ID(), Cascade: true})
+	_, err := handler.Handle(context.Background(), &commands.CascadeDeleteCapability{ID: root.ID(), Cascade: true, ConfirmedRealizationIDs: []string{"billing-direct", "ledger-direct"}})
 	require.NoError(t, err)
 
 	var deletedRealizations []string
@@ -394,10 +394,42 @@ func TestCascadeDelete_RunsEveryDeleteInOneTransaction(t *testing.T) {
 		},
 	}
 
-	_, err := NewCascadeDeleteCapabilityHandler(deps).Handle(context.Background(), &commands.CascadeDeleteCapability{ID: root.ID()})
+	_, err := NewCascadeDeleteCapabilityHandler(deps).Handle(context.Background(), &commands.CascadeDeleteCapability{ID: root.ID(), ConfirmedRealizationIDs: []string{"real-1"}})
 
 	require.ErrorIs(t, err, repo.saveErr)
 	require.Len(t, cmdBus.dispatched, 1)
 	assert.Zero(t, cmdBus.outsideTx)
 	assert.Equal(t, []error{repo.saveErr}, transactions.failures)
+}
+
+func TestCascadeDelete_RealizationsDifferFromConfirmedImpact_DeletesNothing(t *testing.T) {
+	tests := []struct {
+		name      string
+		confirmed []string
+	}{
+		{name: "realization added after confirmation", confirmed: nil},
+		{name: "realization removed after confirmation", confirmed: []string{"real-1", "real-gone"}},
+		{name: "different realization", confirmed: []string{"real-other"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := createCapability(t, "L1")
+			repo := newMockCascadeRepo()
+			repo.capabilities[root.ID()] = root
+			cmdBus := &mockCascadeCommandBus{}
+			deps := defaultCascadeDeps(repo)
+			deps.CommandBus = cmdBus
+			deps.RealizationRM = &mockCascadeRealizationRM{
+				realizationsByCapability: map[string][]readmodels.RealizationDTO{
+					root.ID(): {{ID: "real-1", CapabilityID: root.ID(), ComponentID: "comp-1", Origin: readmodels.OriginDirect}},
+				},
+			}
+
+			_, err := NewCascadeDeleteCapabilityHandler(deps).Handle(context.Background(), &commands.CascadeDeleteCapability{ID: root.ID(), ConfirmedRealizationIDs: tt.confirmed})
+
+			require.ErrorIs(t, err, services.ErrDeleteImpactChanged)
+			assert.Empty(t, cmdBus.dispatched)
+			assert.Empty(t, repo.saved)
+		})
+	}
 }

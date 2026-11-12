@@ -297,12 +297,13 @@ func (h *CapabilityHandlers) UpdateCapability(w http.ResponseWriter, r *http.Req
 }
 
 type DeleteCapabilityRequest struct {
-	Cascade bool `json:"cascade"`
+	Cascade                 bool     `json:"cascade"`
+	ConfirmedRealizationIDs []string `json:"confirmedRealizationIds"`
 }
 
 // DeleteCapability godoc
 // @Summary Delete a capability with optional cascade
-// @Description Deletes a business capability. If the capability has descendants, cascade:true must be set in the request body. Direct realizations of every deleted capability are removed; the realizing applications are kept.
+// @Description Deletes a business capability. If the capability has descendants, cascade:true must be set in the request body. Direct realizations of every deleted capability are removed; the realizing applications are kept. confirmedRealizationIds must list exactly the realizations from the delete impact; if they differ the delete is rejected with 409.
 // @Tags capabilities
 // @Accept json
 // @Param id path string true "Capability ID"
@@ -330,23 +331,13 @@ func (h *CapabilityHandlers) DeleteCapability(w http.ResponseWriter, r *http.Req
 	req := h.parseDeleteBody(r)
 
 	cmd := &commands.CascadeDeleteCapability{
-		ID:      id,
-		Cascade: req.Cascade,
+		ID:                      id,
+		Cascade:                 req.Cascade,
+		ConfirmedRealizationIDs: req.ConfirmedRealizationIDs,
 	}
 
 	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		if errors.Is(err, services.ErrCascadeRequiredForChildCapabilities) {
-			sharedAPI.RespondErrorWithLinks(w, sharedAPI.ErrorWithLinksParams{
-				StatusCode: http.StatusConflict,
-				Err:        err,
-				Message:    "Capability has descendants. Set cascade:true to confirm cascade deletion.",
-				Links: map[string]sharedAPI.Link{
-					"x-delete-impact": sharedAPI.NewLink(sharedAPI.BuildLink(sharedAPI.ResourcePath("/capabilities/"+id+"/delete-impact")), "GET"),
-				},
-			})
-			return
-		}
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to delete capability")
+		respondDeleteFailure(w, id, err)
 		return
 	}
 
@@ -451,4 +442,26 @@ type DeleteImpactResponse struct {
 	AffectedCapabilities []AffectedCapabilityDTO     `json:"affectedCapabilities"`
 	Realizations         []readmodels.RealizationDTO `json:"realizations"`
 	Links                sharedAPI.Links             `json:"_links,omitempty"`
+}
+
+var deleteConflictMessages = map[error]string{
+	services.ErrCascadeRequiredForChildCapabilities: "Capability has descendants. Set cascade:true to confirm cascade deletion.",
+	services.ErrDeleteImpactChanged:                 "The realizations this delete removes have changed. Review the delete impact again.",
+}
+
+func respondDeleteFailure(w http.ResponseWriter, id string, err error) {
+	for conflict, message := range deleteConflictMessages {
+		if errors.Is(err, conflict) {
+			sharedAPI.RespondErrorWithLinks(w, sharedAPI.ErrorWithLinksParams{
+				StatusCode: http.StatusConflict,
+				Err:        err,
+				Message:    message,
+				Links: map[string]sharedAPI.Link{
+					"x-delete-impact": sharedAPI.NewLink(sharedAPI.BuildLink(sharedAPI.ResourcePath("/capabilities/"+id+"/delete-impact")), "GET"),
+				},
+			})
+			return
+		}
+	}
+	sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to delete capability")
 }

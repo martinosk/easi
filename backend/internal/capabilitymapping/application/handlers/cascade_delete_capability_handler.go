@@ -70,12 +70,12 @@ func (h *CascadeDeleteCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Co
 	}
 
 	return cqrs.EmptyResult(), h.deps.Transactions.RunInTx(ctx, func(txCtx context.Context) error {
-		return h.executeCascade(txCtx, scope)
+		return h.executeCascade(txCtx, scope, command.ConfirmedRealizationIDs)
 	})
 }
 
-func (h *CascadeDeleteCapabilityHandler) executeCascade(ctx context.Context, scope valueobjects.DeletionScope) error {
-	if err := h.dispatchRealizationDeletes(ctx, scope); err != nil {
+func (h *CascadeDeleteCapabilityHandler) executeCascade(ctx context.Context, scope valueobjects.DeletionScope, confirmedRealizationIDs []string) error {
+	if err := h.dispatchRealizationDeletes(ctx, scope, confirmedRealizationIDs); err != nil {
 		return err
 	}
 
@@ -104,10 +104,13 @@ func (h *CascadeDeleteCapabilityHandler) buildScope(ctx context.Context, id stri
 	return valueobjects.NewDeletionScope(rootID, descendants), nil
 }
 
-func (h *CascadeDeleteCapabilityHandler) dispatchRealizationDeletes(ctx context.Context, scope valueobjects.DeletionScope) error {
+func (h *CascadeDeleteCapabilityHandler) dispatchRealizationDeletes(ctx context.Context, scope valueobjects.DeletionScope, confirmedRealizationIDs []string) error {
 	realizations, err := collectDirectRealizations(ctx, h.deps.RealizationRM, scope)
 	if err != nil {
 		return err
+	}
+	if !sameRealizations(realizations, confirmedRealizationIDs) {
+		return services.ErrDeleteImpactChanged
 	}
 	for _, r := range realizations {
 		if _, err := h.deps.CommandBus.Dispatch(ctx, &commands.DeleteSystemRealization{ID: r.ID}); err != nil {
@@ -201,4 +204,20 @@ func directOnly(realizations []readmodels.RealizationDTO) []readmodels.Realizati
 		}
 	}
 	return direct
+}
+
+func sameRealizations(realizations []readmodels.RealizationDTO, confirmedIDs []string) bool {
+	confirmed := make(map[string]bool, len(confirmedIDs))
+	for _, id := range confirmedIDs {
+		confirmed[id] = true
+	}
+	if len(confirmed) != len(realizations) {
+		return false
+	}
+	for _, r := range realizations {
+		if !confirmed[r.ID] {
+			return false
+		}
+	}
+	return true
 }
