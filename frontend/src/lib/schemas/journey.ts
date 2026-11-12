@@ -83,7 +83,9 @@ function checkMaturityTarget(data: { kind: JourneyKindValue; targetMaturity?: nu
     return;
   }
   if (data.targetMaturity < MIN_TARGET_MATURITY || data.targetMaturity > MAX_TARGET_MATURITY) {
-    addIssue(ctx, `Target maturity must be between ${MIN_TARGET_MATURITY} and ${MAX_TARGET_MATURITY}`, ['targetMaturity']);
+    addIssue(ctx, `Target maturity must be between ${MIN_TARGET_MATURITY} and ${MAX_TARGET_MATURITY}`, [
+      'targetMaturity',
+    ]);
   }
 }
 

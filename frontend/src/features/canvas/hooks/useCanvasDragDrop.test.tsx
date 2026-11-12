@@ -84,10 +84,7 @@ function fakeReactFlowInstance() {
   } as unknown as Parameters<typeof useCanvasDragDrop>[0];
 }
 
-function setupDrop(
-  view: View,
-  storeState: Partial<ReturnType<typeof useAppStore.getState>>,
-) {
+function setupDrop(view: View, storeState: Partial<ReturnType<typeof useAppStore.getState>>) {
   setView(view);
   act(() => {
     useAppStore.setState(storeState);

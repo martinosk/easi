@@ -31,12 +31,12 @@
   font-weight: 600;
 }
 
-.item[data-in-view='false'] {
+.item[data-in-view="false"] {
   opacity: 0.5;
   font-style: italic;
 }
 
-.item[data-in-view='false']:hover {
+.item[data-in-view="false"]:hover {
   opacity: 0.7;
 }
 

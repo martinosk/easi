@@ -1,7 +1,9 @@
-import type { ReactElement } from 'react';
 import { fireEvent, screen } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import { renderWithProviders } from '../../../test/helpers';
+
 const render = (ui: ReactElement) => renderWithProviders(ui, { withRouter: false });
+
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { ChatInput } from './ChatInput';
@@ -68,7 +70,9 @@ describe('ChatInput', () => {
 
   it('should call onToggleYolo when checkbox is clicked', () => {
     const onToggleYolo = vi.fn();
-    render(<ChatInput onSend={vi.fn()} disabled={false} yoloEnabled={false} onToggleYolo={onToggleYolo} writeAvailable />);
+    render(
+      <ChatInput onSend={vi.fn()} disabled={false} yoloEnabled={false} onToggleYolo={onToggleYolo} writeAvailable />,
+    );
 
     fireEvent.click(screen.getByLabelText('YOLO (allow changes)'));
     expect(onToggleYolo).toHaveBeenCalled();

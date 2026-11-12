@@ -26,10 +26,9 @@ describe('TreeSearchInput', () => {
 
   it('shows a clear button only when there is a value and clears on click', async () => {
     const onChange = vi.fn();
-    const { rerender } = renderWithProviders(
-      <TreeSearchInput value="" onChange={onChange} placeholder="Search..." />,
-      { withRouter: false },
-    );
+    const { rerender } = renderWithProviders(<TreeSearchInput value="" onChange={onChange} placeholder="Search..." />, {
+      withRouter: false,
+    });
 
     expect(screen.queryByLabelText('Clear search')).not.toBeInTheDocument();
 

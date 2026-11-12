@@ -2,6 +2,7 @@ import { Button, Stack, Text } from '@mantine/core';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
 import { useBatchUpdateStrategyPillars, useStrategyPillarsConfig } from '../../../hooks/useStrategyPillarsSettings';
+import { type PillarHandlers, PillarsList } from './PillarsList';
 import {
   buildPillarChanges,
   countActive,
@@ -15,7 +16,6 @@ import {
   type ValidationErrors,
   validatePillars,
 } from './pillarChanges';
-import { type PillarHandlers, PillarsList } from './PillarsList';
 import {
   SettingsConflictNotice,
   SettingsSection,

@@ -1,5 +1,5 @@
-import React from 'react';
 import { Badge, Group, Stack, Text, UnstyledButton } from '@mantine/core';
+import React from 'react';
 import type { Release } from '../../../api/types';
 import { formatShortDate } from './releaseNotesUtils';
 

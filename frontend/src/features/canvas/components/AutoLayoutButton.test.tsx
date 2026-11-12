@@ -3,8 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MantineTestWrapper } from '../../../test/helpers/mantineTestWrapper';
 import { AutoLayoutButton } from './AutoLayoutButton';
 
-const renderWithMantine = (ui: React.ReactElement) =>
-  render(<MantineTestWrapper>{ui}</MantineTestWrapper>);
+const renderWithMantine = (ui: React.ReactElement) => render(<MantineTestWrapper>{ui}</MantineTestWrapper>);
 
 const mockApplyAutoLayout = vi.fn();
 const mockUseCanvasNodes = vi.fn();

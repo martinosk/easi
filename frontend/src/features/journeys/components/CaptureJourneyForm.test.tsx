@@ -20,7 +20,16 @@ function seedDomains() {
   server.use(
     http.get('*/api/v1/business-domains', () => {
       return HttpResponse.json({
-        data: [{ id: 'domain-gf', name: 'Group functions', description: '', capabilityCount: 0, createdAt: '2026-01-01T00:00:00Z', _links: {} }],
+        data: [
+          {
+            id: 'domain-gf',
+            name: 'Group functions',
+            description: '',
+            capabilityCount: 0,
+            createdAt: '2026-01-01T00:00:00Z',
+            _links: {},
+          },
+        ],
         _links: { self: '/api/v1/business-domains' },
       });
     }),

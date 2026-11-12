@@ -18,12 +18,7 @@ function EmptyState({ onSuggestionClick }: { onSuggestionClick: (s: string) => v
       <Text fw={600}>How can I help with your architecture?</Text>
       <Stack gap="sm" w="100%">
         {PROMPT_SUGGESTIONS.map((suggestion) => (
-          <Button
-            key={suggestion}
-            variant="default"
-            justify="flex-start"
-            onClick={() => onSuggestionClick(suggestion)}
-          >
+          <Button key={suggestion} variant="default" justify="flex-start" onClick={() => onSuggestionClick(suggestion)}>
             {suggestion}
           </Button>
         ))}

@@ -11,12 +11,7 @@ import {
   useUpdateComponentPosition,
   useUpdateOriginEntityPosition,
 } from '../../views/hooks/useViews';
-import {
-  saveDraft,
-  type DraftSaveApi,
-  type DraftSaveInput,
-  type DraftSaveResult,
-} from '../utils/saveDraft';
+import { type DraftSaveApi, type DraftSaveInput, type DraftSaveResult, saveDraft } from '../utils/saveDraft';
 
 export function useSaveDynamicDraft(): {
   save: (input: DraftSaveInput) => Promise<DraftSaveResult>;

@@ -91,12 +91,7 @@ export function ImportUploadStep({
         <Button variant="default" onClick={onCancel} disabled={isLoading} data-testid="cancel-button">
           Cancel
         </Button>
-        <Button
-          onClick={handleSubmit}
-          loading={isLoading}
-          disabled={!selectedFile}
-          data-testid="upload-button"
-        >
+        <Button onClick={handleSubmit} loading={isLoading} disabled={!selectedFile} data-testid="upload-button">
           Upload
         </Button>
       </Group>

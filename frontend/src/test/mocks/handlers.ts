@@ -242,8 +242,7 @@ export const handlers = [
       capabilityName: capability.name,
       hasDescendants: false,
       affectedCapabilities: [],
-      realizationsOnDeletedCapabilities: [],
-      realizationsOnRetainedCapabilities: [],
+      realizations: [],
       _links: {
         self: { href: `/api/v1/capabilities/${params.id}/delete-impact`, method: 'GET' },
         'x-capability': { href: `/api/v1/capabilities/${params.id}`, method: 'GET' },

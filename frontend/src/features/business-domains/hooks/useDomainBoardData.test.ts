@@ -11,11 +11,11 @@ import {
 } from '../../../test/helpers/entityBuilders';
 import { realizationRoleApi } from '../../architecture-direction/api/realizationRoleApi';
 import { timeAssessmentApi } from '../../architecture-direction/api/timeAssessmentApi';
-import { journeyApi } from '../../journeys/api/journeyApi';
 import { capabilitiesApi } from '../../capabilities/api';
+import { journeyApi } from '../../journeys/api/journeyApi';
 import { businessDomainsApi } from '../api';
-import type { AssessedRealization } from './domainBoardViewModel';
 import { businessDomainsQueryKeys } from '../queryKeys';
+import type { AssessedRealization } from './domainBoardViewModel';
 import { useDomainBoardData } from './useDomainBoardData';
 
 vi.mock('../api', () => ({

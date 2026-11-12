@@ -1,8 +1,10 @@
-import type { ReactElement } from 'react';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import { renderWithProviders } from '../../../../test/helpers';
 import { seedOnePagerCompleteness } from '../../../../test/mocks/onePagerCompleteness';
+
 const render = (ui: ReactElement) => renderWithProviders(ui, { withRouter: false });
+
 import { describe, expect, it, vi } from 'vitest';
 import type { HATEOASLinks, Vendor, VendorId } from '../../../../api/types';
 import { VendorsSection } from './VendorsSection';
@@ -249,7 +251,10 @@ describe('VendorsSection', () => {
       render(
         <VendorsSection
           {...defaultProps}
-          vendors={[createMockVendor({ id: 'v-123' as VendorId }), createMockVendor({ id: 'v-456' as VendorId, name: 'Other' })]}
+          vendors={[
+            createMockVendor({ id: 'v-123' as VendorId }),
+            createMockVendor({ id: 'v-456' as VendorId, name: 'Other' }),
+          ]}
         />,
       );
 

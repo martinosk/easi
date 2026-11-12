@@ -1,10 +1,4 @@
-import type {
-  CapabilityId,
-  ComponentId,
-  HATEOASLink,
-  HATEOASLinks,
-  TimeGrade,
-} from '../../api/types';
+import type { CapabilityId, ComponentId, HATEOASLink, HATEOASLinks, TimeGrade } from '../../api/types';
 
 export type { TimeGrade };
 

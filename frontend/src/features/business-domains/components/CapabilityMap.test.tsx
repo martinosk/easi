@@ -2,7 +2,7 @@ import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { toCapabilityId, toComponentId } from '../../../api/types';
 import { renderWithProviders } from '../../../test/helpers';
-import { buildCapabilityAt as cap, buildCapabilityRealization } from '../../../test/helpers/entityBuilders';
+import { buildCapabilityRealization, buildCapabilityAt as cap } from '../../../test/helpers/entityBuilders';
 import type { MapDepth } from '../hooks/useMapViewState';
 import { buildViewModel } from '../testkit/hookData';
 import { CapabilityMap, type CapabilityMapProps } from './CapabilityMap';
@@ -141,5 +141,4 @@ describe('CapabilityMap', () => {
     expect(onChipClick).toHaveBeenCalledWith('comp-erp');
     expect(onCapabilityClick).not.toHaveBeenCalled();
   });
-
 });

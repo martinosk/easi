@@ -65,8 +65,20 @@ const seedCases: SeedCase[] = [
         id: 'comp-1',
         name: 'A',
         _links: linksWithRelated([
-          { href: '/x', methods: ['POST'], title: 'Component (triggers)', targetType: 'component', relationType: 'component-triggers' },
-          { href: '/y', methods: ['GET'], title: 'Hidden', targetType: 'component', relationType: 'capability-requires' },
+          {
+            href: '/x',
+            methods: ['POST'],
+            title: 'Component (triggers)',
+            targetType: 'component',
+            relationType: 'component-triggers',
+          },
+          {
+            href: '/y',
+            methods: ['GET'],
+            title: 'Hidden',
+            targetType: 'component',
+            relationType: 'capability-requires',
+          },
         ]),
       });
     },
@@ -80,7 +92,13 @@ const seedCases: SeedCase[] = [
         id: 'cap-uuid',
         name: 'B',
         _links: linksWithRelated([
-          { href: '/c', methods: ['POST'], title: 'Capability (child of)', targetType: 'capability', relationType: 'capability-parent' },
+          {
+            href: '/c',
+            methods: ['POST'],
+            title: 'Capability (child of)',
+            targetType: 'capability',
+            relationType: 'capability-parent',
+          },
         ]),
       });
     },
@@ -93,7 +111,13 @@ const seedCases: SeedCase[] = [
       acquiredData.push({
         id: 'a1',
         _links: linksWithRelated([
-          { href: '/c', methods: ['POST'], title: 'Component (acquired-via)', targetType: 'component', relationType: 'origin-acquired-via' },
+          {
+            href: '/c',
+            methods: ['POST'],
+            title: 'Component (acquired-via)',
+            targetType: 'component',
+            relationType: 'origin-acquired-via',
+          },
         ]),
       });
     },
@@ -106,7 +130,13 @@ const seedCases: SeedCase[] = [
       vendorData.push({
         id: 'v1',
         _links: linksWithRelated([
-          { href: '/c', methods: ['POST'], title: 'Component (purchased-from)', targetType: 'component', relationType: 'origin-purchased-from' },
+          {
+            href: '/c',
+            methods: ['POST'],
+            title: 'Component (purchased-from)',
+            targetType: 'component',
+            relationType: 'origin-purchased-from',
+          },
         ]),
       });
     },
@@ -119,7 +149,13 @@ const seedCases: SeedCase[] = [
       teamData.push({
         id: 't1',
         _links: linksWithRelated([
-          { href: '/c', methods: ['POST'], title: 'Component (built-by)', targetType: 'component', relationType: 'origin-built-by' },
+          {
+            href: '/c',
+            methods: ['POST'],
+            title: 'Component (built-by)',
+            targetType: 'component',
+            relationType: 'origin-built-by',
+          },
         ]),
       });
     },
@@ -146,8 +182,20 @@ describe('useSourceEntityRelated', () => {
       id: 'comp-1',
       name: 'A',
       _links: linksWithRelated([
-        { href: '/x', methods: ['POST'], title: 'Component (triggers)', targetType: 'component', relationType: 'component-triggers' },
-        { href: '/y', methods: ['GET'], title: 'Read only', targetType: 'component', relationType: 'capability-requires' },
+        {
+          href: '/x',
+          methods: ['POST'],
+          title: 'Component (triggers)',
+          targetType: 'component',
+          relationType: 'component-triggers',
+        },
+        {
+          href: '/y',
+          methods: ['GET'],
+          title: 'Read only',
+          targetType: 'component',
+          relationType: 'capability-requires',
+        },
       ]),
     });
     const { result } = renderHook(() => useSourceEntityRelated('comp-1'), { wrapper: wrapper() });

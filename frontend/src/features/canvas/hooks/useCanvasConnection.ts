@@ -59,7 +59,11 @@ export const useCanvasConnection = (onConnect: (source: string, target: string) 
     async (connection: Connection) => {
       if (!connection.source || !connection.target) return;
       if (connection.source === connection.target) return;
-      await dispatchByType(getConnectionType(connection.source, connection.target), connection.source, connection.target);
+      await dispatchByType(
+        getConnectionType(connection.source, connection.target),
+        connection.source,
+        connection.target,
+      );
     },
     [dispatchByType],
   );

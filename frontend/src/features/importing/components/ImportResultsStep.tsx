@@ -11,8 +11,14 @@ interface SummaryProps {
 }
 
 function ResultsSummary({ result }: SummaryProps) {
-  const { capabilitiesCreated, componentsCreated, valueStreamsCreated, realizationsCreated, capabilityMappings, domainAssignments } =
-    result;
+  const {
+    capabilitiesCreated,
+    componentsCreated,
+    valueStreamsCreated,
+    realizationsCreated,
+    capabilityMappings,
+    domainAssignments,
+  } = result;
   return (
     <Paper p="md" withBorder radius="md">
       <Stack gap="sm">

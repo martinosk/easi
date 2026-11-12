@@ -169,3 +169,4 @@ Every component imports its own `X.module.css`; the only global stylesheets are 
 9. **New features go where the domain lives.** "Under area X" = tab inside X, not a top-level nav item.
 10. **Empty states explain the feature.** `Title` + `Text` + call-to-action `Button`.
 11. **z-index is a `--layer-*` token; stylesheets are CSS modules.** Overlays go through Mantine portals; features never position to the viewport.
+12. **Biome fixes to files outside your change are boyscouting.** Keep them and commit them separately (`style: apply biome formatting to <area>`); never revert them. See `easi-boyscouting`.

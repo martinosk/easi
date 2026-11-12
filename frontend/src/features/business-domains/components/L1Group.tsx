@@ -107,7 +107,13 @@ interface L1GroupStateParams {
   manualOpen: boolean;
 }
 
-function computeL1GroupState({ node, lensContext, searchQuery, forceOpen, manualOpen }: L1GroupStateParams): L1GroupOpenState {
+function computeL1GroupState({
+  node,
+  lensContext,
+  searchQuery,
+  forceOpen,
+  manualOpen,
+}: L1GroupStateParams): L1GroupOpenState {
   const { lens, changesOnly, index } = lensContext;
   const changed = lens !== 'now' && l1HasChange(node, index);
   const dimmedGroup = changesOnly && lens !== 'now' && !changed;

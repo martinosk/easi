@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   buildOnePagerFactsSchema,
   emptyFactValue,
+  type FactFieldDefinition,
   factEnvelope,
   factFormDefaults,
   isFactValueEmpty,
   VALUE_ENVELOPE_VERSION,
-  type FactFieldDefinition,
 } from './onePagerFacts';
 
 const textField: FactFieldDefinition = { id: 'f-text', type: 'text' };
@@ -171,9 +171,7 @@ describe('buildOnePagerFactsSchema', () => {
     });
 
     it('rejects an invalid email', () => {
-      expect(parseWith({ 'f-contact': { name: 'A. Larsen', email: 'not-an-email', company: '' } }).success).toBe(
-        false,
-      );
+      expect(parseWith({ 'f-contact': { name: 'A. Larsen', email: 'not-an-email', company: '' } }).success).toBe(false);
     });
 
     it('rejects a missing email when a name is present', () => {
@@ -181,9 +179,9 @@ describe('buildOnePagerFactsSchema', () => {
     });
 
     it('rejects a name exceeding 200 characters', () => {
-      expect(
-        parseWith({ 'f-contact': { name: 'a'.repeat(201), email: 'al@ext.example', company: '' } }).success,
-      ).toBe(false);
+      expect(parseWith({ 'f-contact': { name: 'a'.repeat(201), email: 'al@ext.example', company: '' } }).success).toBe(
+        false,
+      );
     });
 
     it('rejects a company exceeding 200 characters', () => {

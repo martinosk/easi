@@ -10,9 +10,9 @@ import {
   useCapabilities,
   useCapability,
   useCapabilityDependencies,
+  useCascadeDeleteCapability,
   useCreateCapability,
   useCreateCapabilityDependency,
-  useDeleteCapability,
   useDeleteCapabilityDependency,
   useUpdateCapability,
 } from './useCapabilities';
@@ -25,7 +25,7 @@ vi.mock('../api', () => ({
     create: vi.fn(),
     update: vi.fn(),
     updateMetadata: vi.fn(),
-    delete: vi.fn(),
+    cascadeDelete: vi.fn(),
     changeParent: vi.fn(),
     getAllDependencies: vi.fn(),
     getOutgoingDependencies: vi.fn(),
@@ -251,23 +251,27 @@ describe('useCapabilities hooks', () => {
     });
   });
 
-  describe('useDeleteCapability', () => {
-    it('should delete capability and invalidate relevant queries', async () => {
+  describe('useCascadeDeleteCapability', () => {
+    it('should delete capability with its confirmed realizations and invalidate relevant queries', async () => {
       const capability = buildCapability({ id: 'cap-1' as CapabilityId, name: 'To Delete' });
 
       queryClient.setQueryData(capabilitiesQueryKeys.lists(), [capability]);
       queryClient.setQueryData(capabilitiesQueryKeys.detail('cap-1'), capability);
-      vi.mocked(capabilitiesApi.delete).mockResolvedValue(undefined);
+      vi.mocked(capabilitiesApi.cascadeDelete).mockResolvedValue(undefined);
 
-      const { result, invalidateQueriesSpy } = renderMutation(() => useDeleteCapability());
+      const { result, invalidateQueriesSpy } = renderMutation(() => useCascadeDeleteCapability());
 
       await act(async () => {
-        await result.current.mutateAsync({ capability });
+        await result.current.mutateAsync({ capability, cascade: false, confirmedRealizationIds: ['real-1'] });
       });
 
-      expectInvalidated(invalidateQueriesSpy, capabilitiesQueryKeys.lists(), capabilitiesQueryKeys.detail('cap-1'));
+      expect(capabilitiesApi.cascadeDelete).toHaveBeenCalledWith(capability, {
+        cascade: false,
+        confirmedRealizationIds: ['real-1'],
+      });
+      expectInvalidated(invalidateQueriesSpy, capabilitiesQueryKeys.lists(), capabilitiesQueryKeys.details());
 
-      expect(toast.success).toHaveBeenCalledWith('Capability deleted');
+      expect(toast.success).toHaveBeenCalledWith('Capability and descendants deleted');
     });
 
     it.each([
@@ -283,11 +287,11 @@ describe('useCapabilities hooks', () => {
       },
     ])('$name', async ({ extra, expectedKey }) => {
       const capability = buildCapability({ id: 'cap-1' as CapabilityId, name: 'To Delete' });
-      vi.mocked(capabilitiesApi.delete).mockResolvedValue(undefined);
-      const { result, invalidateQueriesSpy } = renderMutation(() => useDeleteCapability());
+      vi.mocked(capabilitiesApi.cascadeDelete).mockResolvedValue(undefined);
+      const { result, invalidateQueriesSpy } = renderMutation(() => useCascadeDeleteCapability());
 
       await act(async () => {
-        await result.current.mutateAsync({ capability, ...extra });
+        await result.current.mutateAsync({ capability, cascade: false, confirmedRealizationIds: [], ...extra });
       });
 
       expectInvalidated(invalidateQueriesSpy, expectedKey);

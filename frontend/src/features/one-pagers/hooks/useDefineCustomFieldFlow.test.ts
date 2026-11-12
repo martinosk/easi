@@ -122,17 +122,41 @@ describe('useDefineCustomFieldFlow', () => {
     {
       name: 'a number field with bounds',
       form: formData({ min: 0, max: 5 }),
-      expected: { name: 'Maturity score', type: 'number', helpText: '', options: undefined, min: 0, max: 5, version: 3 },
+      expected: {
+        name: 'Maturity score',
+        type: 'number',
+        helpText: '',
+        options: undefined,
+        min: 0,
+        max: 5,
+        version: 3,
+      },
     },
     {
       name: 'a number field with only the minimum',
       form: formData({ min: 0 }),
-      expected: { name: 'Maturity score', type: 'number', helpText: '', options: undefined, min: 0, max: undefined, version: 3 },
+      expected: {
+        name: 'Maturity score',
+        type: 'number',
+        helpText: '',
+        options: undefined,
+        min: 0,
+        max: undefined,
+        version: 3,
+      },
     },
     {
       name: 'a selection field with its options',
       form: formData({ name: 'Region', fieldType: 'selection', options: ['EU', 'US'] }),
-      expected: { name: 'Region', type: 'selection', helpText: '', options: ['EU', 'US'], min: undefined, max: undefined, version: 3 },
+      expected: {
+        name: 'Region',
+        type: 'selection',
+        helpText: '',
+        options: ['EU', 'US'],
+        min: undefined,
+        max: undefined,
+        version: 3,
+      },
     },
   ])('defines $name through the MetaModel schema in one request', async ({ form, expected }) => {
     const schema = buildSchema();
@@ -149,7 +173,13 @@ describe('useDefineCustomFieldFlow', () => {
 
   it('marks the field required on the one-pager once the refreshed configuration offers it', async () => {
     const schema = buildSchema();
-    const definedAttribute = { id: 'attr-new', name: 'Maturity score', type: 'number' as const, helpText: '', active: true };
+    const definedAttribute = {
+      id: 'attr-new',
+      name: 'Maturity score',
+      type: 'number' as const,
+      helpText: '',
+      active: true,
+    };
     vi.mocked(subjectAttributeSchemaApi.defineAttribute).mockResolvedValue(
       buildSchema({ version: 4, attributes: [definedAttribute] }),
     );

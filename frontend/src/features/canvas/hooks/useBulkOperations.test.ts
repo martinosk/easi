@@ -26,7 +26,23 @@ vi.mock('../../capabilities/hooks/useCapabilities', () => ({
   useCapabilities: () => ({
     data: [{ id: 'cap-1', name: 'Capability 1' }],
   }),
-  useDeleteCapability: () => ({ mutateAsync: mockDeleteCapability }),
+  useDeleteImpacts: (ids: string[]) => ({
+    impacts: ids.map((id) => ({
+      capabilityId: id,
+      capabilityName: id,
+      hasDescendants: false,
+      affectedCapabilities: [],
+      realizations: [
+        { id: `real-${id}`, componentId: 'comp-1', capabilityId: id, realizationLevel: 'Full', origin: 'Direct' },
+      ],
+      _links: {},
+    })),
+    isLoading: false,
+    isFetching: false,
+    isError: false,
+    retry: vi.fn(),
+  }),
+  useCascadeDeleteCapability: () => ({ mutateAsync: mockDeleteCapability }),
 }));
 
 vi.mock('../../origin-entities/hooks/useAcquiredEntities', () => ({
@@ -149,6 +165,24 @@ describe('useBulkOperations', () => {
 
     expect(mockDeleteComponent).toHaveBeenCalledTimes(2);
     expect(result.current.bulkOperation).toBeNull();
+  });
+
+  it('deletes a capability through the cascade confirming the realizations shown', async () => {
+    const result = setupBulkHook();
+    const nodes = [makeNode({ nodeId: 'cap-1', nodeName: 'Capability 1', nodeType: 'capability' })];
+    act(() => {
+      result.current.setBulkOperation({ type: 'deleteFromModel', nodes });
+    });
+    expect(result.current.capabilityDeletionPlan.realizations).toHaveLength(1);
+    expect(result.current.capabilityDeletionPlan.ready).toBe(true);
+
+    await act(async () => {
+      await result.current.handleBulkConfirm();
+    });
+
+    expect(mockDeleteCapability).toHaveBeenCalledWith(
+      expect.objectContaining({ cascade: false, confirmedRealizationIds: ['real-cap-1'] }),
+    );
   });
 
   it('stops sequential delete on first failure and reports partial result', async () => {

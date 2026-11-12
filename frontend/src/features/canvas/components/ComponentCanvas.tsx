@@ -13,7 +13,6 @@ import {
 } from '@xyflow/react';
 import React, { forwardRef, useCallback, useImperativeHandle, useState } from 'react';
 import '@xyflow/react/dist/style.css';
-import classes from './ComponentCanvas.module.css';
 import { CapabilityNode } from '../../../components/canvas/CapabilityNode';
 import { ComponentNode } from '../../../components/canvas/ComponentNode';
 import { OriginEntityNode } from '../../../components/canvas/OriginEntityNode';
@@ -33,13 +32,14 @@ import { useCreateDynamicView } from '../hooks/useCreateDynamicView';
 import { useDeleteConfirmation } from '../hooks/useDeleteConfirmation';
 import { AutoLayoutButton } from './AutoLayoutButton';
 import { CanvasCommandsPortal } from './CanvasCommandsPortal';
+import classes from './ComponentCanvas.module.css';
+import { ContainmentMarkerDefs } from './ContainmentMarkerDefs';
 import { EdgeContextMenu } from './context-menus/EdgeContextMenu';
 import { MultiSelectContextMenu } from './context-menus/MultiSelectContextMenu';
 import { type GenerateViewTarget, type InviteTarget, NodeContextMenu } from './context-menus/NodeContextMenu';
 import { DynamicModeContainer } from './DynamicModeContainer';
 import { BulkConfirmationDialog } from './dialogs/BulkConfirmationDialog';
 import { DeleteConfirmationWrapper } from './dialogs/DeleteConfirmationWrapper';
-import { ContainmentMarkerDefs } from './ContainmentMarkerDefs';
 import { HandleCreateController } from './HandleCreateController';
 import { withDynamicExpansion } from './withDynamicExpansion';
 
@@ -127,8 +127,15 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
       onEdgeContextMenu,
       closeMenus,
     } = useContextMenu(internalNodes);
-    const { deleteTarget, deleteTargetComponent, isDeleting, setDeleteTarget, handleDeleteConfirm, handleDeleteCancel } =
-      useDeleteConfirmation();
+    const {
+      deleteTarget,
+      deleteTargetComponent,
+      deleteTargetCapability,
+      isDeleting,
+      setDeleteTarget,
+      handleDeleteConfirm,
+      handleDeleteCancel,
+    } = useDeleteConfirmation();
     const [inviteTarget, setInviteTarget] = useState<InviteTarget | null>(null);
 
     const handleGenerateView = useCallback(
@@ -140,6 +147,7 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
     const createGrant = useCreateEditGrant();
     const {
       bulkOperation,
+      capabilityDeletionPlan,
       isExecuting,
       result: bulkResult,
       setBulkOperation,
@@ -254,6 +262,7 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
         <DeleteConfirmationWrapper
           deleteTarget={deleteTarget}
           deleteTargetComponent={deleteTargetComponent}
+          deleteTargetCapability={deleteTargetCapability}
           isDeleting={isDeleting}
           onConfirm={handleDeleteConfirm}
           onCancel={handleDeleteCancel}
@@ -261,6 +270,7 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
 
         <BulkConfirmationDialog
           bulkOperation={bulkOperation}
+          capabilityDeletionPlan={capabilityDeletionPlan}
           isExecuting={isExecuting}
           result={bulkResult}
           onConfirm={handleBulkConfirm}

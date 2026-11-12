@@ -52,7 +52,12 @@ export function EditJourneyDetailsForm({ journey, onDone }: { journey: Capabilit
         <Button variant="default" onClick={onDone} disabled={mutation.isPending}>
           Cancel
         </Button>
-        <Button onClick={save} disabled={!valid || mutation.isPending} loading={mutation.isPending} data-testid="save-details-btn">
+        <Button
+          onClick={save}
+          disabled={!valid || mutation.isPending}
+          loading={mutation.isPending}
+          data-testid="save-details-btn"
+        >
           Save
         </Button>
       </Group>

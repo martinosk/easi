@@ -24,7 +24,5 @@ const contrastRatio = (a: number, b: number): number => (Math.max(a, b) + 0.05) 
 export const getContrastTextColor = (backgroundHex: string): string => {
   const luminance = relativeLuminance(backgroundHex);
   if (luminance === null) return INK_TEXT;
-  return contrastRatio(luminance, INK_LUMINANCE) >= contrastRatio(luminance, WHITE_LUMINANCE)
-    ? INK_TEXT
-    : LIGHT_TEXT;
+  return contrastRatio(luminance, INK_LUMINANCE) >= contrastRatio(luminance, WHITE_LUMINANCE) ? INK_TEXT : LIGHT_TEXT;
 };

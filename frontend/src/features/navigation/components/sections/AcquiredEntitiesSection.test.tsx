@@ -1,8 +1,10 @@
-import type { ReactElement } from 'react';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import { renderWithProviders } from '../../../../test/helpers';
 import { seedOnePagerCompleteness } from '../../../../test/mocks/onePagerCompleteness';
+
 const render = (ui: ReactElement) => renderWithProviders(ui, { withRouter: false });
+
 import { describe, expect, it, vi } from 'vitest';
 import type {
   AcquiredEntity,
@@ -291,7 +293,10 @@ describe('AcquiredEntitiesSection', () => {
       render(
         <AcquiredEntitiesSection
           {...defaultProps}
-          acquiredEntities={[createMockEntity({ id: 'ae-123' as AcquiredEntityId }), createMockEntity({ id: 'ae-456' as AcquiredEntityId, name: 'Other' })]}
+          acquiredEntities={[
+            createMockEntity({ id: 'ae-123' as AcquiredEntityId }),
+            createMockEntity({ id: 'ae-456' as AcquiredEntityId, name: 'Other' }),
+          ]}
         />,
       );
 
@@ -301,7 +306,12 @@ describe('AcquiredEntitiesSection', () => {
 
     it('shows no indicator when the subject type has no required field', async () => {
       seedOnePagerCompleteness('acquired-entity', []);
-      render(<AcquiredEntitiesSection {...defaultProps} acquiredEntities={[createMockEntity({ id: 'ae-123' as AcquiredEntityId })]} />);
+      render(
+        <AcquiredEntitiesSection
+          {...defaultProps}
+          acquiredEntities={[createMockEntity({ id: 'ae-123' as AcquiredEntityId })]}
+        />,
+      );
 
       await waitFor(() => expect(screen.queryByTestId('one-pager-incomplete-ae-123')).not.toBeInTheDocument());
     });

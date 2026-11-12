@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import type {
   AddCapabilityExpertRequest,
@@ -8,6 +8,7 @@ import type {
   CapabilityDependency,
   CapabilityId,
   CapabilityRealization,
+  CascadeDeleteRequest,
   ComponentId,
   CreateCapabilityDependencyRequest,
   CreateCapabilityRequest,
@@ -179,20 +180,20 @@ export function useAddCapabilityTag() {
   });
 }
 
-export function useDeleteCapability() {
-  return useCapabilityMutation({
-    mutationFn: (context: { capability: Capability; parentId?: string; domainId?: string }) =>
-      capabilitiesApi.delete(context.capability),
-    getEffects: (_, context) =>
-      capabilitiesMutationEffects.delete({
-        id: context.capability.id,
-        parentId: context.parentId,
-        domainId: context.domainId,
-      }),
-    successMessage: 'Capability deleted',
-    errorMessage: 'Failed to delete capability',
-  });
+interface CapabilityDeletion {
+  capability: Capability;
+  parentId?: string;
+  domainId?: string;
 }
+
+const deletedCapabilityScope = ({ capability, parentId, domainId }: CapabilityDeletion) => ({
+  id: capability.id,
+  parentId,
+  domainId,
+});
+
+const linkedSystemEffects = (capabilityId: CapabilityId, request: LinkSystemToCapabilityRequest) =>
+  capabilitiesMutationEffects.linkSystem({ capabilityId, componentId: request.componentId });
 
 export function useChangeCapabilityParent() {
   return useCapabilityMutation({
@@ -231,8 +232,7 @@ export function useLinkSystemToCapability() {
   return useCapabilityMutation({
     mutationFn: ({ capabilityId, request }: { capabilityId: CapabilityId; request: LinkSystemToCapabilityRequest }) =>
       capabilitiesApi.linkSystem(capabilityId, request),
-    getEffects: (_, { capabilityId, request }) =>
-      capabilitiesMutationEffects.linkSystem({ capabilityId, componentId: request.componentId }),
+    getEffects: (_, { capabilityId, request }) => linkedSystemEffects(capabilityId, request),
     successMessage: 'System linked to capability',
     errorMessage: 'Failed to link system',
   });
@@ -242,8 +242,7 @@ export function useAddRealization() {
   return useCapabilityMutation({
     mutationFn: ({ capability, request }: { capability: Capability; request: LinkSystemToCapabilityRequest }) =>
       capabilitiesApi.addRealization(capability, request),
-    getEffects: (_, { capability, request }) =>
-      capabilitiesMutationEffects.linkSystem({ capabilityId: capability.id, componentId: request.componentId }),
+    getEffects: (_, { capability, request }) => linkedSystemEffects(capability.id, request),
     successMessage: 'Application added',
     errorMessage: 'Failed to add application',
   });
@@ -268,34 +267,37 @@ export function useDeleteRealization() {
   });
 }
 
-export function useDeleteImpact(capabilityId: CapabilityId | undefined) {
-  return useQuery<CapabilityDeleteImpact>({
-    queryKey: capabilitiesQueryKeys.deleteImpact(capabilityId!),
-    queryFn: () => capabilitiesApi.getDeleteImpact(capabilityId!),
-    enabled: !!capabilityId,
+export interface DeleteImpacts {
+  impacts: CapabilityDeleteImpact[];
+  isLoading: boolean;
+  isFetching: boolean;
+  isError: boolean;
+  retry: () => void;
+}
+
+export function useDeleteImpacts(capabilityIds: CapabilityId[]): DeleteImpacts {
+  return useQueries({
+    queries: capabilityIds.map((id) => ({
+      queryKey: capabilitiesQueryKeys.deleteImpact(id),
+      queryFn: () => capabilitiesApi.getDeleteImpact(id),
+    })),
+    combine: (results) => ({
+      impacts: results.flatMap((r) => (r.data ? [r.data] : [])),
+      isLoading: results.some((r) => r.isLoading),
+      isFetching: results.some((r) => r.isFetching),
+      isError: results.some((r) => r.isError),
+      retry: () => {
+        for (const r of results) r.refetch();
+      },
+    }),
   });
 }
 
 export function useCascadeDeleteCapability() {
   return useCapabilityMutation({
-    mutationFn: (context: {
-      capability: Capability;
-      cascade: boolean;
-      deleteRealisingApplications: boolean;
-      parentId?: string;
-      domainId?: string;
-    }) =>
-      capabilitiesApi.cascadeDelete(context.capability, {
-        cascade: context.cascade,
-        deleteRealisingApplications: context.deleteRealisingApplications,
-      }),
-    getEffects: (_, context) =>
-      capabilitiesMutationEffects.cascadeDelete({
-        id: context.capability.id,
-        parentId: context.parentId,
-        domainId: context.domainId,
-        deleteApplications: context.deleteRealisingApplications,
-      }),
+    mutationFn: ({ capability, cascade, confirmedRealizationIds }: CapabilityDeletion & CascadeDeleteRequest) =>
+      capabilitiesApi.cascadeDelete(capability, { cascade, confirmedRealizationIds }),
+    getEffects: (_, deletion) => capabilitiesMutationEffects.cascadeDelete(deletedCapabilityScope(deletion)),
     successMessage: 'Capability and descendants deleted',
     errorMessage: 'Failed to delete capability',
   });

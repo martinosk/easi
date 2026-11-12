@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
 import { Alert, Box, Button, Center, Grid, Group, Loader, Modal, ScrollArea, Stack, Text } from '@mantine/core';
+import React, { useEffect, useState } from 'react';
 import { apiClient } from '../../../api/client';
 import type { Release } from '../../../api/types';
 import { ReleaseNotesContent } from './ReleaseNotesContent';

@@ -80,12 +80,21 @@ describe('subject mutation effects', () => {
     expect(capabilitiesMutationEffects.create({})).toContainEqual(
       onePagersQueryKeys.completenessForSubjectType('capability'),
     );
-    expect(capabilitiesMutationEffects.delete({ id: 'cap-1' })).toContainEqual(
+    expect(capabilitiesMutationEffects.cascadeDelete({ id: 'cap-1' })).toContainEqual(
       onePagersQueryKeys.completenessForSubjectType('capability'),
     );
-    expect(capabilitiesMutationEffects.cascadeDelete({ id: 'cap-1', deleteApplications: false })).toContainEqual(
-      onePagersQueryKeys.completenessForSubjectType('capability'),
-    );
+  });
+
+  it.each([
+    ['linking a system', capabilitiesMutationEffects.linkSystem({ capabilityId: 'cap-1', componentId: 'comp-1' })],
+    [
+      'deleting a realization',
+      capabilitiesMutationEffects.deleteRealization({ capabilityId: 'cap-1', componentId: 'comp-1' }),
+    ],
+    ['cascade deleting a capability', capabilitiesMutationEffects.cascadeDelete({ id: 'cap-1' })],
+  ])('invalidates application and capability completeness when %s', (_, effects) => {
+    expect(effects).toContainEqual(onePagersQueryKeys.completenessForSubjectType('application'));
+    expect(effects).toContainEqual(onePagersQueryKeys.completenessForSubjectType('capability'));
   });
 
   it.each([

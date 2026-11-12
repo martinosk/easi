@@ -1,5 +1,10 @@
 import { httpClient } from '../core/httpClient';
-import type { AIConfigurationResponse, TestConnectionRequest, TestConnectionResponse, UpdateAIConfigRequest } from './types';
+import type {
+  AIConfigurationResponse,
+  TestConnectionRequest,
+  TestConnectionResponse,
+  UpdateAIConfigRequest,
+} from './types';
 
 const BASE = '/api/v1/assistant-config';
 

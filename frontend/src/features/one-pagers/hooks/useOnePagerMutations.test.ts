@@ -123,7 +123,13 @@ describe('useOnePagerMutations', () => {
   });
 
   it('includes a built-in field', async () => {
-    const field = { id: 'name', label: 'Name', included: false, required: false, _links: { 'x-include': { href: '/x', method: 'POST' as const } } };
+    const field = {
+      id: 'name',
+      label: 'Name',
+      included: false,
+      required: false,
+      _links: { 'x-include': { href: '/x', method: 'POST' as const } },
+    };
     vi.mocked(onePagersApi.includeBuiltInField).mockResolvedValue(buildConfiguration());
 
     const { result } = renderHook(() => useIncludeBuiltInField('vendor'), { wrapper: createWrapper(queryClient) });
@@ -175,7 +181,9 @@ describe('useOnePagerMutations', () => {
     });
 
     expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: onePagersQueryKeys.configuration('vendor') });
-    expect(toast.error).toHaveBeenCalledWith('Configuration was changed by someone else. Refreshed with the latest version.');
+    expect(toast.error).toHaveBeenCalledWith(
+      'Configuration was changed by someone else. Refreshed with the latest version.',
+    );
   });
 
   it('shows a generic error message on non-conflict failures', async () => {

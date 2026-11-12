@@ -123,7 +123,9 @@ describe('useAttributeSchemaMutations', () => {
     });
 
     expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: metadataQueryKeys.subjectAttributeSchema('vendor') });
-    expect(toast.error).toHaveBeenCalledWith('Attribute schema was changed by someone else. Refreshed with the latest version.');
+    expect(toast.error).toHaveBeenCalledWith(
+      'Attribute schema was changed by someone else. Refreshed with the latest version.',
+    );
   });
 
   it('shows a generic error message on non-conflict failures', async () => {

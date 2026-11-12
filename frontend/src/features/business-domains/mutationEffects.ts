@@ -25,10 +25,7 @@ export const strategyImportanceMutationEffects = {
 export const businessDomainsMutationEffects = {
   create: () => [businessDomainsQueryKeys.lists()],
 
-  delete: (domainId: string) => [
-    businessDomainsQueryKeys.lists(),
-    businessDomainsQueryKeys.detail(domainId),
-  ],
+  delete: (domainId: string) => [businessDomainsQueryKeys.lists(), businessDomainsQueryKeys.detail(domainId)],
 
   update: (domainId: string) => [
     businessDomainsQueryKeys.lists(),

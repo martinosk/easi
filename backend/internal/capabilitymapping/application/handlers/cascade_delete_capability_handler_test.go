@@ -61,7 +61,6 @@ func (m *mockCascadeHierarchyService) GetDescendants(ctx context.Context, capabi
 
 type mockCascadeRealizationRM struct {
 	realizationsByCapability map[string][]readmodels.RealizationDTO
-	realizationsByComponent  map[string][]readmodels.RealizationDTO
 	err                      error
 }
 
@@ -70,13 +69,6 @@ func (m *mockCascadeRealizationRM) GetByCapabilityID(ctx context.Context, capabi
 		return nil, m.err
 	}
 	return m.realizationsByCapability[capabilityID], nil
-}
-
-func (m *mockCascadeRealizationRM) GetByComponentID(ctx context.Context, componentID string) ([]readmodels.RealizationDTO, error) {
-	if m.err != nil {
-		return nil, m.err
-	}
-	return m.realizationsByComponent[componentID], nil
 }
 
 type mockCascadeDependencyRM struct {
@@ -101,12 +93,33 @@ func (m *mockCascadeDependencyRM) GetIncoming(ctx context.Context, capabilityID 
 
 type mockCascadeCommandBus struct {
 	dispatched []cqrs.Command
+	outsideTx  int
 	err        error
 }
 
 func (m *mockCascadeCommandBus) Dispatch(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	m.dispatched = append(m.dispatched, cmd)
+	if !inCascadeTx(ctx) {
+		m.outsideTx++
+	}
 	return cqrs.EmptyResult(), m.err
+}
+
+type cascadeTxKey struct{}
+
+type recordingTxRunner struct {
+	failures []error
+}
+
+func (r *recordingTxRunner) RunInTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	err := fn(context.WithValue(ctx, cascadeTxKey{}, true))
+	r.failures = append(r.failures, err)
+	return err
+}
+
+func inCascadeTx(ctx context.Context) bool {
+	inTx, _ := ctx.Value(cascadeTxKey{}).(bool)
+	return inTx
 }
 
 func cascadeCapabilityWithParent(t *testing.T, level, parentID string) *aggregates.Capability {
@@ -123,19 +136,19 @@ func cascadeCapabilityWithParent(t *testing.T, level, parentID string) *aggregat
 
 func defaultCascadeDeps(repo *mockCascadeRepository) CascadeDeleteDeps {
 	return CascadeDeleteDeps{
+		Transactions:     &recordingTxRunner{},
 		Repository:       repo,
 		HierarchyService: &mockCascadeHierarchyService{descendants: map[string][]valueobjects.CapabilityID{}},
 		RealizationRM:    &mockCascadeRealizationRM{},
 		DependencyRM:     &mockCascadeDependencyRM{},
 		CommandBus:       &mockCascadeCommandBus{},
-		CapabilityLookup: &mockDeleteCapabilityLookup{},
 	}
 }
 
 func TestCascadeDelete_InvalidCommand_ReturnsError(t *testing.T) {
 	handler := NewCascadeDeleteCapabilityHandler(defaultCascadeDeps(newMockCascadeRepo()))
 
-	_, err := handler.Handle(context.Background(), &commands.DeleteCapability{ID: "test"})
+	_, err := handler.Handle(context.Background(), &commands.DeleteSystemRealization{ID: "test"})
 	assert.ErrorIs(t, err, cqrs.ErrInvalidCommand)
 }
 
@@ -244,13 +257,62 @@ func TestCascadeDelete_DispatchesRealizationDeleteCommands(t *testing.T) {
 
 	handler := NewCascadeDeleteCapabilityHandler(deps)
 
-	_, err := handler.Handle(context.Background(), &commands.CascadeDeleteCapability{ID: root.ID()})
+	_, err := handler.Handle(context.Background(), &commands.CascadeDeleteCapability{ID: root.ID(), ConfirmedRealizationIDs: []string{"real-1"}})
 	require.NoError(t, err)
 
 	require.Len(t, cmdBus.dispatched, 1)
 	delRealCmd, ok := cmdBus.dispatched[0].(*commands.DeleteSystemRealization)
 	require.True(t, ok)
 	assert.Equal(t, "real-1", delRealCmd.ID)
+}
+
+func TestCascadeDelete_DispatchesDeletesOnlyForDirectRealizations(t *testing.T) {
+	root := createCapability(t, "L1")
+	child := cascadeCapabilityWithParent(t, "L2", root.ID())
+	grandchild := cascadeCapabilityWithParent(t, "L3", child.ID())
+
+	repo := newMockCascadeRepo()
+	repo.capabilities[root.ID()] = root
+	repo.capabilities[child.ID()] = child
+	repo.capabilities[grandchild.ID()] = grandchild
+
+	childCapID, _ := valueobjects.NewCapabilityIDFromString(child.ID())
+	grandchildCapID, _ := valueobjects.NewCapabilityIDFromString(grandchild.ID())
+
+	cmdBus := &mockCascadeCommandBus{}
+	deps := defaultCascadeDeps(repo)
+	deps.CommandBus = cmdBus
+	deps.HierarchyService = &mockCascadeHierarchyService{
+		descendants: map[string][]valueobjects.CapabilityID{root.ID(): {childCapID, grandchildCapID}},
+	}
+	deps.RealizationRM = &mockCascadeRealizationRM{
+		realizationsByCapability: map[string][]readmodels.RealizationDTO{
+			root.ID(): {
+				{ID: "inherited-billing-root", CapabilityID: root.ID(), ComponentID: "billing", Origin: readmodels.OriginInherited, SourceRealizationID: "billing-direct"},
+				{ID: "inherited-ledger-root", CapabilityID: root.ID(), ComponentID: "ledger", Origin: readmodels.OriginInherited, SourceRealizationID: "ledger-direct"},
+			},
+			child.ID(): {
+				{ID: "ledger-direct", CapabilityID: child.ID(), ComponentID: "ledger", Origin: readmodels.OriginDirect},
+				{ID: "inherited-billing-child", CapabilityID: child.ID(), ComponentID: "billing", Origin: readmodels.OriginInherited, SourceRealizationID: "billing-direct"},
+			},
+			grandchild.ID(): {
+				{ID: "billing-direct", CapabilityID: grandchild.ID(), ComponentID: "billing", Origin: readmodels.OriginDirect},
+			},
+		},
+	}
+
+	handler := NewCascadeDeleteCapabilityHandler(deps)
+
+	_, err := handler.Handle(context.Background(), &commands.CascadeDeleteCapability{ID: root.ID(), Cascade: true, ConfirmedRealizationIDs: []string{"billing-direct", "ledger-direct"}})
+	require.NoError(t, err)
+
+	var deletedRealizations []string
+	for _, cmd := range cmdBus.dispatched {
+		if del, ok := cmd.(*commands.DeleteSystemRealization); ok {
+			deletedRealizations = append(deletedRealizations, del.ID)
+		}
+	}
+	assert.ElementsMatch(t, []string{"ledger-direct", "billing-direct"}, deletedRealizations)
 }
 
 func TestCascadeDelete_DispatchesDependencyDeleteCommands(t *testing.T) {
@@ -313,4 +375,61 @@ func indexOfStr(strs []string, target string) int {
 		}
 	}
 	return -1
+}
+
+func TestCascadeDelete_RunsEveryDeleteInOneTransaction(t *testing.T) {
+	root := createCapability(t, "L1")
+	repo := newMockCascadeRepo()
+	repo.capabilities[root.ID()] = root
+	repo.saveErr = errors.New("save failed")
+
+	cmdBus := &mockCascadeCommandBus{}
+	transactions := &recordingTxRunner{}
+	deps := defaultCascadeDeps(repo)
+	deps.Transactions = transactions
+	deps.CommandBus = cmdBus
+	deps.RealizationRM = &mockCascadeRealizationRM{
+		realizationsByCapability: map[string][]readmodels.RealizationDTO{
+			root.ID(): {{ID: "real-1", CapabilityID: root.ID(), ComponentID: "comp-1", Origin: readmodels.OriginDirect}},
+		},
+	}
+
+	_, err := NewCascadeDeleteCapabilityHandler(deps).Handle(context.Background(), &commands.CascadeDeleteCapability{ID: root.ID(), ConfirmedRealizationIDs: []string{"real-1"}})
+
+	require.ErrorIs(t, err, repo.saveErr)
+	require.Len(t, cmdBus.dispatched, 1)
+	assert.Zero(t, cmdBus.outsideTx)
+	assert.Equal(t, []error{repo.saveErr}, transactions.failures)
+}
+
+func TestCascadeDelete_RealizationsDifferFromConfirmedImpact_DeletesNothing(t *testing.T) {
+	tests := []struct {
+		name      string
+		confirmed []string
+	}{
+		{name: "realization added after confirmation", confirmed: nil},
+		{name: "realization removed after confirmation", confirmed: []string{"real-1", "real-gone"}},
+		{name: "different realization", confirmed: []string{"real-other"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := createCapability(t, "L1")
+			repo := newMockCascadeRepo()
+			repo.capabilities[root.ID()] = root
+			cmdBus := &mockCascadeCommandBus{}
+			deps := defaultCascadeDeps(repo)
+			deps.CommandBus = cmdBus
+			deps.RealizationRM = &mockCascadeRealizationRM{
+				realizationsByCapability: map[string][]readmodels.RealizationDTO{
+					root.ID(): {{ID: "real-1", CapabilityID: root.ID(), ComponentID: "comp-1", Origin: readmodels.OriginDirect}},
+				},
+			}
+
+			_, err := NewCascadeDeleteCapabilityHandler(deps).Handle(context.Background(), &commands.CascadeDeleteCapability{ID: root.ID(), ConfirmedRealizationIDs: tt.confirmed})
+
+			require.ErrorIs(t, err, services.ErrDeleteImpactChanged)
+			assert.Empty(t, cmdBus.dispatched)
+			assert.Empty(t, repo.saved)
+		})
+	}
 }

@@ -202,10 +202,6 @@ class ApiClient {
     return capabilitiesApi.addExpert(id, request);
   }
 
-  async deleteCapability(capability: Capability): Promise<void> {
-    return capabilitiesApi.delete(capability);
-  }
-
   async changeCapabilityParent(id: CapabilityId, parentId: CapabilityId | null): Promise<void> {
     return capabilitiesApi.changeParent(id, parentId);
   }
