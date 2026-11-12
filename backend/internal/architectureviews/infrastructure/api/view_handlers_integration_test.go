@@ -26,7 +26,7 @@ func TestCreateView_Integration(t *testing.T) {
 		Name:        "System Architecture",
 		Description: "Overall system architecture view",
 	})
-	w, req := testCtx.makeRequest(t, http.MethodPost, "/api/v1/views", body, nil)
+	w, req := testCtx.makeRequest(t, requestSpec{http.MethodPost, "/api/v1/views", body, nil})
 	h.viewHandlers.CreateView(w, req)
 
 	assert.Equal(t, http.StatusCreated, w.Code)
@@ -61,7 +61,7 @@ func TestCreateView_ValidationErrors_Integration(t *testing.T) {
 			h := setupViewHandlers(testCtx.db)
 
 			body, _ := json.Marshal(CreateViewRequest{Name: tc.viewName, Description: tc.description})
-			w, req := testCtx.makeRequest(t, http.MethodPost, "/api/v1/views", body, nil)
+			w, req := testCtx.makeRequest(t, requestSpec{http.MethodPost, "/api/v1/views", body, nil})
 			h.viewHandlers.CreateView(w, req)
 
 			assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -78,7 +78,7 @@ func TestGetAllViews_Integration(t *testing.T) {
 	id1 := testCtx.createViewViaAPI(t, h, "View A", "Description A")
 	id2 := testCtx.createViewViaAPI(t, h, "View B", "Description B")
 
-	w, req := testCtx.makeRequest(t, http.MethodGet, "/api/v1/views", nil, nil)
+	w, req := testCtx.makeRequest(t, requestSpec{http.MethodGet, "/api/v1/views", nil, nil})
 	h.viewHandlers.GetAllViews(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -109,8 +109,8 @@ func TestGetViewByID_Integration(t *testing.T) {
 	viewID := testCtx.createViewViaAPI(t, h, "Test View", "Test Description")
 	comp1 := fmt.Sprintf("comp-1-%d", time.Now().UnixNano())
 	comp2 := fmt.Sprintf("comp-2-%d", time.Now().UnixNano())
-	testCtx.addComponentViaAPI(t, h, viewID, comp1, position{100.0, 200.0})
-	testCtx.addComponentViaAPI(t, h, viewID, comp2, position{300.0, 400.0})
+	testCtx.addComponentViaAPI(t, h, elementPlacement{viewID, comp1, position{100.0, 200.0}})
+	testCtx.addComponentViaAPI(t, h, elementPlacement{viewID, comp2, position{300.0, 400.0}})
 
 	view := testCtx.getViewViaAPI(t, h, viewID)
 
@@ -128,7 +128,7 @@ func TestGetViewByID_NotFound_Integration(t *testing.T) {
 	h := setupViewHandlers(testCtx.db)
 
 	nonExistentID := fmt.Sprintf("non-existent-%d", time.Now().UnixNano())
-	w, req := testCtx.makeRequest(t, http.MethodGet, "/api/v1/views/"+nonExistentID, nil, map[string]string{"id": nonExistentID})
+	w, req := testCtx.makeRequest(t, requestSpec{http.MethodGet, "/api/v1/views/" + nonExistentID, nil, map[string]string{"id": nonExistentID}})
 	h.viewHandlers.GetViewByID(w, req)
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
@@ -143,14 +143,14 @@ func TestSetDefaultView_Integration(t *testing.T) {
 	view1ID := testCtx.createViewViaAPI(t, h, "View 1", "First view")
 	view2ID := testCtx.createViewViaAPI(t, h, "View 2", "Second view")
 
-	w1, req1 := testCtx.makeRequest(t, http.MethodPut, "/api/v1/views/"+view1ID+"/default", nil, map[string]string{"id": view1ID})
+	w1, req1 := testCtx.makeRequest(t, requestSpec{http.MethodPut, "/api/v1/views/" + view1ID + "/default", nil, map[string]string{"id": view1ID}})
 	h.viewHandlers.SetDefaultView(w1, req1)
 	require.Equal(t, http.StatusNoContent, w1.Code)
 
 	view1 := testCtx.getViewViaAPI(t, h, view1ID)
 	assert.True(t, view1.IsDefault)
 
-	w2, req2 := testCtx.makeRequest(t, http.MethodPut, "/api/v1/views/"+view2ID+"/default", nil, map[string]string{"id": view2ID})
+	w2, req2 := testCtx.makeRequest(t, requestSpec{http.MethodPut, "/api/v1/views/" + view2ID + "/default", nil, map[string]string{"id": view2ID}})
 	h.viewHandlers.SetDefaultView(w2, req2)
 	require.Equal(t, http.StatusNoContent, w2.Code)
 
@@ -202,7 +202,7 @@ func TestViewSettings_Integration(t *testing.T) {
 
 			for _, value := range tc.validValues {
 				body, _ := json.Marshal(map[string]string{tc.fieldName: value})
-				w, req := testCtx.makeRequest(t, http.MethodPatch, "/api/v1/views/"+viewID+tc.endpoint, body, map[string]string{"id": viewID})
+				w, req := testCtx.makeRequest(t, requestSpec{http.MethodPatch, "/api/v1/views/" + viewID + tc.endpoint, body, map[string]string{"id": viewID}})
 				tc.handler(h)(w, req)
 				assert.Equal(t, http.StatusNoContent, w.Code)
 
@@ -238,7 +238,7 @@ func TestViewSettings_InvalidValue_Integration(t *testing.T) {
 			viewID := testCtx.createViewViaAPI(t, h, "Test View", "Test Description")
 
 			body, _ := json.Marshal(map[string]string{tc.fieldName: tc.value})
-			w, req := testCtx.makeRequest(t, http.MethodPatch, "/api/v1/views/"+viewID+tc.endpoint, body, map[string]string{"id": viewID})
+			w, req := testCtx.makeRequest(t, requestSpec{http.MethodPatch, "/api/v1/views/" + viewID + tc.endpoint, body, map[string]string{"id": viewID}})
 			tc.handler(h)(w, req)
 
 			assert.Equal(t, http.StatusBadRequest, w.Code)

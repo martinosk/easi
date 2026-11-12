@@ -29,23 +29,26 @@ func (h *AddComponentToViewHandler) Handle(ctx context.Context, cmd cqrs.Command
 		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
+	err := h.layoutRepository.RunInTx(ctx, func(ctx context.Context) error {
+		return h.addAndPlace(ctx, command)
+	})
+	return cqrs.EmptyResult(), err
+}
+
+func (h *AddComponentToViewHandler) addAndPlace(ctx context.Context, command commands.AddComponentToView) error {
 	view, err := h.viewRepository.GetByID(ctx, command.ViewID)
 	if err != nil {
-		return cqrs.EmptyResult(), err
+		return err
 	}
 
 	if err := view.AddComponent(command.ComponentID); err != nil {
-		return cqrs.EmptyResult(), err
+		return err
 	}
 
 	if err := h.viewRepository.Save(ctx, view); err != nil {
-		return cqrs.EmptyResult(), err
+		return err
 	}
 
 	ref := repositories.ElementRef{ViewID: command.ViewID, ElementID: command.ComponentID, ElementType: repositories.ElementTypeComponent}
-	if err := h.layoutRepository.UpsertElementPosition(ctx, ref, repositories.Position{X: command.X, Y: command.Y}); err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	return cqrs.EmptyResult(), nil
+	return h.layoutRepository.MoveElement(ctx, ref, repositories.Position{X: command.X, Y: command.Y})
 }

@@ -8,11 +8,15 @@ import (
 	"easi/backend/internal/shared/cqrs"
 )
 
-type UpdateComponentPositionHandler struct {
-	layoutRepository *repositories.ViewLayoutRepository
+type ElementMover interface {
+	MoveElement(ctx context.Context, ref repositories.ElementRef, pos repositories.Position) error
 }
 
-func NewUpdateComponentPositionHandler(layoutRepository *repositories.ViewLayoutRepository) *UpdateComponentPositionHandler {
+type UpdateComponentPositionHandler struct {
+	layoutRepository ElementMover
+}
+
+func NewUpdateComponentPositionHandler(layoutRepository ElementMover) *UpdateComponentPositionHandler {
 	return &UpdateComponentPositionHandler{
 		layoutRepository: layoutRepository,
 	}
@@ -25,7 +29,7 @@ func (h *UpdateComponentPositionHandler) Handle(ctx context.Context, cmd cqrs.Co
 	}
 
 	ref := repositories.ElementRef{ViewID: command.ViewID, ElementID: command.ComponentID, ElementType: repositories.ElementTypeComponent}
-	if err := h.layoutRepository.UpsertElementPosition(ctx, ref, repositories.Position{X: command.X, Y: command.Y}); err != nil {
+	if err := h.layoutRepository.MoveElement(ctx, ref, repositories.Position{X: command.X, Y: command.Y}); err != nil {
 		return cqrs.EmptyResult(), err
 	}
 

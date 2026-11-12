@@ -10,6 +10,7 @@ import (
 	"easi/backend/internal/architectureviews/infrastructure/repositories"
 	viewsPL "easi/backend/internal/architectureviews/publishedlanguage"
 	authPL "easi/backend/internal/auth/publishedlanguage"
+	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
 	sharedAPI "easi/backend/internal/shared/api"
@@ -50,6 +51,13 @@ func subscribeEvents(eventBus events.EventBus, commandBus *cqrs.InMemoryCommandB
 
 	eventBus.Subscribe(archPL.ApplicationComponentDeleted, componentDeletedHandler)
 	eventBus.Subscribe(archPL.ComponentRelationDeleted, relationDeletedHandler)
+
+	layoutRepo := repositories.NewViewLayoutRepository(db)
+	eventBus.Subscribe(cmPL.CapabilityDeleted, handlers.NewDeletedCapabilityHandler(layoutRepo))
+	originEntityDeletedHandler := handlers.NewDeletedOriginEntityHandler(layoutRepo)
+	eventBus.Subscribe(archPL.VendorDeleted, originEntityDeletedHandler)
+	eventBus.Subscribe(archPL.AcquiredEntityDeleted, originEntityDeletedHandler)
+	eventBus.Subscribe(archPL.InternalTeamDeleted, originEntityDeletedHandler)
 }
 
 func registerCommands(commandBus *cqrs.InMemoryCommandBus, eventStore eventstore.EventStore, db *database.TenantAwareDB) {

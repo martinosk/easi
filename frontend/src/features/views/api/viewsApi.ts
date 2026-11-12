@@ -19,6 +19,7 @@ import type {
   ViewId,
 } from '../../../api/types';
 import { followLink } from '../../../utils/hateoas';
+import { afterPendingAdds, ignoreMissingPlacement, trackAdd } from './placementSync';
 
 export const viewsApi = {
   async getAll(): Promise<View[]> {
@@ -62,7 +63,7 @@ export const viewsApi = {
   },
 
   async addComponent(viewId: ViewId, request: AddComponentToViewRequest): Promise<void> {
-    await httpClient.post(`/api/v1/views/${viewId}/components`, request);
+    await trackAdd(viewId, request.componentId, httpClient.post(`/api/v1/views/${viewId}/components`, request));
   },
 
   async removeComponent(viewId: ViewId, componentId: ComponentId): Promise<void> {
@@ -74,7 +75,10 @@ export const viewsApi = {
     componentId: ComponentId,
     request: UpdatePositionRequest,
   ): Promise<void> {
-    await httpClient.patch(`/api/v1/views/${viewId}/components/${componentId}/position`, request);
+    await afterPendingAdds(viewId, [componentId]);
+    await ignoreMissingPlacement(() =>
+      httpClient.patch(`/api/v1/views/${viewId}/components/${componentId}/position`, request),
+    );
   },
 
   async updateComponentColor(viewId: ViewId, componentId: ComponentId, color: string): Promise<void> {
@@ -86,11 +90,15 @@ export const viewsApi = {
   },
 
   async updateMultiplePositions(viewId: ViewId, request: UpdateMultiplePositionsRequest): Promise<void> {
+    await afterPendingAdds(
+      viewId,
+      request.positions.map((p) => p.componentId),
+    );
     await httpClient.patch(`/api/v1/views/${viewId}/layout`, request);
   },
 
   async addCapability(viewId: ViewId, request: AddCapabilityToViewRequest): Promise<void> {
-    await httpClient.post(`/api/v1/views/${viewId}/capabilities`, request);
+    await trackAdd(viewId, request.capabilityId, httpClient.post(`/api/v1/views/${viewId}/capabilities`, request));
   },
 
   async removeCapability(viewId: ViewId, capabilityId: CapabilityId): Promise<void> {
@@ -98,7 +106,10 @@ export const viewsApi = {
   },
 
   async updateCapabilityPosition(viewId: ViewId, capabilityId: CapabilityId, position: Position): Promise<void> {
-    await httpClient.patch(`/api/v1/views/${viewId}/capabilities/${capabilityId}/position`, position);
+    await afterPendingAdds(viewId, [capabilityId]);
+    await ignoreMissingPlacement(() =>
+      httpClient.patch(`/api/v1/views/${viewId}/capabilities/${capabilityId}/position`, position),
+    );
   },
 
   async updateCapabilityColor(viewId: ViewId, capabilityId: CapabilityId, color: string): Promise<void> {
@@ -110,7 +121,7 @@ export const viewsApi = {
   },
 
   async addOriginEntity(viewId: ViewId, request: AddOriginEntityToViewRequest): Promise<void> {
-    await httpClient.post(`/api/v1/views/${viewId}/origin-entities`, request);
+    await trackAdd(viewId, request.originEntityId, httpClient.post(`/api/v1/views/${viewId}/origin-entities`, request));
   },
 
   async removeOriginEntity(viewId: ViewId, originEntityId: string): Promise<void> {
@@ -118,7 +129,10 @@ export const viewsApi = {
   },
 
   async updateOriginEntityPosition(viewId: ViewId, originEntityId: string, position: Position): Promise<void> {
-    await httpClient.patch(`/api/v1/views/${viewId}/origin-entities/${originEntityId}/position`, position);
+    await afterPendingAdds(viewId, [originEntityId]);
+    await ignoreMissingPlacement(() =>
+      httpClient.patch(`/api/v1/views/${viewId}/origin-entities/${originEntityId}/position`, position),
+    );
   },
 
   async changeVisibility(viewId: ViewId, isPrivate: boolean): Promise<void> {

@@ -3,11 +3,14 @@ package repositories
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"time"
 
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
 )
+
+var ErrPlacementNotFound = errors.New("element is not placed in view")
 
 type Position struct {
 	X float64
@@ -42,7 +45,11 @@ func NewViewLayoutRepository(db *database.TenantAwareDB) *ViewLayoutRepository {
 	return &ViewLayoutRepository{db: db}
 }
 
-func (r *ViewLayoutRepository) UpsertElementPosition(ctx context.Context, ref ElementRef, pos Position) error {
+func (r *ViewLayoutRepository) RunInTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	return r.db.RunInTx(ctx, fn)
+}
+
+func (r *ViewLayoutRepository) PlaceElement(ctx context.Context, ref ElementRef, pos Position) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
@@ -58,6 +65,32 @@ func (r *ViewLayoutRepository) UpsertElementPosition(ctx context.Context, ref El
 	return err
 }
 
+func (r *ViewLayoutRepository) MoveElement(ctx context.Context, ref ElementRef, pos Position) error {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return err
+	}
+
+	result, err := r.db.ExecContext(ctx, moveElementSQL,
+		pos.X, pos.Y, time.Now().UTC(), tenantID.Value(), ref.ViewID, ref.ElementID, string(ref.ElementType),
+	)
+	if err != nil {
+		return err
+	}
+	moved, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if moved == 0 {
+		return ErrPlacementNotFound
+	}
+	return nil
+}
+
+const moveElementSQL = `UPDATE architectureviews.view_element_positions
+	SET x = $1, y = $2, updated_at = $3
+	WHERE tenant_id = $4 AND view_id = $5 AND element_id = $6 AND element_type = $7`
+
 func (r *ViewLayoutRepository) UpdateMultiplePositions(ctx context.Context, viewID string, positions []ComponentPositionData) error {
 	if len(positions) == 0 {
 		return nil
@@ -68,27 +101,34 @@ func (r *ViewLayoutRepository) UpdateMultiplePositions(ctx context.Context, view
 		return err
 	}
 
-	tx, err := r.db.BeginTxWithTenant(ctx, nil)
+	now := time.Now().UTC()
+	return r.db.RunInTx(ctx, func(ctx context.Context) error {
+		for _, pos := range positions {
+			if _, err := r.db.ExecContext(ctx, moveElementSQL,
+				pos.X, pos.Y, now, tenantID.Value(), viewID, pos.ComponentID, string(ElementTypeComponent),
+			); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (r *ViewLayoutRepository) DeleteElementFromAllViews(ctx context.Context, elementID string, elementType ElementType) error {
+	return r.execForTenant(ctx,
+		"DELETE FROM architectureviews.view_element_positions WHERE tenant_id = $1 AND element_id = $2 AND element_type = $3",
+		elementID, string(elementType),
+	)
+}
+
+func (r *ViewLayoutRepository) execForTenant(ctx context.Context, query string, args ...interface{}) error {
+	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
 	}
-	defer func() { _ = tx.Rollback() }()
 
-	now := time.Now().UTC()
-	for _, pos := range positions {
-		_, err := tx.ExecContext(ctx,
-			`INSERT INTO architectureviews.view_element_positions (view_id, tenant_id, element_id, element_type, x, y, created_at, updated_at)
-			VALUES ($1, $2, $3, 'component', $4, $5, $6, $6)
-			ON CONFLICT (tenant_id, view_id, element_id, element_type)
-			DO UPDATE SET x = $4, y = $5, updated_at = $6`,
-			viewID, tenantID.Value(), pos.ComponentID, pos.X, pos.Y, now,
-		)
-		if err != nil {
-			return err
-		}
-	}
-
-	return tx.Commit()
+	_, err = r.db.ExecContext(ctx, query, append([]interface{}{tenantID.Value()}, args...)...)
+	return err
 }
 
 func (r *ViewLayoutRepository) GetLayout(ctx context.Context, viewID string) ([]ComponentPositionData, error) {
@@ -124,16 +164,10 @@ func (r *ViewLayoutRepository) GetLayout(ctx context.Context, viewID string) ([]
 }
 
 func (r *ViewLayoutRepository) DeleteElementPosition(ctx context.Context, ref ElementRef) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	_, err = r.db.ExecContext(ctx,
+	return r.execForTenant(ctx,
 		"DELETE FROM architectureviews.view_element_positions WHERE tenant_id = $1 AND view_id = $2 AND element_id = $3 AND element_type = $4",
-		tenantID.Value(), ref.ViewID, ref.ElementID, string(ref.ElementType),
+		ref.ViewID, ref.ElementID, string(ref.ElementType),
 	)
-	return err
 }
 
 type PreferenceKey string

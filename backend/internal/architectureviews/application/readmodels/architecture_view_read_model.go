@@ -226,6 +226,19 @@ func (rm *ArchitectureViewReadModel) MarkViewAsDeleted(ctx context.Context, view
 	return rm.updateViewField(ctx, update)
 }
 
+func (rm *ArchitectureViewReadModel) RemoveAllPlacements(ctx context.Context, viewID string) error {
+	tenantID, err := rm.getTenantID(ctx)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		"DELETE FROM architectureviews.view_element_positions WHERE tenant_id = $1 AND view_id = $2",
+		tenantID, viewID,
+	)
+	return err
+}
+
 // SetViewAsDefault sets a view as the default
 func (rm *ArchitectureViewReadModel) SetViewAsDefault(ctx context.Context, viewID string, isDefault bool) error {
 	update := ViewFieldUpdate{ViewID: ViewID(viewID), Field: "is_default", Value: isDefault}
@@ -557,7 +570,9 @@ func (rm *ArchitectureViewReadModel) GetViewsContainingComponent(ctx context.Con
 	var viewIDs []string
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
-			"SELECT DISTINCT view_id FROM architectureviews.view_element_positions WHERE tenant_id = $1 AND element_id = $2 AND element_type = 'component'",
+			`SELECT DISTINCT p.view_id FROM architectureviews.view_element_positions p
+			JOIN architectureviews.architecture_views v ON v.tenant_id = p.tenant_id AND v.id = p.view_id
+			WHERE p.tenant_id = $1 AND p.element_id = $2 AND p.element_type = 'component' AND v.is_deleted = false`,
 			tenantID, componentID,
 		)
 		if err != nil {

@@ -15,8 +15,6 @@ import (
 	"testing"
 	"time"
 
-	"easi/backend/internal/architectureviews/application/handlers"
-	"easi/backend/internal/architectureviews/application/projectors"
 	"easi/backend/internal/architectureviews/application/readmodels"
 	"easi/backend/internal/architectureviews/infrastructure/repositories"
 	"easi/backend/internal/infrastructure/database"
@@ -35,6 +33,10 @@ type viewTestHarness struct {
 	componentHandlers *ViewComponentHandlers
 	colorHandlers     *ViewColorHandlers
 	elementHandlers   *ViewElementHandlers
+	tenantDB          *database.TenantAwareDB
+	eventBus          events.EventBus
+	commandBus        cqrs.CommandBus
+	viewRepo          *repositories.ArchitectureViewRepository
 }
 
 func setupViewHandlers(db *sql.DB) *viewTestHarness {
@@ -42,36 +44,22 @@ func setupViewHandlers(db *sql.DB) *viewTestHarness {
 
 	eventStore := eventstore.NewPostgresEventStore(tenantDB)
 	commandBus := cqrs.NewInMemoryCommandBus()
-	links := NewViewLinks(sharedAPI.NewHATEOASLinks("/api/v1"))
-
-	readModel := readmodels.NewArchitectureViewReadModel(tenantDB)
-	projector := projectors.NewArchitectureViewProjector(readModel)
-
 	eventBus := events.NewInMemoryEventBus()
-	eventBus.SubscribeAll(projector)
 	eventStore.SetEventBus(eventBus)
 
-	viewRepo := repositories.NewArchitectureViewRepository(eventStore)
-	layoutRepo := repositories.NewViewLayoutRepository(tenantDB)
-
-	commandBus.Register("CreateView", handlers.NewCreateViewHandler(viewRepo, readModel))
-	commandBus.Register("AddComponentToView", handlers.NewAddComponentToViewHandler(viewRepo, layoutRepo))
-	commandBus.Register("UpdateComponentPosition", handlers.NewUpdateComponentPositionHandler(layoutRepo))
-	commandBus.Register("RenameView", handlers.NewRenameViewHandler(viewRepo))
-	commandBus.Register("DeleteView", handlers.NewDeleteViewHandler(viewRepo))
-	commandBus.Register("RemoveComponentFromView", handlers.NewRemoveComponentFromViewHandler(viewRepo))
-	commandBus.Register("SetDefaultView", handlers.NewSetDefaultViewHandler(viewRepo, readModel))
-	commandBus.Register("UpdateViewEdgeType", handlers.NewUpdateViewEdgeTypeHandler(layoutRepo))
-	commandBus.Register("UpdateViewLayoutDirection", handlers.NewUpdateViewLayoutDirectionHandler(layoutRepo))
-	commandBus.Register("UpdateViewColorScheme", handlers.NewUpdateViewColorSchemeHandler(layoutRepo))
-	commandBus.Register("UpdateElementColor", handlers.NewUpdateElementColorHandler(layoutRepo))
-	commandBus.Register("ClearElementColor", handlers.NewClearElementColorHandler(layoutRepo))
+	subscribeEvents(eventBus, commandBus, tenantDB)
+	registerCommands(commandBus, eventStore, tenantDB)
+	httpHandlers := newHTTPHandlers(commandBus, tenantDB, sharedAPI.NewHATEOASLinks("/api/v1"))
 
 	return &viewTestHarness{
-		viewHandlers:      NewViewHandlers(commandBus, readModel, links),
-		componentHandlers: NewViewComponentHandlers(commandBus, readModel),
-		colorHandlers:     NewViewColorHandlers(commandBus, readModel, links),
-		elementHandlers:   NewViewElementHandlers(layoutRepo, readModel),
+		viewHandlers:      httpHandlers.view,
+		componentHandlers: httpHandlers.component,
+		colorHandlers:     httpHandlers.color,
+		elementHandlers:   httpHandlers.element,
+		tenantDB:          tenantDB,
+		eventBus:          eventBus,
+		commandBus:        commandBus,
+		viewRepo:          repositories.NewArchitectureViewRepository(eventStore),
 	}
 }
 
@@ -106,17 +94,27 @@ func setupViewTestDB(t *testing.T) (*viewTestContext, func()) {
 	}
 
 	cleanup := func() {
-		db.Exec(fmt.Sprintf("SET app.current_tenant = '%s'", testTenantID()))
-		for _, id := range ctx.createdIDs {
-			db.Exec("DELETE FROM architectureviews.view_element_positions WHERE view_id = $1", id)
-			db.Exec("DELETE FROM architectureviews.view_preferences WHERE view_id = $1", id)
-			db.Exec("DELETE FROM architectureviews.architecture_views WHERE id = $1", id)
-			db.Exec("DELETE FROM infrastructure.events WHERE aggregate_id = $1", id)
-		}
+		ctx.deleteTrackedViews()
 		db.Close()
 	}
 
 	return ctx, cleanup
+}
+
+func (ctx *viewTestContext) deleteTrackedViews() {
+	tx, err := ctx.db.Begin()
+	if err != nil {
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+	_, _ = tx.Exec(fmt.Sprintf("SET LOCAL app.current_tenant = '%s'", testTenantID()))
+	for _, id := range ctx.createdIDs {
+		_, _ = tx.Exec("DELETE FROM architectureviews.view_element_positions WHERE view_id = $1", id)
+		_, _ = tx.Exec("DELETE FROM architectureviews.view_preferences WHERE view_id = $1", id)
+		_, _ = tx.Exec("DELETE FROM architectureviews.architecture_views WHERE id = $1", id)
+		_, _ = tx.Exec("DELETE FROM infrastructure.events WHERE aggregate_id = $1", id)
+	}
+	_ = tx.Commit()
 }
 
 func (ctx *viewTestContext) trackID(id string) {
@@ -128,7 +126,21 @@ type position struct {
 	y float64
 }
 
-func (ctx *viewTestContext) makeRequest(t *testing.T, method, url string, body []byte, urlParams map[string]string) (*httptest.ResponseRecorder, *http.Request) {
+type requestSpec struct {
+	method    string
+	url       string
+	body      []byte
+	urlParams map[string]string
+}
+
+type elementPlacement struct {
+	viewID    string
+	elementID string
+	pos       position
+}
+
+func (ctx *viewTestContext) makeRequest(t *testing.T, spec requestSpec) (*httptest.ResponseRecorder, *http.Request) {
+	method, url, body, urlParams := spec.method, spec.url, spec.body, spec.urlParams
 	var bodyReader io.Reader
 	if body != nil {
 		bodyReader = bytes.NewReader(body)
@@ -153,7 +165,7 @@ func (ctx *viewTestContext) makeRequest(t *testing.T, method, url string, body [
 
 func (ctx *viewTestContext) createViewViaAPI(t *testing.T, h *viewTestHarness, name, description string) string {
 	body, _ := json.Marshal(CreateViewRequest{Name: name, Description: description})
-	w, req := ctx.makeRequest(t, http.MethodPost, "/api/v1/views", body, nil)
+	w, req := ctx.makeRequest(t, requestSpec{http.MethodPost, "/api/v1/views", body, nil})
 	h.viewHandlers.CreateView(w, req)
 	require.Equal(t, http.StatusCreated, w.Code)
 
@@ -167,22 +179,24 @@ func (ctx *viewTestContext) createViewViaAPI(t *testing.T, h *viewTestHarness, n
 	return response.ID
 }
 
-func (ctx *viewTestContext) addComponentViaAPI(t *testing.T, h *viewTestHarness, viewID, componentID string, pos position) {
+func (ctx *viewTestContext) addComponentViaAPI(t *testing.T, h *viewTestHarness, p elementPlacement) {
+	viewID, componentID, pos := p.viewID, p.elementID, p.pos
 	body, _ := json.Marshal(AddComponentRequest{ComponentID: componentID, X: pos.x, Y: pos.y})
-	w, req := ctx.makeRequest(t, http.MethodPost, "/api/v1/views/"+viewID+"/components", body, map[string]string{"id": viewID})
+	w, req := ctx.makeRequest(t, requestSpec{http.MethodPost, "/api/v1/views/" + viewID + "/components", body, map[string]string{"id": viewID}})
 	h.componentHandlers.AddComponentToView(w, req)
 	require.Equal(t, http.StatusCreated, w.Code)
 }
 
-func (ctx *viewTestContext) addCapabilityViaAPI(t *testing.T, h *viewTestHarness, viewID, capabilityID string, pos position) {
+func (ctx *viewTestContext) addCapabilityViaAPI(t *testing.T, h *viewTestHarness, p elementPlacement) {
+	viewID, capabilityID, pos := p.viewID, p.elementID, p.pos
 	body, _ := json.Marshal(AddCapabilityRequest{CapabilityID: capabilityID, X: pos.x, Y: pos.y})
-	w, req := ctx.makeRequest(t, http.MethodPost, "/api/v1/views/"+viewID+"/capabilities", body, map[string]string{"id": viewID})
+	w, req := ctx.makeRequest(t, requestSpec{http.MethodPost, "/api/v1/views/" + viewID + "/capabilities", body, map[string]string{"id": viewID}})
 	h.elementHandlers.AddCapabilityToView(w, req)
 	require.Equal(t, http.StatusCreated, w.Code)
 }
 
 func (ctx *viewTestContext) getViewViaAPI(t *testing.T, h *viewTestHarness, viewID string) readmodels.ArchitectureViewDTO {
-	w, req := ctx.makeRequest(t, http.MethodGet, "/api/v1/views/"+viewID, nil, map[string]string{"id": viewID})
+	w, req := ctx.makeRequest(t, requestSpec{http.MethodGet, "/api/v1/views/" + viewID, nil, map[string]string{"id": viewID}})
 	h.viewHandlers.GetViewByID(w, req)
 	require.Equal(t, http.StatusOK, w.Code)
 
@@ -213,10 +227,10 @@ func (ctx *viewTestContext) setElementColorViaAPI(t *testing.T, r elementColorRe
 		handler = r.h.colorHandlers.UpdateCapabilityColor
 	}
 
-	w, req := ctx.makeRequest(t, http.MethodPatch, "/api/v1/views/"+r.viewID+"/"+urlPath+"/"+r.elementID+"/color", body, map[string]string{
+	w, req := ctx.makeRequest(t, requestSpec{http.MethodPatch, "/api/v1/views/" + r.viewID + "/" + urlPath + "/" + r.elementID + "/color", body, map[string]string{
 		"id":     r.viewID,
 		urlParam: r.elementID,
-	})
+	}})
 	handler(w, req)
 	require.Equal(t, http.StatusNoContent, w.Code)
 }
