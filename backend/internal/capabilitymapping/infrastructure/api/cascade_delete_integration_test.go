@@ -119,6 +119,7 @@ func TestGetDeleteImpact_LeafCapability_Integration(t *testing.T) {
 	h.GetDeleteImpact(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), `"realizations":[]`)
 
 	var response DeleteImpactResponse
 	err := json.NewDecoder(w.Body).Decode(&response)

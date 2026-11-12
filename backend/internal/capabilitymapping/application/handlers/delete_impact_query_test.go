@@ -27,6 +27,7 @@ func TestDeleteImpactQuery_NoDescendants_ReturnsEmptyImpact(t *testing.T) {
 
 	assert.False(t, impact.HasDescendants)
 	assert.Empty(t, impact.AffectedCapabilities)
+	assert.NotNil(t, impact.Realizations)
 	assert.Empty(t, impact.Realizations)
 }
 

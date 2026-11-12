@@ -33,7 +33,12 @@ type CascadeDependencyReadModel interface {
 	GetIncoming(ctx context.Context, capabilityID string) ([]readmodels.DependencyDTO, error)
 }
 
+type TransactionRunner interface {
+	RunInTx(ctx context.Context, fn func(ctx context.Context) error) error
+}
+
 type CascadeDeleteDeps struct {
+	Transactions     TransactionRunner
 	Repository       CascadeDeleteRepository
 	HierarchyService CascadeHierarchyService
 	RealizationRM    CascadeRealizationReadModel
@@ -64,7 +69,9 @@ func (h *CascadeDeleteCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Co
 		return cqrs.EmptyResult(), services.ErrCascadeRequiredForChildCapabilities
 	}
 
-	return cqrs.EmptyResult(), h.executeCascade(ctx, scope)
+	return cqrs.EmptyResult(), h.deps.Transactions.RunInTx(ctx, func(txCtx context.Context) error {
+		return h.executeCascade(txCtx, scope)
+	})
 }
 
 func (h *CascadeDeleteCapabilityHandler) executeCascade(ctx context.Context, scope valueobjects.DeletionScope) error {
@@ -175,7 +182,7 @@ func (h *CascadeDeleteCapabilityHandler) deleteSingleCapability(ctx context.Cont
 }
 
 func collectDirectRealizations(ctx context.Context, rm CascadeRealizationReadModel, scope valueobjects.DeletionScope) ([]readmodels.RealizationDTO, error) {
-	var direct []readmodels.RealizationDTO
+	direct := []readmodels.RealizationDTO{}
 	for _, capID := range scope.AllIDs() {
 		realizations, err := rm.GetByCapabilityID(ctx, capID.Value())
 		if err != nil {
@@ -187,7 +194,7 @@ func collectDirectRealizations(ctx context.Context, rm CascadeRealizationReadMod
 }
 
 func directOnly(realizations []readmodels.RealizationDTO) []readmodels.RealizationDTO {
-	var direct []readmodels.RealizationDTO
+	direct := []readmodels.RealizationDTO{}
 	for _, r := range realizations {
 		if r.Origin == readmodels.OriginDirect {
 			direct = append(direct, r)

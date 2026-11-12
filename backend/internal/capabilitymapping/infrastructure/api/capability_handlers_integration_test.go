@@ -154,6 +154,7 @@ func setupHandlers(db *sql.DB) *CapabilityHandlers {
 	commandBus.Register("DeleteSystemRealization", handlers.NewDeleteSystemRealizationHandler(realizationRepo))
 	commandBus.Register("DeleteCapabilityDependency", handlers.NewDeleteCapabilityDependencyHandler(dependencyRepo))
 	commandBus.Register("CascadeDeleteCapability", handlers.NewCascadeDeleteCapabilityHandler(handlers.CascadeDeleteDeps{
+		Transactions:     tenantDB,
 		Repository:       capabilityRepo,
 		HierarchyService: hierarchyService,
 		RealizationRM:    realizationReadModel,

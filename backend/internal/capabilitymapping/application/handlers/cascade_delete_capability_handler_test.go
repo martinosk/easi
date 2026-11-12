@@ -93,12 +93,33 @@ func (m *mockCascadeDependencyRM) GetIncoming(ctx context.Context, capabilityID 
 
 type mockCascadeCommandBus struct {
 	dispatched []cqrs.Command
+	outsideTx  int
 	err        error
 }
 
 func (m *mockCascadeCommandBus) Dispatch(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	m.dispatched = append(m.dispatched, cmd)
+	if !inCascadeTx(ctx) {
+		m.outsideTx++
+	}
 	return cqrs.EmptyResult(), m.err
+}
+
+type cascadeTxKey struct{}
+
+type recordingTxRunner struct {
+	failures []error
+}
+
+func (r *recordingTxRunner) RunInTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	err := fn(context.WithValue(ctx, cascadeTxKey{}, true))
+	r.failures = append(r.failures, err)
+	return err
+}
+
+func inCascadeTx(ctx context.Context) bool {
+	inTx, _ := ctx.Value(cascadeTxKey{}).(bool)
+	return inTx
 }
 
 func cascadeCapabilityWithParent(t *testing.T, level, parentID string) *aggregates.Capability {
@@ -115,6 +136,7 @@ func cascadeCapabilityWithParent(t *testing.T, level, parentID string) *aggregat
 
 func defaultCascadeDeps(repo *mockCascadeRepository) CascadeDeleteDeps {
 	return CascadeDeleteDeps{
+		Transactions:     &recordingTxRunner{},
 		Repository:       repo,
 		HierarchyService: &mockCascadeHierarchyService{descendants: map[string][]valueobjects.CapabilityID{}},
 		RealizationRM:    &mockCascadeRealizationRM{},
@@ -353,4 +375,29 @@ func indexOfStr(strs []string, target string) int {
 		}
 	}
 	return -1
+}
+
+func TestCascadeDelete_RunsEveryDeleteInOneTransaction(t *testing.T) {
+	root := createCapability(t, "L1")
+	repo := newMockCascadeRepo()
+	repo.capabilities[root.ID()] = root
+	repo.saveErr = errors.New("save failed")
+
+	cmdBus := &mockCascadeCommandBus{}
+	transactions := &recordingTxRunner{}
+	deps := defaultCascadeDeps(repo)
+	deps.Transactions = transactions
+	deps.CommandBus = cmdBus
+	deps.RealizationRM = &mockCascadeRealizationRM{
+		realizationsByCapability: map[string][]readmodels.RealizationDTO{
+			root.ID(): {{ID: "real-1", CapabilityID: root.ID(), ComponentID: "comp-1", Origin: readmodels.OriginDirect}},
+		},
+	}
+
+	_, err := NewCascadeDeleteCapabilityHandler(deps).Handle(context.Background(), &commands.CascadeDeleteCapability{ID: root.ID()})
+
+	require.ErrorIs(t, err, repo.saveErr)
+	require.Len(t, cmdBus.dispatched, 1)
+	assert.Zero(t, cmdBus.outsideTx)
+	assert.Equal(t, []error{repo.saveErr}, transactions.failures)
 }

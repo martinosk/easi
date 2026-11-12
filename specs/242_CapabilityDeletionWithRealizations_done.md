@@ -92,11 +92,11 @@ Feature: Deleting capabilities that applications realize
 
 1. **Only direct realizations are deleted.** A cascade deletes the direct realizations of every capability in scope. Inherited realizations are never targeted; they disappear with the direct realization they were inherited from.
 2. **Every inherited realization in scope has its source in scope.** Realizations are inherited from descendants to ancestors only, so deleting the subtree's direct realizations removes every realization in scope.
-3. **Inherited realizations outside the subtree are cleaned up too.** Deleting a direct realization removes the realizations inherited from it on every ancestor (existing behaviour of `SystemRealizationDeleted`); inherited realizations from other sources stay.
+3. **Inherited realizations outside the subtree are cleaned up too.** Deleting a direct realization removes the realizations inherited from it on every ancestor (existing behaviour of `SystemRealizationDeleted`); inherited realizations from other sources stay. An ancestor that the same application still realizes through a surviving branch keeps its inherited realization, re-derived from the surviving source. Reparenting a capability follows the same rule.
 4. **Deleting a capability never deletes an application.** Applications belong to Architecture Modeling; Capability Mapping only removes its own realizations.
 5. **The impact shown is the impact executed.** The confirmation lists exactly the direct realizations the delete will remove, each once, and nothing the delete will not do.
-6. **Every capability delete is confirmed with its impact.** The capability tree, business domain page and canvas all use the same impact confirmation.
-7. **The cascade stays all-or-nothing.** Any failure rolls back the whole cascade (existing behaviour).
+6. **Every capability delete is confirmed with its impact.** The capability tree, business domain page and canvas all use the same impact confirmation. A multi-selection lists the realizations of every selected capability. Confirmation stays disabled until every impact has loaded; a failed load offers a retry.
+7. **The cascade is all-or-nothing.** The whole cascade runs in one transaction, so any failure rolls back every delete it made. Before this spec each aggregate save committed on its own.
 
 ---
 
@@ -110,6 +110,11 @@ Feature: Deleting capabilities that applications realize
 - [x] The delete dialog shows the realizations that will be removed, states that applications are kept, and has no checkbox
 - [x] Deleting a capability from the model on the canvas opens the same delete dialog, including the cascade for capabilities with children
 - [x] Deleting a realized leaf capability still succeeds and removes its realization
+- [x] When the same application realizes a deleted branch and a surviving branch, the common ancestor keeps its inherited realization, sourced from the surviving branch (also after reparenting)
+- [x] A cascade that fails after earlier deletes leaves every realization and capability in place
+- [x] `delete-impact` returns `"realizations": []`, never `null`, when nothing is realized
+- [x] Deleting several selected capabilities lists the realizations of all of them; confirmation stays disabled until every impact has loaded, and a failed load offers a retry
+- [x] Deleting a capability, linking a system and deleting a realization refresh application and capability one-pager completeness
 
 ---
 
@@ -121,7 +126,7 @@ Capability Mapping owns the change, backend and frontend. No other context is af
 
 ### Domain Model
 
-No new aggregates, events or commands. The cascade-delete handler dispatches `DeleteSystemRealization` only for realizations whose origin is `Direct`. Realization inheritance and its cleanup are unchanged. Because the direct realizations are deleted before the capabilities, the per-capability `CapabilityRealizationsUninherited` computation in the cascade could never find anything and was removed. The non-cascade `DeleteCapability` command was registered but never dispatched (the API always sends `CascadeDeleteCapability`); it was removed together with its handler, `CapabilityDeletionService` and the children-checker adapter.
+No new aggregates, events or commands. The cascade-delete handler dispatches `DeleteSystemRealization` only for realizations whose origin is `Direct`. Realization inheritance and its cleanup are unchanged. Because the direct realizations are deleted before the capabilities, the per-capability `CapabilityRealizationsUninherited` computation in the cascade could never find anything and was removed. The cascade now runs inside `TenantAwareDB.RunInTx`; the event store, projectors and read models join that transaction. The realization projection kept one inherited row per capability and application, so deleting or uninheriting its source dropped the row even when another branch still realized the application; after removing inherited rows, the projection now re-derives them from the application's remaining direct realizations (`RestoreInheritedRealizations`). The non-cascade `DeleteCapability` command was registered but never dispatched (the API always sends `CascadeDeleteCapability`); it was removed together with its handler, `CapabilityDeletionService` and the children-checker adapter.
 
 ### API Surface
 
@@ -130,13 +135,14 @@ No new aggregates, events or commands. The cascade-delete handler dispatches `De
 
 ### Persistence
 
-No schema change and no migration: failed cascades rolled back, so no stored data needs repair.
+No schema change and no migration. Failed cascades were not rolled back before this spec: the direct realizations deleted before the 404 stayed deleted while the capabilities remained. That data cannot be repaired, because nothing records which realizations a failed cascade removed, and the user had asked for them to be removed anyway.
 
 ### Frontend
 
 - The delete dialog lists the realizations to be removed (application and capability), states that the applications are kept, and drops the checkbox. The delete request and the cascade-delete mutation effects drop the application-deletion flag.
 - The canvas "delete from model" action for a capability opens the delete dialog instead of deleting directly.
-- Cache invalidation after a capability delete is unchanged (spec 234 already refreshes views).
+- Cache invalidation after a capability delete now always refreshes application one-pager completeness (an application can lose its last realized capability); linking a system and deleting a realization refresh application and capability completeness too. Views were already refreshed by spec 234.
+- Multi-selected deletes load the impact of every selected capability (`useDeleteImpacts`) and list all their realizations.
 
 ### Cross-Context Integration
 
@@ -150,7 +156,7 @@ None beyond the existing published events.
 2. **Filter to direct realizations in the cascade, rather than make inherited deletes a no-op.** Inherited rows are projections and must never be targeted by a command. Rejected: treating "realization not found" as success in `DeleteSystemRealization`, which would also hide genuine not-found errors on the single-realization endpoint.
 3. **Rely on `SystemRealizationDeleted` to remove inherited rows.** That projection already deletes every inherited row by source realization, on all ancestors. Rejected: deleting inherited rows explicitly in the cascade, which duplicates the projection.
 4. **Drop the application-deletion option instead of restoring it.** Deleting applications from Capability Mapping was removed as a cross-context command. Restoring it would need Architecture Modeling to decide on its own whether to delete applications on `CapabilityDeleted`, a separate product decision. Rejected for this spec.
-5. **One realization list in the delete impact.** The deletable/retained split only mattered for deleting applications. Rejected: keeping both fields restricted to direct realizations, which keeps a distinction the delete no longer makes.
+. **Re-derive inheritance in the projection after removals.** The read model keeps one inherited row per capability and application, so the projection re-derives missing rows from the remaining direct realizations instead of the write side computing replacements. Rejected: storing one inherited row per source, which changes the read model's unique key and every consumer that assumes one row per application.
 
 ---
 
