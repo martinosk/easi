@@ -1,7 +1,6 @@
 import { realizationRoleQueryKeys, timeAssessmentQueryKeys } from '../architecture-direction/queryKeys';
 import { auditQueryKeys } from '../audit/queryKeys';
 import { businessDomainsQueryKeys } from '../business-domains/queryKeys';
-import { componentsQueryKeys } from '../components/queryKeys';
 import { artifactCreatorsQueryKeys } from '../navigation/hooks/useArtifactCreators';
 import { onePagerQualityQueryKeys } from '../one-pager-quality/queryKeys';
 import { onePagersQueryKeys } from '../one-pagers/queryKeys';
@@ -42,7 +41,7 @@ export const capabilitiesMutationEffects = {
     onePagersQueryKeys.completenessForSubjectType('capability'),
   ],
 
-  cascadeDelete: (context: { id: string; parentId?: string; domainId?: string; deleteApplications: boolean }) => [
+  cascadeDelete: (context: { id: string; parentId?: string; domainId?: string }) => [
     capabilitiesQueryKeys.lists(),
     capabilitiesQueryKeys.details(),
     ...(context.parentId ? [capabilitiesQueryKeys.children(context.parentId)] : []),
@@ -56,13 +55,6 @@ export const capabilitiesMutationEffects = {
     artifactCreatorsQueryKeys.all,
     auditQueryKeys.history(context.id),
     onePagersQueryKeys.completenessForSubjectType('capability'),
-    ...(context.deleteApplications
-      ? [
-          componentsQueryKeys.lists(),
-          componentsQueryKeys.details(),
-          onePagersQueryKeys.completenessForSubjectType('application'),
-        ]
-      : []),
   ],
 
   assignToDomain: (context: { capabilityId: string; domainId: string }) => [

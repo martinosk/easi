@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import type {
   AcquiredEntityId,
-  Capability,
   CapabilityId,
   Component,
   ComponentId,
@@ -17,7 +16,6 @@ import { toCapabilityId, toRealizationId } from '../../../api/types';
 import type { OriginEntityType } from '../../../constants/entityIdentifiers';
 import {
   useCapabilities,
-  useCascadeDeleteCapability,
   useChangeCapabilityParent,
   useDeleteRealization,
 } from '../../capabilities/hooks/useCapabilities';
@@ -59,13 +57,14 @@ export interface DeleteTarget {
   _links?: HATEOASLinks;
 }
 
+type ConfirmedDeleteTargetType = Exclude<DeleteTargetType, 'capability-from-model'>;
+
 type DeleteHandler = (
   target: DeleteTarget,
   viewId: ViewId | null,
   lookups: {
     components: Component[];
     relations: Relation[];
-    capabilities: Capability[];
   },
 ) => Promise<void>;
 
@@ -121,7 +120,6 @@ function useDeleteHandlers() {
   const deleteComponentMutation = useDeleteComponent();
   const detachComponentMutation = useDetachComponent();
   const deleteRelationMutation = useDeleteRelation();
-  const cascadeDeleteCapabilityMutation = useCascadeDeleteCapability();
   const changeCapabilityParentMutation = useChangeCapabilityParent();
   const deleteRealizationMutation = useDeleteRealization();
   const deleteAcquiredEntityMutation = useDeleteAcquiredEntity();
@@ -150,7 +148,7 @@ function useDeleteHandlers() {
   );
 
   return useMemo(
-    (): Record<DeleteTargetType, DeleteHandler> => ({
+    (): Record<ConfirmedDeleteTargetType, DeleteHandler> => ({
       'component-from-model': async (target, _viewId, lookups) => {
         const component = lookups.components.find((c) => c.id === target.id);
         if (!component) return;
@@ -160,16 +158,6 @@ function useDeleteHandlers() {
         const relation = lookups.relations.find((r) => r.id === target.id);
         if (!relation) return;
         await deleteRelationMutation.mutateAsync(relation);
-      },
-      'capability-from-model': async (target, _viewId, lookups) => {
-        const capability = lookups.capabilities.find((c) => c.id === target.id);
-        if (!capability) return;
-        await cascadeDeleteCapabilityMutation.mutateAsync({
-          capability,
-          cascade: false,
-          deleteRealisingApplications: false,
-          parentId: capability.parentId ?? undefined,
-        });
       },
       'parent-relation': async (target) => {
         if (!target.childId) return;
@@ -213,7 +201,6 @@ function useDeleteHandlers() {
       deleteComponentMutation,
       detachComponentMutation,
       deleteRelationMutation,
-      cascadeDeleteCapabilityMutation,
       changeCapabilityParentMutation,
       deleteRealizationMutation,
       originEntityDeleteMutations,
@@ -234,19 +221,19 @@ export const useDeleteConfirmation = () => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDeleteConfirm = useCallback(async () => {
-    if (!deleteTarget) return;
+    if (!deleteTarget || deleteTarget.type === 'capability-from-model') return;
 
     setIsDeleting(true);
     try {
       const handler = handlers[deleteTarget.type];
-      await handler(deleteTarget, currentViewId, { components, relations, capabilities });
+      await handler(deleteTarget, currentViewId, { components, relations });
       setDeleteTarget(null);
     } catch (error) {
       console.error('Failed to delete:', error);
     } finally {
       setIsDeleting(false);
     }
-  }, [deleteTarget, handlers, currentViewId, components, relations, capabilities]);
+  }, [deleteTarget, handlers, currentViewId, components, relations]);
 
   const handleDeleteCancel = useCallback(() => {
     setDeleteTarget(null);
@@ -258,9 +245,16 @@ export const useDeleteConfirmation = () => {
     [deleteTarget, components],
   );
 
+  const deleteTargetCapability = useMemo(
+    () =>
+      deleteTarget?.type === 'capability-from-model' ? capabilities.find((c) => c.id === deleteTarget.id) : undefined,
+    [deleteTarget, capabilities],
+  );
+
   return {
     deleteTarget,
     deleteTargetComponent,
+    deleteTargetCapability,
     isDeleting,
     setDeleteTarget,
     handleDeleteConfirm,

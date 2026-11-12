@@ -2202,7 +2202,7 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "Deletes a business capability. If the capability has descendants, cascade:true must be set in the request body. Optionally deletes realizations by setting deleteRealisingApplications:true.",
+                "description": "Deletes a business capability. If the capability has descendants, cascade:true must be set in the request body. Direct realizations of every deleted capability are removed; the realizing applications are kept.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2796,7 +2796,7 @@ const docTemplate = `{
         },
         "/capabilities/{id}/delete-impact": {
             "get": {
-                "description": "Returns all capabilities and realizations that would be affected by deleting this capability and all descendants.",
+                "description": "Returns the descendant capabilities that would be deleted with this capability and the direct realizations the delete would remove. The realizing applications are kept.",
                 "produces": [
                     "application/json"
                 ],
@@ -16320,13 +16320,7 @@ const docTemplate = `{
                 "hasDescendants": {
                     "type": "boolean"
                 },
-                "realizationsOnDeletedCapabilities": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/easi_backend_internal_capabilitymapping_application_readmodels.RealizationDTO"
-                    }
-                },
-                "realizationsOnRetainedCapabilities": {
+                "realizations": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/easi_backend_internal_capabilitymapping_application_readmodels.RealizationDTO"

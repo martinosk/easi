@@ -1,6 +1,6 @@
-import { Alert, Badge, Button, Checkbox, Group, Modal, ScrollArea, Skeleton, Stack, Text } from '@mantine/core';
+import { Alert, Badge, Button, Group, Modal, ScrollArea, Skeleton, Stack, Text } from '@mantine/core';
 import React, { useState } from 'react';
-import type { Capability, CapabilityId } from '../../../api/types';
+import type { Capability, CapabilityDeleteImpact, CapabilityId, ImpactRealization } from '../../../api/types';
 import { useCascadeDeleteCapability, useDeleteCapability, useDeleteImpact } from '../hooks/useCapabilities';
 
 interface DeleteCapabilityDialogProps {
@@ -12,6 +12,127 @@ interface DeleteCapabilityDialogProps {
   domainId?: string;
 }
 
+const plural = (count: number, singular: string, pluralForm: string) => (count === 1 ? singular : pluralForm);
+
+const ImpactLoading = () => (
+  <Stack gap="sm" data-testid="delete-impact-loading">
+    <Skeleton height={20} width="80%" />
+    <Skeleton height={20} width="60%" />
+    <Skeleton height={40} />
+  </Stack>
+);
+
+const CascadeImpact = ({ capability, impact }: { capability: Capability; impact: CapabilityDeleteImpact }) => {
+  const affectedCount = impact.affectedCapabilities.length;
+  return (
+    <>
+      <Alert color="orange" data-testid="cascade-warning">
+        This will delete{' '}
+        <Text span fw={600}>
+          "{capability.name}"
+        </Text>{' '}
+        and{' '}
+        <Text span fw={600}>
+          {affectedCount} child {plural(affectedCount, 'capability', 'capabilities')}
+        </Text>
+        .
+      </Alert>
+
+      {affectedCount > 0 && (
+        <Stack gap="xs">
+          <Text fw={600} size="sm">
+            Affected Capabilities ({affectedCount})
+          </Text>
+          <ScrollArea.Autosize mah={150}>
+            <Stack gap={4}>
+              {impact.affectedCapabilities.map((cap) => (
+                <Group key={cap.id} gap="xs">
+                  <Badge size="xs" variant="light">
+                    {cap.level}
+                  </Badge>
+                  <Text size="sm">{cap.name}</Text>
+                </Group>
+              ))}
+            </Stack>
+          </ScrollArea.Autosize>
+        </Stack>
+      )}
+    </>
+  );
+};
+
+const LeafConfirmation = ({ capability }: { capability: Capability }) => (
+  <>
+    <Text>Are you sure you want to delete</Text>
+    <Text fw={600} size="lg">
+      "{capability.name}"
+    </Text>
+  </>
+);
+
+const capabilityNames = (capability: Capability, impact: CapabilityDeleteImpact): Map<string, string> =>
+  new Map([[capability.id, capability.name], ...impact.affectedCapabilities.map((c) => [c.id, c.name] as const)]);
+
+const RealizationsToRemove = ({ capability, impact }: { capability: Capability; impact: CapabilityDeleteImpact }) => {
+  const realizations: ImpactRealization[] = impact.realizations ?? [];
+  if (realizations.length === 0) return null;
+
+  const names = capabilityNames(capability, impact);
+  return (
+    <Stack gap="xs" data-testid="realizations-to-remove">
+      <Text fw={600} size="sm">
+        {realizations.length} application {plural(realizations.length, 'realization', 'realizations')} will be removed
+      </Text>
+      <ScrollArea.Autosize mah={150}>
+        <Stack gap={4}>
+          {realizations.map((r) => (
+            <Text key={r.id} size="sm" data-testid="realization-to-remove">
+              <Text span fw={600}>
+                {r.componentName}
+              </Text>{' '}
+              stops realising{' '}
+              <Text span fw={600}>
+                {names.get(r.capabilityId) ?? r.capabilityName ?? r.capabilityId}
+              </Text>
+            </Text>
+          ))}
+        </Stack>
+      </ScrollArea.Autosize>
+      <Text size="sm" c="dimmed">
+        The applications themselves are kept.
+      </Text>
+    </Stack>
+  );
+};
+
+interface ImpactBodyProps {
+  capability: Capability;
+  impact: CapabilityDeleteImpact | undefined;
+  impactLoading: boolean;
+  multiDeleteCount: number;
+}
+
+const ImpactBody = ({ capability, impact, impactLoading, multiDeleteCount }: ImpactBodyProps) => {
+  if (impactLoading) return <ImpactLoading />;
+  if (multiDeleteCount > 1) return <Text>Are you sure you want to delete {multiDeleteCount} capabilities?</Text>;
+  return (
+    <>
+      {impact?.hasDescendants ? (
+        <CascadeImpact capability={capability} impact={impact} />
+      ) : (
+        <LeafConfirmation capability={capability} />
+      )}
+      {impact && <RealizationsToRemove capability={capability} impact={impact} />}
+    </>
+  );
+};
+
+const submitLabel = (capability: Capability, impact: CapabilityDeleteImpact | undefined) => {
+  if (!impact?.hasDescendants) return 'Delete';
+  const count = impact.affectedCapabilities.length;
+  return `Delete ${capability.name} and ${count} ${plural(count, 'child', 'children')}`;
+};
+
 export const DeleteCapabilityDialog: React.FC<DeleteCapabilityDialogProps> = ({
   isOpen,
   onClose,
@@ -22,7 +143,6 @@ export const DeleteCapabilityDialog: React.FC<DeleteCapabilityDialogProps> = ({
 }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [backendError, setBackendError] = useState<string | null>(null);
-  const [deleteApplications, setDeleteApplications] = useState(false);
 
   const deleteCapabilityMutation = useDeleteCapability();
   const cascadeDeleteMutation = useCascadeDeleteCapability();
@@ -32,8 +152,22 @@ export const DeleteCapabilityDialog: React.FC<DeleteCapabilityDialogProps> = ({
 
   const handleClose = () => {
     setBackendError(null);
-    setDeleteApplications(false);
     onClose();
+  };
+
+  const deleteSelected = async (target: Capability) => {
+    if (capabilitiesToDelete.length > 1) {
+      for (const cap of capabilitiesToDelete) {
+        await deleteCapabilityMutation.mutateAsync({ capability: cap, parentId: cap.parentId ?? undefined, domainId });
+      }
+      return;
+    }
+    await cascadeDeleteMutation.mutateAsync({
+      capability: target,
+      cascade: impact?.hasDescendants ?? false,
+      parentId: target.parentId ?? undefined,
+      domainId,
+    });
   };
 
   const handleConfirm = async () => {
@@ -43,33 +177,7 @@ export const DeleteCapabilityDialog: React.FC<DeleteCapabilityDialogProps> = ({
     setBackendError(null);
 
     try {
-      const isMultiSelect = capabilitiesToDelete.length > 1;
-
-      if (isMultiSelect) {
-        for (const cap of capabilitiesToDelete) {
-          await deleteCapabilityMutation.mutateAsync({
-            capability: cap,
-            parentId: cap.parentId ?? undefined,
-            domainId,
-          });
-        }
-      } else if (impact?.hasDescendants) {
-        await cascadeDeleteMutation.mutateAsync({
-          capability,
-          cascade: true,
-          deleteRealisingApplications: deleteApplications,
-          parentId: capability.parentId ?? undefined,
-          domainId,
-        });
-      } else {
-        await cascadeDeleteMutation.mutateAsync({
-          capability,
-          cascade: false,
-          deleteRealisingApplications: false,
-          parentId: capability.parentId ?? undefined,
-          domainId,
-        });
-      }
+      await deleteSelected(capability);
       onConfirm?.();
       handleClose();
     } catch (err) {
@@ -81,88 +189,22 @@ export const DeleteCapabilityDialog: React.FC<DeleteCapabilityDialogProps> = ({
 
   if (!capability) return null;
 
-  const isMultiDelete = capabilitiesToDelete.length > 1;
-  const hasCascade = impact?.hasDescendants ?? false;
-  const deletableRealizations = impact?.realizationsOnDeletedCapabilities ?? [];
-  const retainedRealizations = impact?.realizationsOnRetainedCapabilities ?? [];
-  const affectedCount = impact?.affectedCapabilities?.length ?? 0;
-
   return (
     <Modal
       opened={isOpen}
       onClose={handleClose}
       title="Delete Capability?"
       centered
-      size={hasCascade ? 'lg' : 'md'}
+      size={impact?.hasDescendants ? 'lg' : 'md'}
       data-testid="delete-capability-dialog"
     >
       <Stack gap="md">
-        {impactLoading ? (
-          <Stack gap="sm" data-testid="delete-impact-loading">
-            <Skeleton height={20} width="80%" />
-            <Skeleton height={20} width="60%" />
-            <Skeleton height={40} />
-          </Stack>
-        ) : isMultiDelete ? (
-          <Text>Are you sure you want to delete {capabilitiesToDelete.length} capabilities?</Text>
-        ) : hasCascade ? (
-          <>
-            <Alert color="orange" data-testid="cascade-warning">
-              This will delete{' '}
-              <Text span fw={600}>
-                "{capability.name}"
-              </Text>{' '}
-              and{' '}
-              <Text span fw={600}>
-                {affectedCount} child {affectedCount === 1 ? 'capability' : 'capabilities'}
-              </Text>
-              .
-            </Alert>
-
-            {affectedCount > 0 && (
-              <Stack gap="xs">
-                <Text fw={600} size="sm">
-                  Affected Capabilities ({affectedCount})
-                </Text>
-                <ScrollArea.Autosize mah={150}>
-                  <Stack gap={4}>
-                    {impact!.affectedCapabilities.map((cap) => (
-                      <Group key={cap.id} gap="xs">
-                        <Badge size="xs" variant="light">
-                          {cap.level}
-                        </Badge>
-                        <Text size="sm">{cap.name}</Text>
-                      </Group>
-                    ))}
-                  </Stack>
-                </ScrollArea.Autosize>
-              </Stack>
-            )}
-
-            {deletableRealizations.length > 0 && (
-              <Checkbox
-                label={`Also delete ${deletableRealizations.length} application ${deletableRealizations.length === 1 ? 'realization' : 'realizations'} that only realise these capabilities`}
-                checked={deleteApplications}
-                onChange={(e) => setDeleteApplications(e.currentTarget.checked)}
-                data-testid="delete-applications-checkbox"
-              />
-            )}
-
-            {retainedRealizations.length > 0 && (
-              <Text size="sm" c="dimmed">
-                {retainedRealizations.length} {retainedRealizations.length === 1 ? 'realization' : 'realizations'} will
-                be retained (applications also realise other capabilities).
-              </Text>
-            )}
-          </>
-        ) : (
-          <>
-            <Text>Are you sure you want to delete</Text>
-            <Text fw={600} size="lg">
-              "{capability.name}"
-            </Text>
-          </>
-        )}
+        <ImpactBody
+          capability={capability}
+          impact={impact}
+          impactLoading={impactLoading}
+          multiDeleteCount={capabilitiesToDelete.length}
+        />
 
         <Text c="orange" size="sm">
           This action cannot be undone.
@@ -185,9 +227,7 @@ export const DeleteCapabilityDialog: React.FC<DeleteCapabilityDialogProps> = ({
             disabled={impactLoading}
             data-testid="delete-capability-submit"
           >
-            {hasCascade
-              ? `Delete ${capability.name} and ${affectedCount} ${affectedCount === 1 ? 'child' : 'children'}`
-              : 'Delete'}
+            {submitLabel(capability, impact)}
           </Button>
         </Group>
       </Stack>

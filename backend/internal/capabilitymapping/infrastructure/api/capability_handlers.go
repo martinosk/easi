@@ -302,7 +302,7 @@ type DeleteCapabilityRequest struct {
 
 // DeleteCapability godoc
 // @Summary Delete a capability with optional cascade
-// @Description Deletes a business capability. If the capability has descendants, cascade:true must be set in the request body. Optionally deletes realizations by setting deleteRealisingApplications:true.
+// @Description Deletes a business capability. If the capability has descendants, cascade:true must be set in the request body. Direct realizations of every deleted capability are removed; the realizing applications are kept.
 // @Tags capabilities
 // @Accept json
 // @Param id path string true "Capability ID"
@@ -368,7 +368,7 @@ func (h *CapabilityHandlers) parseDeleteBody(r *http.Request) DeleteCapabilityRe
 
 // GetDeleteImpact godoc
 // @Summary Get delete impact analysis for a capability
-// @Description Returns all capabilities and realizations that would be affected by deleting this capability and all descendants.
+// @Description Returns the descendant capabilities that would be deleted with this capability and the direct realizations the delete would remove. The realizing applications are kept.
 // @Tags capabilities
 // @Produce json
 // @Param id path string true "Capability ID"
@@ -425,13 +425,12 @@ func (h *CapabilityHandlers) GetDeleteImpact(w http.ResponseWriter, r *http.Requ
 	}
 
 	response := DeleteImpactResponse{
-		CapabilityID:                       capability.ID,
-		CapabilityName:                     capability.Name,
-		HasDescendants:                     impact.HasDescendants,
-		AffectedCapabilities:               affectedCaps,
-		RealizationsOnDeletedCapabilities:  impact.RealizationsOnDeletedCapabilities,
-		RealizationsOnRetainedCapabilities: impact.RealizationsOnRetainedCapabilities,
-		Links:                              links,
+		CapabilityID:         capability.ID,
+		CapabilityName:       capability.Name,
+		HasDescendants:       impact.HasDescendants,
+		AffectedCapabilities: affectedCaps,
+		Realizations:         impact.Realizations,
+		Links:                links,
 	}
 
 	sharedAPI.RespondJSON(w, http.StatusOK, response)
@@ -446,11 +445,10 @@ type AffectedCapabilityDTO struct {
 }
 
 type DeleteImpactResponse struct {
-	CapabilityID                       string                      `json:"capabilityId"`
-	CapabilityName                     string                      `json:"capabilityName"`
-	HasDescendants                     bool                        `json:"hasDescendants"`
-	AffectedCapabilities               []AffectedCapabilityDTO     `json:"affectedCapabilities"`
-	RealizationsOnDeletedCapabilities  []readmodels.RealizationDTO `json:"realizationsOnDeletedCapabilities"`
-	RealizationsOnRetainedCapabilities []readmodels.RealizationDTO `json:"realizationsOnRetainedCapabilities"`
-	Links                              sharedAPI.Links             `json:"_links,omitempty"`
+	CapabilityID         string                      `json:"capabilityId"`
+	CapabilityName       string                      `json:"capabilityName"`
+	HasDescendants       bool                        `json:"hasDescendants"`
+	AffectedCapabilities []AffectedCapabilityDTO     `json:"affectedCapabilities"`
+	Realizations         []readmodels.RealizationDTO `json:"realizations"`
+	Links                sharedAPI.Links             `json:"_links,omitempty"`
 }

@@ -375,8 +375,6 @@ func registerCapabilityCommands(commandBus *cqrs.InMemoryCommandBus, repo *repos
 	capabilityRM := rm.capability
 	realizationRM := rm.realization
 	dependencyRM := rm.dependency
-	childrenChecker := adapters.NewCapabilityChildrenCheckerAdapter(capabilityRM)
-	deletionService := services.NewCapabilityDeletionService(childrenChecker)
 	reparentingService := services.NewCapabilityReparentingService(adapters.NewCapabilityLookupAdapter(capabilityRM))
 	capabilityLookupAdapter := adapters.NewCapabilityLookupAdapter(capabilityRM)
 	hierarchyService := services.NewCapabilityHierarchyService(capabilityLookupAdapter)
@@ -388,14 +386,12 @@ func registerCapabilityCommands(commandBus *cqrs.InMemoryCommandBus, repo *repos
 	commandBus.Register("RemoveCapabilityExpert", handlers.NewRemoveCapabilityExpertHandler(repo))
 	commandBus.Register("AddCapabilityTag", handlers.NewAddCapabilityTagHandler(repo))
 	commandBus.Register("ChangeCapabilityParent", handlers.NewChangeCapabilityParentHandler(repo, capabilityRM, realizationRM, reparentingService))
-	commandBus.Register("DeleteCapability", handlers.NewDeleteCapabilityHandler(repo, deletionService, realizationRM, capabilityRM))
 	commandBus.Register("CascadeDeleteCapability", handlers.NewCascadeDeleteCapabilityHandler(handlers.CascadeDeleteDeps{
 		Repository:       repo,
 		HierarchyService: hierarchyService,
 		RealizationRM:    realizationRM,
 		DependencyRM:     dependencyRM,
 		CommandBus:       commandBus,
-		CapabilityLookup: capabilityRM,
 	}))
 }
 

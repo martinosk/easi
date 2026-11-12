@@ -38,8 +38,7 @@ const leafImpact: CapabilityDeleteImpact = {
   capabilityName: 'Test Capability',
   hasDescendants: false,
   affectedCapabilities: [],
-  realizationsOnDeletedCapabilities: [],
-  realizationsOnRetainedCapabilities: [],
+  realizations: [],
   _links: {},
 };
 
@@ -51,8 +50,7 @@ const cascadeImpact: CapabilityDeleteImpact = {
     { id: toCapabilityId('cap-2'), name: 'Child A', level: 'L2' as const, parentId: toCapabilityId('cap-1') },
     { id: toCapabilityId('cap-3'), name: 'Child B', level: 'L2' as const, parentId: toCapabilityId('cap-1') },
   ],
-  realizationsOnDeletedCapabilities: [],
-  realizationsOnRetainedCapabilities: [],
+  realizations: [],
   _links: {},
 };
 
@@ -122,32 +120,94 @@ describe('DeleteCapabilityDialog', () => {
     expect(screen.getByText('Child B')).toBeInTheDocument();
   });
 
-  it('should show delete applications checkbox when deletable realizations exist', () => {
-    const impactWithRealizations: CapabilityDeleteImpact = {
-      ...cascadeImpact,
-      realizationsOnDeletedCapabilities: [
-        {
-          id: 'real-1',
-          componentId: toComponentId('comp-1'),
-          componentName: 'App 1',
-          capabilityId: toCapabilityId('cap-1'),
-          realizationLevel: 'Full',
-          origin: 'Direct',
-        },
-      ],
-    };
-
+  it('should list each realization that will be removed with its application and capability', () => {
     vi.mocked(useDeleteImpact).mockReturnValue({
-      data: impactWithRealizations,
+      data: {
+        ...cascadeImpact,
+        realizations: [
+          {
+            id: 'real-1',
+            componentId: toComponentId('comp-1'),
+            componentName: 'Billing',
+            capabilityId: toCapabilityId('cap-2'),
+            realizationLevel: 'Full',
+            origin: 'Direct',
+          },
+          {
+            id: 'real-2',
+            componentId: toComponentId('comp-2'),
+            componentName: 'Ledger',
+            capabilityId: toCapabilityId('cap-1'),
+            realizationLevel: 'Partial',
+            origin: 'Direct',
+          },
+        ],
+      },
       isLoading: false,
     } as ReturnType<typeof useDeleteImpact>);
 
     renderWithProviders(<DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />);
 
-    expect(screen.getByTestId('delete-applications-checkbox')).toBeInTheDocument();
+    const items = screen.getAllByTestId('realization-to-remove');
+    expect(items).toHaveLength(2);
+    expect(items[0]).toHaveTextContent('Billing');
+    expect(items[0]).toHaveTextContent('Child A');
+    expect(items[1]).toHaveTextContent('Ledger');
+    expect(items[1]).toHaveTextContent('Test Capability');
+    expect(screen.getByTestId('realizations-to-remove')).toHaveTextContent(
+      '2 application realizations will be removed',
+    );
+    expect(screen.getByTestId('realizations-to-remove')).toHaveTextContent('The applications themselves are kept');
   });
 
-  it('should not show checkbox when no deletable realizations', () => {
+  it('should list the realization of a realized leaf capability', () => {
+    vi.mocked(useDeleteImpact).mockReturnValue({
+      data: {
+        ...leafImpact,
+        realizations: [
+          {
+            id: 'real-1',
+            componentId: toComponentId('comp-1'),
+            componentName: 'Billing',
+            capabilityId: toCapabilityId('cap-1'),
+            realizationLevel: 'Full',
+            origin: 'Direct',
+          },
+        ],
+      },
+      isLoading: false,
+    } as ReturnType<typeof useDeleteImpact>);
+
+    renderWithProviders(<DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />);
+
+    expect(screen.getByTestId('realization-to-remove')).toHaveTextContent('Billing');
+    expect(screen.getByTestId('realizations-to-remove')).toHaveTextContent('1 application realization will be removed');
+  });
+
+  it('should offer no option to delete applications', () => {
+    vi.mocked(useDeleteImpact).mockReturnValue({
+      data: {
+        ...cascadeImpact,
+        realizations: [
+          {
+            id: 'real-1',
+            componentId: toComponentId('comp-1'),
+            componentName: 'Billing',
+            capabilityId: toCapabilityId('cap-2'),
+            realizationLevel: 'Full',
+            origin: 'Direct',
+          },
+        ],
+      },
+      isLoading: false,
+    } as ReturnType<typeof useDeleteImpact>);
+
+    renderWithProviders(<DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />);
+
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+  });
+
+  it('should not show a realization section when nothing is realized', () => {
     vi.mocked(useDeleteImpact).mockReturnValue({
       data: cascadeImpact,
       isLoading: false,
@@ -155,32 +215,7 @@ describe('DeleteCapabilityDialog', () => {
 
     renderWithProviders(<DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />);
 
-    expect(screen.queryByTestId('delete-applications-checkbox')).not.toBeInTheDocument();
-  });
-
-  it('should show retained realizations info', () => {
-    const impactWithRetained: CapabilityDeleteImpact = {
-      ...cascadeImpact,
-      realizationsOnRetainedCapabilities: [
-        {
-          id: 'real-2',
-          componentId: toComponentId('comp-2'),
-          componentName: 'App 2',
-          capabilityId: toCapabilityId('cap-2'),
-          realizationLevel: 'Partial',
-          origin: 'Direct',
-        },
-      ],
-    };
-
-    vi.mocked(useDeleteImpact).mockReturnValue({
-      data: impactWithRetained,
-      isLoading: false,
-    } as ReturnType<typeof useDeleteImpact>);
-
-    renderWithProviders(<DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />);
-
-    expect(screen.getByText(/1 realization will be retained/)).toBeInTheDocument();
+    expect(screen.queryByTestId('realizations-to-remove')).not.toBeInTheDocument();
   });
 
   it('should show cascade text on submit button when has descendants', () => {
@@ -206,7 +241,6 @@ describe('DeleteCapabilityDialog', () => {
       expect(mockCascadeMutateAsync).toHaveBeenCalledWith({
         capability,
         cascade: false,
-        deleteRealisingApplications: false,
         parentId: undefined,
         domainId: undefined,
       });
@@ -235,44 +269,9 @@ describe('DeleteCapabilityDialog', () => {
       expect(mockCascadeMutateAsync).toHaveBeenCalledWith({
         capability,
         cascade: true,
-        deleteRealisingApplications: false,
         parentId: undefined,
         domainId: 'domain-1',
       });
-    });
-  });
-
-  it('should pass deleteRealisingApplications=true when checkbox checked', async () => {
-    const impactWithRealizations: CapabilityDeleteImpact = {
-      ...cascadeImpact,
-      realizationsOnDeletedCapabilities: [
-        {
-          id: 'real-1',
-          componentId: toComponentId('comp-1'),
-          componentName: 'App 1',
-          capabilityId: toCapabilityId('cap-1'),
-          realizationLevel: 'Full',
-          origin: 'Direct',
-        },
-      ],
-    };
-
-    vi.mocked(useDeleteImpact).mockReturnValue({
-      data: impactWithRealizations,
-      isLoading: false,
-    } as ReturnType<typeof useDeleteImpact>);
-
-    renderWithProviders(
-      <DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} onConfirm={mockOnConfirm} capability={capability} />,
-    );
-
-    fireEvent.click(screen.getByTestId('delete-applications-checkbox'));
-    fireEvent.click(screen.getByTestId('delete-capability-submit'));
-
-    await waitFor(() => {
-      expect(mockCascadeMutateAsync).toHaveBeenCalledWith(
-        expect.objectContaining({ deleteRealisingApplications: true }),
-      );
     });
   });
 

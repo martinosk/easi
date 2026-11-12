@@ -27,8 +27,7 @@ func TestDeleteImpactQuery_NoDescendants_ReturnsEmptyImpact(t *testing.T) {
 
 	assert.False(t, impact.HasDescendants)
 	assert.Empty(t, impact.AffectedCapabilities)
-	assert.Empty(t, impact.RealizationsOnDeletedCapabilities)
-	assert.Empty(t, impact.RealizationsOnRetainedCapabilities)
+	assert.Empty(t, impact.Realizations)
 }
 
 func TestDeleteImpactQuery_WithDescendants_ReturnsAffectedCapabilities(t *testing.T) {
@@ -54,22 +53,27 @@ func TestDeleteImpactQuery_WithDescendants_ReturnsAffectedCapabilities(t *testin
 	assert.Equal(t, childID, impact.AffectedCapabilities[0])
 }
 
-func TestDeleteImpactQuery_RealizationExclusivelyInScope_GoesToDeletedList(t *testing.T) {
+func TestDeleteImpactQuery_ListsEachDirectRealizationInScopeOnce(t *testing.T) {
 	rootID := "550e8400-e29b-41d4-a716-446655440001"
+	childID := "550e8400-e29b-41d4-a716-446655440002"
+	grandchildID := "550e8400-e29b-41d4-a716-446655440003"
 
+	childCapID, _ := valueobjects.NewCapabilityIDFromString(childID)
+	grandchildCapID, _ := valueobjects.NewCapabilityIDFromString(grandchildID)
 	hierarchy := &mockCascadeHierarchyService{
-		descendants: map[string][]valueobjects.CapabilityID{},
+		descendants: map[string][]valueobjects.CapabilityID{rootID: {childCapID, grandchildCapID}},
 	}
 
 	realizationRM := &mockCascadeRealizationRM{
 		realizationsByCapability: map[string][]readmodels.RealizationDTO{
 			rootID: {
-				{ID: "real-1", CapabilityID: rootID, ComponentID: "comp-1", ComponentName: "App 1", Origin: "Direct", LinkedAt: time.Now()},
+				{ID: "inherited-root", CapabilityID: rootID, ComponentID: "billing", ComponentName: "Billing", Origin: readmodels.OriginInherited, SourceRealizationID: "billing-direct", LinkedAt: time.Now()},
 			},
-		},
-		realizationsByComponent: map[string][]readmodels.RealizationDTO{
-			"comp-1": {
-				{ID: "real-1", CapabilityID: rootID, ComponentID: "comp-1", ComponentName: "App 1", Origin: "Direct", LinkedAt: time.Now()},
+			childID: {
+				{ID: "inherited-child", CapabilityID: childID, ComponentID: "billing", ComponentName: "Billing", Origin: readmodels.OriginInherited, SourceRealizationID: "billing-direct", LinkedAt: time.Now()},
+			},
+			grandchildID: {
+				{ID: "billing-direct", CapabilityID: grandchildID, ComponentID: "billing", ComponentName: "Billing", Origin: readmodels.OriginDirect, LinkedAt: time.Now()},
 			},
 		},
 	}
@@ -78,29 +82,22 @@ func TestDeleteImpactQuery_RealizationExclusivelyInScope_GoesToDeletedList(t *te
 	impact, err := query.Execute(context.Background(), rootID)
 	require.NoError(t, err)
 
-	require.Len(t, impact.RealizationsOnDeletedCapabilities, 1)
-	assert.Equal(t, "real-1", impact.RealizationsOnDeletedCapabilities[0].ID)
-	assert.Empty(t, impact.RealizationsOnRetainedCapabilities)
+	require.Len(t, impact.Realizations, 1)
+	assert.Equal(t, "billing-direct", impact.Realizations[0].ID)
+	assert.Equal(t, grandchildID, impact.Realizations[0].CapabilityID)
+	assert.Equal(t, "Billing", impact.Realizations[0].ComponentName)
 }
 
-func TestDeleteImpactQuery_RealizationAlsoOutsideScope_GoesToRetainedList(t *testing.T) {
+func TestDeleteImpactQuery_RealizedLeaf_ListsItsRealization(t *testing.T) {
 	rootID := "550e8400-e29b-41d4-a716-446655440001"
-	outsideCapID := "550e8400-e29b-41d4-a716-999999999999"
 
 	hierarchy := &mockCascadeHierarchyService{
 		descendants: map[string][]valueobjects.CapabilityID{},
 	}
-
 	realizationRM := &mockCascadeRealizationRM{
 		realizationsByCapability: map[string][]readmodels.RealizationDTO{
 			rootID: {
-				{ID: "real-1", CapabilityID: rootID, ComponentID: "comp-1", ComponentName: "App 1", Origin: "Direct", LinkedAt: time.Now()},
-			},
-		},
-		realizationsByComponent: map[string][]readmodels.RealizationDTO{
-			"comp-1": {
-				{ID: "real-1", CapabilityID: rootID, ComponentID: "comp-1", ComponentName: "App 1", Origin: "Direct", LinkedAt: time.Now()},
-				{ID: "real-2", CapabilityID: outsideCapID, ComponentID: "comp-1", ComponentName: "App 1", Origin: "Direct", LinkedAt: time.Now()},
+				{ID: "real-1", CapabilityID: rootID, ComponentID: "comp-1", ComponentName: "App 1", Origin: readmodels.OriginDirect, LinkedAt: time.Now()},
 			},
 		},
 	}
@@ -109,7 +106,6 @@ func TestDeleteImpactQuery_RealizationAlsoOutsideScope_GoesToRetainedList(t *tes
 	impact, err := query.Execute(context.Background(), rootID)
 	require.NoError(t, err)
 
-	assert.Empty(t, impact.RealizationsOnDeletedCapabilities)
-	require.Len(t, impact.RealizationsOnRetainedCapabilities, 1)
-	assert.Equal(t, "real-1", impact.RealizationsOnRetainedCapabilities[0].ID)
+	require.Len(t, impact.Realizations, 1)
+	assert.Equal(t, "real-1", impact.Realizations[0].ID)
 }

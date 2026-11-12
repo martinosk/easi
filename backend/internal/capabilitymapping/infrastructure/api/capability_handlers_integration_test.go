@@ -139,22 +139,18 @@ func setupHandlers(db *sql.DB) *CapabilityHandlers {
 
 	lookupAdapter := adapters.NewCapabilityLookupAdapter(readModel)
 	hierarchyService := services.NewCapabilityHierarchyService(lookupAdapter)
-	childrenChecker := adapters.NewCapabilityChildrenCheckerAdapter(readModel)
-	deletionService := services.NewCapabilityDeletionService(childrenChecker)
 
 	createHandler := handlers.NewCreateCapabilityHandler(capabilityRepo)
 	updateHandler := handlers.NewUpdateCapabilityHandler(capabilityRepo)
 	updateMetadataHandler := handlers.NewUpdateCapabilityMetadataHandler(capabilityRepo, readmodels.NewUserNameCacheReadModel(tenantDB))
 	addExpertHandler := handlers.NewAddCapabilityExpertHandler(capabilityRepo)
 	addTagHandler := handlers.NewAddCapabilityTagHandler(capabilityRepo)
-	deleteHandler := handlers.NewDeleteCapabilityHandler(capabilityRepo, deletionService, realizationReadModel, readModel)
 
 	commandBus.Register("CreateCapability", createHandler)
 	commandBus.Register("UpdateCapability", updateHandler)
 	commandBus.Register("UpdateCapabilityMetadata", updateMetadataHandler)
 	commandBus.Register("AddCapabilityExpert", addExpertHandler)
 	commandBus.Register("AddCapabilityTag", addTagHandler)
-	commandBus.Register("DeleteCapability", deleteHandler)
 	commandBus.Register("DeleteSystemRealization", handlers.NewDeleteSystemRealizationHandler(realizationRepo))
 	commandBus.Register("DeleteCapabilityDependency", handlers.NewDeleteCapabilityDependencyHandler(dependencyRepo))
 	commandBus.Register("CascadeDeleteCapability", handlers.NewCascadeDeleteCapabilityHandler(handlers.CascadeDeleteDeps{
@@ -163,7 +159,6 @@ func setupHandlers(db *sql.DB) *CapabilityHandlers {
 		RealizationRM:    realizationReadModel,
 		DependencyRM:     dependencyReadModel,
 		CommandBus:       commandBus,
-		CapabilityLookup: readModel,
 	}))
 
 	impactQuery := handlers.NewDeleteImpactQuery(hierarchyService, realizationReadModel)
