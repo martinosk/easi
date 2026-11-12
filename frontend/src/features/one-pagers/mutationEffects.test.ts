@@ -89,6 +89,18 @@ describe('subject mutation effects', () => {
   });
 
   it.each([
+    ['linking a system', capabilitiesMutationEffects.linkSystem({ capabilityId: 'cap-1', componentId: 'comp-1' })],
+    [
+      'deleting a realization',
+      capabilitiesMutationEffects.deleteRealization({ capabilityId: 'cap-1', componentId: 'comp-1' }),
+    ],
+    ['cascade deleting a capability', capabilitiesMutationEffects.cascadeDelete({ id: 'cap-1' })],
+  ])('invalidates application and capability completeness when %s', (_, effects) => {
+    expect(effects).toContainEqual(onePagersQueryKeys.completenessForSubjectType('application'));
+    expect(effects).toContainEqual(onePagersQueryKeys.completenessForSubjectType('capability'));
+  });
+
+  it.each([
     ['vendor', vendorsMutationEffects],
     ['acquired-entity', acquiredEntitiesMutationEffects],
     ['internal-team', internalTeamsMutationEffects],

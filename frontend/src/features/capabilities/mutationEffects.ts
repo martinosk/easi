@@ -12,6 +12,29 @@ function onePagerFreshness(capabilityId: string) {
   return [onePagersQueryKeys.onePager('capability', capabilityId), onePagerQualityQueryKeys.lists()];
 }
 
+function realizationCompleteness() {
+  return [
+    onePagersQueryKeys.completenessForSubjectType('application'),
+    onePagersQueryKeys.completenessForSubjectType('capability'),
+  ];
+}
+
+interface RealizationLink {
+  capabilityId: string;
+  componentId: string;
+}
+
+function realizationLinkChanged(context: RealizationLink) {
+  return [
+    capabilitiesQueryKeys.realizations(context.capabilityId),
+    capabilitiesQueryKeys.details(),
+    capabilitiesQueryKeys.byComponent(context.componentId),
+    capabilitiesQueryKeys.realizationsByComponents(),
+    businessDomainsQueryKeys.details(),
+    ...realizationCompleteness(),
+  ];
+}
+
 export const capabilitiesMutationEffects = {
   create: (context: { parentId?: string; businessDomainId?: string }) => [
     capabilitiesQueryKeys.lists(),
@@ -54,7 +77,7 @@ export const capabilitiesMutationEffects = {
     viewsQueryKeys.all,
     artifactCreatorsQueryKeys.all,
     auditQueryKeys.history(context.id),
-    onePagersQueryKeys.completenessForSubjectType('capability'),
+    ...realizationCompleteness(),
   ],
 
   assignToDomain: (context: { capabilityId: string; domainId: string }) => [
@@ -95,13 +118,7 @@ export const capabilitiesMutationEffects = {
     capabilitiesQueryKeys.incoming(context.targetCapabilityId),
   ],
 
-  linkSystem: (context: { capabilityId: string; componentId: string }) => [
-    capabilitiesQueryKeys.realizations(context.capabilityId),
-    capabilitiesQueryKeys.details(),
-    capabilitiesQueryKeys.byComponent(context.componentId),
-    capabilitiesQueryKeys.realizationsByComponents(),
-    businessDomainsQueryKeys.details(),
-  ],
+  linkSystem: (context: RealizationLink) => realizationLinkChanged(context),
 
   updateRealization: (context: { capabilityId: string; componentId: string }) => [
     capabilitiesQueryKeys.realizations(context.capabilityId),
@@ -110,12 +127,8 @@ export const capabilitiesMutationEffects = {
     businessDomainsQueryKeys.details(),
   ],
 
-  deleteRealization: (context: { capabilityId: string; componentId: string }) => [
-    capabilitiesQueryKeys.realizations(context.capabilityId),
-    capabilitiesQueryKeys.details(),
-    capabilitiesQueryKeys.byComponent(context.componentId),
-    capabilitiesQueryKeys.realizationsByComponents(),
-    businessDomainsQueryKeys.details(),
+  deleteRealization: (context: RealizationLink) => [
+    ...realizationLinkChanged(context),
     timeAssessmentQueryKeys.all,
     realizationRoleQueryKeys.all,
   ],

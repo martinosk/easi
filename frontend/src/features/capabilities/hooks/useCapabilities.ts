@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import type {
   AddCapabilityExpertRequest,
@@ -275,11 +275,27 @@ export function useDeleteRealization() {
   });
 }
 
-export function useDeleteImpact(capabilityId: CapabilityId | undefined) {
-  return useQuery<CapabilityDeleteImpact>({
-    queryKey: capabilitiesQueryKeys.deleteImpact(capabilityId!),
-    queryFn: () => capabilitiesApi.getDeleteImpact(capabilityId!),
-    enabled: !!capabilityId,
+export interface DeleteImpacts {
+  impacts: CapabilityDeleteImpact[];
+  isLoading: boolean;
+  isError: boolean;
+  retry: () => void;
+}
+
+export function useDeleteImpacts(capabilityIds: CapabilityId[]): DeleteImpacts {
+  return useQueries({
+    queries: capabilityIds.map((id) => ({
+      queryKey: capabilitiesQueryKeys.deleteImpact(id),
+      queryFn: () => capabilitiesApi.getDeleteImpact(id),
+    })),
+    combine: (results) => ({
+      impacts: results.flatMap((r) => (r.data ? [r.data] : [])),
+      isLoading: results.some((r) => r.isLoading),
+      isError: results.some((r) => r.isError),
+      retry: () => {
+        for (const r of results) if (r.isError) r.refetch();
+      },
+    }),
   });
 }
 

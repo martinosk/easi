@@ -1,19 +1,20 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { CapabilityDeleteImpact } from '../../../api/types';
+import type { CapabilityDeleteImpact, ImpactRealization } from '../../../api/types';
 import { toCapabilityId, toComponentId } from '../../../api/types';
 import { buildCapability } from '../../../test/helpers/entityBuilders';
 import { MantineTestWrapper } from '../../../test/helpers/mantineTestWrapper';
+import type { DeleteImpacts } from '../hooks/useCapabilities';
 import { DeleteCapabilityDialog } from './DeleteCapabilityDialog';
 
 vi.mock('../hooks/useCapabilities', () => ({
   useDeleteCapability: vi.fn(),
-  useDeleteImpact: vi.fn(),
+  useDeleteImpacts: vi.fn(),
   useCascadeDeleteCapability: vi.fn(),
 }));
 
-import { useCascadeDeleteCapability, useDeleteCapability, useDeleteImpact } from '../hooks/useCapabilities';
+import { useCascadeDeleteCapability, useDeleteCapability, useDeleteImpacts } from '../hooks/useCapabilities';
 
 function createTestQueryClient() {
   return new QueryClient({
@@ -32,6 +33,15 @@ function renderWithProviders(ui: React.ReactElement) {
     </QueryClientProvider>,
   );
 }
+
+const realization = (id: string, componentName: string, capabilityId: string): ImpactRealization => ({
+  id,
+  componentId: toComponentId(`comp-${id}`),
+  componentName,
+  capabilityId: toCapabilityId(capabilityId),
+  realizationLevel: 'Full',
+  origin: 'Direct',
+});
 
 const leafImpact: CapabilityDeleteImpact = {
   capabilityId: toCapabilityId('cap-1'),
@@ -54,20 +64,49 @@ const cascadeImpact: CapabilityDeleteImpact = {
   _links: {},
 };
 
+const mockRetry = vi.fn();
+
+function mockImpacts(impacts: CapabilityDeleteImpact[], state: Partial<DeleteImpacts> = {}) {
+  vi.mocked(useDeleteImpacts).mockReturnValue({
+    impacts,
+    isLoading: false,
+    isError: false,
+    retry: mockRetry,
+    ...state,
+  });
+}
+
 describe('DeleteCapabilityDialog', () => {
   const mockOnClose = vi.fn();
   const mockOnConfirm = vi.fn();
   const mockDeleteMutateAsync = vi.fn();
   const mockCascadeMutateAsync = vi.fn();
   const capability = buildCapability({ id: toCapabilityId('cap-1'), name: 'Test Capability' });
+  const selected = [
+    buildCapability({ id: toCapabilityId('cap-10'), name: 'Cap 10' }),
+    buildCapability({ id: toCapabilityId('cap-11'), name: 'Cap 11' }),
+  ];
+
+  const renderDialog = (props: Partial<React.ComponentProps<typeof DeleteCapabilityDialog>> = {}) =>
+    renderWithProviders(
+      <DeleteCapabilityDialog
+        isOpen={true}
+        onClose={mockOnClose}
+        onConfirm={mockOnConfirm}
+        capability={capability}
+        {...props}
+      />,
+    );
+
+  const renderMultiDelete = () =>
+    renderDialog({ capability: selected[0], capabilitiesToDelete: selected, domainId: 'domain-1' });
+
+  const submitButton = () => screen.getByTestId('delete-capability-submit') as HTMLButtonElement;
 
   beforeEach(() => {
     vi.clearAllMocks();
 
-    vi.mocked(useDeleteImpact).mockReturnValue({
-      data: leafImpact,
-      isLoading: false,
-    } as ReturnType<typeof useDeleteImpact>);
+    mockImpacts([leafImpact]);
 
     vi.mocked(useDeleteCapability).mockReturnValue({
       mutateAsync: mockDeleteMutateAsync,
@@ -84,36 +123,30 @@ describe('DeleteCapabilityDialog', () => {
   });
 
   it('should not render when capability is null', () => {
-    renderWithProviders(<DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={null} />);
+    renderDialog({ capability: null });
 
     expect(screen.queryByTestId('delete-capability-dialog')).not.toBeInTheDocument();
   });
 
   it('should show loading skeleton when impact is loading', () => {
-    vi.mocked(useDeleteImpact).mockReturnValue({
-      data: undefined,
-      isLoading: true,
-    } as ReturnType<typeof useDeleteImpact>);
+    mockImpacts([], { isLoading: true });
 
-    renderWithProviders(<DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />);
+    renderDialog();
 
     expect(screen.getByTestId('delete-impact-loading')).toBeInTheDocument();
   });
 
   it('should show simple delete confirmation for leaf capability', () => {
-    renderWithProviders(<DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />);
+    renderDialog();
 
     expect(screen.getByText('Are you sure you want to delete')).toBeInTheDocument();
     expect(screen.getByText('"Test Capability"')).toBeInTheDocument();
   });
 
   it('should show cascade warning when capability has descendants', () => {
-    vi.mocked(useDeleteImpact).mockReturnValue({
-      data: cascadeImpact,
-      isLoading: false,
-    } as ReturnType<typeof useDeleteImpact>);
+    mockImpacts([cascadeImpact]);
 
-    renderWithProviders(<DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />);
+    renderDialog();
 
     expect(screen.getByTestId('cascade-warning')).toBeInTheDocument();
     expect(screen.getByText('Child A')).toBeInTheDocument();
@@ -121,32 +154,14 @@ describe('DeleteCapabilityDialog', () => {
   });
 
   it('should list each realization that will be removed with its application and capability', () => {
-    vi.mocked(useDeleteImpact).mockReturnValue({
-      data: {
+    mockImpacts([
+      {
         ...cascadeImpact,
-        realizations: [
-          {
-            id: 'real-1',
-            componentId: toComponentId('comp-1'),
-            componentName: 'Billing',
-            capabilityId: toCapabilityId('cap-2'),
-            realizationLevel: 'Full',
-            origin: 'Direct',
-          },
-          {
-            id: 'real-2',
-            componentId: toComponentId('comp-2'),
-            componentName: 'Ledger',
-            capabilityId: toCapabilityId('cap-1'),
-            realizationLevel: 'Partial',
-            origin: 'Direct',
-          },
-        ],
+        realizations: [realization('real-1', 'Billing', 'cap-2'), realization('real-2', 'Ledger', 'cap-1')],
       },
-      isLoading: false,
-    } as ReturnType<typeof useDeleteImpact>);
+    ]);
 
-    renderWithProviders(<DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />);
+    renderDialog();
 
     const items = screen.getAllByTestId('realization-to-remove');
     expect(items).toHaveLength(2);
@@ -161,81 +176,42 @@ describe('DeleteCapabilityDialog', () => {
   });
 
   it('should list the realization of a realized leaf capability', () => {
-    vi.mocked(useDeleteImpact).mockReturnValue({
-      data: {
-        ...leafImpact,
-        realizations: [
-          {
-            id: 'real-1',
-            componentId: toComponentId('comp-1'),
-            componentName: 'Billing',
-            capabilityId: toCapabilityId('cap-1'),
-            realizationLevel: 'Full',
-            origin: 'Direct',
-          },
-        ],
-      },
-      isLoading: false,
-    } as ReturnType<typeof useDeleteImpact>);
+    mockImpacts([{ ...leafImpact, realizations: [realization('real-1', 'Billing', 'cap-1')] }]);
 
-    renderWithProviders(<DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />);
+    renderDialog();
 
     expect(screen.getByTestId('realization-to-remove')).toHaveTextContent('Billing');
     expect(screen.getByTestId('realizations-to-remove')).toHaveTextContent('1 application realization will be removed');
   });
 
   it('should offer no option to delete applications', () => {
-    vi.mocked(useDeleteImpact).mockReturnValue({
-      data: {
-        ...cascadeImpact,
-        realizations: [
-          {
-            id: 'real-1',
-            componentId: toComponentId('comp-1'),
-            componentName: 'Billing',
-            capabilityId: toCapabilityId('cap-2'),
-            realizationLevel: 'Full',
-            origin: 'Direct',
-          },
-        ],
-      },
-      isLoading: false,
-    } as ReturnType<typeof useDeleteImpact>);
+    mockImpacts([{ ...cascadeImpact, realizations: [realization('real-1', 'Billing', 'cap-2')] }]);
 
-    renderWithProviders(<DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />);
+    renderDialog();
 
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
   });
 
   it('should not show a realization section when nothing is realized', () => {
-    vi.mocked(useDeleteImpact).mockReturnValue({
-      data: cascadeImpact,
-      isLoading: false,
-    } as ReturnType<typeof useDeleteImpact>);
+    mockImpacts([cascadeImpact]);
 
-    renderWithProviders(<DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />);
+    renderDialog();
 
     expect(screen.queryByTestId('realizations-to-remove')).not.toBeInTheDocument();
   });
 
   it('should show cascade text on submit button when has descendants', () => {
-    vi.mocked(useDeleteImpact).mockReturnValue({
-      data: cascadeImpact,
-      isLoading: false,
-    } as ReturnType<typeof useDeleteImpact>);
+    mockImpacts([cascadeImpact]);
 
-    renderWithProviders(<DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />);
+    renderDialog();
 
-    const submitButton = screen.getByTestId('delete-capability-submit');
-    expect(submitButton).toHaveTextContent('Delete Test Capability and 2 children');
+    expect(submitButton()).toHaveTextContent('Delete Test Capability and 2 children');
   });
 
   it('should call cascadeDeleteMutation with cascade=false for leaf capability on confirm', async () => {
-    renderWithProviders(
-      <DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} onConfirm={mockOnConfirm} capability={capability} />,
-    );
+    renderDialog();
 
-    fireEvent.click(screen.getByTestId('delete-capability-submit'));
+    fireEvent.click(submitButton());
 
     await waitFor(() => {
       expect(mockCascadeMutateAsync).toHaveBeenCalledWith({
@@ -248,22 +224,11 @@ describe('DeleteCapabilityDialog', () => {
   });
 
   it('should call cascadeDeleteMutation with cascade=true for cascade delete', async () => {
-    vi.mocked(useDeleteImpact).mockReturnValue({
-      data: cascadeImpact,
-      isLoading: false,
-    } as ReturnType<typeof useDeleteImpact>);
+    mockImpacts([cascadeImpact]);
 
-    renderWithProviders(
-      <DeleteCapabilityDialog
-        isOpen={true}
-        onClose={mockOnClose}
-        onConfirm={mockOnConfirm}
-        capability={capability}
-        domainId="domain-1"
-      />,
-    );
+    renderDialog({ domainId: 'domain-1' });
 
-    fireEvent.click(screen.getByTestId('delete-capability-submit'));
+    fireEvent.click(submitButton());
 
     await waitFor(() => {
       expect(mockCascadeMutateAsync).toHaveBeenCalledWith({
@@ -276,58 +241,79 @@ describe('DeleteCapabilityDialog', () => {
   });
 
   it('should show multi-delete message for multiple capabilities', () => {
-    const caps = [
-      buildCapability({ id: toCapabilityId('cap-1'), name: 'Cap 1' }),
-      buildCapability({ id: toCapabilityId('cap-2'), name: 'Cap 2' }),
-    ];
+    mockImpacts([leafImpact, leafImpact]);
 
-    renderWithProviders(
-      <DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={caps[0]} capabilitiesToDelete={caps} />,
-    );
+    renderMultiDelete();
 
     expect(screen.getByText(/delete 2 capabilities/)).toBeInTheDocument();
   });
 
+  it('should load the impact of every selected capability in a multi-delete', () => {
+    renderMultiDelete();
+
+    expect(useDeleteImpacts).toHaveBeenCalledWith([toCapabilityId('cap-10'), toCapabilityId('cap-11')]);
+  });
+
+  it('should list the realizations of every selected capability in a multi-delete', () => {
+    mockImpacts([
+      { ...leafImpact, realizations: [realization('real-1', 'Billing', 'cap-10')] },
+      { ...leafImpact, realizations: [realization('real-2', 'Ledger', 'cap-11')] },
+    ]);
+
+    renderMultiDelete();
+
+    const items = screen.getAllByTestId('realization-to-remove');
+    expect(items).toHaveLength(2);
+    expect(items[0]).toHaveTextContent('Billing stops realising Cap 10');
+    expect(items[1]).toHaveTextContent('Ledger stops realising Cap 11');
+  });
+
+  it('should disable a multi-delete until every selected impact is loaded', () => {
+    mockImpacts([leafImpact]);
+
+    renderMultiDelete();
+
+    expect(submitButton().disabled).toBe(true);
+  });
+
   it('should call deleteCapabilityMutation for each capability in multi-delete', async () => {
-    const caps = [
-      buildCapability({ id: toCapabilityId('cap-10'), name: 'Cap 10' }),
-      buildCapability({ id: toCapabilityId('cap-11'), name: 'Cap 11' }),
-    ];
+    mockImpacts([leafImpact, leafImpact]);
 
-    renderWithProviders(
-      <DeleteCapabilityDialog
-        isOpen={true}
-        onClose={mockOnClose}
-        onConfirm={mockOnConfirm}
-        capability={caps[0]}
-        capabilitiesToDelete={caps}
-        domainId="domain-1"
-      />,
-    );
+    renderMultiDelete();
 
-    fireEvent.click(screen.getByTestId('delete-capability-submit'));
+    fireEvent.click(submitButton());
 
     await waitFor(() => {
       expect(mockDeleteMutateAsync).toHaveBeenCalledTimes(2);
       expect(mockDeleteMutateAsync).toHaveBeenCalledWith({
-        capability: caps[0],
+        capability: selected[0],
         parentId: undefined,
         domainId: 'domain-1',
       });
       expect(mockDeleteMutateAsync).toHaveBeenCalledWith({
-        capability: caps[1],
+        capability: selected[1],
         parentId: undefined,
         domainId: 'domain-1',
       });
     });
   });
 
+  it('should keep submit disabled and offer a retry when the impact fails to load', () => {
+    mockImpacts([], { isError: true });
+
+    renderDialog();
+
+    expect(submitButton().disabled).toBe(true);
+    fireEvent.click(screen.getByTestId('delete-impact-retry'));
+    expect(mockRetry).toHaveBeenCalled();
+  });
+
   it('should show error alert on mutation failure', async () => {
     mockCascadeMutateAsync.mockRejectedValueOnce(new Error('Server error'));
 
-    renderWithProviders(<DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />);
+    renderDialog();
 
-    fireEvent.click(screen.getByTestId('delete-capability-submit'));
+    fireEvent.click(submitButton());
 
     await waitFor(() => {
       expect(screen.getByTestId('delete-capability-error')).toHaveTextContent('Server error');
@@ -337,11 +323,9 @@ describe('DeleteCapabilityDialog', () => {
   });
 
   it('should call onClose after successful deletion', async () => {
-    renderWithProviders(
-      <DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} onConfirm={mockOnConfirm} capability={capability} />,
-    );
+    renderDialog();
 
-    fireEvent.click(screen.getByTestId('delete-capability-submit'));
+    fireEvent.click(submitButton());
 
     await waitFor(() => {
       expect(mockOnClose).toHaveBeenCalled();
@@ -350,7 +334,7 @@ describe('DeleteCapabilityDialog', () => {
   });
 
   it('should call onClose when cancel button is clicked', () => {
-    renderWithProviders(<DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />);
+    renderDialog();
 
     fireEvent.click(screen.getByTestId('delete-capability-cancel'));
 
@@ -358,14 +342,10 @@ describe('DeleteCapabilityDialog', () => {
   });
 
   it('should disable submit button while impact is loading', () => {
-    vi.mocked(useDeleteImpact).mockReturnValue({
-      data: undefined,
-      isLoading: true,
-    } as ReturnType<typeof useDeleteImpact>);
+    mockImpacts([], { isLoading: true });
 
-    renderWithProviders(<DeleteCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />);
+    renderDialog();
 
-    const submitButton = screen.getByTestId('delete-capability-submit') as HTMLButtonElement;
-    expect(submitButton.disabled).toBe(true);
+    expect(submitButton().disabled).toBe(true);
   });
 });
