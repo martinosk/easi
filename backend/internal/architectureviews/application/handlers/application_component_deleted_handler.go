@@ -2,22 +2,25 @@ package handlers
 
 import (
 	"context"
-	"log"
+	"fmt"
 
 	"easi/backend/internal/architectureviews/application/commands"
-	"easi/backend/internal/architectureviews/application/readmodels"
 	"easi/backend/internal/shared/cqrs"
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
+type ViewsContainingComponentQuery interface {
+	GetViewsContainingComponent(ctx context.Context, componentID string) ([]string, error)
+}
+
 type ApplicationComponentDeletedHandler struct {
 	commandBus cqrs.CommandBus
-	readModel  *readmodels.ArchitectureViewReadModel
+	readModel  ViewsContainingComponentQuery
 }
 
 func NewApplicationComponentDeletedHandler(
 	commandBus cqrs.CommandBus,
-	readModel *readmodels.ArchitectureViewReadModel,
+	readModel ViewsContainingComponentQuery,
 ) *ApplicationComponentDeletedHandler {
 	return &ApplicationComponentDeletedHandler{
 		commandBus: commandBus,
@@ -28,28 +31,16 @@ func NewApplicationComponentDeletedHandler(
 func (h *ApplicationComponentDeletedHandler) Handle(ctx context.Context, event domain.DomainEvent) error {
 	componentID := event.AggregateID()
 
-	log.Printf("Handling ApplicationComponentDeleted for component %s", componentID)
-
 	viewIDs, err := h.readModel.GetViewsContainingComponent(ctx, componentID)
 	if err != nil {
-		log.Printf("Error querying views containing component %s: %v", componentID, err)
-		return err
+		return fmt.Errorf("find views containing deleted application %s: %w", componentID, err)
 	}
 
-	log.Printf("Found %d views containing component %s", len(viewIDs), componentID)
-
 	for _, viewID := range viewIDs {
-		cmd := &commands.RemoveComponentFromView{
-			ViewID:      viewID,
-			ComponentID: componentID,
-		}
-
+		cmd := &commands.RemoveComponentFromView{ViewID: viewID, ComponentID: componentID}
 		if _, err := h.commandBus.Dispatch(ctx, cmd); err != nil {
-			log.Printf("Error removing component %s from view %s: %v", componentID, viewID, err)
-			continue
+			return fmt.Errorf("remove deleted application %s from view %s: %w", componentID, viewID, err)
 		}
-
-		log.Printf("Removed component %s from view %s", componentID, viewID)
 	}
 
 	return nil

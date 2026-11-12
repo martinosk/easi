@@ -12262,7 +12262,7 @@ const docTemplate = `{
         },
         "/views/{id}/capabilities/{capabilityId}/position": {
             "patch": {
-                "description": "Updates the position of a capability node in an architecture view",
+                "description": "Updates the position of a capability node already placed in an architecture view. Never adds the capability to the view.",
                 "consumes": [
                     "application/json"
                 ],
@@ -12310,6 +12310,12 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "View not found or element not in view",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
@@ -12584,7 +12590,7 @@ const docTemplate = `{
         },
         "/views/{id}/components/{componentId}/position": {
             "patch": {
-                "description": "Updates the position of a component in an architecture view",
+                "description": "Updates the position of a component already in an architecture view. Never adds the component to the view.",
                 "consumes": [
                     "application/json"
                 ],
@@ -12630,8 +12636,14 @@ const docTemplate = `{
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
                     "404": {
-                        "description": "View or component not found",
+                        "description": "View not found or component not in view",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
@@ -12746,7 +12758,7 @@ const docTemplate = `{
         },
         "/views/{id}/layout": {
             "patch": {
-                "description": "Updates positions for multiple components in a view in a single operation",
+                "description": "Updates positions for multiple components in a view in a single operation. Components that are not in the view are skipped; the layout never adds a component to the view.",
                 "consumes": [
                     "application/json"
                 ],
@@ -12787,6 +12799,12 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "View not found",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
@@ -13020,7 +13038,7 @@ const docTemplate = `{
         },
         "/views/{id}/origin-entities/{originEntityId}/position": {
             "patch": {
-                "description": "Updates the position of an origin entity node in an architecture view",
+                "description": "Updates the position of an origin entity node already placed in an architecture view. Never adds the origin entity to the view.",
                 "consumes": [
                     "application/json"
                 ],
@@ -13068,6 +13086,12 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "View not found or element not in view",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }

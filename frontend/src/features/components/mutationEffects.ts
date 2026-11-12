@@ -1,9 +1,10 @@
 import { auditQueryKeys } from '../audit/queryKeys';
 import { businessDomainsQueryKeys } from '../business-domains/queryKeys';
-import { strategicFitAnalysisQueryKeys } from '../strategic-fit/queryKeys';
 import { artifactCreatorsQueryKeys } from '../navigation/hooks/useArtifactCreators';
 import { onePagerQualityQueryKeys } from '../one-pager-quality/queryKeys';
 import { onePagersQueryKeys } from '../one-pagers/queryKeys';
+import { strategicFitAnalysisQueryKeys } from '../strategic-fit/queryKeys';
+import { viewsQueryKeys } from '../views/queryKeys';
 import { componentsQueryKeys, fitScoresQueryKeys } from './queryKeys';
 
 function onePagerFreshness(componentId: string) {
@@ -29,6 +30,7 @@ export const componentsMutationEffects = {
   delete: (componentId: string) => [
     componentsQueryKeys.lists(),
     componentsQueryKeys.detail(componentId),
+    viewsQueryKeys.all,
     onePagersQueryKeys.completenessForSubjectType('application'),
   ],
 

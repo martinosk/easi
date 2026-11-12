@@ -54,13 +54,13 @@ func newSessionTestFixture() *sessionTestFixture {
 	}
 }
 
-func (f *sessionTestFixture) storeAuthenticatedSession(t *testing.T, tenantID, email string) []*http.Cookie {
+func (f *sessionTestFixture) storeAuthenticatedSession(t *testing.T) []*http.Cookie {
 	t.Helper()
 
-	tenantIDVO := sharedvo.MustNewTenantID(tenantID)
+	tenantIDVO := sharedvo.MustNewTenantID(sessionTestTenantID)
 	preAuth := session.NewPreAuthSession(tenantIDVO, "acme.com", "http://localhost:3000")
 	authSession := preAuth.UpgradeToAuthenticated(
-		session.UserInfo{ID: uuid.New(), Email: email},
+		session.UserInfo{ID: uuid.New(), Email: sessionTestUserEmail},
 		session.TokenInfo{
 			AccessToken:  "test-token",
 			RefreshToken: "test-refresh",
@@ -88,7 +88,7 @@ func (f *sessionTestFixture) storeAuthenticatedSession(t *testing.T, tenantID, e
 
 func TestTenantMiddlewareWithSession_SetsActorOnContext(t *testing.T) {
 	fixture := newSessionTestFixture()
-	cookies := fixture.storeAuthenticatedSession(t, "acme", "user@acme.com")
+	cookies := fixture.storeAuthenticatedSession(t)
 
 	lookup := &mockRoleLookup{role: "architect"}
 
@@ -278,7 +278,7 @@ func serveSessionRequest(fixture *sessionTestFixture, cookies []*http.Cookie, lo
 func serveWithSessionLookup(t *testing.T, lookup UserRoleLookup) (int, bool) {
 	t.Helper()
 	fixture := newSessionTestFixture()
-	cookies := fixture.storeAuthenticatedSession(t, "acme", "user@acme.com")
+	cookies := fixture.storeAuthenticatedSession(t)
 	return serveSessionRequest(fixture, cookies, lookup)
 }
 
@@ -291,7 +291,7 @@ func TestTenantMiddlewareWithSession_RejectsSessionOfUserWithoutActiveRole(t *te
 
 func TestTenantMiddlewareWithSession_DestroysSessionOfInactiveUser(t *testing.T) {
 	fixture := newSessionTestFixture()
-	cookies := fixture.storeAuthenticatedSession(t, "acme", "user@acme.com")
+	cookies := fixture.storeAuthenticatedSession(t)
 
 	disabledStatus, _ := serveSessionRequest(fixture, cookies, &mockRoleLookup{role: ""})
 	reEnabledStatus, reached := serveSessionRequest(fixture, cookies, &mockRoleLookup{role: "architect"})
@@ -326,7 +326,7 @@ func (s stubUserByEmail) GetByEmail(_ context.Context, _ string) (*readmodels.Us
 func serveWithPermissionGate(t *testing.T, user *readmodels.UserDTO) int {
 	t.Helper()
 	fixture := newSessionTestFixture()
-	cookies := fixture.storeAuthenticatedSession(t, "acme", "user@acme.com")
+	cookies := fixture.storeAuthenticatedSession(t)
 	gate := NewAuthMiddleware(fixture.sessionManager).WithUserReadModel(stubUserByEmail{user: user})
 
 	router := chi.NewRouter()

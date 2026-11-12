@@ -23,7 +23,7 @@ func TestAddComponentToView_Integration(t *testing.T) {
 	viewID := testCtx.createViewViaAPI(t, h, "Test View", "Test Description")
 
 	componentID := fmt.Sprintf("comp-%d", time.Now().UnixNano())
-	testCtx.addComponentViaAPI(t, h, viewID, componentID, position{150.5, 250.5})
+	testCtx.addComponentViaAPI(t, h, elementPlacement{viewID, componentID, position{150.5, 250.5}})
 
 	view := testCtx.getViewViaAPI(t, h, viewID)
 	assert.Len(t, view.Components, 1)
@@ -40,13 +40,13 @@ func TestUpdateComponentPosition_Integration(t *testing.T) {
 
 	viewID := testCtx.createViewViaAPI(t, h, "Test View", "Test Description")
 	componentID := fmt.Sprintf("comp-%d", time.Now().UnixNano())
-	testCtx.addComponentViaAPI(t, h, viewID, componentID, position{100.0, 200.0})
+	testCtx.addComponentViaAPI(t, h, elementPlacement{viewID, componentID, position{100.0, 200.0}})
 
 	updateBody, _ := json.Marshal(UpdatePositionRequest{X: 300.0, Y: 400.0})
-	w, req := testCtx.makeRequest(t, http.MethodPatch, "/api/v1/views/"+viewID+"/components/"+componentID+"/position", updateBody, map[string]string{
+	w, req := testCtx.makeRequest(t, requestSpec{http.MethodPatch, "/api/v1/views/" + viewID + "/components/" + componentID + "/position", updateBody, map[string]string{
 		"id":          viewID,
 		"componentId": componentID,
-	})
+	}})
 	h.componentHandlers.UpdateComponentPosition(w, req)
 	require.Equal(t, http.StatusNoContent, w.Code)
 
@@ -66,7 +66,7 @@ func TestAddComponentToView_ViewNotFound_Integration(t *testing.T) {
 	componentID := fmt.Sprintf("comp-%d", time.Now().UnixNano())
 
 	body, _ := json.Marshal(AddComponentRequest{ComponentID: componentID, X: 150.5, Y: 250.5})
-	w, req := testCtx.makeRequest(t, http.MethodPost, "/api/v1/views/"+nonExistentViewID+"/components", body, map[string]string{"id": nonExistentViewID})
+	w, req := testCtx.makeRequest(t, requestSpec{http.MethodPost, "/api/v1/views/" + nonExistentViewID + "/components", body, map[string]string{"id": nonExistentViewID}})
 	h.componentHandlers.AddComponentToView(w, req)
 
 	assert.Equal(t, http.StatusNotFound, w.Code)

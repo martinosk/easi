@@ -33,7 +33,7 @@ var elementTypes = []elementColorConfig{
 		name:   "component",
 		prefix: "comp",
 		addFn: func(ctx *viewTestContext, t *testing.T, h *viewTestHarness, viewID, id string, pos position) {
-			ctx.addComponentViaAPI(t, h, viewID, id, pos)
+			ctx.addComponentViaAPI(t, h, elementPlacement{viewID, id, pos})
 		},
 		colorsFn: func(v readmodels.ArchitectureViewDTO) map[string]*string {
 			m := map[string]*string{}
@@ -52,7 +52,7 @@ var elementTypes = []elementColorConfig{
 		name:   "capability",
 		prefix: "cap",
 		addFn: func(ctx *viewTestContext, t *testing.T, h *viewTestHarness, viewID, id string, pos position) {
-			ctx.addCapabilityViaAPI(t, h, viewID, id, pos)
+			ctx.addCapabilityViaAPI(t, h, elementPlacement{viewID, id, pos})
 		},
 		colorsFn: func(v readmodels.ArchitectureViewDTO) map[string]*string {
 			m := map[string]*string{}
@@ -84,7 +84,7 @@ func setupColorTest(t *testing.T) (colorTestEnv, func()) {
 
 func (env colorTestEnv) patchColorScheme(t *testing.T, scheme string) *httptest.ResponseRecorder {
 	body, _ := json.Marshal(UpdateColorSchemeRequest{ColorScheme: scheme})
-	w, req := env.testCtx.makeRequest(t, http.MethodPatch, "/api/v1/views/"+env.viewID+"/color-scheme", body, map[string]string{"id": env.viewID})
+	w, req := env.testCtx.makeRequest(t, requestSpec{http.MethodPatch, "/api/v1/views/" + env.viewID + "/color-scheme", body, map[string]string{"id": env.viewID}})
 	env.h.colorHandlers.UpdateColorScheme(w, req)
 	return w
 }
@@ -183,13 +183,13 @@ func TestUpdateComponentColor_InvalidValues_Integration(t *testing.T) {
 			defer cleanup()
 
 			componentID := uniqueElementID("comp")
-			env.testCtx.addComponentViaAPI(t, env.h, env.viewID, componentID, position{100.0, 200.0})
+			env.testCtx.addComponentViaAPI(t, env.h, elementPlacement{env.viewID, componentID, position{100.0, 200.0}})
 
 			body, _ := json.Marshal(UpdateElementColorRequest{Color: tc.color})
-			w, req := env.testCtx.makeRequest(t, http.MethodPatch, "/api/v1/views/"+env.viewID+"/components/"+componentID+"/color", body, map[string]string{
+			w, req := env.testCtx.makeRequest(t, requestSpec{http.MethodPatch, "/api/v1/views/" + env.viewID + "/components/" + componentID + "/color", body, map[string]string{
 				"id":          env.viewID,
 				"componentId": componentID,
-			})
+			}})
 			env.h.colorHandlers.UpdateComponentColor(w, req)
 
 			assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -207,10 +207,10 @@ func TestClearElementColor_Integration(t *testing.T) {
 			env.addElement(t, et, elementID, position{100.0, 200.0})
 			env.setColor(t, et, elementID, "#FF5733")
 
-			w, req := env.testCtx.makeRequest(t, http.MethodDelete, "/api/v1/views/"+env.viewID+"/"+et.urlPath+"/"+elementID+"/color", nil, map[string]string{
+			w, req := env.testCtx.makeRequest(t, requestSpec{http.MethodDelete, "/api/v1/views/" + env.viewID + "/" + et.urlPath + "/" + elementID + "/color", nil, map[string]string{
 				"id":        env.viewID,
 				et.urlParam: elementID,
-			})
+			}})
 			et.clearFn(env.h)(w, req)
 			require.Equal(t, http.StatusNoContent, w.Code)
 
@@ -246,8 +246,8 @@ func TestGetViewByID_ReturnsHATEOASLinksForColors_Integration(t *testing.T) {
 
 	componentID := uniqueElementID("comp")
 	capabilityID := uniqueElementID("cap")
-	env.testCtx.addComponentViaAPI(t, env.h, env.viewID, componentID, position{100.0, 200.0})
-	env.testCtx.addCapabilityViaAPI(t, env.h, env.viewID, capabilityID, position{150.0, 250.0})
+	env.testCtx.addComponentViaAPI(t, env.h, elementPlacement{env.viewID, componentID, position{100.0, 200.0}})
+	env.testCtx.addCapabilityViaAPI(t, env.h, elementPlacement{env.viewID, capabilityID, position{150.0, 250.0}})
 
 	view := env.testCtx.getViewViaAPI(t, env.h, env.viewID)
 

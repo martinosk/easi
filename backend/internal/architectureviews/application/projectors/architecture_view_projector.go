@@ -121,7 +121,10 @@ func (p *ArchitectureViewProjector) projectViewDeleted(ctx context.Context, even
 		return err
 	}
 
-	return p.readModel.MarkViewAsDeleted(ctx, event.ViewID)
+	if err := p.readModel.MarkViewAsDeleted(ctx, event.ViewID); err != nil {
+		return err
+	}
+	return p.readModel.RemoveAllPlacements(ctx, event.ViewID)
 }
 
 func (p *ArchitectureViewProjector) projectDefaultViewChanged(ctx context.Context, eventData []byte) error {

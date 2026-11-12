@@ -121,7 +121,7 @@ func (h *ViewComponentHandlers) AddComponentToView(w http.ResponseWriter, r *htt
 
 // UpdateComponentPosition godoc
 // @Summary Update component position in a view
-// @Description Updates the position of a component in an architecture view
+// @Description Updates the position of a component already in an architecture view. Never adds the component to the view.
 // @Tags views
 // @Accept json
 // @Produce json
@@ -130,7 +130,8 @@ func (h *ViewComponentHandlers) AddComponentToView(w http.ResponseWriter, r *htt
 // @Param position body UpdatePositionRequest true "Position data"
 // @Success 204
 // @Failure 400 {object} sharedAPI.ErrorResponse
-// @Failure 404 {object} sharedAPI.ErrorResponse "View or component not found"
+// @Failure 403 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse "View not found or component not in view"
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id}/components/{componentId}/position [patch]
 func (h *ViewComponentHandlers) UpdateComponentPosition(w http.ResponseWriter, r *http.Request) {
@@ -161,7 +162,7 @@ func (h *ViewComponentHandlers) UpdateComponentPosition(w http.ResponseWriter, r
 
 // UpdateMultiplePositions godoc
 // @Summary Update multiple component positions
-// @Description Updates positions for multiple components in a view in a single operation
+// @Description Updates positions for multiple components in a view in a single operation. Components that are not in the view are skipped; the layout never adds a component to the view.
 // @Tags views
 // @Accept json
 // @Produce json
@@ -170,6 +171,7 @@ func (h *ViewComponentHandlers) UpdateComponentPosition(w http.ResponseWriter, r
 // @Success 204
 // @Failure 400 {object} sharedAPI.ErrorResponse
 // @Failure 403 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse "View not found"
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id}/layout [patch]
 func (h *ViewComponentHandlers) UpdateMultiplePositions(w http.ResponseWriter, r *http.Request) {

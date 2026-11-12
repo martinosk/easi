@@ -19,6 +19,11 @@ import (
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 )
 
+const (
+	sessionTestTenantID  = "acme"
+	sessionTestUserEmail = "user@acme.com"
+)
+
 type mockUserRepository struct {
 	user *UserDTO
 	err  error
@@ -59,8 +64,8 @@ type sessionTestContext struct {
 	scsManager     *scs.SessionManager
 }
 
-func createAuthenticatedSession(t *testing.T, ctx sessionTestContext, tenantID string, email string) []*http.Cookie {
-	tenantIDVO, _ := sharedvo.NewTenantID(tenantID)
+func createAuthenticatedSession(t *testing.T, ctx sessionTestContext, email string) []*http.Cookie {
+	tenantIDVO, _ := sharedvo.NewTenantID(sessionTestTenantID)
 	preAuth := session.NewPreAuthSession(tenantIDVO, "acme.com", "http://localhost:3000")
 
 	userInfo := session.UserInfo{
@@ -112,7 +117,7 @@ func TestGetCurrentSession_Authenticated(t *testing.T) {
 		&mockTenantRepository{tenant: mockTenant},
 	)
 
-	cookies := createAuthenticatedSession(t, sessionTestContext{sessionManager, scsManager}, "acme", "john@acme.com")
+	cookies := createAuthenticatedSession(t, sessionTestContext{sessionManager, scsManager}, "john@acme.com")
 
 	req := httptest.NewRequest(http.MethodGet, "/auth/sessions/current", nil)
 	for _, c := range cookies {
@@ -212,7 +217,7 @@ func TestGetCurrentSession_AdminPermissions(t *testing.T) {
 		&mockTenantRepository{tenant: mockTenant},
 	)
 
-	cookies := createAuthenticatedSession(t, sessionTestContext{sessionManager, scsManager}, "acme", "admin@acme.com")
+	cookies := createAuthenticatedSession(t, sessionTestContext{sessionManager, scsManager}, "admin@acme.com")
 
 	req := httptest.NewRequest(http.MethodGet, "/auth/sessions/current", nil)
 	for _, c := range cookies {
@@ -241,7 +246,7 @@ func TestDeleteCurrentSession_Success(t *testing.T) {
 		&mockTenantRepository{},
 	)
 
-	cookies := createAuthenticatedSession(t, sessionTestContext{sessionManager, scsManager}, "acme", "john@acme.com")
+	cookies := createAuthenticatedSession(t, sessionTestContext{sessionManager, scsManager}, "john@acme.com")
 
 	req := httptest.NewRequest(http.MethodDelete, "/auth/sessions/current", nil)
 	for _, c := range cookies {
@@ -279,7 +284,7 @@ func serveCurrentSession(user *UserDTO, scsManager *scs.SessionManager, sessionM
 
 func TestGetCurrentSession_DisabledUser_UnauthorizedAndSessionDestroyed(t *testing.T) {
 	_, scsManager, sessionManager := setupSessionTestHandler(&mockUserRepository{}, &mockTenantRepository{})
-	cookies := createAuthenticatedSession(t, sessionTestContext{sessionManager, scsManager}, "acme", "john@acme.com")
+	cookies := createAuthenticatedSession(t, sessionTestContext{sessionManager, scsManager}, "john@acme.com")
 	john := func(status string) *UserDTO {
 		return &UserDTO{ID: uuid.New(), Email: "john@acme.com", Name: "John Doe", Role: "architect", Status: status}
 	}

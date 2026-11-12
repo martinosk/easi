@@ -12,6 +12,7 @@ func init() {
 
 	registry.RegisterNotFound(repositories.ErrViewNotFound, "View not found")
 	registry.RegisterNotFound(aggregates.ErrComponentNotFound, "Component not found in view")
+	registry.RegisterNotFound(repositories.ErrPlacementNotFound, "Element not found in view")
 	registry.RegisterConflict(aggregates.ErrComponentAlreadyInView, "Component already exists in view")
 	registry.RegisterConflict(aggregates.ErrCannotDeleteDefaultView, "Cannot delete the default view")
 	registry.RegisterConflict(aggregates.ErrViewAlreadyDeleted, "View has been deleted")

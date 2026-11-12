@@ -11,7 +11,8 @@ import (
 )
 
 type LayoutRepository interface {
-	UpsertElementPosition(ctx context.Context, ref repositories.ElementRef, pos repositories.Position) error
+	PlaceElement(ctx context.Context, ref repositories.ElementRef, pos repositories.Position) error
+	MoveElement(ctx context.Context, ref repositories.ElementRef, pos repositories.Position) error
 	DeleteElementPosition(ctx context.Context, ref repositories.ElementRef) error
 }
 
@@ -85,7 +86,7 @@ func withViewElement[T any](h *ViewElementHandlers, w http.ResponseWriter, r *ht
 	}
 
 	if err := execute(r.Context(), viewID, elementID, payload); err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, op.errorMsg)
+		sharedAPI.HandleErrorWithDefault(w, err, op.errorMsg)
 		return
 	}
 
@@ -99,7 +100,7 @@ func (h *ViewElementHandlers) updateElementPosition(w http.ResponseWriter, r *ht
 		},
 		func(ctx context.Context, viewID, elementID string, req ElementPositionRequest) error {
 			ref := repositories.ElementRef{ViewID: viewID, ElementID: elementID, ElementType: elementType}
-			return h.layoutRepo.UpsertElementPosition(ctx, ref, repositories.Position{X: req.X, Y: req.Y})
+			return h.layoutRepo.MoveElement(ctx, ref, repositories.Position{X: req.X, Y: req.Y})
 		})
 }
 
@@ -162,7 +163,7 @@ func handleAddElement[T addElementRequest](h *ViewElementHandlers, w http.Respon
 	}
 
 	ref := repositories.ElementRef{ViewID: viewID, ElementID: req.entityID(), ElementType: cfg.elementType}
-	if err := h.layoutRepo.UpsertElementPosition(r.Context(), ref, req.position()); err != nil {
+	if err := h.layoutRepo.PlaceElement(r.Context(), ref, req.position()); err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, cfg.errorMsg)
 		return
 	}
@@ -195,7 +196,7 @@ func (h *ViewElementHandlers) AddCapabilityToView(w http.ResponseWriter, r *http
 
 // UpdateCapabilityPosition godoc
 // @Summary Update capability position in a view
-// @Description Updates the position of a capability node in an architecture view
+// @Description Updates the position of a capability node already placed in an architecture view. Never adds the capability to the view.
 // @Tags views
 // @Accept json
 // @Produce json
@@ -205,6 +206,7 @@ func (h *ViewElementHandlers) AddCapabilityToView(w http.ResponseWriter, r *http
 // @Success 204
 // @Failure 400 {object} sharedAPI.ErrorResponse
 // @Failure 403 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse "View not found or element not in view"
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id}/capabilities/{capabilityId}/position [patch]
 func (h *ViewElementHandlers) UpdateCapabilityPosition(w http.ResponseWriter, r *http.Request) {
@@ -250,7 +252,7 @@ func (h *ViewElementHandlers) AddOriginEntityToView(w http.ResponseWriter, r *ht
 
 // UpdateOriginEntityPosition godoc
 // @Summary Update origin entity position in a view
-// @Description Updates the position of an origin entity node in an architecture view
+// @Description Updates the position of an origin entity node already placed in an architecture view. Never adds the origin entity to the view.
 // @Tags views
 // @Accept json
 // @Produce json
@@ -260,6 +262,7 @@ func (h *ViewElementHandlers) AddOriginEntityToView(w http.ResponseWriter, r *ht
 // @Success 204
 // @Failure 400 {object} sharedAPI.ErrorResponse
 // @Failure 403 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse "View not found or element not in view"
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id}/origin-entities/{originEntityId}/position [patch]
 func (h *ViewElementHandlers) UpdateOriginEntityPosition(w http.ResponseWriter, r *http.Request) {

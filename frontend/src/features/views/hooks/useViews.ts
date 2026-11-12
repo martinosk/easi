@@ -19,6 +19,7 @@ import {
 } from '../../../api/types';
 import { invalidateFor } from '../../../lib/invalidateFor';
 import { viewsApi } from '../api';
+import { holdPlacement } from '../api/placementSync';
 import { viewsMutationEffects } from '../mutationEffects';
 import { viewsQueryKeys } from '../queryKeys';
 
@@ -49,15 +50,22 @@ type ViewMutationOptions<TVariables extends { viewId: ViewId }, TData = void> = 
   mutationFn: (variables: TVariables) => Promise<TData>;
   errorMessage: string;
   showErrorToast?: boolean;
+  addsElement?: (variables: TVariables) => string;
 };
 
 function useViewMutation<TVariables extends { viewId: ViewId }, TData = void>(
   options: ViewMutationOptions<TVariables, TData>,
 ) {
   const queryClient = useQueryClient();
-  const { mutationFn, errorMessage, showErrorToast = true } = options;
+  const { mutationFn, errorMessage, showErrorToast = true, addsElement } = options;
   return useMutation({
     mutationFn,
+    onMutate: (variables) => ({
+      releasePlacement: addsElement ? holdPlacement(variables.viewId, addsElement(variables)) : undefined,
+    }),
+    onSettled: (_data, _error, _variables, context) => {
+      context?.releasePlacement?.();
+    },
     retry: (failureCount, error) => isConcurrencyConflict(error) && failureCount < MAX_CONCURRENCY_RETRIES,
     retryDelay: (attempt) => Math.min(100 * 2 ** attempt, 1000) + Math.random() * 100,
     onSuccess: (_, variables) => {
@@ -156,6 +164,7 @@ export function useAddComponentToView() {
   return useViewMutation<{ viewId: ViewId; request: AddComponentToViewRequest }>({
     mutationFn: ({ viewId, request }) => viewsApi.addComponent(viewId, request),
     errorMessage: 'Failed to add component to view',
+    addsElement: ({ request }) => request.componentId,
   });
 }
 
@@ -186,6 +195,7 @@ export function useAddCapabilityToView() {
   return useViewMutation<{ viewId: ViewId; request: AddCapabilityToViewRequest }>({
     mutationFn: ({ viewId, request }) => viewsApi.addCapability(viewId, request),
     errorMessage: 'Failed to add capability to view',
+    addsElement: ({ request }) => request.capabilityId,
   });
 }
 
@@ -237,6 +247,7 @@ export function useAddOriginEntityToView() {
   return useViewMutation<{ viewId: ViewId; request: AddOriginEntityToViewRequest }>({
     mutationFn: ({ viewId, request }) => viewsApi.addOriginEntity(viewId, request),
     errorMessage: 'Failed to add origin entity to view',
+    addsElement: ({ request }) => request.originEntityId,
   });
 }
 

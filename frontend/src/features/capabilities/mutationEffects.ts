@@ -6,6 +6,7 @@ import { artifactCreatorsQueryKeys } from '../navigation/hooks/useArtifactCreato
 import { onePagerQualityQueryKeys } from '../one-pager-quality/queryKeys';
 import { onePagersQueryKeys } from '../one-pagers/queryKeys';
 import { valueStreamsQueryKeys } from '../value-streams/queryKeys';
+import { viewsQueryKeys } from '../views/queryKeys';
 import { capabilitiesQueryKeys } from './queryKeys';
 
 function onePagerFreshness(capabilityId: string) {
@@ -37,6 +38,7 @@ export const capabilitiesMutationEffects = {
     ...(context.domainId ? [businessDomainsQueryKeys.capabilities(context.domainId)] : []),
     businessDomainsQueryKeys.lists(),
     valueStreamsQueryKeys.all,
+    viewsQueryKeys.all,
     onePagersQueryKeys.completenessForSubjectType('capability'),
   ],
 
@@ -50,6 +52,7 @@ export const capabilitiesMutationEffects = {
     businessDomainsQueryKeys.details(),
     ...(context.domainId ? [businessDomainsQueryKeys.capabilities(context.domainId)] : []),
     valueStreamsQueryKeys.all,
+    viewsQueryKeys.all,
     artifactCreatorsQueryKeys.all,
     auditQueryKeys.history(context.id),
     onePagersQueryKeys.completenessForSubjectType('capability'),
