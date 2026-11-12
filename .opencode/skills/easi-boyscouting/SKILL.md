@@ -71,7 +71,7 @@ Hand off to `easi-codehealth`.
 When a formatter or auto-fixing linter (`biome check --write`, `biome format`, `gofmt`, `golangci-lint run --fix`) rewrites files outside the task's change set, those rewrites are boyscouting. **Keep them. Never revert them.**
 
 1. Check the rewrite is formatting/lint-only (`git diff` on those files: whitespace, wrapping, import order, safe lint fixes). No behavior change.
-2. Stage only those files and commit them on the branch as their own commit, e.g. `style: apply biome formatting to <area>`. Do not mix them into the feature commit.
+2. Commit only those files, leaving anything already staged untouched: `git commit --only -m "style: apply biome formatting to <area>" -- <files>`. `--only` commits exactly the listed paths and keeps the rest of the index as it was, so staged feature changes never leak into the `style:` commit.
 3. Re-run the build and the affected tests; a formatter fix that breaks the build is fixed, not reverted.
 4. Unsafe fixes the tool only *suggests* (`--unsafe`) are not applied blindly — review them like any other in-branch fix.
 
