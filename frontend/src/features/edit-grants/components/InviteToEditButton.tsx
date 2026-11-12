@@ -29,12 +29,7 @@ export function InviteToEditButton({ resource, artifactType, artifactId, size = 
 
   return (
     <>
-      <Button
-        variant="default"
-        size={size}
-        onClick={() => setIsDialogOpen(true)}
-        data-testid="invite-to-edit-btn"
-      >
+      <Button variant="default" size={size} onClick={() => setIsDialogOpen(true)} data-testid="invite-to-edit-btn">
         Invite to Edit...
       </Button>
       <InviteToEditDialog

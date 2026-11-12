@@ -1,7 +1,10 @@
 import { Badge, Button, Group } from '@mantine/core';
 import type { CapabilityId, ComponentId } from '../../../api/types';
 import { hasLink } from '../../../utils/hateoas';
-import { useAssignRealizationRole, useClearRealizationRole } from '../../architecture-direction/hooks/useRealizationRoles';
+import {
+  useAssignRealizationRole,
+  useClearRealizationRole,
+} from '../../architecture-direction/hooks/useRealizationRoles';
 import type { RealizationRole, RealizationRoleAssignment } from '../../architecture-direction/types';
 
 const ROLE_LABEL: Record<RealizationRole, string> = {

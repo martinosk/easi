@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  componentDescriptionSchema,
-  componentNameSchema,
-  createComponentSchema,
-} from './component';
+import { componentDescriptionSchema, componentNameSchema, createComponentSchema } from './component';
 
 describe('componentNameSchema', () => {
   it('should accept valid names', () => {

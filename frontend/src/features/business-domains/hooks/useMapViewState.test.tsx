@@ -138,7 +138,10 @@ describe('resolveMapDomainId', () => {
 });
 
 describe('useMapDomain', () => {
-  const domains = [buildBusinessDomain({ id: toBusinessDomainId('dom-a') }), buildBusinessDomain({ id: toBusinessDomainId('dom-b') })];
+  const domains = [
+    buildBusinessDomain({ id: toBusinessDomainId('dom-a') }),
+    buildBusinessDomain({ id: toBusinessDomainId('dom-b') }),
+  ];
 
   it('selects the first domain by default', () => {
     const { result } = renderHook(() => useMapDomain(domains));

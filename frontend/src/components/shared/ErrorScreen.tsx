@@ -1,5 +1,5 @@
-import React from 'react';
 import { Button, Center, Stack, Text, Title } from '@mantine/core';
+import React from 'react';
 import { type ScreenFill, screenFillProps } from './screenFill';
 
 interface ErrorScreenProps {

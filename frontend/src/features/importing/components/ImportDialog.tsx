@@ -130,7 +130,10 @@ interface StepContentProps {
   onClose: () => void;
 }
 
-function PreviewContent({ session, ...rest }: {
+function PreviewContent({
+  session,
+  ...rest
+}: {
   session: Session;
   isLoading: boolean;
   eaOwnerName: string | undefined;
@@ -152,7 +155,19 @@ function ResultsContent({ session, onClose }: { session: Session; onClose: () =>
 }
 
 function StepContent(props: StepContentProps) {
-  const { step, session, isLoading, error, businessDomains, eaOwnerCandidates, eaOwnerName, onUpload, onConfirm, onCancel, onClose } = props;
+  const {
+    step,
+    session,
+    isLoading,
+    error,
+    businessDomains,
+    eaOwnerCandidates,
+    eaOwnerName,
+    onUpload,
+    onConfirm,
+    onCancel,
+    onClose,
+  } = props;
 
   switch (step) {
     case 'upload':

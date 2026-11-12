@@ -160,7 +160,9 @@ function CustomRow({ field, attribute, actions }: CustomRowProps) {
           onRetireOption={actions.schema.onRetireOption}
         />
       )}
-      {attribute?.type === 'number' && <NumberFieldBoundsEditor attribute={attribute} onSave={actions.schema.onSetBounds} />}
+      {attribute?.type === 'number' && (
+        <NumberFieldBoundsEditor attribute={attribute} onSave={actions.schema.onSetBounds} />
+      )}
     </Stack>
   );
 }

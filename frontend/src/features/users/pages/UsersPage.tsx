@@ -442,30 +442,15 @@ function UserRowActions({ user, isCurrentUser, onChangeRole, onDisable, onEnable
 
   return (
     <Group gap="sm">
-      <Button
-        size="xs"
-        variant="default"
-        onClick={() => onChangeRole(user)}
-        data-testid={`change-role-btn-${user.id}`}
-      >
+      <Button size="xs" variant="default" onClick={() => onChangeRole(user)} data-testid={`change-role-btn-${user.id}`}>
         Change Role
       </Button>
       {user.status === 'active' ? (
-        <Button
-          size="xs"
-          color="red"
-          onClick={() => onDisable(user)}
-          data-testid={`disable-btn-${user.id}`}
-        >
+        <Button size="xs" color="red" onClick={() => onDisable(user)} data-testid={`disable-btn-${user.id}`}>
           Disable
         </Button>
       ) : (
-        <Button
-          size="xs"
-          color="green"
-          onClick={() => onEnable(user)}
-          data-testid={`enable-btn-${user.id}`}
-        >
+        <Button size="xs" color="green" onClick={() => onEnable(user)} data-testid={`enable-btn-${user.id}`}>
           Enable
         </Button>
       )}

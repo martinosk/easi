@@ -111,12 +111,7 @@ export const ComponentOwnershipSection: React.FC<ComponentOwnershipSectionProps>
         </Group>
         <OwnershipActions component={component} onOpenDialog={setDialogMode} />
         {dialogMode && (
-          <ComponentOwnerDialog
-            mode={dialogMode}
-            component={component}
-            isOpen
-            onClose={() => setDialogMode(null)}
-          />
+          <ComponentOwnerDialog mode={dialogMode} component={component} isOpen onClose={() => setDialogMode(null)} />
         )}
       </Stack>
     </DetailField>

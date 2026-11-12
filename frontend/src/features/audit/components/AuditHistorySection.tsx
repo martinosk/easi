@@ -67,14 +67,7 @@ function AuditEntryCard({ entry }: AuditEntryCardProps) {
 
   return (
     <Paper withBorder radius="sm" bg="gray.0">
-      <UnstyledButton
-        onClick={toggle}
-        aria-expanded={opened}
-        w="100%"
-        px="sm"
-        py="xs"
-        ta="left"
-      >
+      <UnstyledButton onClick={toggle} aria-expanded={opened} w="100%" px="sm" py="xs" ta="left">
         <Group justify="space-between" wrap="nowrap" align="flex-start">
           <Stack gap={2}>
             <Text size="sm" fw={500}>

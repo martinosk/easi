@@ -1,5 +1,5 @@
-import React from 'react';
 import { Center, Loader, Stack, Text } from '@mantine/core';
+import React from 'react';
 import { type ScreenFill, screenFillProps } from './screenFill';
 
 interface LoadingScreenProps {

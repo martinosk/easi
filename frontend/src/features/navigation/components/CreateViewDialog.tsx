@@ -1,5 +1,5 @@
-import React from 'react';
 import { Button, Group, Modal, Stack, TextInput } from '@mantine/core';
+import React from 'react';
 
 interface CreateViewDialogProps {
   isOpen: boolean;

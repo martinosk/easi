@@ -114,10 +114,22 @@ describe('buildTimeline ordering', () => {
   it('orders journeys by target period ascending, undated last, ties by capability name', () => {
     const model = buildTimeline({
       journeys: [
-        buildCapabilityJourney({ capabilityId: 'c1', capabilityName: 'Late', targetPeriod: { year: 2027, quarter: 1 } }),
+        buildCapabilityJourney({
+          capabilityId: 'c1',
+          capabilityName: 'Late',
+          targetPeriod: { year: 2027, quarter: 1 },
+        }),
         buildCapabilityJourney({ capabilityId: 'c2', capabilityName: 'Undated', targetPeriod: null }),
-        buildCapabilityJourney({ capabilityId: 'c3', capabilityName: 'Beta', targetPeriod: { year: 2026, quarter: 4 } }),
-        buildCapabilityJourney({ capabilityId: 'c4', capabilityName: 'Alpha', targetPeriod: { year: 2026, quarter: 4 } }),
+        buildCapabilityJourney({
+          capabilityId: 'c3',
+          capabilityName: 'Beta',
+          targetPeriod: { year: 2026, quarter: 4 },
+        }),
+        buildCapabilityJourney({
+          capabilityId: 'c4',
+          capabilityName: 'Alpha',
+          targetPeriod: { year: 2026, quarter: 4 },
+        }),
       ],
       domainNameFor: domainNames({ c1: 'Ferry', c2: 'Ferry', c3: 'Ferry', c4: 'Ferry' }),
       current: CURRENT,

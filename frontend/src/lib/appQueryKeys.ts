@@ -6,7 +6,8 @@ export const metadataQueryKeys = {
   ownershipModels: () => [...metadataQueryKeys.all, 'ownershipModels'] as const,
   strategyPillarsConfig: () => [...metadataQueryKeys.all, 'strategyPillarsConfig'] as const,
   subjectAttributeSchemas: () => [...metadataQueryKeys.all, 'subjectAttributeSchema'] as const,
-  subjectAttributeSchema: (subjectType: string) => [...metadataQueryKeys.subjectAttributeSchemas(), subjectType] as const,
+  subjectAttributeSchema: (subjectType: string) =>
+    [...metadataQueryKeys.subjectAttributeSchemas(), subjectType] as const,
   version: () => [...metadataQueryKeys.all, 'version'] as const,
 };
 

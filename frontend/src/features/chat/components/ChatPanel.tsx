@@ -5,10 +5,10 @@ import { chatApi } from '../api/chatApi';
 import { useChat } from '../hooks/useChat';
 import { useConversations } from '../hooks/useConversations';
 import { ChatInput } from './ChatInput';
+import classes from './ChatPanel.module.css';
 import { ChatPanelHeader } from './ChatPanelHeader';
 import { ConversationList } from './ConversationList';
 import { MessageList } from './MessageList';
-import classes from './ChatPanel.module.css';
 
 const PANEL_SIZE = 'var(--chat-panel-width)';
 const FULL_WIDTH = '100%';

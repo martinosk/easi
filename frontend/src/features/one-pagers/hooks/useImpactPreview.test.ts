@@ -50,9 +50,24 @@ describe('useImpactPreview', () => {
   });
 
   it.each([
-    { label: 'an existing field', fieldId: 'contract-link' as string | undefined, fieldKind: 'custom' as const, affectedSubjectCount: 37 },
-    { label: 'a new field with no fieldId', fieldId: undefined, fieldKind: 'custom' as const, affectedSubjectCount: 120 },
-    { label: 'a built-in field through the builtIn field kind', fieldId: 'experts' as string | undefined, fieldKind: 'builtIn' as const, affectedSubjectCount: 40 },
+    {
+      label: 'an existing field',
+      fieldId: 'contract-link' as string | undefined,
+      fieldKind: 'custom' as const,
+      affectedSubjectCount: 37,
+    },
+    {
+      label: 'a new field with no fieldId',
+      fieldId: undefined,
+      fieldKind: 'custom' as const,
+      affectedSubjectCount: 120,
+    },
+    {
+      label: 'a built-in field through the builtIn field kind',
+      fieldId: 'experts' as string | undefined,
+      fieldKind: 'builtIn' as const,
+      affectedSubjectCount: 40,
+    },
   ])('fetches the preview for $label', async ({ fieldId, fieldKind, affectedSubjectCount }) => {
     const configuration = buildConfiguration();
     vi.mocked(onePagersApi.getImpactPreview).mockResolvedValue({

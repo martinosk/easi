@@ -75,7 +75,8 @@ function MapBoxApps({ realizations, onChipClick }: MapBoxAppsProps) {
 }
 
 function MapBox({ node, ...boxProps }: MapBoxProps) {
-  const { searchQuery, showApps, getColorForValue, getRealizationsForCapability, onCapabilityClick, onChipClick } = boxProps;
+  const { searchQuery, showApps, getColorForValue, getRealizationsForCapability, onCapabilityClick, onChipClick } =
+    boxProps;
   const { capability } = node;
   const dimmed = Boolean(searchQuery) && !nodeMatchesSearch(node, searchQuery, getRealizationsForCapability);
   const { className, style } = cellChrome({ capability, dimmed, getColorForValue });

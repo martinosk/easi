@@ -352,9 +352,7 @@ describe('AIConfigurationSettings', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Test Connection' }));
 
     await waitFor(() => {
-      expect(assistantConfigApi.testConnection).toHaveBeenCalledWith(
-        expect.objectContaining({ model: 'gpt-4o-mini' }),
-      );
+      expect(assistantConfigApi.testConnection).toHaveBeenCalledWith(expect.objectContaining({ model: 'gpt-4o-mini' }));
     });
   });
 });

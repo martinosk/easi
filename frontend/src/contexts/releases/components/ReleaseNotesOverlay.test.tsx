@@ -1,5 +1,5 @@
-import type { ReactElement } from 'react';
 import { screen } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Release } from '../../../api/types';
 import { toReleaseVersion } from '../../../api/types';

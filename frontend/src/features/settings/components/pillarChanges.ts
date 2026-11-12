@@ -38,7 +38,11 @@ export function countActive(pillars: EditablePillar[]): number {
   return pillars.filter((p) => (p.active || p.isNew) && !p.markedForDeletion).length;
 }
 
-export function patchPillarAt(pillars: EditablePillar[], index: number, patch: Partial<EditablePillar>): EditablePillar[] {
+export function patchPillarAt(
+  pillars: EditablePillar[],
+  index: number,
+  patch: Partial<EditablePillar>,
+): EditablePillar[] {
   return pillars.map((row, i) => (i === index ? { ...row, ...patch } : row));
 }
 

@@ -1,7 +1,7 @@
 import { Group, SimpleGrid, Text } from '@mantine/core';
 import type { ApplicationsTile, CapabilitiesTile, DomainsTile, HomePortfolio } from '../types';
-import { TimeTile } from './TimeTile';
 import { Tile, TileTotal } from './Tile';
+import { TimeTile } from './TimeTile';
 
 function CapabilitiesTileView({ capabilities }: { capabilities: CapabilitiesTile }) {
   const { active, planned, deprecated } = capabilities.byStatus;

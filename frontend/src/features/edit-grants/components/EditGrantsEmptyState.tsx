@@ -5,8 +5,7 @@ interface EditGrantsEmptyStateProps {
 }
 
 export function EditGrantsEmptyState({ statusFilter }: EditGrantsEmptyStateProps) {
-  const message =
-    statusFilter === 'all' ? 'No edit grants found' : `No ${statusFilter} edit grants`;
+  const message = statusFilter === 'all' ? 'No edit grants found' : `No ${statusFilter} edit grants`;
 
   return (
     <Stack align="center" gap="md" py="xl">

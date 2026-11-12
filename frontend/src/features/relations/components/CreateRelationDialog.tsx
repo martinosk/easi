@@ -209,7 +209,9 @@ export const CreateRelationDialog: React.FC<CreateRelationDialogProps> = ({
             containmentAllowed={dialog.containmentAllowed}
           />
 
-          {!dialog.isContainment && <RelationDetailFields register={register} errors={errors} isPending={dialog.isPending} />}
+          {!dialog.isContainment && (
+            <RelationDetailFields register={register} errors={errors} isPending={dialog.isPending} />
+          )}
 
           {dialog.backendError && (
             <Alert color="red" data-testid="create-relation-error">
