@@ -66,6 +66,17 @@ Re-walk the bucket list one more time. The goal is not "exhaustively perfect" �
 
 Hand off to `easi-codehealth`.
 
+## Formatter and Linter Fixes Are Boyscouting
+
+When a formatter or auto-fixing linter (`biome check --write`, `biome format`, `gofmt`, `golangci-lint run --fix`) rewrites files outside the task's change set, those rewrites are boyscouting. **Keep them. Never revert them.**
+
+1. Check the rewrite is formatting/lint-only (`git diff` on those files: whitespace, wrapping, import order, safe lint fixes). No behavior change.
+2. Stage only those files and commit them on the branch as their own commit, e.g. `style: apply biome formatting to <area>`. Do not mix them into the feature commit.
+3. Re-run the build and the affected tests; a formatter fix that breaks the build is fixed, not reverted.
+4. Unsafe fixes the tool only *suggests* (`--unsafe`) are not applied blindly — review them like any other in-branch fix.
+
+Reverting tool fixes to keep the diff small throws away free cleanup and leaves the next person to trip over the same drift.
+
 ## Decision Heuristics
 
 | Situation | Boyscout? |
@@ -83,6 +94,7 @@ Hand off to `easi-codehealth`.
 | Pulling a duplicated pattern into a shared abstraction | Only if there are 3+ real callers AND the abstraction sits inside a single bounded context. |
 | Architectural restructuring (move package, split aggregate, change context boundary) | Always spec-worthy. Never boyscout. |
 | Frontend visual polish unrelated to the change | No. The diff stays focused. |
+| Formatter/linter rewrote files outside the change set | Yes — keep them, separate `style:` commit. Never revert. |
 
 ## Rationalization Prevention
 
@@ -96,6 +108,7 @@ Hand off to `easi-codehealth`.
 | "I might break something I don't understand." | Then it's not in your affected area. Leave it. |
 | "This file is at 9.8 already, close enough." | Per [[codescene-refactoring]] and `easi-codehealth`: below 10.0 is below 10.0. If it's in the affected area, fix it. |
 | "The duplication is only two call sites — Rule of Three says wait." | Correct. Leave it. Note it for the next time you touch the area. |
+| "Biome/gofmt touched files I didn't change — revert them to keep the diff focused." | No. Tool fixes are boyscouting: keep them in a separate `style:` commit. |
 | "I should also clean up this other module while I'm here." | Out of area. Stop. Open a separate branch or a spec. |
 | "The change feels small enough to skip the spec." | If you're rationalizing past the "spec-worthy" bucket, write the spec. Reviewers' confusion costs more than your saved minute. |
 

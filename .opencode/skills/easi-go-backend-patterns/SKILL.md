@@ -112,3 +112,7 @@ var deserializers = repository.NewEventDeserializers(
 )
 ```
 
+
+## Formatter and Linter Fixes
+
+`gofmt` / `golangci-lint run --fix` rewrites to files outside your change are boyscouting: keep them and commit them separately (`style: gofmt <package>`); never revert them. See `easi-boyscouting`.
