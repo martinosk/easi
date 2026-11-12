@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
-import type { Capability, Component } from '../../../api/types';
+import type { Component } from '../../../api/types';
 import { toAcquiredEntityId, toInternalTeamId, toVendorId } from '../../../api/types';
-import { useCapabilities, useDeleteCapability } from '../../capabilities/hooks/useCapabilities';
+import { useSelectedCapabilityDeletion } from '../../capabilities/hooks/useCapabilityDeletionPlan';
 import { useComponents, useDeleteComponent } from '../../components/hooks/useComponents';
 import { useDeleteAcquiredEntity } from '../../origin-entities/hooks/useAcquiredEntities';
 import { useDeleteInternalTeam } from '../../origin-entities/hooks/useInternalTeams';
@@ -36,21 +36,14 @@ async function executeBulkDelete(
   return { succeeded, failed };
 }
 
-export function useTreeBulkDelete() {
+function useTreeItemDelete(deleteCapability: (item: TreeSelectedItem) => Promise<void>) {
   const { data: components = [] } = useComponents();
-  const { data: capabilities = [] } = useCapabilities();
-
   const deleteComponentMutation = useDeleteComponent();
-  const deleteCapabilityMutation = useDeleteCapability();
   const deleteAcquiredEntityMutation = useDeleteAcquiredEntity();
   const deleteVendorMutation = useDeleteVendor();
   const deleteInternalTeamMutation = useDeleteInternalTeam();
 
-  const [bulkItems, setBulkItems] = useState<TreeSelectedItem[] | null>(null);
-  const [isExecuting, setIsExecuting] = useState(false);
-  const [result, setResult] = useState<TreeBulkOperationResult | null>(null);
-
-  const deleteItem = useCallback(
+  return useCallback(
     async (item: TreeSelectedItem): Promise<void> => {
       const handlers: Record<TreeItemType, () => Promise<void>> = {
         component: () => {
@@ -58,11 +51,7 @@ export function useTreeBulkDelete() {
           if (!component) throw new Error(`Component not found: ${item.name}`);
           return deleteComponentMutation.mutateAsync(component);
         },
-        capability: () => {
-          const capability = capabilities.find((c: Capability) => c.id === item.id);
-          if (!capability) throw new Error(`Capability not found: ${item.name}`);
-          return deleteCapabilityMutation.mutateAsync({ capability });
-        },
+        capability: () => deleteCapability(item),
         acquired: () => deleteAcquiredEntityMutation.mutateAsync({ id: toAcquiredEntityId(item.id), name: item.name }),
         vendor: () => deleteVendorMutation.mutateAsync({ id: toVendorId(item.id), name: item.name }),
         team: () => deleteInternalTeamMutation.mutateAsync({ id: toInternalTeamId(item.id), name: item.name }),
@@ -71,14 +60,25 @@ export function useTreeBulkDelete() {
     },
     [
       components,
-      capabilities,
+      deleteCapability,
       deleteComponentMutation,
-      deleteCapabilityMutation,
       deleteAcquiredEntityMutation,
       deleteVendorMutation,
       deleteInternalTeamMutation,
     ],
   );
+}
+
+export function useTreeBulkDelete() {
+  const [bulkItems, setBulkItems] = useState<TreeSelectedItem[] | null>(null);
+  const capabilityIds = useMemo(
+    () => (bulkItems ?? []).filter((i) => i.type === 'capability').map((i) => i.id),
+    [bulkItems],
+  );
+  const { plan: capabilityDeletionPlan, deleteCapability } = useSelectedCapabilityDeletion(capabilityIds);
+  const deleteItem = useTreeItemDelete(deleteCapability);
+  const [isExecuting, setIsExecuting] = useState(false);
+  const [result, setResult] = useState<TreeBulkOperationResult | null>(null);
 
   const requestBulkDelete = useCallback((items: TreeSelectedItem[]) => {
     setBulkItems(items);
@@ -92,6 +92,7 @@ export function useTreeBulkDelete() {
     setResult(null);
 
     const operationResult = await executeBulkDelete(bulkItems, deleteItem);
+    if (operationResult.failed.length > 0) capabilityDeletionPlan.retry();
 
     setIsExecuting(false);
 
@@ -100,7 +101,7 @@ export function useTreeBulkDelete() {
     } else {
       setBulkItems(null);
     }
-  }, [bulkItems, deleteItem]);
+  }, [bulkItems, deleteItem, capabilityDeletionPlan]);
 
   const handleCancel = useCallback(() => {
     setBulkItems(null);
@@ -111,6 +112,7 @@ export function useTreeBulkDelete() {
 
   return {
     bulkItems,
+    capabilityDeletionPlan,
     isExecuting,
     result,
     itemNames,

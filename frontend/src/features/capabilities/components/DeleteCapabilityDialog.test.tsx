@@ -9,24 +9,14 @@ import type { DeleteImpacts } from '../hooks/useCapabilities';
 import { DeleteCapabilityDialog } from './DeleteCapabilityDialog';
 
 vi.mock('../hooks/useCapabilities', () => ({
-  useDeleteCapability: vi.fn(),
   useDeleteImpacts: vi.fn(),
   useCascadeDeleteCapability: vi.fn(),
 }));
 
-import { useCascadeDeleteCapability, useDeleteCapability, useDeleteImpacts } from '../hooks/useCapabilities';
-
-function createTestQueryClient() {
-  return new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-      mutations: { retry: false },
-    },
-  });
-}
+import { useCascadeDeleteCapability, useDeleteImpacts } from '../hooks/useCapabilities';
 
 function renderWithProviders(ui: React.ReactElement) {
-  const queryClient = createTestQueryClient();
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
       <MantineTestWrapper>{ui}</MantineTestWrapper>
@@ -34,7 +24,13 @@ function renderWithProviders(ui: React.ReactElement) {
   );
 }
 
-const realization = (id: string, componentName: string, capabilityId: string): ImpactRealization => ({
+interface RealizationSpec {
+  id: string;
+  componentName: string;
+  capabilityId: string;
+}
+
+const realization = ({ id, componentName, capabilityId }: RealizationSpec): ImpactRealization => ({
   id,
   componentId: toComponentId(`comp-${id}`),
   componentName,
@@ -43,26 +39,38 @@ const realization = (id: string, componentName: string, capabilityId: string): I
   origin: 'Direct',
 });
 
-const leafImpact: CapabilityDeleteImpact = {
-  capabilityId: toCapabilityId('cap-1'),
-  capabilityName: 'Test Capability',
+const impactFor = (capabilityId: string, overrides: Partial<CapabilityDeleteImpact> = {}): CapabilityDeleteImpact => ({
+  capabilityId: toCapabilityId(capabilityId),
+  capabilityName: capabilityId,
   hasDescendants: false,
   affectedCapabilities: [],
   realizations: [],
   _links: {},
-};
+  ...overrides,
+});
 
-const cascadeImpact: CapabilityDeleteImpact = {
-  capabilityId: toCapabilityId('cap-1'),
-  capabilityName: 'Parent Capability',
+interface ChildSpec {
+  id: string;
+  name: string;
+  parentId: string;
+}
+
+const child = ({ id, name, parentId }: ChildSpec) => ({
+  id: toCapabilityId(id),
+  name,
+  level: 'L2' as const,
+  parentId: toCapabilityId(parentId),
+});
+
+const leafImpact = impactFor('cap-1');
+
+const cascadeImpact = impactFor('cap-1', {
   hasDescendants: true,
   affectedCapabilities: [
-    { id: toCapabilityId('cap-2'), name: 'Child A', level: 'L2' as const, parentId: toCapabilityId('cap-1') },
-    { id: toCapabilityId('cap-3'), name: 'Child B', level: 'L2' as const, parentId: toCapabilityId('cap-1') },
+    child({ id: 'cap-2', name: 'Child A', parentId: 'cap-1' }),
+    child({ id: 'cap-3', name: 'Child B', parentId: 'cap-1' }),
   ],
-  realizations: [],
-  _links: {},
-};
+});
 
 const mockRetry = vi.fn();
 
@@ -70,6 +78,7 @@ function mockImpacts(impacts: CapabilityDeleteImpact[], state: Partial<DeleteImp
   vi.mocked(useDeleteImpacts).mockReturnValue({
     impacts,
     isLoading: false,
+    isFetching: false,
     isError: false,
     retry: mockRetry,
     ...state,
@@ -79,7 +88,6 @@ function mockImpacts(impacts: CapabilityDeleteImpact[], state: Partial<DeleteImp
 describe('DeleteCapabilityDialog', () => {
   const mockOnClose = vi.fn();
   const mockOnConfirm = vi.fn();
-  const mockDeleteMutateAsync = vi.fn();
   const mockCascadeMutateAsync = vi.fn();
   const capability = buildCapability({ id: toCapabilityId('cap-1'), name: 'Test Capability' });
   const selected = [
@@ -98,27 +106,26 @@ describe('DeleteCapabilityDialog', () => {
       />,
     );
 
-  const renderMultiDelete = () =>
-    renderDialog({ capability: selected[0], capabilitiesToDelete: selected, domainId: 'domain-1' });
+  const renderMultiDelete = (capabilities = selected) =>
+    renderDialog({ capability: capabilities[0], capabilitiesToDelete: capabilities, domainId: 'domain-1' });
 
   const submitButton = () => screen.getByTestId('delete-capability-submit') as HTMLButtonElement;
 
+  const cascadeCall = (target: typeof capability, cascade: boolean, confirmedRealizationIds: string[]) => ({
+    capability: target,
+    cascade,
+    confirmedRealizationIds,
+    parentId: undefined,
+    domainId: 'domain-1',
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
-
     mockImpacts([leafImpact]);
-
-    vi.mocked(useDeleteCapability).mockReturnValue({
-      mutateAsync: mockDeleteMutateAsync,
-      isPending: false,
-    } as unknown as ReturnType<typeof useDeleteCapability>);
-
     vi.mocked(useCascadeDeleteCapability).mockReturnValue({
       mutateAsync: mockCascadeMutateAsync,
       isPending: false,
     } as unknown as ReturnType<typeof useCascadeDeleteCapability>);
-
-    mockDeleteMutateAsync.mockResolvedValue(undefined);
     mockCascadeMutateAsync.mockResolvedValue(undefined);
   });
 
@@ -157,7 +164,10 @@ describe('DeleteCapabilityDialog', () => {
     mockImpacts([
       {
         ...cascadeImpact,
-        realizations: [realization('real-1', 'Billing', 'cap-2'), realization('real-2', 'Ledger', 'cap-1')],
+        realizations: [
+          realization({ id: 'real-1', componentName: 'Billing', capabilityId: 'cap-2' }),
+          realization({ id: 'real-2', componentName: 'Ledger', capabilityId: 'cap-1' }),
+        ],
       },
     ]);
 
@@ -165,10 +175,8 @@ describe('DeleteCapabilityDialog', () => {
 
     const items = screen.getAllByTestId('realization-to-remove');
     expect(items).toHaveLength(2);
-    expect(items[0]).toHaveTextContent('Billing');
-    expect(items[0]).toHaveTextContent('Child A');
-    expect(items[1]).toHaveTextContent('Ledger');
-    expect(items[1]).toHaveTextContent('Test Capability');
+    expect(items[0]).toHaveTextContent('Billing stops realising Child A');
+    expect(items[1]).toHaveTextContent('Ledger stops realising Test Capability');
     expect(screen.getByTestId('realizations-to-remove')).toHaveTextContent(
       '2 application realizations will be removed',
     );
@@ -176,7 +184,11 @@ describe('DeleteCapabilityDialog', () => {
   });
 
   it('should list the realization of a realized leaf capability', () => {
-    mockImpacts([{ ...leafImpact, realizations: [realization('real-1', 'Billing', 'cap-1')] }]);
+    mockImpacts([
+      impactFor('cap-1', {
+        realizations: [realization({ id: 'real-1', componentName: 'Billing', capabilityId: 'cap-1' })],
+      }),
+    ]);
 
     renderDialog();
 
@@ -185,7 +197,12 @@ describe('DeleteCapabilityDialog', () => {
   });
 
   it('should offer no option to delete applications', () => {
-    mockImpacts([{ ...cascadeImpact, realizations: [realization('real-1', 'Billing', 'cap-2')] }]);
+    mockImpacts([
+      {
+        ...cascadeImpact,
+        realizations: [realization({ id: 'real-1', componentName: 'Billing', capabilityId: 'cap-2' })],
+      },
+    ]);
 
     renderDialog();
 
@@ -208,40 +225,34 @@ describe('DeleteCapabilityDialog', () => {
     expect(submitButton()).toHaveTextContent('Delete Test Capability and 2 children');
   });
 
-  it('should call cascadeDeleteMutation with cascade=false for leaf capability on confirm', async () => {
-    renderDialog();
+  it('should delete a leaf capability confirming the realizations it showed', async () => {
+    mockImpacts([
+      impactFor('cap-1', {
+        realizations: [realization({ id: 'real-1', componentName: 'Billing', capabilityId: 'cap-1' })],
+      }),
+    ]);
 
+    renderDialog({ domainId: 'domain-1' });
     fireEvent.click(submitButton());
 
     await waitFor(() => {
-      expect(mockCascadeMutateAsync).toHaveBeenCalledWith({
-        capability,
-        cascade: false,
-        parentId: undefined,
-        domainId: undefined,
-      });
+      expect(mockCascadeMutateAsync).toHaveBeenCalledWith(cascadeCall(capability, false, ['real-1']));
     });
   });
 
-  it('should call cascadeDeleteMutation with cascade=true for cascade delete', async () => {
+  it('should cascade delete a capability with descendants', async () => {
     mockImpacts([cascadeImpact]);
 
     renderDialog({ domainId: 'domain-1' });
-
     fireEvent.click(submitButton());
 
     await waitFor(() => {
-      expect(mockCascadeMutateAsync).toHaveBeenCalledWith({
-        capability,
-        cascade: true,
-        parentId: undefined,
-        domainId: 'domain-1',
-      });
+      expect(mockCascadeMutateAsync).toHaveBeenCalledWith(cascadeCall(capability, true, []));
     });
   });
 
   it('should show multi-delete message for multiple capabilities', () => {
-    mockImpacts([leafImpact, leafImpact]);
+    mockImpacts([impactFor('cap-10'), impactFor('cap-11')]);
 
     renderMultiDelete();
 
@@ -256,8 +267,12 @@ describe('DeleteCapabilityDialog', () => {
 
   it('should list the realizations of every selected capability in a multi-delete', () => {
     mockImpacts([
-      { ...leafImpact, realizations: [realization('real-1', 'Billing', 'cap-10')] },
-      { ...leafImpact, realizations: [realization('real-2', 'Ledger', 'cap-11')] },
+      impactFor('cap-10', {
+        realizations: [realization({ id: 'real-1', componentName: 'Billing', capabilityId: 'cap-10' })],
+      }),
+      impactFor('cap-11', {
+        realizations: [realization({ id: 'real-2', componentName: 'Ledger', capabilityId: 'cap-11' })],
+      }),
     ]);
 
     renderMultiDelete();
@@ -268,38 +283,66 @@ describe('DeleteCapabilityDialog', () => {
     expect(items[1]).toHaveTextContent('Ledger stops realising Cap 11');
   });
 
+  it('should delete every selected capability through the cascade with its own confirmed realizations', async () => {
+    mockImpacts([
+      impactFor('cap-10', {
+        hasDescendants: true,
+        realizations: [realization({ id: 'real-1', componentName: 'Billing', capabilityId: 'cap-10' })],
+      }),
+      impactFor('cap-11'),
+    ]);
+
+    renderMultiDelete();
+    fireEvent.click(submitButton());
+
+    await waitFor(() => {
+      expect(mockCascadeMutateAsync).toHaveBeenCalledTimes(2);
+    });
+    expect(mockCascadeMutateAsync).toHaveBeenCalledWith(cascadeCall(selected[0], true, ['real-1']));
+    expect(mockCascadeMutateAsync).toHaveBeenCalledWith(cascadeCall(selected[1], false, []));
+  });
+
+  it('should leave a selected child to its selected parent cascade and count its realizations once', async () => {
+    const parent = buildCapability({ id: toCapabilityId('cap-20'), name: 'Parent' });
+    const selectedChild = buildCapability({ id: toCapabilityId('cap-21'), name: 'Child' });
+    const billing = realization({ id: 'real-1', componentName: 'Billing', capabilityId: 'cap-21' });
+    mockImpacts([
+      impactFor('cap-20', {
+        hasDescendants: true,
+        affectedCapabilities: [child({ id: 'cap-21', name: 'Child', parentId: 'cap-20' })],
+        realizations: [billing],
+      }),
+      impactFor('cap-21', { realizations: [billing] }),
+    ]);
+
+    renderMultiDelete([parent, selectedChild]);
+
+    expect(screen.getAllByTestId('realization-to-remove')).toHaveLength(1);
+    fireEvent.click(submitButton());
+    await waitFor(() => {
+      expect(mockCascadeMutateAsync).toHaveBeenCalledTimes(1);
+    });
+    expect(mockCascadeMutateAsync).toHaveBeenCalledWith(cascadeCall(parent, true, ['real-1']));
+  });
+
   it('should disable a multi-delete until every selected impact is loaded', () => {
-    mockImpacts([leafImpact]);
+    mockImpacts([impactFor('cap-10')]);
 
     renderMultiDelete();
 
     expect(submitButton().disabled).toBe(true);
   });
 
-  it('should call deleteCapabilityMutation for each capability in multi-delete', async () => {
-    mockImpacts([leafImpact, leafImpact]);
+  it('should keep submit disabled while impacts are refreshing', () => {
+    mockImpacts([leafImpact], { isFetching: true });
 
-    renderMultiDelete();
+    renderDialog();
 
-    fireEvent.click(submitButton());
-
-    await waitFor(() => {
-      expect(mockDeleteMutateAsync).toHaveBeenCalledTimes(2);
-      expect(mockDeleteMutateAsync).toHaveBeenCalledWith({
-        capability: selected[0],
-        parentId: undefined,
-        domainId: 'domain-1',
-      });
-      expect(mockDeleteMutateAsync).toHaveBeenCalledWith({
-        capability: selected[1],
-        parentId: undefined,
-        domainId: 'domain-1',
-      });
-    });
+    expect(submitButton().disabled).toBe(true);
   });
 
   it('should keep submit disabled and offer a retry when the impact fails to load', () => {
-    mockImpacts([], { isError: true });
+    mockImpacts([leafImpact], { isError: true });
 
     renderDialog();
 
@@ -308,17 +351,16 @@ describe('DeleteCapabilityDialog', () => {
     expect(mockRetry).toHaveBeenCalled();
   });
 
-  it('should show error alert on mutation failure', async () => {
-    mockCascadeMutateAsync.mockRejectedValueOnce(new Error('Server error'));
+  it('should show the error and refresh the impact when the delete is rejected', async () => {
+    mockCascadeMutateAsync.mockRejectedValueOnce(new Error('The realizations this delete removes have changed.'));
 
     renderDialog();
-
     fireEvent.click(submitButton());
 
     await waitFor(() => {
-      expect(screen.getByTestId('delete-capability-error')).toHaveTextContent('Server error');
+      expect(screen.getByTestId('delete-capability-error')).toHaveTextContent('have changed');
     });
-
+    expect(mockRetry).toHaveBeenCalled();
     expect(mockOnClose).not.toHaveBeenCalled();
   });
 

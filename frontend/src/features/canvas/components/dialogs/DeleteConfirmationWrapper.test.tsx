@@ -146,6 +146,6 @@ describe('DeleteConfirmationWrapper for a capability', () => {
     fireEvent.click(screen.getByTestId('delete-capability-submit'));
 
     await waitFor(() => expect(onCancel).toHaveBeenCalled());
-    expect(deleteBody).toEqual({ cascade: true });
+    expect(deleteBody).toEqual({ cascade: true, confirmedRealizationIds: ['real-1'] });
   });
 });

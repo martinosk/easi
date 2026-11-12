@@ -382,6 +382,7 @@ export interface CapabilityDeleteImpact {
 
 export interface CascadeDeleteRequest {
   cascade: boolean;
+  confirmedRealizationIds: string[];
 }
 
 export interface CapabilityDependency {

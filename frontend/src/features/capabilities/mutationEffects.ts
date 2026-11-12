@@ -53,17 +53,6 @@ export const capabilitiesMutationEffects = {
     onePagersQueryKeys.completenessForSubjectType('capability'),
   ],
 
-  delete: (context: { id: string; parentId?: string; domainId?: string }) => [
-    capabilitiesQueryKeys.lists(),
-    capabilitiesQueryKeys.detail(context.id),
-    ...(context.parentId ? [capabilitiesQueryKeys.children(context.parentId)] : []),
-    ...(context.domainId ? [businessDomainsQueryKeys.capabilities(context.domainId)] : []),
-    businessDomainsQueryKeys.lists(),
-    valueStreamsQueryKeys.all,
-    viewsQueryKeys.all,
-    onePagersQueryKeys.completenessForSubjectType('capability'),
-  ],
-
   cascadeDelete: (context: { id: string; parentId?: string; domainId?: string }) => [
     capabilitiesQueryKeys.lists(),
     capabilitiesQueryKeys.details(),

@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
-import type { AcquiredEntityId, Capability, Component, InternalTeamId, VendorId } from '../../../api/types';
+import type { AcquiredEntityId, Component, InternalTeamId, VendorId } from '../../../api/types';
 import type { OriginEntityType } from '../../../constants/entityIdentifiers';
 import { useAppStore } from '../../../store/appStore';
-import { useCapabilities, useDeleteCapability } from '../../capabilities/hooks/useCapabilities';
+import { useSelectedCapabilityDeletion } from '../../capabilities/hooks/useCapabilityDeletionPlan';
 import { useComponents, useDeleteComponent } from '../../components/hooks/useComponents';
 import { useDeleteAcquiredEntity } from '../../origin-entities/hooks/useAcquiredEntities';
 import { useDeleteInternalTeam } from '../../origin-entities/hooks/useInternalTeams';
@@ -65,26 +65,21 @@ function deleteComponentFromModel(
   return mutation.mutateAsync(component);
 }
 
-function deleteCapabilityFromModel(
-  node: NodeContextMenu,
-  capabilities: Capability[],
-  mutation: { mutateAsync: (p: { capability: Capability }) => Promise<void> },
-): Promise<void> {
-  const capability = capabilities.find((c) => c.id === node.nodeId);
-  if (!capability) throw new Error(`Capability not found: ${node.nodeName}`);
-  return mutation.mutateAsync({ capability });
-}
-
 function deleteOriginEntityFromModel(node: NodeContextMenu, mutations: OriginEntityDeleteMutations): Promise<void> {
   if (!node.originEntityType) throw new Error(`Origin entity not found: ${node.nodeName}`);
   return deleteOriginEntity(node.nodeId, node.originEntityType, node.nodeName, mutations);
 }
 
-function useModelDeleteHandler() {
+function useCapabilityIdsToDelete(bulkOperation: BulkOperationRequest | null): string[] {
+  return useMemo(() => {
+    if (bulkOperation?.type !== 'deleteFromModel') return [];
+    return bulkOperation.nodes.filter((n) => n.nodeType === 'capability').map((n) => n.nodeId);
+  }, [bulkOperation]);
+}
+
+function useModelDeleteHandler(deleteCapability: (target: { id: string; name: string }) => Promise<void>) {
   const { data: components = [] } = useComponents();
-  const { data: capabilities = [] } = useCapabilities();
   const deleteComponentMutation = useDeleteComponent();
-  const deleteCapabilityMutation = useDeleteCapability();
   const deleteAcquiredEntityMutation = useDeleteAcquiredEntity();
   const deleteVendorMutation = useDeleteVendor();
   const deleteInternalTeamMutation = useDeleteInternalTeam();
@@ -102,20 +97,22 @@ function useModelDeleteHandler() {
     (node: NodeContextMenu): Promise<void> => {
       const handlers: Record<NodeContextMenu['nodeType'], () => Promise<void>> = {
         component: () => deleteComponentFromModel(node, components, deleteComponentMutation),
-        capability: () => deleteCapabilityFromModel(node, capabilities, deleteCapabilityMutation),
+        capability: () => deleteCapability({ id: node.nodeId, name: node.nodeName }),
         originEntity: () => deleteOriginEntityFromModel(node, originDeleteMutations),
       };
       return handlers[node.nodeType]();
     },
-    [components, capabilities, deleteComponentMutation, deleteCapabilityMutation, originDeleteMutations],
+    [components, deleteCapability, deleteComponentMutation, originDeleteMutations],
   );
 }
 
 export const useBulkOperations = () => {
   const draftRemoveEntities = useAppStore((s) => s.draftRemoveEntities);
-  const deleteFromModel = useModelDeleteHandler();
-
   const [bulkOperation, setBulkOperation] = useState<BulkOperationRequest | null>(null);
+  const { plan: capabilityDeletionPlan, deleteCapability } = useSelectedCapabilityDeletion(
+    useCapabilityIdsToDelete(bulkOperation),
+  );
+  const deleteFromModel = useModelDeleteHandler(deleteCapability);
   const [isExecuting, setIsExecuting] = useState(false);
   const [result, setResult] = useState<BulkOperationResult | null>(null);
 
@@ -143,9 +140,10 @@ export const useBulkOperations = () => {
       setIsExecuting(true);
       setResult(null);
       const operationResult = await executeSequentially(nodes, deleteFromModel);
+      if (operationResult.failed.length > 0) capabilityDeletionPlan.retry();
       finishExecution(operationResult);
     },
-    [deleteFromModel, finishExecution],
+    [deleteFromModel, finishExecution, capabilityDeletionPlan],
   );
 
   const bulkExecutors = useMemo<Record<BulkOperationRequest['type'], (nodes: NodeContextMenu[]) => Promise<void>>>(
@@ -168,6 +166,7 @@ export const useBulkOperations = () => {
 
   return {
     bulkOperation,
+    capabilityDeletionPlan,
     isExecuting,
     result,
     setBulkOperation,

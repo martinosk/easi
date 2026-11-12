@@ -147,6 +147,7 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
     const createGrant = useCreateEditGrant();
     const {
       bulkOperation,
+      capabilityDeletionPlan,
       isExecuting,
       result: bulkResult,
       setBulkOperation,
@@ -269,6 +270,7 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
 
         <BulkConfirmationDialog
           bulkOperation={bulkOperation}
+          capabilityDeletionPlan={capabilityDeletionPlan}
           isExecuting={isExecuting}
           result={bulkResult}
           onConfirm={handleBulkConfirm}

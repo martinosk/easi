@@ -8,6 +8,7 @@ import type {
   CapabilityDependency,
   CapabilityId,
   CapabilityRealization,
+  CascadeDeleteRequest,
   ComponentId,
   CreateCapabilityDependencyRequest,
   CreateCapabilityRequest,
@@ -194,15 +195,6 @@ const deletedCapabilityScope = ({ capability, parentId, domainId }: CapabilityDe
 const linkedSystemEffects = (capabilityId: CapabilityId, request: LinkSystemToCapabilityRequest) =>
   capabilitiesMutationEffects.linkSystem({ capabilityId, componentId: request.componentId });
 
-export function useDeleteCapability() {
-  return useCapabilityMutation({
-    mutationFn: ({ capability }: CapabilityDeletion) => capabilitiesApi.delete(capability),
-    getEffects: (_, deletion) => capabilitiesMutationEffects.delete(deletedCapabilityScope(deletion)),
-    successMessage: 'Capability deleted',
-    errorMessage: 'Failed to delete capability',
-  });
-}
-
 export function useChangeCapabilityParent() {
   return useCapabilityMutation({
     mutationFn: (context: { id: CapabilityId; oldParentId?: string; newParentId?: CapabilityId | null }) =>
@@ -278,6 +270,7 @@ export function useDeleteRealization() {
 export interface DeleteImpacts {
   impacts: CapabilityDeleteImpact[];
   isLoading: boolean;
+  isFetching: boolean;
   isError: boolean;
   retry: () => void;
 }
@@ -291,9 +284,10 @@ export function useDeleteImpacts(capabilityIds: CapabilityId[]): DeleteImpacts {
     combine: (results) => ({
       impacts: results.flatMap((r) => (r.data ? [r.data] : [])),
       isLoading: results.some((r) => r.isLoading),
+      isFetching: results.some((r) => r.isFetching),
       isError: results.some((r) => r.isError),
       retry: () => {
-        for (const r of results) if (r.isError) r.refetch();
+        for (const r of results) r.refetch();
       },
     }),
   });
@@ -301,8 +295,8 @@ export function useDeleteImpacts(capabilityIds: CapabilityId[]): DeleteImpacts {
 
 export function useCascadeDeleteCapability() {
   return useCapabilityMutation({
-    mutationFn: ({ capability, cascade }: CapabilityDeletion & { cascade: boolean }) =>
-      capabilitiesApi.cascadeDelete(capability, { cascade }),
+    mutationFn: ({ capability, cascade, confirmedRealizationIds }: CapabilityDeletion & CascadeDeleteRequest) =>
+      capabilitiesApi.cascadeDelete(capability, { cascade, confirmedRealizationIds }),
     getEffects: (_, deletion) => capabilitiesMutationEffects.cascadeDelete(deletedCapabilityScope(deletion)),
     successMessage: 'Capability and descendants deleted',
     errorMessage: 'Failed to delete capability',

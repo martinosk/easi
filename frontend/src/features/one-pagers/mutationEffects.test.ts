@@ -80,9 +80,6 @@ describe('subject mutation effects', () => {
     expect(capabilitiesMutationEffects.create({})).toContainEqual(
       onePagersQueryKeys.completenessForSubjectType('capability'),
     );
-    expect(capabilitiesMutationEffects.delete({ id: 'cap-1' })).toContainEqual(
-      onePagersQueryKeys.completenessForSubjectType('capability'),
-    );
     expect(capabilitiesMutationEffects.cascadeDelete({ id: 'cap-1' })).toContainEqual(
       onePagersQueryKeys.completenessForSubjectType('capability'),
     );
