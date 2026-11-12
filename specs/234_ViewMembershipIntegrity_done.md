@@ -207,7 +207,12 @@ Deletion cleanup runs inside the publishing transaction (in-transaction projecti
 
 ### Repair migration
 
-One migration, named so that it passes the spec 209 cross-schema guard (filename contains `backfill`, DML only). It runs in the migrate init container before the new API serves traffic, so nothing writes concurrently. It is tenant-scoped throughout: every join matches `tenant_id` on both sides, and event-store reads match `tenant_id` and `aggregate_id` = view id.
+One migration, named so that it passes the spec 209 cross-schema guard (filename contains `backfill`, DML only). It runs in the migrate init container of the new backend pod, in one transaction together with its `schema_migrations` record. The backend Deployment uses the default `RollingUpdate`, so the previous release's pod keeps serving during the migration and until the new pod is ready. This window is accepted (decided 2026-11-12 on PR #91, instead of a `Recreate` rollout with downtime on every deploy):
+
+- A view write by the old pod that takes the same event version as an appended removal fails one of the two on the unique `(tenant_id, aggregate_id, version)` constraint. If the migration loses, it rolls back as a whole and the init container retries it.
+- An old-release position save or failed application cleanup in the window, during or after the migration, can recreate a ghost placement. The migration does not run again, so such a placement stays until a later repair. The window is the length of one rollout, about a minute.
+
+It is tenant-scoped throughout: every join matches `tenant_id` on both sides, and event-store reads match `tenant_id` and `aggregate_id` = view id.
 
 "Latest membership event" for a view and application means the `ComponentAddedToView` or `ComponentRemovedFromView` row in `infrastructure.events` with that view as `aggregate_id`, that application as `event_data->>'componentId'`, and the highest `version`.
 
