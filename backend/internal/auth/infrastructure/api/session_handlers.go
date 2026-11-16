@@ -149,7 +149,7 @@ func (h *SessionHandlers) buildSessionLinks(userID uuid.UUID, role valueobjects.
 		links["x-assistant-status"] = "/api/v1/assistant/status"
 	}
 
-	if canReadAnySubject(role) {
+	if canCurateAnySubject(role) {
 		links["x-one-pager-quality"] = "/api/v1/one-pager-quality"
 	}
 
@@ -169,9 +169,9 @@ func canImport(role valueobjects.Role) bool {
 		role.HasPermission(valueobjects.PermDomainsWrite)
 }
 
-func canReadAnySubject(role valueobjects.Role) bool {
-	return role.HasPermission(valueobjects.PermCapabilitiesRead) ||
-		role.HasPermission(valueobjects.PermComponentsRead)
+func canCurateAnySubject(role valueobjects.Role) bool {
+	return role.HasPermission(valueobjects.PermCapabilitiesWrite) ||
+		role.HasPermission(valueobjects.PermComponentsWrite)
 }
 
 // DeleteCurrentSession godoc

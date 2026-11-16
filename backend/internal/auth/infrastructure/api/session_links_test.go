@@ -17,9 +17,10 @@ func TestBuildSessionLinks_OnePagerQualityEntryPoint(t *testing.T) {
 		role    valueobjects.Role
 		present bool
 	}{
-		{"admin can read subjects", valueobjects.RoleAdmin, true},
-		{"stakeholder can read subjects", valueobjects.RoleStakeholder, true},
-		{"role without read permissions has no entry point", noReadRole, false},
+		{"admin curates subjects", valueobjects.RoleAdmin, true},
+		{"architect curates subjects", valueobjects.RoleArchitect, true},
+		{"stakeholder only reads subjects and has no entry point", valueobjects.RoleStakeholder, false},
+		{"role without permissions has no entry point", noReadRole, false},
 	}
 
 	handlers := &SessionHandlers{}
