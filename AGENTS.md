@@ -130,4 +130,5 @@ Before claiming any code change is done, run the `easi-codehealth` skill on ever
 - Environment variables follow `.env.example` patterns in each sub-directory.
 - Docker Compose (`docker-compose.yml`) starts local PostgreSQL and Dex (OIDC). The dev container starts PostgreSQL and the migrations itself (`postgres:5432`, `INTEGRATION_TEST_DB_HOST` preset) but has no Docker CLI and does not start Dex.
 - **Never add comments unless the user explicitly asks for them.**
+- Development is trunk-based: commit straight to `main`. Never create or switch branches unless the user explicitly asks for one.
 - Keep commit messages short, 1 line + 3 lines max. Never add "co-authored-by" or any other Claude trailers
