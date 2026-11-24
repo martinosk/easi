@@ -119,6 +119,7 @@ func TestGetDeleteImpact_LeafCapability_Integration(t *testing.T) {
 	h.GetDeleteImpact(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), `"realizations":[]`)
 
 	var response DeleteImpactResponse
 	err := json.NewDecoder(w.Body).Decode(&response)
@@ -126,8 +127,7 @@ func TestGetDeleteImpact_LeafCapability_Integration(t *testing.T) {
 	assert.Equal(t, capID, response.CapabilityID)
 	assert.False(t, response.HasDescendants)
 	assert.Empty(t, response.AffectedCapabilities)
-	assert.Empty(t, response.RealizationsOnDeletedCapabilities)
-	assert.Empty(t, response.RealizationsOnRetainedCapabilities)
+	assert.Empty(t, response.Realizations)
 }
 
 func TestGetDeleteImpact_WithDescendants_Integration(t *testing.T) {
@@ -204,8 +204,7 @@ func TestGetDeleteImpact_WithRealizations_Integration(t *testing.T) {
 	assert.Equal(t, capID, response.CapabilityID)
 	assert.False(t, response.HasDescendants)
 
-	totalRealizations := len(response.RealizationsOnDeletedCapabilities) + len(response.RealizationsOnRetainedCapabilities)
-	assert.Equal(t, 1, totalRealizations)
+	assert.Len(t, response.Realizations, 1)
 }
 
 func TestCascadeDelete_LeafCapability_Integration(t *testing.T) {

@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
 import { Box, Center, List, Paper, Stack, Text, Title } from '@mantine/core';
+import React, { useMemo } from 'react';
 import type { Release } from '../../../api/types';
 import { formatInlineMarkdown, formatReleaseDate, getSectionStyle, parseMarkdownSections } from './releaseNotesUtils';
 

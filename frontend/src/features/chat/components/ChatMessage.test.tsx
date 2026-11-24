@@ -1,5 +1,5 @@
-import type { ReactElement } from 'react';
 import { screen } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import { describe, expect, it } from 'vitest';
 import { renderWithProviders } from '../../../test/helpers';
 import { ChatMessage } from './ChatMessage';

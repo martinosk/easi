@@ -1,5 +1,6 @@
-import type { Component } from '../../../../api/types';
+import type { Capability, Component } from '../../../../api/types';
 import { ConfirmationDialog } from '../../../../components/shared/ConfirmationDialog';
+import { DeleteCapabilityDialog } from '../../../capabilities/components/DeleteCapabilityDialog';
 import { containmentDeletionMessage } from '../../../components/utils/containment';
 import type { DeleteTarget } from '../../hooks/useDeleteConfirmation';
 
@@ -12,6 +13,7 @@ const CONFIRM_TEXT: Partial<Record<DeleteTarget['type'], string>> = {
 interface DeleteConfirmationWrapperProps {
   deleteTarget: DeleteTarget | null;
   deleteTargetComponent?: Component;
+  deleteTargetCapability?: Capability;
   isDeleting: boolean;
   onConfirm: () => void;
   onCancel: () => void;
@@ -20,18 +22,21 @@ interface DeleteConfirmationWrapperProps {
 export const DeleteConfirmationWrapper = ({
   deleteTarget,
   deleteTargetComponent,
+  deleteTargetCapability,
   isDeleting,
   onConfirm,
   onCancel,
 }: DeleteConfirmationWrapperProps) => {
   if (!deleteTarget) return null;
 
+  if (deleteTarget.type === 'capability-from-model') {
+    return <DeleteCapabilityDialog isOpen onClose={onCancel} capability={deleteTargetCapability ?? null} />;
+  }
+
   const getTitle = () => {
     switch (deleteTarget.type) {
       case 'component-from-model':
         return 'Delete Component from Model';
-      case 'capability-from-model':
-        return 'Delete Capability from Model';
       case 'parent-relation':
         return 'Remove Parent Relationship';
       case 'containment':
@@ -54,8 +59,6 @@ export const DeleteConfirmationWrapper = ({
           'This will delete the component from the entire model, remove it from ALL views, and delete ALL relations involving this component.',
           deleteTargetComponent,
         );
-      case 'capability-from-model':
-        return 'This will delete the capability from the entire model, remove it from ALL views, and affect any child capabilities.';
       case 'parent-relation':
         return 'This will remove the parent-child relationship. The child capability will become a top-level (L1) capability.';
       case 'containment':

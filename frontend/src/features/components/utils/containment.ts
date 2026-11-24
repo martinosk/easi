@@ -15,7 +15,9 @@ export interface ContainmentDeletionEffects {
   released: string[];
 }
 
-export function describeContainmentDeletion(component: Pick<Component, 'parts'> | undefined): ContainmentDeletionEffects {
+export function describeContainmentDeletion(
+  component: Pick<Component, 'parts'> | undefined,
+): ContainmentDeletionEffects {
   const parts = component?.parts ?? [];
   return {
     deleted: parts.filter((part) => part.kind === 'composition').map((part) => part.name),
@@ -27,11 +29,16 @@ function nameList(names: string[]): string {
   return names.map((name) => `"${name}"`).join(', ');
 }
 
-export function containmentDeletionMessage(baseMessage: string, component: Pick<Component, 'parts'> | undefined): string {
+export function containmentDeletionMessage(
+  baseMessage: string,
+  component: Pick<Component, 'parts'> | undefined,
+): string {
   const { deleted, released } = describeContainmentDeletion(component);
   const sentences = [baseMessage];
   if (deleted.length > 0) {
-    sentences.push(`The composed ${deleted.length === 1 ? 'part' : 'parts'} ${nameList(deleted)} will be deleted with it.`);
+    sentences.push(
+      `The composed ${deleted.length === 1 ? 'part' : 'parts'} ${nameList(deleted)} will be deleted with it.`,
+    );
   }
   if (released.length > 0) {
     sentences.push(

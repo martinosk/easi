@@ -2,8 +2,8 @@ import { ActionIcon, Box, Checkbox, Group, NativeSelect, Stack, Text, TextInput 
 import { IconTrash } from '@tabler/icons-react';
 import type { FitType, StrategyPillar } from '../../../api/types';
 import { HelpTooltip } from '../../../components/shared/HelpTooltip';
-import type { EditablePillar, ValidationErrors } from './pillarChanges';
 import classes from './PillarsList.module.css';
+import type { EditablePillar, ValidationErrors } from './pillarChanges';
 
 export interface PillarHandlers {
   onNameChange: (index: number, name: string) => void;

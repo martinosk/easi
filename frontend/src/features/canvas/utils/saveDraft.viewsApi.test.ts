@@ -1,8 +1,8 @@
 import { HttpResponse, http } from 'msw';
 import { describe, expect, it } from 'vitest';
 import type { CapabilityId, ComponentId, ViewId } from '../../../api/types';
-import { viewsApi } from '../../views/api';
 import { server } from '../../../test/helpers';
+import { viewsApi } from '../../views/api';
 import { type DraftSaveApi, saveDraft } from './saveDraft';
 
 const API_BASE = 'http://localhost:8080';

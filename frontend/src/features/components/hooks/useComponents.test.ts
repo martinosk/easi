@@ -57,7 +57,7 @@ describe('useComponents hooks', () => {
     vi.restoreAllMocks();
   });
 
-  const renderMutation = <T,>(hook: () => T) => {
+  const renderMutation = <T>(hook: () => T) => {
     const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
     const { result } = renderHook(hook, { wrapper: createWrapper(queryClient) });
     return { result, invalidateQueriesSpy };
@@ -226,11 +226,7 @@ describe('useComponents hooks', () => {
         });
       });
 
-      expectInvalidated(
-        invalidateQueriesSpy,
-        componentsQueryKeys.lists(),
-        componentsQueryKeys.detail('comp-1'),
-      );
+      expectInvalidated(invalidateQueriesSpy, componentsQueryKeys.lists(), componentsQueryKeys.detail('comp-1'));
 
       expect(toast.success).toHaveBeenCalledWith('Component "Updated Name" updated');
     });
@@ -267,11 +263,7 @@ describe('useComponents hooks', () => {
         await result.current.mutateAsync(component);
       });
 
-      expectInvalidated(
-        invalidateQueriesSpy,
-        componentsQueryKeys.lists(),
-        componentsQueryKeys.detail('comp-1'),
-      );
+      expectInvalidated(invalidateQueriesSpy, componentsQueryKeys.lists(), componentsQueryKeys.detail('comp-1'));
 
       expect(toast.success).toHaveBeenCalledWith('Component deleted');
     });

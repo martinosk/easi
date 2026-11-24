@@ -185,10 +185,24 @@ describe('OnePagerConfigurationPanel — required field impact preview', () => {
     },
   ])(
     'opens a confirmation dialog with the fetched impact count for $label, then confirms the requirement change',
-    async ({ configuration, updatedConfiguration, checkboxTestId, fieldId, fieldKind, affectedSubjectCount, message, changeApi, expectedField }) => {
+    async ({
+      configuration,
+      updatedConfiguration,
+      checkboxTestId,
+      fieldId,
+      fieldKind,
+      affectedSubjectCount,
+      message,
+      changeApi,
+      expectedField,
+    }) => {
       const user = userEvent.setup();
       vi.mocked(onePagersApi.getConfiguration).mockResolvedValue(configuration);
-      vi.mocked(onePagersApi.getImpactPreview).mockResolvedValue({ subjectType: 'application', fieldId, affectedSubjectCount });
+      vi.mocked(onePagersApi.getImpactPreview).mockResolvedValue({
+        subjectType: 'application',
+        fieldId,
+        affectedSubjectCount,
+      });
       vi.mocked(changeApi).mockResolvedValue(updatedConfiguration);
 
       renderPanel();
@@ -209,7 +223,11 @@ describe('OnePagerConfigurationPanel — required field impact preview', () => {
   it('fires no mutation when the confirmation dialog is cancelled', async () => {
     const user = userEvent.setup();
     vi.mocked(onePagersApi.getConfiguration).mockResolvedValue(buildConfiguration());
-    vi.mocked(onePagersApi.getImpactPreview).mockResolvedValue({ subjectType: 'application', fieldId: 'field-1', affectedSubjectCount: 37 });
+    vi.mocked(onePagersApi.getImpactPreview).mockResolvedValue({
+      subjectType: 'application',
+      fieldId: 'field-1',
+      affectedSubjectCount: 37,
+    });
 
     renderPanel();
 
@@ -255,7 +273,10 @@ describe('OnePagerConfigurationPanel — required field impact preview', () => {
     await user.click(await screen.findByTestId('one-pager-required-field-1'));
 
     await waitFor(() =>
-      expect(onePagersApi.changeFieldRequirement).toHaveBeenCalledWith(contractLinkField, { required: true, version: 1 }),
+      expect(onePagersApi.changeFieldRequirement).toHaveBeenCalledWith(contractLinkField, {
+        required: true,
+        version: 1,
+      }),
     );
     expect(onePagersApi.getImpactPreview).not.toHaveBeenCalled();
   });
@@ -277,13 +298,23 @@ describe('OnePagerConfigurationPanel — defining custom fields in MetaModel', (
         },
       },
     };
-    const refreshed = buildConfiguration({ version: 2, customFields: [definedField], displayOrder: [{ kind: 'custom', id: 'attr-new' }] });
+    const refreshed = buildConfiguration({
+      version: 2,
+      customFields: [definedField],
+      displayOrder: [{ kind: 'custom', id: 'attr-new' }],
+    });
     vi.mocked(onePagersApi.getConfiguration).mockResolvedValueOnce(configuration).mockResolvedValue(refreshed);
-    vi.mocked(onePagersApi.getImpactPreview).mockResolvedValue({ subjectType: 'application', affectedSubjectCount: 120 });
+    vi.mocked(onePagersApi.getImpactPreview).mockResolvedValue({
+      subjectType: 'application',
+      affectedSubjectCount: 120,
+    });
     const schema = buildSchema({ attributes: [] });
     vi.mocked(subjectAttributeSchemaApi.getSchema).mockResolvedValue(schema);
     vi.mocked(subjectAttributeSchemaApi.defineAttribute).mockResolvedValue(
-      buildSchema({ version: 2, attributes: [{ id: 'attr-new', name: 'Data classification', type: 'text', helpText: '', active: true }] }),
+      buildSchema({
+        version: 2,
+        attributes: [{ id: 'attr-new', name: 'Data classification', type: 'text', helpText: '', active: true }],
+      }),
     );
     vi.mocked(onePagersApi.changeFieldRequirement).mockResolvedValue(buildConfiguration({ version: 3 }));
 
@@ -293,7 +324,9 @@ describe('OnePagerConfigurationPanel — defining custom fields in MetaModel', (
     await user.click(screen.getByTestId('one-pager-new-field-required'));
     await user.click(screen.getByTestId('one-pager-new-field-submit'));
 
-    expect(await screen.findByText('Making Data classification required will mark 120 Applications incomplete')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Making Data classification required will mark 120 Applications incomplete'),
+    ).toBeInTheDocument();
     expect(subjectAttributeSchemaApi.defineAttribute).not.toHaveBeenCalled();
 
     await user.click(screen.getByTestId('one-pager-impact-preview-confirm'));
@@ -316,7 +349,9 @@ describe('OnePagerConfigurationPanel — defining custom fields in MetaModel', (
 
   it('defines the attribute directly with no dialog when Required is unchecked', async () => {
     const user = userEvent.setup();
-    vi.mocked(onePagersApi.getConfiguration).mockResolvedValue(buildConfiguration({ customFields: [], displayOrder: [] }));
+    vi.mocked(onePagersApi.getConfiguration).mockResolvedValue(
+      buildConfiguration({ customFields: [], displayOrder: [] }),
+    );
     const schema = buildSchema({ attributes: [] });
     vi.mocked(subjectAttributeSchemaApi.getSchema).mockResolvedValue(schema);
     vi.mocked(subjectAttributeSchemaApi.defineAttribute).mockResolvedValue(buildSchema({ version: 2 }));
@@ -344,7 +379,9 @@ describe('OnePagerConfigurationPanel — defining custom fields in MetaModel', (
   it('hides the define form when the schema offers no x-define affordance', async () => {
     vi.mocked(onePagersApi.getConfiguration).mockResolvedValue(buildConfiguration());
     vi.mocked(subjectAttributeSchemaApi.getSchema).mockResolvedValue(
-      buildSchema({ _links: { self: { href: '/api/v1/meta-model/subject-types/application/attributes', method: 'GET' } } }),
+      buildSchema({
+        _links: { self: { href: '/api/v1/meta-model/subject-types/application/attributes', method: 'GET' } },
+      }),
     );
 
     renderPanel();
@@ -391,17 +428,26 @@ describe('OnePagerConfigurationPanel — schema affordances on custom fields', (
       type: 'text',
       helpText: '',
       active: false,
-      _links: { 'x-reactivate': { href: '/api/v1/meta-model/subject-types/application/attributes/old/reactivate', method: 'POST' } },
+      _links: {
+        'x-reactivate': {
+          href: '/api/v1/meta-model/subject-types/application/attributes/old/reactivate',
+          method: 'POST',
+        },
+      },
     };
     vi.mocked(onePagersApi.getConfiguration).mockResolvedValue(buildConfiguration());
-    vi.mocked(subjectAttributeSchemaApi.getSchema).mockResolvedValue(buildSchema({ version: 2, attributes: [contractLinkAttribute, retired] }));
+    vi.mocked(subjectAttributeSchemaApi.getSchema).mockResolvedValue(
+      buildSchema({ version: 2, attributes: [contractLinkAttribute, retired] }),
+    );
     vi.mocked(subjectAttributeSchemaApi.reactivateAttribute).mockResolvedValue(buildSchema({ version: 3 }));
 
     renderPanel();
 
     await user.click(await screen.findByTestId('one-pager-reactivate-old'));
 
-    await waitFor(() => expect(subjectAttributeSchemaApi.reactivateAttribute).toHaveBeenCalledWith(retired, { version: 2 }));
+    await waitFor(() =>
+      expect(subjectAttributeSchemaApi.reactivateAttribute).toHaveBeenCalledWith(retired, { version: 2 }),
+    );
   });
 
   it('renames an attribute through the dialog with the schema version', async () => {
@@ -432,7 +478,9 @@ describe('OnePagerConfigurationPanel — schema affordances on custom fields', (
 describe('OnePagerConfigurationPanel — Number field bounds', () => {
   it('shows minimum and maximum inputs only when the field type is Number', async () => {
     const user = userEvent.setup();
-    vi.mocked(onePagersApi.getConfiguration).mockResolvedValue(buildConfiguration({ customFields: [], displayOrder: [] }));
+    vi.mocked(onePagersApi.getConfiguration).mockResolvedValue(
+      buildConfiguration({ customFields: [], displayOrder: [] }),
+    );
 
     renderPanel();
 
@@ -447,7 +495,9 @@ describe('OnePagerConfigurationPanel — Number field bounds', () => {
 
   it('defines a number field with its bounds in a single MetaModel request', async () => {
     const user = userEvent.setup();
-    vi.mocked(onePagersApi.getConfiguration).mockResolvedValue(buildConfiguration({ customFields: [], displayOrder: [] }));
+    vi.mocked(onePagersApi.getConfiguration).mockResolvedValue(
+      buildConfiguration({ customFields: [], displayOrder: [] }),
+    );
     const schema = buildSchema({ attributes: [] });
     vi.mocked(subjectAttributeSchemaApi.getSchema).mockResolvedValue(schema);
     vi.mocked(subjectAttributeSchemaApi.defineAttribute).mockResolvedValue(buildSchema({ version: 2 }));
@@ -490,7 +540,10 @@ describe('OnePagerConfigurationPanel — Number field bounds', () => {
   ])('edits the bounds of an existing Number field: $name', async ({ attribute, typeIntoMax, expectedRequest }) => {
     const user = userEvent.setup();
     vi.mocked(onePagersApi.getConfiguration).mockResolvedValue(
-      buildConfiguration({ customFields: [numberField(attribute.id, attribute.name)], displayOrder: [{ kind: 'custom', id: attribute.id }] }),
+      buildConfiguration({
+        customFields: [numberField(attribute.id, attribute.name)],
+        displayOrder: [{ kind: 'custom', id: attribute.id }],
+      }),
     );
     vi.mocked(subjectAttributeSchemaApi.getSchema).mockResolvedValue(buildSchema({ attributes: [attribute] }));
     vi.mocked(subjectAttributeSchemaApi.setBounds).mockResolvedValue(buildSchema({ version: 2 }));
@@ -507,7 +560,9 @@ describe('OnePagerConfigurationPanel — Number field bounds', () => {
 
   it('shows a client-side hint and blocks submit when minimum exceeds maximum', async () => {
     const user = userEvent.setup();
-    vi.mocked(onePagersApi.getConfiguration).mockResolvedValue(buildConfiguration({ customFields: [], displayOrder: [] }));
+    vi.mocked(onePagersApi.getConfiguration).mockResolvedValue(
+      buildConfiguration({ customFields: [], displayOrder: [] }),
+    );
 
     renderPanel();
 

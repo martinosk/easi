@@ -82,20 +82,10 @@ export function InviteUserModal({ isOpen, onClose, onSubmit }: InviteUserModalPr
           )}
 
           <Group justify="flex-end" gap="sm">
-            <Button
-              variant="default"
-              onClick={onClose}
-              disabled={isSubmitting}
-              data-testid="invite-cancel-btn"
-            >
+            <Button variant="default" onClick={onClose} disabled={isSubmitting} data-testid="invite-cancel-btn">
               Cancel
             </Button>
-            <Button
-              type="submit"
-              loading={isSubmitting}
-              disabled={!isValid}
-              data-testid="invite-submit-btn"
-            >
+            <Button type="submit" loading={isSubmitting} disabled={!isValid} data-testid="invite-submit-btn">
               Create Invitation
             </Button>
           </Group>

@@ -4,7 +4,11 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type StubRealizationRole, seedSpec181Db } from '../../../test/mocks/spec181/store';
 import { realizationRoleApi } from '../api/realizationRoleApi';
-import { useAssignRealizationRole, useClearRealizationRole, useRealizationRolesByCapabilityIds } from './useRealizationRoles';
+import {
+  useAssignRealizationRole,
+  useClearRealizationRole,
+  useRealizationRolesByCapabilityIds,
+} from './useRealizationRoles';
 
 vi.mock('react-hot-toast', () => ({
   default: { success: vi.fn(), error: vi.fn() },

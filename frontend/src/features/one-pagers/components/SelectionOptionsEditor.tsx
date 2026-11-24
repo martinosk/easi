@@ -1,8 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ActionIcon, Badge, Group, Stack, TextInput } from '@mantine/core';
 import { useForm } from 'react-hook-form';
-import { type AddSelectionOptionFormData, addSelectionOptionSchema } from '../../../lib/schemas/onePagerConfiguration';
 import type { SubjectAttribute, SubjectAttributeOption } from '../../../api/types';
+import { type AddSelectionOptionFormData, addSelectionOptionSchema } from '../../../lib/schemas/onePagerConfiguration';
 import { hasLink } from '../../../utils/hateoas';
 
 interface SelectionOptionsEditorProps {

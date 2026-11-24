@@ -1,12 +1,12 @@
 import { useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { toAcquiredEntityId, toComponentId, toInternalTeamId, toVendorId } from '../../../api/types';
+import { getEntityId, getOriginEntityType, isOriginEntity, toNodeId } from '../../../constants/entityIdentifiers';
 import {
   useLinkComponentToAcquiredEntity,
   useLinkComponentToInternalTeam,
   useLinkComponentToVendor,
 } from '../../origin-entities/hooks';
-import { getEntityId, getOriginEntityType, isOriginEntity, toNodeId } from '../../../constants/entityIdentifiers';
 
 const getErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message : fallback;

@@ -49,7 +49,7 @@ describe('useComponentOwnership hooks', () => {
     });
   });
 
-  const renderMutation = <T,>(hook: () => T) => {
+  const renderMutation = <T>(hook: () => T) => {
     const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
     const { result } = renderHook(hook, { wrapper: createWrapper(queryClient) });
     return { result, invalidateQueriesSpy };

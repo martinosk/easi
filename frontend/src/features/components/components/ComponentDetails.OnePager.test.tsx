@@ -11,9 +11,7 @@ function renderPanel(hasOnePagerLink: boolean) {
       ...(hasOnePagerLink ? { 'x-one-pager': { href: '/api/v1/one-pagers/application/comp-1', method: 'GET' } } : {}),
     },
   });
-  return renderWithProviders(
-    <ComponentDetailsContent component={component} realizations={[]} capabilities={[]} />,
-  );
+  return renderWithProviders(<ComponentDetailsContent component={component} realizations={[]} capabilities={[]} />);
 }
 
 describe('ComponentDetails one-pager surface', () => {

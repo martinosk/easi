@@ -1,7 +1,7 @@
 import { screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../test/helpers';
-import { buildHookData, type BusinessDomainsHookData } from '../testkit/hookData';
+import { type BusinessDomainsHookData, buildHookData } from '../testkit/hookData';
 import { DomainBoard } from './DomainBoard';
 
 function renderBoard(overrides: Partial<BusinessDomainsHookData> = {}) {

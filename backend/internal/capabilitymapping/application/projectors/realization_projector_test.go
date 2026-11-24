@@ -24,6 +24,8 @@ type mockRealizationReadModel struct {
 	deletedByComponentIDs          []string
 	updatedSourceCapabilityNames   []updateSourceCapabilityNameCall
 	updatedComponentNames          []updateComponentNameCall
+	realizations                   map[string]readmodels.RealizationDTO
+	restoredComponents             []readmodels.ComponentRef
 	insertErr                      error
 	insertInheritedErr             error
 	updateErr                      error
@@ -346,4 +348,56 @@ func TestRealizationProjector_UnknownEventType_NoOp(t *testing.T) {
 	assert.Empty(t, mockRealRM.insertedRealizations)
 	assert.Empty(t, mockRealRM.insertedInheritedRealizations)
 	assert.Empty(t, mockRealRM.deletedInheritedBySourceCaps)
+}
+
+func (m *mockRealizationReadModel) GetByID(ctx context.Context, id string) (*readmodels.RealizationDTO, error) {
+	realization, ok := m.realizations[id]
+	if !ok {
+		return nil, nil
+	}
+	return &realization, nil
+}
+
+func (m *mockRealizationReadModel) RestoreInheritedRealizations(ctx context.Context, component readmodels.ComponentRef) error {
+	m.restoredComponents = append(m.restoredComponents, component)
+	return nil
+}
+
+func billingRealizations() map[string]readmodels.RealizationDTO {
+	return map[string]readmodels.RealizationDTO{
+		"real-1": {ID: "real-1", ComponentID: "comp-billing", ComponentName: "Billing", Origin: readmodels.OriginDirect},
+	}
+}
+
+func TestRealizationProjector_HandleRealizationDeleted_RestoresInheritanceFromSurvivingSources(t *testing.T) {
+	mockRealRM := &mockRealizationReadModel{realizations: billingRealizations()}
+	eventData, err := json.Marshal(events.SystemRealizationDeleted{ID: "real-1", DeletedAt: time.Now()})
+	require.NoError(t, err)
+
+	require.NoError(t, newProjector(mockRealRM).ProjectEvent(context.Background(), "SystemRealizationDeleted", eventData))
+
+	assert.Equal(t, []readmodels.ComponentRef{{ID: "comp-billing", Name: "Billing"}}, mockRealRM.restoredComponents)
+}
+
+func TestRealizationProjector_HandleCapabilityRealizationsUninherited_RestoresInheritanceFromSurvivingSources(t *testing.T) {
+	mockRealRM := &mockRealizationReadModel{realizations: billingRealizations()}
+	eventData, err := json.Marshal(events.CapabilityRealizationsUninherited{
+		CapabilityID: "cap-a",
+		Removals:     []events.RealizationInheritanceRemoval{{SourceRealizationID: "real-1", CapabilityIDs: []string{"cap-old-parent"}}},
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, newProjector(mockRealRM).ProjectEvent(context.Background(), "CapabilityRealizationsUninherited", eventData))
+
+	assert.Equal(t, []readmodels.ComponentRef{{ID: "comp-billing", Name: "Billing"}}, mockRealRM.restoredComponents)
+}
+
+func TestRealizationProjector_HandleRealizationDeleted_UnknownRealization_RestoresNothing(t *testing.T) {
+	mockRealRM := &mockRealizationReadModel{}
+	eventData, err := json.Marshal(events.SystemRealizationDeleted{ID: "real-unknown", DeletedAt: time.Now()})
+	require.NoError(t, err)
+
+	require.NoError(t, newProjector(mockRealRM).ProjectEvent(context.Background(), "SystemRealizationDeleted", eventData))
+
+	assert.Empty(t, mockRealRM.restoredComponents)
 }

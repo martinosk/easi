@@ -1,8 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button, Group, Modal, Stack, Textarea, TextInput } from '@mantine/core';
 import { useForm } from 'react-hook-form';
-import { type RenameCustomFieldFormData, renameCustomFieldSchema } from '../../../lib/schemas/onePagerConfiguration';
 import type { SubjectAttribute } from '../../../api/types';
+import { type RenameCustomFieldFormData, renameCustomFieldSchema } from '../../../lib/schemas/onePagerConfiguration';
 
 interface RenameFieldDialogProps {
   attribute: SubjectAttribute;

@@ -1,5 +1,5 @@
 import { Alert, Button, Group, List, Modal, ScrollArea, Stack, Text } from '@mantine/core';
-import { useEffect } from 'react';
+import { type ReactNode, useEffect } from 'react';
 
 interface ConfirmationDialogProps {
   title: string;
@@ -12,6 +12,8 @@ interface ConfirmationDialogProps {
   onCancel: () => void;
   isLoading?: boolean;
   error?: string | null;
+  confirmDisabled?: boolean;
+  children?: ReactNode;
 }
 
 function useEnterConfirms(onConfirm: () => void, isLoading: boolean) {
@@ -35,8 +37,10 @@ export function ConfirmationDialog({
   onCancel,
   isLoading = false,
   error = null,
+  confirmDisabled = false,
+  children,
 }: ConfirmationDialogProps) {
-  useEnterConfirms(onConfirm, isLoading);
+  useEnterConfirms(onConfirm, isLoading || confirmDisabled);
 
   return (
     <Modal
@@ -60,6 +64,7 @@ export function ConfirmationDialog({
             </List>
           </ScrollArea.Autosize>
         )}
+        {children}
         {error ? (
           <Alert color="red" data-testid="confirmation-dialog-error">
             {error}
@@ -73,7 +78,7 @@ export function ConfirmationDialog({
           <Button variant="default" onClick={onCancel} disabled={isLoading}>
             {cancelText}
           </Button>
-          <Button color="red" onClick={onConfirm} loading={isLoading}>
+          <Button color="red" onClick={onConfirm} loading={isLoading} disabled={confirmDisabled}>
             {confirmText}
           </Button>
         </Group>

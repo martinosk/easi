@@ -185,37 +185,35 @@ describe('useValueStreams', () => {
           expect(valueStreamsApi.delete).toHaveBeenCalledWith(createValueStream('vs-1', 'To Delete'));
         },
       },
-    ])('should $scenario a value stream and invalidate queries', async ({
-      seedData,
-      setupMock,
-      performAction,
-      assertApi,
-    }) => {
-      const response: ValueStreamsResponse = {
-        data: seedData,
-        _links: { self: { href: '/api/v1/value-streams', method: 'GET' } },
-      };
-      vi.mocked(valueStreamsApi.getAll).mockResolvedValue(response);
-      setupMock();
+    ])(
+      'should $scenario a value stream and invalidate queries',
+      async ({ seedData, setupMock, performAction, assertApi }) => {
+        const response: ValueStreamsResponse = {
+          data: seedData,
+          _links: { self: { href: '/api/v1/value-streams', method: 'GET' } },
+        };
+        vi.mocked(valueStreamsApi.getAll).mockResolvedValue(response);
+        setupMock();
 
-      const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+        const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
-      const { result } = renderHook(() => useValueStreams(), {
-        wrapper: createWrapper(queryClient),
-      });
+        const { result } = renderHook(() => useValueStreams(), {
+          wrapper: createWrapper(queryClient),
+        });
 
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
-      });
+        await waitFor(() => {
+          expect(result.current.isLoading).toBe(false);
+        });
 
-      await act(async () => {
-        await performAction(result.current);
-      });
+        await act(async () => {
+          await performAction(result.current);
+        });
 
-      assertApi();
-      expect(invalidateSpy).toHaveBeenCalledWith({
-        queryKey: valueStreamsQueryKeys.lists(),
-      });
-    });
+        assertApi();
+        expect(invalidateSpy).toHaveBeenCalledWith({
+          queryKey: valueStreamsQueryKeys.lists(),
+        });
+      },
+    );
   });
 });

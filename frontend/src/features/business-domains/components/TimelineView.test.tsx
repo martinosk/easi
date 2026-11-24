@@ -68,10 +68,9 @@ describe('TimelineView rows', () => {
 
   it('marks the journey target period at its quarter', () => {
     const target = addQuarters(CURRENT, 4);
-    renderTimeline(
-      [buildCapabilityJourney({ id: 'j1', capabilityId: 'cap-1', targetPeriod: target })],
-      { 'cap-1': 'Ferry freight' },
-    );
+    renderTimeline([buildCapabilityJourney({ id: 'j1', capabilityId: 'cap-1', targetPeriod: target })], {
+      'cap-1': 'Ferry freight',
+    });
 
     expect(screen.getByTestId('timeline-target-j1')).toHaveTextContent(formatTargetPeriodCompact(target));
   });
@@ -83,7 +82,9 @@ describe('TimelineView rows', () => {
         buildCapabilityJourney({
           id: 'j1',
           capabilityId: 'cap-1',
-          milestones: [buildJourneyMilestone({ id: 'm1', label: 'Pilot live', status: 'in-flight', targetPeriod: period })],
+          milestones: [
+            buildJourneyMilestone({ id: 'm1', label: 'Pilot live', status: 'in-flight', targetPeriod: period }),
+          ],
         }),
       ],
       { 'cap-1': 'Ferry freight' },
@@ -151,7 +152,10 @@ describe('TimelineView rows', () => {
     expect(within(undated).queryByText('overdue')).toBeNull();
 
     const rows = screen.getAllByTestId(/^timeline-milestone-/);
-    expect(rows.map((row) => row.dataset.testid)).toEqual(['timeline-milestone-m-dated', 'timeline-milestone-m-undated']);
+    expect(rows.map((row) => row.dataset.testid)).toEqual([
+      'timeline-milestone-m-dated',
+      'timeline-milestone-m-undated',
+    ]);
   });
 });
 

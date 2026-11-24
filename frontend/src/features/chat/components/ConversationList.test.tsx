@@ -1,7 +1,9 @@
-import type { ComponentProps, ReactElement } from 'react';
 import { fireEvent, screen } from '@testing-library/react';
+import type { ComponentProps, ReactElement } from 'react';
 import { renderWithProviders } from '../../../test/helpers';
+
 const render = (ui: ReactElement) => renderWithProviders(ui, { withRouter: false });
+
 import { describe, expect, it, vi } from 'vitest';
 import type { Conversation } from '../api/types';
 import { ConversationList } from './ConversationList';

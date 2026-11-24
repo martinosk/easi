@@ -29,9 +29,7 @@ export function isPeriodPaired(value: PeriodValue): boolean {
 }
 
 export function toTargetPeriod(value: PeriodValue): TargetPeriodInput | null {
-  return value.year !== undefined && value.quarter !== undefined
-    ? { year: value.year, quarter: value.quarter }
-    : null;
+  return value.year !== undefined && value.quarter !== undefined ? { year: value.year, quarter: value.quarter } : null;
 }
 
 export function PeriodFields({ value, onChange }: { value: PeriodValue; onChange: (value: PeriodValue) => void }) {

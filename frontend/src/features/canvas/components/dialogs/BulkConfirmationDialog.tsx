@@ -1,9 +1,12 @@
 import { ConfirmationDialog } from '../../../../components/shared/ConfirmationDialog';
+import { CapabilityDeletionImpactSection } from '../../../capabilities/components/CapabilityDeletionImpact';
+import type { CapabilityDeletionPlan } from '../../../capabilities/hooks/useCapabilityDeletionPlan';
 import type { BulkOperationResult } from '../../hooks/useBulkOperations';
 import type { BulkOperationRequest } from '../context-menus/MultiSelectContextMenu';
 
 interface BulkConfirmationDialogProps {
   bulkOperation: BulkOperationRequest | null;
+  capabilityDeletionPlan: CapabilityDeletionPlan;
   isExecuting: boolean;
   result: BulkOperationResult | null;
   onConfirm: () => void;
@@ -17,6 +20,7 @@ function buildResultError(result: BulkOperationResult): string {
 
 export const BulkConfirmationDialog = ({
   bulkOperation,
+  capabilityDeletionPlan,
   isExecuting,
   result,
   onConfirm,
@@ -55,7 +59,10 @@ export const BulkConfirmationDialog = ({
         onCancel={onCancel}
         isLoading={isExecuting}
         error={error}
-      />
+        confirmDisabled={!capabilityDeletionPlan.ready}
+      >
+        <CapabilityDeletionImpactSection plan={capabilityDeletionPlan} />
+      </ConfirmationDialog>
     );
   }
 

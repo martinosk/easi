@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react';
-import type { AIConfigurationResponse, LLMProvider, TestConnectionRequest, TestConnectionResponse } from '../../../api/assistant/types';
+import type {
+  AIConfigurationResponse,
+  LLMProvider,
+  TestConnectionRequest,
+  TestConnectionResponse,
+} from '../../../api/assistant/types';
 import { useTestAIConnection, useUpdateAIConfiguration } from './useAIConfiguration';
 
 interface FormFields {
@@ -48,7 +53,7 @@ function isApiKeyRequired(config: AIConfigurationResponse | undefined, apiKey: s
 
 function isConnectionTestable(
   fields: Pick<FormFields, 'provider' | 'model' | 'apiKey'>,
-  config: AIConfigurationResponse | undefined
+  config: AIConfigurationResponse | undefined,
 ): boolean {
   return !!fields.provider && !!fields.model && (!!fields.apiKey || config?.apiKeyStatus === 'configured');
 }

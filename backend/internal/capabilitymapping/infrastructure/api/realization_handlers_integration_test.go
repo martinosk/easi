@@ -16,7 +16,9 @@ import (
 	"easi/backend/internal/capabilitymapping/application/projectors"
 	"easi/backend/internal/capabilitymapping/application/readmodels"
 	"easi/backend/internal/capabilitymapping/domain/aggregates"
+	"easi/backend/internal/capabilitymapping/domain/services"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
+	"easi/backend/internal/capabilitymapping/infrastructure/adapters"
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
@@ -60,6 +62,7 @@ func setupRealizationHandlers(db *database.TenantAwareDB) (*RealizationHandlers,
 	realizationRepo := repositories.NewRealizationRepository(eventStore)
 	capabilityRepo := repositories.NewCapabilityRepository(eventStore)
 	commandBus.Register("LinkSystemToCapability", handlers.NewLinkSystemToCapabilityHandler(realizationRepo, capabilityRepo, capabilityRM, componentCacheRM))
+	commandBus.Register("ChangeCapabilityParent", handlers.NewChangeCapabilityParentHandler(capabilityRepo, capabilityRM, realizationRM, services.NewCapabilityReparentingService(adapters.NewCapabilityLookupAdapter(capabilityRM))))
 
 	return NewRealizationHandlers(commandBus, realizationRM, links), capabilityRepo
 }

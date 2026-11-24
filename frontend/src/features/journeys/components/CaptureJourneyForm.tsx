@@ -16,9 +16,9 @@ import { useEffect, useMemo } from 'react';
 import { Controller, type FieldErrors, useForm } from 'react-hook-form';
 import type { BusinessDomainId, Capability, CapabilityRealization } from '../../../api/types';
 import {
-  carriesApplications,
   type CaptureJourneyFormData,
   captureJourneySchema,
+  carriesApplications,
   MAX_TARGET_MATURITY,
   MIN_TARGET_MATURITY,
 } from '../../../lib/schemas/journey';
@@ -103,11 +103,7 @@ function toCaptureRequest(data: CaptureJourneyFormData): CaptureJourneyRequest {
   };
 }
 
-function useOptions(
-  realizations: CapabilityRealization[],
-  fromComponentIds: string[],
-  kind: JourneyKind,
-) {
+function useOptions(realizations: CapabilityRealization[], fromComponentIds: string[], kind: JourneyKind) {
   const componentsQuery = useComponents();
   const domainsQuery = useBusinessDomainsQuery();
 
@@ -230,13 +226,7 @@ function KindField({ control, availableKinds }: { control: FormControl; availabl
   );
 }
 
-function FromAppsField({
-  control,
-  options,
-}: {
-  control: FormControl;
-  options: { value: string; label: string }[];
-}) {
+function FromAppsField({ control, options }: { control: FormControl; options: { value: string; label: string }[] }) {
   return (
     <Controller
       name="fromComponentIds"
@@ -456,8 +446,17 @@ export function CaptureJourneyForm({
   onCaptured,
   onCancel,
 }: CaptureJourneyFormProps) {
-  const { form, kind, options, parentDisabled, clearTargetParent, submit, isPending, errorMessage, consolidationBlocked } =
-    useCaptureJourneyController(capability, realizations, availableKinds, onCaptured);
+  const {
+    form,
+    kind,
+    options,
+    parentDisabled,
+    clearTargetParent,
+    submit,
+    isPending,
+    errorMessage,
+    consolidationBlocked,
+  } = useCaptureJourneyController(capability, realizations, availableKinds, onCaptured);
   const { control, formState } = form;
 
   return (

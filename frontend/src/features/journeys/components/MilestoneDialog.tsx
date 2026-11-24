@@ -43,7 +43,12 @@ export function MilestoneDialog({ journey, milestone, onClose }: MilestoneDialog
   const submit = () => save({ label: label.trim(), targetPeriod: toTargetPeriod(period), status });
 
   return (
-    <Modal opened onClose={onClose} title={milestone ? 'Edit milestone' : 'Add milestone'} data-testid="milestone-dialog">
+    <Modal
+      opened
+      onClose={onClose}
+      title={milestone ? 'Edit milestone' : 'Add milestone'}
+      data-testid="milestone-dialog"
+    >
       <Stack gap="md">
         <TextInput
           label="Label"

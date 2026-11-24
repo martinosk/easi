@@ -118,7 +118,14 @@ interface AssessmentControlsProps {
   onRemove: () => void;
 }
 
-function AssessmentControls({ componentId, canEdit, canDelete, isRemoving, onReassess, onRemove }: AssessmentControlsProps) {
+function AssessmentControls({
+  componentId,
+  canEdit,
+  canDelete,
+  isRemoving,
+  onReassess,
+  onRemove,
+}: AssessmentControlsProps) {
   if (!canEdit && !canDelete) return null;
 
   return (

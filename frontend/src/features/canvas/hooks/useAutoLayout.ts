@@ -90,7 +90,12 @@ function useServerApply() {
         ),
       ]);
     },
-    [currentViewId, updateMultiplePositionsMutation, updateCapabilityPositionMutation, updateOriginEntityPositionMutation],
+    [
+      currentViewId,
+      updateMultiplePositionsMutation,
+      updateCapabilityPositionMutation,
+      updateOriginEntityPositionMutation,
+    ],
   );
 }
 

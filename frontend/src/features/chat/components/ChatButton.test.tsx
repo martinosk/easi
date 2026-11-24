@@ -1,6 +1,6 @@
-import type { ReactElement } from 'react';
 import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ReactElement } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../test/helpers';
 import { ChatButton } from './ChatButton';

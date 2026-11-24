@@ -44,7 +44,21 @@ vi.mock('../../components/hooks/useComponents', () => ({
 
 vi.mock('../../capabilities/hooks/useCapabilities', () => ({
   useCapabilities: vi.fn(() => ({ data: [makeCapability('cap-1', 'Cap A')] })),
-  useDeleteCapability: vi.fn(() => ({
+  useDeleteImpacts: vi.fn((ids: string[]) => ({
+    impacts: ids.map((id) => ({
+      capabilityId: id,
+      capabilityName: id,
+      hasDescendants: false,
+      affectedCapabilities: [],
+      realizations: [],
+      _links: {},
+    })),
+    isLoading: false,
+    isFetching: false,
+    isError: false,
+    retry: vi.fn(),
+  })),
+  useCascadeDeleteCapability: vi.fn(() => ({
     mutateAsync: vi.fn().mockResolvedValue(undefined),
   })),
 }));

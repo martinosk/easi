@@ -1,9 +1,9 @@
+import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
 import { ReactFlowProvider } from '@xyflow/react';
-import { MantineProvider } from '@mantine/core';
 import type { ReactNode } from 'react';
+import { describe, expect, it, vi } from 'vitest';
 import type { ViewId } from '../../../api/types';
 import { useAppStore } from '../../../store/appStore';
 import { withDynamicExpansion } from './withDynamicExpansion';

@@ -139,4 +139,3 @@ export const createInternalTeamNode = (
     selectedOriginEntityId,
     subtitle: team.department,
   });
-

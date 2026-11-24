@@ -1,8 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button, Group, NumberInput } from '@mantine/core';
 import { Controller, useForm } from 'react-hook-form';
-import { type NumberFieldBoundsFormData, numberFieldBoundsSchema } from '../../../lib/schemas/onePagerConfiguration';
 import type { SubjectAttribute } from '../../../api/types';
+import { type NumberFieldBoundsFormData, numberFieldBoundsSchema } from '../../../lib/schemas/onePagerConfiguration';
 import { hasLink } from '../../../utils/hateoas';
 
 interface NumberFieldBoundsEditorProps {

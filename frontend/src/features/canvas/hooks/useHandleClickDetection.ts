@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
 import {
   findHandleElement,
-  type HandleClickEvent,
   HANDLE_CLICK_THRESHOLD_PX,
+  type HandleClickEvent,
   type HandleSide,
   isClickGesture,
   readHandleSide,

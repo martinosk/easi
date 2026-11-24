@@ -2,7 +2,9 @@ import React from 'react';
 import type { Capability } from '../../../api/types';
 import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
 import type { ContextMenuItem } from '../../../components/shared/ContextMenu';
+import { CapabilityDeletionImpactSection } from '../../capabilities/components/CapabilityDeletionImpact';
 import { DeleteCapabilityDialog } from '../../capabilities/components/DeleteCapabilityDialog';
+import type { CapabilityDeletionPlan } from '../../capabilities/hooks/useCapabilityDeletionPlan';
 import { InviteToEditDialog } from '../../edit-grants/components/InviteToEditDialog';
 import { useCreateEditGrant } from '../../edit-grants/hooks/useEditGrants';
 import { CreateAcquiredEntityDialog } from '../../origin-entities/components/CreateAcquiredEntityDialog';
@@ -62,6 +64,7 @@ interface NavigationTreeDialogsProps {
   onRequestBulkOperation: (request: TreeBulkOperationRequest) => void;
   bulkDelete: {
     bulkItems: TreeSelectedItem[] | null;
+    capabilityDeletionPlan: CapabilityDeletionPlan;
     isExecuting: boolean;
     result: TreeBulkOperationResult | null;
     itemNames: string[];
@@ -137,7 +140,10 @@ export const NavigationTreeDialogs: React.FC<NavigationTreeDialogsProps> = ({
           onCancel={bulkDelete.handleCancel}
           isLoading={bulkDelete.isExecuting}
           error={bulkDelete.result ? buildBulkDeleteError(bulkDelete.result) : null}
-        />
+          confirmDisabled={!bulkDelete.capabilityDeletionPlan.ready}
+        >
+          <CapabilityDeletionImpactSection plan={bulkDelete.capabilityDeletionPlan} />
+        </ConfirmationDialog>
       )}
 
       <CreateAcquiredEntityDialog isOpen={openOriginDialog === 'acquired'} onClose={onCloseOriginDialog} />

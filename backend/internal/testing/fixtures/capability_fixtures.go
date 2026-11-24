@@ -7,8 +7,6 @@ import (
 	"easi/backend/internal/capabilitymapping/application/handlers"
 	"easi/backend/internal/capabilitymapping/application/projectors"
 	"easi/backend/internal/capabilitymapping/application/readmodels"
-	"easi/backend/internal/capabilitymapping/domain/services"
-	"easi/backend/internal/capabilitymapping/infrastructure/adapters"
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 
@@ -26,8 +24,6 @@ func NewCapabilityFixtures(tc *TestContext) *CapabilityFixtures {
 	assignmentReadModel := readmodels.NewDomainCapabilityAssignmentReadModel(tc.TenantDB)
 
 	capabilityRepo := repositories.NewCapabilityRepository(tc.EventStore)
-	childrenChecker := adapters.NewCapabilityChildrenCheckerAdapter(capabilityReadModel)
-	deletionService := services.NewCapabilityDeletionService(childrenChecker)
 
 	projector := projectors.NewCapabilityProjector(capabilityReadModel, assignmentReadModel)
 	tc.EventBus.Subscribe(cmPL.CapabilityCreated, projector)
@@ -42,8 +38,6 @@ func NewCapabilityFixtures(tc *TestContext) *CapabilityFixtures {
 	tc.CommandBus.Register("UpdateCapabilityMetadata", handlers.NewUpdateCapabilityMetadataHandler(capabilityRepo, readmodels.NewUserNameCacheReadModel(tc.TenantDB)))
 	tc.CommandBus.Register("AddCapabilityExpert", handlers.NewAddCapabilityExpertHandler(capabilityRepo))
 	tc.CommandBus.Register("AddCapabilityTag", handlers.NewAddCapabilityTagHandler(capabilityRepo))
-	realizationReadModel := readmodels.NewRealizationReadModel(tc.TenantDB)
-	tc.CommandBus.Register("DeleteCapability", handlers.NewDeleteCapabilityHandler(capabilityRepo, deletionService, realizationReadModel, capabilityReadModel))
 
 	return &CapabilityFixtures{
 		tc:                  tc,

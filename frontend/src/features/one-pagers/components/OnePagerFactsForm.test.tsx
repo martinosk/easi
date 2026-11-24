@@ -159,9 +159,13 @@ describe('OnePagerFactsForm', () => {
     await user.click(screen.getByRole('button', { name: 'Save one-pager' }));
 
     await waitFor(() => expect(onePagersApi.recordFieldValue).toHaveBeenCalledTimes(1));
-    expect(onePagersApi.recordFieldValue).toHaveBeenCalledWith(expect.objectContaining({ subjectId: 'vendor-1' }), 'f-text', {
-      value: { type: 'text', version: 1, value: 'Runs on shared Kubernetes cluster' },
-    });
+    expect(onePagersApi.recordFieldValue).toHaveBeenCalledWith(
+      expect.objectContaining({ subjectId: 'vendor-1' }),
+      'f-text',
+      {
+        value: { type: 'text', version: 1, value: 'Runs on shared Kubernetes cluster' },
+      },
+    );
     expect(onePagersApi.clearFieldValue).not.toHaveBeenCalled();
   });
 

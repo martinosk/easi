@@ -2,10 +2,10 @@ import type { Edge, Node, OnNodeDrag } from '@xyflow/react';
 import { useReactFlow } from '@xyflow/react';
 import { useCallback } from 'react';
 import { toCapabilityId, toComponentId, toRelationId } from '../../../api/types';
+import { getEntityId, getEntityType, toNodeId } from '../../../constants/entityIdentifiers';
 import { useAppStore } from '../../../store/appStore';
 import { canEdit } from '../../../utils/hateoas';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
-import { getEntityId, getEntityType, toNodeId } from '../../../constants/entityIdentifiers';
 import type { EntityType } from '../utils/dynamicMode';
 
 const NODE_TYPE_TO_ENTITY_TYPE: Record<string, EntityType> = {
@@ -22,9 +22,7 @@ function nodeIdToEntityKey(nodeId: string): { id: string; type: EntityType } {
 }
 
 function buildDraftPositions(nodes: Node[]): Record<string, { x: number; y: number }> {
-  return Object.fromEntries(
-    nodes.map((n) => [nodeIdToEntityKey(n.id).id, { x: n.position.x, y: n.position.y }]),
-  );
+  return Object.fromEntries(nodes.map((n) => [nodeIdToEntityKey(n.id).id, { x: n.position.x, y: n.position.y }]));
 }
 
 function isMultiSelectModifier(event: React.MouseEvent): boolean {

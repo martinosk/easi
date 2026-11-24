@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { realizationRoleQueryKeys, timeAssessmentQueryKeys } from '../features/architecture-direction/queryKeys';
 import { auditQueryKeys } from '../features/audit/queryKeys';
 import { businessDomainsQueryKeys } from '../features/business-domains/queryKeys';
-import { viewsQueryKeys } from '../features/views/queryKeys';
 import { capabilitiesMutationEffects } from '../features/capabilities/mutationEffects';
 import { capabilitiesQueryKeys } from '../features/capabilities/queryKeys';
 import { componentsMutationEffects } from '../features/components/mutationEffects';
@@ -22,6 +21,7 @@ import {
   vendorsQueryKeys,
 } from '../features/origin-entities/queryKeys';
 import { viewsMutationEffects } from '../features/views/mutationEffects';
+import { viewsQueryKeys } from '../features/views/queryKeys';
 
 describe('mutationEffects', () => {
   describe('capabilitiesMutationEffects.linkSystem', () => {

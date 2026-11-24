@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DotIcon } from './icons';
 import classes from './RadialContextMenu.module.css';
 import { nextFocusForKey } from './radialFocus';
-import { clampCenter, PETAL_HALF, placePetals, type Point, radiusFor } from './radialGeometry';
+import { clampCenter, PETAL_HALF, type Point, placePetals, radiusFor } from './radialGeometry';
 import type { ContextMenuItem } from './types';
 
 interface RadialContextMenuProps {
@@ -133,10 +133,7 @@ export const RadialContextMenu = ({ x, y, items, title, onClose }: RadialContext
       onClose();
       return;
     }
-    const next = nextFocusForKey(
-      { key: e.key, shiftKey: e.shiftKey },
-      { current: focusIdx, count: items.length },
-    );
+    const next = nextFocusForKey({ key: e.key, shiftKey: e.shiftKey }, { current: focusIdx, count: items.length });
     if (next === null) return;
     e.preventDefault();
     setFocusIdx(next);

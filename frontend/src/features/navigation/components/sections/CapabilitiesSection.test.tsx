@@ -1,8 +1,10 @@
-import type { ReactElement } from 'react';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import { renderWithProviders } from '../../../../test/helpers';
 import { seedOnePagerCompleteness } from '../../../../test/mocks/onePagerCompleteness';
+
 const render = (ui: ReactElement) => renderWithProviders(ui, { withRouter: false });
+
 import { describe, expect, it, vi } from 'vitest';
 import type { Capability, CapabilityId, HATEOASLinks } from '../../../../api/types';
 import { CapabilitiesSection } from './CapabilitiesSection';

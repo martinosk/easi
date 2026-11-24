@@ -1,5 +1,5 @@
-import type { ReactElement } from 'react';
 import { screen, waitFor } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiClient } from '../../../api/client';
 import type { Release } from '../../../api/types';

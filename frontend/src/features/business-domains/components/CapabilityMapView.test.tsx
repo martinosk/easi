@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { toCapabilityId, toComponentId } from '../../../api/types';
 import { renderWithProviders } from '../../../test/helpers';
-import { buildCapabilityAt as cap, buildCapabilityRealization } from '../../../test/helpers/entityBuilders';
+import { buildCapabilityRealization, buildCapabilityAt as cap } from '../../../test/helpers/entityBuilders';
 import { buildHookData, buildViewModel } from '../testkit/hookData';
 import { CapabilityMapView } from './CapabilityMapView';
 
@@ -28,7 +28,11 @@ function nestedHookData(overrides = {}) {
       buildViewModel(
         'Finance',
         'domain-1',
-        [cap('d1-l1', 'Billing', 'L1'), cap('d1-l2', 'Invoicing', 'L2', 'd1-l1'), cap('d1-l3', 'Dunning', 'L3', 'd1-l2')],
+        [
+          cap('d1-l1', 'Billing', 'L1'),
+          cap('d1-l2', 'Invoicing', 'L2', 'd1-l1'),
+          cap('d1-l3', 'Dunning', 'L3', 'd1-l2'),
+        ],
         financeRealizations,
       ),
       buildViewModel('Logistics', 'domain-2'),

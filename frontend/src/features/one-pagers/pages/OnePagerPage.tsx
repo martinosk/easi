@@ -7,8 +7,8 @@ import { ShareIcon } from '../../../components/shared/ContextMenu/icons';
 import { DetailField } from '../../../components/shared/DetailField';
 import { LoadingFallback } from '../../../components/shared/LoadingFallback';
 import type { OnePagerFactsFormValues } from '../../../lib/schemas/onePagerFacts';
-import { hasLink } from '../../../utils/hateoas';
 import { copyToClipboard, generateOnePagerShareUrl } from '../../../utils/clipboard';
+import { hasLink } from '../../../utils/hateoas';
 import { BuiltInValueDisplay } from '../components/BuiltInValueDisplay';
 import { FactFieldInput } from '../components/FactFieldInput';
 import { FactValueDisplay } from '../components/FactValueDisplay';
@@ -20,8 +20,8 @@ import { useOnePagerFacts } from '../hooks/useOnePagerFacts';
 import { useOnePagerFactsForm } from '../hooks/useOnePagerFactsForm';
 import { subjectTypeLabel } from '../subjectTypes';
 import {
-  ONE_PAGER_SUBJECT_TYPES,
   type CustomField,
+  ONE_PAGER_SUBJECT_TYPES,
   type OnePagerCompleteness,
   type OnePagerFacts,
   type OnePagerSubjectType,
@@ -73,7 +73,13 @@ interface OnePagerFieldRowProps {
   requiredHint: (field: CustomField) => boolean;
 }
 
-function OnePagerFieldRow({ field, missingFieldIds, editableFieldsById, control, requiredHint }: OnePagerFieldRowProps) {
+function OnePagerFieldRow({
+  field,
+  missingFieldIds,
+  editableFieldsById,
+  control,
+  requiredHint,
+}: OnePagerFieldRowProps) {
   if (field.kind === 'builtIn') {
     return (
       <DetailField label={field.builtIn.label}>

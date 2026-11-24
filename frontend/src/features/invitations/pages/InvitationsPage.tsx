@@ -100,11 +100,7 @@ export function InvitationsPage() {
         onInvite={() => setIsModalOpen(true)}
         onRevoke={setRevokeTarget}
       />
-      <InviteUserModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSubmit={handleCreateInvitation}
-      />
+      <InviteUserModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSubmit={handleCreateInvitation} />
       {revokeTarget && (
         <ConfirmationDialog
           title="Revoke invitation?"
@@ -144,8 +140,7 @@ function InvitationsHeader({ onInvite }: InvitationsHeaderProps) {
       <Stack gap="xs">
         <Title order={1}>User Invitations</Title>
         <Text c="dimmed">
-          Create invitations for users to join. Once invited, users can log in using their company
-          email.
+          Create invitations for users to join. Once invited, users can log in using their company email.
         </Text>
       </Stack>
       <Button onClick={onInvite} data-testid="invite-user-btn">

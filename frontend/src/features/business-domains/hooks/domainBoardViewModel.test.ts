@@ -152,7 +152,10 @@ describe('buildDomainBoardViewModel', () => {
   });
 
   it('does not attach a grade to an Inherited realization even when the app is assessed on its source pair', () => {
-    const vm = buildAssessedRealizationViewModel({ origin: 'Inherited', sourceCapabilityId: toCapabilityId('l1-source') });
+    const vm = buildAssessedRealizationViewModel({
+      origin: 'Inherited',
+      sourceCapabilityId: toCapabilityId('l1-source'),
+    });
 
     expect(vm.getRealizationsForCapability(toCapabilityId('l1-a'))[0].timeGrade).toBeUndefined();
   });

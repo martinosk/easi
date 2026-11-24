@@ -9,7 +9,12 @@ import type {
   Vendor,
   VendorId,
 } from '../../../api/types';
-import { createAcquiredEntityNode, createInternalTeamNode, createOriginEntityNode, createVendorNode } from './nodeFactory';
+import {
+  createAcquiredEntityNode,
+  createInternalTeamNode,
+  createOriginEntityNode,
+  createVendorNode,
+} from './nodeFactory';
 
 describe('createOriginEntityNode', () => {
   const emptyPositions = {};

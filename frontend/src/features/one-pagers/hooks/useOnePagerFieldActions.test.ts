@@ -129,16 +129,19 @@ describe('useOnePagerFieldActions', () => {
       confirmedVia: (hooks: RenderedActions) => hooks.onRequireBuiltInConfirmationNeeded,
       untouchedApi: () => onePagersApi.changeBuiltInFieldRequirement,
     },
-  ])('intercepts flipping $label to required instead of mutating immediately', ({ field, toggle, confirmedVia, untouchedApi }) => {
-    const hooks = renderActions(buildConfiguration());
+  ])(
+    'intercepts flipping $label to required instead of mutating immediately',
+    ({ field, toggle, confirmedVia, untouchedApi }) => {
+      const hooks = renderActions(buildConfiguration());
 
-    act(() => {
-      toggle(hooks, field);
-    });
+      act(() => {
+        toggle(hooks, field);
+      });
 
-    expect(confirmedVia(hooks)).toHaveBeenCalledWith(field);
-    expect(untouchedApi()).not.toHaveBeenCalled();
-  });
+      expect(confirmedVia(hooks)).toHaveBeenCalledWith(field);
+      expect(untouchedApi()).not.toHaveBeenCalled();
+    },
+  );
 
   it('unrequires a built-in field immediately without a confirmation dialog', async () => {
     const configuration = buildConfiguration();

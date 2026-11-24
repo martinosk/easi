@@ -1,7 +1,7 @@
 import { type ComponentType, lazy, Suspense, useCallback, useLayoutEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import type { Release } from './api/types';
 import classes from './App.module.css';
+import type { Release } from './api/types';
 import { AppLayout } from './components/layout/AppLayout';
 import { AppNavigation } from './components/layout/AppNavigation';
 import { ErrorBoundary, FeatureErrorFallback } from './components/shared/ErrorBoundary';
@@ -9,9 +9,9 @@ import { ErrorScreen } from './components/shared/ErrorScreen';
 import { LoadingFallback } from './components/shared/LoadingFallback';
 import { useDialogContext } from './contexts/dialogs';
 import { ReleaseNotesOverlay } from './contexts/releases/components/ReleaseNotesOverlay';
+import { useReleaseNotes } from './contexts/releases/store/useReleaseNotes';
 import { ChatButton, useAssistantAvailability, useChatStore } from './features/chat';
 import { useUnloadGuard } from './hooks/useUnloadGuard';
-import { useReleaseNotes } from './contexts/releases/store/useReleaseNotes';
 import type { AppView } from './routes/routePaths';
 import { useUserStore } from './store/userStore';
 

@@ -136,13 +136,7 @@ function UnsupportedSummary({ unsupported }: UnsupportedSummaryProps) {
   );
 }
 
-export function ImportPreviewStep({
-  preview,
-  eaOwnerName,
-  onConfirm,
-  onCancel,
-  isLoading,
-}: ImportPreviewStepProps) {
+export function ImportPreviewStep({ preview, eaOwnerName, onConfirm, onCancel, isLoading }: ImportPreviewStepProps) {
   const { supported, unsupported } = preview;
   const hasUnsupported =
     Object.keys(unsupported.elements).length > 0 || Object.keys(unsupported.relationships).length > 0;

@@ -43,6 +43,7 @@ type RouteConfig struct {
 
 func SetupCapabilityMappingRoutes(config *RouteConfig) error {
 	repos := initializeRepositories(config.EventStore)
+	repos.transactions = config.DB
 	rm := initializeReadModels(config.DB)
 
 	if config.StrategyPillarsGateway == nil {
@@ -113,6 +114,7 @@ type routeRepositories struct {
 	domainAssignment    *repositories.BusinessDomainAssignmentRepository
 	strategyImportance  *repositories.StrategyImportanceRepository
 	applicationFitScore *repositories.ApplicationFitScoreRepository
+	transactions        handlers.TransactionRunner
 }
 
 type routeReadModels struct {
@@ -339,7 +341,7 @@ func setupCascadingDeleteHandlers(eventBus events.EventBus, commandBus *cqrs.InM
 }
 
 func setupCommandHandlers(commandBus *cqrs.InMemoryCommandBus, repos *routeRepositories, rm *routeReadModels, pillarsGateway metamodel.StrategyPillarsGateway) {
-	registerCapabilityCommands(commandBus, repos.capability, capabilityCommandReadModels{
+	registerCapabilityCommands(commandBus, repos, capabilityCommandReadModels{
 		capability:    rm.capability,
 		realization:   rm.realization,
 		dependency:    rm.dependency,
@@ -371,12 +373,11 @@ type capabilityCommandReadModels struct {
 	userNameCache *readmodels.UserNameCacheReadModel
 }
 
-func registerCapabilityCommands(commandBus *cqrs.InMemoryCommandBus, repo *repositories.CapabilityRepository, rm capabilityCommandReadModels) {
+func registerCapabilityCommands(commandBus *cqrs.InMemoryCommandBus, repos *routeRepositories, rm capabilityCommandReadModels) {
+	repo := repos.capability
 	capabilityRM := rm.capability
 	realizationRM := rm.realization
 	dependencyRM := rm.dependency
-	childrenChecker := adapters.NewCapabilityChildrenCheckerAdapter(capabilityRM)
-	deletionService := services.NewCapabilityDeletionService(childrenChecker)
 	reparentingService := services.NewCapabilityReparentingService(adapters.NewCapabilityLookupAdapter(capabilityRM))
 	capabilityLookupAdapter := adapters.NewCapabilityLookupAdapter(capabilityRM)
 	hierarchyService := services.NewCapabilityHierarchyService(capabilityLookupAdapter)
@@ -388,14 +389,13 @@ func registerCapabilityCommands(commandBus *cqrs.InMemoryCommandBus, repo *repos
 	commandBus.Register("RemoveCapabilityExpert", handlers.NewRemoveCapabilityExpertHandler(repo))
 	commandBus.Register("AddCapabilityTag", handlers.NewAddCapabilityTagHandler(repo))
 	commandBus.Register("ChangeCapabilityParent", handlers.NewChangeCapabilityParentHandler(repo, capabilityRM, realizationRM, reparentingService))
-	commandBus.Register("DeleteCapability", handlers.NewDeleteCapabilityHandler(repo, deletionService, realizationRM, capabilityRM))
 	commandBus.Register("CascadeDeleteCapability", handlers.NewCascadeDeleteCapabilityHandler(handlers.CascadeDeleteDeps{
+		Transactions:     repos.transactions,
 		Repository:       repo,
 		HierarchyService: hierarchyService,
 		RealizationRM:    realizationRM,
 		DependencyRM:     dependencyRM,
 		CommandBus:       commandBus,
-		CapabilityLookup: capabilityRM,
 	}))
 }
 

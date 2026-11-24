@@ -5,11 +5,16 @@ import (
 
 	"easi/backend/internal/capabilitymapping/application/commands"
 	"easi/backend/internal/capabilitymapping/application/readmodels"
-	"easi/backend/internal/capabilitymapping/domain/events"
+	"easi/backend/internal/capabilitymapping/domain/aggregates"
 	"easi/backend/internal/capabilitymapping/domain/services"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
 	"easi/backend/internal/shared/cqrs"
 )
+
+type CascadeDeleteRepository interface {
+	GetByID(ctx context.Context, id string) (*aggregates.Capability, error)
+	Save(ctx context.Context, capability *aggregates.Capability) error
+}
 
 type CommandDispatcher interface {
 	Dispatch(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error)
@@ -21,7 +26,6 @@ type CascadeHierarchyService interface {
 
 type CascadeRealizationReadModel interface {
 	GetByCapabilityID(ctx context.Context, capabilityID string) ([]readmodels.RealizationDTO, error)
-	GetByComponentID(ctx context.Context, componentID string) ([]readmodels.RealizationDTO, error)
 }
 
 type CascadeDependencyReadModel interface {
@@ -29,13 +33,17 @@ type CascadeDependencyReadModel interface {
 	GetIncoming(ctx context.Context, capabilityID string) ([]readmodels.DependencyDTO, error)
 }
 
+type TransactionRunner interface {
+	RunInTx(ctx context.Context, fn func(ctx context.Context) error) error
+}
+
 type CascadeDeleteDeps struct {
-	Repository       DeleteCapabilityRepository
+	Transactions     TransactionRunner
+	Repository       CascadeDeleteRepository
 	HierarchyService CascadeHierarchyService
 	RealizationRM    CascadeRealizationReadModel
 	DependencyRM     CascadeDependencyReadModel
 	CommandBus       CommandDispatcher
-	CapabilityLookup CapabilityParentLookup
 }
 
 type CascadeDeleteCapabilityHandler struct {
@@ -61,11 +69,13 @@ func (h *CascadeDeleteCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Co
 		return cqrs.EmptyResult(), services.ErrCascadeRequiredForChildCapabilities
 	}
 
-	return cqrs.EmptyResult(), h.executeCascade(ctx, scope)
+	return cqrs.EmptyResult(), h.deps.Transactions.RunInTx(ctx, func(txCtx context.Context) error {
+		return h.executeCascade(txCtx, scope, command.ConfirmedRealizationIDs)
+	})
 }
 
-func (h *CascadeDeleteCapabilityHandler) executeCascade(ctx context.Context, scope valueobjects.DeletionScope) error {
-	if err := h.dispatchRealizationDeletes(ctx, scope); err != nil {
+func (h *CascadeDeleteCapabilityHandler) executeCascade(ctx context.Context, scope valueobjects.DeletionScope, confirmedRealizationIDs []string) error {
+	if err := h.dispatchRealizationDeletes(ctx, scope, confirmedRealizationIDs); err != nil {
 		return err
 	}
 
@@ -94,10 +104,13 @@ func (h *CascadeDeleteCapabilityHandler) buildScope(ctx context.Context, id stri
 	return valueobjects.NewDeletionScope(rootID, descendants), nil
 }
 
-func (h *CascadeDeleteCapabilityHandler) dispatchRealizationDeletes(ctx context.Context, scope valueobjects.DeletionScope) error {
-	realizations, err := h.collectRealizations(ctx, scope)
+func (h *CascadeDeleteCapabilityHandler) dispatchRealizationDeletes(ctx context.Context, scope valueobjects.DeletionScope, confirmedRealizationIDs []string) error {
+	realizations, err := collectDirectRealizations(ctx, h.deps.RealizationRM, scope)
 	if err != nil {
 		return err
+	}
+	if !sameRealizations(realizations, confirmedRealizationIDs) {
+		return services.ErrDeleteImpactChanged
 	}
 	for _, r := range realizations {
 		if _, err := h.deps.CommandBus.Dispatch(ctx, &commands.DeleteSystemRealization{ID: r.ID}); err != nil {
@@ -105,18 +118,6 @@ func (h *CascadeDeleteCapabilityHandler) dispatchRealizationDeletes(ctx context.
 		}
 	}
 	return nil
-}
-
-func (h *CascadeDeleteCapabilityHandler) collectRealizations(ctx context.Context, scope valueobjects.DeletionScope) ([]readmodels.RealizationDTO, error) {
-	var realizations []readmodels.RealizationDTO
-	for _, capID := range scope.AllIDs() {
-		r, err := h.deps.RealizationRM.GetByCapabilityID(ctx, capID.Value())
-		if err != nil {
-			return nil, err
-		}
-		realizations = append(realizations, r...)
-	}
-	return realizations, nil
 }
 
 func (h *CascadeDeleteCapabilityHandler) dispatchDependencyDeletes(ctx context.Context, scope valueobjects.DeletionScope) error {
@@ -176,59 +177,47 @@ func (h *CascadeDeleteCapabilityHandler) deleteSingleCapability(ctx context.Cont
 		return err
 	}
 
-	removals, err := h.buildInheritanceRemovals(ctx, capability)
-	if err != nil {
-		return err
-	}
-
 	if err := capability.Delete(); err != nil {
 		return err
-	}
-
-	if len(removals) > 0 {
-		capability.RaiseEvent(events.NewCapabilityRealizationsUninherited(capability.ID(), removals))
 	}
 
 	return h.deps.Repository.Save(ctx, capability)
 }
 
-func (h *CascadeDeleteCapabilityHandler) buildInheritanceRemovals(ctx context.Context, capability interface {
-	ID() string
-	ParentID() valueobjects.CapabilityID
-}) ([]events.RealizationInheritanceRemoval, error) {
-	parentID := capability.ParentID().Value()
-	if parentID == "" {
-		return nil, nil
+func collectDirectRealizations(ctx context.Context, rm CascadeRealizationReadModel, scope valueobjects.DeletionScope) ([]readmodels.RealizationDTO, error) {
+	direct := []readmodels.RealizationDTO{}
+	for _, capID := range scope.AllIDs() {
+		realizations, err := rm.GetByCapabilityID(ctx, capID.Value())
+		if err != nil {
+			return nil, err
+		}
+		direct = append(direct, directOnly(realizations)...)
 	}
-
-	realizations, err := h.deps.RealizationRM.GetByCapabilityID(ctx, capability.ID())
-	if err != nil {
-		return nil, err
-	}
-	if len(realizations) == 0 {
-		return nil, nil
-	}
-
-	ancestorIDs, err := CollectAncestorIDs(ctx, h.deps.CapabilityLookup, parentID)
-	if err != nil {
-		return nil, err
-	}
-	if len(ancestorIDs) == 0 {
-		return nil, nil
-	}
-
-	return BuildRealizationRemovals(realizations, ancestorIDs), nil
+	return direct, nil
 }
 
-func isComponentExclusiveToScope(ctx context.Context, rm CascadeRealizationReadModel, componentID string, scope valueobjects.DeletionScope) (bool, error) {
-	allForComponent, err := rm.GetByComponentID(ctx, componentID)
-	if err != nil {
-		return false, err
-	}
-	for _, cr := range allForComponent {
-		if !scope.Contains(cr.CapabilityID) {
-			return false, nil
+func directOnly(realizations []readmodels.RealizationDTO) []readmodels.RealizationDTO {
+	direct := []readmodels.RealizationDTO{}
+	for _, r := range realizations {
+		if r.Origin == readmodels.OriginDirect {
+			direct = append(direct, r)
 		}
 	}
-	return true, nil
+	return direct
+}
+
+func sameRealizations(realizations []readmodels.RealizationDTO, confirmedIDs []string) bool {
+	confirmed := make(map[string]bool, len(confirmedIDs))
+	for _, id := range confirmedIDs {
+		confirmed[id] = true
+	}
+	if len(confirmed) != len(realizations) {
+		return false
+	}
+	for _, r := range realizations {
+		if !confirmed[r.ID] {
+			return false
+		}
+	}
+	return true
 }

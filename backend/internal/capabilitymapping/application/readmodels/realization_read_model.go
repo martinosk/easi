@@ -517,3 +517,36 @@ func (rm *RealizationReadModel) GetByBusinessDomainAndDepth(ctx context.Context,
 	}
 	return builder.build(), nil
 }
+
+const restoreInheritedRealizationsSQL = `WITH RECURSIVE ancestry AS (
+	SELECT r.id AS source_realization_id, r.capability_id AS source_capability_id, r.linked_at, c.parent_id AS ancestor_id
+	FROM capabilitymapping.capability_realizations r
+	JOIN capabilitymapping.capabilities c ON c.tenant_id = r.tenant_id AND c.id = r.capability_id
+	WHERE r.tenant_id = $1 AND r.component_id = $2 AND r.origin = 'Direct'
+	UNION ALL
+	SELECT a.source_realization_id, a.source_capability_id, a.linked_at, c.parent_id
+	FROM ancestry a
+	JOIN capabilitymapping.capabilities c ON c.tenant_id = $1 AND c.id = a.ancestor_id
+)
+INSERT INTO capabilitymapping.capability_realizations (id, tenant_id, capability_id, component_id, realization_level, notes, origin, source_realization_id, source_capability_id, linked_at, component_name, source_capability_name)
+SELECT DISTINCT ON (a.ancestor_id) gen_random_uuid(), $1, a.ancestor_id, $2, 'Full', '', 'Inherited', a.source_realization_id, a.source_capability_id, a.linked_at, $3, source.name
+FROM ancestry a
+JOIN capabilitymapping.capabilities source ON source.tenant_id = $1 AND source.id = a.source_capability_id
+WHERE a.ancestor_id IS NOT NULL AND a.ancestor_id <> ''
+ORDER BY a.ancestor_id, a.linked_at, a.source_realization_id
+ON CONFLICT (tenant_id, capability_id, component_id) DO NOTHING`
+
+type ComponentRef struct {
+	ID   string
+	Name string
+}
+
+func (rm *RealizationReadModel) RestoreInheritedRealizations(ctx context.Context, component ComponentRef) error {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx, restoreInheritedRealizationsSQL, tenantID.Value(), component.ID, toNullableString(component.Name))
+	return err
+}

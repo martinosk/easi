@@ -1,8 +1,10 @@
-import type { ReactElement } from 'react';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import { renderWithProviders } from '../../../../test/helpers';
 import { seedOnePagerCompleteness } from '../../../../test/mocks/onePagerCompleteness';
+
 const render = (ui: ReactElement) => renderWithProviders(ui, { withRouter: false });
+
 import { describe, expect, it, vi } from 'vitest';
 import type { ComponentId, HATEOASLinks, InternalTeam, InternalTeamId, ViewId } from '../../../../api/types';
 import { InternalTeamsSection } from './InternalTeamsSection';
@@ -125,9 +127,24 @@ describe('InternalTeamsSection', () => {
     });
 
     it.each([
-      { field: 'department', match: { department: 'Technology' }, other: { department: 'Finance' }, search: 'technology' },
-      { field: 'contact person', match: { contactPerson: 'John Doe' }, other: { contactPerson: 'Jane Smith' }, search: 'john' },
-      { field: 'notes', match: { notes: 'Analytics and BI' }, other: { notes: 'Core platform services' }, search: 'analytics' },
+      {
+        field: 'department',
+        match: { department: 'Technology' },
+        other: { department: 'Finance' },
+        search: 'technology',
+      },
+      {
+        field: 'contact person',
+        match: { contactPerson: 'John Doe' },
+        other: { contactPerson: 'Jane Smith' },
+        search: 'john',
+      },
+      {
+        field: 'notes',
+        match: { notes: 'Analytics and BI' },
+        other: { notes: 'Core platform services' },
+        search: 'analytics',
+      },
     ])('should filter teams by $field', ({ match, other, search }) => {
       const teams = [
         createMockTeam({ id: 'it-1', name: 'Match Team', ...match }),
@@ -257,7 +274,10 @@ describe('InternalTeamsSection', () => {
       render(
         <InternalTeamsSection
           {...defaultProps}
-          internalTeams={[createMockTeam({ id: 'it-123' as InternalTeamId }), createMockTeam({ id: 'it-456' as InternalTeamId, name: 'Other' })]}
+          internalTeams={[
+            createMockTeam({ id: 'it-123' as InternalTeamId }),
+            createMockTeam({ id: 'it-456' as InternalTeamId, name: 'Other' }),
+          ]}
         />,
       );
 
@@ -267,7 +287,9 @@ describe('InternalTeamsSection', () => {
 
     it('shows no indicator when the subject type has no required field', async () => {
       seedOnePagerCompleteness('internal-team', []);
-      render(<InternalTeamsSection {...defaultProps} internalTeams={[createMockTeam({ id: 'it-123' as InternalTeamId })]} />);
+      render(
+        <InternalTeamsSection {...defaultProps} internalTeams={[createMockTeam({ id: 'it-123' as InternalTeamId })]} />,
+      );
 
       await waitFor(() => expect(screen.queryByTestId('one-pager-incomplete-it-123')).not.toBeInTheDocument());
     });

@@ -1,5 +1,5 @@
-import type { Node } from '@xyflow/react';
 import { act, renderHook } from '@testing-library/react';
+import type { Node } from '@xyflow/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { View } from '../../../api/types';
 import { useAppStore } from '../../../store/appStore';

@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { toCapabilityId } from '../../../api/types';
 import { renderWithProviders } from '../../../test/helpers';
-import { buildCapabilityAt as cap, buildCapabilityRealization } from '../../../test/helpers/entityBuilders';
+import { buildCapabilityRealization, buildCapabilityAt as cap } from '../../../test/helpers/entityBuilders';
 import { buildCapabilityTree } from '../../capabilities/hooks/useCapabilityTree';
 import type { BoardLens } from '../lens/boardLens';
 import { buildJourneyIndex } from '../lens/journeyIndex';

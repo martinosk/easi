@@ -1,6 +1,6 @@
-import type { ReactElement } from 'react';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ReactElement } from 'react';
 import { describe, expect, it } from 'vitest';
 import { renderWithProviders } from '../../../test/helpers';
 import { OnePagerIncompleteIndicator } from './OnePagerIncompleteIndicator';

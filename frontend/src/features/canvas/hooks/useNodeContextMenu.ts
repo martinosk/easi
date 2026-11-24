@@ -2,13 +2,13 @@ import type { Node } from '@xyflow/react';
 import { useCallback, useMemo, useState } from 'react';
 import type { Capability, Component, HATEOASLinks } from '../../../api/types';
 import type { OriginEntityType } from '../../../constants/entityIdentifiers';
+import { getEntityId, getOriginEntityType, toNodeId } from '../../../constants/entityIdentifiers';
 import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
 import { useComponents } from '../../components/hooks/useComponents';
 import { useAcquiredEntitiesQuery } from '../../origin-entities/hooks/useAcquiredEntities';
 import { useInternalTeamsQuery } from '../../origin-entities/hooks/useInternalTeams';
 import { useVendorsQuery } from '../../origin-entities/hooks/useVendors';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
-import { getEntityId, getOriginEntityType, toNodeId } from '../../../constants/entityIdentifiers';
 
 export interface NodeContextMenu {
   x: number;

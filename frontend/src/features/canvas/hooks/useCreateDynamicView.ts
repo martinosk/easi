@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useAppStore } from '../../../store/appStore';
-import type { EntityRef } from '../utils/dynamicMode';
 import { useCreateView } from '../../views/hooks/useViews';
+import type { EntityRef } from '../utils/dynamicMode';
 
 const MAX_VIEW_NAME_LENGTH = 100;
 

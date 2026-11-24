@@ -50,7 +50,10 @@ describe('component containment hooks', () => {
     const { result } = renderHook(() => useAttachComponent(), { wrapper: createWrapper(queryClient) });
 
     await act(async () => {
-      await result.current.mutateAsync({ component: part, request: { parentId: 'crm' as ComponentId, kind: 'composition' } });
+      await result.current.mutateAsync({
+        component: part,
+        request: { parentId: 'crm' as ComponentId, kind: 'composition' },
+      });
     });
 
     expect(componentsApi.attachToParent).toHaveBeenCalledWith(part, { parentId: 'crm', kind: 'composition' });
@@ -82,13 +85,18 @@ describe('component containment hooks', () => {
 
   it('shows the backend message when attaching fails', async () => {
     const part = buildComponent({ id: 'quoting' as ComponentId });
-    vi.mocked(componentsApi.attachToParent).mockRejectedValue(new Error('Component is already part of another component'));
+    vi.mocked(componentsApi.attachToParent).mockRejectedValue(
+      new Error('Component is already part of another component'),
+    );
 
     const { result } = renderHook(() => useAttachComponent(), { wrapper: createWrapper(queryClient) });
 
     await act(async () => {
       try {
-        await result.current.mutateAsync({ component: part, request: { parentId: 'crm' as ComponentId, kind: 'composition' } });
+        await result.current.mutateAsync({
+          component: part,
+          request: { parentId: 'crm' as ComponentId, kind: 'composition' },
+        });
       } catch {
         void 0;
       }

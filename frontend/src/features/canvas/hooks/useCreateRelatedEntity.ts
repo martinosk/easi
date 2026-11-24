@@ -178,10 +178,9 @@ export function useCreateRelatedEntity(): UseCreateRelatedEntityResult {
       await runRegularModePersist(spec, current, dispatchRelation);
 
       if (dynamicViewId) {
-        draftAddEntities(
-          [{ id: entityId, type: targetTypeToEntityType[current.entry.targetType] }],
-          { [entityId]: targetPosition },
-        );
+        draftAddEntities([{ id: entityId, type: targetTypeToEntityType[current.entry.targetType] }], {
+          [entityId]: targetPosition,
+        });
         setPending(null);
         return;
       }

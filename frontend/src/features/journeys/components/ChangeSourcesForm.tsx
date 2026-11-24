@@ -54,7 +54,12 @@ export function ChangeSourcesForm({
         <Button variant="default" onClick={onDone} disabled={mutation.isPending}>
           Cancel
         </Button>
-        <Button onClick={save} disabled={!valid || mutation.isPending} loading={mutation.isPending} data-testid="save-sources-btn">
+        <Button
+          onClick={save}
+          disabled={!valid || mutation.isPending}
+          loading={mutation.isPending}
+          data-testid="save-sources-btn"
+        >
           Save
         </Button>
       </Group>

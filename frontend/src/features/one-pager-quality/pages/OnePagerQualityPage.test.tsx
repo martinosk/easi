@@ -278,7 +278,9 @@ describe('OnePagerQualityPage', () => {
       const user = userEvent.setup();
       vi.mocked(onePagerQualityApi.getList).mockResolvedValue(
         buildResponse({
-          data: [buildRow({ subjectType: 'application', subjectId: 'app-1', name: 'Billing', _links: EDIT_GRANTS_LINK })],
+          data: [
+            buildRow({ subjectType: 'application', subjectId: 'app-1', name: 'Billing', _links: EDIT_GRANTS_LINK }),
+          ],
         }),
       );
       vi.mocked(editGrantApi.create).mockResolvedValue(buildGrant());

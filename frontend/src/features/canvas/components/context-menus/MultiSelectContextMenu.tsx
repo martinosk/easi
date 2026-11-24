@@ -1,9 +1,4 @@
-import {
-  ContextMenu,
-  type ContextMenuItem,
-  EyeOffIcon,
-  TrashIcon,
-} from '../../../../components/shared/ContextMenu';
+import { ContextMenu, type ContextMenuItem, EyeOffIcon, TrashIcon } from '../../../../components/shared/ContextMenu';
 import type { MultiSelectAction, MultiSelectMenuState } from '../../hooks/useMultiSelectContextMenu';
 import type { NodeContextMenu } from '../../hooks/useNodeContextMenu';
 

@@ -15,7 +15,7 @@
   background: var(--color-gray-100);
 }
 
-.indicator[data-status='error'] {
+.indicator[data-status="error"] {
   color: var(--color-error);
 }
 
@@ -29,11 +29,11 @@
   font-weight: 500;
 }
 
-.indicator[data-status='running'] .label {
+.indicator[data-status="running"] .label {
   color: var(--color-gray-700);
 }
 
-.indicator[data-status='completed'] .statusIcon {
+.indicator[data-status="completed"] .statusIcon {
   color: var(--color-success);
 }
 

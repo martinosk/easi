@@ -1,5 +1,3 @@
-import { useCallback, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   Alert,
   Badge,
@@ -17,6 +15,8 @@ import {
   TextInput,
   Title,
 } from '@mantine/core';
+import { useCallback, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { HATEOASLinks, ValueStream } from '../../../api/types';
 import { useUserStore } from '../../../store/userStore';
 import { hasLink } from '../../../utils/hateoas';

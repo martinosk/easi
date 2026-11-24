@@ -28,13 +28,7 @@ const DEFAULT_VALUES: InviteToEditFormData = {
   reason: '',
 };
 
-export function InviteToEditDialog({
-  isOpen,
-  onClose,
-  onSubmit,
-  artifactType,
-  artifactId,
-}: InviteToEditDialogProps) {
+export function InviteToEditDialog({ isOpen, onClose, onSubmit, artifactType, artifactId }: InviteToEditDialogProps) {
   const [error, setError] = useState<string | null>(null);
   const {
     register,
@@ -76,7 +70,13 @@ export function InviteToEditDialog({
   };
 
   return (
-    <Modal opened={isOpen} onClose={handleCancel} title="Invite to Edit..." centered data-testid="invite-to-edit-dialog">
+    <Modal
+      opened={isOpen}
+      onClose={handleCancel}
+      title="Invite to Edit..."
+      centered
+      data-testid="invite-to-edit-dialog"
+    >
       <form onSubmit={submit}>
         <Stack gap="md">
           <Text c="dimmed" size="sm">
@@ -110,12 +110,7 @@ export function InviteToEditDialog({
           )}
 
           <Group justify="flex-end" gap="sm">
-            <Button
-              variant="default"
-              onClick={handleCancel}
-              disabled={isSubmitting}
-              data-testid="grant-cancel-btn"
-            >
+            <Button variant="default" onClick={handleCancel} disabled={isSubmitting} data-testid="grant-cancel-btn">
               Cancel
             </Button>
             <Button type="submit" loading={isSubmitting} data-testid="grant-submit-btn">

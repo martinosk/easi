@@ -1,4 +1,4 @@
-import { Group, Select, SegmentedControl, Stack, Switch } from '@mantine/core';
+import { Group, SegmentedControl, Select, Stack, Switch } from '@mantine/core';
 import type { BusinessDomainId } from '../../../api/types';
 import type { useBusinessDomainsPage } from '../hooks/useBusinessDomainsPage';
 import { type BoardViewMode, type MapDepth, useMapDepth, useMapDomain, useMapShowApps } from '../hooks/useMapViewState';
@@ -90,39 +90,39 @@ export function CapabilityMapView({ hookData, viewMode, onViewModeChange }: Capa
 
   return (
     <Stack gap="md" className={boardClasses.page} data-testid="business-domains-map-view">
-        <div className={boardClasses.toolbarRow}>
-          <MapToolbar
-            hookData={hookData}
-            viewMode={viewMode}
-            onViewModeChange={onViewModeChange}
-            depth={depth}
-            onDepthChange={setDepth}
-            selectedDomainId={selectedDomainId}
-            onDomainChange={setSelectedDomainId}
-            showApps={showApps}
-            onShowAppsChange={setShowApps}
-          />
-        </div>
+      <div className={boardClasses.toolbarRow}>
+        <MapToolbar
+          hookData={hookData}
+          viewMode={viewMode}
+          onViewModeChange={onViewModeChange}
+          depth={depth}
+          onDepthChange={setDepth}
+          selectedDomainId={selectedDomainId}
+          onDomainChange={setSelectedDomainId}
+          showApps={showApps}
+          onShowAppsChange={setShowApps}
+        />
+      </div>
 
-        <div className={boardClasses.boardRow}>
-          <div className={boardClasses.boardScroll}>
-            <div className={mapClasses.scrollInner}>
-              {viewModel && (
-                <CapabilityMap
-                  viewModel={viewModel}
-                  depth={depth}
-                  searchQuery={hookData.searchQuery}
-                  showApps={showApps}
-                  getColorForValue={hookData.getColorForValue}
-                  onCapabilityClick={(capability, event) =>
-                    hookData.handleCapabilityClick(viewModel.domain.id, capability, event)
-                  }
-                  onChipClick={hookData.handleApplicationClick}
-                />
-              )}
-            </div>
+      <div className={boardClasses.boardRow}>
+        <div className={boardClasses.boardScroll}>
+          <div className={mapClasses.scrollInner}>
+            {viewModel && (
+              <CapabilityMap
+                viewModel={viewModel}
+                depth={depth}
+                searchQuery={hookData.searchQuery}
+                showApps={showApps}
+                getColorForValue={hookData.getColorForValue}
+                onCapabilityClick={(capability, event) =>
+                  hookData.handleCapabilityClick(viewModel.domain.id, capability, event)
+                }
+                onChipClick={hookData.handleApplicationClick}
+              />
+            )}
           </div>
         </div>
+      </div>
     </Stack>
   );
 }

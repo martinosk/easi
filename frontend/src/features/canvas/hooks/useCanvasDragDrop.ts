@@ -146,15 +146,7 @@ export const useCanvasDragDrop = (
 
       applyDraftDrop(items, position, draftAddEntities);
     },
-    [
-      reactFlowInstance,
-      currentViewId,
-      currentView,
-      dynamicViewId,
-      dynamicEntities,
-      enterDynamicMode,
-      draftAddEntities,
-    ],
+    [reactFlowInstance, currentViewId, currentView, dynamicViewId, dynamicEntities, enterDynamicMode, draftAddEntities],
   );
 
   return { onDragOver, onDrop };

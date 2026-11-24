@@ -5,12 +5,7 @@ import type {
   OriginRelationshipId,
   OriginRelationshipType,
 } from '../../../../api/types';
-import {
-  ContextMenu,
-  type ContextMenuItem,
-  LinkOffIcon,
-  TrashIcon,
-} from '../../../../components/shared/ContextMenu';
+import { ContextMenu, type ContextMenuItem, LinkOffIcon, TrashIcon } from '../../../../components/shared/ContextMenu';
 import { hasLink } from '../../../../utils/hateoas';
 import type { EdgeContextMenu as EdgeContextMenuType } from '../../hooks/useContextMenu';
 

@@ -85,7 +85,9 @@ describe('useAttributeSchemaActions', () => {
       result.current.reactivateAttribute(attribute);
     });
 
-    await waitFor(() => expect(subjectAttributeSchemaApi.retireAttribute).toHaveBeenCalledWith(attribute, { version: 7 }));
+    await waitFor(() =>
+      expect(subjectAttributeSchemaApi.retireAttribute).toHaveBeenCalledWith(attribute, { version: 7 }),
+    );
     expect(subjectAttributeSchemaApi.addOption).toHaveBeenCalledWith(attribute, { label: 'US', version: 7 });
     expect(subjectAttributeSchemaApi.retireOption).toHaveBeenCalledWith(attribute.options?.[0], { version: 7 });
     expect(subjectAttributeSchemaApi.setBounds).toHaveBeenCalledWith(attribute, { min: 1, max: undefined, version: 7 });

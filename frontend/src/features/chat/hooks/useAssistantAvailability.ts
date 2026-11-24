@@ -1,5 +1,5 @@
-import { hasLink } from '../../../utils/hateoas';
 import { useUserStore } from '../../../store/userStore';
+import { hasLink } from '../../../utils/hateoas';
 import { useAssistantStatus } from './useAssistantStatus';
 
 export interface AssistantAvailability {

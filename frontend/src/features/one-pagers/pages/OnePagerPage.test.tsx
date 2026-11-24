@@ -44,8 +44,8 @@ vi.mock('../components/SubjectDrawer', () => ({
     opened ? <div data-testid="one-pager-subject-drawer">{`${subjectType}:${subjectId}`}</div> : null,
 }));
 
-import { onePagersApi } from '../api/onePagersApi';
 import { copyToClipboard, generateOnePagerShareUrl } from '../../../utils/clipboard';
+import { onePagersApi } from '../api/onePagersApi';
 
 function builtInField(
   id: string,
@@ -617,7 +617,11 @@ describe('OnePagerPage', () => {
     });
     vi.mocked(onePagersApi.getOnePager).mockResolvedValueOnce(initialView).mockResolvedValue(updatedView);
     vi.mocked(onePagersApi.getConfiguration).mockResolvedValue(
-      buildConfiguration([customFieldDef('f1', 'Contract link'), customFieldDef('f2', 'Notes'), customFieldDef('f3', 'Owner')]),
+      buildConfiguration([
+        customFieldDef('f1', 'Contract link'),
+        customFieldDef('f2', 'Notes'),
+        customFieldDef('f3', 'Owner'),
+      ]),
     );
     vi.mocked(onePagersApi.getFacts).mockResolvedValue(
       buildFacts({ values: [textFieldValue('f1', 'old-1'), textFieldValue('f2', 'old-2')] }),
@@ -683,7 +687,10 @@ describe('OnePagerPage', () => {
       buildView({
         _links: withRecordLink(),
         fields: [
-          customField('f1', 'Notes', { value: { type: 'text', version: 1, value: 'original' }, displayText: 'original' }),
+          customField('f1', 'Notes', {
+            value: { type: 'text', version: 1, value: 'original' },
+            displayText: 'original',
+          }),
         ],
       }),
     );
@@ -723,22 +730,25 @@ describe('OnePagerPage subject drawer', () => {
     ['internal-team', 'Open internal team'],
   ];
 
-  it.each(labelCases)('offers an Open button labeled for a %s subject when x-subject is present', async (subjectType, label) => {
-    vi.mocked(onePagersApi.getOnePager).mockResolvedValue(
-      buildView({
-        subjectType,
-        subjectId: 'subj-1',
-        _links: {
-          self: { href: `/api/v1/one-pagers/${subjectType}/subj-1`, method: 'GET' },
-          'x-subject': { href: '/api/v1/subjects/subj-1', method: 'GET' },
-        },
-      }),
-    );
+  it.each(labelCases)(
+    'offers an Open button labeled for a %s subject when x-subject is present',
+    async (subjectType, label) => {
+      vi.mocked(onePagersApi.getOnePager).mockResolvedValue(
+        buildView({
+          subjectType,
+          subjectId: 'subj-1',
+          _links: {
+            self: { href: `/api/v1/one-pagers/${subjectType}/subj-1`, method: 'GET' },
+            'x-subject': { href: '/api/v1/subjects/subj-1', method: 'GET' },
+          },
+        }),
+      );
 
-    renderPage(`/one-pagers/${subjectType}/subj-1`);
+      renderPage(`/one-pagers/${subjectType}/subj-1`);
 
-    expect(await screen.findByRole('button', { name: label })).toBeInTheDocument();
-  });
+      expect(await screen.findByRole('button', { name: label })).toBeInTheDocument();
+    },
+  );
 
   it('hides the Open button when the view carries no x-subject link', async () => {
     vi.mocked(onePagersApi.getOnePager).mockResolvedValue(

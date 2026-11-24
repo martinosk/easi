@@ -376,14 +376,13 @@ export interface CapabilityDeleteImpact {
   capabilityName: string;
   hasDescendants: boolean;
   affectedCapabilities: AffectedCapability[];
-  realizationsOnDeletedCapabilities: ImpactRealization[];
-  realizationsOnRetainedCapabilities: ImpactRealization[];
+  realizations: ImpactRealization[];
   _links: HATEOASLinks;
 }
 
 export interface CascadeDeleteRequest {
   cascade: boolean;
-  deleteRealisingApplications: boolean;
+  confirmedRealizationIds: string[];
 }
 
 export interface CapabilityDependency {

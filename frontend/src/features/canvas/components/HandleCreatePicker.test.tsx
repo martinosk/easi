@@ -1,7 +1,9 @@
-import type { ReactElement } from 'react';
 import { fireEvent, screen } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import { renderWithProviders } from '../../../test/helpers';
+
 const render = (ui: ReactElement) => renderWithProviders(ui, { withRouter: false });
+
 import { describe, expect, it, vi } from 'vitest';
 import type { RelatedLink } from '../../../utils/xRelated';
 import { HandleCreatePicker } from './HandleCreatePicker';
@@ -26,7 +28,11 @@ describe('HandleCreatePicker', () => {
       entry({ relationType: 'component-triggers', title: 'Component (triggers)' }),
       entry({ relationType: 'component-serves', title: 'Component (serves)' }),
       entry({ relationType: 'capability-parent', title: 'Capability (child of)', targetType: 'capability' }),
-      entry({ relationType: 'origin-acquired-via', title: 'Acquired Entity (acquired-via)', targetType: 'acquiredEntity' }),
+      entry({
+        relationType: 'origin-acquired-via',
+        title: 'Acquired Entity (acquired-via)',
+        targetType: 'acquiredEntity',
+      }),
     ];
     render(<HandleCreatePicker x={0} y={0} entries={entries} onSelect={() => {}} onClose={() => {}} />);
 

@@ -2,11 +2,11 @@
   display: flex;
 }
 
-.message[data-sender='user'] {
+.message[data-sender="user"] {
   justify-content: flex-end;
 }
 
-.message[data-sender='assistant'] {
+.message[data-sender="assistant"] {
   justify-content: flex-start;
 }
 
@@ -15,13 +15,13 @@
   padding: var(--spacing-sm) var(--spacing-md);
 }
 
-.message[data-sender='user'] .bubble {
+.message[data-sender="user"] .bubble {
   background: var(--skin-accent-0);
   color: var(--skin-accent-8);
   border-radius: var(--radius-lg) var(--radius-lg) var(--radius-sm) var(--radius-lg);
 }
 
-.message[data-sender='assistant'] .bubble {
+.message[data-sender="assistant"] .bubble {
   background: var(--well);
   color: var(--ink);
   border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) var(--radius-sm);

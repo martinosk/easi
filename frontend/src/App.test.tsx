@@ -1,8 +1,8 @@
 import { screen } from '@testing-library/react';
 import toast from 'react-hot-toast';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { toViewId } from './api/types';
 import App from './App';
+import { toViewId } from './api/types';
 import { DialogProvider } from './contexts/dialogs';
 import { useAppStore } from './store/appStore';
 import { useUserStore } from './store/userStore';

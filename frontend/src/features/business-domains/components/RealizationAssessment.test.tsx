@@ -117,17 +117,20 @@ describe('RealizationAssessment', () => {
       true,
       'edit and delete links',
     ],
-  ] as const)('shows re-assess and remove controls only when the assessment carries %s', (_links, expectVisible, _description) => {
-    renderAssessment({ assessment: buildAssessment({ _links }) });
+  ] as const)(
+    'shows re-assess and remove controls only when the assessment carries %s',
+    (_links, expectVisible, _description) => {
+      renderAssessment({ assessment: buildAssessment({ _links }) });
 
-    if (expectVisible) {
-      expect(screen.getByTestId('reassess-btn-comp-1')).toBeInTheDocument();
-      expect(screen.getByTestId('remove-assessment-btn-comp-1')).toBeInTheDocument();
-    } else {
-      expect(screen.queryByTestId('reassess-btn-comp-1')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('remove-assessment-btn-comp-1')).not.toBeInTheDocument();
-    }
-  });
+      if (expectVisible) {
+        expect(screen.getByTestId('reassess-btn-comp-1')).toBeInTheDocument();
+        expect(screen.getByTestId('remove-assessment-btn-comp-1')).toBeInTheDocument();
+      } else {
+        expect(screen.queryByTestId('reassess-btn-comp-1')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('remove-assessment-btn-comp-1')).not.toBeInTheDocument();
+      }
+    },
+  );
 
   it('shows the suggestion and its confidence beside the grade choices, without pre-selecting one', async () => {
     renderAssessment({ canAssess: true, suggestion: buildSuggestion({ grade: 'Eliminate', confidence: 'MEDIUM' }) });

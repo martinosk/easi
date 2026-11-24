@@ -198,39 +198,36 @@ describe('filterByDomain', () => {
         originEntityId: 'team-1',
         relationshipType: 'BuiltBy' as const,
       },
-    ])('should show $entityType linked to visible components', ({
-      buildIncluded,
-      buildExcluded,
-      artifactKey,
-      originEntityId,
-      relationshipType,
-    }) => {
-      const comp1 = buildComponent({ id: toComponentId('comp-1') });
-      const included = buildIncluded();
-      const excluded = buildExcluded();
+    ])(
+      'should show $entityType linked to visible components',
+      ({ buildIncluded, buildExcluded, artifactKey, originEntityId, relationshipType }) => {
+        const comp1 = buildComponent({ id: toComponentId('comp-1') });
+        const included = buildIncluded();
+        const excluded = buildExcluded();
 
-      const artifacts = buildArtifacts({
-        components: [comp1],
-        [artifactKey]: [included, excluded],
-      });
+        const artifacts = buildArtifacts({
+          components: [comp1],
+          [artifactKey]: [included, excluded],
+        });
 
-      const data = buildDomainFilterData({
-        domainComponentIds: new Map([[DOMAIN_A, ['comp-1']]]),
-        originRelationships: [
-          buildOriginRelationship({
-            id: toOriginRelationshipId('or-1'),
-            componentId: toComponentId('comp-1'),
-            relationshipType,
-            originEntityId,
-          }),
-        ],
-        allDomainIds: [DOMAIN_A],
-      });
+        const data = buildDomainFilterData({
+          domainComponentIds: new Map([[DOMAIN_A, ['comp-1']]]),
+          originRelationships: [
+            buildOriginRelationship({
+              id: toOriginRelationshipId('or-1'),
+              componentId: toComponentId('comp-1'),
+              relationshipType,
+              originEntityId,
+            }),
+          ],
+          allDomainIds: [DOMAIN_A],
+        });
 
-      const result = filterByDomain(artifacts, [DOMAIN_A], data);
+        const result = filterByDomain(artifacts, [DOMAIN_A], data);
 
-      expect(result[artifactKey]).toEqual([included]);
-    });
+        expect(result[artifactKey]).toEqual([included]);
+      },
+    );
   });
 
   describe('multiple domains (union)', () => {

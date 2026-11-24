@@ -1,7 +1,7 @@
 import { Anchor, Text } from '@mantine/core';
 import {
-  factFormValueFromEnvelope,
   type ContactPersonFactValue,
+  factFormValueFromEnvelope,
   type LinkFactValue,
 } from '../../../lib/schemas/onePagerFacts';
 import { formatIsoDate } from '../../../utils/date';

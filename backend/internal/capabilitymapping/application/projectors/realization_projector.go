@@ -18,6 +18,8 @@ type RealizationProjectorReadModel interface {
 	InsertInherited(ctx context.Context, dto readmodels.RealizationDTO) error
 	Update(ctx context.Context, update readmodels.RealizationUpdate) error
 	Delete(ctx context.Context, id string) error
+	GetByID(ctx context.Context, id string) (*readmodels.RealizationDTO, error)
+	RestoreInheritedRealizations(ctx context.Context, component readmodels.ComponentRef) error
 	DeleteBySourceRealizationID(ctx context.Context, sourceRealizationID string) error
 	DeleteInheritedBySourceRealizationIDAndCapabilities(ctx context.Context, deletion readmodels.InheritedRealizationDeletion) error
 	DeleteByComponentID(ctx context.Context, componentID string) error
@@ -131,11 +133,30 @@ func (p *RealizationProjector) handleRealizationDeleted(ctx context.Context, eve
 	if err != nil {
 		return fmt.Errorf("unmarshal SystemRealizationDeleted event data: %w", err)
 	}
-	if err := p.readModel.DeleteBySourceRealizationID(ctx, event.ID); err != nil {
-		return fmt.Errorf("project SystemRealizationDeleted inherited cleanup for realization %s: %w", event.ID, err)
+	return p.withInheritanceRestored(ctx, event.ID, func() error {
+		if err := p.readModel.DeleteBySourceRealizationID(ctx, event.ID); err != nil {
+			return fmt.Errorf("project SystemRealizationDeleted inherited cleanup for realization %s: %w", event.ID, err)
+		}
+		if err := p.readModel.Delete(ctx, event.ID); err != nil {
+			return fmt.Errorf("project SystemRealizationDeleted for realization %s: %w", event.ID, err)
+		}
+		return nil
+	})
+}
+
+func (p *RealizationProjector) withInheritanceRestored(ctx context.Context, sourceRealizationID string, removeInherited func() error) error {
+	source, err := p.readModel.GetByID(ctx, sourceRealizationID)
+	if err != nil {
+		return fmt.Errorf("load realization %s before removing its inheritance: %w", sourceRealizationID, err)
 	}
-	if err := p.readModel.Delete(ctx, event.ID); err != nil {
-		return fmt.Errorf("project SystemRealizationDeleted for realization %s: %w", event.ID, err)
+	if err := removeInherited(); err != nil {
+		return err
+	}
+	if source == nil {
+		return nil
+	}
+	if err := p.readModel.RestoreInheritedRealizations(ctx, readmodels.ComponentRef{ID: source.ComponentID, Name: source.ComponentName}); err != nil {
+		return fmt.Errorf("restore inherited realizations of component %s: %w", source.ComponentID, err)
 	}
 	return nil
 }
@@ -174,14 +195,23 @@ func (p *RealizationProjector) handleCapabilityRealizationsUninherited(ctx conte
 	}
 
 	for _, removal := range event.Removals {
-		if err := p.readModel.DeleteInheritedBySourceRealizationIDAndCapabilities(ctx, readmodels.InheritedRealizationDeletion{
-			SourceRealizationID: removal.SourceRealizationID,
-			CapabilityIDs:       removal.CapabilityIDs,
+		if err := p.withInheritanceRestored(ctx, removal.SourceRealizationID, func() error {
+			return p.uninherit(ctx, removal)
 		}); err != nil {
-			return fmt.Errorf("project CapabilityRealizationsUninherited source realization %s: %w", removal.SourceRealizationID, err)
+			return err
 		}
 	}
 
+	return nil
+}
+
+func (p *RealizationProjector) uninherit(ctx context.Context, removal events.RealizationInheritanceRemoval) error {
+	if err := p.readModel.DeleteInheritedBySourceRealizationIDAndCapabilities(ctx, readmodels.InheritedRealizationDeletion{
+		SourceRealizationID: removal.SourceRealizationID,
+		CapabilityIDs:       removal.CapabilityIDs,
+	}); err != nil {
+		return fmt.Errorf("project CapabilityRealizationsUninherited source realization %s: %w", removal.SourceRealizationID, err)
+	}
 	return nil
 }
 

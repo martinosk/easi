@@ -129,7 +129,11 @@ describe('AppChip', () => {
 
   it('never applies role tinting to an Inherited chip even when a role is present', () => {
     const realization: AssessedRealization = {
-      ...buildCapabilityRealization({ componentId: toComponentId('comp-1'), origin: 'Inherited', realizationLevel: 'Full' }),
+      ...buildCapabilityRealization({
+        componentId: toComponentId('comp-1'),
+        origin: 'Inherited',
+        realizationLevel: 'Full',
+      }),
       role: 'standard',
     };
 

@@ -5,7 +5,8 @@ import { buildComponent } from '../../../test/helpers/entityBuilders';
 import { CONTAINMENT_MARKER_IDS, createContainmentEdges, type EdgeCreationContext } from './edgeCreators';
 
 const node = (id: string): Node => ({ id, position: { x: 0, y: 0 }, data: {} });
-const onCanvas = (...ids: string[]): ViewComponent[] => ids.map((id) => ({ componentId: id as ComponentId, x: 0, y: 0 }));
+const onCanvas = (...ids: string[]): ViewComponent[] =>
+  ids.map((id) => ({ componentId: id as ComponentId, x: 0, y: 0 }));
 
 const crm = buildComponent({ id: 'crm' as ComponentId, name: 'CRM Suite' });
 const quoting = buildComponent({

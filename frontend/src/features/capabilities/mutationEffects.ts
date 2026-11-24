@@ -1,7 +1,6 @@
 import { realizationRoleQueryKeys, timeAssessmentQueryKeys } from '../architecture-direction/queryKeys';
 import { auditQueryKeys } from '../audit/queryKeys';
 import { businessDomainsQueryKeys } from '../business-domains/queryKeys';
-import { componentsQueryKeys } from '../components/queryKeys';
 import { artifactCreatorsQueryKeys } from '../navigation/hooks/useArtifactCreators';
 import { onePagerQualityQueryKeys } from '../one-pager-quality/queryKeys';
 import { onePagersQueryKeys } from '../one-pagers/queryKeys';
@@ -11,6 +10,29 @@ import { capabilitiesQueryKeys } from './queryKeys';
 
 function onePagerFreshness(capabilityId: string) {
   return [onePagersQueryKeys.onePager('capability', capabilityId), onePagerQualityQueryKeys.lists()];
+}
+
+function realizationCompleteness() {
+  return [
+    onePagersQueryKeys.completenessForSubjectType('application'),
+    onePagersQueryKeys.completenessForSubjectType('capability'),
+  ];
+}
+
+interface RealizationLink {
+  capabilityId: string;
+  componentId: string;
+}
+
+function realizationLinkChanged(context: RealizationLink) {
+  return [
+    capabilitiesQueryKeys.realizations(context.capabilityId),
+    capabilitiesQueryKeys.details(),
+    capabilitiesQueryKeys.byComponent(context.componentId),
+    capabilitiesQueryKeys.realizationsByComponents(),
+    businessDomainsQueryKeys.details(),
+    ...realizationCompleteness(),
+  ];
 }
 
 export const capabilitiesMutationEffects = {
@@ -31,18 +53,7 @@ export const capabilitiesMutationEffects = {
     onePagersQueryKeys.completenessForSubjectType('capability'),
   ],
 
-  delete: (context: { id: string; parentId?: string; domainId?: string }) => [
-    capabilitiesQueryKeys.lists(),
-    capabilitiesQueryKeys.detail(context.id),
-    ...(context.parentId ? [capabilitiesQueryKeys.children(context.parentId)] : []),
-    ...(context.domainId ? [businessDomainsQueryKeys.capabilities(context.domainId)] : []),
-    businessDomainsQueryKeys.lists(),
-    valueStreamsQueryKeys.all,
-    viewsQueryKeys.all,
-    onePagersQueryKeys.completenessForSubjectType('capability'),
-  ],
-
-  cascadeDelete: (context: { id: string; parentId?: string; domainId?: string; deleteApplications: boolean }) => [
+  cascadeDelete: (context: { id: string; parentId?: string; domainId?: string }) => [
     capabilitiesQueryKeys.lists(),
     capabilitiesQueryKeys.details(),
     ...(context.parentId ? [capabilitiesQueryKeys.children(context.parentId)] : []),
@@ -55,14 +66,7 @@ export const capabilitiesMutationEffects = {
     viewsQueryKeys.all,
     artifactCreatorsQueryKeys.all,
     auditQueryKeys.history(context.id),
-    onePagersQueryKeys.completenessForSubjectType('capability'),
-    ...(context.deleteApplications
-      ? [
-          componentsQueryKeys.lists(),
-          componentsQueryKeys.details(),
-          onePagersQueryKeys.completenessForSubjectType('application'),
-        ]
-      : []),
+    ...realizationCompleteness(),
   ],
 
   assignToDomain: (context: { capabilityId: string; domainId: string }) => [
@@ -103,13 +107,7 @@ export const capabilitiesMutationEffects = {
     capabilitiesQueryKeys.incoming(context.targetCapabilityId),
   ],
 
-  linkSystem: (context: { capabilityId: string; componentId: string }) => [
-    capabilitiesQueryKeys.realizations(context.capabilityId),
-    capabilitiesQueryKeys.details(),
-    capabilitiesQueryKeys.byComponent(context.componentId),
-    capabilitiesQueryKeys.realizationsByComponents(),
-    businessDomainsQueryKeys.details(),
-  ],
+  linkSystem: (context: RealizationLink) => realizationLinkChanged(context),
 
   updateRealization: (context: { capabilityId: string; componentId: string }) => [
     capabilitiesQueryKeys.realizations(context.capabilityId),
@@ -118,12 +116,8 @@ export const capabilitiesMutationEffects = {
     businessDomainsQueryKeys.details(),
   ],
 
-  deleteRealization: (context: { capabilityId: string; componentId: string }) => [
-    capabilitiesQueryKeys.realizations(context.capabilityId),
-    capabilitiesQueryKeys.details(),
-    capabilitiesQueryKeys.byComponent(context.componentId),
-    capabilitiesQueryKeys.realizationsByComponents(),
-    businessDomainsQueryKeys.details(),
+  deleteRealization: (context: RealizationLink) => [
+    ...realizationLinkChanged(context),
     timeAssessmentQueryKeys.all,
     realizationRoleQueryKeys.all,
   ],

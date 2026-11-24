@@ -12,5 +12,7 @@ function toMapNode(node: CapabilityTreeNode, remainingLevels: number): Capabilit
 }
 
 export function buildMapTree(l1Nodes: CapabilityTreeNode[], depth: MapDepth): CapabilityTreeNode[] {
-  return l1Nodes.map((node) => toMapNode(node, depth)).sort((a, b) => a.capability.name.localeCompare(b.capability.name));
+  return l1Nodes
+    .map((node) => toMapNode(node, depth))
+    .sort((a, b) => a.capability.name.localeCompare(b.capability.name));
 }
